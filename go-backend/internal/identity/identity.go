@@ -4,6 +4,7 @@
 package identity
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -461,12 +462,12 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if refresh == "" {
 		refresh = r.Header.Get("x-refresh-token")
 	}
-	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/", HttpOnly: true, Secure: requestSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: -1, Expires: time.Unix(1, 0)})
-	http.SetCookie(w, &http.Cookie{Name: "auth_method", Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(1, 0)})
+	clearExpressCookie(w, "refresh_token")
+	clearExpressCookie(w, "auth_method")
 	var logoutURL any
 	if authMethod == "openid" || authMethod == "openid-mobile" {
 		logoutURL = h.openIDLogoutURL(r, idToken, authMethod)
-		http.SetCookie(w, &http.Cookie{Name: "openid_id_token", Value: "", Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: -1, Expires: time.Unix(1, 0)})
+		clearExpressCookie(w, "openid_id_token")
 	}
 	if r.URL.Query().Get("allDevices") == "1" && refresh != "" {
 		var userID string
@@ -477,7 +478,12 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	} else if refresh != "" {
 		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refresh)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"redirect_url": logoutURL})
+	if _, err := r.Cookie("connect.sid"); err == nil {
+		if sessionCookie, cookieErr := h.sessionCookieValue(r); cookieErr == nil {
+			setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
+		}
+	}
+	writeExpressJSON(w, http.StatusOK, map[string]any{"redirect_url": logoutURL})
 }
 
 func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
@@ -1108,13 +1114,33 @@ func writePlain(w http.ResponseWriter, status int, body string) {
 }
 
 func writeExpressText(w http.ResponseWriter, status int, body string) {
-	digest := sha1.Sum([]byte(body))
+	writeExpressBody(w, status, "text/html; charset=utf-8", []byte(body))
+}
+
+func writeExpressJSON(w http.ResponseWriter, status int, value any) {
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(value); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	body := bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'})
+	writeExpressBody(w, status, "application/json; charset=utf-8", body)
+}
+
+func writeExpressBody(w http.ResponseWriter, status int, contentType string, body []byte) {
+	digest := sha1.Sum(body)
 	etag := fmt.Sprintf(`W/"%x-%s"`, len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(digest[:]), "="))
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	w.Header().Set("ETag", etag)
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
+	_, _ = w.Write(body)
+}
+
+func clearExpressCookie(w http.ResponseWriter, name string) {
+	w.Header().Add("Set-Cookie", name+"=; Path=/; Expires="+time.UnixMilli(1).UTC().Format(http.TimeFormat))
 }
 
 func redirectExpress(w http.ResponseWriter, status int, target string) {

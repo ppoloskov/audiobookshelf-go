@@ -410,6 +410,11 @@ func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 	}
 	r := httptest.NewRequest(http.MethodPost, "/logout", nil)
 	r.Host = "abs.example"
+	sessionCookie, err := handler.sessionCookieValue(httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.AddCookie(&http.Cookie{Name: "connect.sid", Value: sessionCookie})
 	r.AddCookie(&http.Cookie{Name: "auth_method", Value: "openid"})
 	r.AddCookie(&http.Cookie{Name: "openid_id_token", Value: "signed.id.token"})
 	w := httptest.NewRecorder()
@@ -427,12 +432,21 @@ func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 	}
 	cleared := map[string]bool{}
 	for _, cookie := range w.Result().Cookies() {
-		if cookie.MaxAge < 0 {
+		if cookie.Expires.Year() == 1970 && cookie.MaxAge == 0 {
 			cleared[cookie.Name] = true
+		}
+		if cookie.Name == "connect.sid" && cookie.Value != sessionCookie {
+			t.Fatalf("logout changed the signed session cookie: got %q want %q", cookie.Value, sessionCookie)
 		}
 	}
 	if !cleared["refresh_token"] || !cleared["auth_method"] || !cleared["openid_id_token"] {
-		t.Fatalf("logout did not clear expected cookies: %#v", cleared)
+		t.Fatalf("logout did not expire expected cookies: %#v", cleared)
+	}
+	if got := w.Header().Get("Content-Length"); got != fmt.Sprint(w.Body.Len()) {
+		t.Fatalf("Content-Length = %q, want %d", got, w.Body.Len())
+	}
+	if got := w.Header().Get("ETag"); !strings.HasPrefix(got, `W/"`) {
+		t.Fatalf("ETag = %q, want Express weak ETag", got)
 	}
 }
 

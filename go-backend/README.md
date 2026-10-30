@@ -1,6 +1,6 @@
 # Audiobookshelf Go backend rewrite
 
-Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest default-mode differential passes 176/176 selected cases, including the 18-case global notification event slice; separate reports cover selected OIDC flows (now 21/21), covers/downloads, SMTP behavior, and email-device proxy-mode scenarios. Strict ledger verification still fails; route-wide and overall compatibility are not established. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
+Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest default-mode differential passes 176/176 selected cases, including the 18-case global notification event slice; separate reports cover selected OIDC flows (now 22/22, including web logout/session invalidation), covers/downloads, SMTP behavior, and email-device proxy-mode scenarios. Strict ledger verification still fails; route-wide and overall compatibility are not established. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
 
 ## Target
 

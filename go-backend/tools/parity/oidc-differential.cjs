@@ -183,11 +183,12 @@ function cookieSummary(headers, expectedOIDCNonce) {
       const equals = attr.indexOf('=')
       const key = (equals < 0 ? attr : attr.slice(0, equals)).trim().toLowerCase()
       const attrValue = equals < 0 ? null : attr.slice(equals + 1).trim()
-      return { key, value: key === 'expires' ? '<dynamic-date>' : attrValue }
+      const isDynamicExpiry = key === 'expires' && Date.parse(attrValue) > Date.UTC(2000, 0, 1)
+      return { key, value: isDynamicExpiry ? '<dynamic-date>' : attrValue }
     })
     let valueSummary
     if (stableValues.has(name)) valueSummary = cookieValue
-    else if (name === 'connect.sid') valueSummary = '<fixture-session-id>'
+    else if (name === 'connect.sid') valueSummary = cookieValue ? '<fixture-session-id>' : ''
     else if (name === 'openid_id_token') valueSummary = tokenClaimsSummary(decodeURIComponent(cookieValue), expectedOIDCNonce)
     else if (name === 'refresh_token') valueSummary = tokenClaimsSummary(decodeURIComponent(cookieValue))
     else valueSummary = cookieValue
@@ -197,6 +198,16 @@ function cookieSummary(headers, expectedOIDCNonce) {
 
 async function get(url, jar) {
   const response = await fetch(url, { redirect: 'manual', headers: jar.size ? { cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') } : {}, signal: AbortSignal.timeout(20000) })
+  cookieJar(response.headers, jar)
+  return response
+}
+
+async function post(url, jar) {
+  const response = await fetch(url, {
+    method: 'POST', redirect: 'manual',
+    headers: jar.size ? { cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') } : {},
+    signal: AbortSignal.timeout(20000)
+  })
   cookieJar(response.headers, jar)
   return response
 }
@@ -356,7 +367,19 @@ async function runFlow(kind, dir, goBin, provider, work, fixture, mode = 'succes
     const invalidIssuer = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-issuer')
     const invalidAudience = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-audience')
     const invalidSignature = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-signature')
-    return { success: summary, providerError: providerErrorSummary, replay: replaySummary, expiredToken: expiredSummary, invalidNonce, invalidIssuer, invalidAudience, invalidSignature }
+    const logoutBefore = await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+    const logoutResponse = await post(`${base}${PREFIX}/logout`, jar)
+    const logoutSummary = {
+      status: logoutResponse.status,
+      contentType: logoutResponse.headers.get('content-type'),
+      contentLength: logoutResponse.headers.get('content-length'),
+      etag: logoutResponse.headers.get('etag'),
+      body: await logoutResponse.text(),
+      cookies: cookieSummary(logoutResponse.headers),
+      persistedBefore: logoutBefore,
+      persistedAfter: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+    }
+    return { success: summary, providerError: providerErrorSummary, replay: replaySummary, expiredToken: expiredSummary, invalidNonce, invalidIssuer, invalidAudience, invalidSignature, logout: logoutSummary }
   } finally { await stop(proc) }
 }
 
@@ -563,9 +586,9 @@ async function main() {
       { name: 'oidc-mobile-unsupported-pkce-method', node: nodeMobile.badChallengeMethod, go: goMobile.badChallengeMethod },
       mobileStart, mobileCallback, mobileReplay, mobileExchange, mobileExchangeReplay, mobileInvalidVerifier
     ]
-    const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
+    const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-web-logout', node: node.logout, go: go.logout }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, and invalid mobile PKCE verifier failure plus replay are exercised.', 'Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, invalid mobile PKCE verifier failure plus replay, and selected web OIDC logout cookie/session effects are exercised.', 'Selected web/mobile start, successful callback and web logout cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, logout errors, mobile logout behavior, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

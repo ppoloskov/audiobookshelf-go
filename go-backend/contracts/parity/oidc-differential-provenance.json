@@ -1,9 +1,9 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture and one ephemeral local RS256 provider; 21 Node-versus-Go cases include the mobile invalid-PKCE-verifier callback and replay.",
-  "fixtureSource": "/private/tmp/abs-oidc-invalid-verifier/fixture-manifest.json",
-  "workDir": "/private/tmp/abs-oidc-invalid-verifier/run3",
-  "goBuild": "GOCACHE=/private/tmp/abs-build-oidc-invalid CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-oidc-invalid-green ./cmd/audiobookshelf-go",
+  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture and one ephemeral local RS256 provider; 22 Node-versus-Go cases include a successful web OIDC login followed by logout and cookie/session-state comparison.",
+  "fixtureSource": "/private/tmp/abs-oidc-logout/fixture-manifest.json",
+  "workDir": "/private/tmp/abs-oidc-logout/run3",
+  "goBuild": "GOCACHE=/private/tmp/abs-build-oidc-logout CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-oidc-logout-green ./cmd/audiobookshelf-go",
   "runtime": {
     "node": "v22.23.4 via mise",
     "go": "go1.27.0 darwin/arm64"
@@ -12,12 +12,13 @@
     "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
     "server/Auth.js": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d",
     "go-backend/internal/identity/oidc.go": "d19ccc132820bec3645a2ec31809e00b050b7b87095516efb8c4e41001828f79",
-    "go-backend/internal/identity/oidc_test.go": "4348211d4c10c956cddf1f3c1710ca85ea438edcdcf4d33bc4564e42f2e120d0",
-    "go-backend/tools/parity/oidc-differential.cjs": "43d8e49d24190072d3763ec0ed941ca17f873fb556eb5c0540958d8fa6aa1ab8"
+    "go-backend/internal/identity/oidc_test.go": "5c15d1b5e341b23eb70d9f6950acfc255fcabf74a86dfbef44e2a50528e9d1e5",
+    "go-backend/tools/parity/oidc-differential.cjs": "ca117e5db10761341b3931ef13e08c219911b990b53ae659af5abcf029e36696",
+    "go-backend/internal/identity/identity.go": "7e5fa3daa410749a3873c342aca6f6c364f9ed3be7940675e7487c5f516aa283"
   },
   "results": {
-    "compared": 21,
-    "matched": 21,
+    "compared": 22,
+    "matched": 22,
     "mismatched": 0
   },
   "normalization": [
@@ -26,15 +27,25 @@
     "JSON object member order is canonicalized for Socket.IO payload comparison because JSON object order is not semantically significant; array order, scalar values, null versus empty, and linked-user raw persisted extraData text remain strict."
   ],
   "limits": [
-    "Selected invalid mobile PKCE verifier failures are now compared including status, Location, content type, content length, ETag, body, persisted provider-linked users/session count, and callback replay. In-memory flow-state expiry, failure/logout cookie clearing, other provider/callback errors, and general Socket.IO inventory remain unverified."
+    "Logout evidence covers one successful web OIDC session with no configured provider end-session URL. allDevices, missing/invalid refresh token, logout callback/provider errors, mobile logout, and broader cookie/session invalidation variants remain unverified."
   ],
   "report": "go-backend/contracts/parity/oidc-differential-report.json",
-  "sourceReport": "/private/tmp/abs-oidc-invalid-verifier/report3.json",
+  "sourceReport": "/private/tmp/abs-oidc-logout/report3.json",
   "preFixMismatch": {
     "report": "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json",
     "reproduced": true,
     "node": "302 redirect to /login?error=Unauthorized&autoLaunch=0",
     "go": "401 text/plain Unauthorized",
     "replay": "both return 400 No session; both preserve zero provider-linked users and sessions"
+  },
+  "preFixLogoutMismatch": {
+    "report": "go-backend/contracts/parity/oidc-logout-red-report.json",
+    "reproduced": true,
+    "differences": [
+      "Go omitted Express weak ETag on res.json-equivalent logout body",
+      "Go did not re-emit the signed connect.sid session cookie",
+      "Go added Max-Age, HttpOnly, Secure, and SameSite attributes absent from upstream clearCookie headers"
+    ],
+    "persistedSessionEffect": "Both implementations removed the one refresh session row."
   }
 }

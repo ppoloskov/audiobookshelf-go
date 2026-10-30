@@ -196,6 +196,27 @@
         "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json"
       ],
       "exceptions": []
+    },
+    {
+      "id": "INV-OIDC-WEB-LOGOUT-001",
+      "class": "state_transition",
+      "contract": "After a successful web OIDC login, POST /logout with the issued cookies returns the Express JSON response and weak ETag, clears refresh_token, auth_method, and openid_id_token with the source cookie attributes, reissues the existing signed connect.sid cookie, and removes the active refresh session without deleting the provider-linked user.",
+      "status": "verified",
+      "source": [
+        "server/Auth.js:486-523",
+        "server/Auth.js:243-248"
+      ],
+      "tests": [
+        "go-backend/internal/identity/oidc_test.go:TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies",
+        "go-backend/tools/parity/oidc-differential.cjs:oidc-web-logout"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-logout",
+        "go-backend/contracts/parity/oidc-logout-red-report.json"
+      ],
+      "exceptions": [
+        "Evidence uses no configured end-session URL. Logout with provider redirect, allDevices=1, missing/invalid refresh credentials, response/session failure, and mobile logout remain unverified."
+      ]
     }
   ],
   "stateful": true,
@@ -212,7 +233,7 @@
     "go-backend/tools/parity/oidc-differential.cjs"
   ],
   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 21 local mock-provider cases matched; exact limits in provenance)"
+    "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 22 local mock-provider cases matched; exact limits in provenance)"
   ],
   "exceptions": [
     "Failure/logout cookie clearing, in-memory flow-state expiry, other callback variants, and general Socket.IO event inventory remain unverified.",

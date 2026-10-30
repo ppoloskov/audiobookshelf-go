@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-oidc-logout/report.json",
+  "summary": {
+    "compared": 22,
+    "matched": 21,
+    "mismatched": 1
+  },
+  "case": {
+    "name": "oidc-web-logout",
+    "node": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "21",
+      "etag": "W/\"15-ZGRRUDEltx2aB15ZPLLkP2swTWE\"",
+      "body": "{\"redirect_url\":null}",
+      "cookies": [
+        {
+          "name": "refresh_token",
+          "value": null,
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            }
+          ]
+        },
+        {
+          "name": "auth_method",
+          "value": "",
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            }
+          ]
+        },
+        {
+          "name": "openid_id_token",
+          "value": null,
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            }
+          ]
+        },
+        {
+          "name": "connect.sid",
+          "value": "<fixture-session-id>",
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            }
+          ]
+        }
+      ],
+      "persistedBefore": {
+        "users": [
+          {
+            "username": "oidc-differential",
+            "email": "oidc-differential@example.test",
+            "type": "user",
+            "isActive": 1,
+            "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+          }
+        ],
+        "sessionCount": 1
+      },
+      "persistedAfter": {
+        "users": [
+          {
+            "username": "oidc-differential",
+            "email": "oidc-differential@example.test",
+            "type": "user",
+            "isActive": 1,
+            "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+          }
+        ],
+        "sessionCount": 0
+      }
+    },
+    "go": {
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "contentLength": "21",
+      "etag": null,
+      "body": "{\"redirect_url\":null}",
+      "cookies": [
+        {
+          "name": "refresh_token",
+          "value": null,
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            },
+            {
+              "key": "max-age",
+              "value": "0"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            },
+            {
+              "key": "samesite",
+              "value": "Lax"
+            }
+          ]
+        },
+        {
+          "name": "auth_method",
+          "value": "",
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            },
+            {
+              "key": "max-age",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "name": "openid_id_token",
+          "value": null,
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            },
+            {
+              "key": "max-age",
+              "value": "0"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            },
+            {
+              "key": "secure",
+              "value": null
+            },
+            {
+              "key": "samesite",
+              "value": "Strict"
+            }
+          ]
+        }
+      ],
+      "persistedBefore": {
+        "users": [
+          {
+            "username": "oidc-differential",
+            "email": "oidc-differential@example.test",
+            "type": "user",
+            "isActive": 1,
+            "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+          }
+        ],
+        "sessionCount": 1
+      },
+      "persistedAfter": {
+        "users": [
+          {
+            "username": "oidc-differential",
+            "email": "oidc-differential@example.test",
+            "type": "user",
+            "isActive": 1,
+            "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+          }
+        ],
+        "sessionCount": 0
+      }
+    },
+    "equal": false
+  },
+  "note": "Fresh isolated web OIDC login then logout. Before repair Go omitted the Express response ETag and connect.sid reissue, and its cookie-clearing Set-Cookie attributes diverged; both sides removed the session row."
+}

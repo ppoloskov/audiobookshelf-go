@@ -1,8 +1,8 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "provider": "local ephemeral RS256 provider",
-  "compared": 21,
-  "matched": 21,
+  "compared": 22,
+  "matched": 22,
   "mismatched": 0,
   "cases": [
     {
@@ -159,7 +159,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:62647",
+                "iss": "http://127.0.0.1:63240",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -413,7 +413,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:62647",
+                "iss": "http://127.0.0.1:63240",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -547,6 +547,188 @@
             }
           ],
           "readerEventCount": 0
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-web-logout",
+      "node": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-ZGRRUDEltx2aB15ZPLLkP2swTWE\"",
+        "body": "{\"redirect_url\":null}",
+        "cookies": [
+          {
+            "name": "refresh_token",
+            "value": null,
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "auth_method",
+            "value": "",
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "openid_id_token",
+            "value": null,
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "connect.sid",
+            "value": "<fixture-session-id>",
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "httponly",
+                "value": null
+              }
+            ]
+          }
+        ],
+        "persistedBefore": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        },
+        "persistedAfter": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 0
+        }
+      },
+      "go": {
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "contentLength": "21",
+        "etag": "W/\"15-ZGRRUDEltx2aB15ZPLLkP2swTWE\"",
+        "body": "{\"redirect_url\":null}",
+        "cookies": [
+          {
+            "name": "refresh_token",
+            "value": null,
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "auth_method",
+            "value": "",
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "openid_id_token",
+            "value": null,
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "expires",
+                "value": "Thu, 01 Jan 1970 00:00:00 GMT"
+              }
+            ]
+          },
+          {
+            "name": "connect.sid",
+            "value": "<fixture-session-id>",
+            "attributes": [
+              {
+                "key": "path",
+                "value": "/"
+              },
+              {
+                "key": "httponly",
+                "value": null
+              }
+            ]
+          }
+        ],
+        "persistedBefore": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        },
+        "persistedAfter": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 0
         }
       },
       "equal": true
@@ -791,7 +973,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:62647",
+                "iss": "http://127.0.0.1:63240",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -1012,7 +1194,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:62647",
+                "iss": "http://127.0.0.1:63240",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -1730,7 +1912,7 @@
               }
             }
           },
-          "userDefaultLibraryId": "9a5cf008-9fcb-41b8-a9a4-122dfe3114f3",
+          "userDefaultLibraryId": "d5193c63-ca3f-4534-9109-5ad8988530e6",
           "serverSettings": {
             "id": "server-settings",
             "scannerFindCovers": false,
@@ -1771,11 +1953,11 @@
               "local",
               "openid"
             ],
-            "authOpenIDIssuerURL": "http://127.0.0.1:62647",
-            "authOpenIDAuthorizationURL": "http://127.0.0.1:62647/authorize",
-            "authOpenIDTokenURL": "http://127.0.0.1:62647/token",
-            "authOpenIDUserInfoURL": "http://127.0.0.1:62647/userinfo",
-            "authOpenIDJwksURL": "http://127.0.0.1:62647/jwks",
+            "authOpenIDIssuerURL": "http://127.0.0.1:63240",
+            "authOpenIDAuthorizationURL": "http://127.0.0.1:63240/authorize",
+            "authOpenIDTokenURL": "http://127.0.0.1:63240/token",
+            "authOpenIDUserInfoURL": "http://127.0.0.1:63240/userinfo",
+            "authOpenIDJwksURL": "http://127.0.0.1:63240/jwks",
             "authOpenIDLogoutURL": null,
             "authOpenIDTokenSigningAlgorithm": "RS256",
             "authOpenIDButtonText": "Login with OpenId",
@@ -1815,18 +1997,18 @@
               "openid"
             ],
             "authLoginCustomMessage": null,
-            "authOpenIDAuthorizationURL": "http://127.0.0.1:62647/authorize",
+            "authOpenIDAuthorizationURL": "http://127.0.0.1:63240/authorize",
             "authOpenIDAutoLaunch": false,
             "authOpenIDAutoRegister": true,
             "authOpenIDButtonText": "Login with OpenId",
-            "authOpenIDIssuerURL": "http://127.0.0.1:62647",
-            "authOpenIDJwksURL": "http://127.0.0.1:62647/jwks",
+            "authOpenIDIssuerURL": "http://127.0.0.1:63240",
+            "authOpenIDJwksURL": "http://127.0.0.1:63240/jwks",
             "authOpenIDLogoutURL": null,
             "authOpenIDMatchExistingBy": null,
             "authOpenIDSubfolderForRedirectURLs": "/audiobookshelf",
             "authOpenIDTokenSigningAlgorithm": "RS256",
-            "authOpenIDTokenURL": "http://127.0.0.1:62647/token",
-            "authOpenIDUserInfoURL": "http://127.0.0.1:62647/userinfo",
+            "authOpenIDTokenURL": "http://127.0.0.1:63240/token",
+            "authOpenIDUserInfoURL": "http://127.0.0.1:63240/userinfo",
             "backupPath": "<fixture-path>",
             "backupSchedule": false,
             "backupsToKeep": 2,
@@ -1930,7 +2112,7 @@
             "type": "user",
             "username": "oidc-differential"
           },
-          "userDefaultLibraryId": "9a5cf008-9fcb-41b8-a9a4-122dfe3114f3"
+          "userDefaultLibraryId": "d5193c63-ca3f-4534-9109-5ad8988530e6"
         },
         "persisted": {
           "users": [
@@ -2041,8 +2223,8 @@
     }
   ],
   "limits": [
-    "Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, and invalid mobile PKCE verifier failure plus replay are exercised.",
-    "Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.",
+    "Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, invalid mobile PKCE verifier failure plus replay, and selected web OIDC logout cookie/session effects are exercised.",
+    "Selected web/mobile start, successful callback and web logout cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, logout errors, mobile logout behavior, other callback variants, and general Socket.IO inventory remain unverified.",
     "Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict."
   ]
 }
