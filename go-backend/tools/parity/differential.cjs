@@ -6,6 +6,7 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const os = require('node:os')
 const { spawnSync } = require('node:child_process')
+const { setTimeout: delay } = require('node:timers/promises')
 const casesPath = path.resolve(__dirname, '../../contracts/parity/differential-cases.json')
 const CASES = JSON.parse(fs.readFileSync(casesPath, 'utf8'))
 const PREFIX = '/audiobookshelf'
@@ -101,6 +102,25 @@ const EXPECTED_STATUS = {
   'notification-test-send-failure': 500,
   'notification-read-after-test-failure': 200,
   'notification-test-no-state-change-failure': 200,
+  'notification-event-test-unconfigured': 200,
+  'notification-event-test-fail-unconfigured': 200,
+  'notification-event-test-admin-denied': 403,
+  'notification-apprise-global-configure-success': 200,
+  'notification-event-test-send-success': 200,
+  'notification-event-test-set-failure-threshold': 200,
+  'notification-event-broadcast-success': 200,
+  'notification-event-test-delivery-payloads': 200,
+  'notification-read-after-event-test-success': 200,
+  'notification-event-test-state-success': 200,
+  'notification-event-test-repeat-success': 200,
+  'notification-event-test-repeat-payloads': 200,
+  'notification-read-after-event-test-repeat': 200,
+  'notification-event-test-state-repeat': 200,
+  'notification-event-test-intentional-failure': 200,
+  'notification-event-broadcast-failure': 200,
+  'notification-event-test-no-delivery-on-failure': 200,
+  'notification-read-after-event-test-failure': 200,
+  'notification-event-test-state-failure': 200,
   'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
   'email-settings-read-defaults-initial': 200,
   'email-test-configure-smtp': 200, 'email-test-success': 200,
@@ -643,7 +663,7 @@ function normalizeCase(id, body, pathRoots) {
     }
   }
   if (['notification-create', 'notification-create-minimal', 'notification-create-empty-urls', 'notification-update', 'notification-update-without-body-id', 'notification-delete'].includes(id)) normalizeNotifications(normalized)
-  else if (['notification-read-after-create', 'notification-read-after-update', 'notification-read-after-delete', 'notification-read-after-test-success', 'notification-read-after-test-failure'].includes(id)) normalizeNotifications(normalized.settings)
+  else if (['notification-read-after-create', 'notification-read-after-update', 'notification-read-after-delete', 'notification-read-after-test-success', 'notification-read-after-test-failure', 'notification-read-after-event-test-success', 'notification-read-after-event-test-repeat', 'notification-read-after-event-test-failure'].includes(id)) normalizeNotifications(normalized.settings)
   const normalizeAppriseFixtureURL = (settings) => {
     if (typeof settings?.appriseApiUrl === 'string' && /^http:\/\/127\.0\.0\.1:\d+\/(node|go)\/(success|failure)$/.test(settings.appriseApiUrl)) {
       settings.appriseApiUrl = '<fixture-local-apprise-url>'
@@ -652,6 +672,12 @@ function normalizeCase(id, body, pathRoots) {
   if (id.startsWith('notification-') || id.startsWith('notifications-')) {
     normalizeAppriseFixtureURL(normalized.settings)
     normalizeAppriseFixtureURL(normalized)
+  }
+  if (id.startsWith('notification-event-broadcast-') && normalized && Array.isArray(normalized.events)) {
+    normalized.events.forEach(event => {
+      normalizeNotifications(event)
+      normalizeAppriseFixtureURL(event)
+    })
   }
   const normalizeEntity = (entity, entityName) => {
     if (!entity || typeof entity !== 'object' || Array.isArray(entity)) throw new Error(`${id}: ${entityName} entity is missing`)
@@ -915,6 +941,57 @@ function differencePaths(leftStatus, rightStatus, leftHeaders, rightHeaders, lef
   return diffs
 }
 
+function loadSocketIOClient() {
+  try {
+    const socketIoClient = require('socket.io-client')
+    return socketIoClient.io || socketIoClient
+  } catch (error) {
+    const candidatePaths = [
+      process.env.ABS_PARITY_SOCKETIO_PATH,
+      path.resolve(__dirname, '../../../client/node_modules/socket.io-client'),
+      '/usr/lib/node_modules/socket.io-client'
+    ].filter(Boolean)
+    for (const candidate of candidatePaths) {
+      try {
+        const resolved = require(candidate)
+        return resolved.io || resolved
+      } catch { /* try next */ }
+    }
+    if (process.env.ABS_PARITY_REQUIRE_SOCKETIO === '1') throw new Error(`Socket.IO JS client is required but unavailable: ${error.message}`)
+    return null
+  }
+}
+
+function socketNotificationProbe(io, server, socketPath, token, route) {
+  return new Promise((resolve, reject) => {
+    const socket = io(server.url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+    let settled = false
+    const received = []
+    const finish = (fn, value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      socket.disconnect()
+      fn(value)
+    }
+    const timer = setTimeout(() => finish(reject, new Error('notification socket probe timed out')), 12000)
+    socket.once('connect', () => socket.emit('auth', token))
+    socket.once('auth_failed', payload => finish(reject, new Error(`notification socket auth failed: ${JSON.stringify(payload)}`)))
+    socket.once('connect_error', error => finish(reject, error))
+    socket.once('init', async () => {
+      socket.on('notifications_updated', payload => received.push(payload))
+      try {
+        const response = await call(server, route, { token })
+        const deadline = Date.now() + 2500
+        while (received.length === 0 && Date.now() < deadline) await new Promise(resolveWait => setTimeout(resolveWait, 25))
+        finish(resolve, { response, events: received })
+      } catch (error) {
+        finish(reject, error)
+      }
+    })
+  })
+}
+
 function socketAuthentication(io, url, socketPath, token) {
   return new Promise((resolve) => {
     const socket = io(url, {
@@ -1005,6 +1082,7 @@ async function main() {
   const audioFileId = fixture.items.audioFile
   const audioFileIdGo = fixture.items.audioFileGo || audioFileId
   const results = []
+  const ioClient = loadSocketIOClient()
   let emailDevicesState = null
 
   const nodeLogin = await call(node, '/login', { method: 'POST', body: credentials })
@@ -1144,6 +1222,9 @@ async function main() {
     ['notifications-reader-admin-gate', '/api/notifications', { method: 'GET', token: readerAccessToken }],
     ['notification-test-missing-id-unconfigured', '/api/notifications/00000000-0000-4000-8000-000000000000/test', { method: 'GET', token: referenceAccessToken }],
     ['notification-test-admin-denied', '/api/notifications/00000000-0000-4000-8000-000000000000/test', { method: 'GET', token: readerAccessToken }],
+    ['notification-event-test-unconfigured', '/api/notifications/test', { method: 'GET', token: referenceAccessToken }],
+    ['notification-event-test-fail-unconfigured', '/api/notifications/test?fail=1', { method: 'GET', token: referenceAccessToken }],
+    ['notification-event-test-admin-denied', '/api/notifications/test', { method: 'GET', token: readerAccessToken }],
     ['session-delete-missing', '/api/me/sessions/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: referenceAccessToken }],
     ['backup-missing-download', '/api/backups/00000000-0000-0000-0000-000000000000/download', { method: 'GET', token: referenceAccessToken }],
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
@@ -1279,9 +1360,132 @@ async function main() {
       nodeBody: { id: nodeNotificationID, enabled: true, titleTemplate: 'Updated parity notification', urls: ['discord://parity-updated'] },
       goBody: { id: goNotificationID, enabled: true, titleTemplate: 'Updated parity notification', urls: ['discord://parity-updated'] }
     })
-    await comparePair('notification-read-after-update', '/api/notifications', '/api/notifications', {
+    const [nodeReadAfterUpdate, goReadAfterUpdate] = await comparePair('notification-read-after-update', '/api/notifications', '/api/notifications', {
       method: 'GET', token: referenceAccessToken
     })
+    const activeOnTest = response => response.body.settings.notifications.filter(entry => entry.eventName === 'onTest' && entry.enabled)
+    const nodeActiveOnTest = activeOnTest(nodeReadAfterUpdate)
+    const goActiveOnTest = activeOnTest(goReadAfterUpdate)
+    if (nodeActiveOnTest.length !== 2 || goActiveOnTest.length !== 2) throw new Error('global test event fixture must contain two enabled onTest notifications')
+    const globalApprise = await startNotificationAppriseFixture()
+    try {
+      await comparePair('notification-apprise-global-configure-success', '/api/notifications', '/api/notifications', {
+        method: 'PATCH', token: referenceAccessToken,
+        nodeBody: { appriseApiUrl: `${globalApprise.url}/node/success` },
+        goBody: { appriseApiUrl: `${globalApprise.url}/go/success` }
+      })
+      if (ioClient) {
+        const eventProbes = await Promise.all([
+          socketNotificationProbe(ioClient, node, `${PREFIX}/socket.io`, referenceAccessToken, '/api/notifications/test'),
+          socketNotificationProbe(ioClient, go, `${PREFIX}/socket.io`, referenceAccessToken, '/api/notifications/test')
+        ])
+        results.push(compare('notification-event-test-send-success', eventProbes[0].response, eventProbes[1].response))
+        const broadcast = compare('notification-event-broadcast-success',
+          { status: 200, headers: {}, body: { count: eventProbes[0].events.length, events: eventProbes[0].events } },
+          { status: 200, headers: {}, body: { count: eventProbes[1].events.length, events: eventProbes[1].events } })
+        if (eventProbes[0].events.length !== 1 || eventProbes[1].events.length !== 1) {
+          broadcast.passed = false
+          broadcast.differences = [...(broadcast.differences || []), { path: '$.count', reference: eventProbes[0].events.length, go: eventProbes[1].events.length, expected: 1 }]
+        }
+        results.push(broadcast)
+      } else {
+        await comparePair('notification-event-test-send-success', '/api/notifications/test', '/api/notifications/test', {
+          method: 'GET', token: referenceAccessToken
+        })
+        results.push({ id: 'notification-event-broadcast-success', passed: false, skipped: true, prerequisite: 'socket.io-client v4 is required to observe notifications_updated' })
+      }
+      if (globalApprise.requests.node.length !== 2 || globalApprise.requests.go.length !== 2) throw new Error('global notification test must deliver once per enabled notification on each side')
+      results.push(compare('notification-event-test-delivery-payloads',
+        { status: 200, headers: {}, body: globalApprise.requests.node.map(request => request.payload) },
+        { status: 200, headers: {}, body: globalApprise.requests.go.map(request => request.payload) }))
+      const stateShape = response => response.body.settings.notifications.filter(entry => entry.eventName === 'onTest').map(entry => ({
+        urls: entry.urls,
+        enabled: entry.enabled,
+        lastFiredAtPresent: entry.lastFiredAt !== null,
+        lastAttemptFailed: entry.lastAttemptFailed,
+        numConsecutiveFailedAttempts: entry.numConsecutiveFailedAttempts,
+        numTimesFired: entry.numTimesFired
+      }))
+      const [nodeAfterGlobalSuccess, goAfterGlobalSuccess] = await comparePair('notification-read-after-event-test-success', '/api/notifications', '/api/notifications', {
+        method: 'GET', token: referenceAccessToken
+      })
+      const nodeSuccessState = stateShape(nodeAfterGlobalSuccess)
+      const goSuccessState = stateShape(goAfterGlobalSuccess)
+      for (const notification of [...nodeSuccessState, ...goSuccessState]) {
+        if (!notification.enabled || !notification.lastFiredAtPresent || notification.lastAttemptFailed || notification.numConsecutiveFailedAttempts !== 0 || notification.numTimesFired !== 1) {
+          throw new Error(`global notification success state is unexpected: ${JSON.stringify(notification)}`)
+        }
+      }
+      results.push(compare('notification-event-test-state-success',
+        { status: 200, headers: {}, body: nodeSuccessState },
+        { status: 200, headers: {}, body: goSuccessState }))
+      await delay(1100)
+      await comparePair('notification-event-test-repeat-success', '/api/notifications/test', '/api/notifications/test', {
+        method: 'GET', token: referenceAccessToken
+      })
+      if (globalApprise.requests.node.length !== 4 || globalApprise.requests.go.length !== 4) throw new Error('repeated notification test must redeliver each enabled notification on both sides')
+      results.push(compare('notification-event-test-repeat-payloads',
+        { status: 200, headers: {}, body: globalApprise.requests.node.slice(2).map(request => request.payload) },
+        { status: 200, headers: {}, body: globalApprise.requests.go.slice(2).map(request => request.payload) }))
+      const [nodeAfterGlobalRepeat, goAfterGlobalRepeat] = await comparePair('notification-read-after-event-test-repeat', '/api/notifications', '/api/notifications', {
+        method: 'GET', token: referenceAccessToken
+      })
+      const nodeRepeatState = stateShape(nodeAfterGlobalRepeat)
+      const goRepeatState = stateShape(goAfterGlobalRepeat)
+      for (const notification of [...nodeRepeatState, ...goRepeatState]) {
+        if (!notification.enabled || !notification.lastFiredAtPresent || notification.lastAttemptFailed || notification.numConsecutiveFailedAttempts !== 0 || notification.numTimesFired !== 2) {
+          throw new Error(`repeated global notification state is unexpected: ${JSON.stringify(notification)}`)
+        }
+      }
+      results.push(compare('notification-event-test-state-repeat',
+        { status: 200, headers: {}, body: nodeRepeatState },
+        { status: 200, headers: {}, body: goRepeatState }))
+      await delay(1100)
+      await comparePair('notification-event-test-set-failure-threshold', '/api/notifications', '/api/notifications', {
+        method: 'PATCH', token: referenceAccessToken,
+        nodeBody: { maxFailedAttempts: 1, appriseApiUrl: `${globalApprise.url}/node/success` },
+        goBody: { maxFailedAttempts: 1, appriseApiUrl: `${globalApprise.url}/go/success` }
+      })
+      if (ioClient) {
+        const eventProbes = await Promise.all([
+          socketNotificationProbe(ioClient, node, `${PREFIX}/socket.io`, referenceAccessToken, '/api/notifications/test?fail=1'),
+          socketNotificationProbe(ioClient, go, `${PREFIX}/socket.io`, referenceAccessToken, '/api/notifications/test?fail=1')
+        ])
+        results.push(compare('notification-event-test-intentional-failure', eventProbes[0].response, eventProbes[1].response))
+        const broadcast = compare('notification-event-broadcast-failure',
+          { status: 200, headers: {}, body: { count: eventProbes[0].events.length, events: eventProbes[0].events } },
+          { status: 200, headers: {}, body: { count: eventProbes[1].events.length, events: eventProbes[1].events } })
+        if (eventProbes[0].events.length !== 1 || eventProbes[1].events.length !== 1) {
+          broadcast.passed = false
+          broadcast.differences = [...(broadcast.differences || []), { path: '$.count', reference: eventProbes[0].events.length, go: eventProbes[1].events.length, expected: 1 }]
+        }
+        results.push(broadcast)
+      } else {
+        await comparePair('notification-event-test-intentional-failure', '/api/notifications/test?fail=1', '/api/notifications/test?fail=1', {
+          method: 'GET', token: referenceAccessToken
+        })
+        results.push({ id: 'notification-event-broadcast-failure', passed: false, skipped: true, prerequisite: 'socket.io-client v4 is required to observe notifications_updated' })
+      }
+      if (globalApprise.requests.node.length !== 4 || globalApprise.requests.go.length !== 4) throw new Error('intentional test-event failure must not deliver to Apprise')
+      results.push(compare('notification-event-test-no-delivery-on-failure',
+        { status: 200, headers: {}, body: globalApprise.requests.node.length },
+        { status: 200, headers: {}, body: globalApprise.requests.go.length }))
+      const [nodeAfterGlobalFailure, goAfterGlobalFailure] = await comparePair('notification-read-after-event-test-failure', '/api/notifications', '/api/notifications', {
+        method: 'GET', token: referenceAccessToken
+      })
+      const nodeFailureState = stateShape(nodeAfterGlobalFailure)
+      const goFailureState = stateShape(goAfterGlobalFailure)
+      for (const notification of [...nodeFailureState, ...goFailureState]) {
+        if (notification.enabled || !notification.lastFiredAtPresent || !notification.lastAttemptFailed || notification.numConsecutiveFailedAttempts !== 1 || notification.numTimesFired !== 3) {
+          throw new Error(`global notification failure state is unexpected: ${JSON.stringify(notification)}`)
+        }
+      }
+      results.push(compare('notification-event-test-state-failure',
+        { status: 200, headers: {}, body: nodeFailureState },
+        { status: 200, headers: {}, body: goFailureState }))
+    } finally {
+      await new Promise(resolve => globalApprise.server.close(resolve))
+    }
     await comparePair('notification-delete', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
       method: 'DELETE', token: referenceAccessToken
     })
@@ -1289,7 +1493,7 @@ async function main() {
       method: 'GET', token: referenceAccessToken
     })
   } else {
-    for (const id of ['notification-update', 'notification-read-after-update', 'notification-delete', 'notification-read-after-delete']) {
+    for (const id of ['notification-update', 'notification-read-after-update', 'notification-apprise-global-configure-success', 'notification-event-test-send-success', 'notification-event-test-delivery-payloads', 'notification-read-after-event-test-success', 'notification-event-test-state-success', 'notification-event-test-repeat-success', 'notification-event-test-repeat-payloads', 'notification-read-after-event-test-repeat', 'notification-event-test-state-repeat', 'notification-event-test-intentional-failure', 'notification-event-test-no-delivery-on-failure', 'notification-read-after-event-test-failure', 'notification-event-test-state-failure', 'notification-delete', 'notification-read-after-delete']) {
       results.push({ id, passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
     }
   }
@@ -1644,27 +1848,6 @@ async function main() {
     await new Promise(resolve => rejectedSMTP.server.close(resolve))
   }
 
-  let ioClient
-  try {
-    const socketIoClient = require('socket.io-client')
-    ioClient = socketIoClient.io || socketIoClient
-  } catch (error) {
-    // The probe client may live outside the repository's dependency tree;
-    // try documented alternates before skipping (README documents the install).
-    const candidatePaths = [
-      process.env.ABS_PARITY_SOCKETIO_PATH,
-      path.resolve(__dirname, '../../../client/node_modules/socket.io-client'),
-      '/usr/lib/node_modules/socket.io-client'
-    ].filter(Boolean)
-    for (const candidate of candidatePaths) {
-      try {
-        const resolved = require(candidate)
-        ioClient = resolved.io || resolved
-        break
-      } catch { /* try next */ }
-    }
-    if (!ioClient && process.env.ABS_PARITY_REQUIRE_SOCKETIO === '1') throw new Error(`Socket.IO JS client is required but unavailable: ${error.message}`)
-  }
   if (ioClient) {
     const adminEventRequest = async (server, route, options) => {
       const socket = ioClient(server.url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })

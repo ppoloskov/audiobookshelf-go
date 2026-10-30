@@ -210,6 +210,33 @@ func TestNotificationTestAppriseFailureUsesSendStatus(t *testing.T) {
 		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 }
+
+func TestNotificationTestEventUsesSendStatusWhenUnconfigured(t *testing.T) {
+	db := notificationDB(t, "")
+	h := New(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/test?fail=1", nil), store.User{Type: "admin"})
+	if w.Code != http.StatusOK || w.Body.String() != "OK" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
+	}
+}
+
+func TestApprisePayloadPreservesMissingAndNullTemplates(t *testing.T) {
+	missing := payload(map[string]any{"urls": []any{"discord://test"}}, map[string]any{})
+	if _, ok := missing["title"]; ok {
+		t.Fatal("missing titleTemplate must omit title from the Apprise payload")
+	}
+	if _, ok := missing["body"]; ok {
+		t.Fatal("missing bodyTemplate must omit body from the Apprise payload")
+	}
+	nullAndEmpty := payload(map[string]any{"titleTemplate": nil, "bodyTemplate": ""}, map[string]any{})
+	if value, ok := nullAndEmpty["title"]; !ok || value != nil {
+		t.Fatalf("null titleTemplate payload = %#v, key present=%t", value, ok)
+	}
+	if value, ok := nullAndEmpty["body"]; !ok || value != "" {
+		t.Fatalf("empty bodyTemplate payload = %#v, key present=%t", value, ok)
+	}
+}
 func TestNotificationRejectsNonAdmin(t *testing.T) {
 	db := notificationDB(t, "")
 	h := New(db, config.Config{}, nil)

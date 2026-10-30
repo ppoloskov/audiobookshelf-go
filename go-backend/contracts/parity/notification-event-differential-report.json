@@ -1,0 +1,1745 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-notification-event-repeat/report.json",
+  "runMode": "default SSRF filter enabled; only loopback fixture host whitelisted",
+  "suiteSummary": {
+    "total": 176,
+    "passed": 176,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "notification-event-test-unconfigured",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-fail-unconfigured",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-admin-denied",
+      "passed": true,
+      "referenceStatus": 403,
+      "goStatus": 403,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "content-length": "9"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-PatfYBLj4Um1qTm5zrukoLhNyPU\"",
+        "content-length": "9"
+      },
+      "referenceBody": "Rm9yYmlkZGVu",
+      "goBody": "Rm9yYmlkZGVu",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-send-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-broadcast-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": {
+        "count": 1,
+        "events": [
+          {
+            "appriseApiUrl": "<fixture-local-apprise-url>",
+            "appriseType": "api",
+            "id": "notification-settings",
+            "maxFailedAttempts": 5,
+            "maxNotificationQueue": 20,
+            "notificationDelay": 1000,
+            "notifications": [
+              {
+                "bodyTemplate": "Test body",
+                "createdAt": "<dynamic-time>",
+                "enabled": true,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": false,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+                "numConsecutiveFailedAttempts": 0,
+                "numTimesFired": 1,
+                "titleTemplate": "Updated parity notification",
+                "type": "info",
+                "urls": [
+                  "discord://parity-updated"
+                ]
+              },
+              {
+                "createdAt": "<dynamic-time>",
+                "enabled": true,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": false,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": null,
+                "numConsecutiveFailedAttempts": 0,
+                "numTimesFired": 1,
+                "type": null,
+                "urls": [
+                  "discord://minimal"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "goBody": {
+        "count": 1,
+        "events": [
+          {
+            "appriseApiUrl": "<fixture-local-apprise-url>",
+            "appriseType": "api",
+            "id": "notification-settings",
+            "maxFailedAttempts": 5,
+            "maxNotificationQueue": 20,
+            "notificationDelay": 1000,
+            "notifications": [
+              {
+                "bodyTemplate": "Test body",
+                "createdAt": "<dynamic-time>",
+                "enabled": true,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": false,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+                "numConsecutiveFailedAttempts": 0,
+                "numTimesFired": 1,
+                "titleTemplate": "Updated parity notification",
+                "type": "info",
+                "urls": [
+                  "discord://parity-updated"
+                ]
+              },
+              {
+                "createdAt": "<dynamic-time>",
+                "enabled": true,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": false,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": null,
+                "numConsecutiveFailedAttempts": 0,
+                "numTimesFired": 1,
+                "type": null,
+                "urls": [
+                  "discord://minimal"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-delivery-payloads",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "body": "Test body",
+          "title": "Updated parity notification",
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "body": "Test body",
+          "title": "Updated parity notification",
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-read-after-event-test-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 5,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 1,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 1,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "goBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 5,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 1,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 1,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-state-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 1,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 1,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 1,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 1,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-repeat-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"2-nOO9QiTIwXgNtWtBJezz8kv3SLc\"",
+        "content-length": "2"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-repeat-payloads",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "body": "Test body",
+          "title": "Updated parity notification",
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "body": "Test body",
+          "title": "Updated parity notification",
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-read-after-event-test-repeat",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 5,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 2,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 2,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "goBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 5,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 2,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": true,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": false,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 0,
+              "numTimesFired": 2,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-state-repeat",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 2,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 2,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 2,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": true,
+          "lastAttemptFailed": false,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 2,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-set-failure-threshold",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-intentional-failure",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-broadcast-failure",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": {
+        "count": 1,
+        "events": [
+          {
+            "appriseApiUrl": "<fixture-local-apprise-url>",
+            "appriseType": "api",
+            "id": "notification-settings",
+            "maxFailedAttempts": 1,
+            "maxNotificationQueue": 20,
+            "notificationDelay": 1000,
+            "notifications": [
+              {
+                "bodyTemplate": "Test body",
+                "createdAt": "<dynamic-time>",
+                "enabled": false,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": true,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+                "numConsecutiveFailedAttempts": 1,
+                "numTimesFired": 3,
+                "titleTemplate": "Updated parity notification",
+                "type": "info",
+                "urls": [
+                  "discord://parity-updated"
+                ]
+              },
+              {
+                "createdAt": "<dynamic-time>",
+                "enabled": false,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": true,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": null,
+                "numConsecutiveFailedAttempts": 1,
+                "numTimesFired": 3,
+                "type": null,
+                "urls": [
+                  "discord://minimal"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "goBody": {
+        "count": 1,
+        "events": [
+          {
+            "appriseApiUrl": "<fixture-local-apprise-url>",
+            "appriseType": "api",
+            "id": "notification-settings",
+            "maxFailedAttempts": 1,
+            "maxNotificationQueue": 20,
+            "notificationDelay": 1000,
+            "notifications": [
+              {
+                "bodyTemplate": "Test body",
+                "createdAt": "<dynamic-time>",
+                "enabled": false,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": true,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+                "numConsecutiveFailedAttempts": 1,
+                "numTimesFired": 3,
+                "titleTemplate": "Updated parity notification",
+                "type": "info",
+                "urls": [
+                  "discord://parity-updated"
+                ]
+              },
+              {
+                "createdAt": "<dynamic-time>",
+                "enabled": false,
+                "eventName": "onTest",
+                "id": "<dynamic-notification-uuid>",
+                "lastAttemptFailed": true,
+                "lastFiredAt": "<dynamic-time>",
+                "libraryId": null,
+                "numConsecutiveFailedAttempts": 1,
+                "numTimesFired": 3,
+                "type": null,
+                "urls": [
+                  "discord://minimal"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-no-delivery-on-failure",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": 4,
+      "goBody": 4,
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-read-after-event-test-failure",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 1,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": false,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": true,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 1,
+              "numTimesFired": 3,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": false,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": true,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 1,
+              "numTimesFired": 3,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "goBody": {
+        "data": {
+          "events": [
+            {
+              "defaults": {
+                "body": "{{episodeTitle}} has been added to {{libraryName}} library.",
+                "title": "New {{podcastTitle}} Episode!"
+              },
+              "description": "Triggered when a podcast episode is auto-downloaded",
+              "descriptionKey": "NotificationOnEpisodeDownloadedDescription",
+              "libraryMediaType": "podcast",
+              "name": "onPodcastEpisodeDownloaded",
+              "requiresLibrary": true,
+              "testData": {
+                "episodeDescription": "Some description of the podcast episode.",
+                "episodeId": "ep_notification_test",
+                "episodeSubtitle": "Episode Subtitle",
+                "episodeTitle": "Successful Test Episode",
+                "libraryId": "lib_test",
+                "libraryItemId": "li_notification_test",
+                "libraryName": "Podcasts",
+                "mediaTags": "TestTag1, TestTag2",
+                "podcastAuthor": "Audiobookshelf",
+                "podcastDescription": "Description of the Abs Test Podcast belongs here.",
+                "podcastGenres": "TestGenre1, TestGenre2",
+                "podcastTitle": "Abs Test Podcast"
+              },
+              "variables": [
+                "libraryItemId",
+                "libraryId",
+                "podcastTitle",
+                "podcastAuthor",
+                "podcastDescription",
+                "podcastGenres",
+                "episodeTitle",
+                "episodeSubtitle",
+                "episodeDescription",
+                "libraryName",
+                "episodeId",
+                "mediaTags"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}",
+                "title": "Backup Completed"
+              },
+              "description": "Triggered when a backup is completed",
+              "descriptionKey": "NotificationOnBackupCompletedDescription",
+              "name": "onBackupCompleted",
+              "requiresLibrary": false,
+              "testData": {
+                "backupCount": "1",
+                "backupPath": "path/to/backup",
+                "backupSize": "1.23 MB",
+                "completionTime": "12:00 AM",
+                "removedOldest": "false"
+              },
+              "variables": [
+                "completionTime",
+                "backupPath",
+                "backupSize",
+                "backupCount",
+                "removedOldest"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}",
+                "title": "Backup Failed"
+              },
+              "description": "Triggered when a backup fails",
+              "descriptionKey": "NotificationOnBackupFailedDescription",
+              "name": "onBackupFailed",
+              "requiresLibrary": false,
+              "testData": {
+                "errorMsg": "Example error message"
+              },
+              "variables": [
+                "errorMsg"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "RSS Feed Request Failed"
+              },
+              "description": "Triggered when the RSS feed request fails for an automatic episode download",
+              "descriptionKey": "NotificationOnRSSFeedFailedDescription",
+              "name": "onRSSFeedFailed",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 3,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}",
+                "title": "Podcast Episode Download Schedule Disabled"
+              },
+              "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts",
+              "descriptionKey": "NotificationOnRSSFeedDisabledDescription",
+              "name": "onRSSFeedDisabled",
+              "requiresLibrary": true,
+              "testData": {
+                "feedUrl": "https://example.com/rss",
+                "numFailed": 5,
+                "title": "Test RSS Feed"
+              },
+              "variables": [
+                "feedUrl",
+                "numFailed",
+                "title"
+              ]
+            },
+            {
+              "defaults": {
+                "body": "Test notification body for abs {{version}}.",
+                "title": "Test Notification on Abs {{version}}"
+              },
+              "description": "Event for testing the notification system",
+              "descriptionKey": "NotificationOnTestDescription",
+              "name": "onTest",
+              "requiresLibrary": false,
+              "testData": {
+                "version": "v2.37.2"
+              },
+              "variables": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "appriseApiUrl": "<fixture-local-apprise-url>",
+          "appriseType": "api",
+          "id": "notification-settings",
+          "maxFailedAttempts": 1,
+          "maxNotificationQueue": 20,
+          "notificationDelay": 1000,
+          "notifications": [
+            {
+              "bodyTemplate": "Test body",
+              "createdAt": "<dynamic-time>",
+              "enabled": false,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": true,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": "5390d2e7-00ea-4e38-a89b-b968cbf8be39",
+              "numConsecutiveFailedAttempts": 1,
+              "numTimesFired": 3,
+              "titleTemplate": "Updated parity notification",
+              "type": "info",
+              "urls": [
+                "discord://parity-updated"
+              ]
+            },
+            {
+              "createdAt": "<dynamic-time>",
+              "enabled": false,
+              "eventName": "onTest",
+              "id": "<dynamic-notification-uuid>",
+              "lastAttemptFailed": true,
+              "lastFiredAt": "<dynamic-time>",
+              "libraryId": null,
+              "numConsecutiveFailedAttempts": 1,
+              "numTimesFired": 3,
+              "type": null,
+              "urls": [
+                "discord://minimal"
+              ]
+            }
+          ]
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-event-test-state-failure",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "enabled": false,
+          "lastAttemptFailed": true,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 1,
+          "numTimesFired": 3,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": false,
+          "lastAttemptFailed": true,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 1,
+          "numTimesFired": 3,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "enabled": false,
+          "lastAttemptFailed": true,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 1,
+          "numTimesFired": 3,
+          "urls": [
+            "discord://parity-updated"
+          ]
+        },
+        {
+          "enabled": false,
+          "lastAttemptFailed": true,
+          "lastFiredAtPresent": true,
+          "numConsecutiveFailedAttempts": 1,
+          "numTimesFired": 3,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    }
+  ],
+  "limits": [
+    "Selected global /notifications/test normal, admin-denied, repeat, intentional failure, state transition and Socket.IO broadcast behavior is verified. Queue saturation/ordering, concurrent triggers, delayed drain, timeout/redirect, and other lifecycle event types remain unverified.",
+    "The 176-case suite is sampled evidence, not route-wide or overall parity."
+  ]
+}

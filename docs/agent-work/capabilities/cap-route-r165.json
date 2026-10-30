@@ -1,0 +1,117 @@
+{
+  "id": "route-r165",
+  "parent": "http/notifications",
+  "kind": "operation",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "GET /notifications/test triggers the onTest notification event and must match upstream v2.37.2 response, authorization, delivery, state transitions, and broadcasts for tested query variants.",
+  "source": [
+    "server/routers/ApiRouter.js:268",
+    "server/controllers/NotificationController.js:67-69",
+    "server/managers/NotificationManager.js:150-200",
+    "server/objects/Notification.js:97-103"
+  ],
+  "implementation": [
+    "go-backend/internal/notifications/handler.go"
+  ],
+  "cases": {
+    "normal": "verified",
+    "error": "unverified",
+    "edge": "verified"
+  },
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "verified",
+    "repeat": "verified",
+    "changed": "verified",
+    "force": "not_applicable",
+    "failure": "verified"
+  },
+  "tests": [
+    "go-backend/internal/notifications/handler_test.go:TestNotificationTestEventUsesSendStatusWhenUnconfigured",
+    "go-backend/internal/notifications/handler_test.go:TestApprisePayloadPreservesMissingAndNullTemplates",
+    "go-backend/tools/parity/differential.cjs:notification-event-test-send-success",
+    "go-backend/tools/parity/differential.cjs:notification-event-test-repeat-success",
+    "go-backend/tools/parity/differential.cjs:notification-event-test-intentional-failure",
+    "go-backend/tools/parity/differential.cjs:notification-event-broadcast-success",
+    "go-backend/tools/parity/differential.cjs:notification-event-broadcast-failure"
+  ],
+  "invariants": [
+    {
+      "id": "INV-NOTIFICATION-GLOBAL-TRIGGER-001",
+      "class": "error",
+      "contract": "GET /notifications/test requires admin access. With unusable notification settings it returns Express sendStatus(200) without delivery; with usable settings it sends the onTest event to enabled notifications.",
+      "status": "verified",
+      "source": [
+        "server/routers/ApiRouter.js:268",
+        "server/controllers/NotificationController.js:67-69",
+        "server/managers/NotificationManager.js:150-166"
+      ],
+      "tests": [
+        "go-backend/tools/parity/differential.cjs:notification-event-test-admin-denied",
+        "go-backend/tools/parity/differential.cjs:notification-event-test-unconfigured",
+        "go-backend/tools/parity/differential.cjs:notification-event-test-send-success"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-admin-denied",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-unconfigured",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-send-success"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-NOTIFICATION-GLOBAL-STATE-001",
+      "class": "state_transition",
+      "contract": "Successful global test delivery updates lastFiredAt and numTimesFired per active notification, resets failed-attempt state, persists settings, then broadcasts notifications_updated. An unchanged repeat performs another delivery and increments the count again.",
+      "status": "verified",
+      "source": [
+        "server/managers/NotificationManager.js:162-181",
+        "server/objects/Notification.js:97-103"
+      ],
+      "tests": [
+        "go-backend/tools/parity/differential.cjs:notification-event-test-state-success",
+        "go-backend/tools/parity/differential.cjs:notification-event-test-state-repeat",
+        "go-backend/tools/parity/differential.cjs:notification-event-broadcast-success"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-success",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-repeat",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-broadcast-success"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-NOTIFICATION-GLOBAL-FAILURE-001",
+      "class": "state_transition",
+      "contract": "With fail=1, the route still returns sendStatus(200), skips Apprise delivery, records a failed attempt, increments consecutive failures and numTimesFired, disables a notification at maxFailedAttempts, persists state and emits notifications_updated.",
+      "status": "verified",
+      "source": [
+        "server/controllers/NotificationController.js:67-69",
+        "server/managers/NotificationManager.js:162-181",
+        "server/objects/Notification.js:97-103"
+      ],
+      "tests": [
+        "go-backend/tools/parity/differential.cjs:notification-event-test-intentional-failure",
+        "go-backend/tools/parity/differential.cjs:notification-event-test-no-delivery-on-failure",
+        "go-backend/tools/parity/differential.cjs:notification-event-test-state-failure",
+        "go-backend/tools/parity/differential.cjs:notification-event-broadcast-failure"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-intentional-failure",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-no-delivery-on-failure",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-failure",
+        "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-broadcast-failure"
+      ],
+      "exceptions": []
+    }
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-send-success",
+    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-repeat-success",
+    "go-backend/contracts/parity/notification-event-differential-report.json#notification-event-test-state-failure",
+    "go-backend/contracts/parity/notification-event-differential-provenance.json"
+  ],
+  "exceptions": [
+    "Queue saturation, concurrency and ordering, delayed drain, redirects/timeouts, and non-test lifecycle notification event types remain unverified."
+  ]
+}

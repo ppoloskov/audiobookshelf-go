@@ -347,7 +347,7 @@ func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	data := events[len(events)-1].(map[string]any)
 	_, _ = h.deliverActive(r.Context(), s, "onTest", data["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
-	w.WriteHeader(200)
+	writeStatus(w, http.StatusOK)
 }
 
 // TriggerEvent is the runtime hook for source lifecycle notifications (backup
@@ -464,10 +464,20 @@ func (h *Handler) find(s map[string]any, id string) map[string]any {
 }
 func (h *Handler) mustLoad(r *http.Request) map[string]any { s, _ := h.load(r.Context()); return s }
 func payload(n, data map[string]any) map[string]any {
-	return map[string]any{"urls": n["urls"], "title": template(n["titleTemplate"], data), "body": template(n["bodyTemplate"], data)}
+	p := map[string]any{"urls": n["urls"]}
+	if value, ok := n["titleTemplate"]; ok {
+		p["title"] = template(value, data)
+	}
+	if value, ok := n["bodyTemplate"]; ok {
+		p["body"] = template(value, data)
+	}
+	return p
 }
-func template(raw any, data map[string]any) string {
-	s, _ := raw.(string)
+func template(raw any, data map[string]any) any {
+	s, ok := raw.(string)
+	if !ok {
+		return raw
+	}
 	for k, v := range data {
 		if v == nil || v == "" || v == false || v == float64(0) || v == int(0) {
 			continue

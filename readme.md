@@ -18,7 +18,7 @@
 
 ## Go backend rewrite status
 
-This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The recorded default-mode sampled route corpus passes 129/129 cases. A proxy-support run adds nine email-device cases; the SMTP differential passes 144/144; and the latest default-mode differential passes 157/157, including selected notification test-route ACL, delivery, and state checks. Full feature parity is not established: strict ledger gates still fail with 1,627 diagnostics and all 226 route compatibility statuses remain unverified. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for evidence and limits.
+This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The latest fresh default-mode Node-vs-Go differential passes 176/176, including selected SMTP and per-ID notification delivery behavior plus 18 global notification event cases for repeated delivery, persisted success/failure state, failure thresholds, and Socket.IO broadcasts. Email-device proxy-mode samples also have evidence. Full feature parity is not established; OIDC, covers, downloads, notification queueing, email variants, remaining routes, and realistic playback/session recovery still have open cases. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for evidence and limits.
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 

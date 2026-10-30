@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "upstreamRevision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureBaseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureManifest": "/private/tmp/abs-notification-event-repeat/fixture-manifest.json",
+  "sourceReport": "/private/tmp/abs-notification-event-repeat/report.json",
+  "commands": [
+    "mise exec node@22 -- node go-backend/tools/parity/create-fixture.cjs /private/tmp/abs-notification-event-repeat",
+    "GOCACHE=/private/tmp/abs-build-notification CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-notification-event-final ./cmd/audiobookshelf-go",
+    "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-notification-event-repeat/fixture-manifest.json --go-bin /private/tmp/audiobookshelf-go-notification-event-final --out /private/tmp/abs-notification-event-repeat/report.json"
+  ],
+  "runtime": {
+    "node": "v22.23.4",
+    "go": "go1.27.0 darwin/arm64",
+    "network": "loopback Node/Go servers, Socket.IO, and local Apprise fixture; SSRF filter enabled with loopback fixture hostname whitelisted"
+  },
+  "results": {
+    "suiteTotal": 176,
+    "suitePassed": 176,
+    "suiteFailed": 0,
+    "suiteSkipped": 0,
+    "selectedNotificationCases": 18,
+    "selectedNotificationCasesPassed": 18,
+    "successDeliveriesPerSide": 4,
+    "intentionalFailureDeliveriesPerSide": 0,
+    "stateAfterSuccess": "numTimesFired=1, enabled, no failures",
+    "stateAfterRepeat": "numTimesFired=2, enabled, no failures",
+    "stateAfterThresholdFailure": "numTimesFired=3, disabled, one consecutive failure",
+    "broadcastsPerTrigger": 1,
+    "divergences": 0
+  },
+  "limits": [
+    "This run verifies only the selected global test-event branches. Queue saturation/ordering/concurrency, timeout/redirect and other notification lifecycle events remain open.",
+    "Full parity remains unclaimed; route-wide and strict ledger gates remain open."
+  ]
+}
