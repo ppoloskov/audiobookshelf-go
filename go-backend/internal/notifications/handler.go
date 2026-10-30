@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -187,6 +188,22 @@ func strictEqual(a, b any) bool {
 	}
 	return false
 }
+func truthy(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return false
+	case bool:
+		return x
+	case string:
+		return x != ""
+	case float64:
+		return x != 0
+	case int:
+		return x != 0
+	default:
+		return true
+	}
+}
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	p := map[string]any{}
 	_ = json.NewDecoder(r.Body).Decode(&p)
@@ -207,7 +224,21 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items := array(s["notifications"])
-	n := map[string]any{"id": id, "libraryId": p["libraryId"], "eventName": event, "urls": urls, "titleTemplate": p["titleTemplate"], "bodyTemplate": p["bodyTemplate"], "enabled": p["enabled"] == true, "type": p["type"], "lastFiredAt": nil, "lastAttemptFailed": false, "numConsecutiveFailedAttempts": 0, "numTimesFired": 0, "createdAt": time.Now().UnixMilli()}
+	libraryID := p["libraryId"]
+	if !truthy(libraryID) {
+		libraryID = nil
+	}
+	notificationType := p["type"]
+	if !truthy(notificationType) {
+		notificationType = nil
+	}
+	n := map[string]any{"id": id, "libraryId": libraryID, "eventName": event, "urls": urls, "enabled": truthy(p["enabled"]), "type": notificationType, "lastFiredAt": nil, "lastAttemptFailed": false, "numConsecutiveFailedAttempts": 0, "numTimesFired": 0, "createdAt": time.Now().UnixMilli()}
+	if value, ok := p["titleTemplate"]; ok {
+		n["titleTemplate"] = value
+	}
+	if value, ok := p["bodyTemplate"]; ok {
+		n["bodyTemplate"] = value
+	}
 	items = append(items, n)
 	s["notifications"] = items
 	if h.save(r.Context(), s) != nil {
@@ -234,12 +265,14 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, raw)
 	}
-	if removed {
-		s["notifications"] = out
-		if h.save(r.Context(), s) != nil {
-			http.Error(w, "database error", 500)
-			return
-		}
+	if !removed {
+		writeStatus(w, http.StatusNotFound)
+		return
+	}
+	s["notifications"] = out
+	if h.save(r.Context(), s) != nil {
+		http.Error(w, "database error", 500)
+		return
 	}
 	write(w, s)
 }
@@ -249,34 +282,51 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database error", 500)
 		return
 	}
-	id := lastID(r.URL.Path)
-	var p map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&p)
-	found := false
-	for _, raw := range array(s["notifications"]) {
-		n, _ := raw.(map[string]any)
-		if n["id"] != id {
-			continue
-		}
-		found = true
-		if p["enabled"] == true && n["enabled"] != true {
+	if h.find(s, lastID(r.URL.Path)) == nil {
+		writeStatus(w, http.StatusNotFound)
+		return
+	}
+	var payload any
+	if json.NewDecoder(r.Body).Decode(&payload) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	p, ok := payload.(map[string]any)
+	if !ok {
+		write(w, s)
+		return
+	}
+	id, _ := p["id"].(string)
+	n := h.find(s, id)
+	if n != nil {
+		updated := false
+		if truthy(p["enabled"]) && n["enabled"] != true {
 			n["lastFiredAt"] = nil
 			n["lastAttemptFailed"] = false
 			n["numConsecutiveFailedAttempts"] = 0
+			updated = true
 		}
 		for _, k := range []string{"libraryId", "eventName", "urls", "titleTemplate", "bodyTemplate", "enabled", "type"} {
-			if v, ok := p[k]; ok {
+			v, present := p[k]
+			if !present {
+				continue
+			}
+			if k == "urls" {
+				if !reflect.DeepEqual(v, n[k]) {
+					n[k] = v
+					updated = true
+				}
+			} else if !strictEqual(n[k], v) {
 				n[k] = v
+				updated = true
 			}
 		}
-	}
-	if !found {
-		w.WriteHeader(404)
-		return
-	}
-	if h.save(r.Context(), s) != nil {
-		http.Error(w, "database error", 500)
-		return
+		if updated {
+			if h.save(r.Context(), s) != nil {
+				http.Error(w, "database error", 500)
+				return
+			}
+		}
 	}
 	write(w, s)
 }

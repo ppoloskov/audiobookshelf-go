@@ -1,0 +1,10 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "upstreamVersion": "v2.37.2",
+  "nodeVersion": "v22.23.4",
+  "fixture": "Fresh independent source-created database copies; final malformed request ran last.",
+  "goBuild": "GOCACHE=/private/tmp/abs-go-build CGO_ENABLED=0 go build -o /private/tmp/abs-notification-crud-bin ./cmd/audiobookshelf-go",
+  "environment": "PARITY_PROBE_UPSTREAM_NOTIFICATION_CRASH=1 SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1",
+  "referenceLog": "node/metadata/logs/crash_logs.txt records the fatal unhandled rejection; no SIGINT shutdown marker was logged after the failed request.",
+  "report": "go-backend/contracts/parity/full-suite-report.json contains the separate 129/129 safe CRUD run; this report records only the process-failure probe."
+}

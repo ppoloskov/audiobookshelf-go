@@ -1,6 +1,6 @@
 # Audiobookshelf Go backend rewrite
 
-Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest fresh HTTP differential passes 118/118 cases, including selected reader-denial ACL, email/notification settings, and per-file download variants. Strict ledger verification still fails; all 226 route compatibility statuses remain unverified. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
+Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest fresh HTTP differential passes 129/129 cases, including selected reader-denial ACL, email/notification settings and notification CRUD, cover lifecycle, and per-file download variants. Strict ledger verification still fails; all 226 route compatibility statuses remain unverified. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
 
 ## Target
 

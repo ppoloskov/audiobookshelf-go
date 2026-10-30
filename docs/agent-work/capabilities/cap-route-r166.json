@@ -1,0 +1,80 @@
+{
+ "id": "route-r166",
+ "parent": "http/notifications",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /notifications candidate recorded from server/routers/ApiRouter.js:269. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:269"
+ ],
+ "implementation": [
+  "go-backend/internal/notifications/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/notifications/handler.go",
+  "go-backend/internal/notifications/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#notification-create",
+  "go-backend/contracts/parity/full-suite-report.json#notification-create-empty-urls",
+  "go-backend/contracts/parity/notification-malformed-payload-report.json"
+ ],
+ "exceptions": [
+  "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R166-CREATE-STATE-001",
+   "class": "state_transition",
+   "contract": "POST /notifications creates and persists a notification with upstream defaults, coercions, and the returned settings shape; an empty urls array is a no-op.",
+   "status": "verified",
+   "source": [
+    "server/objects/settings/NotificationSettings.js:97-104",
+    "server/objects/Notification.js:42-56",
+    "server/models/Setting.js:36-39"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs",
+    "go-backend/internal/notifications/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#notification-create",
+    "go-backend/contracts/parity/full-suite-report.json#notification-create-minimal",
+    "go-backend/contracts/parity/full-suite-report.json#notification-create-empty-urls"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R166-MISSING-URL-FAILURE-001",
+   "class": "error",
+   "contract": "When eventName is present and urls is omitted, upstream dereferences payload.urls.length and its unhandled-rejection listener logs FATAL and calls process.exit(1); Go currently returns 200 with the settings object. This source-backed failure-behavior divergence remains unresolved.",
+   "status": "unverified",
+   "source": [
+    "server/objects/settings/NotificationSettings.js:97-104",
+    "server/Server.js:248-250"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/notification-malformed-payload-report.json"
+   ],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "unverified"
+ }
+}

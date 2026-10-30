@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "case": "notification-create-missing-urls",
+  "request": {
+    "method": "POST",
+    "path": "/api/notifications",
+    "body": {
+      "eventName": "onTest"
+    }
+  },
+  "upstream": {
+    "source": [
+      "server/objects/settings/NotificationSettings.js:97-104",
+      "server/Server.js:248-250"
+    ],
+    "observation": "The reference HTTP connection fails; the fixture crash log records an unhandled TypeError reading payload.urls.length and the source process handler calls process.exit(1).",
+    "transportError": "TypeError: fetch failed"
+  },
+  "go": {
+    "status": 200,
+    "body": {
+      "appriseApiUrl": null,
+      "appriseType": "api",
+      "id": "notification-settings",
+      "maxFailedAttempts": 5,
+      "maxNotificationQueue": 20,
+      "notificationDelay": 1000,
+      "notifications": [
+        {
+          "createdAt": 1793334445426,
+          "enabled": true,
+          "eventName": "onTest",
+          "id": "612de5d2-e6bf-42b8-a752-41e10dbab04e",
+          "lastAttemptFailed": false,
+          "lastFiredAt": null,
+          "libraryId": null,
+          "numConsecutiveFailedAttempts": 0,
+          "numTimesFired": 0,
+          "type": null,
+          "urls": [
+            "discord://minimal"
+          ]
+        }
+      ]
+    },
+    "recordCountAfter": 1
+  },
+  "result": "divergence",
+  "limitation": "The Go implementation handles the malformed request and stays available; this does not match upstream process termination. The Go server is not changed to reproduce a remotely triggerable process exit. No route parity is claimed for this malformed payload."
+}

@@ -93,6 +93,13 @@ const EXPECTED_STATUS = {
   'notifications-settings-patch-custom': 200, 'notifications-settings-read-after-custom': 200,
   'notifications-settings-read-defaults-initial': 200,
   'notifications-settings-patch-defaults': 200, 'notifications-settings-read-after-defaults': 200,
+  'notification-create': 200, 'notification-read-after-create': 200,
+  'notification-create-minimal': 200,
+  'notification-update-without-body-id': 200,
+  'notification-create-empty-urls': 200,
+  'notification-update': 200, 'notification-read-after-update': 200,
+  'notification-delete': 200, 'notification-read-after-delete': 200,
+  'notification-update-missing': 404, 'notification-delete-missing': 404,
   'backup-missing-download': 404, 'collection-empty-name': 400,
   'playlist-empty-items': 200,
   'item-download': 200,
@@ -492,6 +499,20 @@ function normalizeCase(id, body, pathRoots) {
     // are copy-specific like every other item serialization.
     if (normalized.libraryItem && typeof normalized.libraryItem === 'object') normalizeItemSummary(normalized.libraryItem)
   }
+  const normalizeNotifications = (settings) => {
+    if (!settings || typeof settings !== 'object' || !Array.isArray(settings.notifications)) {
+      throw new Error(`${id}: notification settings list is missing`)
+    }
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    for (const notification of settings.notifications) {
+      requireField(notification, 'id')
+      if (typeof notification.id !== 'string' || !uuid.test(notification.id)) throw new Error(`${id}: notification id is not a UUID`)
+      notification.id = '<dynamic-notification-uuid>'
+      checkAndReplaceNumber(notification, 'createdAt', '<dynamic-time>')
+    }
+  }
+  if (['notification-create', 'notification-create-minimal', 'notification-create-empty-urls', 'notification-update', 'notification-update-without-body-id', 'notification-delete'].includes(id)) normalizeNotifications(normalized)
+  else if (['notification-read-after-create', 'notification-read-after-update', 'notification-read-after-delete'].includes(id)) normalizeNotifications(normalized.settings)
   const normalizeEntity = (entity, entityName) => {
     if (!entity || typeof entity !== 'object' || Array.isArray(entity)) throw new Error(`${id}: ${entityName} entity is missing`)
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -1011,6 +1032,62 @@ async function main() {
   await comparePair('notifications-settings-read-after-defaults', '/api/notifications', '/api/notifications', {
     method: 'GET', token: referenceAccessToken
   })
+  const notificationCreateBody = {
+    libraryId: bookLibraryId,
+    eventName: 'onTest',
+    urls: ['discord://parity-test'],
+    titleTemplate: 'Parity notification',
+    bodyTemplate: 'Test body',
+    enabled: false,
+    type: 'info'
+  }
+  const [nodeNotification, goNotification] = await comparePair('notification-create', '/api/notifications', '/api/notifications', {
+    method: 'POST', token: referenceAccessToken, body: notificationCreateBody
+  })
+  const nodeNotificationID = nodeNotification.body?.notifications?.at(-1)?.id
+  const goNotificationID = goNotification.body?.notifications?.at(-1)?.id
+  await comparePair('notification-create-empty-urls', '/api/notifications', '/api/notifications', {
+    method: 'POST', token: referenceAccessToken,
+    body: { eventName: 'onTest', urls: [], titleTemplate: 'Ignored', bodyTemplate: 'Ignored' }
+  })
+  await comparePair('notification-create-minimal', '/api/notifications', '/api/notifications', {
+    method: 'POST', token: referenceAccessToken,
+    body: { eventName: 'onTest', urls: ['discord://minimal'], enabled: 'false', libraryId: '', type: '' }
+  })
+  await comparePair('notification-read-after-create', '/api/notifications', '/api/notifications', {
+    method: 'GET', token: referenceAccessToken
+  })
+  if (nodeNotificationID && goNotificationID) {
+    await comparePair('notification-update-without-body-id', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
+      method: 'PATCH', token: referenceAccessToken,
+      nodeBody: { titleTemplate: 'Must remain unchanged' },
+      goBody: { titleTemplate: 'Must remain unchanged' }
+    })
+    await comparePair('notification-update', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
+      method: 'PATCH', token: referenceAccessToken,
+      nodeBody: { id: nodeNotificationID, enabled: true, titleTemplate: 'Updated parity notification', urls: ['discord://parity-updated'] },
+      goBody: { id: goNotificationID, enabled: true, titleTemplate: 'Updated parity notification', urls: ['discord://parity-updated'] }
+    })
+    await comparePair('notification-read-after-update', '/api/notifications', '/api/notifications', {
+      method: 'GET', token: referenceAccessToken
+    })
+    await comparePair('notification-delete', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
+      method: 'DELETE', token: referenceAccessToken
+    })
+    await comparePair('notification-read-after-delete', '/api/notifications', '/api/notifications', {
+      method: 'GET', token: referenceAccessToken
+    })
+  } else {
+    for (const id of ['notification-update', 'notification-read-after-update', 'notification-delete', 'notification-read-after-delete']) {
+      results.push({ id, passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
+    }
+  }
+  await comparePair('notification-update-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
+    method: 'PATCH', token: referenceAccessToken, body: { id: '00000000-0000-4000-8000-000000000000', enabled: true }
+  })
+  await comparePair('notification-delete-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
+    method: 'DELETE', token: referenceAccessToken
+  })
   await comparePair('playlist-empty-items', '/api/playlists', '/api/playlists', {
     method: 'POST', token: referenceAccessToken,
     body: { libraryId: bookLibraryId, name: 'Empty parity playlist', items: [] }
@@ -1466,6 +1543,30 @@ async function main() {
     results.push(compare('item-file-download-disk-missing', nodeMissingDisk, goMissingDisk))
   } finally {
     for (const [hiddenPath, filePath] of hiddenDownloads.reverse()) fs.renameSync(hiddenPath, filePath)
+  }
+
+  // This malformed upstream payload dereferences payload.urls.length and can
+  // terminate the reference process. Run it only in its isolated opt-in probe.
+  if (process.env.PARITY_PROBE_UPSTREAM_NOTIFICATION_CRASH === '1') {
+    const missingURLs = { method: 'POST', token: referenceAccessToken, body: { eventName: 'onTest' } }
+    const [nodeMissingURLs, goMissingURLs] = await Promise.allSettled([
+      call(node, '/api/notifications', missingURLs),
+      call(go, '/api/notifications', missingURLs)
+    ])
+    if (nodeMissingURLs.status === 'fulfilled' && goMissingURLs.status === 'fulfilled') {
+      results.push(compare('notification-create-missing-urls', nodeMissingURLs.value, goMissingURLs.value))
+    } else {
+      results.push({
+        id: 'notification-create-missing-urls',
+        passed: false,
+        referenceStatus: nodeMissingURLs.status === 'fulfilled' ? nodeMissingURLs.value.status : null,
+        goStatus: goMissingURLs.status === 'fulfilled' ? goMissingURLs.value.status : null,
+        referenceTransportError: nodeMissingURLs.status === 'rejected' ? String(nodeMissingURLs.reason) : null,
+        goTransportError: goMissingURLs.status === 'rejected' ? String(goMissingURLs.reason) : null,
+        goBody: goMissingURLs.status === 'fulfilled' ? goMissingURLs.value.body : null,
+        differences: [{ path: '$.failure', reference: 'upstream process termination', go: 'handled HTTP response' }]
+      })
+    }
   }
 
   const report = {

@@ -1,0 +1,77 @@
+{
+ "id": "route-r168",
+ "parent": "http/notifications",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "PATCH /notifications/:id candidate recorded from server/routers/ApiRouter.js:271. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:271"
+ ],
+ "implementation": [
+  "go-backend/internal/notifications/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/notifications/handler.go",
+  "go-backend/internal/notifications/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#notification-update",
+  "go-backend/contracts/parity/full-suite-report.json#notification-update-without-body-id",
+  "go-backend/contracts/parity/full-suite-report.json#notification-update-missing"
+ ],
+ "exceptions": [
+  "force is not applicable to this HTTP CRUD operation; no force or refresh parameter exists."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R168-PATCH-BODY-ID-001",
+   "class": "precedence",
+   "contract": "PATCH /notifications/:id first validates the route id through middleware, then selects the notification to mutate using req.body.id; a valid route with no body id leaves all notifications unchanged.",
+   "status": "verified",
+   "source": [
+    "server/controllers/NotificationController.js:104-111",
+    "server/objects/settings/NotificationSettings.js:107-115"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs",
+    "go-backend/internal/notifications/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#notification-update",
+    "go-backend/contracts/parity/full-suite-report.json#notification-update-without-body-id"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R168-MISSING-ROUTE-001",
+   "class": "error",
+   "contract": "A PATCH to a notification id absent from settings returns the NotificationController middleware sendStatus(404) response.",
+   "status": "verified",
+   "source": [
+    "server/controllers/NotificationController.js:137-147"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#notification-update-missing"
+   ],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "verified"
+ }
+}

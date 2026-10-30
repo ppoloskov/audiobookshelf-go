@@ -77,6 +77,61 @@ func TestSettingsDefaultsAndPartialPatchMatchUpstream(t *testing.T) {
 	}
 }
 
+func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
+	db := notificationDB(t, "")
+	h := New(db, config.Config{}, nil)
+	admin := store.User{Type: "admin"}
+	create := httptest.NewRecorder()
+	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Original"}`)), admin)
+	if create.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", create.Code, create.Body)
+	}
+	var settings map[string]any
+	if err := json.Unmarshal(create.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	items := settings["notifications"].([]any)
+	created := items[0].(map[string]any)
+	id := created["id"].(string)
+	patch := httptest.NewRecorder()
+	h.Handle(patch, httptest.NewRequest(http.MethodPatch, "/api/notifications/"+id, strings.NewReader(`{"titleTemplate":"Ignored without body ID"}`)), admin)
+	if patch.Code != http.StatusOK {
+		t.Fatalf("PATCH status %d: %s", patch.Code, patch.Body)
+	}
+	if err := json.Unmarshal(patch.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	items = settings["notifications"].([]any)
+	created = items[0].(map[string]any)
+	if created["titleTemplate"] != "Original" {
+		t.Fatalf("route ID must not substitute for missing PATCH body ID: %#v", created)
+	}
+	minimal := httptest.NewRecorder()
+	h.Handle(minimal, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://minimal"],"enabled":"false","libraryId":"","type":""}`)), admin)
+	if minimal.Code != http.StatusOK {
+		t.Fatalf("minimal create status %d: %s", minimal.Code, minimal.Body)
+	}
+	if err := json.Unmarshal(minimal.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	items = settings["notifications"].([]any)
+	created = items[len(items)-1].(map[string]any)
+	if created["enabled"] != true || created["libraryId"] != nil || created["type"] != nil {
+		t.Fatalf("create defaults/coercion do not match upstream: %#v", created)
+	}
+	if _, ok := created["titleTemplate"]; ok {
+		t.Fatalf("omitted titleTemplate must not serialize as null: %#v", created)
+	}
+	if _, ok := created["bodyTemplate"]; ok {
+		t.Fatalf("omitted bodyTemplate must not serialize as null: %#v", created)
+	}
+	missing := httptest.NewRecorder()
+	h.Handle(missing, httptest.NewRequest(http.MethodDelete, "/api/notifications/00000000-0000-4000-8000-000000000000", nil), admin)
+	if missing.Code != http.StatusNotFound || missing.Body.String() != "Not Found" || missing.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+		t.Fatalf("missing DELETE response status=%d content-type=%q body=%q", missing.Code, missing.Header().Get("Content-Type"), missing.Body.String())
+	}
+}
+
 func TestTriggerEventDeliversRuntimeLifecyclePayload(t *testing.T) {
 	got := make(chan map[string]any, 1)
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
