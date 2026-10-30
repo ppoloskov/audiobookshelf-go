@@ -8,27 +8,27 @@ Reproduce from the repository root:
 python3 go-backend/tools/parity/classify-ledger-findings.py > go-backend/contracts/parity/strict-ledger-findings.json
 ```
 
-The script runs `check-ledger.go -require-verified -require-invariants`, preserves each diagnostic with its capability ID/parent/root cause, and writes `strict-ledger-findings.json`. In the current run it exits 1 with **1,679 diagnostics across 236 distinct capability records** (226 route records plus 10 subsystem records). All 236 records have at least one unverified-status diagnostic. The run summary is in the JSON report; the full per-capability listing is in its `records` array.
+The script runs `check-ledger.go -require-verified -require-invariants`, preserves each diagnostic with its capability ID/parent/root cause, and writes `strict-ledger-findings.json`. The latest refreshed run exits 1 with **1,665 diagnostics across 236 distinct capability records** (226 route records plus 10 subsystem records). All 236 records have at least one unverified-status diagnostic. The run summary is in the JSON report; the full per-capability listing is in its `records` array.
 
 | Diagnostic root cause | Count | Meaning |
 | --- | ---: | --- |
 | Record status not verified | 472 | Two checker diagnostics per record in this run; not two distinct capabilities |
-| No source-backed invariant declaration | 175 | Ledger record has no invariant entry |
-| No verified invariant | 175 | Invariant list is missing or has no verified invariant |
-| Stateful initial scenario not verified | 121 | Separate initial-scenario requirement |
-| Initial scenario missing/unverified | 121 | Scenario matrix entry |
-| Repeat scenario missing/unverified | 123 | Scenario matrix entry |
-| Changed scenario missing/unverified | 124 | Scenario matrix entry |
-| Force scenario missing/unverified | 121 | Scenario matrix entry |
-| Failure scenario missing/unverified | 121 | Scenario matrix entry |
+| No source-backed invariant declaration | 171 | Ledger record has no invariant entry |
+| No verified invariant | 171 | Invariant list is missing or has no verified invariant |
+| Stateful initial scenario not verified | 118 | Separate initial-scenario requirement |
+| Initial scenario missing/unverified | 118 | Scenario matrix entry |
+| Repeat scenario missing/unverified | 122 | Scenario matrix entry |
+| Changed scenario missing/unverified | 122 | Scenario matrix entry |
+| Force scenario missing/unverified | 118 | Scenario matrix entry |
+| Failure scenario missing/unverified | 120 | Scenario matrix entry |
 | Missing `repeat_operation` invariant | 128 | Stateful/repeat contract not recorded as verified |
 | Missing stateful true/false classification | 3 | Subsystem classification absent |
 
-Stateful-scenario diagnostic totals overlap and should not be added to infer unique scenario gaps. There are **175** records with no invariant declarations and the same **175** with no verified invariant; the checker is reporting both requirements for those records. Separately, **128** records need a repeat-operation invariant. Exact records and root causes are listed in the machine report rather than duplicated in this document.
+Stateful-scenario diagnostic totals overlap and should not be added to infer unique scenario gaps. There are **171** records with no invariant declarations and the same **171** with no verified invariant; the checker is reporting both requirements for those records. Separately, **128** records need a repeat-operation invariant. Exact records and root causes are listed in the machine report rather than duplicated in this document.
 
 ## Behavioral mismatches versus evidence gaps
 
-The validator does not report implementation behavior. Therefore the count of *actual behavioral mismatches* cannot be derived from 1,679; the report deliberately records this as `null` (unknown, not zero). Existing differential evidence identifies W5 as **11/11 PASS, zero divergences**, W6 as **9 scenarios, zero divergences**, and the latest sampled HTTP suite as **109/109 PASS**. These bounded probes do not prove the remaining untested capabilities match. Historical documented divergences in `TASK-20261030.md` are retained with their provenance and superseded/resolved status; do not aggregate them as current defects without a fresh reproducer.
+The validator does not report implementation behavior. Therefore the count of *actual behavioral mismatches* cannot be derived from 1,665; the report deliberately records this as `null` (unknown, not zero). Existing differential evidence identifies W5 as **11/11 PASS, zero divergences**, W6 as **9 scenarios, zero divergences**, and the latest sampled HTTP suite as **118/118 PASS**. These bounded probes do not prove the remaining untested capabilities match. Historical documented divergences in `TASK-20261030.md` are retained with their provenance and superseded/resolved status; do not aggregate them as current defects without a fresh reproducer.
 
 The first W5 checkpoint rerun used a stale Go binary and reproduced two ACL mismatches; the rerun after rebuilding from the current tree passed all 11 cases. Both outcomes are retained in temporary reports under `/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-checkpoint-*`; only the fresh-built run is current evidence. This is a reproducibility warning, not a new source defect.
 

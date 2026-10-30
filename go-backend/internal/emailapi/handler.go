@@ -84,6 +84,13 @@ func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
 	e := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
 	if e != nil {
+		if e == sql.ErrNoRows {
+			return map[string]any{
+				"id": "email-settings", "host": nil, "port": 465, "secure": true,
+				"rejectUnauthorized": true, "user": nil, "pass": nil,
+				"testAddress": nil, "fromAddress": nil, "ereaderDevices": []any{},
+			}, nil
+		}
 		return nil, e
 	}
 	var m map[string]any
@@ -95,7 +102,8 @@ func (h *Handler) save(ctx context.Context, m map[string]any) error {
 	if e != nil {
 		return e
 	}
-	_, e = h.db.ExecContext(ctx, `UPDATE settings SET value=?,updatedAt=? WHERE key='email-settings'`, string(b), dbtime.Now())
+	now := dbtime.Now()
+	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
 	return e
 }
 func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
@@ -105,6 +113,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 		return
 	}
 	if patch {
+		before, _ := json.Marshal(m)
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil {
 			w.WriteHeader(400)
@@ -123,7 +132,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 				}
 			}
 			if k == "secure" || k == "rejectUnauthorized" {
-				v = v == true
+				v = jsTruthy(v)
 			}
 			if k == "ereaderDevices" {
 				if list, ok := v.([]any); ok {
@@ -134,12 +143,31 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 			}
 			m[k] = v
 		}
-		if e = h.save(r.Context(), m); e != nil {
-			http.Error(w, "database error", 500)
-			return
+		after, _ := json.Marshal(m)
+		if !bytes.Equal(before, after) {
+			if e = h.save(r.Context(), m); e != nil {
+				http.Error(w, "database error", 500)
+				return
+			}
 		}
 	}
 	write(w, map[string]any{"settings": m})
+}
+func jsTruthy(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return false
+	case bool:
+		return x
+	case string:
+		return x != ""
+	case float64:
+		return x != 0
+	case int:
+		return x != 0
+	default:
+		return true
+	}
 }
 func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 	var p struct {

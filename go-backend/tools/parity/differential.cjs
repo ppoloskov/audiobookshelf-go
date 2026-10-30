@@ -88,6 +88,11 @@ const EXPECTED_STATUS = {
   'playlist-missing': 404, 'user-create-forbidden': 403,
   'user-delete-forbidden': 403, 'session-delete-missing': 404,
   'email-settings-reader-admin-gate': 404, 'notifications-reader-admin-gate': 403,
+  'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
+  'email-settings-read-defaults-initial': 200,
+  'notifications-settings-patch-custom': 200, 'notifications-settings-read-after-custom': 200,
+  'notifications-settings-read-defaults-initial': 200,
+  'notifications-settings-patch-defaults': 200, 'notifications-settings-read-after-defaults': 200,
   'backup-missing-download': 404, 'collection-empty-name': 400,
   'playlist-empty-items': 200,
   'item-download': 200,
@@ -980,6 +985,32 @@ async function main() {
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
   ]
   for (const [id, route, options] of errorCalls) await comparePair(id, route, route, options)
+  await comparePair('email-settings-read-defaults-initial', '/api/emails/settings', '/api/emails/settings', {
+    method: 'GET', token: referenceAccessToken
+  })
+  await comparePair('email-settings-patch-coercion', '/api/emails/settings', '/api/emails/settings', {
+    method: 'PATCH', token: referenceAccessToken,
+    body: { host: 'smtp.example.invalid', port: '587', secure: 'false' }
+  })
+  await comparePair('email-settings-read-after-coercion', '/api/emails/settings', '/api/emails/settings', {
+    method: 'GET', token: referenceAccessToken
+  })
+  await comparePair('notifications-settings-read-defaults-initial', '/api/notifications', '/api/notifications', {
+    method: 'GET', token: referenceAccessToken
+  })
+  await comparePair('notifications-settings-patch-custom', '/api/notifications', '/api/notifications', {
+    method: 'PATCH', token: referenceAccessToken,
+    body: { appriseApiUrl: 'http://apprise.example.invalid', maxFailedAttempts: 3, maxNotificationQueue: 8 }
+  })
+  await comparePair('notifications-settings-read-after-custom', '/api/notifications', '/api/notifications', {
+    method: 'GET', token: referenceAccessToken
+  })
+  await comparePair('notifications-settings-patch-defaults', '/api/notifications', '/api/notifications', {
+    method: 'PATCH', token: referenceAccessToken, body: {}
+  })
+  await comparePair('notifications-settings-read-after-defaults', '/api/notifications', '/api/notifications', {
+    method: 'GET', token: referenceAccessToken
+  })
   await comparePair('playlist-empty-items', '/api/playlists', '/api/playlists', {
     method: 'POST', token: referenceAccessToken,
     body: { libraryId: bookLibraryId, name: 'Empty parity playlist', items: [] }

@@ -12,18 +12,33 @@
   "go-backend/internal/emailapi/handler.go"
  ],
  "cases": {
-  "normal": "unverified",
+  "normal": "verified",
   "error": "verified",
   "edge": "unverified"
  },
  "stateful": false,
+ "invariants": [
+  {
+   "id": "INV-R170-FRESH-DEFAULTS-001",
+   "class": "shape",
+   "contract": "GET /emails/settings returns EmailSettings constructor defaults when the settings row has not yet been persisted in a fresh v2.37.2 database.",
+   "status": "verified",
+   "source": ["server/models/Setting.js:21-35", "server/objects/settings/EmailSettings.js:14-39"],
+   "tests": ["go-backend/tools/parity/differential.cjs", "go-backend/internal/emailapi/handler_test.go"],
+   "evidence": ["go-backend/contracts/parity/full-suite-report.json#email-settings-read-defaults-initial"],
+   "exceptions": []
+  }
+ ],
  "tests": [
-  "go-backend/internal/emailapi/handler.go"
+  "go-backend/internal/emailapi/handler.go",
+  "go-backend/internal/emailapi/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
  ],
  "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#email-settings-reader-admin-gate (reader denial response; only this permission branch is verified)"
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-reader-admin-gate",
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-read-defaults-initial"
  ],
  "exceptions": [
-  "The fresh differential covers only the reader admin-gate denial; normal admin response, settings payload, and other email routes remain unverified."
+  "PATCH behavior and other email routes remain unverified by the GET route record."
  ]
 }

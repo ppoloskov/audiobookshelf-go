@@ -18,7 +18,7 @@
 
 ## Go backend rewrite status
 
-This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The latest sampled differential run passes 110/110 cases, including selected ACL and per-file download variants. Full feature parity is not established: strict ledger gates still fail and most route variants remain unverified. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for current scope and evidence.
+This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The latest sampled differential run passes 118/118 cases, including selected ACL, per-file download, and email/notification settings variants. Full feature parity is not established: strict ledger gates still fail and most route variants remain unverified. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for current scope and evidence.
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 
@@ -199,4 +199,4 @@ If you are using VSCode, this project includes a couple of pre-defined targets t
 
 ## Go compatibility rewrite
 
-This checkout includes an ongoing Go drop-in compatibility implementation in [go-backend/](go-backend/README.md). It targets pinned upstream v2.37.2 and is not yet at full parity. Recent differentials verify selected ACL, destructive-lifecycle, OIDC, cover upload/URL/PATCH/delete, per-file download, and browser workflows (the latest sampled HTTP suite is 110/110); the strict capability gate still fails, so no overall parity claim is made. Read [agents.md](agents.md) and [handover.md](handover.md) before continuing. The contract, capability ledger, evidence, and next action live under [docs/agent-work/](docs/agent-work/).
+This checkout includes an ongoing Go drop-in compatibility implementation in [go-backend/](go-backend/README.md). It targets pinned upstream v2.37.2 and is not yet at full parity. Recent differentials verify selected ACL, destructive-lifecycle, OIDC, cover upload/URL/PATCH/delete, per-file download, email/notification settings, and browser workflows (the latest sampled HTTP suite is 118/118); the strict capability gate still fails, so no overall parity claim is made. Read [agents.md](agents.md) and [handover.md](handover.md) before continuing. The contract, capability ledger, evidence, and next action live under [docs/agent-work/](docs/agent-work/).

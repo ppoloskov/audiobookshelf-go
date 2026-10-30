@@ -60,6 +60,13 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='notification-settings'`).Scan(&raw); err != nil {
+		if err == sql.ErrNoRows {
+			return map[string]any{
+				"id": "notification-settings", "appriseType": "api", "appriseApiUrl": nil,
+				"notifications": []any{}, "maxFailedAttempts": 5,
+				"maxNotificationQueue": 20, "notificationDelay": 1000,
+			}, nil
+		}
 		return nil, err
 	}
 	var v map[string]any
@@ -73,7 +80,8 @@ func (h *Handler) save(ctx context.Context, v map[string]any) error {
 	if e != nil {
 		return e
 	}
-	_, e = h.db.ExecContext(ctx, `UPDATE settings SET value=?,updatedAt=? WHERE key='notification-settings'`, string(b), dbtime.Now())
+	now := dbtime.Now()
+	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('notification-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
 	return e
 }
 func admin(t string) bool { return t == "admin" || t == "root" }
@@ -100,9 +108,14 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) {
 	write(w, map[string]any{"data": map[string]any{"events": events}, "settings": s})
 }
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
-	var p map[string]any
-	if json.NewDecoder(r.Body).Decode(&p) != nil {
+	var payload any
+	if json.NewDecoder(r.Body).Decode(&payload) != nil {
 		w.WriteHeader(400)
+		return
+	}
+	p, ok := payload.(map[string]any)
+	if !ok {
+		writeStatus(w, http.StatusOK)
 		return
 	}
 	s, e := h.load(r.Context())
@@ -110,25 +123,69 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database error", 500)
 		return
 	}
-	if v, ok := p["appriseApiUrl"]; ok {
-		if v == nil || v == "" {
-			s["appriseApiUrl"] = nil
-		} else if u, ok := v.(string); ok {
-			s["appriseApiUrl"] = u
+	updated := false
+	if v, ok := p["appriseApiUrl"]; !ok {
+		s["appriseApiUrl"] = nil
+		updated = true // upstream compares undefined against the current null value
+	} else if v == nil || v == "" || v == false || v == float64(0) {
+		if !strictEqual(s["appriseApiUrl"], nil) {
+			updated = true
 		}
+		s["appriseApiUrl"] = nil
+	} else {
+		if !strictEqual(s["appriseApiUrl"], v) {
+			updated = true
+		}
+		s["appriseApiUrl"] = v
 	}
-	for _, k := range []string{"maxFailedAttempts", "maxNotificationQueue"} {
-		if v, ok := p[k]; ok {
-			if n, ok := number(v); ok {
-				s[k] = n
+	for k, fallback := range map[string]float64{"maxFailedAttempts": 5, "maxNotificationQueue": 20} {
+		if v, ok := p[k]; !ok {
+			if current, valid := number(s[k]); !valid || current != fallback {
+				updated = true
 			}
+			s[k] = fallback
+		} else if n, ok := number(v); ok {
+			if current, valid := number(s[k]); !valid || current != n {
+				updated = true
+			}
+			s[k] = n
+		} else {
+			if current, valid := number(s[k]); !valid || current != fallback {
+				updated = true
+			}
+			s[k] = fallback
 		}
 	}
-	if e = h.save(r.Context(), s); e != nil {
-		http.Error(w, "database error", 500)
-		return
+	if updated {
+		if e = h.save(r.Context(), s); e != nil {
+			http.Error(w, "database error", 500)
+			return
+		}
 	}
-	w.WriteHeader(200)
+	writeStatus(w, http.StatusOK)
+}
+func strictEqual(a, b any) bool {
+	switch x := a.(type) {
+	case nil:
+		return b == nil
+	case string:
+		y, ok := b.(string)
+		return ok && x == y
+	case bool:
+		y, ok := b.(bool)
+		return ok && x == y
+	case float64:
+		y, ok := b.(float64)
+		return ok && x == y
+	case int:
+		switch y := b.(type) {
+		case int:
+			return x == y
+		case float64:
+			return float64(x) == y
+		}
+	}
+	return false
 }
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	p := map[string]any{}
