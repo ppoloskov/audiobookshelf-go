@@ -91,6 +91,16 @@ const EXPECTED_STATUS = {
   'notification-test-missing-id-unconfigured': 404,
   'notification-test-existing-id-unconfigured': 400,
   'notifications-clear-apprise-url': 200,
+  'notification-test-admin-denied': 403,
+  'notification-apprise-fixture-configure-success': 200,
+  'notification-test-send-success': 200,
+  'notification-test-apprise-payload': 200,
+  'notification-read-after-test-success': 200,
+  'notification-test-no-state-change-success': 200,
+  'notification-apprise-fixture-configure-failure': 200,
+  'notification-test-send-failure': 500,
+  'notification-read-after-test-failure': 200,
+  'notification-test-no-state-change-failure': 200,
   'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
   'email-settings-read-defaults-initial': 200,
   'email-test-configure-smtp': 200, 'email-test-success': 200,
@@ -183,6 +193,7 @@ async function call(server, route, options = {}) {
   if ((route.startsWith('/api/emails/') || route.startsWith('/api/notifications')) && [400, 403, 404].includes(response.status)) {
     headerNames.push('etag', 'content-length')
   }
+  if (route.startsWith('/api/notifications/') && route.endsWith('/test')) headerNames.push('etag', 'content-length')
   for (const key of headerNames) {
     const value = response.headers.get(key)
     if (value !== null) headers[key] = value
@@ -259,6 +270,29 @@ async function startSMTPFixture({ rejectConnection = false } = {}) {
   const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
   server.unref()
   return { server, port, sessions }
+}
+
+async function startNotificationAppriseFixture() {
+  const requests = { node: [], go: [] }
+  const server = require('node:http').createServer((req, res) => {
+    const side = req.url.split('/')[1]
+    const chunks = []
+    req.on('data', chunk => chunks.push(chunk))
+    req.on('end', () => {
+      if (!Object.hasOwn(requests, side)) {
+        res.writeHead(404)
+        return res.end()
+      }
+      let payload = null
+      try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch {}
+      requests[side].push({ path: req.url, payload })
+      res.writeHead(req.url.endsWith('/failure') ? 503 : 200, { 'content-type': 'text/plain' })
+      res.end(req.url.endsWith('/failure') ? 'fixture failure' : 'sent')
+    })
+  })
+  const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
+  server.unref()
+  return { server, requests, url: `http://127.0.0.1:${port}` }
 }
 
 function smtpMessageShape(session) {
@@ -605,10 +639,20 @@ function normalizeCase(id, body, pathRoots) {
       if (typeof notification.id !== 'string' || !uuid.test(notification.id)) throw new Error(`${id}: notification id is not a UUID`)
       notification.id = '<dynamic-notification-uuid>'
       checkAndReplaceNumber(notification, 'createdAt', '<dynamic-time>')
+      if (notification.lastFiredAt !== null && notification.lastFiredAt !== undefined) checkAndReplaceNumber(notification, 'lastFiredAt', '<dynamic-time>')
     }
   }
   if (['notification-create', 'notification-create-minimal', 'notification-create-empty-urls', 'notification-update', 'notification-update-without-body-id', 'notification-delete'].includes(id)) normalizeNotifications(normalized)
-  else if (['notification-read-after-create', 'notification-read-after-update', 'notification-read-after-delete'].includes(id)) normalizeNotifications(normalized.settings)
+  else if (['notification-read-after-create', 'notification-read-after-update', 'notification-read-after-delete', 'notification-read-after-test-success', 'notification-read-after-test-failure'].includes(id)) normalizeNotifications(normalized.settings)
+  const normalizeAppriseFixtureURL = (settings) => {
+    if (typeof settings?.appriseApiUrl === 'string' && /^http:\/\/127\.0\.0\.1:\d+\/(node|go)\/(success|failure)$/.test(settings.appriseApiUrl)) {
+      settings.appriseApiUrl = '<fixture-local-apprise-url>'
+    }
+  }
+  if (id.startsWith('notification-') || id.startsWith('notifications-')) {
+    normalizeAppriseFixtureURL(normalized.settings)
+    normalizeAppriseFixtureURL(normalized)
+  }
   const normalizeEntity = (entity, entityName) => {
     if (!entity || typeof entity !== 'object' || Array.isArray(entity)) throw new Error(`${id}: ${entityName} entity is missing`)
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -1099,6 +1143,7 @@ async function main() {
     ['email-settings-reader-admin-gate', '/api/emails/settings', { method: 'GET', token: readerAccessToken }],
     ['notifications-reader-admin-gate', '/api/notifications', { method: 'GET', token: readerAccessToken }],
     ['notification-test-missing-id-unconfigured', '/api/notifications/00000000-0000-4000-8000-000000000000/test', { method: 'GET', token: referenceAccessToken }],
+    ['notification-test-admin-denied', '/api/notifications/00000000-0000-4000-8000-000000000000/test', { method: 'GET', token: readerAccessToken }],
     ['session-delete-missing', '/api/me/sessions/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: referenceAccessToken }],
     ['backup-missing-download', '/api/backups/00000000-0000-0000-0000-000000000000/download', { method: 'GET', token: referenceAccessToken }],
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
@@ -1151,8 +1196,66 @@ async function main() {
     await comparePair('notification-test-existing-id-unconfigured', `/api/notifications/${nodeNotificationID}/test`, `/api/notifications/${goNotificationID}/test`, {
       method: 'GET', token: referenceAccessToken
     })
+    const apprise = await startNotificationAppriseFixture()
+    try {
+      await comparePair('notification-apprise-fixture-configure-success', '/api/notifications', '/api/notifications', {
+        method: 'PATCH', token: referenceAccessToken,
+        nodeBody: { appriseApiUrl: `${apprise.url}/node/success` },
+        goBody: { appriseApiUrl: `${apprise.url}/go/success` }
+      })
+      await comparePair('notification-test-send-success', `/api/notifications/${nodeNotificationID}/test`, `/api/notifications/${goNotificationID}/test`, {
+        method: 'GET', token: referenceAccessToken
+      })
+      if (apprise.requests.node.length !== 1 || apprise.requests.go.length !== 1) throw new Error('notification test success must deliver exactly once on each side')
+      results.push(compare('notification-test-apprise-payload',
+        { status: 200, headers: {}, body: apprise.requests.node[0].payload },
+        { status: 200, headers: {}, body: apprise.requests.go[0].payload }))
+      const [nodeAfterSuccess, goAfterSuccess] = await comparePair('notification-read-after-test-success', '/api/notifications', '/api/notifications', {
+        method: 'GET', token: referenceAccessToken
+      })
+      const testState = (response, notificationID) => {
+        const notification = response.body?.settings?.notifications?.find(entry => entry.id === notificationID)
+        if (!notification) throw new Error('notification disappeared after test delivery')
+        return {
+          lastFiredAt: notification.lastFiredAt,
+          lastAttemptFailed: notification.lastAttemptFailed,
+          numConsecutiveFailedAttempts: notification.numConsecutiveFailedAttempts,
+          numTimesFired: notification.numTimesFired
+        }
+      }
+      results.push(compare('notification-test-no-state-change-success',
+        { status: 200, headers: {}, body: testState(nodeAfterSuccess, nodeNotificationID) },
+        { status: 200, headers: {}, body: testState(goAfterSuccess, goNotificationID) }))
+      if (JSON.stringify(testState(nodeAfterSuccess, nodeNotificationID)) !== JSON.stringify({ lastFiredAt: null, lastAttemptFailed: false, numConsecutiveFailedAttempts: 0, numTimesFired: 0 }) ||
+          JSON.stringify(testState(goAfterSuccess, goNotificationID)) !== JSON.stringify({ lastFiredAt: null, lastAttemptFailed: false, numConsecutiveFailedAttempts: 0, numTimesFired: 0 })) {
+        throw new Error('GET /notifications/:id/test must not mutate firing counters')
+      }
+      await comparePair('notification-apprise-fixture-configure-failure', '/api/notifications', '/api/notifications', {
+        method: 'PATCH', token: referenceAccessToken,
+        nodeBody: { appriseApiUrl: `${apprise.url}/node/failure` },
+        goBody: { appriseApiUrl: `${apprise.url}/go/failure` }
+      })
+      await comparePair('notification-test-send-failure', `/api/notifications/${nodeNotificationID}/test`, `/api/notifications/${goNotificationID}/test`, {
+        method: 'GET', token: referenceAccessToken
+      })
+      if (apprise.requests.node.length !== 2 || apprise.requests.go.length !== 2) throw new Error('notification test failure must attempt exactly one delivery on each side')
+      const [nodeAfterFailure, goAfterFailure] = await comparePair('notification-read-after-test-failure', '/api/notifications', '/api/notifications', {
+        method: 'GET', token: referenceAccessToken
+      })
+      results.push(compare('notification-test-no-state-change-failure',
+        { status: 200, headers: {}, body: testState(nodeAfterFailure, nodeNotificationID) },
+        { status: 200, headers: {}, body: testState(goAfterFailure, goNotificationID) }))
+      if (JSON.stringify(testState(nodeAfterFailure, nodeNotificationID)) !== JSON.stringify({ lastFiredAt: null, lastAttemptFailed: false, numConsecutiveFailedAttempts: 0, numTimesFired: 0 }) ||
+          JSON.stringify(testState(goAfterFailure, goNotificationID)) !== JSON.stringify({ lastFiredAt: null, lastAttemptFailed: false, numConsecutiveFailedAttempts: 0, numTimesFired: 0 })) {
+        throw new Error('failed GET /notifications/:id/test must not mutate firing counters')
+      }
+    } finally {
+      await new Promise(resolve => apprise.server.close(resolve))
+    }
   } else {
-    results.push({ id: 'notification-test-existing-id-unconfigured', passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
+    for (const id of ['notification-test-existing-id-unconfigured', 'notification-apprise-fixture-configure-success', 'notification-test-send-success', 'notification-test-apprise-payload', 'notification-read-after-test-success', 'notification-test-no-state-change-success', 'notification-apprise-fixture-configure-failure', 'notification-test-send-failure', 'notification-read-after-test-failure', 'notification-test-no-state-change-failure']) {
+      results.push({ id, passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
+    }
   }
   await comparePair('notification-create-empty-urls', '/api/notifications', '/api/notifications', {
     method: 'POST', token: referenceAccessToken,

@@ -386,13 +386,13 @@ func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 	}
 	event := eventData(n["eventName"].(string))
 	if event == nil {
-		w.WriteHeader(500)
+		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
 	if h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))) == nil {
-		w.WriteHeader(200)
+		writeStatus(w, http.StatusOK)
 	} else {
-		w.WriteHeader(500)
+		writeStatus(w, http.StatusInternalServerError)
 	}
 }
 func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event string, data map[string]any, fail bool) (bool, error) {

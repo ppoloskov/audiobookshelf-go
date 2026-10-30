@@ -183,12 +183,31 @@ func TestNotificationTestPostsRenderedPayloadToLocalApprise(t *testing.T) {
 	testReq := httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil)
 	tw := httptest.NewRecorder()
 	h.Handle(tw, testReq, admin)
-	if tw.Code != 200 {
+	if tw.Code != 200 || tw.Body.String() != "OK" || tw.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("test status %d: %s", tw.Code, tw.Body.String())
 	}
 	p := <-got
 	if p["title"] != "Version v2.37.2" || p["body"] != "Hi v2.37.2" {
 		t.Fatalf("payload %#v", p)
+	}
+}
+
+func TestNotificationTestAppriseFailureUsesSendStatus(t *testing.T) {
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+	defer mock.Close()
+	db := notificationDB(t, mock.URL)
+	h := New(db, config.Config{}, nil)
+	create := httptest.NewRecorder()
+	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
+	var settings map[string]any
+	if err := json.Unmarshal(create.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	id := settings["notifications"].([]any)[0].(map[string]any)["id"].(string)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
+	if w.Code != http.StatusInternalServerError || w.Body.String() != "Internal Server Error" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
+		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 }
 func TestNotificationRejectsNonAdmin(t *testing.T) {

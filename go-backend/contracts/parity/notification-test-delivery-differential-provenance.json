@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "upstreamRevision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureBaseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureManifest": "/private/tmp/abs-notification-delivery-final/fixture-manifest.json",
+  "sourceReport": "/private/tmp/abs-notification-delivery-final/report.json",
+  "commands": [
+    "mise exec node@22 -- node go-backend/tools/parity/create-fixture.cjs /private/tmp/abs-notification-delivery-final",
+    "GOCACHE=/private/tmp/abs-build-notification CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-notification-delivery ./cmd/audiobookshelf-go",
+    "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-notification-delivery-final/fixture-manifest.json --go-bin /private/tmp/audiobookshelf-go-notification-delivery --out /private/tmp/abs-notification-delivery-final/report.json"
+  ],
+  "runtime": {
+    "node": "v22.23.4",
+    "go": "go1.27.0 darwin/arm64",
+    "network": "loopback Node/Go and local Apprise fixture; SSRF filter active with only 127.0.0.1 hostname whitelisted for fixture cover requests"
+  },
+  "results": {
+    "suiteTotal": 157,
+    "suitePassed": 157,
+    "suiteFailed": 0,
+    "suiteSkipped": 0,
+    "notificationCases": 12,
+    "notificationCasesPassed": 12,
+    "successDeliveriesPerSide": 1,
+    "failedDeliveriesAttemptedPerSide": 1,
+    "notificationAttemptStateChanged": false,
+    "divergences": 0
+  },
+  "limits": [
+    "Notification test-route coverage verifies admin denial, missing ID, configured and unconfigured behavior, one local Apprise success and one HTTP 503, rendered payload, sendStatus response shape, and unchanged firing counters. Redirects, timeouts/cancellation, malformed event state, global event delivery/queueing, and broader ACL remain unverified.",
+    "The 157-case differential is sampled route evidence, not route-wide feature parity."
+  ]
+}
