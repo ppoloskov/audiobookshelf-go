@@ -18,6 +18,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -611,7 +612,7 @@ func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duratio
 }
 
 func (h *Handler) issueLegacyToken(id, username string) (string, error) {
-	return h.sign(map[string]any{"userId": id, "username": username})
+	return h.sign(map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
 }
 
 func (h *Handler) sign(payload any) (string, error) {
@@ -890,7 +891,65 @@ func requestToken(r *http.Request) string {
 }
 
 func setRefreshCookie(w http.ResponseWriter, r *http.Request, value string, maxAge int) {
-	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: value, Path: "/", HttpOnly: true, Secure: requestSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: maxAge})
+	setExpressCookie(w, "refresh_token", value, maxAge, true, requestSecure(r), "Lax")
+}
+
+func setExpressCookie(w http.ResponseWriter, name, value string, maxAge int, httpOnly, secure bool, sameSite string) {
+	setExpressCookieValue(w, name, encodeCookieValue(value), maxAge, httpOnly, secure, sameSite)
+}
+
+func encodeCookieValue(value string) string {
+	encoded := url.QueryEscape(value)
+	return strings.NewReplacer("+", "%20", "%21", "!", "%27", "'", "%28", "(", "%29", ")", "%2A", "*").Replace(encoded)
+}
+
+func setExpressCookieValue(w http.ResponseWriter, name, encodedValue string, maxAge int, httpOnly, secure bool, sameSite string) {
+	parts := []string{name + "=" + encodedValue}
+	if maxAge > 0 {
+		parts = append(parts, "Max-Age="+strconv.Itoa(maxAge), "Path=/", "Expires="+time.Now().Add(time.Duration(maxAge)*time.Second).UTC().Format(http.TimeFormat))
+	} else {
+		parts = append(parts, "Path=/")
+	}
+	if httpOnly {
+		parts = append(parts, "HttpOnly")
+	}
+	if secure {
+		parts = append(parts, "Secure")
+	}
+	if sameSite != "" {
+		parts = append(parts, "SameSite="+sameSite)
+	}
+	w.Header().Add("Set-Cookie", strings.Join(parts, "; "))
+}
+
+func (h *Handler) sessionCookieValue(r *http.Request) (string, error) {
+	if cookie, err := r.Cookie("connect.sid"); err == nil {
+		if decoded, decodeErr := url.QueryUnescape(cookie.Value); decodeErr == nil && h.validSessionCookie(decoded) {
+			return encodeCookieValue(decoded), nil
+		}
+	}
+	sessionID, err := randomURLToken(24)
+	if err != nil {
+		return "", err
+	}
+	mac := hmac.New(sha256.New, h.secret)
+	_, _ = mac.Write([]byte(sessionID))
+	signature := strings.TrimRight(base64.StdEncoding.EncodeToString(mac.Sum(nil)), "=")
+	return encodeCookieValue("s:" + sessionID + "." + signature), nil
+}
+
+func (h *Handler) validSessionCookie(value string) bool {
+	if !strings.HasPrefix(value, "s:") {
+		return false
+	}
+	unsigned, signature, ok := strings.Cut(strings.TrimPrefix(value, "s:"), ".")
+	if !ok || unsigned == "" || signature == "" {
+		return false
+	}
+	mac := hmac.New(sha256.New, h.secret)
+	_, _ = mac.Write([]byte(unsigned))
+	want := strings.TrimRight(base64.StdEncoding.EncodeToString(mac.Sum(nil)), "=")
+	return hmac.Equal([]byte(signature), []byte(want))
 }
 
 func requestSecure(r *http.Request) bool {

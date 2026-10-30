@@ -276,6 +276,69 @@ func TestOIDCAutoRegisterAndMobileRedirectAllowlist(t *testing.T) {
 	}
 }
 
+func TestOIDCCallbackEmptyCodeVerifierWithoutSessionUsesWebRedirect(t *testing.T) {
+	db, handler := identityFixture(t)
+	defer db.Close()
+	configureOIDC(t, db, "https://provider.example", nil)
+	request := httptest.NewRequest(http.MethodGet, "/auth/openid/callback?state=missing-state&code_verifier=", nil)
+	request.Host = "abs.example"
+	response := httptest.NewRecorder()
+	if !handler.Handle(response, request) {
+		t.Fatal("OIDC callback route was not handled")
+	}
+	want := "/login?error=No%20sign-in%20session&autoLaunch=0"
+	if response.Code != http.StatusFound || response.Header().Get("Location") != want {
+		t.Fatalf("response = %d location %q, want 302 %q", response.Code, response.Header().Get("Location"), want)
+	}
+}
+
+func TestOIDCCallbackDuplicateEmptyVerifiersWithoutSessionUsesMobileError(t *testing.T) {
+	db, handler := identityFixture(t)
+	defer db.Close()
+	configureOIDC(t, db, "https://provider.example", nil)
+	request := httptest.NewRequest(http.MethodGet, "/auth/openid/callback?state=missing-state&code_verifier=&code_verifier=", nil)
+	request.Host = "abs.example"
+	response := httptest.NewRecorder()
+	if !handler.Handle(response, request) {
+		t.Fatal("OIDC callback route was not handled")
+	}
+	body := "No session"
+	if response.Code != http.StatusBadRequest || response.Body.String() != body {
+		t.Fatalf("response = %d %q, want 400 %q", response.Code, response.Body.String(), body)
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want Express text response", got)
+	}
+}
+
+func TestOIDCMobileCallbackMissingSessionUsesExpressTextResponse(t *testing.T) {
+	db, handler := identityFixture(t)
+	defer db.Close()
+	configureOIDC(t, db, "https://provider.example", map[string]any{
+		"authOpenIDMobileRedirectURIs": []any{"audiobookshelf://oauth"},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/auth/openid/callback?state=expired-state&code=mobile-code&code_verifier=mobile-verifier", nil)
+	request.Host = "abs.example"
+	request.AddCookie(&http.Cookie{Name: "auth_method", Value: "openid-mobile"})
+	response := httptest.NewRecorder()
+	if !handler.Handle(response, request) {
+		t.Fatal("OIDC callback route was not handled")
+	}
+	body := "No session"
+	if response.Code != http.StatusBadRequest || response.Body.String() != body {
+		t.Fatalf("response = %d %q, want 400 %q", response.Code, response.Body.String(), body)
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want Express text response", got)
+	}
+	if got := response.Header().Get("Content-Length"); got != fmt.Sprint(len(body)) {
+		t.Fatalf("Content-Length = %q, want %d", got, len(body))
+	}
+	if got := response.Header().Get("ETag"); !strings.HasPrefix(got, `W/"`) {
+		t.Fatalf("ETag = %q, want Express weak ETag", got)
+	}
+}
+
 func TestOIDCMobileRedirectStateMismatchUsesExpressTextResponse(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()

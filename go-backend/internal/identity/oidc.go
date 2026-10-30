@@ -24,11 +24,12 @@ import (
 const oidcFlowTTL = 10 * time.Minute
 
 type oidcFlow struct {
-	verifier    string
-	nonce       string
-	redirectURI string
-	mobile      bool
-	started     time.Time
+	verifier      string
+	nonce         string
+	redirectURI   string
+	sessionCookie string
+	mobile        bool
+	started       time.Time
 }
 
 type mobileFlow struct {
@@ -149,6 +150,17 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if isMobile {
+		if err := callbackURLIsSafeProviderReturn(cfg.mobileRedirectURIs, redirectURI); err != nil {
+			writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
+			return
+		}
+	}
+	sessionCookie, err := h.sessionCookieValue(r)
+	if err != nil {
+		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
 	if !isMobile {
 		setTemporaryCookie(w, "auth_cb", redirectURI, 600, false)
 		if suppliedState := query.Get("state"); suppliedState != "" {
@@ -157,10 +169,6 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 		setTemporaryCookie(w, "auth_method", "openid", 10*365*24*60*60, false)
 	} else {
 		setTemporaryCookie(w, "auth_method", "openid-mobile", 10*365*24*60*60, false)
-		if err := callbackURLIsSafeProviderReturn(cfg.mobileRedirectURIs, redirectURI); err != nil {
-			writePlain(w, http.StatusBadRequest, "Invalid redirect_uri")
-			return
-		}
 		h.oidcMu.Lock()
 		h.pruneOIDCState(time.Now())
 		h.mobileFlows[state] = mobileFlow{redirectURI: redirectURI, started: time.Now()}
@@ -168,13 +176,14 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	h.oidcMu.Lock()
 	h.pruneOIDCState(time.Now())
-	h.oidcFlows[state] = oidcFlow{verifier: verifier, nonce: nonce, redirectURI: callbackURL, mobile: isMobile, started: time.Now()}
+	h.oidcFlows[state] = oidcFlow{verifier: verifier, nonce: nonce, redirectURI: callbackURL, sessionCookie: sessionCookie, mobile: isMobile, started: time.Now()}
 	h.oidcMu.Unlock()
 	providerURL, err := authorizationURL(cfg, callbackURL, state, challenge, nonce)
 	if err != nil {
 		writePlain(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
 	redirectExpress(w, http.StatusFound, providerURL)
 }
 
@@ -229,6 +238,12 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	h.oidcMu.Unlock()
 	if !ok || state == "" {
+		verifiers := r.URL.Query()["code_verifier"]
+		hasCodeVerifier := len(verifiers) > 1 || len(verifiers) == 1 && verifiers[0] != ""
+		if cookieValue(r, "auth_method") == "openid-mobile" || hasCodeVerifier {
+			writeExpressText(w, http.StatusBadRequest, "No session")
+			return
+		}
 		h.oidcFailure(w, r, false, http.StatusBadRequest, "No sign-in session")
 		return
 	}
@@ -265,7 +280,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		h.oidcFailure(w, r, flow.mobile, http.StatusInternalServerError, "Error during login")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "openid_id_token", Value: idToken, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: 10 * 365 * 24 * 60 * 60})
+	setExpressCookie(w, "openid_id_token", idToken, 10*365*24*60*60, true, true, "Strict")
 	if flow.mobile || cookieValue(r, "auth_method") == "openid-mobile" || cookieValue(r, "auth_method") == "api" {
 		payload, err := h.loginPayload(r.Context(), user)
 		if err != nil {
@@ -275,10 +290,12 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		userDTO := payload["user"].(map[string]any)
 		userDTO["accessToken"] = access
 		userDTO["refreshToken"] = refresh
+		setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
 		writeJSON(w, http.StatusOK, payload)
 		return
 	}
 	setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
+	setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
 	callback := cookieValue(r, "auth_cb")
 	if callback == "" {
 		redirectExpress(w, http.StatusFound, "/login?error=No%20callback%20or%20already%20expired&autoLaunch=0")
@@ -381,7 +398,8 @@ func (h *Handler) oidcFailure(w http.ResponseWriter, r *http.Request, mobile boo
 	} else {
 		message = "Unauthorized"
 	}
-	redirectExpress(w, http.StatusFound, "/login?error="+url.QueryEscape(message)+"&autoLaunch=0")
+	redirectError := strings.ReplaceAll(url.QueryEscape(message), "+", "%20")
+	redirectExpress(w, http.StatusFound, "/login?error="+redirectError+"&autoLaunch=0")
 }
 
 func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {
@@ -961,7 +979,7 @@ func checkedStringArray(values []any) ([]string, error) {
 }
 
 func setTemporaryCookie(w http.ResponseWriter, name, value string, maxAge int, secure bool) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", HttpOnly: true, Secure: secure, MaxAge: maxAge})
+	setExpressCookie(w, name, value, maxAge, true, secure, "")
 }
 
 func cookieValue(r *http.Request, name string) string {
@@ -969,7 +987,11 @@ func cookieValue(r *http.Request, name string) string {
 	if err != nil {
 		return ""
 	}
-	return cookie.Value
+	value, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		return cookie.Value
+	}
+	return value
 }
 
 func (h *Handler) authMethodEnabled(ctx context.Context, method string) bool {

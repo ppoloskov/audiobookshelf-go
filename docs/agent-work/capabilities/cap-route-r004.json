@@ -1,0 +1,145 @@
+{
+ "id": "route-r004",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /auth/openid/callback candidate recorded from server/Auth.js:383. Method, web/mobile response, token claims, cookie/session effects, errors, state replay, and persisted user/session changes must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:383-445",
+  "server/auth/OidcAuthStrategy.js:112-164"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go",
+  "go-backend/internal/identity/oidc.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/identity_test.go",
+  "go-backend/tools/parity/oidc-differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-provider-error",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-nonce",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
+ ],
+ "invariants": [
+  {
+   "id": "INV-R004-OIDC-CALLBACK-COOKIE-JWT-001",
+   "class": "state_transition",
+   "contract": "Selected successful web callbacks match cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, SameSite, signed connect.sid, and JWT algorithms/claims; UUID identifiers and timestamps are compared by semantics, and each OIDC ID-token nonce is bound to its own authorization request.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:296-305",
+    "server/Auth.js:430-445",
+    "server/auth/TokenManager.js:108-171",
+    "server/auth/OidcAuthStrategy.js:112-164"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/identity_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier"
+   ],
+   "exceptions": [
+    "Evidence covers selected successful web/mobile callbacks only; invalid-verifier/provider errors, error cookie clearing, logout cookie clearing, and other callback variants remain unverified."
+   ]
+  },
+  {
+   "id": "INV-R004-OIDC-CALLBACK-REPLAY-001",
+   "class": "repeat_operation",
+   "contract": "Replaying a callback after its state has been consumed returns the upstream no-sign-in-session redirect and creates no additional persisted user/session.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:383-418"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R004-OIDC-MOBILE-CODE-EXCHANGE-001",
+   "class": "state_transition",
+   "contract": "A successful mobile callback accepts the provider code and caller-supplied PKCE verifier, returns the upstream API login payload and token claims, persists one provider-linked active user and one session, and matches the selected user fields and server settings.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:383-445",
+    "server/auth/OidcAuthStrategy.js:301-368",
+    "server/auth/OidcAuthStrategy.js:112-164"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange"
+   ],
+   "exceptions": [
+    "One local RS256 provider, one allowlisted redirect URI, one S256 flow, and the fixture auto-registration mode are covered. Invalid verifier/provider failures remain unverified."
+   ]
+  },
+  {
+   "id": "INV-R004-OIDC-MOBILE-EXCHANGE-REPLAY-001",
+   "class": "repeat_operation",
+   "contract": "Repeating the mobile token-exchange callback after the first callback consumed its session returns HTTP 400 No session with Express text/html response behavior and creates no second user or session.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:383-418"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go:TestOIDCMobileCallbackMissingSessionUsesExpressTextResponse"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R004-WEB-EMPTY-VERIFIER-001",
+   "class": "error",
+   "contract": "A callback request with no browser session and an empty code_verifier is treated as web and redirects to login with No sign-in session; a truthy code_verifier (non-empty string or repeated-query array) selects the mobile No session response.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:383-398"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go:TestOIDCCallbackEmptyCodeVerifierWithoutSessionUsesWebRedirect",
+    "go-backend/internal/identity/oidc_test.go:TestOIDCCallbackDuplicateEmptyVerifiersWithoutSessionUsesMobileError"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
+   ],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "unverified",
+  "force": "not_applicable",
+  "failure": "verified"
+ },
+ "exceptions": [
+  "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation."
+ ]
+}

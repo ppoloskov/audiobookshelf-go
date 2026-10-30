@@ -7,15 +7,15 @@
   "capabilityStatusNotVerified": 236,
   "causeCounts": {
     "initial_scenario_not_verified": 115,
-    "missing_invariant_record": 167,
-    "missing_or_unverified_scenario_changed": 120,
+    "missing_invariant_record": 165,
+    "missing_or_unverified_scenario_changed": 122,
     "missing_or_unverified_scenario_failure": 118,
     "missing_or_unverified_scenario_force": 115,
     "missing_or_unverified_scenario_initial": 115,
-    "missing_or_unverified_scenario_repeat": 122,
-    "missing_repeat_operation_invariant": 128,
+    "missing_or_unverified_scenario_repeat": 123,
+    "missing_repeat_operation_invariant": 129,
     "missing_stateful_classification": 3,
-    "no_verified_invariant": 167,
+    "no_verified_invariant": 165,
     "other": 1,
     "unverified_capability_status": 472
   },
@@ -92,10 +92,11 @@
       "kind": "operation",
       "scope": "in",
       "status": "implemented",
-      "findingCount": 4,
+      "findingCount": 5,
       "causes": {
-        "missing_invariant_record": 1,
-        "no_verified_invariant": 1,
+        "missing_or_unverified_scenario_changed": 1,
+        "missing_or_unverified_scenario_repeat": 1,
+        "missing_repeat_operation_invariant": 1,
         "unverified_capability_status": 2
       }
     },
@@ -119,10 +120,9 @@
       "kind": "operation",
       "scope": "in",
       "status": "implemented",
-      "findingCount": 4,
+      "findingCount": 3,
       "causes": {
-        "missing_invariant_record": 1,
-        "no_verified_invariant": 1,
+        "missing_or_unverified_scenario_changed": 1,
         "unverified_capability_status": 2
       }
     },
@@ -4189,15 +4189,22 @@
       "file": "cap-route-r002.json",
       "id": "route-r002",
       "parent": "http/identity",
-      "cause": "missing_invariant_record",
-      "diagnostic": "-require-invariants: at least one source-backed invariant required"
+      "cause": "missing_or_unverified_scenario_repeat",
+      "diagnostic": "-require-invariants: stateful scenario repeat is missing/unverified"
     },
     {
       "file": "cap-route-r002.json",
       "id": "route-r002",
       "parent": "http/identity",
-      "cause": "no_verified_invariant",
-      "diagnostic": "-require-invariants: at least one invariant must be verified, not all not_applicable"
+      "cause": "missing_or_unverified_scenario_changed",
+      "diagnostic": "-require-invariants: stateful scenario changed is missing/unverified"
+    },
+    {
+      "file": "cap-route-r002.json",
+      "id": "route-r002",
+      "parent": "http/identity",
+      "cause": "missing_repeat_operation_invariant",
+      "diagnostic": "-require-invariants: stateful capability needs a repeat_operation invariant"
     },
     {
       "file": "cap-route-r002.json",
@@ -4238,15 +4245,8 @@
       "file": "cap-route-r004.json",
       "id": "route-r004",
       "parent": "http/identity",
-      "cause": "missing_invariant_record",
-      "diagnostic": "-require-invariants: at least one source-backed invariant required"
-    },
-    {
-      "file": "cap-route-r004.json",
-      "id": "route-r004",
-      "parent": "http/identity",
-      "cause": "no_verified_invariant",
-      "diagnostic": "-require-invariants: at least one invariant must be verified, not all not_applicable"
+      "cause": "missing_or_unverified_scenario_changed",
+      "diagnostic": "-require-invariants: stateful scenario changed is missing/unverified"
     },
     {
       "file": "cap-route-r004.json",
