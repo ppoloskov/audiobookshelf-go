@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -762,12 +763,18 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	var body struct {
 		Cover string `json:"cover"`
 	}
-	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body) != nil || body.Cover == "" {
-		writeError(w, 400, "Invalid request no cover path")
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 10_000_000)).Decode(&body) != nil || body.Cover == "" {
+		sendTextStatus(w, 400, "Invalid request no cover path")
+		return
+	}
+	if strings.HasPrefix(body.Cover, "http:") || strings.HasPrefix(body.Cover, "https:") {
+		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
 	var raw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw); err != nil {
+	var itemPath string
+	var isFile int
+	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryFiles,path,COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&raw, &itemPath, &isFile); err != nil {
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -779,14 +786,77 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		}
 	}
 	if !valid {
-		writeError(w, 500, "Cover path is not a library item file")
+		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
 	table := "books"
 	if scope.mediaType == "podcast" {
 		table = "podcasts"
 	}
-	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=?,updatedAt=? WHERE id=? AND (coverPath IS NULL OR coverPath!=?)`, body.Cover, dbNow(), scope.mediaID, body.Cover)
+	var currentCover sql.NullString
+	if err := h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM `+table+` WHERE id=?`, scope.mediaID).Scan(&currentCover); err != nil {
+		writeError(w, 500, "database read failed")
+		return
+	}
+	if currentCover.Valid && currentCover.String == body.Cover {
+		writeExpressJSON(w, http.StatusOK, struct {
+			Success bool   `json:"success"`
+			Cover   string `json:"cover"`
+		}{true, body.Cover})
+		return
+	}
+	info, err := os.Stat(body.Cover)
+	if err != nil {
+		sendTextStatus(w, 500, "Cover path does not exist")
+		return
+	}
+	if !info.Mode().IsRegular() {
+		sendTextStatus(w, 500, "Cover path is not a file")
+		return
+	}
+	ext, validationError := validateCoverImage(body.Cover)
+	if validationError != "" {
+		sendTextStatus(w, 500, validationError)
+		return
+	}
+	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
+	var settingsRaw []byte
+	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
+		var settings map[string]any
+		_ = json.Unmarshal(settingsRaw, &settings)
+		storeWithItem, _ := settings["storeCoverWithItem"].(bool)
+		if storeWithItem && isFile == 0 {
+			coverDir = itemPath
+		}
+	}
+	coverPath := body.Cover
+	if !strings.HasPrefix(coverPath, coverDir) {
+		if err := os.MkdirAll(coverDir, 0o755); err != nil {
+			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			return
+		}
+		coverPath = filepath.Join(coverDir, "cover."+ext)
+		source, err := os.Open(body.Cover)
+		if err != nil {
+			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			return
+		}
+		target, err := os.Create(coverPath)
+		if err != nil {
+			_ = source.Close()
+			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			return
+		}
+		_, copyErr := io.Copy(target, source)
+		targetErr := target.Close()
+		sourceErr := source.Close()
+		if copyErr != nil || targetErr != nil || sourceErr != nil {
+			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			return
+		}
+		removeOldCovers(coverDir, "."+ext)
+	}
+	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=?,updatedAt=? WHERE id=? AND (coverPath IS NULL OR coverPath!=?)`, coverPath, dbNow(), scope.mediaID, coverPath)
 	if err != nil {
 		writeError(w, 500, "database write failed")
 		return
@@ -794,13 +864,17 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	n, _ := res.RowsAffected()
 	if n > 0 {
 		_, _ = h.db.ExecContext(r.Context(), `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), itemID)
+		h.purgeCoverCache(itemID)
 		if h.emit != nil {
 			if item, e := h.ItemJSON(r.Context(), itemID, true); e == nil {
 				h.emit("*", "item_updated", item)
 			}
 		}
 	}
-	writeJSON(w, r, 200, map[string]any{"success": true, "cover": body.Cover})
+	writeExpressJSON(w, http.StatusOK, struct {
+		Success bool   `json:"success"`
+		Cover   string `json:"cover"`
+	}{true, coverPath})
 }
 
 func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user store.User, itemID, fileID string) {

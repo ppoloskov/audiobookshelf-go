@@ -4,7 +4,7 @@
  "kind": "subsystem",
  "scope": "in",
  "status": "implemented",
- "contract": "Cover upload (POST), raw serving (GET ?raw=1), resized cache (GET with width/height/format incl. webp selection rules, cache files under metadata/cache/covers, purge on upload), matching headers (ETag, Cache-Control, chunked streaming), ffmpeg-resize parity",
+ "contract": "Cover multipart upload and body.url fetch (POST), scanned-file selection (PATCH), raw serving, resized cache, lifecycle cleanup, and matching response/state behavior including the source SSRF filter.",
  "source": [
   "server/controllers/LibraryItemController.js:842-950",
   "server/managers/CoverManager.js",
@@ -13,7 +13,8 @@
  ],
  "implementation": [
   "go-backend/internal/catalog/cover.go",
-  "go-backend/internal/catalog/handler.go"
+  "go-backend/internal/catalog/handler.go",
+  "go-backend/internal/catalog/writes.go"
  ],
  "cases": {
   "normal": "verified",
@@ -43,7 +44,7 @@
   {
    "id": "INV-COVER-UPLOAD-001",
    "class": "state_transition",
-   "contract": "Upload writes cover.<ext> (storeCoverWithItem decides item path vs metadata/items/<id>), removes older cover.* files, purges the item cache, persists media.coverPath + item updatedAt, emits item_updated after commit, responds {success, cover} with express weak ETag (LibraryItemController.js:295-333, CoverManager.js).",
+   "contract": "Multipart upload accepts only the source extension allowlist; successful upload stores cover.<ext>, removes older cover files only when the extension is in the source allowlist (.jpeg, .jpg, .png, .webp, .jiff), purges the item cache, persists media.coverPath + item updatedAt, emits item_updated after commit, and responds {success, cover}. A sampled upload retains an unrelated cover.svg file.",
    "status": "verified",
    "source": [
     "server/controllers/LibraryItemController.js",
@@ -53,16 +54,19 @@
     "go-backend/internal/catalog/handler_test.go"
    ],
    "evidence": [
-    "go-backend/contracts/parity/scanner-flow-report.json#cover-upload"
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload",
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload-unsupported-gif",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverUpload",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverUpload"
    ],
    "exceptions": [
-    "body.url remote-download variant belongs to the provider capability and is not covered by this record"
+    "Does not verify all allowed image formats, upload permission branches, event recipients, or storeCoverWithItem variants."
    ]
   },
   {
    "id": "INV-COVER-RAW-001",
    "class": "shape",
-   "contract": "raw=1 serves the original bytes with express sendFile defaults (Cache-Control public max-age=0 filled only when absent, weak file ETag W/<size hex>-<mtime hex>, Last-Modified) \u2014 send/index.js:862; byte-equal bodies verified.",
+   "contract": "raw=1 serves the original bytes with express sendFile defaults (Cache-Control public max-age=0 filled only when absent, weak file ETag W/<size hex>-<mtime hex>, Last-Modified) — send/index.js:862; byte-equal bodies verified.",
    "status": "verified",
    "source": [
     "server/controllers/LibraryItemController.js",
@@ -96,7 +100,130 @@
     "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverDelete"
    ],
    "exceptions": [
-    "Evidence covers deletion after one successful multipart upload with the named cached formats; it does not cover all PATCH/permission/failure variants or remote-URL upload."
+    "Evidence covers deletion after upload of one PNG with the sampled cache formats; it does not cover all permission and failure variants."
+   ]
+  },
+  {
+   "id": "INV-COVER-URL-UPLOAD-001",
+   "class": "state_transition",
+   "contract": "A whitelisted local image URL succeeds with the same stored cover path/body as upstream. A literal RFC1918 destination is rejected with the same status/body and leaves the prior cover path, file, and cache state unchanged.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:295-333",
+    "server/managers/CoverManager.js",
+    "server/utils/fileUtils.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-url-upload",
+    "go-backend/contracts/parity/full-suite-report.json#cover-url-ssrf-blocked",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverURLFailure"
+   ],
+   "exceptions": [
+    "Sample covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection. Redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified."
+   ]
+  },
+  {
+   "id": "INV-COVER-PATCH-INVALID-IMAGE-001",
+   "class": "error",
+   "contract": "PATCH /api/items/:id/cover returns the upstream 500 text response Invalid image when the requested scanned library file is not a supported image.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:344-362",
+    "server/managers/CoverManager.js:132-180"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image"
+   ],
+   "exceptions": [
+    "Successful copy behavior is separately covered by INV-COVER-PATCH-SUCCESS-001; this invariant remains scoped to rejected invalid-image bytes."
+   ]
+  },
+  {
+   "id": "INV-COVER-PROXY-REDIRECT-001",
+   "class": "error",
+   "contract": "With EXP_PROXY_SUPPORT=1, a 307 URL response is not followed; cover upload returns the upstream 400 failure and leaves the prior cover path, file, and cache state unchanged. Upstream Server.js sets axios maxRedirects=0 and its response interceptor manually retries only 301/302.",
+   "status": "verified",
+   "source": [
+    "server/Server.js:89-107",
+    "server/utils/fileUtils.js:295-357",
+    "server/managers/CoverManager.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/cover-proxy-mode-report.json#cover-url-redirect-307",
+    "go-backend/contracts/parity/cover-proxy-mode-report.json#statefulCheck"
+   ],
+   "exceptions": [
+    "Only one 307 failure was tested in EXP_PROXY_SUPPORT mode. Manual 301/302 behavior, redirect chains, and blocked private addresses in this explicitly unfiltered mode remain unverified."
+   ]
+  },
+  {
+   "id": "INV-COVER-PATCH-SUCCESS-001",
+   "class": "state_transition",
+   "contract": "A valid scanned library file containing a supported image is copied to the item cover directory, response JSON and Express headers match the exact source response, a same-path repeat succeeds, a seeded stale cache entry is purged, and unrelated cover.svg is retained.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:344-375",
+    "server/managers/CoverManager.js:132-180",
+    "server/managers/CacheManager.js:93-98"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-success",
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch"
+   ],
+   "exceptions": [
+    "One scanned path, one copy, and a same-path repeat only; different-path replacement, item-folder storage, event delivery and updatedAt deltas remain unverified."
+   ]
+  },
+  {
+   "id": "INV-COVER-MULTIPART-URL-PRECEDENCE-001",
+   "class": "error",
+   "contract": "When a multipart cover request includes both url and file fields, the URL takes precedence; an unsupported image signature at that URL returns the upstream 400 and does not fall back to the valid uploaded file.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:295-307",
+    "server/managers/CoverManager.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload-multipart-url-precedence",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverURLFailure"
+   ],
+   "exceptions": [
+    "One local unsupported URL/file combination only."
+   ]
+  },
+  {
+   "id": "INV-COVER-PATCH-BODY-LIMIT-001",
+   "class": "error",
+   "contract": "PATCH JSON uses the upstream express.json 10 MB limit: a 1.1 MB well-formed request passes parsing and reaches the source invalid-cover-path 500 response instead of being rejected at Go’s former 1 MiB cap.",
+   "status": "verified",
+   "source": [
+    "server/Server.js:352",
+    "server/controllers/LibraryItemController.js:344-362"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path"
+   ],
+   "exceptions": [
+    "Only a 1.1 MB above-former-limit invalid-path request was exercised; exact 10,000,000-byte boundary and over-limit parser error shape remain unverified."
    ]
   }
  ],
@@ -109,14 +236,17 @@
   "failure": "verified"
  },
  "tests": [
-  "go-backend/internal/catalog/handler_test.go"
+  "go-backend/internal/catalog/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
  ],
  "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json (2026-10-30: 91/91 HTTP cases plus persisted coverPath/cache assertion; existing upload/raw/cache cases and delete lifecycle match)"
+  "go-backend/contracts/parity/full-suite-report.json (2026-10-30: 101/101 HTTP cases; successful/repeated PATCH, Express response headers, stale-cache purge, allowlisted cleanup, multipart precedence, URL upload/failure, reads and delete lifecycle)"
  ],
  "exceptions": [
-  "PATCH cover variants and body.url remote upload remain uncovered.",
+  "EXP_PROXY_SUPPORT mode has one 307 rejection check; 301/302 chains remain unverified. The private-address probe is skipped in this mode because upstream disables SSRF filtering.",
+  "The SSRF probe covers one whitelisted 127.0.0.1 success and one literal private IPv4 rejection only; redirects, DNS rebinding, other reserved ranges, and other whitelist configurations remain unverified.",
   "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
-  "Cover error and edge cases remain sampled; general cover route parity is not claimed."
+  "Cover route parity beyond the exact sampled variants is not claimed.",
+  "PATCH event recipients, updatedAt deltas, alternate valid image paths, storeCoverWithItem, 10 MiB JSON boundary, and permission branches remain unverified."
  ]
 }

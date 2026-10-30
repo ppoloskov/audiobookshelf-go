@@ -12,14 +12,56 @@
   "go-backend/internal/catalog/handler.go"
  ],
  "cases": {
-  "normal": "unverified",
-  "error": "unverified",
+  "normal": "verified",
+  "error": "verified",
   "edge": "unverified"
  },
  "stateful": true,
  "tests": [
-  "go-backend/internal/catalog/handler.go"
+  "go-backend/tools/parity/differential.cjs",
+  "go-backend/internal/catalog/cover_test.go"
  ],
- "evidence": [],
- "exceptions": []
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#cover-patch-success",
+  "go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat",
+  "go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image",
+  "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch",
+  "go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path"
+ ],
+ "exceptions": [
+  "Only one successful source-file copy and same-path repeat were exercised; switching to a different cover, storeCoverWithItem, permission branches, event recipients, updatedAt details, and 10,000,000-byte boundary and over-limit parser error shape remain unverified."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R056-SAMPLED",
+   "class": "state_transition",
+   "contract": "A valid scanned library file whose bytes are a supported image is copied into the configured item cover directory; PATCH returns {success,cover} with Express JSON content type, Content-Length and weak ETag matching the exact response bytes. Repeating the same selection returns the same response without losing the selected cover. Invalid image bytes retain the upstream 500 text response. A 1.1 MB JSON request is parsed under the pinned 10 MB limit and reaches normal invalid-path validation.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:114",
+    "server/controllers/LibraryItemController.js:344-375",
+    "server/managers/CoverManager.js:132-180"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-success",
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-repeat",
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-invalid-image",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverPatch",
+    "go-backend/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path"
+   ],
+   "exceptions": [
+    "One valid image/path and one repeat only; broader PATCH request and state variants remain separate obligations."
+   ]
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "unverified",
+  "force": "not_applicable",
+  "failure": "verified"
+ }
 }

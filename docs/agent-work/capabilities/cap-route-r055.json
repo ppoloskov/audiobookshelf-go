@@ -9,26 +9,35 @@
   "server/routers/ApiRouter.js:113"
  ],
  "implementation": [
-  "go-backend/internal/catalog/handler.go"
+  "go-backend/internal/catalog/handler.go",
+  "go-backend/internal/catalog/cover.go"
  ],
  "cases": {
   "normal": "verified",
-  "error": "unverified",
-  "edge": "unverified"
+  "error": "verified",
+  "edge": "verified"
  },
  "stateful": true,
  "tests": [
-  "go-backend/internal/catalog/handler.go"
+  "go-backend/tools/parity/differential.cjs",
+  "go-backend/internal/catalog/cover_test.go"
  ],
  "evidence": [
-  "go-backend/contracts/parity/full-suite-report.json#cover-upload (differential pass)"
+  "go-backend/contracts/parity/full-suite-report.json#cover-upload (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-upload-unsupported-gif (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-url-upload (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-url-ssrf-blocked (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-url-redirect-307 (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-upload-multipart-url-precedence (differential pass)"
  ],
- "exceptions": [],
+ "exceptions": [
+  "Single-file/single-URL request shapes only. Multipart URL-over-file precedence is tested on an unsupported URL; broad request sizes, every image format, permission branches, redirects, and SSRF address variants remain unverified."
+ ],
  "invariants": [
   {
    "id": "INV-R055-SAMPLED",
    "class": "shape",
-   "contract": "Sampled POST /items/:id/cover via differential case(s) cover-upload: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: covers.",
+   "contract": "Sampled POST /items/:id/cover via differential cases compares status and response shape; state checks cover retained upload file and unrelated cover.svg, while multipart requests containing both url and cover select url first. Categories sampled: covers, edge-cases, errors.",
    "status": "verified",
    "source": [
     "server/routers/ApiRouter.js:113"
@@ -37,7 +46,12 @@
     "go-backend/tools/parity/differential.cjs"
    ],
    "evidence": [
-    "go-backend/contracts/parity/full-suite-report.json#cover-upload"
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload",
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload-unsupported-gif",
+    "go-backend/contracts/parity/full-suite-report.json#cover-url-upload",
+    "go-backend/contracts/parity/full-suite-report.json#cover-url-ssrf-blocked",
+    "go-backend/contracts/parity/full-suite-report.json#cover-url-redirect-307",
+    "go-backend/contracts/parity/full-suite-report.json#cover-upload-multipart-url-precedence"
    ],
    "exceptions": [
     "Sampled evidence; unsampled request-shape variants are separate behaviors."

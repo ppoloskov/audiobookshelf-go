@@ -51,6 +51,14 @@ const EXPECTED_STATUS = {
   // targets the missing id and must 404 the same way on both implementations.
   'playlist-delete': 404, 'playlist-list-after-delete': 200,
   'cover-upload': 200, 'cover-raw': 200,
+  'cover-upload-unsupported-gif': 400, 'cover-url-upload': 200,
+  'cover-upload-multipart-url-precedence': 400,
+  'cover-url-unsupported-image-format': 400,
+  'cover-url-ssrf-blocked': 400,
+  'cover-url-redirect-307': process.env.EXP_PROXY_SUPPORT === '1' ? 400 : 200,
+  'cover-patch-invalid-image': 500,
+  'cover-patch-large-invalid-path': 500,
+  'cover-patch-success': 200, 'cover-patch-repeat': 200,
   'cover-delete': 200, 'cover-raw-after-delete': 404, 'cover-cache-after-delete': 404,
   'cover-cache-jpeg-after-delete': 404, 'cover-cache-png-after-delete': 404,
   // cover-cache-default and cover-cache-webp-size hit the shared ffmpeg build
@@ -101,6 +109,7 @@ async function call(server, route, options = {}) {
   let requestBody
   if (options.file) {
     const form = new FormData()
+    for (const [key, value] of Object.entries(options.fields || {})) form.append(key, value)
     const bytes = fs.readFileSync(options.file.path)
     form.append(options.file.field, new Blob([bytes], { type: options.file.type }), options.file.name || path.basename(options.file.path))
     requestBody = form
@@ -149,6 +158,26 @@ async function call(server, route, options = {}) {
   return { status: response.status, headers, body }
 }
 
+async function startCoverSource(file) {
+  const server = require('node:http').createServer((req, res) => {
+    if (req.url === '/redirect-307.png') {
+      res.writeHead(307, { location: '/cover.png' })
+      return res.end()
+    }
+    if (req.url === '/unsupported-format') {
+      const unsupported = Buffer.from('FLIF')
+      res.writeHead(200, { 'content-type': 'image/flif', 'content-length': String(unsupported.length) })
+      return res.end(unsupported)
+    }
+    if (req.url !== '/cover.png') { res.writeHead(404); return res.end() }
+    res.writeHead(200, { 'content-type': 'image/png', 'content-length': String(fs.statSync(file).size) })
+    fs.createReadStream(file).pipe(res)
+  })
+  const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (err) => err ? reject(err) : resolve(server.address().port)))
+  server.unref()
+  return { server, url: `http://127.0.0.1:${port}/cover.png` }
+}
+
 async function readCoverDeleteState(directory, itemID) {
   const sqlite = require('sqlite3').verbose()
   const db = new sqlite.Database(path.join(directory, 'config', 'absdatabase.sqlite'))
@@ -166,7 +195,11 @@ async function readCoverDeleteState(directory, itemID) {
   const cacheFiles = fs.existsSync(cacheDir)
     ? fs.readdirSync(cacheDir).filter((name) => name.startsWith(`${itemID}_`)).sort()
     : []
-  return { coverPath: coverPath ?? null, cacheFiles }
+  const coverDir = path.join(directory, 'metadata', 'items', itemID)
+  const coverFiles = fs.existsSync(coverDir)
+    ? fs.readdirSync(coverDir).filter((name) => /^cover\./i.test(name)).sort()
+    : []
+  return { coverPath: coverPath ?? null, cacheFiles, coverFiles }
 }
 
 function deepSort(value) {
@@ -222,7 +255,7 @@ function normalizeCase(id, body, pathRoots) {
   const mediaPathCases = new Set([
     'libraries', 'libraries-restricted-user', 'library-create', 'library-read', 'library-update', 'library-list-after-create', 'library-delete', 'library-list-after-delete',
     'book-library-items', 'book-library-items-minified', 'book-item-detail',
-    'book-list-after-library-scan', 'book-detail-after-library-scan', 'series-list-paginated', 'cover-upload',
+    'book-list-after-library-scan', 'book-detail-after-library-scan', 'series-list-paginated', 'cover-upload', 'cover-url-upload', 'cover-url-redirect-307', 'cover-patch-success', 'cover-patch-repeat',
     'collection-create', 'collection-read', 'collection-update', 'collection-list', 'collection-batch-add', 'collection-batch-remove', 'collection-list-after-delete',
     'playlist-create', 'playlist-read', 'playlist-update', 'playlist-list', 'playlist-batch-add', 'playlist-batch-remove', 'playlist-list-after-delete',
     'api-key-auth-library-read', 'playback-session', 'libraries-unauthorized'
@@ -636,8 +669,26 @@ function compare(id, left, right, notes = []) {
     }
   }
   const expectedStatus = EXPECTED_STATUS[id]
-  const passed = left.status === right.status && left.status === expectedStatus && JSON.stringify(left.headers) === JSON.stringify(right.headers) && JSON.stringify(leftNormalized) === JSON.stringify(rightNormalized)
-  const differences = passed ? [] : differencePaths(left.status, right.status, left.headers, right.headers, leftNormalized, rightNormalized)
+  const leftHeaders = { ...left.headers }
+  const rightHeaders = { ...right.headers }
+  let expressJSONHeadersMatch = true
+  if (id === 'cover-patch-success' || id === 'cover-patch-repeat') {
+    const validate = (response) => {
+      const body = Buffer.from(JSON.stringify(response.body))
+      const tag = `W/\"${body.length.toString(16)}-${crypto.createHash('sha1').update(body).digest('base64').replace(/=+$/, '')}\"`
+      return response.headers['content-type'] === 'application/json; charset=utf-8' &&
+        response.headers['content-length'] === String(body.length) && response.headers.etag === tag
+    }
+    expressJSONHeadersMatch = validate(left) && validate(right)
+    for (const headers of [leftHeaders, rightHeaders]) {
+      headers['content-length'] = '<express-json-length-validated-per-side>'
+      headers.etag = '<express-etag-validated-per-side>'
+    }
+    notes.push('Content-Length and Express weak ETag are validated against each side’s exact JSON bytes; path-derived header values are normalized only after that check.')
+  }
+  const passed = expressJSONHeadersMatch && left.status === right.status && left.status === expectedStatus && JSON.stringify(leftHeaders) === JSON.stringify(rightHeaders) && JSON.stringify(leftNormalized) === JSON.stringify(rightNormalized)
+  const differences = passed ? [] : differencePaths(left.status, right.status, leftHeaders, rightHeaders, leftNormalized, rightNormalized)
+  if (!expressJSONHeadersMatch) differences.push({ path: '$.headers', error: 'successful PATCH did not return matching Express JSON headers for its exact body' })
   if (expectedStatus !== undefined && (left.status !== expectedStatus || right.status !== expectedStatus)) {
     differences.push({ path: '$.expectedStatus', expected: expectedStatus, reference: left.status, go: right.status })
   }
@@ -646,8 +697,8 @@ function compare(id, left, right, notes = []) {
     passed,
     referenceStatus: left.status,
     goStatus: right.status,
-    referenceHeaders: left.headers,
-    goHeaders: right.headers,
+    referenceHeaders: leftHeaders,
+    goHeaders: rightHeaders,
     referenceBody: leftNormalized,
     goBody: rightNormalized,
     differences,
@@ -864,10 +915,10 @@ async function main() {
   }
 
   const comparePair = async (id, referenceRoute, goRoute, options) => {
-    const { nodeToken, goToken, ...requestOptions } = options
+    const { nodeToken, goToken, nodeBody, goBody, ...requestOptions } = options
     const [reference, candidate] = await Promise.all([
-      call(node, referenceRoute, { ...requestOptions, token: nodeToken || referenceAccessToken }),
-      call(go, goRoute, { ...requestOptions, token: goToken || referenceAccessToken })
+      call(node, referenceRoute, { ...requestOptions, body: nodeBody ?? requestOptions.body, token: nodeToken || referenceAccessToken }),
+      call(go, goRoute, { ...requestOptions, body: goBody ?? requestOptions.body, token: goToken || referenceAccessToken })
     ])
     results.push(compare(id, reference, candidate))
     return [reference, candidate]
@@ -1016,9 +1067,106 @@ async function main() {
   }
 
   const coverRoute = `/api/items/${bookItemId}/cover`
+  const coverSource = await startCoverSource(fixture.coverAsset)
+  const [nodeItemBeforeCover, goItemBeforeCover] = await Promise.all([
+    call(node, `/api/items/${bookItemId}`, { token: referenceAccessToken }),
+    call(go, `/api/items/${bookItemId}`, { token: referenceAccessToken })
+  ])
+  const nodeAudioPath = nodeItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
+  const goAudioPath = goItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
+  for (const directory of [fixture.directories.node, fixture.directories.go]) {
+    const coverDir = path.join(directory, 'metadata', 'items', bookItemId)
+    fs.mkdirSync(coverDir, { recursive: true })
+    fs.writeFileSync(path.join(coverDir, 'cover.svg'), '<svg/>')
+  }
+  if (nodeAudioPath && goAudioPath) {
+    await comparePair('cover-patch-invalid-image', coverRoute, coverRoute, {
+      method: 'PATCH', nodeBody: { cover: nodeAudioPath }, goBody: { cover: goAudioPath }
+    })
+    await comparePair('cover-patch-large-invalid-path', coverRoute, coverRoute, {
+      method: 'PATCH', body: { cover: 'x'.repeat(1_100_000) }
+    })
+  } else {
+    for (const id of ['cover-patch-invalid-image', 'cover-patch-large-invalid-path']) results.push({ id, passed: false, skipped: true, prerequisite: 'both item details must expose a library file path' })
+  }
   await comparePair('cover-upload', coverRoute, coverRoute, {
     method: 'POST', file: { field: 'cover', path: fixture.coverAsset, type: 'image/png', name: 'cover-fixture.png' }
   })
+  await comparePair('cover-upload-unsupported-gif', coverRoute, coverRoute, {
+    method: 'POST', file: { field: 'cover', path: fixture.coverAsset, type: 'image/gif', name: 'cover-fixture.gif' }
+  })
+  const coverStateForComparison = async (directory) => {
+    const state = await readCoverDeleteState(directory, bookItemId)
+    return {
+      coverPath: state.coverPath ? path.relative(path.join(directory, 'metadata'), state.coverPath) : null,
+      coverExists: Boolean(state.coverPath && fs.existsSync(state.coverPath)),
+      cacheFiles: state.cacheFiles,
+      coverFiles: state.coverFiles
+    }
+  }
+  const coverBeforeURLFailures = {
+    node: await coverStateForComparison(fixture.directories.node),
+    go: await coverStateForComparison(fixture.directories.go)
+  }
+  await comparePair('cover-upload-multipart-url-precedence', coverRoute, coverRoute, {
+    method: 'POST', fields: { url: coverSource.url.replace('/cover.png', '/unsupported-format') },
+    file: { field: 'cover', path: fixture.coverAsset, type: 'image/png', name: 'cover-fixture.png' }
+  })
+  await comparePair('cover-url-unsupported-image-format', coverRoute, coverRoute, {
+    method: 'POST', body: { url: coverSource.url.replace('/cover.png', '/unsupported-format') }
+  })
+  let coverURLFailureState
+  if (process.env.EXP_PROXY_SUPPORT === '1') {
+    results.push({
+      id: 'cover-url-ssrf-blocked', passed: false, skipped: true,
+      prerequisite: 'upstream explicitly disables SSRF filtering in EXP_PROXY_SUPPORT mode; probing a private address would initiate an unsafe network request'
+    })
+    coverURLFailureState = { testedBlockedPrivateURL: false, reason: 'SSRF filtering is disabled in EXP_PROXY_SUPPORT mode' }
+  } else {
+    await comparePair('cover-url-ssrf-blocked', coverRoute, coverRoute, {
+      method: 'POST', body: { url: 'http://10.255.255.1/cover.png' }
+    })
+  }
+  const coverAfterURLFailures = {
+    node: await coverStateForComparison(fixture.directories.node),
+    go: await coverStateForComparison(fixture.directories.go)
+  }
+  coverURLFailureState = {
+    testedBlockedPrivateURL: process.env.EXP_PROXY_SUPPORT !== '1',
+    before: coverBeforeURLFailures,
+    after: coverAfterURLFailures,
+    equal: JSON.stringify(coverBeforeURLFailures) === JSON.stringify(coverAfterURLFailures) &&
+      JSON.stringify(coverBeforeURLFailures.node) === JSON.stringify(coverBeforeURLFailures.go)
+  }
+  await comparePair('cover-url-upload', coverRoute, coverRoute, { method: 'POST', body: { url: coverSource.url } })
+  const coverBeforeRedirect = {
+    node: await coverStateForComparison(fixture.directories.node),
+    go: await coverStateForComparison(fixture.directories.go)
+  }
+  await comparePair('cover-url-redirect-307', coverRoute, coverRoute, {
+    method: 'POST', body: { url: coverSource.url.replace('/cover.png', '/redirect-307.png') }
+  })
+  const coverAfterRedirect = {
+    node: await coverStateForComparison(fixture.directories.node),
+    go: await coverStateForComparison(fixture.directories.go)
+  }
+  const coverURLRedirectState = {
+    before: coverBeforeRedirect,
+    after: coverAfterRedirect,
+    mode: process.env.EXP_PROXY_SUPPORT === '1' ? 'exp-proxy-support' : 'default',
+    equalFailureState: process.env.EXP_PROXY_SUPPORT !== '1' ||
+      (JSON.stringify(coverBeforeRedirect) === JSON.stringify(coverAfterRedirect) &&
+        JSON.stringify(coverBeforeRedirect.node) === JSON.stringify(coverBeforeRedirect.go))
+  }
+  const coverUploadState = {
+    node: await coverStateForComparison(fixture.directories.node),
+    go: await coverStateForComparison(fixture.directories.go)
+  }
+  coverUploadState.equal = coverUploadState.node.coverPath !== null &&
+    coverUploadState.node.coverPath === coverUploadState.go.coverPath &&
+    coverUploadState.node.coverExists && coverUploadState.go.coverExists &&
+    JSON.stringify(coverUploadState.node.cacheFiles) === JSON.stringify(coverUploadState.go.cacheFiles) &&
+    coverUploadState.node.coverFiles.includes('cover.svg') && coverUploadState.go.coverFiles.includes('cover.svg')
   for (const [id, query] of [
     ['cover-raw', '?raw=1'],
     ['cover-cache-default', ''],
@@ -1040,6 +1188,8 @@ async function main() {
   }
   coverDeleteState.equal = JSON.stringify(coverDeleteState.node) === JSON.stringify(coverDeleteState.go) &&
     coverDeleteState.node.coverPath === null && coverDeleteState.node.cacheFiles.length === 0
+  let coverPatchState = { equal: false, reason: 'successful PATCH probe has not run' }
+  await new Promise((resolve) => coverSource.server.close(resolve))
 
   const playbackBody = {
     forceTranscode: true,
@@ -1179,6 +1329,41 @@ async function main() {
   ])
   results.push(compare('book-list-after-library-scan', nodeListAfterScan, goListAfterScan))
 
+  // Reuse the valid scanned audio path after all audio/playback and scan
+  // checks. Upstream validates image bytes, not the source filename suffix.
+  if (nodeAudioPath && goAudioPath) {
+    for (const directory of [fixture.directories.node, fixture.directories.go]) {
+      const cacheDir = path.join(directory, 'metadata', 'cache', 'covers')
+      fs.mkdirSync(cacheDir, { recursive: true })
+      fs.writeFileSync(path.join(cacheDir, `${bookItemId}_16.jpeg`), 'stale-cache')
+    }
+    fs.copyFileSync(fixture.coverAsset, nodeAudioPath)
+    fs.copyFileSync(fixture.coverAsset, goAudioPath)
+    await comparePair('cover-patch-success', coverRoute, coverRoute, {
+      method: 'PATCH', nodeBody: { cover: nodeAudioPath }, goBody: { cover: goAudioPath }
+    })
+    const [nodePatch, goPatch] = await Promise.all([
+      call(node, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: nodeAudioPath } }),
+      call(go, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: goAudioPath } })
+    ])
+    results.push(compare('cover-patch-repeat', nodePatch, goPatch))
+    coverPatchState = {
+      node: await readCoverDeleteState(fixture.directories.node, bookItemId),
+      go: await readCoverDeleteState(fixture.directories.go, bookItemId)
+    }
+    for (const [side, directory] of [['node', fixture.directories.node], ['go', fixture.directories.go]]) {
+      const coverPath = coverPatchState[side].coverPath
+      coverPatchState[side].coverPath = coverPath ? path.relative(path.join(directory, 'metadata'), coverPath) : null
+    }
+    coverPatchState.equal = coverPatchState.node.coverPath !== null &&
+      coverPatchState.node.coverPath === coverPatchState.go.coverPath &&
+      coverPatchState.node.cacheFiles.length === 0 && coverPatchState.go.cacheFiles.length === 0 &&
+      coverPatchState.node.coverFiles.includes('cover.png') && coverPatchState.go.coverFiles.includes('cover.png') &&
+      coverPatchState.node.coverFiles.includes('cover.svg') && coverPatchState.go.coverFiles.includes('cover.svg')
+  } else {
+    for (const id of ['cover-patch-success', 'cover-patch-repeat']) results.push({ id, passed: false, skipped: true, prerequisite: 'both item details must expose a library file path' })
+  }
+
   const report = {
     schemaVersion: 1,
     baseline: fixture.baseline,
@@ -1193,13 +1378,13 @@ async function main() {
     },
     note: 'A failed or skipped case is a compatibility gap or unmet prerequisite. No unsupported response is treated as equivalent behavior.',
     summary: { total: results.length, passed: results.filter((r) => r.passed).length, failed: results.filter((r) => !r.passed).length },
-    statefulChecks: { coverDelete: coverDeleteState },
+    statefulChecks: { coverDelete: coverDeleteState, coverUpload: coverUploadState, coverPatch: coverPatchState, coverURLFailure: coverURLFailureState, coverURLRedirect: coverURLRedirectState },
     cases: results
   }
   const output = path.resolve(args.out || 'parity-results.json')
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
   console.log(JSON.stringify({ output, summary: report.summary }, null, 2))
-  if (report.summary.failed || !report.statefulChecks.coverDelete.equal) process.exitCode = 1
+  if (report.summary.failed || !report.statefulChecks.coverDelete.equal || !report.statefulChecks.coverUpload.equal || !report.statefulChecks.coverPatch.equal) process.exitCode = 1
 }
 
 main().catch((error) => {

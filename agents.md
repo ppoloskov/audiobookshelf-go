@@ -4,6 +4,10 @@
 
 Deliver a verified operational drop-in replacement for pinned Audiobookshelf v2.37.2. Match externally observable HTTP, realtime, persistence, filesystem, and failure behavior. Keep full parity unclaimed until source inventory is reconciled and strict verification gates pass.
 
+## Current verified slice (2026-10-30)
+
+The fresh sampled differential is 101/101, including multipart cover upload and URL-over-file precedence, URL upload/error/redirect cases, successful and repeated PATCH selection/copy, exact per-side Express JSON header validation, stale-cache purge, unrelated `cover.svg` retention, cover reads/cache, and delete cleanup. A separate `EXP_PROXY_SUPPORT=1` probe confirms one 307 rejection with unchanged state; that run intentionally skips private-address probing because upstream disables SSRF filtering in that mode. Structural ledger validation passes for 15 tasks and 237 capability records. Strict verification now reports 1,681 diagnostics across 236 records; all route compatibility statuses remain unverified and full parity is not established. See `handover.md` and the active task ledger for scope limits and the next action.
+
 ## Source of truth
 
 - Compatibility contract: `docs/agent-work/CONTRACT.md`.

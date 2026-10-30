@@ -78,10 +78,10 @@
       "dynamic_expression": 1,
       "regex_literal": 1
     },
-    "routesWithDifferentialVariants": 53,
-    "declaredDifferentialVariants": 87,
-    "sampledDifferentialVariants": 91,
-    "sampledPassingVariants": 91,
+    "routesWithDifferentialVariants": 54,
+    "declaredDifferentialVariants": 97,
+    "sampledDifferentialVariants": 101,
+    "sampledPassingVariants": 101,
     "sampledFailingVariants": 0
   },
   "routes": [
@@ -2007,11 +2007,53 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-upload-unsupported-gif",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-upload-multipart-url-precedence",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-url-upload",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-url-unsupported-image-format",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-url-ssrf-blocked",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-url-redirect-307",
+          "category": "edge-cases",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
         }
       ],
-      "differentialVariantCount": 1,
-      "sampledVariantCount": 1,
-      "sampledPassingVariantCount": 1,
+      "differentialVariantCount": 7,
+      "sampledVariantCount": 7,
+      "sampledPassingVariantCount": 7,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -2038,10 +2080,39 @@
         "route": "PATCH /api/items/:id/cover",
         "evidence": "go-backend/internal/catalog/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "cover-patch-invalid-image",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-patch-large-invalid-path",
+          "category": "edge-cases",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-patch-success",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-patch-repeat",
+          "category": "stateful",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        }
+      ],
+      "differentialVariantCount": 4,
+      "sampledVariantCount": 4,
+      "sampledPassingVariantCount": 4,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },

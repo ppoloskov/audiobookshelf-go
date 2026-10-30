@@ -1,0 +1,12 @@
+{
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "command": "EXP_PROXY_SUPPORT=1 mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture <fresh fixture> --go-bin <fresh CGO_ENABLED=0 build> --out <report>",
+ "fixture": "fresh create-fixture.cjs API-initialized copies with independent Node/Go config, metadata and media directories",
+ "selectedResult": "cover-url-redirect-307 PASS: upstream and Go both return 400; cover path, file and cache state remain unchanged",
+ "runResult": "95 passed and one intentionally skipped case; cover-url-ssrf-blocked is skipped because upstream explicitly disables SSRF filtering in EXP_PROXY_SUPPORT mode, so executing the private-IP probe would issue an unsafe network request",
+ "nodeVersion": "v22.23.4 via mise",
+ "goVersion": "go1.27.0",
+ "limitations": [
+  "Only a single 307 redirect failure was exercised in EXP_PROXY_SUPPORT mode. Upstream manual 301/302 handling, redirect chains, and private-address destinations in this mode remain unverified."
+ ]
+}

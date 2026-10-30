@@ -1,0 +1,69 @@
+{
+ "schemaVersion": 1,
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "environment": {
+  "EXP_PROXY_SUPPORT": "1"
+ },
+ "summary": {
+  "total": 1,
+  "passed": 1,
+  "failed": 0
+ },
+ "case": {
+  "id": "cover-url-redirect-307",
+  "passed": true,
+  "referenceStatus": 400,
+  "goStatus": 400,
+  "referenceHeaders": {
+   "content-type": "text/html; charset=utf-8"
+  },
+  "goHeaders": {
+   "content-type": "text/html; charset=utf-8"
+  },
+  "referenceBody": "RmFpbGVkIHRvIGRvd25sb2FkIGltYWdlIGZyb20gdXJs",
+  "goBody": "RmFpbGVkIHRvIGRvd25sb2FkIGltYWdlIGZyb20gdXJs",
+  "differences": [],
+  "notes": []
+ },
+ "statefulCheck": {
+  "before": {
+   "node": {
+    "coverPath": "items/506a6d40-7941-4d89-8015-6af3c84850ad/cover.png",
+    "coverExists": true,
+    "cacheFiles": []
+   },
+   "go": {
+    "coverPath": "items/506a6d40-7941-4d89-8015-6af3c84850ad/cover.png",
+    "coverExists": true,
+    "cacheFiles": []
+   }
+  },
+  "after": {
+   "node": {
+    "coverPath": "items/506a6d40-7941-4d89-8015-6af3c84850ad/cover.png",
+    "coverExists": true,
+    "cacheFiles": []
+   },
+   "go": {
+    "coverPath": "items/506a6d40-7941-4d89-8015-6af3c84850ad/cover.png",
+    "coverExists": true,
+    "cacheFiles": []
+   }
+  },
+  "mode": "exp-proxy-support",
+  "equalFailureState": true
+ },
+ "runContext": {
+  "fullSampledSuite": {
+   "total": 96,
+   "passed": 95,
+   "failed": 1
+  },
+  "skippedCases": [
+   "cover-url-ssrf-blocked"
+  ]
+ },
+ "limitations": [
+  "Only a single 307 redirect failure was exercised in EXP_PROXY_SUPPORT mode. Upstream manual 301/302 handling, redirect chains, and private-address destinations in this mode remain unverified."
+ ]
+}
