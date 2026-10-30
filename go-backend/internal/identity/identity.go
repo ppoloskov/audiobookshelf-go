@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
@@ -1041,6 +1042,25 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 
 func writePlain(w http.ResponseWriter, status int, body string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
+func writeExpressText(w http.ResponseWriter, status int, body string) {
+	digest := sha1.Sum([]byte(body))
+	etag := fmt.Sprintf(`W/"%x-%s"`, len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(digest[:]), "="))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+	w.Header().Set("ETag", etag)
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
+func redirectExpress(w http.ResponseWriter, status int, target string) {
+	body := http.StatusText(status) + ". Redirecting to " + target
+	w.Header().Set("Location", target)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	w.WriteHeader(status)

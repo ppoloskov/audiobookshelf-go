@@ -1,8 +1,8 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "provider": "local ephemeral RS256 provider",
-  "compared": 10,
-  "matched": 10,
+  "compared": 16,
+  "matched": 16,
   "mismatched": 0,
   "cases": [
     {
@@ -452,12 +452,133 @@
         }
       },
       "equal": true
+    },
+    {
+      "name": "oidc-mobile-invalid-redirect",
+      "node": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "20",
+        "etag": "W/\"14-r2avS3eF9Jk40pw8dzY9HJV7v9o\"",
+        "body": "Invalid redirect_uri"
+      },
+      "go": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "20",
+        "etag": "W/\"14-r2avS3eF9Jk40pw8dzY9HJV7v9o\"",
+        "body": "Invalid redirect_uri"
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-mobile-missing-pkce-challenge",
+      "node": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "46",
+        "etag": "W/\"2e-79UKWxSLodSw1shR3x9g+AfhcXY\"",
+        "body": "code_challenge required for mobile flow (PKCE)"
+      },
+      "go": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "46",
+        "etag": "W/\"2e-79UKWxSLodSw1shR3x9g+AfhcXY\"",
+        "body": "code_challenge required for mobile flow (PKCE)"
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-mobile-unsupported-pkce-method",
+      "node": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "48",
+        "etag": "W/\"30-rACKK9LSBe8UvPbeZEIFkANafFY\"",
+        "body": "Only S256 code_challenge_method method supported"
+      },
+      "go": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "48",
+        "etag": "W/\"30-rACKK9LSBe8UvPbeZEIFkANafFY\"",
+        "body": "Only S256 code_challenge_method method supported"
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-mobile-start",
+      "node": {
+        "status": 302,
+        "contentType": "text/plain; charset=utf-8",
+        "etag": null,
+        "normalizedContentLength": 36,
+        "redirectBody": "Found. Redirecting to <provider-url>",
+        "providerPath": "/authorize",
+        "providerRedirectPath": "/audiobookshelf/auth/openid/mobile-redirect",
+        "state": "oidc-mobile-state-fixed",
+        "responseType": "code",
+        "challenge": "SlqgA-FvxiRUKN2lXbYahuQ1KYB2lMC42z7twWyMzw8",
+        "challengeMethod": "S256"
+      },
+      "go": {
+        "status": 302,
+        "contentType": "text/plain; charset=utf-8",
+        "etag": null,
+        "normalizedContentLength": 36,
+        "redirectBody": "Found. Redirecting to <provider-url>",
+        "providerPath": "/authorize",
+        "providerRedirectPath": "/audiobookshelf/auth/openid/mobile-redirect",
+        "state": "oidc-mobile-state-fixed",
+        "responseType": "code",
+        "challenge": "SlqgA-FvxiRUKN2lXbYahuQ1KYB2lMC42z7twWyMzw8",
+        "challengeMethod": "S256"
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-mobile-redirect",
+      "node": {
+        "status": 302,
+        "location": "audiobookshelf://oauth?code=oidc-mobile-code-fixed&state=oidc-mobile-state-fixed",
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "102",
+        "etag": null,
+        "body": "Found. Redirecting to audiobookshelf://oauth?code=oidc-mobile-code-fixed&state=oidc-mobile-state-fixed"
+      },
+      "go": {
+        "status": 302,
+        "location": "audiobookshelf://oauth?code=oidc-mobile-code-fixed&state=oidc-mobile-state-fixed",
+        "contentType": "text/plain; charset=utf-8",
+        "contentLength": "102",
+        "etag": null,
+        "body": "Found. Redirecting to audiobookshelf://oauth?code=oidc-mobile-code-fixed&state=oidc-mobile-state-fixed"
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-mobile-state-replay",
+      "node": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "24",
+        "etag": "W/\"18-/a9pR6JZeXyIxHHyo8IStuuAsho\"",
+        "body": "State parameter mismatch"
+      },
+      "go": {
+        "status": 400,
+        "contentType": "text/html; charset=utf-8",
+        "contentLength": "24",
+        "etag": "W/\"18-/a9pR6JZeXyIxHHyo8IStuuAsho\"",
+        "body": "State parameter mismatch"
+      },
+      "equal": true
     }
   ],
   "limits": [
-    "Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, and the selected admin-only user_added event are exercised.",
-    "Detailed cookies, mobile flow, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.",
+    "Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, mobile PKCE start, mobile app redirect, and one-time mobile state consumption are exercised.",
+    "Detailed cookies and expiry of in-memory flow state remain uncovered; this does not cover the general Socket.IO event inventory or the mobile app callback/token exchange after it receives the provider code.",
     "UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict."
-  ],
-  "report": "go-backend/contracts/parity/oidc-differential-report.json"
+  ]
 }

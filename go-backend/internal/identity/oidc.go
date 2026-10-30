@@ -70,12 +70,12 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	responseType := query.Get("response_type")
 	if responseType != "" && responseType != "code" {
-		writePlain(w, http.StatusBadRequest, "Invalid response_type, only code supported")
+		writeExpressText(w, http.StatusBadRequest, "Invalid response_type, only code supported")
 		return
 	}
 	isMobile := responseType == "code" || query.Get("redirect_uri") != "" || query.Get("code_challenge") != ""
 	if !isMobile && query.Has("state") {
-		writePlain(w, http.StatusBadRequest, "Invalid state, not allowed on web flow")
+		writeExpressText(w, http.StatusBadRequest, "Invalid state, not allowed on web flow")
 		return
 	}
 	state := query.Get("state")
@@ -90,16 +90,16 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	if isMobile {
 		redirectURI = query.Get("redirect_uri")
 		if !validMobileRedirect(cfg.mobileRedirectURIs, redirectURI) {
-			writePlain(w, http.StatusBadRequest, "Invalid redirect_uri")
+			writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
 			return
 		}
 		if query.Get("code_challenge") == "" {
-			writePlain(w, http.StatusBadRequest, "code_challenge required for mobile flow (PKCE)")
+			writeExpressText(w, http.StatusBadRequest, "code_challenge required for mobile flow (PKCE)")
 			return
 		}
 		method := query.Get("code_challenge_method")
 		if method != "" && method != "S256" {
-			writePlain(w, http.StatusBadRequest, "Only S256 code_challenge_method method supported")
+			writeExpressText(w, http.StatusBadRequest, "Only S256 code_challenge_method method supported")
 			return
 		}
 	} else {
@@ -175,7 +175,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 		writePlain(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	http.Redirect(w, r, providerURL, http.StatusFound)
+	redirectExpress(w, http.StatusFound, providerURL)
 }
 
 func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) {
@@ -196,20 +196,20 @@ func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 	h.oidcMu.Unlock()
 	if !ok || state == "" {
-		writePlain(w, http.StatusBadRequest, "State parameter mismatch")
+		writeExpressText(w, http.StatusBadRequest, "State parameter mismatch")
 		return
 	}
 	if flow.redirectURI == "" {
-		writePlain(w, http.StatusBadRequest, "No redirect URI")
+		writeExpressText(w, http.StatusBadRequest, "No redirect URI")
 		return
 	}
 	returnURL, err := url.Parse(flow.redirectURI)
 	if err != nil {
-		writePlain(w, http.StatusBadRequest, "Invalid redirect URI")
+		writeExpressText(w, http.StatusBadRequest, "Invalid redirect URI")
 		return
 	}
 	returnURL.RawQuery = "code=" + url.QueryEscape(code) + "&state=" + url.QueryEscape(state)
-	http.Redirect(w, r, returnURL.String(), http.StatusFound)
+	redirectExpress(w, http.StatusFound, returnURL.String())
 }
 
 func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
@@ -281,7 +281,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
 	callback := cookieValue(r, "auth_cb")
 	if callback == "" {
-		http.Redirect(w, r, "/login?error=No%20callback%20or%20already%20expired&autoLaunch=0", http.StatusFound)
+		redirectExpress(w, http.StatusFound, "/login?error=No%20callback%20or%20already%20expired&autoLaunch=0")
 		return
 	}
 	stateQuery := ""
@@ -289,7 +289,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		stateQuery = "&state=" + url.QueryEscape(userState)
 	}
 	target := callback + "?setToken=" + url.QueryEscape(user.Token) + "&accessToken=" + url.QueryEscape(access) + stateQuery
-	http.Redirect(w, r, target, http.StatusFound)
+	redirectExpress(w, http.StatusFound, target)
 }
 
 func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) {
@@ -381,7 +381,7 @@ func (h *Handler) oidcFailure(w http.ResponseWriter, r *http.Request, mobile boo
 	} else {
 		message = "Unauthorized"
 	}
-	http.Redirect(w, r, "/login?error="+url.QueryEscape(message)+"&autoLaunch=0", http.StatusFound)
+	redirectExpress(w, http.StatusFound, "/login?error="+url.QueryEscape(message)+"&autoLaunch=0")
 }
 
 func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {

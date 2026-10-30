@@ -102,6 +102,33 @@
    "exceptions": [
     "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow."
    ]
+  },
+  {
+   "id": "INV-OIDC-MOBILE-STATE-001",
+   "class": "state_transition",
+   "contract": "The selected mobile flow validates redirect allowlist and S256 PKCE inputs, forwards provider state/challenge, matches complete Express redirect responses (status, Location, content type, content length and body) to the provider and app, consumes state once, and matches the replay error response.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js:256-281",
+    "server/auth/OidcAuthStrategy.js:301-368",
+    "server/auth/OidcAuthStrategy.js:479-505",
+    "server/Auth.js:362-378"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
+   ],
+   "exceptions": [
+    "Covers one mobile URI and S256 authorization flow; callback cookie attributes, state expiry, mobile app token exchange, other URI schemes, and general Socket.IO behavior remain open."
+   ]
   }
  ],
  "stateful": true,

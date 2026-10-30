@@ -100,6 +100,7 @@ async function configureDB(file, provider, mode) {
       authOpenIDClientSecret: 'oidc-test-secret',
       authOpenIDTokenSigningAlgorithm: 'RS256',
       authOpenIDSubfolderForRedirectURLs: PREFIX,
+      authOpenIDMobileRedirectURIs: ['audiobookshelf://oauth'],
       authOpenIDAutoRegister: mode !== 'denied',
       authOpenIDMatchExistingBy: mode === 'link' ? 'email' : null,
       authOpenIDGroupClaim: '',
@@ -293,13 +294,81 @@ async function runFlow(kind, dir, goBin, provider, work, fixture, mode = 'succes
   } finally { await stop(proc) }
 }
 
+async function runMobileRedirect(kind, dir, goBin, provider, work) {
+  const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `mobile-${kind}.log`)
+  await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, 'mobile')
+  const proc = startServer(kind, dir, port, logPath, goBin)
+  try {
+    await ready(proc, base, logPath)
+    const jar = new Map()
+    const state = 'oidc-mobile-state-fixed'
+    const code = 'oidc-mobile-code-fixed'
+    const verifier = 'mobile-test-verifier'
+    const challenge = b64url(crypto.createHash('sha256').update(verifier).digest())
+    const appURI = 'audiobookshelf://oauth'
+    async function errorSummary(query) {
+      const response = await get(`${base}${PREFIX}/auth/openid?${query}`, jar)
+      return {
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length'),
+        etag: response.headers.get('etag'),
+        body: await response.text()
+      }
+    }
+    const badRedirect = await errorSummary(new URLSearchParams({ response_type: 'code', redirect_uri: 'audiobookshelf://evil', code_challenge: 'test-challenge' }))
+    const missingChallenge = await errorSummary(new URLSearchParams({ response_type: 'code', redirect_uri: appURI }))
+    const badChallengeMethod = await errorSummary(new URLSearchParams({ response_type: 'code', redirect_uri: appURI, code_challenge: 'test-challenge', code_challenge_method: 'plain' }))
+    const query = new URLSearchParams({
+      response_type: 'code', redirect_uri: appURI, state,
+      code_challenge: challenge, code_challenge_method: 'S256'
+    })
+    const start = await get(`${base}${PREFIX}/auth/openid?${query}`, jar)
+    const providerLocation = start.headers.get('location') || ''
+    const startBody = await start.text()
+    const providerURL = providerLocation ? new URL(providerLocation) : null
+    const startSummary = {
+      status: start.status,
+      contentType: start.headers.get('content-type'),
+      etag: start.headers.get('etag'),
+      normalizedContentLength: Number(start.headers.get('content-length')) - Buffer.byteLength(providerLocation) + Buffer.byteLength('<provider-url>'),
+      redirectBody: startBody.replace(providerLocation, '<provider-url>'),
+      providerPath: providerURL?.pathname || null,
+      providerRedirectPath: providerURL ? new URL(providerURL.searchParams.get('redirect_uri')).pathname : null,
+      state: providerURL?.searchParams.get('state') || null,
+      responseType: providerURL?.searchParams.get('response_type') || null,
+      challenge: providerURL?.searchParams.get('code_challenge') || null,
+      challengeMethod: providerURL?.searchParams.get('code_challenge_method') || null
+    }
+    const callbackURL = `${base}${PREFIX}/auth/openid/mobile-redirect?${new URLSearchParams({ code, state })}`
+    const callback = await get(callbackURL, jar)
+    const callbackSummary = {
+      status: callback.status,
+      location: callback.headers.get('location') || null,
+      contentType: callback.headers.get('content-type'),
+      contentLength: callback.headers.get('content-length'),
+      etag: callback.headers.get('etag'),
+      body: await callback.text()
+    }
+    const replay = await get(callbackURL, jar)
+    const replaySummary = {
+      status: replay.status,
+      contentType: replay.headers.get('content-type'),
+      contentLength: replay.headers.get('content-length'),
+      etag: replay.headers.get('etag'),
+      body: await replay.text()
+    }
+    return { badRedirect, missingChallenge, badChallengeMethod, start: startSummary, callback: callbackSummary, replay: replaySummary }
+  } finally { await stop(proc) }
+}
+
 async function main() {
   const args = parseArgs(), fixture = JSON.parse(fs.readFileSync(args.fixture, 'utf8'))
   const work = path.resolve(args['work-dir'])
   if (fs.existsSync(work) && fs.readdirSync(work).length) throw new Error(`work directory must be empty: ${work}`)
   fs.mkdirSync(work, { recursive: true })
   const scenarios = {}
-  for (const scenario of ['success', 'link', 'denied']) {
+  for (const scenario of ['success', 'link', 'denied', 'mobile']) {
     scenarios[scenario] = {}
     for (const kind of ['node', 'go']) {
       const dir = path.join(work, scenario, kind)
@@ -318,9 +387,20 @@ async function main() {
     const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, fixture, 'link')
     const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, fixture, 'denied')
     const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, fixture, 'denied')
-    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
+    const nodeMobile = await runMobileRedirect('node', scenarios.mobile.node, args['go-bin'], provider, work)
+    const goMobile = await runMobileRedirect('go', scenarios.mobile.go, args['go-bin'], provider, work)
+    const mobileStart = { name: 'oidc-mobile-start', node: nodeMobile.start, go: goMobile.start }
+    const mobileCallback = { name: 'oidc-mobile-redirect', node: nodeMobile.callback, go: goMobile.callback }
+    const mobileReplay = { name: 'oidc-mobile-state-replay', node: nodeMobile.replay, go: goMobile.replay }
+    const mobileCases = [
+      { name: 'oidc-mobile-invalid-redirect', node: nodeMobile.badRedirect, go: goMobile.badRedirect },
+      { name: 'oidc-mobile-missing-pkce-challenge', node: nodeMobile.missingChallenge, go: goMobile.missingChallenge },
+      { name: 'oidc-mobile-unsupported-pkce-method', node: nodeMobile.badChallengeMethod, go: goMobile.badChallengeMethod },
+      mobileStart, mobileCallback, mobileReplay
+    ]
+    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, and the selected admin-only user_added event are exercised.', 'Detailed cookies, mobile flow, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, mobile PKCE start, mobile app redirect, and one-time mobile state consumption are exercised.', 'Detailed cookies and expiry of in-memory flow state remain uncovered; this does not cover the general Socket.IO event inventory or the mobile app callback/token exchange after it receives the provider code.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

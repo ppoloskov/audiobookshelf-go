@@ -11,7 +11,7 @@
     "go-backend/internal/backup/backup.go": "32c7dd7723020926475d0157970169490ece9be440146015c26985f4f20f687e",
     "go-backend/internal/catalog/handler.go": "ebf0698c7aaa2e823420ffe520aa962167f791d56c1cadc55a6d02e9877bfd80",
     "go-backend/internal/emailapi/handler.go": "7db9e61947c99082fa6ad7e4fc2c1b9c07a6e6e213d454be26690d0f4c8229bf",
-    "go-backend/internal/identity/identity.go": "c5b3c1af6a71eaac21559563ffa1a2f1116536c0a6a6014bd409336d14d2a16d",
+    "go-backend/internal/identity/identity.go": "90251404ae12925f8d0e56d2bf8ffbc6ea8da67f8ebcff857d481e563fbe4904",
     "go-backend/internal/notifications/handler.go": "c2bc21c9f708e48f966cdc9739d95d03de4345997a7c6f057c11d8385fb19b09",
     "go-backend/internal/podcasts/podcasts.go": "c18f604a29bcfb0311b41bcf31702467a698ecf095825f700aa920e36cb086cd",
     "go-backend/internal/providers/handler.go": "bd3c31e1ab8511eaa7ed1d2d493ede78ab868aae5024c0334324054b72af1ee5",

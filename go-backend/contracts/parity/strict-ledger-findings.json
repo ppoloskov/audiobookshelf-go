@@ -2,20 +2,20 @@
   "schemaVersion": 1,
   "validator": "check-ledger.go -require-verified -require-invariants",
   "validatorExitCode": 1,
-  "diagnosticCount": 1644,
+  "diagnosticCount": 1643,
   "distinctCapabilitiesWithFindings": 236,
   "capabilityStatusNotVerified": 236,
   "causeCounts": {
     "initial_scenario_not_verified": 115,
-    "missing_invariant_record": 168,
-    "missing_or_unverified_scenario_changed": 119,
+    "missing_invariant_record": 167,
+    "missing_or_unverified_scenario_changed": 120,
     "missing_or_unverified_scenario_failure": 118,
     "missing_or_unverified_scenario_force": 115,
     "missing_or_unverified_scenario_initial": 115,
     "missing_or_unverified_scenario_repeat": 122,
     "missing_repeat_operation_invariant": 128,
     "missing_stateful_classification": 3,
-    "no_verified_invariant": 168,
+    "no_verified_invariant": 167,
     "other": 1,
     "unverified_capability_status": 472
   },
@@ -29,7 +29,7 @@
     "http/backup": 54,
     "http/catalog": 393,
     "http/emailapi": 40,
-    "http/identity": 65,
+    "http/identity": 64,
     "http/notifications": 33,
     "http/playback": 102,
     "http/podcasts": 108,
@@ -106,10 +106,9 @@
       "kind": "operation",
       "scope": "in",
       "status": "implemented",
-      "findingCount": 4,
+      "findingCount": 3,
       "causes": {
-        "missing_invariant_record": 1,
-        "no_verified_invariant": 1,
+        "missing_or_unverified_scenario_changed": 1,
         "unverified_capability_status": 2
       }
     },
@@ -4218,15 +4217,8 @@
       "file": "cap-route-r003.json",
       "id": "route-r003",
       "parent": "http/identity",
-      "cause": "missing_invariant_record",
-      "diagnostic": "-require-invariants: at least one source-backed invariant required"
-    },
-    {
-      "file": "cap-route-r003.json",
-      "id": "route-r003",
-      "parent": "http/identity",
-      "cause": "no_verified_invariant",
-      "diagnostic": "-require-invariants: at least one invariant must be verified, not all not_applicable"
+      "cause": "missing_or_unverified_scenario_changed",
+      "diagnostic": "-require-invariants: stateful scenario changed is missing/unverified"
     },
     {
       "file": "cap-route-r003.json",

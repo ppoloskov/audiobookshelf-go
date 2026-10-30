@@ -1,0 +1,100 @@
+{
+ "id": "route-r003",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /auth/openid/mobile-redirect candidate recorded from server/Auth.js:380. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:380"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/oidc.go",
+  "go-backend/internal/identity/identity.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/oidc_test.go",
+  "go-backend/tools/parity/oidc-differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
+ ],
+ "exceptions": [
+  "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
+  "Other redirect schemes, state expiry, missing-code behavior, and additional middleware/query variants remain unverified."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R003-MOBILE-STATE-001",
+   "class": "state_transition",
+   "contract": "For an allowlisted mobile redirect URI, OIDC authorization requires an S256 PKCE challenge, forwards state/challenge, redirects the provider callback to /auth/openid/mobile-redirect, and matches Express redirect status, Location, content type, content length, and body; the callback redirects to the app with encoded code/state, then consumes that state.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js:256-281",
+    "server/auth/OidcAuthStrategy.js:301-368",
+    "server/auth/OidcAuthStrategy.js:479-505"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect"
+   ],
+   "exceptions": [
+    "Evidence covers one allowlisted audiobookshelf://oauth URI and S256 flow only."
+   ]
+  },
+  {
+   "id": "INV-R003-MOBILE-REPLAY-001",
+   "class": "repeat_operation",
+   "contract": "Repeating the mobile redirect callback with consumed state returns HTTP 400, text/html; charset=utf-8, exact Express Content-Length and weak ETag, and the State parameter mismatch body.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js:479-505"
+   ],
+   "tests": [
+    "go-backend/internal/identity/oidc_test.go",
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R003-MOBILE-VALIDATION-001",
+   "class": "error",
+   "contract": "An unlisted mobile redirect URI, absent PKCE challenge, or non-S256 challenge method returns the upstream HTTP 400 text response including Express content type, length, and ETag.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js:256-281",
+    "server/Auth.js:362-378"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method"
+   ],
+   "exceptions": []
+  }
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "unverified",
+  "force": "not_applicable",
+  "failure": "verified"
+ }
+}

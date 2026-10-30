@@ -276,6 +276,51 @@ func TestOIDCAutoRegisterAndMobileRedirectAllowlist(t *testing.T) {
 	}
 }
 
+func TestOIDCMobileRedirectStateMismatchUsesExpressTextResponse(t *testing.T) {
+	db, handler := identityFixture(t)
+	defer db.Close()
+	configureOIDC(t, db, "https://provider.example", map[string]any{
+		"authOpenIDMobileRedirectURIs": []any{"audiobookshelf://oauth"},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/auth/openid/mobile-redirect?state=unknown&code=test", nil)
+	request.Host = "abs.example"
+	response := httptest.NewRecorder()
+	if !handler.Handle(response, request) {
+		t.Fatal("mobile redirect route was not handled")
+	}
+	body := "State parameter mismatch"
+	if response.Code != http.StatusBadRequest || response.Body.String() != body {
+		t.Fatalf("response = %d %q, want 400 %q", response.Code, response.Body.String(), body)
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want Express text response", got)
+	}
+	if got := response.Header().Get("Content-Length"); got != fmt.Sprint(len(body)) {
+		t.Fatalf("Content-Length = %q, want %d", got, len(body))
+	}
+	if got := response.Header().Get("ETag"); !strings.HasPrefix(got, `W/"`) {
+		t.Fatalf("ETag = %q, want Express weak ETag", got)
+	}
+
+	handler.oidcMu.Lock()
+	handler.mobileFlows["known-state"] = mobileFlow{redirectURI: "audiobookshelf://oauth", started: time.Now()}
+	handler.oidcMu.Unlock()
+	validRequest := httptest.NewRequest(http.MethodGet, "/auth/openid/mobile-redirect?state=known-state&code=mobile-code", nil)
+	validRequest.Host = "abs.example"
+	validResponse := httptest.NewRecorder()
+	if !handler.Handle(validResponse, validRequest) {
+		t.Fatal("mobile redirect route was not handled")
+	}
+	target := "audiobookshelf://oauth?code=mobile-code&state=known-state"
+	redirectBody := "Found. Redirecting to " + target
+	if validResponse.Code != http.StatusFound || validResponse.Header().Get("Location") != target || validResponse.Body.String() != redirectBody {
+		t.Fatalf("redirect = %d location=%q body=%q", validResponse.Code, validResponse.Header().Get("Location"), validResponse.Body.String())
+	}
+	if validResponse.Header().Get("Content-Type") != "text/plain; charset=utf-8" || validResponse.Header().Get("Content-Length") != fmt.Sprint(len(redirectBody)) {
+		t.Fatalf("redirect headers = %#v", validResponse.Header())
+	}
+}
+
 func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
