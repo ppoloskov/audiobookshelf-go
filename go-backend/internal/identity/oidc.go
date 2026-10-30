@@ -244,16 +244,16 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 			writeExpressText(w, http.StatusBadRequest, "No session")
 			return
 		}
-		h.oidcFailure(w, r, false, http.StatusBadRequest, "No sign-in session")
+		h.oidcFailure(w, http.StatusBadRequest, "No sign-in session")
 		return
 	}
 	if providerError := r.URL.Query().Get("error"); providerError != "" {
-		h.oidcFailure(w, r, flow.mobile, http.StatusUnauthorized, "Unauthorized")
+		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		h.oidcFailure(w, r, flow.mobile, http.StatusBadRequest, "Invalid authorization code")
+		h.oidcFailure(w, http.StatusBadRequest, "Invalid authorization code")
 		return
 	}
 	verifier := flow.verifier
@@ -262,29 +262,29 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg, err := h.readOIDCConfig(r.Context())
 	if err != nil {
-		h.oidcFailure(w, r, flow.mobile, http.StatusInternalServerError, "Error in callback")
+		h.oidcFailure(w, http.StatusInternalServerError, "Error in callback")
 		return
 	}
 	userinfo, idToken, err := exchangeAndLoadUserInfo(r.Context(), cfg, code, flow.redirectURI, verifier, flow.nonce)
 	if err != nil {
-		h.oidcFailure(w, r, flow.mobile, http.StatusUnauthorized, "Unauthorized")
+		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 	user, err := h.userFromOIDCInfo(r.Context(), cfg, userinfo)
 	if err != nil || !user.IsActive {
-		h.oidcFailure(w, r, flow.mobile, http.StatusUnauthorized, "Unauthorized")
+		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
-		h.oidcFailure(w, r, flow.mobile, http.StatusInternalServerError, "Error during login")
+		h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 		return
 	}
 	setExpressCookie(w, "openid_id_token", idToken, 10*365*24*60*60, true, true, "Strict")
 	if flow.mobile || cookieValue(r, "auth_method") == "openid-mobile" || cookieValue(r, "auth_method") == "api" {
 		payload, err := h.loginPayload(r.Context(), user)
 		if err != nil {
-			h.oidcFailure(w, r, flow.mobile, http.StatusInternalServerError, "Error during login")
+			h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 			return
 		}
 		userDTO := payload["user"].(map[string]any)
@@ -386,11 +386,11 @@ func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) a
 	return u.String()
 }
 
-func (h *Handler) oidcFailure(w http.ResponseWriter, r *http.Request, mobile bool, status int, message string) {
-	if mobile || cookieValue(r, "auth_method") == "openid-mobile" {
-		writePlain(w, status, message)
-		return
-	}
+func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string) {
+	// The pinned Passport callback routes failures based on
+	// `req.session[sessionKey].mobile === true`, but the OIDC strategy stores
+	// the mobile redirect URI string there. A valid mobile flow therefore uses
+	// the web login redirect on callback failure, regardless of auth_method.
 	if status == http.StatusInternalServerError {
 		message = "Error in callback"
 	} else if status == http.StatusBadRequest && message == "No sign-in session" {

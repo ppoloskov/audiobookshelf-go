@@ -339,6 +339,18 @@ func TestOIDCMobileCallbackMissingSessionUsesExpressTextResponse(t *testing.T) {
 	}
 }
 
+func TestOIDCCallbackProviderFailureUsesLoginRedirect(t *testing.T) {
+	db, h := identityFixture(t)
+	defer db.Close()
+
+	response := httptest.NewRecorder()
+	h.oidcFailure(response, http.StatusUnauthorized, "Unauthorized")
+
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/login?error=Unauthorized&autoLaunch=0" {
+		t.Fatalf("mobile callback failure = status %d, location %q; want upstream login redirect", response.Code, response.Header().Get("Location"))
+	}
+}
+
 func TestOIDCMobileRedirectStateMismatchUsesExpressTextResponse(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()

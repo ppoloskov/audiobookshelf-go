@@ -1,8 +1,8 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "provider": "local ephemeral RS256 provider",
-  "compared": 20,
-  "matched": 20,
+  "compared": 21,
+  "matched": 21,
   "mismatched": 0,
   "cases": [
     {
@@ -159,7 +159,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:55373",
+                "iss": "http://127.0.0.1:62647",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -413,7 +413,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:55373",
+                "iss": "http://127.0.0.1:62647",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -791,7 +791,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:55373",
+                "iss": "http://127.0.0.1:62647",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -1012,7 +1012,7 @@
                 "kid": "oidc-test-key"
               },
               "claims": {
-                "iss": "http://127.0.0.1:55373",
+                "iss": "http://127.0.0.1:62647",
                 "aud": "abs-oidc-differential",
                 "sub": "oidc-differential-sub",
                 "iat": "<dynamic-timestamp>",
@@ -1730,7 +1730,7 @@
               }
             }
           },
-          "userDefaultLibraryId": "7402000f-0686-4c44-b315-aa382a389f98",
+          "userDefaultLibraryId": "9a5cf008-9fcb-41b8-a9a4-122dfe3114f3",
           "serverSettings": {
             "id": "server-settings",
             "scannerFindCovers": false,
@@ -1771,11 +1771,11 @@
               "local",
               "openid"
             ],
-            "authOpenIDIssuerURL": "http://127.0.0.1:55373",
-            "authOpenIDAuthorizationURL": "http://127.0.0.1:55373/authorize",
-            "authOpenIDTokenURL": "http://127.0.0.1:55373/token",
-            "authOpenIDUserInfoURL": "http://127.0.0.1:55373/userinfo",
-            "authOpenIDJwksURL": "http://127.0.0.1:55373/jwks",
+            "authOpenIDIssuerURL": "http://127.0.0.1:62647",
+            "authOpenIDAuthorizationURL": "http://127.0.0.1:62647/authorize",
+            "authOpenIDTokenURL": "http://127.0.0.1:62647/token",
+            "authOpenIDUserInfoURL": "http://127.0.0.1:62647/userinfo",
+            "authOpenIDJwksURL": "http://127.0.0.1:62647/jwks",
             "authOpenIDLogoutURL": null,
             "authOpenIDTokenSigningAlgorithm": "RS256",
             "authOpenIDButtonText": "Login with OpenId",
@@ -1815,18 +1815,18 @@
               "openid"
             ],
             "authLoginCustomMessage": null,
-            "authOpenIDAuthorizationURL": "http://127.0.0.1:55373/authorize",
+            "authOpenIDAuthorizationURL": "http://127.0.0.1:62647/authorize",
             "authOpenIDAutoLaunch": false,
             "authOpenIDAutoRegister": true,
             "authOpenIDButtonText": "Login with OpenId",
-            "authOpenIDIssuerURL": "http://127.0.0.1:55373",
-            "authOpenIDJwksURL": "http://127.0.0.1:55373/jwks",
+            "authOpenIDIssuerURL": "http://127.0.0.1:62647",
+            "authOpenIDJwksURL": "http://127.0.0.1:62647/jwks",
             "authOpenIDLogoutURL": null,
             "authOpenIDMatchExistingBy": null,
             "authOpenIDSubfolderForRedirectURLs": "/audiobookshelf",
             "authOpenIDTokenSigningAlgorithm": "RS256",
-            "authOpenIDTokenURL": "http://127.0.0.1:55373/token",
-            "authOpenIDUserInfoURL": "http://127.0.0.1:55373/userinfo",
+            "authOpenIDTokenURL": "http://127.0.0.1:62647/token",
+            "authOpenIDUserInfoURL": "http://127.0.0.1:62647/userinfo",
             "backupPath": "<fixture-path>",
             "backupSchedule": false,
             "backupsToKeep": 2,
@@ -1930,7 +1930,7 @@
             "type": "user",
             "username": "oidc-differential"
           },
-          "userDefaultLibraryId": "7402000f-0686-4c44-b315-aa382a389f98"
+          "userDefaultLibraryId": "9a5cf008-9fcb-41b8-a9a4-122dfe3114f3"
         },
         "persisted": {
           "users": [
@@ -1962,11 +1962,87 @@
         "body": "No session"
       },
       "equal": true
+    },
+    {
+      "name": "oidc-mobile-invalid-verifier",
+      "node": {
+        "startStatus": 302,
+        "callback": {
+          "status": 302,
+          "location": "audiobookshelf://oauth?code=oidc-mobile-invalid-verifier-code&state=oidc-mobile-invalid-verifier-state",
+          "contentType": "text/plain; charset=utf-8",
+          "body": "Found. Redirecting to audiobookshelf://oauth?code=oidc-mobile-invalid-verifier-code&state=oidc-mobile-invalid-verifier-state"
+        },
+        "exchange": {
+          "status": 302,
+          "contentType": "text/plain; charset=utf-8",
+          "contentLength": "60",
+          "etag": null,
+          "body": "Found. Redirecting to /login?error=Unauthorized&autoLaunch=0",
+          "persistedBefore": {
+            "users": [],
+            "sessionCount": 0
+          },
+          "persistedAfter": {
+            "users": [],
+            "sessionCount": 0
+          }
+        },
+        "replay": {
+          "status": 400,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": "10",
+          "etag": "W/\"a-UnenYPe9Fxf4gyj8mWb8NX2B3xI\"",
+          "location": null,
+          "body": "No session",
+          "persisted": {
+            "users": [],
+            "sessionCount": 0
+          }
+        }
+      },
+      "go": {
+        "startStatus": 302,
+        "callback": {
+          "status": 302,
+          "location": "audiobookshelf://oauth?code=oidc-mobile-invalid-verifier-code&state=oidc-mobile-invalid-verifier-state",
+          "contentType": "text/plain; charset=utf-8",
+          "body": "Found. Redirecting to audiobookshelf://oauth?code=oidc-mobile-invalid-verifier-code&state=oidc-mobile-invalid-verifier-state"
+        },
+        "exchange": {
+          "status": 302,
+          "contentType": "text/plain; charset=utf-8",
+          "contentLength": "60",
+          "etag": null,
+          "body": "Found. Redirecting to /login?error=Unauthorized&autoLaunch=0",
+          "persistedBefore": {
+            "users": [],
+            "sessionCount": 0
+          },
+          "persistedAfter": {
+            "users": [],
+            "sessionCount": 0
+          }
+        },
+        "replay": {
+          "status": 400,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": "10",
+          "etag": "W/\"a-UnenYPe9Fxf4gyj8mWb8NX2B3xI\"",
+          "location": null,
+          "body": "No session",
+          "persisted": {
+            "users": [],
+            "sessionCount": 0
+          }
+        }
+      },
+      "equal": true
     }
   ],
   "limits": [
-    "Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile app redirect, and mobile redirect state replay are exercised.",
-    "Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. Mobile invalid-verifier/error exchange, in-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.",
+    "Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, and invalid mobile PKCE verifier failure plus replay are exercised.",
+    "Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.",
     "Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict."
   ]
 }

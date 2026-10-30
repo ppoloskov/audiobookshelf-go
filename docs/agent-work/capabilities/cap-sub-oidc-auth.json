@@ -1,202 +1,222 @@
 {
- "id": "sub-oidc-auth",
- "parent": "identity",
- "kind": "behaviour",
- "scope": "in",
- "status": "implemented",
- "contract": "OpenID Connect login/callback/logout/auto-redirect flow parity with upstream OpenIDAuthStrategy, including settings side effects.",
- "source": [
-  "server/auth/OidcAuthStrategy.js",
-  "server/models/User.js",
-  "server/Auth.js"
- ],
- "implementation": [
-  "go-backend/internal/identity/oidc.go",
-  "go-backend/internal/identity/identity.go"
- ],
- "cases": {
-  "normal": "unverified",
-  "error": "unverified",
-  "edge": "unverified"
- },
- "invariants": [
-  {
-   "id": "INV-OIDC-WEB-CALLBACK-001",
-   "class": "state_transition",
-   "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, expired ID token, and disabled auto-registration match upstream response routing and create no additional user or session.",
-   "status": "verified",
-   "source": [
+  "id": "sub-oidc-auth",
+  "parent": "identity",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "OpenID Connect login/callback/logout/auto-redirect flow parity with upstream OpenIDAuthStrategy, including settings side effects.",
+  "source": [
     "server/auth/OidcAuthStrategy.js",
     "server/models/User.js",
     "server/Auth.js"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/identity/oidc_test.go"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-provider-error",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-expired-id-token",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-auto-registration-denied",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier"
-   ],
-   "exceptions": [
-    "Evidence covers the named web flow cases only; it does not establish all callback cookies, mobile, or event behavior."
-   ]
+  ],
+  "implementation": [
+    "go-backend/internal/identity/oidc.go",
+    "go-backend/internal/identity/identity.go"
+  ],
+  "cases": {
+    "normal": "unverified",
+    "error": "unverified",
+    "edge": "unverified"
   },
-  {
-   "id": "INV-OIDC-EMAIL-LINK-001",
-   "class": "state_transition",
-   "contract": "When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that user, creates one session, and retains the existing extraData member order when appending authOpenIDSub.",
-   "status": "verified",
-   "source": [
-    "server/models/User.js:220-308",
-    "server/auth/OidcAuthStrategy.js:112-164"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/identity/oidc_test.go:TestOIDCLinksExistingUserByConfiguredUsername"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
-   ],
-   "exceptions": []
+  "invariants": [
+    {
+      "id": "INV-OIDC-WEB-CALLBACK-001",
+      "class": "state_transition",
+      "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, expired ID token, and disabled auto-registration match upstream response routing and create no additional user or session.",
+      "status": "verified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js",
+        "server/models/User.js",
+        "server/Auth.js"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-provider-error",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-expired-id-token",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-auto-registration-denied",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier"
+      ],
+      "exceptions": [
+        "Evidence covers the named web flow cases only; it does not establish all callback cookies, mobile, or event behavior."
+      ]
+    },
+    {
+      "id": "INV-OIDC-EMAIL-LINK-001",
+      "class": "state_transition",
+      "contract": "When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that user, creates one session, and retains the existing extraData member order when appending authOpenIDSub.",
+      "status": "verified",
+      "source": [
+        "server/models/User.js:220-308",
+        "server/auth/OidcAuthStrategy.js:112-164"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go:TestOIDCLinksExistingUserByConfiguredUsername"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "INV-OIDC-USER-ADDED-001",
+      "class": "state_transition",
+      "contract": "Successful OIDC auto-registration emits one user_added payload with the legacy browser user shape to root/admin sockets and does not deliver it to an ordinary user socket.",
+      "status": "verified",
+      "source": [
+        "server/models/User.js:311-345"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/server/runtime.go"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success"
+      ],
+      "exceptions": [
+        "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
+      ]
+    },
+    {
+      "id": "INV-OIDC-IDTOKEN-VALIDATION-001",
+      "class": "state_transition",
+      "contract": "Web OIDC callback rejects ID tokens with an invalid nonce, issuer, audience, or RS256 signature using upstream redirect behavior, without changing the resulting user or session state.",
+      "status": "verified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-nonce",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-issuer",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-audience",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-signature"
+      ],
+      "exceptions": [
+        "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow."
+      ]
+    },
+    {
+      "id": "INV-OIDC-MOBILE-STATE-001",
+      "class": "state_transition",
+      "contract": "The selected mobile flow validates redirect allowlist and S256 PKCE inputs, forwards provider state/challenge, matches complete Express redirect responses (status, Location, content type, content length and body) to the provider and app, consumes state once, and matches the replay error response.",
+      "status": "verified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:256-281",
+        "server/auth/OidcAuthStrategy.js:301-368",
+        "server/auth/OidcAuthStrategy.js:479-505",
+        "server/Auth.js:362-378"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
+      ],
+      "exceptions": [
+        "Covers one mobile URI and S256 authorization flow; callback cookie attributes, state expiry, mobile app token exchange, other URI schemes, and general Socket.IO behavior remain open."
+      ]
+    },
+    {
+      "id": "INV-OIDC-WEB-COOKIE-JWT-001",
+      "class": "state_transition",
+      "contract": "On selected web OIDC success, start cookies and callback cookies match upstream cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, and SameSite attributes; the signed connect.sid is present. Redirect JWT algorithm and claims match after normalizing UUID identifiers and timestamps, and the returned ID-token nonce is bound to that server flow.",
+      "status": "verified",
+      "source": [
+        "server/Auth.js:218-248",
+        "server/Auth.js:296-305",
+        "server/Auth.js:430-445",
+        "server/auth/TokenManager.js:108-171",
+        "server/Server.js:301-317"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/identity_test.go"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
+      ],
+      "exceptions": [
+        "Evidence covers the selected web auto-registration and email-link success cases; failure/logout cookie clearing, additional proxy/security modes, and every callback branch remain unverified."
+      ]
+    },
+    {
+      "id": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
+      "class": "state_transition",
+      "contract": "A successful mobile OIDC exchange accepts the app-supplied PKCE verifier, returns the API login payload with matching token claims, persists one active provider-linked user and exactly one session; replay after consuming the callback session returns HTTP 400 No session with upstream Express response headers.",
+      "status": "verified",
+      "source": [
+        "server/Auth.js:383-445",
+        "server/auth/OidcAuthStrategy.js:301-368",
+        "server/auth/OidcAuthStrategy.js:112-164"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go:TestOIDCMobileCallbackMissingSessionUsesExpressTextResponse"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange",
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay"
+      ],
+      "exceptions": [
+        "Only one local RS256 provider, redirect URI, S256 flow, and auto-registration path are covered; invalid-verifier/provider error handling remains unverified."
+      ]
+    },
+    {
+      "id": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
+      "class": "error",
+      "contract": "After a valid mobile OIDC authorization and mobile redirect, a callback with an incorrect PKCE verifier matches the upstream login redirect failure (302 to /login?error=Unauthorized&autoLaunch=0), creates no provider-linked user/session, and consumes the one-time callback flow so replay returns 400 No session. The pinned strategy stores the mobile redirect URI string in session.mobile while Auth.js checks session.mobile === true, so valid mobile callback failures follow the web redirect branch.",
+      "status": "verified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:356-368",
+        "server/Auth.js:399-432",
+        "server/Auth.js:449-452"
+      ],
+      "tests": [
+        "go-backend/internal/identity/oidc_test.go:TestOIDCCallbackProviderFailureUsesLoginRedirect",
+        "go-backend/tools/parity/oidc-differential.cjs:oidc-mobile-invalid-verifier"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-verifier",
+        "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json"
+      ],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "verified",
+    "repeat": "unverified",
+    "changed": "unverified",
+    "force": "not_applicable",
+    "failure": "verified"
   },
-  {
-   "id": "INV-OIDC-USER-ADDED-001",
-   "class": "state_transition",
-   "contract": "Successful OIDC auto-registration emits one user_added payload with the legacy browser user shape to root/admin sockets and does not deliver it to an ordinary user socket.",
-   "status": "verified",
-   "source": [
-    "server/models/User.js:311-345"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/server/runtime.go"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success"
-   ],
-   "exceptions": [
-    "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
-   ]
-  },
-  {
-   "id": "INV-OIDC-IDTOKEN-VALIDATION-001",
-   "class": "state_transition",
-   "contract": "Web OIDC callback rejects ID tokens with an invalid nonce, issuer, audience, or RS256 signature using upstream redirect behavior, without changing the resulting user or session state.",
-   "status": "verified",
-   "source": [
-    "server/auth/OidcAuthStrategy.js"
-   ],
-   "tests": [
+  "tests": [
+    "go-backend/internal/identity/oidc_test.go",
+    "go-backend/internal/identity/identity_test.go",
     "go-backend/tools/parity/oidc-differential.cjs"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-nonce",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-issuer",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-audience",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-signature"
-   ],
-   "exceptions": [
-    "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow."
-   ]
-  },
-  {
-   "id": "INV-OIDC-MOBILE-STATE-001",
-   "class": "state_transition",
-   "contract": "The selected mobile flow validates redirect allowlist and S256 PKCE inputs, forwards provider state/challenge, matches complete Express redirect responses (status, Location, content type, content length and body) to the provider and app, consumes state once, and matches the replay error response.",
-   "status": "verified",
-   "source": [
-    "server/auth/OidcAuthStrategy.js:256-281",
-    "server/auth/OidcAuthStrategy.js:301-368",
-    "server/auth/OidcAuthStrategy.js:479-505",
-    "server/Auth.js:362-378"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/identity/oidc_test.go"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-invalid-redirect",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-missing-pkce-challenge",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
-   ],
-   "exceptions": [
-    "Covers one mobile URI and S256 authorization flow; callback cookie attributes, state expiry, mobile app token exchange, other URI schemes, and general Socket.IO behavior remain open."
-   ]
-  },
-  {
-   "id": "INV-OIDC-WEB-COOKIE-JWT-001",
-   "class": "state_transition",
-   "contract": "On selected web OIDC success, start cookies and callback cookies match upstream cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, and SameSite attributes; the signed connect.sid is present. Redirect JWT algorithm and claims match after normalizing UUID identifiers and timestamps, and the returned ID-token nonce is bound to that server flow.",
-   "status": "verified",
-   "source": [
-    "server/Auth.js:218-248",
-    "server/Auth.js:296-305",
-    "server/Auth.js:430-445",
-    "server/auth/TokenManager.js:108-171",
-    "server/Server.js:301-317"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/identity/identity_test.go"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
-   ],
-   "exceptions": [
-    "Evidence covers the selected web auto-registration and email-link success cases; failure/logout cookie clearing, additional proxy/security modes, and every callback branch remain unverified."
-   ]
-  },
-  {
-   "id": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
-   "class": "state_transition",
-   "contract": "A successful mobile OIDC exchange accepts the app-supplied PKCE verifier, returns the API login payload with matching token claims, persists one active provider-linked user and exactly one session; replay after consuming the callback session returns HTTP 400 No session with upstream Express response headers.",
-   "status": "verified",
-   "source": [
-    "server/Auth.js:383-445",
-    "server/auth/OidcAuthStrategy.js:301-368",
-    "server/auth/OidcAuthStrategy.js:112-164"
-   ],
-   "tests": [
-    "go-backend/tools/parity/oidc-differential.cjs",
-    "go-backend/internal/identity/oidc_test.go:TestOIDCMobileCallbackMissingSessionUsesExpressTextResponse"
-   ],
-   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay"
-   ],
-   "exceptions": [
-    "Only one local RS256 provider, redirect URI, S256 flow, and auto-registration path are covered; invalid-verifier/provider error handling remains unverified."
-   ]
-  }
- ],
- "stateful": true,
- "state_scenarios": {
-  "initial": "verified",
-  "repeat": "unverified",
-  "changed": "unverified",
-  "force": "not_applicable",
-  "failure": "verified"
- },
- "tests": [
-  "go-backend/internal/identity/oidc_test.go",
-  "go-backend/internal/identity/identity_test.go",
-  "go-backend/tools/parity/oidc-differential.cjs"
- ],
- "evidence": [
-  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 20 local mock-provider cases matched, including selected real-socket user_added and successful mobile token exchange/replay; provenance states exact limits)"
- ],
- "exceptions": [
-  "Failure/logout cookie clearing, in-memory flow-state expiry, invalid mobile verifier/provider errors, other callback variants, and general Socket.IO event inventory remain unverified.",
-  "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-  "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
- ]
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 21 local mock-provider cases matched; exact limits in provenance)"
+  ],
+  "exceptions": [
+    "Failure/logout cookie clearing, in-memory flow-state expiry, other callback variants, and general Socket.IO event inventory remain unverified.",
+    "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
+    "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
+  ]
 }

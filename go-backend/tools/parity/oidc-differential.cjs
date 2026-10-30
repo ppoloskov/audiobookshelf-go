@@ -457,7 +457,68 @@ async function runMobileRedirect(kind, dir, goBin, provider, work) {
       location: exchangeReplay.headers.get('location') || null,
       body: await exchangeReplay.text()
     }
+
     return { badRedirect, missingChallenge, badChallengeMethod, start: startSummary, callback: callbackSummary, replay: replaySummary, exchange: exchangeSummary, exchangeReplay: exchangeReplaySummary }
+  } finally { await stop(proc) }
+}
+
+async function runMobileInvalidVerifier(kind, dir, goBin, provider, work) {
+  const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `mobile-invalid-verifier-${kind}.log`)
+  await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, 'mobile')
+  const proc = startServer(kind, dir, port, logPath, goBin)
+  try {
+    await ready(proc, base, logPath)
+    const jar = new Map()
+    const state = 'oidc-mobile-invalid-verifier-state'
+    const code = 'oidc-mobile-invalid-verifier-code'
+    const expectedVerifier = 'mobile-invalid-verifier-expected'
+    const suppliedVerifier = 'mobile-invalid-verifier-supplied'
+    const query = new URLSearchParams({
+      response_type: 'code', redirect_uri: 'audiobookshelf://oauth', state,
+      code_challenge: b64url(crypto.createHash('sha256').update(expectedVerifier).digest()),
+      code_challenge_method: 'S256'
+    })
+    const start = await get(`${base}${PREFIX}/auth/openid?${query}`, jar)
+    if (start.status !== 302) throw new Error(`${kind} invalid-verifier OIDC start returned ${start.status}`)
+    const authorization = new URL(start.headers.get('location'))
+    provider.flows.set(code, {
+      nonce: authorization.searchParams.get('nonce'),
+      challenge: authorization.searchParams.get('code_challenge'),
+      redirectURI: authorization.searchParams.get('redirect_uri')
+    })
+    const callback = await get(`${base}${PREFIX}/auth/openid/mobile-redirect?${new URLSearchParams({ code, state })}`, jar)
+    const callbackSummary = {
+      status: callback.status,
+      location: callback.headers.get('location') || null,
+      contentType: callback.headers.get('content-type'),
+      body: await callback.text()
+    }
+    const exchangeURL = new URL(`${base}${PREFIX}/auth/openid/callback`)
+    exchangeURL.searchParams.set('code', code)
+    exchangeURL.searchParams.set('state', state)
+    exchangeURL.searchParams.set('code_verifier', suppliedVerifier)
+    const persistedBefore = await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+    const exchange = await get(exchangeURL, jar)
+    const exchangeSummary = {
+      status: exchange.status,
+      contentType: exchange.headers.get('content-type'),
+      contentLength: exchange.headers.get('content-length'),
+      etag: exchange.headers.get('etag'),
+      body: await exchange.text(),
+      persistedBefore,
+      persistedAfter: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+    }
+    const replay = await get(exchangeURL, jar)
+    const replaySummary = {
+      status: replay.status,
+      contentType: replay.headers.get('content-type'),
+      contentLength: replay.headers.get('content-length'),
+      etag: replay.headers.get('etag'),
+      location: replay.headers.get('location') || null,
+      body: await replay.text(),
+      persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+    }
+    return { startStatus: start.status, callback: callbackSummary, exchange: exchangeSummary, replay: replaySummary }
   } finally { await stop(proc) }
 }
 
@@ -467,7 +528,7 @@ async function main() {
   if (fs.existsSync(work) && fs.readdirSync(work).length) throw new Error(`work directory must be empty: ${work}`)
   fs.mkdirSync(work, { recursive: true })
   const scenarios = {}
-  for (const scenario of ['success', 'link', 'denied', 'mobile']) {
+  for (const scenario of ['success', 'link', 'denied', 'mobile', 'mobile-invalid-verifier']) {
     scenarios[scenario] = {}
     for (const kind of ['node', 'go']) {
       const dir = path.join(work, scenario, kind)
@@ -488,20 +549,23 @@ async function main() {
     const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, fixture, 'denied')
     const nodeMobile = await runMobileRedirect('node', scenarios.mobile.node, args['go-bin'], provider, work)
     const goMobile = await runMobileRedirect('go', scenarios.mobile.go, args['go-bin'], provider, work)
+    const nodeMobileInvalidVerifier = await runMobileInvalidVerifier('node', scenarios['mobile-invalid-verifier'].node, args['go-bin'], provider, work)
+    const goMobileInvalidVerifier = await runMobileInvalidVerifier('go', scenarios['mobile-invalid-verifier'].go, args['go-bin'], provider, work)
     const mobileStart = { name: 'oidc-mobile-start', node: nodeMobile.start, go: goMobile.start }
     const mobileCallback = { name: 'oidc-mobile-redirect', node: nodeMobile.callback, go: goMobile.callback }
     const mobileReplay = { name: 'oidc-mobile-state-replay', node: nodeMobile.replay, go: goMobile.replay }
     const mobileExchange = { name: 'oidc-mobile-token-exchange', node: nodeMobile.exchange, go: goMobile.exchange }
     const mobileExchangeReplay = { name: 'oidc-mobile-token-exchange-replay', node: nodeMobile.exchangeReplay, go: goMobile.exchangeReplay }
+    const mobileInvalidVerifier = { name: 'oidc-mobile-invalid-verifier', node: nodeMobileInvalidVerifier, go: goMobileInvalidVerifier }
     const mobileCases = [
       { name: 'oidc-mobile-invalid-redirect', node: nodeMobile.badRedirect, go: goMobile.badRedirect },
       { name: 'oidc-mobile-missing-pkce-challenge', node: nodeMobile.missingChallenge, go: goMobile.missingChallenge },
       { name: 'oidc-mobile-unsupported-pkce-method', node: nodeMobile.badChallengeMethod, go: goMobile.badChallengeMethod },
-      mobileStart, mobileCallback, mobileReplay, mobileExchange, mobileExchangeReplay
+      mobileStart, mobileCallback, mobileReplay, mobileExchange, mobileExchangeReplay, mobileInvalidVerifier
     ]
     const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile app redirect, and mobile redirect state replay are exercised.', 'Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. Mobile invalid-verifier/error exchange, in-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, and invalid mobile PKCE verifier failure plus replay are exercised.', 'Selected web/mobile start and successful callback cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, failure/logout cookie clearing, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

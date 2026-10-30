@@ -1,28 +1,23 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture, one ephemeral local RS256 provider; 20 Node-versus-Go cases with raw redirect Location comparison, including the empty-code_verifier no-session edge including web OIDC, real-socket user_added, mobile PKCE redirect, token exchange, persisted user/session state, and replay behavior",
-  "fixtureSource": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final5/fixture-manifest.json",
-  "workDir": "/private/tmp/abs-oidc-mobile-exchange-final4-run",
-  "goBuild": "GOCACHE=/private/tmp/abs-go-build CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-mobile-exchange-final4 ./cmd/audiobookshelf-go",
+  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture and one ephemeral local RS256 provider; 21 Node-versus-Go cases include the mobile invalid-PKCE-verifier callback and replay.",
+  "fixtureSource": "/private/tmp/abs-oidc-invalid-verifier/fixture-manifest.json",
+  "workDir": "/private/tmp/abs-oidc-invalid-verifier/run3",
+  "goBuild": "GOCACHE=/private/tmp/abs-build-oidc-invalid CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-oidc-invalid-green ./cmd/audiobookshelf-go",
   "runtime": {
     "node": "v22.23.4 via mise",
     "go": "go1.27.0 darwin/arm64"
   },
   "sourceHashes": {
     "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
-    "server/models/User.js": "c7a50501f29e9eaf317501239bc7ba8c8c0c398efb6e8c716ec3052489d3cf52",
     "server/Auth.js": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d",
-    "server/auth/TokenManager.js": "979e1da4c4543b5992fb11cb4fbd20d53b67531f0117d12df873cef6e1b263ac",
-    "go-backend/internal/identity/identity.go": "fdfb0c112648044d5ae32488e0ab6998f4428e70dd08ce8b2541010ed6dbecb3",
-    "go-backend/internal/identity/identity_test.go": "cfeb20ff397e440e233b951c5407f83d39c9657105639a2d61cfaa57999b0ac5",
-    "go-backend/internal/identity/oidc.go": "52eb077707f316337a2d0ef813009256209c36a6605479b2743636551d73c9f7",
-    "go-backend/internal/identity/oidc_test.go": "0bae61e59883d3d20225eb747301f05f3fa0b15e8de65733b088b4f00524dd9a",
-    "go-backend/internal/server/runtime.go": "a0429a4465f26c2445e3b52f1a426d85d5aabc898402839ddb5aa8c847f9bee9",
-    "go-backend/tools/parity/oidc-differential.cjs": "011d2d756598b3c308d8d7618d87cfd14db9387c84182a0d6f17668c2e82bede"
+    "go-backend/internal/identity/oidc.go": "d19ccc132820bec3645a2ec31809e00b050b7b87095516efb8c4e41001828f79",
+    "go-backend/internal/identity/oidc_test.go": "4348211d4c10c956cddf1f3c1710ca85ea438edcdcf4d33bc4564e42f2e120d0",
+    "go-backend/tools/parity/oidc-differential.cjs": "43d8e49d24190072d3763ec0ed941ca17f873fb556eb5c0540958d8fa6aa1ab8"
   },
   "results": {
-    "compared": 20,
-    "matched": 20,
+    "compared": 21,
+    "matched": 21,
     "mismatched": 0
   },
   "normalization": [
@@ -31,9 +26,15 @@
     "JSON object member order is canonicalized for Socket.IO payload comparison because JSON object order is not semantically significant; array order, scalar values, null versus empty, and linked-user raw persisted extraData text remain strict."
   ],
   "limits": [
-    "Compared web auto-registration, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect/PKCE validation, mobile app redirect and state consumption/replay, valid mobile token exchange and consumed callback-session replay.",
-    "Selected web/mobile start and successful callback cookies compare name, stable value, Max-Age, Path, Expires, HttpOnly, Secure, SameSite and signed connect.sid; claims and selected persisted user/session effects are compared. Mobile invalid-verifier/provider errors, in-memory state expiry, failure/logout cookie clearing, other callback variants and general Socket.IO inventory remain unverified.",
-    "Only fixture-specific backup paths, UUID identifiers and timestamps are normalized. Null/empty distinctions, response shapes, arrays and raw persisted extraData remain strict."
+    "Selected invalid mobile PKCE verifier failures are now compared including status, Location, content type, content length, ETag, body, persisted provider-linked users/session count, and callback replay. In-memory flow-state expiry, failure/logout cookie clearing, other provider/callback errors, and general Socket.IO inventory remain unverified."
   ],
-  "report": "go-backend/contracts/parity/oidc-differential-report.json"
+  "report": "go-backend/contracts/parity/oidc-differential-report.json",
+  "sourceReport": "/private/tmp/abs-oidc-invalid-verifier/report3.json",
+  "preFixMismatch": {
+    "report": "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json",
+    "reproduced": true,
+    "node": "302 redirect to /login?error=Unauthorized&autoLaunch=0",
+    "go": "401 text/plain Unauthorized",
+    "replay": "both return 400 No session; both preserve zero provider-linked users and sessions"
+  }
 }
