@@ -122,6 +122,38 @@ func TestOIDCWebFlowValidatesStatePKCENonceIssuerAudienceAndJWKS(t *testing.T) {
 	}
 }
 
+func TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes(t *testing.T) {
+	now := time.Now()
+	handler := &Handler{
+		oidcFlows: map[string]oidcFlow{
+			"web-after-mobile-ttl":    {started: now.Add(-oidcMobileRedirectTTL - time.Second)},
+			"mobile-after-mobile-ttl": {mobile: true, started: now.Add(-oidcMobileRedirectTTL - time.Second)},
+			"session-expired":         {started: now.Add(-oidcSessionTTL - time.Second)},
+		},
+		mobileFlows: map[string]mobileFlow{
+			"redirect-expired": {started: now.Add(-oidcMobileRedirectTTL - time.Second)},
+			"redirect-valid":   {started: now.Add(-oidcMobileRedirectTTL + time.Second)},
+		},
+	}
+
+	handler.pruneOIDCState(now)
+	if _, ok := handler.oidcFlows["web-after-mobile-ttl"]; !ok {
+		t.Fatal("OIDC session flow was pruned at the shorter mobile redirect TTL")
+	}
+	if _, ok := handler.oidcFlows["mobile-after-mobile-ttl"]; !ok {
+		t.Fatal("mobile callback flow was pruned before the OIDC session TTL")
+	}
+	if _, ok := handler.oidcFlows["session-expired"]; ok {
+		t.Fatal("OIDC session flow outlived the upstream session TTL")
+	}
+	if _, ok := handler.mobileFlows["redirect-expired"]; ok {
+		t.Fatal("mobile redirect mapping outlived the upstream LRU TTL")
+	}
+	if _, ok := handler.mobileFlows["redirect-valid"]; !ok {
+		t.Fatal("mobile redirect mapping expired before the upstream LRU TTL")
+	}
+}
+
 func TestOIDCRejectsNonceMismatchAndStateReplay(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()

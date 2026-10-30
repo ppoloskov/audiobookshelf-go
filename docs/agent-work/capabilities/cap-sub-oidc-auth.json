@@ -217,6 +217,49 @@
       "exceptions": [
         "Evidence uses no configured end-session URL. Logout with provider redirect, allDevices=1, missing/invalid refresh credentials, response/session failure, and mobile logout remain unverified."
       ]
+    },
+    {
+      "id": "INV-OIDC-WEB-SESSION-TTL-001",
+      "class": "state_transition",
+      "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+      "status": "verified",
+      "source": [
+        "server/Server.js:301-313",
+        "server/libs/memorystore/index.js:15-28",
+        "server/auth/OidcAuthStrategy.js:301-368",
+        "server/Auth.js:383-445"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go:TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-state-after-ten-minutes",
+        "go-backend/contracts/parity/oidc-web-state-expiry-red-report.json"
+      ],
+      "exceptions": [
+        "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+      ]
+    },
+    {
+      "id": "INV-OIDC-MOBILE-REDIRECT-TTL-001",
+      "class": "state_transition",
+      "contract": "A mobile redirect URI mapping expires after ten minutes; the callback response matches upstream after expiry.",
+      "status": "verified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:18-22",
+        "server/auth/OidcAuthStrategy.js:479-505"
+      ],
+      "tests": [
+        "go-backend/tools/parity/oidc-differential.cjs",
+        "go-backend/internal/identity/oidc_test.go:TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes"
+      ],
+      "evidence": [
+        "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect-state-after-ten-minutes"
+      ],
+      "exceptions": [
+        "One allowlisted audiobookshelf://oauth URI and S256 flow after 10 minutes is covered; exact expiry boundary and other schemes remain unverified."
+      ]
     }
   ],
   "stateful": true,
@@ -233,10 +276,10 @@
     "go-backend/tools/parity/oidc-differential.cjs"
   ],
   "evidence": [
-    "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 22 local mock-provider cases matched; exact limits in provenance)"
+    "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 24 local mock-provider cases matched; exact limits in provenance)"
   ],
   "exceptions": [
-    "Failure/logout cookie clearing, in-memory flow-state expiry, other callback variants, and general Socket.IO event inventory remain unverified.",
+    "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
     "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
     "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
   ]

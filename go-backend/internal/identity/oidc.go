@@ -21,7 +21,10 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
-const oidcFlowTTL = 10 * time.Minute
+const (
+	oidcSessionTTL        = 24 * time.Hour
+	oidcMobileRedirectTTL = 10 * time.Minute
+)
 
 type oidcFlow struct {
 	verifier      string
@@ -851,12 +854,12 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 
 func (h *Handler) pruneOIDCState(now time.Time) {
 	for state, flow := range h.oidcFlows {
-		if now.Sub(flow.started) > oidcFlowTTL {
+		if now.Sub(flow.started) > oidcSessionTTL {
 			delete(h.oidcFlows, state)
 		}
 	}
 	for state, flow := range h.mobileFlows {
-		if now.Sub(flow.started) > oidcFlowTTL {
+		if now.Sub(flow.started) > oidcMobileRedirectTTL {
 			delete(h.mobileFlows, state)
 		}
 	}

@@ -25,11 +25,12 @@
  "evidence": [
   "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-start",
   "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect",
-  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay"
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-state-replay",
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect-state-after-ten-minutes"
  ],
  "exceptions": [
   "The force scenario is not applicable because GET /auth/openid/mobile-redirect has no force or refresh operation.",
-  "Other redirect schemes, state expiry, missing-code behavior, and additional middleware/query variants remain unverified."
+  "Other redirect schemes, missing-code behavior, and additional middleware/query variants remain unverified."
  ],
  "invariants": [
   {
@@ -88,6 +89,26 @@
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-unsupported-pkce-method"
    ],
    "exceptions": []
+  },
+  {
+   "id": "INV-R003-MOBILE-STATE-TTL-001",
+   "class": "state_transition",
+   "contract": "The allowlisted mobile redirect state expires after ten minutes and returns HTTP 400 with the upstream HTML content type, exact Content-Length, weak ETag, and State parameter mismatch body.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js:18-22",
+    "server/auth/OidcAuthStrategy.js:479-505"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go:TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-redirect-state-after-ten-minutes"
+   ],
+   "exceptions": [
+    "One allowlisted URI with one S256 flow after 10 minutes is covered; other redirect schemes and exact expiration boundary remain unverified."
+   ]
   }
  ],
  "state_scenarios": {

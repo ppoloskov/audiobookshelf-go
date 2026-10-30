@@ -21,7 +21,8 @@
  "stateful": true,
  "tests": [
   "go-backend/internal/identity/identity_test.go",
-  "go-backend/tools/parity/oidc-differential.cjs"
+  "go-backend/tools/parity/oidc-differential.cjs",
+  "go-backend/internal/identity/oidc_test.go:TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes"
  ],
  "evidence": [
   "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
@@ -130,6 +131,28 @@
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
    ],
    "exceptions": []
+  },
+  {
+   "id": "INV-R004-WEB-SESSION-TTL-001",
+   "class": "state_transition",
+   "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+   "status": "verified",
+   "source": [
+    "server/Server.js:301-313",
+    "server/libs/memorystore/index.js:15-28",
+    "server/Auth.js:383-445"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go:TestPruneOIDCStateMatchesSessionAndMobileRedirectLifetimes"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-state-after-ten-minutes",
+    "go-backend/contracts/parity/oidc-web-state-expiry-red-report.json"
+   ],
+   "exceptions": [
+    "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+   ]
   }
  ],
  "state_scenarios": {
@@ -140,6 +163,7 @@
   "failure": "verified"
  },
  "exceptions": [
-  "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation."
+  "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
+  "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity."
  ]
 }

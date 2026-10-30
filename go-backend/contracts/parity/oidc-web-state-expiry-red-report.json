@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-oidc-expiry-red-report2.json",
+  "summary": {
+    "compared": 23,
+    "matched": 22,
+    "mismatched": 1
+  },
+  "case": {
+    "name": "oidc-web-state-after-ten-minutes",
+    "node": {
+      "startStatus": 302,
+      "callback": {
+        "status": 302,
+        "location": "/audiobookshelf/login?setToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYTJmZTUyYS1jMzk3LTRiOGEtODk0MC0yNGQ2NzQ5YzFjZDAiLCJ1c2VybmFtZSI6Im9pZGMtZGlmZmVyZW50aWFsIiwiaWF0IjoxNzkzMzQ0MjkxfQ.Mu_NjOtNjHaxXQANIoXDS_1x6DRPhQkluHk5J0Qz3mM&accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYTJmZTUyYS1jMzk3LTRiOGEtODk0MC0yNGQ2NzQ5YzFjZDAiLCJ1c2VybmFtZSI6Im9pZGMtZGlmZmVyZW50aWFsIiwianRpIjoiZjg5M2FhMzEtN2UzYy00OWUyLWFmMTItOGJjZGNjYWY3YWVlIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc5MzM0NDI5MSwiZXhwIjoxNzkzMzQ3ODkxfQ.nnWS07yv-SIp1MCzyVJITQB4478hvPbw_-OHXFjR0z4",
+        "redirectPath": "/audiobookshelf/login",
+        "redirectError": null
+      },
+      "callbackCookies": [
+        {
+          "name": "openid_id_token",
+          "value": {
+            "validJWTShape": true,
+            "header": {
+              "alg": "RS256",
+              "typ": "JWT",
+              "kid": "oidc-test-key"
+            },
+            "claims": {
+              "iss": "http://127.0.0.1:63679",
+              "aud": "abs-oidc-differential",
+              "sub": "oidc-differential-sub",
+              "iat": "<dynamic-timestamp>",
+              "exp": "<dynamic-timestamp>",
+              "nonceMatchesAuthorization": true
+            }
+          },
+          "attributes": [
+            {
+              "key": "max-age",
+              "value": "315360000"
+            },
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            },
+            {
+              "key": "secure",
+              "value": null
+            },
+            {
+              "key": "samesite",
+              "value": "Strict"
+            }
+          ]
+        },
+        {
+          "name": "refresh_token",
+          "value": {
+            "validJWTShape": true,
+            "header": {
+              "alg": "HS256",
+              "typ": "JWT"
+            },
+            "claims": {
+              "userId": "<fixture-id>",
+              "username": "oidc-differential",
+              "jti": "<fixture-id>",
+              "type": "refresh",
+              "iat": "<dynamic-timestamp>",
+              "exp": "<dynamic-timestamp>"
+            }
+          },
+          "attributes": [
+            {
+              "key": "max-age",
+              "value": "2592000"
+            },
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "expires",
+              "value": "<dynamic-date>"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            },
+            {
+              "key": "samesite",
+              "value": "Lax"
+            }
+          ]
+        },
+        {
+          "name": "connect.sid",
+          "value": "<fixture-session-id>",
+          "attributes": [
+            {
+              "key": "path",
+              "value": "/"
+            },
+            {
+              "key": "httponly",
+              "value": null
+            }
+          ]
+        }
+      ],
+      "persisted": {
+        "users": [
+          {
+            "username": "oidc-differential",
+            "email": "oidc-differential@example.test",
+            "type": "user",
+            "isActive": 1,
+            "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+          }
+        ],
+        "sessionCount": 1
+      }
+    },
+    "go": {
+      "startStatus": 302,
+      "callback": {
+        "status": 302,
+        "location": "/login?error=No%20sign-in%20session&autoLaunch=0",
+        "redirectPath": "/login",
+        "redirectError": "No sign-in session"
+      },
+      "callbackCookies": [],
+      "persisted": {
+        "users": [],
+        "sessionCount": 0
+      }
+    },
+    "equal": false
+  },
+  "cause": "Go pruned the shared OIDC callback flow after 10 minutes; upstream retains it in the Express MemoryStore for 24 hours."
+}

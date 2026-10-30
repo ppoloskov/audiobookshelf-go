@@ -18,7 +18,7 @@ const USER = { sub: 'oidc-differential-sub', email: 'oidc-differential@example.t
 function parseArgs() {
   const out = {}
   for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) out[process.argv[i].slice(2)] = process.argv[++i]
-  if (!out.fixture || !out['go-bin'] || !out['work-dir']) throw new Error('Usage: oidc-differential.cjs --fixture <fixture-manifest.json> --go-bin <binary> --work-dir <new-directory> [--out <report.json>]')
+  if (!out.fixture || !out['go-bin'] || !out['work-dir']) throw new Error('Usage: oidc-differential.cjs --fixture <fixture-manifest.json> --go-bin <binary> --work-dir <new-directory> [--out <report.json>] [--include-web-state-expiry true]')
   return out
 }
 
@@ -383,6 +383,95 @@ async function runFlow(kind, dir, goBin, provider, work, fixture, mode = 'succes
   } finally { await stop(proc) }
 }
 
+async function runWebStateExpiry(kind, dir, goBin, provider, work) {
+  const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `web-state-expiry-${kind}.log`)
+  await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, 'success')
+  const proc = startServer(kind, dir, port, logPath, goBin)
+  try {
+    await ready(proc, base, logPath)
+    const jar = new Map()
+    const start = await get(`${base}${PREFIX}/auth/openid?callback=${encodeURIComponent(`${PREFIX}/login`)}`, jar)
+    if (start.status !== 302) throw new Error(`${kind} OIDC expiry start returned ${start.status}`)
+    const authorization = new URL(start.headers.get('location'))
+    const state = authorization.searchParams.get('state')
+    const code = `code-${kind}-web-state-expiry`
+    provider.flows.set(code, { nonce: authorization.searchParams.get('nonce'), challenge: authorization.searchParams.get('code_challenge'), redirectURI: authorization.searchParams.get('redirect_uri') })
+    const mobileJar = new Map()
+    const mobileState = `mobile-expiry-${kind}`
+    const mobileVerifier = `mobile-expiry-verifier-${kind}`
+    const mobileQuery = new URLSearchParams({
+      response_type: 'code', redirect_uri: 'audiobookshelf://oauth', state: mobileState,
+      code_challenge: b64url(crypto.createHash('sha256').update(mobileVerifier).digest()),
+      code_challenge_method: 'S256'
+    })
+    const mobileStart = await get(`${base}${PREFIX}/auth/openid?${mobileQuery}`, mobileJar)
+    if (mobileStart.status !== 302) throw new Error(`${kind} mobile OIDC expiry start returned ${mobileStart.status}`)
+    return {
+      finish: async () => {
+        const callback = new URL(`${base}${PREFIX}/auth/openid/callback`)
+        callback.searchParams.set('code', code)
+        callback.searchParams.set('state', state)
+        const response = await get(callback, jar)
+        const mobileCallback = await get(`${base}${PREFIX}/auth/openid/mobile-redirect?${new URLSearchParams({ code: 'expired-mobile-code', state: mobileState })}`, mobileJar)
+        const location = response.headers.get('location') || ''
+        const target = location ? new URL(location, base) : null
+        return {
+          web: {
+            startStatus: start.status,
+            callback: {
+              status: response.status,
+              redirectPath: target?.pathname || null,
+              redirectError: target?.searchParams.get('error') || null,
+              hasSetToken: Boolean(target?.searchParams.get('setToken')),
+              hasAccessToken: Boolean(target?.searchParams.get('accessToken')),
+              setTokenClaims: tokenClaimsSummary(target?.searchParams.get('setToken')),
+              accessTokenClaims: tokenClaimsSummary(target?.searchParams.get('accessToken'))
+            },
+            callbackCookies: cookieSummary(response.headers, provider.flows.get(code)?.nonce),
+            persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+          },
+          mobile: {
+            startStatus: mobileStart.status,
+            redirect: {
+              status: mobileCallback.status,
+              contentType: mobileCallback.headers.get('content-type'),
+              contentLength: mobileCallback.headers.get('content-length'),
+              etag: mobileCallback.headers.get('etag'),
+              body: await mobileCallback.text()
+            }
+          }
+        }
+      },
+      stop: () => stop(proc)
+    }
+  } catch (error) {
+    await stop(proc)
+    throw error
+  }
+}
+
+async function runWebStateExpiryPair(nodeDir, goDir, goBin, provider, work) {
+  const results = await Promise.allSettled([
+    runWebStateExpiry('node', nodeDir, goBin, provider, work),
+    runWebStateExpiry('go', goDir, goBin, provider, work)
+  ])
+  const sides = results.filter(result => result.status === 'fulfilled').map(result => result.value)
+  const failure = results.find(result => result.status === 'rejected')
+  if (failure) {
+    await Promise.all(sides.map(side => side.stop()))
+    throw failure.reason
+  }
+  try {
+    // Upstream Express MemoryStore retains this session for 24 hours. Waiting
+    // past the Go flow-map TTL makes the public callback comparison decisive.
+    await delay(10 * 60 * 1000 + 1500)
+    const [node, go] = await Promise.all(sides.map(side => side.finish()))
+    return { node, go }
+  } finally {
+    await Promise.all(sides.map(side => side.stop()))
+  }
+}
+
 async function runMobileRedirect(kind, dir, goBin, provider, work) {
   const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `mobile-${kind}.log`)
   await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, 'mobile')
@@ -560,6 +649,16 @@ async function main() {
       scenarios[scenario][kind] = dir
     }
   }
+  if (args['include-web-state-expiry'] === 'true') {
+    const scenario = 'web-state-expiry'
+    scenarios[scenario] = {}
+    for (const kind of ['node', 'go']) {
+      const dir = path.join(work, scenario, kind)
+      fs.mkdirSync(path.dirname(dir), { recursive: true })
+      fs.cpSync(fixture.directories[kind], dir, { recursive: true, preserveTimestamps: true })
+      scenarios[scenario][kind] = dir
+    }
+  }
   const provider = makeProvider(), providerPort = await listen(provider.server)
   provider.setBase(`http://127.0.0.1:${providerPort}`)
   let result
@@ -574,6 +673,9 @@ async function main() {
     const goMobile = await runMobileRedirect('go', scenarios.mobile.go, args['go-bin'], provider, work)
     const nodeMobileInvalidVerifier = await runMobileInvalidVerifier('node', scenarios['mobile-invalid-verifier'].node, args['go-bin'], provider, work)
     const goMobileInvalidVerifier = await runMobileInvalidVerifier('go', scenarios['mobile-invalid-verifier'].go, args['go-bin'], provider, work)
+    const webStateExpiry = args['include-web-state-expiry'] === 'true'
+      ? await runWebStateExpiryPair(scenarios['web-state-expiry'].node, scenarios['web-state-expiry'].go, args['go-bin'], provider, work)
+      : null
     const mobileStart = { name: 'oidc-mobile-start', node: nodeMobile.start, go: goMobile.start }
     const mobileCallback = { name: 'oidc-mobile-redirect', node: nodeMobile.callback, go: goMobile.callback }
     const mobileReplay = { name: 'oidc-mobile-state-replay', node: nodeMobile.replay, go: goMobile.replay }
@@ -586,9 +688,14 @@ async function main() {
       { name: 'oidc-mobile-unsupported-pkce-method', node: nodeMobile.badChallengeMethod, go: goMobile.badChallengeMethod },
       mobileStart, mobileCallback, mobileReplay, mobileExchange, mobileExchangeReplay, mobileInvalidVerifier
     ]
-    const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-web-logout', node: node.logout, go: go.logout }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
+    const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-web-logout', node: node.logout, go: go.logout }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases]
+    if (webStateExpiry) {
+      cases.push({ name: 'oidc-web-state-after-ten-minutes', node: webStateExpiry.node.web, go: webStateExpiry.go.web })
+      cases.push({ name: 'oidc-mobile-redirect-state-after-ten-minutes', node: webStateExpiry.node.mobile, go: webStateExpiry.go.mobile })
+    }
+    cases.forEach(test => { test.equal = JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) })
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay, invalid mobile PKCE verifier failure plus replay, and selected web OIDC logout cookie/session effects are exercised.', 'Selected web/mobile start, successful callback and web logout cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. In-memory flow-state expiry, logout errors, mobile logout behavior, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay and expiry after 10 minutes, invalid mobile PKCE verifier failure plus replay, web callback after 10 minutes, and selected web OIDC logout cookie/session effects are exercised.', 'Selected web/mobile start, successful callback and web logout cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. The exact 24-hour session-expiry boundary and rolling session-touch renewal remain unverified. Logout errors, mobile logout behavior, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

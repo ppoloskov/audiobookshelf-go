@@ -1,24 +1,26 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture and one ephemeral local RS256 provider; 22 Node-versus-Go cases include a successful web OIDC login followed by logout and cookie/session-state comparison.",
+  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized pinned v2.37.2 fixture and one ephemeral local RS256 provider; 24 Node-versus-Go cases include web session and mobile redirect state checks after ten minutes.",
   "fixtureSource": "/private/tmp/abs-oidc-logout/fixture-manifest.json",
-  "workDir": "/private/tmp/abs-oidc-logout/run3",
-  "goBuild": "GOCACHE=/private/tmp/abs-build-oidc-logout CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-oidc-logout-green ./cmd/audiobookshelf-go",
+  "workDir": "/private/tmp/abs-oidc-expiry-final-run",
+  "goBuild": "GOCACHE=/private/tmp/go-cache-abs-oidc CGO_ENABLED=0 go build -o /private/tmp/audiobookshelf-go-oidc-expiry-green ./cmd/audiobookshelf-go",
   "runtime": {
     "node": "v22.23.4 via mise",
     "go": "go1.27.0 darwin/arm64"
   },
   "sourceHashes": {
-    "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
     "server/Auth.js": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d",
-    "go-backend/internal/identity/oidc.go": "d19ccc132820bec3645a2ec31809e00b050b7b87095516efb8c4e41001828f79",
-    "go-backend/internal/identity/oidc_test.go": "5c15d1b5e341b23eb70d9f6950acfc255fcabf74a86dfbef44e2a50528e9d1e5",
-    "go-backend/tools/parity/oidc-differential.cjs": "ca117e5db10761341b3931ef13e08c219911b990b53ae659af5abcf029e36696",
-    "go-backend/internal/identity/identity.go": "7e5fa3daa410749a3873c342aca6f6c364f9ed3be7940675e7487c5f516aa283"
+    "server/Server.js": "f78130bf7fc75556bf1401379f2574d902932cb2579b77d6d33dd7bc4d2ed243",
+    "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
+    "server/libs/memorystore/index.js": "6c7e898df7ea084b97b2d470840b48e1ff8a09447271bff3dc70fa5f31230dc2",
+    "go-backend/internal/identity/oidc.go": "619d90ccdd7cb75613308cf3830487503964f3555ee076023c36836fa3a53414",
+    "go-backend/internal/identity/oidc_test.go": "94dc8fd40d732cbc7fde8746c1ffb7dd282e98086da46c96410b87b14f46fe2f",
+    "go-backend/internal/identity/identity.go": "7e5fa3daa410749a3873c342aca6f6c364f9ed3be7940675e7487c5f516aa283",
+    "go-backend/tools/parity/oidc-differential.cjs": "46d20e8d216e88a592fee27d804471a48c0d03a44287362def8b1b3c477db0d7"
   },
   "results": {
-    "compared": 22,
-    "matched": 22,
+    "compared": 24,
+    "matched": 24,
     "mismatched": 0
   },
   "normalization": [
@@ -27,17 +29,10 @@
     "JSON object member order is canonicalized for Socket.IO payload comparison because JSON object order is not semantically significant; array order, scalar values, null versus empty, and linked-user raw persisted extraData text remain strict."
   ],
   "limits": [
-    "Logout evidence covers one successful web OIDC session with no configured provider end-session URL. allDevices, missing/invalid refresh token, logout callback/provider errors, mobile logout, and broader cookie/session invalidation variants remain unverified."
+    "The expiry cases verify a web callback after 10 minutes but before the 24-hour session TTL, and mobile redirect-state expiry after 10 minutes, with no intervening requests. The exact 24-hour session boundary, rolling session-touch renewal, exact 10-minute mobile redirect expiry boundary, and other redirect schemes remain open. Logout errors, allDevices, missing/invalid refresh token, provider callback errors, and mobile logout remain unverified."
   ],
   "report": "go-backend/contracts/parity/oidc-differential-report.json",
-  "sourceReport": "/private/tmp/abs-oidc-logout/report3.json",
-  "preFixMismatch": {
-    "report": "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json",
-    "reproduced": true,
-    "node": "302 redirect to /login?error=Unauthorized&autoLaunch=0",
-    "go": "401 text/plain Unauthorized",
-    "replay": "both return 400 No session; both preserve zero provider-linked users and sessions"
-  },
+  "sourceReport": "/private/tmp/abs-oidc-expiry-final-report.json",
   "preFixLogoutMismatch": {
     "report": "go-backend/contracts/parity/oidc-logout-red-report.json",
     "reproduced": true,
@@ -47,5 +42,18 @@
       "Go added Max-Age, HttpOnly, Secure, and SameSite attributes absent from upstream clearCookie headers"
     ],
     "persistedSessionEffect": "Both implementations removed the one refresh session row."
+  },
+  "preFixInvalidVerifierMismatch": {
+    "report": "go-backend/contracts/parity/oidc-invalid-verifier-red-report.json",
+    "reproduced": true,
+    "node": "302 redirect to /login?error=Unauthorized&autoLaunch=0",
+    "go": "401 text/plain Unauthorized",
+    "replay": "both return 400 No session; both preserve zero provider-linked users and sessions"
+  },
+  "preFixWebStateExpiryMismatch": {
+    "report": "go-backend/contracts/parity/oidc-web-state-expiry-red-report.json",
+    "reproduced": true,
+    "node": "302 redirect to /audiobookshelf/login with tokens; provider-linked user and one session persisted",
+    "go": "302 redirect to /login?error=No%20sign-in%20session; no provider-linked user or session persisted"
   }
 }
