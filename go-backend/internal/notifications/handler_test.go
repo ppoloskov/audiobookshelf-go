@@ -200,3 +200,33 @@ func TestNotificationRejectsNonAdmin(t *testing.T) {
 		t.Fatalf("status %d", w.Code)
 	}
 }
+
+func TestNotificationTestMissingIDPrecedesAppriseConfiguration(t *testing.T) {
+	db := notificationDB(t, "")
+	h := New(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/missing/test", nil), store.User{Type: "admin"})
+	if w.Code != http.StatusNotFound || strings.TrimSpace(w.Body.String()) != http.StatusText(http.StatusNotFound) {
+		t.Fatalf("status/body = %d/%q, want 404 %q", w.Code, w.Body.String(), http.StatusText(http.StatusNotFound))
+	}
+}
+
+func TestNotificationTestUnavailableUsesExpressSendResponse(t *testing.T) {
+	db := notificationDB(t, "")
+	h := New(db, config.Config{}, nil)
+	create := httptest.NewRecorder()
+	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
+	var settings map[string]any
+	if err := json.Unmarshal(create.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	id := settings["notifications"].([]any)[0].(map[string]any)["id"].(string)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
+	if w.Code != http.StatusBadRequest || w.Body.String() != "Apprise is not configured" || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
+	}
+	if w.Header().Get("Content-Length") != "25" || w.Header().Get("ETag") == "" {
+		t.Fatalf("missing Express response headers: %#v", w.Header())
+	}
+}

@@ -88,6 +88,9 @@ const EXPECTED_STATUS = {
   'playlist-missing': 404, 'user-create-forbidden': 403,
   'user-delete-forbidden': 403, 'session-delete-missing': 404,
   'email-settings-reader-admin-gate': 404, 'notifications-reader-admin-gate': 403,
+  'notification-test-missing-id-unconfigured': 404,
+  'notification-test-existing-id-unconfigured': 400,
+  'notifications-clear-apprise-url': 200,
   'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
   'email-settings-read-defaults-initial': 200,
   'email-test-configure-smtp': 200, 'email-test-success': 200,
@@ -177,7 +180,7 @@ async function call(server, route, options = {}) {
     headerNames.push('content-disposition', 'content-length', 'last-modified')
     if ([403, 404].includes(response.status)) headerNames.push('etag')
   }
-  if ((route.startsWith('/api/emails/') || route.startsWith('/api/notifications')) && [403, 404].includes(response.status)) {
+  if ((route.startsWith('/api/emails/') || route.startsWith('/api/notifications')) && [400, 403, 404].includes(response.status)) {
     headerNames.push('etag', 'content-length')
   }
   for (const key of headerNames) {
@@ -1095,6 +1098,7 @@ async function main() {
     ['user-delete-forbidden', '/api/users/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: readerAccessToken }],
     ['email-settings-reader-admin-gate', '/api/emails/settings', { method: 'GET', token: readerAccessToken }],
     ['notifications-reader-admin-gate', '/api/notifications', { method: 'GET', token: readerAccessToken }],
+    ['notification-test-missing-id-unconfigured', '/api/notifications/00000000-0000-4000-8000-000000000000/test', { method: 'GET', token: referenceAccessToken }],
     ['session-delete-missing', '/api/me/sessions/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: referenceAccessToken }],
     ['backup-missing-download', '/api/backups/00000000-0000-0000-0000-000000000000/download', { method: 'GET', token: referenceAccessToken }],
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
@@ -1126,6 +1130,9 @@ async function main() {
   await comparePair('notifications-settings-read-after-defaults', '/api/notifications', '/api/notifications', {
     method: 'GET', token: referenceAccessToken
   })
+  await comparePair('notifications-clear-apprise-url', '/api/notifications', '/api/notifications', {
+    method: 'PATCH', token: referenceAccessToken, body: { appriseApiUrl: null }
+  })
   const notificationCreateBody = {
     libraryId: bookLibraryId,
     eventName: 'onTest',
@@ -1140,6 +1147,13 @@ async function main() {
   })
   const nodeNotificationID = nodeNotification.body?.notifications?.at(-1)?.id
   const goNotificationID = goNotification.body?.notifications?.at(-1)?.id
+  if (nodeNotificationID && goNotificationID) {
+    await comparePair('notification-test-existing-id-unconfigured', `/api/notifications/${nodeNotificationID}/test`, `/api/notifications/${goNotificationID}/test`, {
+      method: 'GET', token: referenceAccessToken
+    })
+  } else {
+    results.push({ id: 'notification-test-existing-id-unconfigured', passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
+  }
   await comparePair('notification-create-empty-urls', '/api/notifications', '/api/notifications', {
     method: 'POST', token: referenceAccessToken,
     body: { eventName: 'onTest', urls: [], titleTemplate: 'Ignored', bodyTemplate: 'Ignored' }

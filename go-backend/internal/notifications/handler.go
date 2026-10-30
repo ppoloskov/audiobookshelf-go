@@ -96,6 +96,15 @@ func writeStatus(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
 }
+func writeExpressSend(w http.ResponseWriter, status int, body string) {
+	sum := sha1.Sum([]byte(body))
+	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) {
 	s, e := h.load(r.Context())
 	if e != nil {
@@ -365,14 +374,14 @@ func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database error", 500)
 		return
 	}
-	endpoint, _ := s["appriseApiUrl"].(string)
-	if endpoint == "" {
-		http.Error(w, "Apprise is not configured", 400)
-		return
-	}
 	n := h.find(s, lastID(strings.TrimSuffix(r.URL.Path, "/test")))
 	if n == nil {
-		w.WriteHeader(404)
+		writeStatus(w, http.StatusNotFound)
+		return
+	}
+	endpoint, _ := s["appriseApiUrl"].(string)
+	if endpoint == "" {
+		writeExpressSend(w, http.StatusBadRequest, "Apprise is not configured")
 		return
 	}
 	event := eventData(n["eventName"].(string))

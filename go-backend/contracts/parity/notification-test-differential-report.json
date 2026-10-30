@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-notification-route/report.json",
+  "runMode": "default SSRF filter enabled; only 127.0.0.1 hostname whitelisted for fixture cover requests",
+  "suiteSummary": {
+    "total": 147,
+    "passed": 147,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "notification-test-missing-id-unconfigured",
+      "passed": true,
+      "referenceStatus": 404,
+      "goStatus": 404,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "content-length": "9"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "etag": "W/\"9-0gXL1ngzMqISxa6S1zx3F4wtLyg\"",
+        "content-length": "9"
+      },
+      "referenceBody": "Tm90IEZvdW5k",
+      "goBody": "Tm90IEZvdW5k",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notifications-clear-apprise-url",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "notification-test-existing-id-unconfigured",
+      "passed": true,
+      "referenceStatus": 400,
+      "goStatus": 400,
+      "referenceHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"19-8abKQO2zhdw1j10c1quW8u82mlQ\"",
+        "content-length": "25"
+      },
+      "goHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "etag": "W/\"19-8abKQO2zhdw1j10c1quW8u82mlQ\"",
+        "content-length": "25"
+      },
+      "referenceBody": "QXBwcmlzZSBpcyBub3QgY29uZmlndXJlZA==",
+      "goBody": "QXBwcmlzZSBpcyBub3QgY29uZmlndXJlZA==",
+      "differences": [],
+      "notes": []
+    }
+  ]
+}

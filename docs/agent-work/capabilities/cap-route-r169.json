@@ -1,0 +1,56 @@
+{
+ "id": "route-r169",
+ "parent": "http/notifications",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /notifications/:id/test candidate recorded from server/routers/ApiRouter.js:272. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:272"
+ ],
+ "implementation": [
+  "go-backend/internal/notifications/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/notifications/handler_test.go:TestNotificationTestMissingIDPrecedesAppriseConfiguration",
+  "go-backend/internal/notifications/handler_test.go:TestNotificationTestUnavailableUsesExpressSendResponse",
+  "go-backend/tools/parity/differential.cjs:notification-test-missing-id-unconfigured",
+  "go-backend/tools/parity/differential.cjs:notification-test-existing-id-unconfigured"
+ ],
+ "invariants": [
+  {
+   "id": "INV-NOTIFICATION-TEST-ID-PRECEDENCE-001",
+   "class": "error",
+   "contract": "GET /notifications/:id/test resolves the notification ID in route middleware before checking Apprise availability: a missing ID returns Express sendStatus(404), while an existing notification with no configured Apprise URL returns Express send(400) with the fixed message, HTML content type, content length and weak ETag.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:272",
+    "server/controllers/NotificationController.js:115-127"
+   ],
+   "tests": [
+    "go-backend/internal/notifications/handler_test.go:TestNotificationTestMissingIDPrecedesAppriseConfiguration",
+    "go-backend/internal/notifications/handler_test.go:TestNotificationTestUnavailableUsesExpressSendResponse",
+    "go-backend/tools/parity/differential.cjs:notification-test-missing-id-unconfigured",
+    "go-backend/tools/parity/differential.cjs:notification-test-existing-id-unconfigured"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/notification-test-differential-report.json#notification-test-missing-id-unconfigured",
+    "go-backend/contracts/parity/notification-test-differential-report.json#notification-test-existing-id-unconfigured"
+   ],
+   "exceptions": [
+    "Successful test delivery, downstream failure, admin denial, event/persistence effects, and other route behavior are not established by these error cases."
+   ]
+  }
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/notification-test-differential-report.json#notification-test-missing-id-unconfigured",
+  "go-backend/contracts/parity/notification-test-differential-report.json#notification-test-existing-id-unconfigured"
+ ],
+ "exceptions": []
+}
