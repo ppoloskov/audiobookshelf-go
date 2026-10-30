@@ -90,6 +90,11 @@ const EXPECTED_STATUS = {
   'email-settings-reader-admin-gate': 404, 'notifications-reader-admin-gate': 403,
   'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
   'email-settings-read-defaults-initial': 200,
+  'email-devices-normalization-update': 200, 'email-devices-read-after-update': 200,
+  'email-devices-update-event': 200, 'email-devices-persisted-state': 200,
+  'email-devices-repeat': 200, 'email-devices-repeat-event': 200,
+  'email-devices-changed': 200, 'email-devices-changed-event': 200,
+  'email-devices-changed-persisted-state': 200,
   'notifications-settings-patch-custom': 200, 'notifications-settings-read-after-custom': 200,
   'notifications-settings-read-defaults-initial': 200,
   'notifications-settings-patch-defaults': 200, 'notifications-settings-read-after-defaults': 200,
@@ -197,6 +202,22 @@ async function startCoverSource(file) {
   const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (err) => err ? reject(err) : resolve(server.address().port)))
   server.unref()
   return { server, url: `http://127.0.0.1:${port}/cover.png` }
+}
+
+async function readEmailDeviceState(directory) {
+  const sqlite = require('sqlite3').verbose()
+  const db = new sqlite.Database(path.join(directory, 'config', 'absdatabase.sqlite'))
+  try {
+    const row = await new Promise((resolve, reject) => db.get(
+      "SELECT value,updatedAt FROM settings WHERE key='email-settings'",
+      (err, value) => err ? reject(err) : resolve(value)
+    ))
+    if (!row) return { updatedAt: null, devices: [] }
+    const settings = JSON.parse(row.value)
+    return { updatedAt: row.updatedAt, devices: settings.ereaderDevices ?? [] }
+  } finally {
+    await new Promise((resolve) => db.close(resolve))
+  }
 }
 
 async function readCoverDeleteState(directory, itemID) {
@@ -865,6 +886,7 @@ async function main() {
   const audioFileId = fixture.items.audioFile
   const audioFileIdGo = fixture.items.audioFileGo || audioFileId
   const results = []
+  let emailDevicesState = null
 
   const nodeLogin = await call(node, '/login', { method: 'POST', body: credentials })
   const goLogin = await call(go, '/login', { method: 'POST', body: credentials })
@@ -1410,6 +1432,102 @@ async function main() {
     if (!ioClient && process.env.ABS_PARITY_REQUIRE_SOCKETIO === '1') throw new Error(`Socket.IO JS client is required but unavailable: ${error.message}`)
   }
   if (ioClient) {
+    const adminEventRequest = async (server, route, options) => {
+      const socket = ioClient(server.url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+      const events = []
+      let timer
+      try {
+        await new Promise((resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('Socket.IO admin init timeout')), 10000)
+          socket.once('connect', () => socket.emit('auth', referenceAccessToken))
+          socket.once('init', () => {
+            clearTimeout(timer)
+            socket.on('ereader-devices-updated', payload => events.push(payload))
+            resolve()
+          })
+          socket.once('auth_failed', payload => reject(new Error(`Socket.IO admin auth failed: ${JSON.stringify(payload)}`)))
+          socket.once('connect_error', reject)
+        })
+        const response = await call(server, route, options)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        return { response, events }
+      } finally {
+        clearTimeout(timer)
+        socket.disconnect()
+      }
+    }
+    const emailDevicesBody = { ereaderDevices: [
+      { name: 'Invalid option', email: 'invalid@example.test', availabilityOption: 'invalid', users: ['discarded-user'] },
+      { name: 'Empty specific users', email: 'empty@example.test', availabilityOption: 'specificUsers', users: [] },
+      { name: 'Guest with users', email: 'guest@example.test', availabilityOption: 'guestOrUp', users: ['discarded-user'] },
+      { name: 'Missing users', email: 'missing@example.test' },
+      { name: 'Null users', email: 'null@example.test', availabilityOption: 'guestOrUp', users: null },
+      { name: 'Specific users string', email: 'string@example.test', availabilityOption: 'specificUsers', users: 'user-id' },
+      { name: 'Guest object users', email: 'object@example.test', availabilityOption: 'guestOrUp', users: { length: 1 } }
+    ] }
+    const emailDeviceRoute = '/api/emails/ereader-devices'
+    const [nodeDeviceUpdate, goDeviceUpdate] = await Promise.all([
+      adminEventRequest(node, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: emailDevicesBody }),
+      adminEventRequest(go, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: emailDevicesBody })
+    ])
+    results.push(compare('email-devices-normalization-update', nodeDeviceUpdate.response, goDeviceUpdate.response))
+    results.push(compare('email-devices-update-event',
+      { status: 200, headers: {}, body: nodeDeviceUpdate.events },
+      { status: 200, headers: {}, body: goDeviceUpdate.events }))
+    await comparePair('email-devices-read-after-update', '/api/emails/settings', '/api/emails/settings', {
+      method: 'GET', token: referenceAccessToken
+    })
+    const [nodeDeviceState, goDeviceState] = await Promise.all([
+      readEmailDeviceState(fixture.directories.node), readEmailDeviceState(fixture.directories.go)
+    ])
+    results.push(compare('email-devices-persisted-state',
+      { status: 200, headers: {}, body: { devices: nodeDeviceState.devices } },
+      { status: 200, headers: {}, body: { devices: goDeviceState.devices } }))
+
+    await new Promise(resolve => setTimeout(resolve, 10))
+    const [nodeRepeat, goRepeat] = await Promise.all([
+      adminEventRequest(node, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: emailDevicesBody }),
+      adminEventRequest(go, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: emailDevicesBody })
+    ])
+    results.push(compare('email-devices-repeat', nodeRepeat.response, goRepeat.response))
+    results.push(compare('email-devices-repeat-event',
+      { status: 200, headers: {}, body: nodeRepeat.events },
+      { status: 200, headers: {}, body: goRepeat.events }))
+    const [nodeAfterRepeat, goAfterRepeat] = await Promise.all([
+      readEmailDeviceState(fixture.directories.node), readEmailDeviceState(fixture.directories.go)
+    ])
+    const changedBody = {
+      ereaderDevices: emailDevicesBody.ereaderDevices.map((device, index) =>
+        index === 0 ? { ...device, email: 'changed@example.test' } : device)
+    }
+    await new Promise(resolve => setTimeout(resolve, 10))
+    const [nodeChanged, goChanged] = await Promise.all([
+      adminEventRequest(node, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: changedBody }),
+      adminEventRequest(go, emailDeviceRoute, { method: 'POST', token: referenceAccessToken, body: changedBody })
+    ])
+    results.push(compare('email-devices-changed', nodeChanged.response, goChanged.response))
+    results.push(compare('email-devices-changed-event',
+      { status: 200, headers: {}, body: nodeChanged.events },
+      { status: 200, headers: {}, body: goChanged.events }))
+    const [nodeAfterChange, goAfterChange] = await Promise.all([
+      readEmailDeviceState(fixture.directories.node), readEmailDeviceState(fixture.directories.go)
+    ])
+    results.push(compare('email-devices-changed-persisted-state',
+      { status: 200, headers: {}, body: { devices: nodeAfterChange.devices } },
+      { status: 200, headers: {}, body: { devices: goAfterChange.devices } }))
+    emailDevicesState = {
+      equal: JSON.stringify(deepSort(nodeDeviceState.devices)) === JSON.stringify(deepSort(goDeviceState.devices)) &&
+        JSON.stringify(deepSort(nodeAfterRepeat.devices)) === JSON.stringify(deepSort(goAfterRepeat.devices)) &&
+        nodeDeviceState.updatedAt === nodeAfterRepeat.updatedAt && goDeviceState.updatedAt === goAfterRepeat.updatedAt &&
+        JSON.stringify(deepSort(nodeAfterChange.devices)) === JSON.stringify(deepSort(goAfterChange.devices)) &&
+        nodeAfterChange.updatedAt !== nodeAfterRepeat.updatedAt && goAfterChange.updatedAt !== goAfterRepeat.updatedAt &&
+        nodeDeviceUpdate.events.length === 1 && goDeviceUpdate.events.length === 1 &&
+        nodeRepeat.events.length === 0 && goRepeat.events.length === 0 &&
+        nodeChanged.events.length === 1 && goChanged.events.length === 1,
+      node: { normalizedDeviceCount: nodeAfterChange.devices.length, repeatUpdatedAtUnchanged: nodeDeviceState.updatedAt === nodeAfterRepeat.updatedAt, changedUpdatedAt: nodeAfterChange.updatedAt, updateEvents: nodeDeviceUpdate.events.length, repeatEvents: nodeRepeat.events.length, changedEvents: nodeChanged.events.length },
+      go: { normalizedDeviceCount: goAfterChange.devices.length, repeatUpdatedAtUnchanged: goDeviceState.updatedAt === goAfterRepeat.updatedAt, changedUpdatedAt: goAfterChange.updatedAt, updateEvents: goDeviceUpdate.events.length, repeatEvents: goRepeat.events.length, changedEvents: goChanged.events.length }
+    }
+
     for (const [id, socketPath] of [
       ['socket-connect-prefixed', `${PREFIX}/socket.io`],
       ['socket-connect-legacy', '/socket.io']
@@ -1581,15 +1699,20 @@ async function main() {
       progressRead: ['lastUpdate', 'startedAt', 'finishedAt'],
       playbackSession: ['id', 'startedAt', 'updatedAt', 'deviceInfo.id', 'audioTracks[].contentUrl session UUID']
     },
-    note: 'A failed or skipped case is a compatibility gap or unmet prerequisite. No unsupported response is treated as equivalent behavior.',
-    summary: { total: results.length, passed: results.filter((r) => r.passed).length, failed: results.filter((r) => !r.passed).length },
-    statefulChecks: { coverDelete: coverDeleteState, coverUpload: coverUploadState, coverPatch: coverPatchState, coverURLFailure: coverURLFailureState, coverURLRedirect: coverURLRedirectState },
+    note: 'Failed cases are compatibility gaps. Skipped cases are unmet prerequisites and are reported separately; neither is treated as equivalent behavior.',
+    summary: {
+      total: results.length,
+      passed: results.filter((r) => r.passed).length,
+      failed: results.filter((r) => !r.passed && !r.skipped).length,
+      skipped: results.filter((r) => r.skipped).length
+    },
+    statefulChecks: { coverDelete: coverDeleteState, coverUpload: coverUploadState, coverPatch: coverPatchState, coverURLFailure: coverURLFailureState, coverURLRedirect: coverURLRedirectState, emailDevices: emailDevicesState },
     cases: results
   }
   const output = path.resolve(args.out || 'parity-results.json')
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
   console.log(JSON.stringify({ output, summary: report.summary }, null, 2))
-  if (report.summary.failed || !report.statefulChecks.coverDelete.equal || !report.statefulChecks.coverUpload.equal || !report.statefulChecks.coverPatch.equal) process.exitCode = 1
+  if (report.summary.failed || !report.statefulChecks.coverDelete.equal || !report.statefulChecks.coverUpload.equal || !report.statefulChecks.coverPatch.equal || (report.statefulChecks.emailDevices && !report.statefulChecks.emailDevices.equal)) process.exitCode = 1
 }
 
 main().catch((error) => {

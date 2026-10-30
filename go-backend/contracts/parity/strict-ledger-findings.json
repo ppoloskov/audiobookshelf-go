@@ -2,20 +2,20 @@
   "schemaVersion": 1,
   "validator": "check-ledger.go -require-verified -require-invariants",
   "validatorExitCode": 1,
-  "diagnosticCount": 1643,
+  "diagnosticCount": 1635,
   "distinctCapabilitiesWithFindings": 236,
   "capabilityStatusNotVerified": 236,
   "causeCounts": {
-    "initial_scenario_not_verified": 115,
-    "missing_invariant_record": 165,
-    "missing_or_unverified_scenario_changed": 122,
+    "initial_scenario_not_verified": 114,
+    "missing_invariant_record": 164,
+    "missing_or_unverified_scenario_changed": 121,
     "missing_or_unverified_scenario_failure": 118,
-    "missing_or_unverified_scenario_force": 115,
-    "missing_or_unverified_scenario_initial": 115,
-    "missing_or_unverified_scenario_repeat": 123,
-    "missing_repeat_operation_invariant": 129,
+    "missing_or_unverified_scenario_force": 114,
+    "missing_or_unverified_scenario_initial": 114,
+    "missing_or_unverified_scenario_repeat": 122,
+    "missing_repeat_operation_invariant": 128,
     "missing_stateful_classification": 3,
-    "no_verified_invariant": 165,
+    "no_verified_invariant": 164,
     "other": 1,
     "unverified_capability_status": 472
   },
@@ -28,7 +28,7 @@
     "http/audiotools": 48,
     "http/backup": 54,
     "http/catalog": 393,
-    "http/emailapi": 40,
+    "http/emailapi": 32,
     "http/identity": 64,
     "http/notifications": 33,
     "http/playback": 102,
@@ -2967,17 +2967,9 @@
       "kind": "operation",
       "scope": "in",
       "status": "implemented",
-      "findingCount": 11,
+      "findingCount": 3,
       "causes": {
-        "initial_scenario_not_verified": 1,
-        "missing_invariant_record": 1,
-        "missing_or_unverified_scenario_changed": 1,
         "missing_or_unverified_scenario_failure": 1,
-        "missing_or_unverified_scenario_force": 1,
-        "missing_or_unverified_scenario_initial": 1,
-        "missing_or_unverified_scenario_repeat": 1,
-        "missing_repeat_operation_invariant": 1,
-        "no_verified_invariant": 1,
         "unverified_capability_status": 2
       }
     },
@@ -12344,64 +12336,8 @@
       "file": "cap-route-r173.json",
       "id": "route-r173",
       "parent": "http/emailapi",
-      "cause": "missing_invariant_record",
-      "diagnostic": "-require-invariants: at least one source-backed invariant required"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "no_verified_invariant",
-      "diagnostic": "-require-invariants: at least one invariant must be verified, not all not_applicable"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "initial_scenario_not_verified",
-      "diagnostic": "-require-invariants: stateful initial scenario must be verified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "missing_or_unverified_scenario_initial",
-      "diagnostic": "-require-invariants: stateful scenario initial is missing/unverified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "missing_or_unverified_scenario_repeat",
-      "diagnostic": "-require-invariants: stateful scenario repeat is missing/unverified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "missing_or_unverified_scenario_changed",
-      "diagnostic": "-require-invariants: stateful scenario changed is missing/unverified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "missing_or_unverified_scenario_force",
-      "diagnostic": "-require-invariants: stateful scenario force is missing/unverified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
       "cause": "missing_or_unverified_scenario_failure",
       "diagnostic": "-require-invariants: stateful scenario failure is missing/unverified"
-    },
-    {
-      "file": "cap-route-r173.json",
-      "id": "route-r173",
-      "parent": "http/emailapi",
-      "cause": "missing_repeat_operation_invariant",
-      "diagnostic": "-require-invariants: stateful capability needs a repeat_operation invariant"
     },
     {
       "file": "cap-route-r173.json",

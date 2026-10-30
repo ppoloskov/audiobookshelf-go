@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -178,7 +179,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, d := range p.Devices {
-		if d["name"] == nil || d["name"] == "" || d["email"] == nil || d["email"] == "" {
+		if !jsTruthy(d["name"]) || !jsTruthy(d["email"]) {
 			http.Error(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
 			return
 		}
@@ -188,20 +189,21 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database error", 500)
 		return
 	}
-	clean := make([]any, len(p.Devices))
-	for i, d := range p.Devices {
-		if d["availabilityOption"] == nil {
-			d["availabilityOption"] = "adminOrUp"
-		}
-		clean[i] = d
+	provided := make([]any, len(p.Devices))
+	for i, device := range p.Devices {
+		provided[i] = device
 	}
+	clean := cleanDevices(provided)
+	changed := !reflect.DeepEqual(m["ereaderDevices"], clean)
 	m["ereaderDevices"] = clean
-	if e = h.save(r.Context(), m); e != nil {
-		http.Error(w, "database error", 500)
-		return
-	}
-	if h.emit != nil {
-		h.emit("@admins", "ereader-devices-updated", map[string]any{"ereaderDevices": clean})
+	if changed {
+		if e = h.save(r.Context(), m); e != nil {
+			http.Error(w, "database error", 500)
+			return
+		}
+		if h.emit != nil {
+			h.emit("@admins", "ereader-devices-updated", map[string]any{"ereaderDevices": clean})
+		}
 	}
 	write(w, map[string]any{"ereaderDevices": clean})
 }
@@ -444,10 +446,10 @@ func cleanDevices(a []any) []any {
 			continue
 		}
 		level, _ := d["availabilityOption"].(string)
-		if !valid[level] || (level == "specificUsers" && len(anyArray(d["users"])) == 0) {
+		if !valid[level] || (level == "specificUsers" && !hasDeviceUsers(d["users"])) {
 			d["availabilityOption"] = "adminOrUp"
 		}
-		if d["availabilityOption"] != "specificUsers" {
+		if d["availabilityOption"] != "specificUsers" && hasDeviceUsers(d["users"]) {
 			d["users"] = []any{}
 		}
 		out = append(out, d)
@@ -455,6 +457,18 @@ func cleanDevices(a []any) []any {
 	return out
 }
 func anyArray(v any) []any { a, _ := v.([]any); return a }
+func hasDeviceUsers(value any) bool {
+	switch users := value.(type) {
+	case []any:
+		return len(users) > 0
+	case string:
+		return users != ""
+	case map[string]any:
+		return jsTruthy(users["length"])
+	default:
+		return false
+	}
+}
 func device(m map[string]any, name string) map[string]any {
 	for _, x := range anyArray(m["ereaderDevices"]) {
 		d, _ := x.(map[string]any)

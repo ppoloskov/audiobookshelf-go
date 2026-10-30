@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "upstreamRevision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureBaseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "fixtureManifest": "/private/tmp/abs-email-devices-fixture7/fixture-manifest.json",
+  "sourceReport": "/private/tmp/abs-email-devices-fixture7/report.json",
+  "commands": [
+    "mise exec node@22 -- node go-backend/tools/parity/create-fixture.cjs /private/tmp/abs-email-devices-fixture7",
+    "GOCACHE=/private/tmp/abs-go-build CGO_ENABLED=0 go build -o /private/tmp/abs-email-devices-go ./cmd/audiobookshelf-go",
+    "EXP_PROXY_SUPPORT=1 mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-email-devices-fixture7/fixture-manifest.json --go-bin /private/tmp/abs-email-devices-go --out /private/tmp/abs-email-devices-fixture7/report.json"
+  ],
+  "runtime": {
+    "node": "v22.23.4",
+    "go": "go1.27.0 darwin/arm64",
+    "mode": "EXP_PROXY_SUPPORT=1; isolated local loopback servers and local image fixture"
+  },
+  "results": {
+    "suiteTotal": 138,
+    "suitePassed": 137,
+    "suiteFailed": 0,
+    "suiteSkipped": 1,
+    "skippedCase": "cover-url-ssrf-blocked",
+    "emailDeviceCases": 9,
+    "emailDeviceCasesPassed": 9,
+    "normalizedDeviceCount": 7,
+    "emailDeviceStateEqual": true,
+    "divergences": 0
+  },
+  "limits": [
+    "Email device evidence covers the selected admin update, readback, normalization, realtime event, identical-repeat, and changed-input behavior only. Normalization includes string and object users.length coercion plus missing/null/empty shapes. Request denial, malformed payloads, concurrent updates, SMTP test/delivery, and broader email authorization remain unverified.",
+    "The full differential was run with EXP_PROXY_SUPPORT=1 so the local image-source fixture was permitted. That upstream mode disables its SSRF filter, so the private-address SSRF test was explicitly skipped; this run is not default-mode cover SSRF evidence.",
+    "The earlier email-case false negatives were harness status-table omissions; after adding the three event/state comparisons to the expected-status table, all six email cases passed. The earlier default-mode cover failures were both implementations rejecting the loopback fixture URL under SSRF filtering and are superseded by the recorded proxy-mode run for this email evidence."
+  ]
+}

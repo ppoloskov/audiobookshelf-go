@@ -1,0 +1,899 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-email-devices-fixture7/report.json",
+  "runMode": "EXP_PROXY_SUPPORT=1; local-only image fixture; private-address SSRF case skipped by design",
+  "suiteSummary": {
+    "total": 138,
+    "passed": 137,
+    "failed": 0,
+    "skipped": 1
+  },
+  "skippedCases": [
+    {
+      "id": "cover-url-ssrf-blocked",
+      "skipped": true,
+      "prerequisite": "upstream explicitly disables SSRF filtering in EXP_PROXY_SUPPORT mode; probing a private address would initiate an unsafe network request"
+    }
+  ],
+  "cases": [
+    {
+      "id": "email-devices-normalization-update",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "goBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-update-event",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "invalid@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "invalid@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-read-after-update",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "settings": {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "invalid@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ],
+          "fromAddress": null,
+          "host": "smtp.example.invalid",
+          "id": "email-settings",
+          "pass": null,
+          "port": 587,
+          "rejectUnauthorized": true,
+          "secure": true,
+          "testAddress": null,
+          "user": null
+        }
+      },
+      "goBody": {
+        "settings": {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "invalid@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ],
+          "fromAddress": null,
+          "host": "smtp.example.invalid",
+          "id": "email-settings",
+          "pass": null,
+          "port": 587,
+          "rejectUnauthorized": true,
+          "secure": true,
+          "testAddress": null,
+          "user": null
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-persisted-state",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": {
+        "devices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "goBody": {
+        "devices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-repeat",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "goBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "invalid@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-repeat-event",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [],
+      "goBody": [],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-changed",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "changed@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "goBody": {
+        "ereaderDevices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "changed@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-changed-event",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "changed@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ]
+        }
+      ],
+      "goBody": [
+        {
+          "ereaderDevices": [
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "changed@example.test",
+              "name": "Invalid option",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "empty@example.test",
+              "name": "Empty specific users",
+              "users": []
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "guest@example.test",
+              "name": "Guest with users",
+              "users": []
+            },
+            {
+              "availabilityOption": "adminOrUp",
+              "email": "missing@example.test",
+              "name": "Missing users"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "null@example.test",
+              "name": "Null users",
+              "users": null
+            },
+            {
+              "availabilityOption": "specificUsers",
+              "email": "string@example.test",
+              "name": "Specific users string",
+              "users": "user-id"
+            },
+            {
+              "availabilityOption": "guestOrUp",
+              "email": "object@example.test",
+              "name": "Guest object users",
+              "users": []
+            }
+          ]
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-devices-changed-persisted-state",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": {
+        "devices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "changed@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "goBody": {
+        "devices": [
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "changed@example.test",
+            "name": "Invalid option",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "empty@example.test",
+            "name": "Empty specific users",
+            "users": []
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "guest@example.test",
+            "name": "Guest with users",
+            "users": []
+          },
+          {
+            "availabilityOption": "adminOrUp",
+            "email": "missing@example.test",
+            "name": "Missing users"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "null@example.test",
+            "name": "Null users",
+            "users": null
+          },
+          {
+            "availabilityOption": "specificUsers",
+            "email": "string@example.test",
+            "name": "Specific users string",
+            "users": "user-id"
+          },
+          {
+            "availabilityOption": "guestOrUp",
+            "email": "object@example.test",
+            "name": "Guest object users",
+            "users": []
+          }
+        ]
+      },
+      "differences": [],
+      "notes": []
+    }
+  ],
+  "statefulCheck": {
+    "equal": true,
+    "node": {
+      "normalizedDeviceCount": 7,
+      "repeatUpdatedAtUnchanged": true,
+      "changedUpdatedAt": "2026-10-30 05:14:11.038 +00:00",
+      "updateEvents": 1,
+      "repeatEvents": 0,
+      "changedEvents": 1
+    },
+    "go": {
+      "normalizedDeviceCount": 7,
+      "repeatUpdatedAtUnchanged": true,
+      "changedUpdatedAt": "2026-10-30 05:14:11.036 +00:00",
+      "updateEvents": 1,
+      "repeatEvents": 0,
+      "changedEvents": 1
+    }
+  }
+}
