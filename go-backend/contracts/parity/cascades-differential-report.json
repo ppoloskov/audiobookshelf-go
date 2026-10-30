@@ -1,0 +1,947 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-30T01:23:30.069Z",
+  "fixture": "fixture-manifest.json",
+  "sourceRevision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "upstreamFirst": true,
+  "results": {
+    "node": {
+      "results": [
+        {
+          "scenario": "backup-create-retention",
+          "createStatus": 200,
+          "backupCountAfterCreate": 1,
+          "backup3Status": 200,
+          "countAfterThird": 1,
+          "expectedSource": "3 creates + retention default 2 -> count capped at two",
+          "backupCountListed": 1,
+          "firstApplyStatus": 200,
+          "firstApplyEvents": [
+            "backup_applied"
+          ],
+          "citations": null
+        },
+        {
+          "scenario": "backup-malformed-upload",
+          "status": 500,
+          "body": "Invalid backup file",
+          "citations": null
+        },
+        {
+          "scenario": "missing-library-delete",
+          "status": 404,
+          "body": "Library not found",
+          "citations": null
+        },
+        {
+          "scenario": "collection-batch-duplicate-and-missing",
+          "createStatus": 200,
+          "dupAdd": {
+            "status": 200,
+            "body": {
+              "id": "bb8f9680-eb3c-43a2-8afc-6834a2484f23",
+              "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+              "name": "Cascade Collection",
+              "description": null,
+              "books": [
+                {
+                  "id": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                  "ino": "253282231",
+                  "oldLibraryItemId": null,
+                  "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+                  "folderId": "ddab8df1-fac6-4463-8e89-897698235c14",
+                  "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book",
+                  "relPath": "A. Reader/Deterministic Book",
+                  "isFile": false,
+                  "mtimeMs": 1793323381914,
+                  "ctimeMs": 1793323381914,
+                  "birthtimeMs": 1793323381864,
+                  "addedAt": 1793323383592,
+                  "updatedAt": 1793323384102,
+                  "isMissing": false,
+                  "isInvalid": false,
+                  "mediaType": "book",
+                  "media": {
+                    "id": "000be037-8dc2-4122-8162-69b3eeaa3976",
+                    "metadata": {
+                      "title": "Deterministic Book",
+                      "subtitle": null,
+                      "authors": [
+                        {
+                          "id": "5a245205-5e66-445f-bb5e-7c2b283321f6",
+                          "name": "A. Reader"
+                        }
+                      ],
+                      "narrators": [],
+                      "series": [],
+                      "genres": [],
+                      "publishedYear": null,
+                      "publishedDate": null,
+                      "publisher": null,
+                      "description": null,
+                      "isbn": null,
+                      "asin": null,
+                      "language": null,
+                      "explicit": false,
+                      "abridged": false,
+                      "titleIgnorePrefix": "Deterministic Book",
+                      "authorName": "A. Reader",
+                      "authorNameLF": "Reader, A.",
+                      "narratorName": "",
+                      "seriesName": "",
+                      "descriptionPlain": null
+                    },
+                    "coverPath": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/metadata/items/2a8286a8-297c-451e-b677-1d60d7050e8c/cover.png",
+                    "tags": [],
+                    "numTracks": 1,
+                    "numAudioFiles": 1,
+                    "numChapters": 0,
+                    "duration": 2,
+                    "size": 1600,
+                    "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                    "audioFiles": [
+                      {
+                        "index": 1,
+                        "ino": "253282232",
+                        "metadata": {
+                          "filename": "Deterministic Book.m4b",
+                          "ext": ".m4b",
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600,
+                          "mtimeMs": 1793323381921,
+                          "ctimeMs": 1793323381921,
+                          "birthtimeMs": 1793323381914
+                        },
+                        "addedAt": 1793323383590,
+                        "updatedAt": 1793323383590,
+                        "trackNumFromMeta": null,
+                        "discNumFromMeta": null,
+                        "trackNumFromFilename": null,
+                        "discNumFromFilename": null,
+                        "manuallyVerified": false,
+                        "exclude": false,
+                        "error": null,
+                        "format": "QuickTime / MOV",
+                        "duration": 2,
+                        "bitRate": 1451,
+                        "language": "und",
+                        "codec": "aac",
+                        "timeBase": "1/44100",
+                        "channels": 1,
+                        "channelLayout": "mono",
+                        "chapters": [],
+                        "embeddedCoverArt": null,
+                        "metaTags": {
+                          "tagArtist": "A. Reader",
+                          "tagTitle": "Deterministic Book",
+                          "tagEncoder": "Lavf63.1.102"
+                        },
+                        "mimeType": "audio/mp4"
+                      }
+                    ],
+                    "chapters": [],
+                    "ebookFile": null,
+                    "tracks": [
+                      {
+                        "index": 1,
+                        "ino": "253282232",
+                        "metadata": {
+                          "filename": "Deterministic Book.m4b",
+                          "ext": ".m4b",
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600,
+                          "mtimeMs": 1793323381921,
+                          "ctimeMs": 1793323381921,
+                          "birthtimeMs": 1793323381914
+                        },
+                        "addedAt": 1793323383590,
+                        "updatedAt": 1793323383590,
+                        "trackNumFromMeta": null,
+                        "discNumFromMeta": null,
+                        "trackNumFromFilename": null,
+                        "discNumFromFilename": null,
+                        "manuallyVerified": false,
+                        "exclude": false,
+                        "error": null,
+                        "format": "QuickTime / MOV",
+                        "duration": 2,
+                        "bitRate": 1451,
+                        "language": "und",
+                        "codec": "aac",
+                        "timeBase": "1/44100",
+                        "channels": 1,
+                        "channelLayout": "mono",
+                        "chapters": [],
+                        "embeddedCoverArt": null,
+                        "metaTags": {
+                          "tagArtist": "A. Reader",
+                          "tagTitle": "Deterministic Book",
+                          "tagEncoder": "Lavf63.1.102"
+                        },
+                        "mimeType": "audio/mp4",
+                        "title": "Deterministic Book.m4b",
+                        "startOffset": 0,
+                        "contentUrl": "/api/items/2a8286a8-297c-451e-b677-1d60d7050e8c/file/253282232"
+                      }
+                    ]
+                  },
+                  "numFiles": 1,
+                  "size": 1600,
+                  "lastScan": 1793323383591,
+                  "scanVersion": "2.37.2",
+                  "libraryFiles": [
+                    {
+                      "ino": "253282232",
+                      "metadata": {
+                        "filename": "Deterministic Book.m4b",
+                        "ext": ".m4b",
+                        "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                        "relPath": "Deterministic Book.m4b",
+                        "size": 1600,
+                        "mtimeMs": 1793323381921,
+                        "ctimeMs": 1793323381921,
+                        "birthtimeMs": 1793323381914
+                      },
+                      "isSupplementary": null,
+                      "addedAt": 1793323383537,
+                      "updatedAt": 1793323383537,
+                      "fileType": "audio"
+                    }
+                  ]
+                }
+              ],
+              "lastUpdate": 1793323403428,
+              "createdAt": 1793323403428
+            }
+          },
+          "missingAdd": {
+            "status": 400,
+            "body": "Invalid request body. No valid books"
+          },
+          "citations": null
+        },
+        {
+          "scenario": "playlist-batch-and-delete",
+          "createStatus": 200,
+          "playlistDup": {
+            "status": 200,
+            "body": {
+              "id": "91b820bd-420d-4033-94c9-3867460a73fe",
+              "name": "Cascade Playlist",
+              "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+              "userId": "6da89e3e-0d68-453d-898a-7fc1d8ed5f39",
+              "description": null,
+              "lastUpdate": 1793323403459,
+              "createdAt": 1793323403459,
+              "items": [
+                {
+                  "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                  "libraryItem": {
+                    "id": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                    "ino": "253282231",
+                    "oldLibraryItemId": null,
+                    "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+                    "folderId": "ddab8df1-fac6-4463-8e89-897698235c14",
+                    "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book",
+                    "relPath": "A. Reader/Deterministic Book",
+                    "isFile": false,
+                    "mtimeMs": 1793323381914,
+                    "ctimeMs": 1793323381914,
+                    "birthtimeMs": 1793323381864,
+                    "addedAt": 1793323383592,
+                    "updatedAt": 1793323384102,
+                    "isMissing": false,
+                    "isInvalid": false,
+                    "mediaType": "book",
+                    "media": {
+                      "id": "000be037-8dc2-4122-8162-69b3eeaa3976",
+                      "metadata": {
+                        "title": "Deterministic Book",
+                        "subtitle": null,
+                        "authors": [
+                          {
+                            "id": "5a245205-5e66-445f-bb5e-7c2b283321f6",
+                            "name": "A. Reader"
+                          }
+                        ],
+                        "narrators": [],
+                        "series": [],
+                        "genres": [],
+                        "publishedYear": null,
+                        "publishedDate": null,
+                        "publisher": null,
+                        "description": null,
+                        "isbn": null,
+                        "asin": null,
+                        "language": null,
+                        "explicit": false,
+                        "abridged": false,
+                        "titleIgnorePrefix": "Deterministic Book",
+                        "authorName": "A. Reader",
+                        "authorNameLF": "Reader, A.",
+                        "narratorName": "",
+                        "seriesName": "",
+                        "descriptionPlain": null
+                      },
+                      "coverPath": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/metadata/items/2a8286a8-297c-451e-b677-1d60d7050e8c/cover.png",
+                      "tags": [],
+                      "numTracks": 1,
+                      "numAudioFiles": 1,
+                      "numChapters": 0,
+                      "duration": 2,
+                      "size": 1600,
+                      "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                      "audioFiles": [
+                        {
+                          "index": 1,
+                          "ino": "253282232",
+                          "metadata": {
+                            "filename": "Deterministic Book.m4b",
+                            "ext": ".m4b",
+                            "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                            "relPath": "Deterministic Book.m4b",
+                            "size": 1600,
+                            "mtimeMs": 1793323381921,
+                            "ctimeMs": 1793323381921,
+                            "birthtimeMs": 1793323381914
+                          },
+                          "addedAt": 1793323383590,
+                          "updatedAt": 1793323383590,
+                          "trackNumFromMeta": null,
+                          "discNumFromMeta": null,
+                          "trackNumFromFilename": null,
+                          "discNumFromFilename": null,
+                          "manuallyVerified": false,
+                          "exclude": false,
+                          "error": null,
+                          "format": "QuickTime / MOV",
+                          "duration": 2,
+                          "bitRate": 1451,
+                          "language": "und",
+                          "codec": "aac",
+                          "timeBase": "1/44100",
+                          "channels": 1,
+                          "channelLayout": "mono",
+                          "chapters": [],
+                          "embeddedCoverArt": null,
+                          "metaTags": {
+                            "tagArtist": "A. Reader",
+                            "tagTitle": "Deterministic Book",
+                            "tagEncoder": "Lavf63.1.102"
+                          },
+                          "mimeType": "audio/mp4"
+                        }
+                      ],
+                      "chapters": [],
+                      "ebookFile": null,
+                      "tracks": [
+                        {
+                          "index": 1,
+                          "ino": "253282232",
+                          "metadata": {
+                            "filename": "Deterministic Book.m4b",
+                            "ext": ".m4b",
+                            "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                            "relPath": "Deterministic Book.m4b",
+                            "size": 1600,
+                            "mtimeMs": 1793323381921,
+                            "ctimeMs": 1793323381921,
+                            "birthtimeMs": 1793323381914
+                          },
+                          "addedAt": 1793323383590,
+                          "updatedAt": 1793323383590,
+                          "trackNumFromMeta": null,
+                          "discNumFromMeta": null,
+                          "trackNumFromFilename": null,
+                          "discNumFromFilename": null,
+                          "manuallyVerified": false,
+                          "exclude": false,
+                          "error": null,
+                          "format": "QuickTime / MOV",
+                          "duration": 2,
+                          "bitRate": 1451,
+                          "language": "und",
+                          "codec": "aac",
+                          "timeBase": "1/44100",
+                          "channels": 1,
+                          "channelLayout": "mono",
+                          "chapters": [],
+                          "embeddedCoverArt": null,
+                          "metaTags": {
+                            "tagArtist": "A. Reader",
+                            "tagTitle": "Deterministic Book",
+                            "tagEncoder": "Lavf63.1.102"
+                          },
+                          "mimeType": "audio/mp4",
+                          "title": "Deterministic Book.m4b",
+                          "startOffset": 0,
+                          "contentUrl": "/api/items/2a8286a8-297c-451e-b677-1d60d7050e8c/file/253282232"
+                        }
+                      ]
+                    },
+                    "numFiles": 1,
+                    "size": 1600,
+                    "lastScan": 1793323383591,
+                    "scanVersion": "2.37.2",
+                    "libraryFiles": [
+                      {
+                        "ino": "253282232",
+                        "metadata": {
+                          "filename": "Deterministic Book.m4b",
+                          "ext": ".m4b",
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/node/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600,
+                          "mtimeMs": 1793323381921,
+                          "ctimeMs": 1793323381921,
+                          "birthtimeMs": 1793323381914
+                        },
+                        "isSupplementary": null,
+                        "addedAt": 1793323383537,
+                        "updatedAt": 1793323383537,
+                        "fileType": "audio"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "playlistMissing": {
+            "status": 400,
+            "body": "Invalid request body items"
+          },
+          "deleteStatus": 200,
+          "playlistMediaItemsLeft": 1,
+          "citations": null
+        },
+        {
+          "scenario": "cascade-library-delete",
+          "createStatus": 200,
+          "scannedItems": 1,
+          "deleteStatus": 200,
+          "mediaFolderRemoved": false,
+          "librariesLeft": 2,
+          "citations": null
+        },
+        {
+          "scenario": "item-delete-repeat",
+          "status": 200,
+          "repeatStatus": 404,
+          "itemRowsLeft": 6,
+          "booksLeft": 5,
+          "mediaTreeRetained": true,
+          "citations": null
+        },
+        {
+          "scenario": "backup-apply-restores-state",
+          "applyStatus": 200,
+          "itemStatusAfterRestore": 200,
+          "libraryCountAfterRestore": 2,
+          "expectedSource": "restored DB predates item/library deletion -> book back, cascade library absent",
+          "events": [
+            "playlist_removed",
+            "item_removed",
+            "author_removed",
+            "backup_applied"
+          ],
+          "citations": null
+        },
+        {
+          "scenario": "socket-event-sequence",
+          "cascadeEvents": [
+            "collection_added",
+            "playlist_added",
+            "playlist_removed",
+            "library_added",
+            "task_started",
+            "author_added",
+            "items_added",
+            "task_finished",
+            "item_removed",
+            "library_removed"
+          ],
+          "restoreEvents": [
+            "playlist_removed",
+            "item_removed",
+            "author_removed",
+            "backup_applied"
+          ],
+          "citations": null
+        }
+      ]
+    },
+    "go": {
+      "results": [
+        {
+          "scenario": "backup-create-retention",
+          "createStatus": 200,
+          "backupCountAfterCreate": 1,
+          "backup3Status": 200,
+          "countAfterThird": 1,
+          "expectedSource": "3 creates + retention default 2 -> count capped at two",
+          "backupCountListed": 1,
+          "firstApplyStatus": 200,
+          "firstApplyEvents": [
+            "backup_applied"
+          ],
+          "citations": null
+        },
+        {
+          "scenario": "backup-malformed-upload",
+          "status": 500,
+          "body": "Invalid backup file",
+          "citations": null
+        },
+        {
+          "scenario": "missing-library-delete",
+          "status": 404,
+          "body": "Library not found",
+          "citations": null
+        },
+        {
+          "scenario": "collection-batch-duplicate-and-missing",
+          "createStatus": 200,
+          "dupAdd": {
+            "status": 200,
+            "body": {
+              "id": "0aef3509-fa9e-4a0b-8339-23a954ac60f4",
+              "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+              "name": "Cascade Collection",
+              "description": null,
+              "lastUpdate": 1793323402028,
+              "createdAt": 1793323402028,
+              "books": [
+                {
+                  "addedAt": 1793323383592,
+                  "birthtimeMs": 1793323381864,
+                  "ctimeMs": 1793323381914,
+                  "folderId": "ddab8df1-fac6-4463-8e89-897698235c14",
+                  "id": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                  "ino": "253282463",
+                  "isFile": false,
+                  "isInvalid": false,
+                  "isMissing": false,
+                  "lastScan": 1793323383591,
+                  "libraryFiles": [
+                    {
+                      "addedAt": 1793323383537,
+                      "fileType": "audio",
+                      "ino": "253282464",
+                      "isSupplementary": null,
+                      "metadata": {
+                        "birthtimeMs": 1793323381914,
+                        "ctimeMs": 1793323381921,
+                        "ext": ".m4b",
+                        "filename": "Deterministic Book.m4b",
+                        "mtimeMs": 1793323381921,
+                        "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                        "relPath": "Deterministic Book.m4b",
+                        "size": 1600
+                      },
+                      "updatedAt": 1793323383537
+                    }
+                  ],
+                  "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+                  "media": {
+                    "audioFiles": [
+                      {
+                        "addedAt": 1793323383590,
+                        "bitRate": 1451,
+                        "channelLayout": "mono",
+                        "channels": 1,
+                        "chapters": [],
+                        "codec": "aac",
+                        "discNumFromFilename": null,
+                        "discNumFromMeta": null,
+                        "duration": 2,
+                        "embeddedCoverArt": null,
+                        "error": null,
+                        "exclude": false,
+                        "format": "QuickTime / MOV",
+                        "index": 1,
+                        "ino": "253282464",
+                        "language": "und",
+                        "manuallyVerified": false,
+                        "metaTags": {
+                          "tagArtist": "A. Reader",
+                          "tagEncoder": "Lavf63.1.102",
+                          "tagTitle": "Deterministic Book"
+                        },
+                        "metadata": {
+                          "birthtimeMs": 1793323381914,
+                          "ctimeMs": 1793323381921,
+                          "ext": ".m4b",
+                          "filename": "Deterministic Book.m4b",
+                          "mtimeMs": 1793323381921,
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600
+                        },
+                        "mimeType": "audio/mp4",
+                        "timeBase": "1/44100",
+                        "trackNumFromFilename": null,
+                        "trackNumFromMeta": null,
+                        "updatedAt": 1793323383590
+                      }
+                    ],
+                    "chapters": [],
+                    "coverPath": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/metadata/items/2a8286a8-297c-451e-b677-1d60d7050e8c/cover.png",
+                    "duration": 2,
+                    "ebookFile": null,
+                    "id": "000be037-8dc2-4122-8162-69b3eeaa3976",
+                    "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                    "metadata": {
+                      "abridged": false,
+                      "asin": null,
+                      "authorName": "A. Reader",
+                      "authorNameLF": "Reader, A.",
+                      "authors": [
+                        {
+                          "id": "5a245205-5e66-445f-bb5e-7c2b283321f6",
+                          "name": "A. Reader"
+                        }
+                      ],
+                      "description": null,
+                      "descriptionPlain": null,
+                      "explicit": false,
+                      "genres": [],
+                      "isbn": null,
+                      "language": null,
+                      "narratorName": "",
+                      "narrators": [],
+                      "publishedDate": null,
+                      "publishedYear": null,
+                      "publisher": null,
+                      "series": [],
+                      "seriesName": "",
+                      "subtitle": null,
+                      "title": "Deterministic Book",
+                      "titleIgnorePrefix": "Deterministic Book"
+                    },
+                    "numAudioFiles": 1,
+                    "numChapters": 0,
+                    "numTracks": 1,
+                    "size": 1600,
+                    "tags": [],
+                    "tracks": [
+                      {
+                        "addedAt": 1793323383590,
+                        "bitRate": 1451,
+                        "channelLayout": "mono",
+                        "channels": 1,
+                        "chapters": [],
+                        "codec": "aac",
+                        "contentUrl": "/api/items/2a8286a8-297c-451e-b677-1d60d7050e8c/file/253282464",
+                        "discNumFromFilename": null,
+                        "discNumFromMeta": null,
+                        "duration": 2,
+                        "embeddedCoverArt": null,
+                        "error": null,
+                        "exclude": false,
+                        "format": "QuickTime / MOV",
+                        "index": 1,
+                        "ino": "253282464",
+                        "language": "und",
+                        "manuallyVerified": false,
+                        "metaTags": {
+                          "tagArtist": "A. Reader",
+                          "tagEncoder": "Lavf63.1.102",
+                          "tagTitle": "Deterministic Book"
+                        },
+                        "metadata": {
+                          "birthtimeMs": 1793323381914,
+                          "ctimeMs": 1793323381921,
+                          "ext": ".m4b",
+                          "filename": "Deterministic Book.m4b",
+                          "mtimeMs": 1793323381921,
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600
+                        },
+                        "mimeType": "audio/mp4",
+                        "startOffset": 0,
+                        "timeBase": "1/44100",
+                        "title": "Deterministic Book.m4b",
+                        "trackNumFromFilename": null,
+                        "trackNumFromMeta": null,
+                        "updatedAt": 1793323383590
+                      }
+                    ]
+                  },
+                  "mediaType": "book",
+                  "mtimeMs": 1793323381914,
+                  "numFiles": 1,
+                  "oldLibraryItemId": null,
+                  "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book",
+                  "relPath": "A. Reader/Deterministic Book",
+                  "scanVersion": "2.37.2",
+                  "size": 1600,
+                  "updatedAt": 1793323384102
+                }
+              ]
+            }
+          },
+          "missingAdd": {
+            "status": 400,
+            "body": "Invalid request body. No valid books"
+          },
+          "citations": null
+        },
+        {
+          "scenario": "playlist-batch-and-delete",
+          "createStatus": 200,
+          "playlistDup": {
+            "status": 200,
+            "body": {
+              "id": "41a78016-9aab-4d2a-a374-7a2d1a410c57",
+              "name": "Cascade Playlist",
+              "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+              "userId": "6da89e3e-0d68-453d-898a-7fc1d8ed5f39",
+              "description": null,
+              "lastUpdate": 1793323402039,
+              "createdAt": 1793323402039,
+              "items": [
+                {
+                  "libraryItem": {
+                    "addedAt": 1793323383592,
+                    "birthtimeMs": 1793323381864,
+                    "ctimeMs": 1793323381914,
+                    "folderId": "ddab8df1-fac6-4463-8e89-897698235c14",
+                    "id": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                    "ino": "253282463",
+                    "isFile": false,
+                    "isInvalid": false,
+                    "isMissing": false,
+                    "lastScan": 1793323383591,
+                    "libraryFiles": [
+                      {
+                        "addedAt": 1793323383537,
+                        "fileType": "audio",
+                        "ino": "253282464",
+                        "isSupplementary": null,
+                        "metadata": {
+                          "birthtimeMs": 1793323381914,
+                          "ctimeMs": 1793323381921,
+                          "ext": ".m4b",
+                          "filename": "Deterministic Book.m4b",
+                          "mtimeMs": 1793323381921,
+                          "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                          "relPath": "Deterministic Book.m4b",
+                          "size": 1600
+                        },
+                        "updatedAt": 1793323383537
+                      }
+                    ],
+                    "libraryId": "b7dfb0c8-c405-4627-b1f3-6716c0bbb4fb",
+                    "media": {
+                      "audioFiles": [
+                        {
+                          "addedAt": 1793323383590,
+                          "bitRate": 1451,
+                          "channelLayout": "mono",
+                          "channels": 1,
+                          "chapters": [],
+                          "codec": "aac",
+                          "discNumFromFilename": null,
+                          "discNumFromMeta": null,
+                          "duration": 2,
+                          "embeddedCoverArt": null,
+                          "error": null,
+                          "exclude": false,
+                          "format": "QuickTime / MOV",
+                          "index": 1,
+                          "ino": "253282464",
+                          "language": "und",
+                          "manuallyVerified": false,
+                          "metaTags": {
+                            "tagArtist": "A. Reader",
+                            "tagEncoder": "Lavf63.1.102",
+                            "tagTitle": "Deterministic Book"
+                          },
+                          "metadata": {
+                            "birthtimeMs": 1793323381914,
+                            "ctimeMs": 1793323381921,
+                            "ext": ".m4b",
+                            "filename": "Deterministic Book.m4b",
+                            "mtimeMs": 1793323381921,
+                            "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                            "relPath": "Deterministic Book.m4b",
+                            "size": 1600
+                          },
+                          "mimeType": "audio/mp4",
+                          "timeBase": "1/44100",
+                          "trackNumFromFilename": null,
+                          "trackNumFromMeta": null,
+                          "updatedAt": 1793323383590
+                        }
+                      ],
+                      "chapters": [],
+                      "coverPath": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/metadata/items/2a8286a8-297c-451e-b677-1d60d7050e8c/cover.png",
+                      "duration": 2,
+                      "ebookFile": null,
+                      "id": "000be037-8dc2-4122-8162-69b3eeaa3976",
+                      "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c",
+                      "metadata": {
+                        "abridged": false,
+                        "asin": null,
+                        "authorName": "A. Reader",
+                        "authorNameLF": "Reader, A.",
+                        "authors": [
+                          {
+                            "id": "5a245205-5e66-445f-bb5e-7c2b283321f6",
+                            "name": "A. Reader"
+                          }
+                        ],
+                        "description": null,
+                        "descriptionPlain": null,
+                        "explicit": false,
+                        "genres": [],
+                        "isbn": null,
+                        "language": null,
+                        "narratorName": "",
+                        "narrators": [],
+                        "publishedDate": null,
+                        "publishedYear": null,
+                        "publisher": null,
+                        "series": [],
+                        "seriesName": "",
+                        "subtitle": null,
+                        "title": "Deterministic Book",
+                        "titleIgnorePrefix": "Deterministic Book"
+                      },
+                      "numAudioFiles": 1,
+                      "numChapters": 0,
+                      "numTracks": 1,
+                      "size": 1600,
+                      "tags": [],
+                      "tracks": [
+                        {
+                          "addedAt": 1793323383590,
+                          "bitRate": 1451,
+                          "channelLayout": "mono",
+                          "channels": 1,
+                          "chapters": [],
+                          "codec": "aac",
+                          "contentUrl": "/api/items/2a8286a8-297c-451e-b677-1d60d7050e8c/file/253282464",
+                          "discNumFromFilename": null,
+                          "discNumFromMeta": null,
+                          "duration": 2,
+                          "embeddedCoverArt": null,
+                          "error": null,
+                          "exclude": false,
+                          "format": "QuickTime / MOV",
+                          "index": 1,
+                          "ino": "253282464",
+                          "language": "und",
+                          "manuallyVerified": false,
+                          "metaTags": {
+                            "tagArtist": "A. Reader",
+                            "tagEncoder": "Lavf63.1.102",
+                            "tagTitle": "Deterministic Book"
+                          },
+                          "metadata": {
+                            "birthtimeMs": 1793323381914,
+                            "ctimeMs": 1793323381921,
+                            "ext": ".m4b",
+                            "filename": "Deterministic Book.m4b",
+                            "mtimeMs": 1793323381921,
+                            "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book/Deterministic Book.m4b",
+                            "relPath": "Deterministic Book.m4b",
+                            "size": 1600
+                          },
+                          "mimeType": "audio/mp4",
+                          "startOffset": 0,
+                          "timeBase": "1/44100",
+                          "title": "Deterministic Book.m4b",
+                          "trackNumFromFilename": null,
+                          "trackNumFromMeta": null,
+                          "updatedAt": 1793323383590
+                        }
+                      ]
+                    },
+                    "mediaType": "book",
+                    "mtimeMs": 1793323381914,
+                    "numFiles": 1,
+                    "oldLibraryItemId": null,
+                    "path": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final7/go/media/books/A. Reader/Deterministic Book",
+                    "relPath": "A. Reader/Deterministic Book",
+                    "scanVersion": "2.37.2",
+                    "size": 1600,
+                    "updatedAt": 1793323384102
+                  },
+                  "libraryItemId": "2a8286a8-297c-451e-b677-1d60d7050e8c"
+                }
+              ]
+            }
+          },
+          "playlistMissing": {
+            "status": 400,
+            "body": "Invalid request body items"
+          },
+          "deleteStatus": 200,
+          "playlistMediaItemsLeft": 1,
+          "citations": null
+        },
+        {
+          "scenario": "cascade-library-delete",
+          "createStatus": 200,
+          "scannedItems": 1,
+          "deleteStatus": 200,
+          "mediaFolderRemoved": false,
+          "librariesLeft": 2,
+          "citations": null
+        },
+        {
+          "scenario": "item-delete-repeat",
+          "status": 200,
+          "repeatStatus": 404,
+          "itemRowsLeft": 6,
+          "booksLeft": 5,
+          "mediaTreeRetained": true,
+          "citations": null
+        },
+        {
+          "scenario": "backup-apply-restores-state",
+          "applyStatus": 200,
+          "itemStatusAfterRestore": 200,
+          "libraryCountAfterRestore": 2,
+          "expectedSource": "restored DB predates item/library deletion -> book back, cascade library absent",
+          "events": [
+            "item_removed",
+            "backup_applied"
+          ],
+          "citations": null
+        },
+        {
+          "scenario": "socket-event-sequence",
+          "cascadeEvents": [
+            "collection_added",
+            "playlist_added",
+            "playlist_removed",
+            "library_added",
+            "task_started",
+            "author_added",
+            "items_added",
+            "task_finished",
+            "library_removed",
+            "item_removed"
+          ],
+          "restoreEvents": [
+            "item_removed",
+            "backup_applied"
+          ],
+          "citations": null
+        }
+      ]
+    }
+  },
+  "divergences": [],
+  "checks": {
+    "independentFixtureDirectories": true,
+    "node22Spawn": true,
+    "socketEventSequenceCaptured": true
+  }
+}

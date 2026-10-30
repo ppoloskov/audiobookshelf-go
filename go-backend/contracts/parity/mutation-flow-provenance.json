@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "report": "mutation-flow-report.json",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "generatedAt": "2026-10-28T09:11:32.217Z",
+  "repositoryHead": "8ed33a58d3ab24d2ee13da7b6670f824e493753f",
+  "fixture": "Independent config/metadata copies of an upstream API-created fixture with synthetic silent audio.",
+  "suite": "Same 17 core requests as core-flow-report.json, followed by the five bookmark lifecycle mutations.",
+  "normalization": "bookmark createdAt must exist and be a number before it is replaced with a dynamic-time marker; all other response fields remain compared.",
+  "scripts": {
+    "go-backend/tools/parity/differential.cjs": "a2590068abaea2379907c1a75f7df6c841850d22e1cd8de42ff608f399e9f364",
+    "go-backend/contracts/parity/differential-cases.json": "921d24512e4c937bf75b5a8cacbf3c2a7ac6cb6b94e7a7d9821dd80906bdd844"
+  },
+  "limitations": [
+    "This verifies one bookmark lifecycle on the seeded root user and book only.",
+    "No broad route or authorization parity claim follows from these passing cases."
+  ]
+}

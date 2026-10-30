@@ -1,0 +1,98 @@
+name: Go backend compatibility checks
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  source-and-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+      - name: Check source inventory
+        run: python3 -m unittest -v go-backend/tools/test_source_inventory.py
+      - name: Check source-executed library golden
+        run: node go-backend/tools/test-library-oracle.cjs
+      - name: Check source-inspected route coverage ledger
+        run: python3 go-backend/tools/parity/build_route_coverage.py --check
+      - name: Run Go tests and vet without CGO
+        working-directory: go-backend
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          go test ./...
+          go vet ./...
+
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+      - name: Build server command
+        working-directory: go-backend
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+        run: go build -trimpath -o /tmp/audiobookshelf-go-${{ matrix.arch }} ./cmd/audiobookshelf-go
+
+  upstream-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Install pinned upstream dependencies
+        run: npm ci
+      - name: Build upstream Node server
+        run: npm run build:server
+      - name: Build CGO-free Go server
+        working-directory: go-backend
+        env:
+          CGO_ENABLED: '0'
+        run: go build -trimpath -o /tmp/audiobookshelf-go ./cmd/audiobookshelf-go
+      - name: Install JavaScript Socket.IO v4 probe client
+        run: npm install --prefix /tmp/abs-parity-node-deps --no-save socket.io-client@4.8.1
+      - name: Create isolated upstream fixture and run 17-case parity suite
+        env:
+          ABS_PARITY_REQUIRE_SOCKETIO: '1'
+          NODE_PATH: /tmp/abs-parity-node-deps/node_modules
+        run: |
+          node go-backend/tools/parity/create-fixture.cjs /tmp/abs-parity-ci
+          node go-backend/tools/parity/run-local.cjs \
+            --fixture /tmp/abs-parity-ci/fixture-manifest.json \
+            --go-bin /tmp/audiobookshelf-go \
+            --out /tmp/abs-parity-ci/parity-report.json
+      - name: Upload differential report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-parity-report
+          path: /tmp/abs-parity-ci/parity-report.json
+          if-no-files-found: warn

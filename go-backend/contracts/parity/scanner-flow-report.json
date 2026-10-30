@@ -1,0 +1,93 @@
+{
+ "schemaVersion": 2,
+ "evidenceKind": "differential run with isolated per-server media/config/metadata trees",
+ "validForCompatibilityCounts": true,
+ "exclusionReason": null,
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "normalization": "IDs/uuids, dynamic times, JWT fingerprints, per-copy inode strings and paths normalized per differential.cjs (fixture restat of copied inodes; audio metadata flat shape; ino normalization on item-bearing cases)",
+ "summary": {
+  "total": 7,
+  "passed": 7,
+  "failed": 0
+ },
+ "cases": [
+  {
+   "id": "book-library-items",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "cc1bd5f82100010bac271cab67867cfb2de423fc80749e1d5a5a146637bfb06d",
+   "goBodySha256": "cc1bd5f82100010bac271cab67867cfb2de423fc80749e1d5a5a146637bfb06d",
+   "differencePaths": []
+  },
+  {
+   "id": "book-item-detail",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "c273d502f99b6ebe01ea4f427ccf0237b2e917625c831f3297ca5f7e745d2d2d",
+   "goBodySha256": "c273d502f99b6ebe01ea4f427ccf0237b2e917625c831f3297ca5f7e745d2d2d",
+   "differencePaths": []
+  },
+  {
+   "id": "direct-file-range",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 206,
+   "goStatus": 206,
+   "referenceBodySha256": "a2448e32d54b35b7ced1a38a7a7bfeb785d1b7ecd3ada76cf949369504e3400f",
+   "goBodySha256": "a2448e32d54b35b7ced1a38a7a7bfeb785d1b7ecd3ada76cf949369504e3400f",
+   "differencePaths": []
+  },
+  {
+   "id": "library-scan-rerun",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "11e33097522021a81d61ec1309bb8d5fdeca8d405dd14055e0edcd05e3143d1f",
+   "goBodySha256": "11e33097522021a81d61ec1309bb8d5fdeca8d405dd14055e0edcd05e3143d1f",
+   "differencePaths": []
+  },
+  {
+   "id": "book-detail-after-library-scan",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "c273d502f99b6ebe01ea4f427ccf0237b2e917625c831f3297ca5f7e745d2d2d",
+   "goBodySha256": "c273d502f99b6ebe01ea4f427ccf0237b2e917625c831f3297ca5f7e745d2d2d",
+   "differencePaths": []
+  },
+  {
+   "id": "book-item-scan-rerun",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "91038eb0a69aa5710b1b8859c06ed784d25cfeaf5f2289013ffe6b02c1a2e1ce",
+   "goBodySha256": "91038eb0a69aa5710b1b8859c06ed784d25cfeaf5f2289013ffe6b02c1a2e1ce",
+   "differencePaths": []
+  },
+  {
+   "id": "book-list-after-library-scan",
+   "method": null,
+   "route": null,
+   "passed": true,
+   "referenceStatus": 200,
+   "goStatus": 200,
+   "referenceBodySha256": "cc1bd5f82100010bac271cab67867cfb2de423fc80749e1d5a5a146637bfb06d",
+   "goBodySha256": "cc1bd5f82100010bac271cab67867cfb2de423fc80749e1d5a5a146637bfb06d",
+   "differencePaths": []
+  }
+ ],
+ "limits": "Response-shape parity for listed cases only; scanner-specific DB-state equivalence beyond these responses is not proven. Full-suite state: 70 cases, 60 passed, 10 failed (cover subsystem 6, download 1, socket.io probes 2) \u2014 see parity-report.json in the run directory."
+}

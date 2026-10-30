@@ -1,0 +1,53 @@
+{
+ "id": "route-r050",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /items/:id candidate recorded from server/routers/ApiRouter.js:108. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:108"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#item-detail-missing (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#item-detail-invalid-id (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#book-item-detail (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#book-detail-after-library-scan (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R050-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /items/:id via differential case(s) item-detail-missing, item-detail-invalid-id, book-item-detail, book-detail-after-library-scan: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: catalog, errors, scanner.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:108"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#item-detail-missing",
+    "go-backend/contracts/parity/full-suite-report.json#item-detail-invalid-id",
+    "go-backend/contracts/parity/full-suite-report.json#book-item-detail",
+    "go-backend/contracts/parity/full-suite-report.json#book-detail-after-library-scan"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

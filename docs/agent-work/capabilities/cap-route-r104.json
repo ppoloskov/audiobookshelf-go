@@ -1,0 +1,49 @@
+{
+ "id": "route-r104",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /me/bookmarks/:libraryItemId candidate recorded from server/routers/ApiRouter.js:178. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:178"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#bookmark-read-after-create (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#bookmark-read-after-delete (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R104-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /me/bookmarks/:libraryItemId via differential case(s) bookmark-read-after-create, bookmark-read-after-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: progress.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:178"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#bookmark-read-after-create",
+    "go-backend/contracts/parity/full-suite-report.json#bookmark-read-after-delete"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

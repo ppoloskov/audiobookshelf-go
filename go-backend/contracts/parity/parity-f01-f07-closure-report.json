@@ -1,0 +1,220 @@
+{
+ "schemaVersion": 1,
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "generatedAt": "2026-10-30T10:53:47.856Z",
+ "scope": "F01\u2013F07 review remedies only",
+ "differential": {
+  "total": 187,
+  "passed": 187,
+  "failed": 0,
+  "skipped": 0
+ },
+ "restrictedBrowser": {
+  "exitCode": 0,
+  "comparison": {
+   "go": {
+    "visibleStatus": 200,
+    "visibleLibraryIds": [
+     "54e2b7ca-7f48-4374-a36b-af67963fcc4f"
+    ],
+    "forbiddenLibrary": {
+     "status": 403,
+     "leaksProtectedID": false,
+     "leaksProtectedName": false
+    },
+    "forbiddenItem": {
+     "status": 403,
+     "leaksProtectedID": false,
+     "leaksProtectedTitle": false
+    }
+   },
+   "node": {
+    "visibleStatus": 200,
+    "visibleLibraryIds": [
+     "54e2b7ca-7f48-4374-a36b-af67963fcc4f"
+    ],
+    "forbiddenLibrary": {
+     "status": 403,
+     "leaksProtectedID": false,
+     "leaksProtectedName": false
+    },
+    "forbiddenItem": {
+     "status": 403,
+     "leaksProtectedID": false,
+     "leaksProtectedTitle": false
+    }
+   }
+  },
+  "steps": {
+   "go": {
+    "shell": true,
+    "login": true,
+    "library": true,
+    "detail": true,
+    "restrictedVisibility": true,
+    "noConsoleErrors": false,
+    "allAPI2xx": false,
+    "playbackMatchesUpstream": true,
+    "runtimeFailuresMatchUpstream": true,
+    "restrictedVisibilityMatchesUpstream": true
+   },
+   "node": {
+    "shell": true,
+    "login": true,
+    "library": true,
+    "detail": true,
+    "restrictedVisibility": true,
+    "noConsoleErrors": false,
+    "allAPI2xx": false,
+    "playbackMatchesUpstream": true,
+    "runtimeFailuresMatchUpstream": true,
+    "restrictedVisibilityMatchesUpstream": true
+   }
+  }
+ },
+ "freshDatabase": {
+  "exitCode": 0,
+  "schemaAndMigrationRowsEqual": true,
+  "steps": {
+   "go": {
+    "shell": true,
+    "setupForm": true,
+    "noConsoleErrors": true,
+    "allAPI2xx": true,
+    "playbackMatchesUpstream": true,
+    "runtimeFailuresMatchUpstream": true,
+    "freshInitMatchesUpstream": true
+   },
+   "node": {
+    "shell": true,
+    "setupForm": true,
+    "noConsoleErrors": true,
+    "allAPI2xx": true,
+    "playbackMatchesUpstream": true,
+    "runtimeFailuresMatchUpstream": true,
+    "freshInitMatchesUpstream": true
+   }
+  }
+ },
+ "rootLaunch": {
+  "exitCode": 1,
+  "classification": "Matching client-build hydration failure; not a successful root workflow. Missing-asset response divergence repaired.",
+  "assetFailuresEqual": true,
+  "assets": [
+   {
+    "route": "/audiobookshelf/_nuxt/6446b40.js",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "contentLength": "170",
+    "body": ""
+   },
+   {
+    "route": "/audiobookshelf/_nuxt/cf07719.js",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "contentLength": "170",
+    "body": ""
+   },
+   {
+    "route": "/audiobookshelf/_nuxt/52805c0.js",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "contentLength": "170",
+    "body": ""
+   },
+   {
+    "route": "/audiobookshelf/_nuxt/0daab17.js",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "contentLength": "170",
+    "body": ""
+   }
+  ],
+  "consoleComparison": "Only per-side origins and concurrent browser diagnostic arrival order normalize; raw observations retained in the temp browser-report.json."
+ },
+ "snapshotReopen": {
+  "exitCode": 0,
+  "snapshotRoot": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/f07-go-snapshot",
+  "preBootLogicalStateEqual": true,
+  "persistentStateAndRequestsEqual": true,
+  "metadataAndMediaFilesEqual": true,
+  "tablesCompared": [
+   "apiKeys",
+   "authors",
+   "bookAuthors",
+   "bookSeries",
+   "books",
+   "collectionBooks",
+   "collections",
+   "customMetadataProviders",
+   "devices",
+   "feedEpisodes",
+   "feeds",
+   "libraries",
+   "libraryFolders",
+   "libraryItems",
+   "mediaItemShares",
+   "mediaProgresses",
+   "migrationsMeta",
+   "playbackSessions",
+   "playlistMediaItems",
+   "playlists",
+   "podcastEpisodes",
+   "podcasts",
+   "series",
+   "sessions",
+   "settings",
+   "users"
+  ],
+  "fileCounts": {
+   "go": {
+    "metadata": 8,
+    "media": 6
+   },
+   "node": {
+    "metadata": 8,
+    "media": 6
+   }
+  },
+  "limits": [
+   "Sessions are excluded from post-request state equality because each server independently creates random login sessions; users.lastSeen and users.updatedAt are volatile login fields. All other tables and columns are compared after both servers reopen the snapshot and execute the same root/reader requests.",
+   "The restricted-reader permission is applied identically to both disposable reopen copies after capturing the preserved snapshot state.",
+   "This verifies this snapshot and the selected F04-F06 state; it does not prove the complete mutation corpus or all restart behaviors.",
+   "metadata/logs is excluded from file hashes; path-bearing metadata text normalizes only each copied side root."
+  ]
+ },
+ "checks": {
+  "generatorPreservation": "3/3, exit 0",
+  "fullGoTests": "CGO_ENABLED=0 go test -p 1 -count=1 ./..., exit 0",
+  "race": "go test -race -count=1 ./internal/identity, exit 0",
+  "vet": "CGO_ENABLED=0 go vet ./..., exit 0",
+  "structuralLedger": "15 tasks / 237 capabilities, exit 0"
+ },
+ "failuresRetained": [
+  "Denial-header regression failed before the nil Content-Type header fix, then passed.",
+  "Missing-asset regression failed before the Express HTML fallback, then passed.",
+  "Two full runner attempts aborted on lexical-scope errors; their fixtures were not reused. Final fresh run passed 187/187.",
+  "First restricted-browser copy overlapped an active fixture; it is excluded from acceptance. The final restricted run used a stopped fixture."
+ ],
+ "provenance": "parity-f05-local-session-provenance.json",
+ "limits": [
+  "Full feature parity remains unverified.",
+  "Root hydration cannot succeed with the retained client built for /audiobookshelf; both implementations exhibit that failure.",
+  "Full direct-play browser report is retained historical evidence; this closure reran restricted/fresh/root variants, not browser HLS or socket recovery."
+ ],
+ "startupMatrix": {
+  "exitCode": 0,
+  "checksPassed": 14,
+  "command": "GO_BIN=/private/tmp/abs-f01-f07-closure-go node go-backend/tools/parity/existing-db-matrix.cjs /private/tmp/abs-f01-f07-closure-final2/fixture-manifest.json",
+  "observations": [
+   "never-serving process fails readiness",
+   "initial and repeat ping/readiness followed by stop",
+   "initial and repeat database/tree transitions unchanged",
+   "stale/newer/partial/missing migration states refuse",
+   "partial/stale refusal database and tree snapshots unchanged"
+  ],
+  "limits": [
+   "Pinned partial-state seed refuses by the existing no-migration policy; no historical migration support is added."
+  ]
+ }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "command": "node go-backend/tools/parity/operational-milestone.cjs --fixture <existing-fixture-manifest> --out <new-disposable-output-directory>",
+  "upstream": "Node v22.23.4; pinned dist-server/index.js",
+  "go": "CGO_ENABLED=0 binary built from current go-backend source",
+  "fixture": "Independent output copy of the fixture’s Go config and metadata; modified track and database remain under the output directory and are opened serially by Go and Node.",
+  "limits": [
+    "Direct-play browser controls were separately checked by browser-playback-differential-report.json.",
+    "Transcoded playback was verified at the HTTP/HLS layer by fetching a generated segment; Chromium HLS decoding was not exercised.",
+    "Socket reconnect/session recovery and longer-duration periodic browser progress synchronization remain unverified.",
+    "The fixture’s seeded progress row was cleared; this does not verify resume behavior from a pre-existing completed row."
+  ]
+}

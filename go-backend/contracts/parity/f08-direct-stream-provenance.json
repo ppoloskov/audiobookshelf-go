@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "source": "Pinned v2.37.2; server/controllers/LibraryItemController.js:getLibraryFile uses res.sendFile.",
+  "command": "GOCACHE=/private/tmp/abs-f08-gocache mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-f08-final-green/fixture-manifest.json --go-bin /private/tmp/abs-f08-go-final --cases direct-file-range,direct-file-head-range,direct-file-invalid-range,direct-file-head-invalid-range --out /private/tmp/abs-f08-final-green/f08-focused-report.json",
+  "upstream": "Node v22.23.4; pinned dist-server/index.js",
+  "go": "CGO_ENABLED=0; built from current go-backend source with Go 1.27.0",
+  "fixture": "Fresh create-fixture.cjs fixture at /private/tmp/abs-f08-final-green; independent Node and Go databases/media, synthetic 2-second AAC file.",
+  "result": {
+    "total": 4,
+    "passed": 4,
+    "mismatched": 0,
+    "skipped": 0,
+    "exitCode": 0
+  },
+  "cases": {
+    "direct-file-range": "GET bytes=0-127; 206, exact 128 response bytes and selected headers match.",
+    "direct-file-head-range": "HEAD bytes=0-127; 206, no response body, selected headers match.",
+    "direct-file-invalid-range": "GET bytes=999999999-; 416, exact Express HTML body and selected headers match.",
+    "direct-file-head-invalid-range": "HEAD bytes=999999999-; 416, no response body and selected headers match."
+  },
+  "normalizations": [],
+  "limits": [
+    "Direct browser playback advancement is recorded separately in browser-playback-differential-report.json.",
+    "Only the named stream/range variants are verified; no route-wide promotion."
+  ]
+}

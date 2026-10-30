@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "browser": "Playwright Chromium headless",
+  "fixture": "fixture-manifest.json; independent per-side config, database and metadata copies",
+  "scope": "Unmodified upstream browser client; login, library/detail navigation, direct-play start, loaded audio, playing, pause, backward and forward seek, session close.",
+  "results": {
+    "matched": true,
+    "playback": {
+      "playbackEqual": true,
+      "goPlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 2
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 1
+        },
+        "afterPause": {
+          "paused": true,
+          "currentTime": 1
+        },
+        "afterSeekForward": {
+          "paused": true,
+          "currentTime": 1.4,
+          "duration": 2
+        },
+        "afterSeekBackward": {
+          "paused": true,
+          "currentTime": 0.6,
+          "duration": 2
+        },
+        "afterSeek": {
+          "paused": true,
+          "currentTime": 1.4,
+          "duration": 2
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "nodePlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 2
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 1
+        },
+        "afterPause": {
+          "paused": true,
+          "currentTime": 1
+        },
+        "afterSeekForward": {
+          "paused": true,
+          "currentTime": 1.4,
+          "duration": 2
+        },
+        "afterSeekBackward": {
+          "paused": true,
+          "currentTime": 0.6,
+          "duration": 2
+        },
+        "afterSeek": {
+          "paused": true,
+          "currentTime": 1.4,
+          "duration": 2
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "apiFailuresEqual": true,
+      "apiFailures": {
+        "go": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ],
+        "node": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ]
+      },
+      "consoleErrorsEqual": true,
+      "consoleErrors": {
+        "go": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event"
+        ],
+        "node": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event"
+        ]
+      },
+      "rootAssetFailuresEqual": false,
+      "pageErrorsEqual": true,
+      "pageErrors": {
+        "go": [],
+        "node": []
+      },
+      "restrictedVisibilityEqual": false
+    },
+    "verified": [
+      "POST /api/items/:id/play returned a session",
+      "HTMLAudioElement loaded the track and entered playing state",
+      "player pause control paused the element",
+      "track-bar clicks sought forward to approximately 70 percent, backward to approximately 30 percent, then forward again while paused",
+      "player close control closed the same session"
+    ],
+    "limitations": [
+      "Only Chromium direct-play of the generated two-second AAC fixture was exercised.",
+      "HLS/transcode selection, socket reconnection, and session recovery remain unverified.",
+      "Both servers returned four identical 500 cover-resize responses because the host FFmpeg build has no WebP encoder; this shared fixture limitation is retained in the report."
+    ]
+  }
+}

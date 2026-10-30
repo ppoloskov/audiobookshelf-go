@@ -1,0 +1,649 @@
+{
+  "browser": "Playwright Chromium headless",
+  "fixture": "/private/tmp/abs-f08-final-green/fixture-manifest.json",
+  "output": "/private/tmp/abs-f09-transcode-final",
+  "boot": {
+    "go": "CGO_ENABLED=0 binary; isolated copied config/metadata; ABS_GO_CLIENT_PATH=client/dist; ROUTER_BASE_PATH=/audiobookshelf",
+    "node": "mise exec node@22 -- dist/index.js; isolated copied config/metadata"
+  },
+  "results": {
+    "go": {
+      "origin": "http://127.0.0.1:58300",
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "playbackStart": true,
+        "transcodeSelected": true,
+        "ffmpegAliveBeforeClose": true,
+        "audioLoaded": true,
+        "playbackPlaying": true,
+        "transcodePlayingAdvances": true,
+        "hlsPlaylistAndSegmentServed": true,
+        "playbackClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "transcodeOutputRemovedOnClose": true,
+        "noConsoleErrors": false,
+        "allAPI2xx": false,
+        "playbackMatchesUpstream": true,
+        "runtimeFailuresMatchUpstream": true
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event"
+      ],
+      "pageErrors": [],
+      "apiFailures": [
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58300/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58300/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58300/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58300/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        }
+      ],
+      "assetFailures": [],
+      "playback": {
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "38c45e3673ca753cf02dcdc562b5c69fde50dc65d3d6bfceffb4b15d643d2a36"
+          }
+        ],
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "ffmpegBeforeClose": [
+          {
+            "pid": 62768,
+            "command": "ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i /private/tmp/abs-f09-transcode-final/fixture/go/metadata/streams/89e3828e-cc20-4283-b853-e7cdb375b299/files.txt -map 0:a -c:a copy -f hls -copyts -avoid_negative_ts make_non_negative -max_delay 5000000 -max_muxing_queue_size 2048 -hls_time 6 -hls_segment_type mpegts -start_number 0 -hls_playlist_type vod -hls_list_size 0 -hls_allow_cache 0 -hls_segment_filename /private/tmp/abs-f09-transcode-final/fixture/go/metadata/streams/89e3828e-cc20-4283-b853-e7cdb375b299/output-%d.ts /private/tmp/abs-f09-transcode-final/fixture/go/metadata/streams/89e3828e-cc20-4283-b853-e7cdb375b299/final-output.m3u8"
+          }
+        ],
+        "streamDir": "/private/tmp/abs-f09-transcode-final/fixture/go/metadata/streams/89e3828e-cc20-4283-b853-e7cdb375b299",
+        "loaded": {
+          "readyState": 1,
+          "duration": 600,
+          "paused": false,
+          "currentSrc": "http://127.0.0.1:58300/0e1074a1-a5fd-49af-9bf8-bd2d60411bed"
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0.005175
+        },
+        "hlsObserved": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          }
+        ],
+        "beforeClose": {
+          "currentTime": 1.02132,
+          "duration": 600,
+          "paused": false
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        },
+        "ffmpegAfterClose": [],
+        "streamDirPresentAfterClose": false
+      },
+      "screenshots": {
+        "shell": "/private/tmp/abs-f09-transcode-final/go-shell.png",
+        "login": "/private/tmp/abs-f09-transcode-final/go-login.png",
+        "library": "/private/tmp/abs-f09-transcode-final/go-library.png",
+        "detail": "/private/tmp/abs-f09-transcode-final/go-detail.png"
+      }
+    },
+    "node": {
+      "origin": "http://127.0.0.1:58317",
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "playbackStart": true,
+        "transcodeSelected": true,
+        "ffmpegAliveBeforeClose": true,
+        "audioLoaded": true,
+        "playbackPlaying": true,
+        "transcodePlayingAdvances": true,
+        "hlsPlaylistAndSegmentServed": true,
+        "playbackClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "transcodeOutputRemovedOnClose": true,
+        "noConsoleErrors": false,
+        "allAPI2xx": false,
+        "playbackMatchesUpstream": true,
+        "runtimeFailuresMatchUpstream": true
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event"
+      ],
+      "pageErrors": [],
+      "apiFailures": [
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58317/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58317/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58317/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58317/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        }
+      ],
+      "assetFailures": [],
+      "playback": {
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "38c45e3673ca753cf02dcdc562b5c69fde50dc65d3d6bfceffb4b15d643d2a36"
+          }
+        ],
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "ffmpegBeforeClose": [
+          {
+            "pid": 62926,
+            "command": "/opt/homebrew/bin/ffmpeg -seek_timestamp 1 -f concat -safe 0 -i /private/tmp/abs-f09-transcode-final/fixture/node/metadata/streams/c88ae02b-eaea-4b4a-ada5-326dcd71af5f/files.txt -y -loglevel error -map 0:a -c:a copy -f hls -copyts -avoid_negative_ts make_non_negative -max_delay 5000000 -max_muxing_queue_size 2048 -hls_time 6 -hls_segment_type mpegts -start_number 0 -hls_playlist_type vod -hls_list_size 0 -hls_allow_cache 0 -hls_segment_filename /private/tmp/abs-f09-transcode-final/fixture/node/metadata/streams/c88ae02b-eaea-4b4a-ada5-326dcd71af5f/output-%d.ts /private/tmp/abs-f09-transcode-final/fixture/node/metadata/streams/c88ae02b-eaea-4b4a-ada5-326dcd71af5f/final-output.m3u8"
+          }
+        ],
+        "streamDir": "/private/tmp/abs-f09-transcode-final/fixture/node/metadata/streams/c88ae02b-eaea-4b4a-ada5-326dcd71af5f",
+        "loaded": {
+          "readyState": 1,
+          "duration": 600,
+          "paused": false,
+          "currentSrc": "http://127.0.0.1:58317/8621623e-7f1f-41a2-a850-bfa146c23dea"
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0.018766
+        },
+        "hlsObserved": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          }
+        ],
+        "beforeClose": {
+          "currentTime": 1.016786,
+          "duration": 600,
+          "paused": false
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        },
+        "ffmpegAfterClose": [],
+        "streamDirPresentAfterClose": false
+      },
+      "screenshots": {
+        "shell": "/private/tmp/abs-f09-transcode-final/node-shell.png",
+        "login": "/private/tmp/abs-f09-transcode-final/node-login.png",
+        "library": "/private/tmp/abs-f09-transcode-final/node-library.png",
+        "detail": "/private/tmp/abs-f09-transcode-final/node-detail.png"
+      }
+    },
+    "comparison": {
+      "playbackEqual": true,
+      "goPlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 600
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0
+        },
+        "beforeClose": {
+          "currentTime": 1,
+          "duration": 600,
+          "paused": false
+        },
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          }
+        ],
+        "ffmpegAliveBeforeClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "streamDirPresentAfterClose": false,
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "nodePlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 600
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0
+        },
+        "beforeClose": {
+          "currentTime": 1,
+          "duration": 600,
+          "paused": false
+        },
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524",
+            "bodyLength": 2524,
+            "bodySHA256": "a3af76c2b20f0aaaab93e377d7de7f1beea06469e4996100a994b5de88c00674"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152",
+            "bodyLength": 104152,
+            "bodySHA256": "c0a074d108aef1882946136d1f23795ec2ec549785c4ed23aa3be4456517aa91"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "118e719511ebf277c784bc9c3351ad8eb7e6a765917d0299aa43c36ffc4d5e22"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "9fc304addac9e7705ce10a03ea8ef21efc836c6fb52e3f78e843b606207a02bd"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528",
+            "bodyLength": 104528,
+            "bodySHA256": "c2e9225c2cfef43f1546e55b587677171ca7bec6f133c4bde420729dc034705e"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904",
+            "bodyLength": 104904,
+            "bodySHA256": "8a145f00c7407d6ea04a09296e1f5c79d1e3a6c584b2baa60295b44b12aa0b7c"
+          }
+        ],
+        "ffmpegAliveBeforeClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "streamDirPresentAfterClose": false,
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "apiFailuresEqual": true,
+      "apiFailures": {
+        "go": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ],
+        "node": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ]
+      },
+      "consoleErrorsEqual": true,
+      "consoleErrors": {
+        "go": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event"
+        ],
+        "node": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event"
+        ]
+      },
+      "rootAssetFailuresEqual": false,
+      "pageErrorsEqual": true,
+      "pageErrors": {
+        "go": [],
+        "node": []
+      },
+      "restrictedVisibilityEqual": false
+    }
+  }
+}

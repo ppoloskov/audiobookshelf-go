@@ -1,0 +1,11 @@
+{
+ "schemaVersion": 1,
+ "command": "BROWSER_CHECK_OUT=<tmp>/f06-run/out-root node go-backend/tools/parity/browser-check.cjs --variant root",
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "variant": "root (ROUTER_BASE_PATH=\"\" on both implementations; retained client build remains configured for /audiobookshelf)",
+ "result": "RED (observed divergence, not a Go-only defect): both implementations fail to hydrate the root-launched retained client identically functionally (asset URLs are build-time absolute /audiobookshelf paths; input form never appears; equal timeouts); console-error text fidelity differs because Go answers the missing-asset request with net/http text/plain \"404 page not found\" while upstream Express default 404 returns the HTML error page (text/html) which the browser additionally reports as a script MIME refusal.",
+ "classification": "owned by queue row F44 (r015 ALL catch-all, unknown path/method and raw 404 response fidelity) \u2014 mapped in parity-finalization-traceability.json; NOT repaired in F06 to keep the bounded row scope",
+ "limitations": [
+  "Status-level 404 equality is retained; body/content-type diverge."
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "id": "route-r174",
+ "parent": "http/emailapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /emails/send-ebook-to-device candidate recorded from server/routers/ApiRouter.js:281. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:281"
+ ],
+ "implementation": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

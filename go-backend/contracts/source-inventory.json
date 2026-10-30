@@ -1,0 +1,5813 @@
+{
+  "counts": {
+    "model_files": 25,
+    "routes": 226,
+    "socket_events": 165,
+    "source_files": 58
+  },
+  "inventory_kind": "conservative_source_syntax_inventory",
+  "limitations": [
+    "This is source extraction, not a complete API or behavior specification.",
+    "Express mount prefixes are partially annotated and remain runtime/configuration dependent.",
+    "Middleware, authorization, conditional registration, request/response schemas, and handler behavior are not interpreted.",
+    "Only syntax forms represented by this extractor are inventoried; dynamic expressions are retained as unresolved text.",
+    "Socket.IO wrapper emissions are inventoried from known wrapper signatures, but recipient scope and runtime event flow are not resolved.",
+    "The syntax scanner reads JavaScript .js files only and may count registrations in comments or strings; TypeScript sources are not scanned.",
+    "Model inventory lists filenames only; it does not describe database schema, migrations, or serialized metadata formats."
+  ],
+  "model_files": [
+    {
+      "filename": "ApiKey.js",
+      "line": 1,
+      "source": "server/models/ApiKey.js"
+    },
+    {
+      "filename": "Author.js",
+      "line": 1,
+      "source": "server/models/Author.js"
+    },
+    {
+      "filename": "Book.js",
+      "line": 1,
+      "source": "server/models/Book.js"
+    },
+    {
+      "filename": "BookAuthor.js",
+      "line": 1,
+      "source": "server/models/BookAuthor.js"
+    },
+    {
+      "filename": "BookSeries.js",
+      "line": 1,
+      "source": "server/models/BookSeries.js"
+    },
+    {
+      "filename": "Collection.js",
+      "line": 1,
+      "source": "server/models/Collection.js"
+    },
+    {
+      "filename": "CollectionBook.js",
+      "line": 1,
+      "source": "server/models/CollectionBook.js"
+    },
+    {
+      "filename": "CustomMetadataProvider.js",
+      "line": 1,
+      "source": "server/models/CustomMetadataProvider.js"
+    },
+    {
+      "filename": "Device.js",
+      "line": 1,
+      "source": "server/models/Device.js"
+    },
+    {
+      "filename": "Feed.js",
+      "line": 1,
+      "source": "server/models/Feed.js"
+    },
+    {
+      "filename": "FeedEpisode.js",
+      "line": 1,
+      "source": "server/models/FeedEpisode.js"
+    },
+    {
+      "filename": "Library.js",
+      "line": 1,
+      "source": "server/models/Library.js"
+    },
+    {
+      "filename": "LibraryFolder.js",
+      "line": 1,
+      "source": "server/models/LibraryFolder.js"
+    },
+    {
+      "filename": "LibraryItem.js",
+      "line": 1,
+      "source": "server/models/LibraryItem.js"
+    },
+    {
+      "filename": "MediaItemShare.js",
+      "line": 1,
+      "source": "server/models/MediaItemShare.js"
+    },
+    {
+      "filename": "MediaProgress.js",
+      "line": 1,
+      "source": "server/models/MediaProgress.js"
+    },
+    {
+      "filename": "PlaybackSession.js",
+      "line": 1,
+      "source": "server/models/PlaybackSession.js"
+    },
+    {
+      "filename": "Playlist.js",
+      "line": 1,
+      "source": "server/models/Playlist.js"
+    },
+    {
+      "filename": "PlaylistMediaItem.js",
+      "line": 1,
+      "source": "server/models/PlaylistMediaItem.js"
+    },
+    {
+      "filename": "Podcast.js",
+      "line": 1,
+      "source": "server/models/Podcast.js"
+    },
+    {
+      "filename": "PodcastEpisode.js",
+      "line": 1,
+      "source": "server/models/PodcastEpisode.js"
+    },
+    {
+      "filename": "Series.js",
+      "line": 1,
+      "source": "server/models/Series.js"
+    },
+    {
+      "filename": "Session.js",
+      "line": 1,
+      "source": "server/models/Session.js"
+    },
+    {
+      "filename": "Setting.js",
+      "line": 1,
+      "source": "server/models/Setting.js"
+    },
+    {
+      "filename": "User.js",
+      "line": 1,
+      "source": "server/models/User.js"
+    }
+  ],
+  "routes": [
+    {
+      "argument_count_syntax_hint": 4,
+      "line": 322,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/login",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 331,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/auth/refresh",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 362,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/auth/openid",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 380,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/auth/openid/mobile-redirect",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 4,
+      "line": 383,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/auth/openid/callback",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 4,
+      "line": 464,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/auth/openid/config",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 486,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": null,
+        "reason": "mount point not resolved by this source extractor"
+      },
+      "receiver": "router",
+      "route": "/logout",
+      "route_kind": "string_literal",
+      "source": "server/Auth.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 362,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/feed/:slug",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 366,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/feed/:slug/cover*",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 369,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/feed/:slug/item/:episodeId/*",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 377,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/init",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 384,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/status",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 401,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/ping",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 405,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "/healthcheck",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 437,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "route",
+      "route_kind": "dynamic_expression",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 452,
+      "method": "ALL",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "fully_resolved": false,
+        "known_mount": "router mounted at global.RouterBasePath"
+      },
+      "receiver": "router",
+      "route": "*",
+      "route_kind": "string_literal",
+      "source": "server/Server.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 68,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/^\\/libraries/",
+      "route_kind": "regex_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 69,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 70,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 71,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 72,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 73,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 75,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/items",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 76,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/issues",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 77,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/episode-downloads",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 78,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/series",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 79,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/series/:seriesId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 80,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/collections",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 81,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/playlists",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 82,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/personalized",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 83,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/filterdata",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 84,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/search",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 85,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/stats",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 86,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/authors",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 87,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/narrators",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 88,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/narrators/:narratorId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 89,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/narrators/:narratorId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 90,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/matchall",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 91,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/scan",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 92,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/recent-episodes",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 93,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/opml",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 94,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/order",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 95,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/remove-metadata",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 96,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/podcast-titles",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 97,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/libraries/:id/download",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 102,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/batch/delete",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 103,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/batch/update",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 104,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/batch/get",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 105,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/batch/quickmatch",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 106,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/batch/scan",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 108,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 109,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 110,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/download",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 111,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/media",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 112,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/cover",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 113,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/cover",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 114,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/cover",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 115,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/cover",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 116,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/match",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 117,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/play",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 118,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/play/:episodeId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 119,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/tracks",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 120,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/scan",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 121,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/metadata-object",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 122,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/chapters",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 123,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/ffprobe/:fileid",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 124,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/file/:fileid",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 125,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/file/:fileid",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 126,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/file/:fileid/download",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 127,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/ebook/:fileid?",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 128,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/items/:id/ebook/:fileid/status",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 133,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 134,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 135,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/online",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 136,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 137,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 138,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 139,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id/openid-unlink",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 140,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id/listening-sessions",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 141,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/users/:id/listening-stats",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 146,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 147,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 148,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 149,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 150,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 151,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id/book",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 152,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id/book/:bookId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 153,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id/batch/add",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 154,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/collections/:id/batch/remove",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 159,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 160,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 161,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 162,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 163,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 164,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id/item",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 165,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id/item/:libraryItemId/:episodeId?",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 166,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id/batch/add",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 167,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/:id/batch/remove",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 168,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/playlists/collection/:collectionId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 173,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 174,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/sessions",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 175,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/sessions/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 176,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 177,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/bookmarks",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 178,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/bookmarks/:libraryItemId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 179,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/listening-sessions",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 180,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/item/listening-sessions/:libraryItemId/:episodeId?",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 181,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/listening-stats",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 182,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress/:id/remove-from-continue-listening",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 183,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress/:id/:episodeId?",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 184,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress/batch/update",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 185,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress/:libraryItemId/:episodeId?",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 186,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/progress/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 187,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/item/:id/bookmark",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 188,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/item/:id/bookmark",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 189,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/item/:id/bookmark/:time",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 190,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/password",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 191,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/items-in-progress",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 192,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/series/:id/remove-from-continue-listening",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 193,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/series/:id/readd-to-continue-listening",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 194,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/stats/year/:year",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 195,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/me/ereader-devices",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 200,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 201,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 202,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 203,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups/:id/download",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 204,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups/:id/apply",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 205,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups/upload",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 206,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/backups/path",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 211,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/filesystem",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 212,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/filesystem/pathexists",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 217,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 218,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 219,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 220,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id/match",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 221,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id/image",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 222,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id/image",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 223,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authors/:id/image",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 228,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/series/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 229,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/series/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 234,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/sessions",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 235,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/sessions/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 236,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/sessions/open",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 237,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/sessions/batch/delete",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 238,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/session/local",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 239,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/session/local-all",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 241,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/session/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 242,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/session/:id/sync",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 243,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/session/:id/close",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 248,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 249,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/feed",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 250,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/opml/parse",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 251,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/opml/create",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 252,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/checknew",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 253,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/downloads",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 254,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/clear-queue",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 255,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/search-episode",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 256,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/download-episodes",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 257,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/match-episodes",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 258,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 259,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 260,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 265,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 266,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 267,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notificationdata",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 268,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications/test",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 269,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 270,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 271,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 272,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/notifications/:id/test",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 277,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/emails/settings",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 278,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/emails/settings",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 279,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/emails/test",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 280,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/emails/ereader-devices",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 281,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/emails/send-ebook-to-device",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 286,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/covers",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 287,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/books",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 288,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/podcast",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 289,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/authors",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 290,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/chapters",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 291,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/search/providers",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 296,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/cache/purge",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 297,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/cache/items/purge",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 302,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tools/item/:id/encode-m4b",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 303,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tools/item/:id/encode-m4b",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 304,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tools/item/:id/embed-metadata",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 305,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tools/batch/embed-metadata",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 310,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/feeds",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 311,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/feeds/item/:itemId/open",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 312,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/feeds/collection/:collectionId/open",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 313,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/feeds/series/:seriesId/open",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 314,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/feeds/:id/close",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 319,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/custom-metadata-providers",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 320,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/custom-metadata-providers",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 321,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/custom-metadata-providers/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 326,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/share/mediaitem",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 327,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/share/mediaitem/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 332,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/stats/year/:year",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 333,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/stats/server",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 338,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/api-keys",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 339,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/api-keys",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 340,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/api-keys/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 3,
+      "line": 341,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/api-keys/:id",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 346,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/upload",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 347,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tasks",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 348,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/settings",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 349,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/sorting-prefixes",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 350,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/authorize",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 351,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tags",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 352,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tags/rename",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 353,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/tags/:tag",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 354,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/genres",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 355,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/genres/rename",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 356,
+      "method": "DELETE",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/genres/:genre",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 357,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/validate-cron",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 358,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/auth-settings",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 359,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/auth-settings",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 360,
+      "method": "POST",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/watcher/update",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 361,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/api"
+      },
+      "receiver": "this.router",
+      "route": "/logger-data",
+      "route_kind": "string_literal",
+      "source": "server/routers/ApiRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 21,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/hls"
+      },
+      "receiver": "this.router",
+      "route": "/:stream/:file",
+      "route_kind": "string_literal",
+      "source": "server/routers/HlsRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 16,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/share/:slug",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 17,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/share/:slug/track/:index",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 18,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/share/:slug/cover",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 19,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/share/:slug/download",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 20,
+      "method": "PATCH",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/share/:slug/progress",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    },
+    {
+      "argument_count_syntax_hint": 2,
+      "line": 21,
+      "method": "GET",
+      "middleware_behavior_resolved": false,
+      "prefix_context": {
+        "additional_prefix": "global.RouterBasePath (runtime configured)",
+        "fully_resolved": false,
+        "known_mount": "/public"
+      },
+      "receiver": "this.router",
+      "route": "/session/:id/track/:index",
+      "route_kind": "string_literal",
+      "source": "server/routers/PublicRouter.js"
+    }
+  ],
+  "schema_version": 1,
+  "socket_events": [
+    {
+      "direction": "emission",
+      "event": "log",
+      "event_kind": "string_literal",
+      "line": 85,
+      "operation": "emit",
+      "receiver": "socketListener.socket",
+      "scope_resolved": false,
+      "source": "server/Logger.js"
+    },
+    {
+      "direction": "emission",
+      "event": "evt",
+      "event_kind": "dynamic_expression",
+      "line": 62,
+      "operation": "emit",
+      "receiver": ".socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "evt",
+      "event_kind": "dynamic_expression",
+      "line": 75,
+      "operation": "emit",
+      "receiver": "client.socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "evt",
+      "event_kind": "dynamic_expression",
+      "line": 84,
+      "operation": "emit",
+      "receiver": ".socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "evt",
+      "event_kind": "dynamic_expression",
+      "line": 107,
+      "operation": "emit",
+      "receiver": ".socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "evt",
+      "event_kind": "dynamic_expression",
+      "line": 124,
+      "operation": "emit",
+      "receiver": ".socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "connection",
+      "event_kind": "string_literal",
+      "line": 177,
+      "operation": "on",
+      "receiver": "io",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "auth",
+      "event_kind": "string_literal",
+      "line": 188,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "cancel_scan",
+      "event_kind": "string_literal",
+      "line": 191,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "search_covers",
+      "event_kind": "string_literal",
+      "line": 197,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "cancel_cover_search",
+      "event_kind": "string_literal",
+      "line": 198,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "set_log_listener",
+      "event_kind": "string_literal",
+      "line": 201,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "remove_log_listener",
+      "event_kind": "string_literal",
+      "line": 210,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "disconnect",
+      "event_kind": "string_literal",
+      "line": 213,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "message_all_users",
+      "event_kind": "string_literal",
+      "line": 239,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "incoming_registration",
+      "event": "ping",
+      "event_kind": "string_literal",
+      "line": 249,
+      "operation": "on",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "pong",
+      "event_kind": "string_literal",
+      "line": 253,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 277,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 288,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 295,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 301,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 307,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 312,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 320,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "auth_failed",
+      "event_kind": "string_literal",
+      "line": 326,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "init",
+      "event_kind": "string_literal",
+      "line": 361,
+      "operation": "emit",
+      "receiver": "client.socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_error",
+      "event_kind": "string_literal",
+      "line": 378,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_error",
+      "event_kind": "string_literal",
+      "line": 389,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_result",
+      "event_kind": "string_literal",
+      "line": 400,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_complete",
+      "event_kind": "string_literal",
+      "line": 411,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_provider_error",
+      "event_kind": "string_literal",
+      "line": 416,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_error",
+      "event_kind": "string_literal",
+      "line": 426,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission",
+      "event": "cover_search_cancelled",
+      "event_kind": "string_literal",
+      "line": 449,
+      "operation": "emit",
+      "receiver": "socket",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js"
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_offline",
+      "event_kind": "string_literal",
+      "line": 224,
+      "operation": "emit",
+      "receiver": "this",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "admin_message",
+      "event_kind": "string_literal",
+      "line": 244,
+      "operation": "emit",
+      "receiver": "this",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_online",
+      "event_kind": "string_literal",
+      "line": 348,
+      "operation": "emit",
+      "receiver": "this",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/SocketAuthority.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 156,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_removed",
+      "event_kind": "string_literal",
+      "line": 162,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 168,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 211,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 217,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_removed",
+      "event_kind": "string_literal",
+      "line": 252,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 300,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 325,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 376,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/AuthorController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_added",
+      "event_kind": "string_literal",
+      "line": 104,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_updated",
+      "event_kind": "string_literal",
+      "line": 201,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_removed",
+      "event_kind": "string_literal",
+      "line": 222,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_updated",
+      "event_kind": "string_literal",
+      "line": 258,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_updated",
+      "event_kind": "string_literal",
+      "line": 303,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_updated",
+      "event_kind": "string_literal",
+      "line": 365,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "collection_updated",
+      "event_kind": "string_literal",
+      "line": 422,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CollectionController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "custom_metadata_provider_added",
+      "event_kind": "string_literal",
+      "line": 59,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CustomMetadataProviderController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "custom_metadata_provider_removed",
+      "event_kind": "string_literal",
+      "line": 96,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/CustomMetadataProviderController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "ereader-devices-updated",
+      "event_kind": "string_literal",
+      "line": 79,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/EmailController.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "library_added",
+      "event_kind": "string_literal",
+      "line": 171,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "library_updated",
+      "event_kind": "string_literal",
+      "line": 511,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "library_removed",
+      "event_kind": "string_literal",
+      "line": 588,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 1189,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryController.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 1230,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryController.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 280,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 327,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 363,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 389,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 516,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 716,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "batch_quickmatch_complete",
+      "event_kind": "string_literal",
+      "line": 811,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 951,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 1062,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 1210,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/LibraryItemController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 264,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 286,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 315,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 350,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 388,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 422,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 540,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 559,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 584,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "ereader-devices-updated",
+      "event_kind": "string_literal",
+      "line": 632,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/MeController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 377,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/MiscController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 420,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/MiscController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 515,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/MiscController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 558,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/MiscController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_added",
+      "event_kind": "string_literal",
+      "line": 118,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 253,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_removed",
+      "event_kind": "string_literal",
+      "line": 270,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 336,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_removed",
+      "event_kind": "string_literal",
+      "line": 379,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 381,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 450,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_removed",
+      "event_kind": "string_literal",
+      "line": 496,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 498,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_added",
+      "event_kind": "string_literal",
+      "line": 560,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/PlaylistController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_added",
+      "event_kind": "string_literal",
+      "line": 181,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/PodcastController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 399,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/PodcastController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 464,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/PodcastController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 550,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/controllers/PodcastController.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "series_updated",
+      "event_kind": "string_literal",
+      "line": 84,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/SeriesController.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_added",
+      "event_kind": "string_literal",
+      "line": 187,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/UserController.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 347,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/UserController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_removed",
+      "event_kind": "string_literal",
+      "line": 402,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/UserController.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_updated",
+      "event_kind": "string_literal",
+      "line": 424,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/controllers/UserController.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_started",
+      "event_kind": "string_literal",
+      "line": 145,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AbMergeManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_progress",
+      "event_kind": "string_literal",
+      "line": 147,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AbMergeManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_progress",
+      "event_kind": "string_literal",
+      "line": 148,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AbMergeManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_finished",
+      "event_kind": "string_literal",
+      "line": 150,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AbMergeManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_progress",
+      "event_kind": "string_literal",
+      "line": 182,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AbMergeManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "metadata_embed_queue_update",
+      "event_kind": "string_literal",
+      "line": 119,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_started",
+      "event_kind": "string_literal",
+      "line": 206,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_progress",
+      "event_kind": "string_literal",
+      "line": 232,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_progress",
+      "event_kind": "string_literal",
+      "line": 233,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "track_finished",
+      "event_kind": "string_literal",
+      "line": 248,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "metadata_embed_queue_update",
+      "event_kind": "string_literal",
+      "line": 277,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/AudioMetadataManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "backup_applied",
+      "event_kind": "string_literal",
+      "line": 266,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/BackupManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "notifications_updated",
+      "event_kind": "string_literal",
+      "line": 175,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/NotificationManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_item_progress_updated",
+      "event_kind": "string_literal",
+      "line": 265,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PlaybackSessionManager.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_stream_update",
+      "event_kind": "string_literal",
+      "line": 361,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PlaybackSessionManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_item_progress_updated",
+      "event_kind": "string_literal",
+      "line": 402,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PlaybackSessionManager.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_stream_update",
+      "event_kind": "string_literal",
+      "line": 428,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PlaybackSessionManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_session_closed",
+      "event_kind": "string_literal",
+      "line": 429,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PlaybackSessionManager.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "episode_download_queue_cleared",
+      "event_kind": "string_literal",
+      "line": 50,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "episode_download_queued",
+      "event_kind": "string_literal",
+      "line": 85,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "episode_download_started",
+      "event_kind": "string_literal",
+      "line": 104,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "episode_download_finished",
+      "event_kind": "string_literal",
+      "line": 177,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 253,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "episode_added",
+      "event_kind": "string_literal",
+      "line": 256,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 368,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 436,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_added",
+      "event_kind": "string_literal",
+      "line": 723,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/managers/PodcastManager.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "rss_feed_open",
+      "event_kind": "string_literal",
+      "line": 302,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/RssFeedManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "rss_feed_open",
+      "event_kind": "string_literal",
+      "line": 323,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/RssFeedManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "rss_feed_open",
+      "event_kind": "string_literal",
+      "line": 344,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/RssFeedManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "rss_feed_closed",
+      "event_kind": "string_literal",
+      "line": 358,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/RssFeedManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "share_open",
+      "event_kind": "string_literal",
+      "line": 142,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/ShareManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "share_closed",
+      "event_kind": "string_literal",
+      "line": 165,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/managers/ShareManager.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_started",
+      "event_kind": "string_literal",
+      "line": 24,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/TaskManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_finished",
+      "event_kind": "string_literal",
+      "line": 35,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/TaskManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "task_started",
+      "event_kind": "string_literal",
+      "line": 67,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/managers/TaskManager.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 461,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/models/Book.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_added",
+      "event_kind": "string_literal",
+      "line": 471,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/models/Book.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_updated",
+      "event_kind": "string_literal",
+      "line": 474,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/models/Book.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_removed",
+      "event_kind": "string_literal",
+      "line": 203,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/models/Playlist.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "playlist_updated",
+      "event_kind": "string_literal",
+      "line": 205,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/models/Playlist.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "user_added",
+      "event_kind": "string_literal",
+      "line": 337,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "admin_clients",
+      "scope_resolved": false,
+      "source": "server/models/User.js",
+      "wrapper": "adminEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "evtName",
+      "event_kind": "dynamic_expression",
+      "line": 417,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "specific_user_clients",
+      "scope_resolved": false,
+      "source": "server/objects/Stream.js",
+      "wrapper": "clientEmitter",
+      "wrapper_event_argument_index": 1
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_removed",
+      "event_kind": "string_literal",
+      "line": 403,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/routers/ApiRouter.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "series_removed",
+      "event_kind": "string_literal",
+      "line": 453,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/routers/ApiRouter.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_removed",
+      "event_kind": "string_literal",
+      "line": 516,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/routers/ApiRouter.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "stream_reset",
+      "event_kind": "string_literal",
+      "line": 87,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/routers/HlsRouter.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_added",
+      "event_kind": "string_literal",
+      "line": 242,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/BookScanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_added",
+      "event_kind": "string_literal",
+      "line": 604,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/BookScanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "authors_num_books_updated",
+      "event_kind": "string_literal",
+      "line": 926,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/BookScanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_removed",
+      "event_kind": "string_literal",
+      "line": 970,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/BookScanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "series_removed",
+      "event_kind": "string_literal",
+      "line": 1006,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/BookScanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 67,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryItemScanner.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 226,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_updated",
+      "event_kind": "string_literal",
+      "line": 234,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_added",
+      "event_kind": "string_literal",
+      "line": 271,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "items_added",
+      "event_kind": "string_literal",
+      "line": 279,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_access_to_any_library_item",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemsEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 592,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_added",
+      "event_kind": "string_literal",
+      "line": 631,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/scanner/LibraryScanner.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "item_updated",
+      "event_kind": "string_literal",
+      "line": 129,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "clients_with_library_item_access",
+      "scope_resolved": false,
+      "source": "server/scanner/Scanner.js",
+      "wrapper": "libraryItemEmitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "author_added",
+      "event_kind": "string_literal",
+      "line": 259,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/Scanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    },
+    {
+      "direction": "emission_via_wrapper",
+      "event": "series_added",
+      "event_kind": "string_literal",
+      "line": 316,
+      "operation": "emit",
+      "receiver": "SocketAuthority",
+      "scope_classification": "all_authorized_clients",
+      "scope_resolved": false,
+      "source": "server/scanner/Scanner.js",
+      "wrapper": "emitter",
+      "wrapper_event_argument_index": 0
+    }
+  ],
+  "source_revision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "source_tree": "server/",
+  "sources": {
+    "server/Auth.js": {
+      "path": "server/Auth.js",
+      "sha256": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d"
+    },
+    "server/Logger.js": {
+      "path": "server/Logger.js",
+      "sha256": "c6d22e23529d8dcd519a4e88be04737d0ce1a4826cae16370c2c4fd1cfd2f41d"
+    },
+    "server/Server.js": {
+      "path": "server/Server.js",
+      "sha256": "f78130bf7fc75556bf1401379f2574d902932cb2579b77d6d33dd7bc4d2ed243"
+    },
+    "server/SocketAuthority.js": {
+      "path": "server/SocketAuthority.js",
+      "sha256": "41a227deda8c2aec5c03baa503f84cadd54e75ccefe2da2ed33e5068040966f1"
+    },
+    "server/controllers/AuthorController.js": {
+      "path": "server/controllers/AuthorController.js",
+      "sha256": "c44abd452525b62ccb9ec3514c9bea58700e51ec1f4f873ae0c887c9d321e194"
+    },
+    "server/controllers/CollectionController.js": {
+      "path": "server/controllers/CollectionController.js",
+      "sha256": "0d25d9164efde66a1044aa3476245b8a02cb4afb8f1549f6f6d566f28c5fabf5"
+    },
+    "server/controllers/CustomMetadataProviderController.js": {
+      "path": "server/controllers/CustomMetadataProviderController.js",
+      "sha256": "1288a7c450f8143a4d03eee2e85a54df4c57e631c5172b26a000c1577bd85984"
+    },
+    "server/controllers/EmailController.js": {
+      "path": "server/controllers/EmailController.js",
+      "sha256": "407a6beef58f71e716db9e5d41a9ef718492a3ca892e037ec265cd0e0857acff"
+    },
+    "server/controllers/LibraryController.js": {
+      "path": "server/controllers/LibraryController.js",
+      "sha256": "61b9830ef4d905536c2b46c8e88763d2c34860393cf44dd98265aea4ee05b6d7"
+    },
+    "server/controllers/LibraryItemController.js": {
+      "path": "server/controllers/LibraryItemController.js",
+      "sha256": "4888020416f82cf1b855fcdd557340bff70674a0c680717752b972bb264fceda"
+    },
+    "server/controllers/MeController.js": {
+      "path": "server/controllers/MeController.js",
+      "sha256": "12d7dc5763f26a60f0d58509be5a2506453e1204e251ced94884ec87dc0972f4"
+    },
+    "server/controllers/MiscController.js": {
+      "path": "server/controllers/MiscController.js",
+      "sha256": "721463a8846fb3280d96b530c40d29459a600467ad597968526368c62220976f"
+    },
+    "server/controllers/PlaylistController.js": {
+      "path": "server/controllers/PlaylistController.js",
+      "sha256": "d0c5be0c4b73c147f6be9dea0fc246d7a4897d50dbe536496af00499d9e9efae"
+    },
+    "server/controllers/PodcastController.js": {
+      "path": "server/controllers/PodcastController.js",
+      "sha256": "03392c81349241e586e06394016e88cd531773453b82559bfd36d4158ce4251c"
+    },
+    "server/controllers/SeriesController.js": {
+      "path": "server/controllers/SeriesController.js",
+      "sha256": "e6bc31c1e77528f14059eff5b391aab8bb0bad72bd4db37482cbaf9ce2e5d7c5"
+    },
+    "server/controllers/UserController.js": {
+      "path": "server/controllers/UserController.js",
+      "sha256": "28248a14c78f5074d79a28fac56b2e7d2deac400609c5fd85c682e34f223e88b"
+    },
+    "server/managers/AbMergeManager.js": {
+      "path": "server/managers/AbMergeManager.js",
+      "sha256": "8f18c93a795a9db27a867d07f51aef8a7b027cd731194efe44500d117e262523"
+    },
+    "server/managers/AudioMetadataManager.js": {
+      "path": "server/managers/AudioMetadataManager.js",
+      "sha256": "844a344b31f8855c7e93266b80be7bf869bc82ee19bd85cd8bb6112a35ae38e6"
+    },
+    "server/managers/BackupManager.js": {
+      "path": "server/managers/BackupManager.js",
+      "sha256": "9e0a6432fb0a80e5dc52eeb05e68f55ccbf9934fe6070ab9f53a11afb6cc412b"
+    },
+    "server/managers/NotificationManager.js": {
+      "path": "server/managers/NotificationManager.js",
+      "sha256": "9e19d84954cddd4230d91eea8f689932b141a5403c8c426e9d578eddc6f61591"
+    },
+    "server/managers/PlaybackSessionManager.js": {
+      "path": "server/managers/PlaybackSessionManager.js",
+      "sha256": "18f3fd6135a824ddadd21d527409ac378b406e9886f6d33f049fbdbcd424c8df"
+    },
+    "server/managers/PodcastManager.js": {
+      "path": "server/managers/PodcastManager.js",
+      "sha256": "c7d2a12b64a945ec6d1e06fd82378bb1bf12456543d64a8fc0139f76f336fe81"
+    },
+    "server/managers/RssFeedManager.js": {
+      "path": "server/managers/RssFeedManager.js",
+      "sha256": "8a115980a2ef3f0ffe895b081725d53551058f2de438127348158ce52548c7f2"
+    },
+    "server/managers/ShareManager.js": {
+      "path": "server/managers/ShareManager.js",
+      "sha256": "ecba74777f2cbaf76144a86cea8f61eb2cf717aeefb653f460b4d9995c00406b"
+    },
+    "server/managers/TaskManager.js": {
+      "path": "server/managers/TaskManager.js",
+      "sha256": "356243745be1661ce3121deed5bf4be4eeb9d58c426909290ca74dcb3c2ef9ab"
+    },
+    "server/models/ApiKey.js": {
+      "path": "server/models/ApiKey.js",
+      "sha256": "35ac9f139b7b66c00c55754eb49adeddae456cdc840b1dd1c7da649506cd702b"
+    },
+    "server/models/Author.js": {
+      "path": "server/models/Author.js",
+      "sha256": "52d07433c9d005a2610d83310603735f41d81e01579a691f661bbfad85e4b3ae"
+    },
+    "server/models/Book.js": {
+      "path": "server/models/Book.js",
+      "sha256": "c56b5254ab525a8f95ffc6dd484506e84f2a4481f44c74f5c87ea39e855b36e4"
+    },
+    "server/models/BookAuthor.js": {
+      "path": "server/models/BookAuthor.js",
+      "sha256": "befb171640074267220d780a51ccc5668028faa146480d7c56a8f41b01409c80"
+    },
+    "server/models/BookSeries.js": {
+      "path": "server/models/BookSeries.js",
+      "sha256": "975f049170fff41dfab1b7e6a6a21d8b8817658d1ad78fbf46e21fea8c60157b"
+    },
+    "server/models/Collection.js": {
+      "path": "server/models/Collection.js",
+      "sha256": "9a45c8d6f2ff048f41ae38507500948ed3eb036843491ccab41a0671a2a1ec02"
+    },
+    "server/models/CollectionBook.js": {
+      "path": "server/models/CollectionBook.js",
+      "sha256": "dca5a0c92879dc45c8ab848d02f82cc3f22abf9115c27b1e0990edcfb55c0e0d"
+    },
+    "server/models/CustomMetadataProvider.js": {
+      "path": "server/models/CustomMetadataProvider.js",
+      "sha256": "d7ba2c7f2b24f2c633856d35dcb62c88cda80d77a3669f092a02266876294bfd"
+    },
+    "server/models/Device.js": {
+      "path": "server/models/Device.js",
+      "sha256": "414c3a6fcd9581562379f91ddf20d98651da4f9d6c0f2940fff7ce65f2021050"
+    },
+    "server/models/Feed.js": {
+      "path": "server/models/Feed.js",
+      "sha256": "bad9861c00e86267e36457f2a5f538f9fff83d16da7f92718d87ddb590781505"
+    },
+    "server/models/FeedEpisode.js": {
+      "path": "server/models/FeedEpisode.js",
+      "sha256": "b8aee9575be03affabde1270c21afa2beeef8baae9ac4da09ddc0768e8839132"
+    },
+    "server/models/Library.js": {
+      "path": "server/models/Library.js",
+      "sha256": "f5bdc6b758bf96a075973431c5abe5a62ae8b0f415dc0f23064c6ad12aa5d388"
+    },
+    "server/models/LibraryFolder.js": {
+      "path": "server/models/LibraryFolder.js",
+      "sha256": "65d9f0f5fc65977e24f02e8193442178331ae5908f9b8e89c1755c132a214c07"
+    },
+    "server/models/LibraryItem.js": {
+      "path": "server/models/LibraryItem.js",
+      "sha256": "448b5910a496b3748615d5ec1314d3c50c443c44a6db087446ba0b202e2c1f8d"
+    },
+    "server/models/MediaItemShare.js": {
+      "path": "server/models/MediaItemShare.js",
+      "sha256": "134d8fd6503f553e40561e5e8fc7425618c51c462e1fff98dbf48071d78a2b40"
+    },
+    "server/models/MediaProgress.js": {
+      "path": "server/models/MediaProgress.js",
+      "sha256": "d81da120e261cc101d3ce92b65dd496efbaf763508c499401e8215d26c49f4e6"
+    },
+    "server/models/PlaybackSession.js": {
+      "path": "server/models/PlaybackSession.js",
+      "sha256": "62962357997109adce887930ad639fc39f4af0b793d2afb1f42ad155ee411724"
+    },
+    "server/models/Playlist.js": {
+      "path": "server/models/Playlist.js",
+      "sha256": "90abc02f22d1bf56276cbcd4380d1c22faa0541ff5bfc9ffd9f97a8dd67d5e7d"
+    },
+    "server/models/PlaylistMediaItem.js": {
+      "path": "server/models/PlaylistMediaItem.js",
+      "sha256": "a7b809f59329f9bb873d4ecf10e11f0ec87c638a7b5984908fb8a3f0f2d2f265"
+    },
+    "server/models/Podcast.js": {
+      "path": "server/models/Podcast.js",
+      "sha256": "4e46570c6368701a1af7dc8731e451f4b2b80b928a9a621387f552b10b3fd766"
+    },
+    "server/models/PodcastEpisode.js": {
+      "path": "server/models/PodcastEpisode.js",
+      "sha256": "6df322a9d990d4592e46785e8fee398758bedfdaf0a388f901f236674839dca7"
+    },
+    "server/models/Series.js": {
+      "path": "server/models/Series.js",
+      "sha256": "8f48f0160cd41e443dad937407726731bf55985e11cfe66e548172c599f736d4"
+    },
+    "server/models/Session.js": {
+      "path": "server/models/Session.js",
+      "sha256": "ef16d9eea41ec57bdd666f8b08201003def2aa679edcf9b7b32cf604baf194d8"
+    },
+    "server/models/Setting.js": {
+      "path": "server/models/Setting.js",
+      "sha256": "23857f88c96206208c8665b502ccbabc278c1b08bae3205e33c9b0ddf3b33857"
+    },
+    "server/models/User.js": {
+      "path": "server/models/User.js",
+      "sha256": "c7a50501f29e9eaf317501239bc7ba8c8c0c398efb6e8c716ec3052489d3cf52"
+    },
+    "server/objects/Stream.js": {
+      "path": "server/objects/Stream.js",
+      "sha256": "7b2575cf3396f0273885004f49cb057da9607e0b140f73aa7271b4c6125d7bf4"
+    },
+    "server/routers/ApiRouter.js": {
+      "path": "server/routers/ApiRouter.js",
+      "sha256": "64802e101319d0b01123d5c4e564f96b787b9475d916467eaae1c4682deec15c"
+    },
+    "server/routers/HlsRouter.js": {
+      "path": "server/routers/HlsRouter.js",
+      "sha256": "a951ba95a11c87832b40982404db896b25d6aabbd0689ff6877402b0b7def0cf"
+    },
+    "server/routers/PublicRouter.js": {
+      "path": "server/routers/PublicRouter.js",
+      "sha256": "8ae54bf6592778e38c95cd8895ee0960d9d5cd18a52f8731e0c1f24465f10790"
+    },
+    "server/scanner/BookScanner.js": {
+      "path": "server/scanner/BookScanner.js",
+      "sha256": "4462309f051ee1b1b956e1d3c12208b0b767298d457513dda9e7bc05287b5cf2"
+    },
+    "server/scanner/LibraryItemScanner.js": {
+      "path": "server/scanner/LibraryItemScanner.js",
+      "sha256": "4157ab2bd62a994b4014883dc3a8d706327bb21502bcaf4f3cbeab2cb53df501"
+    },
+    "server/scanner/LibraryScanner.js": {
+      "path": "server/scanner/LibraryScanner.js",
+      "sha256": "31b9728b1959cad9ccdc5b6460d3c7b537bec6b178863453a98f8391c687be46"
+    },
+    "server/scanner/Scanner.js": {
+      "path": "server/scanner/Scanner.js",
+      "sha256": "dd49f6abdab8ba135afae090b16d803de69f8b89d467d20433029dec9f169639"
+    }
+  }
+}

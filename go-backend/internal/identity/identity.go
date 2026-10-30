@@ -210,7 +210,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) bool {
 	case r.Method == http.MethodPost && path == "/api/authorize":
 		user, err := h.Authenticate(r)
 		if err != nil {
-			writePlain(w, http.StatusUnauthorized, "Unauthorized")
+			writePassportDenied(w)
 			return true
 		}
 		h.Authorize(w, r, user)
@@ -264,10 +264,10 @@ func (h *Handler) Authenticate(r *http.Request) (store.User, error) {
 func (h *Handler) Authorize(w http.ResponseWriter, r *http.Request, user store.User) {
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
+		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
 		return
 	}
-	writeJSON(w, http.StatusOK, payload)
+	writeExpressJSON(w, http.StatusOK, payload)
 }
 
 // UserBrowser serializes a database user into the legacy browser DTO used by
@@ -327,7 +327,7 @@ func nullableUserEmail(email string) any {
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	if !h.authMethodEnabled(r.Context(), "local") {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
+		writePassportDenied(w)
 		return
 	}
 	if !h.allowAuthRequest(w, r) {
@@ -338,21 +338,21 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if decodeBody(r, &body) != nil || body.Username == "" {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
+		writePassportDenied(w)
 		return
 	}
 	user, err := h.userByUsername(r.Context(), strings.ToLower(body.Username))
 	if err != nil || !user.IsActive {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
+		writePassportDenied(w)
 		return
 	}
 	if user.Type == "root" && user.Password == "" {
 		if body.Password != "" {
-			writePlain(w, http.StatusUnauthorized, "Unauthorized")
+			writePassportDenied(w)
 			return
 		}
 	} else if user.Password == "" || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)) != nil {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
+		writePassportDenied(w)
 		return
 	}
 	access, refresh, err := h.createSession(r.Context(), user, r)
@@ -373,7 +373,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
 	}
 	responseUser["accessToken"] = access
-	writeJSON(w, http.StatusOK, payload)
+	// Upstream passport logIn regenerates the express-session, so a successful
+	// login responds with a fresh signed connect.sid (Path=/, HttpOnly) in
+	// addition to the refresh-token cookie.
+	if sessionCookie, cookieErr := h.freshSessionCookieValue(); cookieErr == nil {
+		setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
+	}
+	writeExpressJSON(w, http.StatusOK, payload)
 }
 
 func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
@@ -388,42 +394,42 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		refreshToken = cookie.Value
 	}
 	if refreshToken == "" {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
+		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
 		return
 	}
 	claims, err := auth.ValidateToken(refreshToken, h.secret, time.Now())
 	if err != nil {
 		if errors.Is(err, auth.ErrExpired) {
 			_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refreshToken)
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
+			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		} else {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
+			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		}
 		return
 	}
 	if claims.Type != "refresh" {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
+		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
 		return
 	}
 	s, err := h.sessionByToken(r.Context(), refreshToken)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
+		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		return
 	}
 	grace := s.refreshToken != refreshToken
 	if grace {
 		if !s.lastRefreshTokenExpires.Valid || !s.lastRefreshTokenExpires.Time.After(time.Now()) {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
+			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 			return
 		}
 	} else if !s.expiresAt.After(time.Now()) {
 		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id = ?`, s.id)
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
+		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		return
 	}
 	user, err := h.userByID(r.Context(), claims.UserID)
 	if err != nil || !user.IsActive {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "User not found or inactive"})
+		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "User not found or inactive"})
 		return
 	}
 	var access, newRefresh string
@@ -434,12 +440,12 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		access, newRefresh, err = h.rotateSession(r.Context(), s)
 	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to rotate session"})
+		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to rotate session"})
 		return
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
+		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 		return
 	}
 	responseUser := payload["user"].(map[string]any)
@@ -449,7 +455,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		responseUser["refreshToken"] = newRefresh
 	}
 	setRefreshCookie(w, r, newRefresh, int(h.refreshTTL.Seconds()))
-	writeJSON(w, http.StatusOK, payload)
+	writeExpressJSON(w, http.StatusOK, payload)
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -478,10 +484,12 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	} else if refresh != "" {
 		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refresh)
 	}
-	if _, err := r.Cookie("connect.sid"); err == nil {
-		if sessionCookie, cookieErr := h.sessionCookieValue(r); cookieErr == nil {
-			setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
-		}
+	// Upstream passport+express-session regenerate the session on logout
+	// (sessionManager.logOut destroys and creates a new sessionID), so every
+	// logout response carries a FRESH signed connect.sid value; the previously
+	// presented identifier must not survive across logout responses.
+	if sessionCookie, cookieErr := h.freshSessionCookieValue(); cookieErr == nil {
+		setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
 	}
 	writeExpressJSON(w, http.StatusOK, map[string]any{"redirect_url": logoutURL})
 }
@@ -934,6 +942,14 @@ func (h *Handler) sessionCookieValue(r *http.Request) (string, error) {
 			return encodeCookieValue(decoded), nil
 		}
 	}
+	return h.freshSessionCookieValue()
+}
+
+// freshSessionCookieValue mints a new signed session cookie value. Upstream
+// express-session+passport mint a fresh random sessionID on every successful
+// login and regenerate on logout (passport sessionManager logIn/logOut),
+// so the family always responds with a new connect.sid value.
+func (h *Handler) freshSessionCookieValue() (string, error) {
 	sessionID, err := randomURLToken(24)
 	if err != nil {
 		return "", err
@@ -1104,6 +1120,17 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Length", fmt.Sprint(len(data)))
 	w.WriteHeader(status)
 	_, _ = w.Write(data)
+}
+
+// writePassportDenied reproduces the default passport failure response
+// (passport authenticate.js): res.statusCode = 401 and a bare "Unauthorized"
+// body written by res.end, which carries Content-Length:12 and NO Content-Type.
+// A present nil header suppresses net/http's content-type sniffing while
+// retaining its buffered Content-Length calculation.
+func writePassportDenied(w http.ResponseWriter) {
+	w.Header()["Content-Type"] = nil
+	w.WriteHeader(http.StatusUnauthorized)
+	_, _ = w.Write([]byte("Unauthorized"))
 }
 
 func writePlain(w http.ResponseWriter, status int, body string) {

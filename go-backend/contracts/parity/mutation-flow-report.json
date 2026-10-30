@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "sanitized upstream mutation differential run",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "id": "bookmark-create",
+      "method": "POST",
+      "route": "/api/me/item/{bookItemId}/bookmark",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{createdAt,libraryItemId,time,title}",
+      "referenceBodySha256": "d4c6cf8d74ee7ca74093a551d5b262d6d703ed4365be604d65f56f837cd3e096",
+      "goBodySha256": "d4c6cf8d74ee7ca74093a551d5b262d6d703ed4365be604d65f56f837cd3e096",
+      "differences": 0
+    },
+    {
+      "id": "bookmark-read-after-create",
+      "method": "GET",
+      "route": "/api/me/bookmarks/{bookItemId}",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{bookmarks}",
+      "referenceBodySha256": "44d03c58a5607a7a55ae2fd1eeeec733205234a6503fb9d2ddcdfbf06e169604",
+      "goBodySha256": "44d03c58a5607a7a55ae2fd1eeeec733205234a6503fb9d2ddcdfbf06e169604",
+      "differences": 0
+    },
+    {
+      "id": "bookmark-update",
+      "method": "PATCH",
+      "route": "/api/me/item/{bookItemId}/bookmark",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{createdAt,libraryItemId,time,title}",
+      "referenceBodySha256": "e432b46b74f64f1a4b225d964f95b5a1c8da8e7a6525035061fcb2d239f156bb",
+      "goBodySha256": "e432b46b74f64f1a4b225d964f95b5a1c8da8e7a6525035061fcb2d239f156bb",
+      "differences": 0
+    },
+    {
+      "id": "bookmark-delete",
+      "method": "DELETE",
+      "route": "/api/me/item/{bookItemId}/bookmark/{time}",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "normalizedBodyShape": "string",
+      "referenceBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "goBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "differences": 0
+    },
+    {
+      "id": "bookmark-read-after-delete",
+      "method": "GET",
+      "route": "/api/me/bookmarks/{bookItemId}",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{bookmarks}",
+      "referenceBodySha256": "28ceb0eb6af48231af3862a5e07e92cdde2dd0bc0b6c9a002c3ff88928ece53d",
+      "goBodySha256": "28ceb0eb6af48231af3862a5e07e92cdde2dd0bc0b6c9a002c3ff88928ece53d",
+      "differences": 0
+    }
+  ]
+}

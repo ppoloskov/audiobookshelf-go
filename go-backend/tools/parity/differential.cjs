@@ -34,9 +34,17 @@ function globalInoReplacements(value) {
 }
 const EXPECTED_STATUS = {
   login: 200, refresh: 200, 'reader-login': 200, authorize: 200,
+  'local-session-login': 200, 'local-session-logout': 200,
+  'local-session-cookie-regeneration': 200,
+  'local-session-logout-refresh-revoked': 401, 'local-session-logout-session-list': 200,
+  'local-session-relogin': 200, 'refresh-rotation': 200, 'refresh-concurrent-grace': 200,
+  'refresh-rotation-grace-replay': 200, 'inactive-user-create': 200,
+  'inactive-user-login-denied': 401,
   libraries: 200, 'libraries-restricted-user': 200,
   'book-library-items': 200, 'book-library-items-minified': 200,
   'book-item-detail': 200, 'direct-file-range': 206,
+  'direct-file-head-range': 206, 'direct-file-invalid-range': 416,
+  'direct-file-head-invalid-range': 416,
   'series-list-paginated': 200,
   'progress-write': 200, 'progress-read': 200,
   'bookmark-create': 200, 'bookmark-read-after-create': 200, 'bookmark-update': 200,
@@ -215,6 +223,10 @@ async function call(server, route, options = {}) {
   }
   if (route.startsWith('/api/notifications/') && route.endsWith('/test')) headerNames.push('etag', 'content-length')
   for (const key of headerNames) {
+    const value = response.headers.get(key)
+    if (value !== null) headers[key] = value
+  }
+  for (const key of options.collectHeaders || []) {
     const value = response.headers.get(key)
     if (value !== null) headers[key] = value
   }
@@ -458,7 +470,7 @@ function normalizeCase(id, body, pathRoots) {
     // responses after items were removed); only non-fixture-rooted path
     // values above are errors.
   }
-  if (['login', 'refresh', 'reader-login'].includes(id)) {
+  if (['login', 'refresh', 'reader-login', 'local-session-login', 'local-session-relogin', 'refresh-rotation', 'refresh-rotation-grace-replay'].includes(id)) {
     const user = normalized.user
     if (!user || typeof user !== 'object' || Array.isArray(user)) throw new Error(`${id}: user object is missing`)
     if (Array.isArray(user.mediaProgress)) {
@@ -487,7 +499,7 @@ function normalizeCase(id, body, pathRoots) {
     checkAndReplaceNumber(user, 'lastSeen', '<dynamic-time>')
     checkAndFingerprintJWT(user, 'token')
   }
-  if (['login', 'refresh', 'reader-login', 'authorize'].includes(id)) {
+  if (['login', 'refresh', 'reader-login', 'authorize', 'local-session-login', 'local-session-relogin', 'refresh-rotation', 'refresh-rotation-grace-replay'].includes(id)) {
     if (!normalized.serverSettings || typeof normalized.serverSettings !== 'object') throw new Error(`${id}: serverSettings object is missing`)
     checkAndReplacePath(normalized.serverSettings, 'backupPath')
   }
@@ -753,7 +765,7 @@ function normalizeCase(id, body, pathRoots) {
   }
   const normalizeUser = (entity, perSideJWT = false) => {
     if (!entity || typeof entity !== 'object' || Array.isArray(entity)) throw new Error(`${id}: user object is missing`)
-    const isParityUser = entity.username === 'parity-user'
+    const isParityUser = entity.username === 'parity-user' || entity.username === 'parity-inactive-user'
     if (isParityUser || perSideJWT) normalizeUUID(entity, 'id', '<dynamic-user-uuid>')
     else requireField(entity, 'id')
     if (Object.hasOwn(entity, 'lastSeen')) checkAndReplaceNumber(entity, 'lastSeen', '<dynamic-time>')
@@ -767,7 +779,7 @@ function normalizeCase(id, body, pathRoots) {
     if (Object.hasOwn(entity, 'createdAt')) checkAndReplaceNumber(entity, 'createdAt', '<dynamic-time>')
     if (Object.hasOwn(entity, 'updatedAt')) checkAndReplaceNumber(entity, 'updatedAt', '<dynamic-time>')
   }
-  if (['user-create', 'user-update', 'user-read'].includes(id)) normalizeUser(normalized.user || normalized)
+  if (['user-create', 'user-update', 'user-read', 'inactive-user-create'].includes(id)) normalizeUser(normalized.user || normalized)
   if (id === 'user-create-forbidden') normalizeUser(normalized.user || normalized, true)
   if (['user-list', 'user-list-after-delete'].includes(id)) {
     if (!Array.isArray(normalized.users)) throw new Error(`${id}: users array is missing`)
@@ -807,7 +819,7 @@ function normalizeCase(id, body, pathRoots) {
   }
   // Library entity normalization is performed by normalizeLibrary above;
   // a second normalizeEntity here would re-check the already-replaced id.
-  if (['session-list', 'session-list-after-delete'].includes(id)) {
+  if (['session-list', 'session-list-after-delete', 'local-session-logout-session-list'].includes(id)) {
     if (!normalized || !Array.isArray(normalized.sessions)) throw new Error(`${id}: sessions array is missing`)
     for (const session of normalized.sessions) {
       const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -1063,6 +1075,11 @@ function socketUserUpdatedProbe(io, url, socketPath, { readerToken, rootToken, p
 
 async function main() {
   const args = parseArgs()
+  const requestedCases = new Set((args.cases || '').split(',').map(value => value.trim()).filter(Boolean))
+  const selectedRun = requestedCases.size > 0
+  const knownCaseIds = new Set([...Object.keys(EXPECTED_STATUS), ...CASES.cases.map(testCase => testCase.id)])
+  const unknownCases = [...requestedCases].filter(id => !knownCaseIds.has(id))
+  if (unknownCases.length) throw new Error(`unknown case ID(s): ${unknownCases.join(', ')}`)
   const fixture = JSON.parse(fs.readFileSync(path.resolve(args.fixture), 'utf8'))
   FIXTURE_PATH_ROOTS = {
     node: { media: fixture.directories.nodeMedia, metadata: path.join(fixture.directories.node, 'metadata') },
@@ -1085,20 +1102,45 @@ async function main() {
   const ioClient = loadSocketIOClient()
   let emailDevicesState = null
 
+  const comparePair = async (id, referenceRoute, goRoute, options = {}) => {
+    const { nodeToken, goToken, nodeBody, goBody, ...requestOptions } = options
+    const [reference, candidate] = await Promise.all([
+      call(node, referenceRoute, { ...requestOptions, body: nodeBody ?? requestOptions.body, token: nodeToken || requestOptions.token || referenceAccessToken }),
+      call(go, goRoute, { ...requestOptions, body: goBody ?? requestOptions.body, token: goToken || requestOptions.token || referenceAccessToken })
+    ])
+    results.push(compare(id, reference, candidate))
+    return [reference, candidate]
+  }
+
   const nodeLogin = await call(node, '/login', { method: 'POST', body: credentials })
   const goLogin = await call(go, '/login', { method: 'POST', body: credentials })
-  results.push(compare('login', nodeLogin, goLogin))
+  if (!selectedRun || requestedCases.has('login')) results.push(compare('login', nodeLogin, goLogin))
   const referenceAccessToken = nodeLogin.body?.user?.accessToken
   const referenceRefreshToken = nodeLogin.body?.user?.refreshToken
   if (!referenceAccessToken || !referenceRefreshToken) {
     throw new Error('reference login did not return tokens; fixture/server auth setup is invalid')
   }
 
+  const directRangeCases = [
+    { id: 'direct-file-range', method: 'GET', range: 'bytes=0-127' },
+    { id: 'direct-file-head-range', method: 'HEAD', range: 'bytes=0-127' },
+    { id: 'direct-file-invalid-range', method: 'GET', range: 'bytes=999999999-' },
+    { id: 'direct-file-head-invalid-range', method: 'HEAD', range: 'bytes=999999999-' }
+  ]
+  const compareDirectRange = async ({ id, method, range }) => {
+    const options = { method, token: referenceAccessToken, headers: { Range: range }, collectHeaders: ['content-length', 'last-modified', 'etag'] }
+    const [reference, candidate] = await Promise.all([
+      call(node, `/api/items/${bookItemId}/file/${audioFileId}`, options),
+      call(go, `/api/items/${bookItemId}/file/${audioFileIdGo}`, options)
+    ])
+    results.push(compare(id, reference, candidate))
+  }
+
   const nodeRefresh = await call(node, '/auth/refresh', { method: 'POST', refreshToken: referenceRefreshToken })
   const goRefreshToken = goLogin.body?.user?.refreshToken
   if (goRefreshToken) {
     const goRefresh = await call(go, '/auth/refresh', { method: 'POST', refreshToken: goRefreshToken })
-    results.push(compare('refresh', nodeRefresh, goRefresh))
+    if (!selectedRun || requestedCases.has('refresh')) results.push(compare('refresh', nodeRefresh, goRefresh))
   } else {
     results.push({
       id: 'refresh', passed: false, skipped: true,
@@ -1112,9 +1154,323 @@ async function main() {
     call(node, '/login', { method: 'POST', body: fixture.readerCredentials }),
     call(go, '/login', { method: 'POST', body: fixture.readerCredentials })
   ])
-  results.push(compare('reader-login', nodeReaderLogin, goReaderLogin))
+  if (!selectedRun || requestedCases.has('reader-login') || [...requestedCases].some(id => id.startsWith('local-session-') || id.startsWith('refresh-') || id.startsWith('inactive-user-'))) results.push(compare('reader-login', nodeReaderLogin, goReaderLogin))
   const readerAccessToken = nodeReaderLogin.body?.user?.accessToken
   if (!readerAccessToken) throw new Error('reference reader login did not return an access token')
+
+  let nodeLocal = null
+  let goLocal = null
+  let nodeAudioPath
+  let goAudioPath
+  // F05 local-session lifecycle. Dedicated reader sessions keep the suite's
+  // reference sessions intact; session-row and cookie-relationship assertions
+  // run WITHIN each side against its own sqlite copy before any normalization.
+  // Characterized upstream behavior: successful local login regenerates the
+  // express-session and responds with a fresh signed connect.sid
+  // (passport sessionManager.logIn) plus the refresh cookie; a valid refresh
+  // ROTATES the tokens (Auth.js:331-358, TokenManager.rotateTokensForSession),
+  // the rotated (old) token replays within the 10-minute REFRESH_TOKEN_GRACE
+  // period returning the stored rotated refresh token (TokenManager.js:408-420),
+  // a CONCURRENT second refresh with the same original token returns the same
+  // rotated token via the race/grace branch (TokenManager.js:246), and
+  // POST /logout clears the epoch cookies and REGENERATES a new connect.sid on
+  // every call (Auth.js:486-524, TokenManager.invalidateRefreshToken:531).
+  {
+    const normalizeExpressJSONHeaders = (result) => {
+      if (result.headers?.etag && result.headers?.['content-length']) {
+        const match = /^W\/"([0-9a-f]+)-([A-Za-z0-9+\/=]+)"$/.exec(result.headers.etag)
+        if (!match) throw new Error(`unexpected Express ETag shape: ${result.headers.etag}`)
+        if (parseInt(match[1], 16) !== Number(result.headers['content-length'])) {
+          throw new Error(`etag length prefix ${match[1]} != content-length ${result.headers['content-length']}`)
+        }
+        result.headers['content-length'] = '<dynamic-len>'
+        result.headers.etag = `W/"<dynamic-len>-<body-digest>"`
+      }
+      return result
+    }
+
+    if (!selectedRun || [...requestedCases].some(id => id.startsWith('local-session-') || id.startsWith('refresh-') || id.startsWith('inactive-user-'))) {
+    ;[nodeLocal, goLocal] = await Promise.all([
+      call(node, '/login', { method: 'POST', body: fixture.readerCredentials, collectHeaders: ['set-cookie', 'etag', 'content-length'] }),
+      call(go, '/login', { method: 'POST', body: fixture.readerCredentials, collectHeaders: ['set-cookie', 'etag', 'content-length'] })
+    ])
+    const assertLoginCookies = (side, result) => {
+      const cookie = result.headers?.['set-cookie'] || ''
+      const sessionPart = cookie.split(', ').find(part => part.startsWith('connect.sid='))
+      if (!sessionPart) throw new Error(`${side}: login must set a connect.sid cookie; observed ${JSON.stringify(cookie)}`)
+      if (!sessionPart.includes('Path=/; HttpOnly')) {
+        throw new Error(`${side}: connect.sid attributes must include Path=/, HttpOnly; observed ${sessionPart}`)
+      }
+      // The refresh token travels in the refresh_token cookie for browser
+      // flows; mobile-style X-Return-Tokens logins carry it in the body
+      // instead (Auth.js handleLoginSuccess). Both must be present somewhere.
+      const refreshPart = cookie.split(', ').find(part => part.startsWith('refresh_token='))
+      const cookieToken = refreshPart ? refreshPart.split('=')[1].split(';')[0] : null
+      const bodyToken = result.body?.user?.refreshToken
+      if (!cookieToken && (!bodyToken || typeof bodyToken !== 'string' || bodyToken.length < 10)) {
+        throw new Error(`${side}: login must deliver the refresh token by cookie or body`)
+      }
+      return cookieToken || bodyToken
+    }
+    let nodeLoginRefresh
+    let goLoginRefresh
+    try {
+      nodeLoginRefresh = assertLoginCookies('node', nodeLocal)
+      goLoginRefresh = assertLoginCookies('go', goLocal)
+      const normalizeLoginPair = (result) => {
+        const cookie = result.headers?.['set-cookie']
+        if (typeof cookie === 'string') {
+          // The signed session identifier and refresh token values are
+          // per-side random; names, order and attributes stay exact.
+          result.headers['set-cookie'] = cookie
+            .replace(/refresh_token=[^;]+/, 'refresh_token=<dynamic-cookie>')
+            .replace(/connect\.sid=[^;]+/, 'connect\.sid=<dynamic-session-cookie>')
+        }
+        return result
+      }
+      results.push(compare('local-session-login',
+        normalizeExpressJSONHeaders(normalizeLoginPair(structuredClone(nodeLocal))),
+        normalizeExpressJSONHeaders(normalizeLoginPair(structuredClone(goLocal)))))
+    } catch (error) {
+      results.push({ id: 'local-session-login', passed: false, error: String(error && error.message ? error.message : error) })
+    }
+    const nodeLocalTokens = nodeLocal.body?.user
+    const goLocalTokens = goLocal.body?.user
+    if (nodeLoginRefresh && goLoginRefresh && nodeLocalTokens?.accessToken && goLocalTokens?.accessToken) {
+      // Rotation relationship: returned tokens differ from the login tokens.
+      const [nodeRotated, goRotated] = await Promise.all([
+        call(node, '/auth/refresh', { method: 'POST', refreshToken: nodeLoginRefresh, collectHeaders: ['set-cookie', 'etag', 'content-length'] }),
+        call(go, '/auth/refresh', { method: 'POST', refreshToken: goLoginRefresh, collectHeaders: ['set-cookie', 'etag', 'content-length'] })
+      ])
+      const assertRotation = (side, result, loginToken) => {
+        const token = result.body?.user?.refreshToken
+        if (!token || typeof token !== 'string' || token.length < 10) throw new Error(`${side}: rotation must return a refresh token`)
+        if (token === loginToken) throw new Error(`${side}: rotation must CHANGE the refresh token`)
+        const cookie = (result.headers?.['set-cookie'] || '').split(', ').find(part => part.startsWith('refresh_token='))
+        const cookieToken = (cookie || '').split('=')[1]?.split(';')[0]
+        if (cookieToken !== token) throw new Error(`${side}: rotation Set-Cookie refresh_token must equal the returned token; observed ${JSON.stringify(cookieToken)}`)
+        return token
+      }
+      let nodeRotatedToken = null
+      let goRotatedToken = null
+      try {
+        nodeRotatedToken = assertRotation('node', nodeRotated, nodeLoginRefresh)
+        goRotatedToken = assertRotation('go', goRotated, goLoginRefresh)
+        // Grace replay: the OLD (rotated) token returns the SAME rotated token.
+        const [nodeReplay, goReplay] = await Promise.all([
+          call(node, '/auth/refresh', { method: 'POST', refreshToken: nodeLoginRefresh, collectHeaders: ['set-cookie', 'etag', 'content-length'] }),
+          call(go, '/auth/refresh', { method: 'POST', refreshToken: goLoginRefresh, collectHeaders: ['set-cookie', 'etag', 'content-length'] })
+        ])
+        const assertReplay = (side, result, rotatedToken) => {
+          const token = result.body?.user?.refreshToken
+          if (token !== rotatedToken) throw new Error(`${side}: grace replay must return the stored rotated token; observed ${JSON.stringify(token)}`)
+          const cookie = (result.headers?.['set-cookie'] || '').split(', ').find(part => part.startsWith('refresh_token='))
+          const cookieToken = (cookie || '').split('=')[1]?.split(';')[0]
+          if (cookieToken !== rotatedToken) throw new Error(`${side}: replay Set-Cookie must re-cookie the rotated token`)
+        }
+        assertReplay('node', nodeReplay, nodeRotatedToken)
+        assertReplay('go', goReplay, goRotatedToken)
+        // Start both requests with a CURRENT token: this reaches rotation
+        // contention as well as the old-token grace branch.
+        const [nodeConcurrentLogin, goConcurrentLogin] = await Promise.all([
+          call(node, '/login', { method: 'POST', body: fixture.readerCredentials }),
+          call(go, '/login', { method: 'POST', body: fixture.readerCredentials })
+        ])
+        const nodeConcurrentOriginal = nodeConcurrentLogin.body?.user?.refreshToken
+        const goConcurrentOriginal = goConcurrentLogin.body?.user?.refreshToken
+        if (!nodeConcurrentOriginal || !goConcurrentOriginal) throw new Error('concurrent refresh requires fresh login tokens')
+        const [nodeConcurrent1, nodeConcurrent2] = await Promise.all([
+          call(node, '/auth/refresh', { method: 'POST', refreshToken: nodeConcurrentOriginal, collectHeaders: ['set-cookie'] }),
+          call(node, '/auth/refresh', { method: 'POST', refreshToken: nodeConcurrentOriginal, collectHeaders: ['set-cookie'] })
+        ])
+        const [goConcurrent1, goConcurrent2] = await Promise.all([
+          call(go, '/auth/refresh', { method: 'POST', refreshToken: goConcurrentOriginal, collectHeaders: ['set-cookie'] }),
+          call(go, '/auth/refresh', { method: 'POST', refreshToken: goConcurrentOriginal, collectHeaders: ['set-cookie'] })
+        ])
+        const assertConcurrent = (side, a, b, originalToken) => {
+          const rotatedToken = assertRotation(side, a, originalToken)
+          assertReplay(side, b, rotatedToken)
+          for (const result of [a, b]) {
+            if (result.status !== 200) throw new Error(`${side}: concurrent refresh must match the grace behavior; observed status ${result.status} body ${JSON.stringify(result.body).slice(0, 200)}`)
+            if (result.body?.user?.refreshToken !== rotatedToken) throw new Error(`${side}: concurrent refresh must return the stored rotated token; observed ${JSON.stringify(result.body?.user?.refreshToken)}`)
+          }
+        }
+        assertConcurrent('node', nodeConcurrent1, nodeConcurrent2, nodeConcurrentOriginal)
+        assertConcurrent('go', goConcurrent1, goConcurrent2, goConcurrentOriginal)
+        // The session row must carry exactly the rotated token.
+        const sqlite3 = require('sqlite3').verbose()
+        const assertSessionRow = (side, dbPath, rotatedToken) => new Promise((resolve, reject) => {
+          const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY)
+          db.all(`SELECT COUNT(*) AS n FROM sessions WHERE refreshToken = ? OR lastRefreshToken = ?`, [rotatedToken, rotatedToken], (error, rows) => {
+            db.close()
+            error ? reject(error) : resolve(rows?.[0]?.n)
+          })
+        })
+        const nodeRow = await assertSessionRow('node', path.join(fixture.directories.node, 'config', 'absdatabase.sqlite'), nodeRotatedToken)
+        const goRow = await assertSessionRow('go', path.join(fixture.directories.go, 'config', 'absdatabase.sqlite'), goRotatedToken)
+        if (nodeRow !== 1 || goRow !== 1) throw new Error(`session row must reference the rotated token exactly once; node=${nodeRow} go=${goRow}`)
+        // Paired response comparison with the recorded normalizations.
+        const normalizeCookieForPair = (result) => {
+          const cookie = result.headers?.['set-cookie']
+          if (typeof cookie === 'string') {
+            result.headers['set-cookie'] = cookie
+              .replace(/refresh_token=[^;]+/, 'refresh_token=<dynamic-cookie>')
+              .replace(/Expires=[^;]+/g, 'Expires=<dynamic-date>')
+          }
+          return result
+        }
+        results.push(compare('refresh-rotation',
+          normalizeExpressJSONHeaders(normalizeCookieForPair(structuredClone(nodeRotated))),
+          normalizeExpressJSONHeaders(normalizeCookieForPair(structuredClone(goRotated)))))
+        results.push(compare('refresh-rotation-grace-replay',
+          normalizeExpressJSONHeaders(normalizeCookieForPair(structuredClone(nodeReplay))),
+          normalizeExpressJSONHeaders(normalizeCookieForPair(structuredClone(goReplay)))))
+        results.push(compare('refresh-concurrent-grace',
+          { status: 200, headers: {}, body: { bothRotated: true } },
+          { status: 200, headers: {}, body: { bothRotated: true } }))
+      } catch (error) {
+        results.push({ id: 'refresh-rotation', passed: false, error: String(error && error.message ? error.message : error) })
+      }
+      // Logout on the dedicated sessions: clearing + REGENERATED connect.sid;
+      // a repeated logout on the same session must REPLACE the identifier.
+      // The CURRENT (rotated) token is presented: upstream's logout destroys
+      // the exact refreshToken match, so a rotated/stale token does not revoke
+      // a live session (observed; recorded as characterization).
+      const logoutAndAssert = async (side, server, accessToken, currentRefreshToken) => {
+        const refreshToken = currentRefreshToken
+        const loginResponse = side === 'node' ? nodeLocal : goLocal
+        const loginCookie = loginResponse.headers?.['set-cookie'] || ''
+        const initialSID = loginCookie.split(', ').find(part => part.startsWith('connect.sid='))?.split(';')[0]
+        if (!initialSID) throw new Error(`${side}: successful login did not provide connect.sid for the cookie lifecycle sequence`)
+        const first = await call(server, '/logout', { method: 'POST', token: accessToken, refreshToken, headers: { Cookie: initialSID }, collectHeaders: ['set-cookie', 'etag', 'content-length'] })
+        const firstSID = (first.headers?.['set-cookie'] || '').split(', ').find(part => part.startsWith('connect.sid='))
+        if (first.status !== 200 || !firstSID || firstSID.split('=')[1]?.split(';')[0] === initialSID.split('=')[1]) {
+          throw new Error(`${side}: logout must replace the presented connect.sid; status=${first.status} initial=${initialSID} replacement=${firstSID}`)
+        }
+        const sid = firstSID
+        if (!sid) throw new Error(`${side}: first logout did not issue replacement connect.sid`)
+        const second = await call(server, '/logout', { method: 'POST', token: accessToken, headers: { Cookie: sid.split(';')[0] }, collectHeaders: ['set-cookie', 'etag', 'content-length'] })
+        const sid2 = (second.headers?.['set-cookie'] || '').split(', ').find(part => part.startsWith('connect.sid='))
+        if (!sid || !sid2 || sid === sid2) throw new Error(`${side}: repeated logout must replace the connect.sid session identifier; observed ${JSON.stringify([sid, sid2])}`)
+        const revoked = await call(server, '/auth/refresh', { method: 'POST', refreshToken, collectHeaders: ['etag', 'content-length'] })
+        if (revoked.status !== 401) throw new Error(`${side}: revoked refresh token must 401; observed ${revoked.status} ${JSON.stringify(revoked.body).slice(0, 160)}`)
+        return { first, second, revoked, cookieRelationship: { initialSIDPresent: true, firstLogoutReplacedSID: true, repeatedLogoutReplacedSID: true } }
+      }
+      try {
+        const nodeLogoutRun = await logoutAndAssert('node', node, nodeLocalTokens.accessToken, nodeRotatedToken)
+        const goLogoutRun = await logoutAndAssert('go', go, goLocalTokens.accessToken, goRotatedToken)
+        // The revoked-session row must be gone from both sqlite copies.
+        const sqlite3 = require('sqlite3').verbose()
+        const assertRevokedRow = (side, dbPath, refreshToken) => new Promise((resolve, reject) => {
+          const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY)
+          db.all(`SELECT COUNT(*) AS n FROM sessions WHERE refreshToken = ? OR lastRefreshToken = ?`, [refreshToken, refreshToken], (error, rows) => {
+            db.close()
+            error ? reject(error) : resolve(rows?.[0]?.n)
+          })
+        })
+        const nodeGone = await assertRevokedRow('node', path.join(fixture.directories.node, 'config', 'absdatabase.sqlite'), nodeRotatedToken)
+        const goGone = await assertRevokedRow('go', path.join(fixture.directories.go, 'config', 'absdatabase.sqlite'), goRotatedToken)
+        if (nodeGone !== 0 || goGone !== 0) throw new Error(`revoked session row must be deleted; node=${nodeGone} go=${goGone}`)
+        // Access token remains usable; session list reflects the removal.
+        const [nodeAfterLogout, goAfterLogout] = await Promise.all([
+          call(node, '/api/me/sessions', { token: nodeLocalTokens.accessToken, refreshToken: nodeLoginRefresh }),
+          call(go, '/api/me/sessions', { token: goLocalTokens.accessToken, refreshToken: goLoginRefresh })
+        ])
+        results.push(compare('local-session-logout-session-list', nodeAfterLogout, goAfterLogout))
+        const normalizeLogoutPair = (result) => {
+          const cookie = result.headers?.['set-cookie']
+          if (typeof cookie === 'string') {
+            result.headers['set-cookie'] = cookie
+              .replace(/connect\.sid=[^;]+;/, 'connect\.sid=<dynamic-session-cookie>;')
+          }
+          return result
+        }
+        results.push(compare('local-session-cookie-regeneration',
+          { status: 200, headers: {}, body: nodeLogoutRun.cookieRelationship },
+          { status: 200, headers: {}, body: goLogoutRun.cookieRelationship }))
+        results.push(compare('local-session-logout',
+          normalizeExpressJSONHeaders(normalizeLogoutPair(structuredClone(nodeLogoutRun.first))),
+          normalizeExpressJSONHeaders(normalizeLogoutPair(structuredClone(goLogoutRun.first)))))
+        results.push(compare('local-session-logout-refresh-revoked', nodeLogoutRun.revoked, goLogoutRun.revoked))
+      } catch (error) {
+        results.push({ id: 'local-session-logout', passed: false, error: String(error && error.message ? error.message : error) })
+      }
+    } else {
+      for (const id of ['local-session-login', 'refresh-rotation', 'refresh-rotation-grace-replay', 'refresh-concurrent-grace', 'local-session-logout', 'local-session-logout-refresh-revoked', 'local-session-logout-session-list']) {
+        results.push({ id, passed: false, skipped: true, prerequisite: 'both dedicated local logins must return usable tokens' })
+      }
+    }
+      if (!selectedRun || requestedCases.has('local-session-relogin')) {
+    const [nodeRelogin, goRelogin] = await Promise.all([
+      call(node, '/login', { method: 'POST', body: fixture.readerCredentials }),
+      call(go, '/login', { method: 'POST', body: fixture.readerCredentials })
+    ])
+    results.push(compare('local-session-relogin', nodeRelogin, goRelogin))
+    }
+
+    // Creation-time inactive user denies login on both implementations.
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('inactive-user-'))) {
+  const [nodeInactive, goInactive] = await Promise.all([
+      call(node, '/api/users', { method: 'POST', token: referenceAccessToken, body: {
+        username: 'parity-inactive-user', password: 'parity-inactive-password', type: 'user',
+        isActive: false, librariesAccessible: [bookLibraryId],
+        permissions: { download: false, update: false, delete: false }
+      } }),
+      call(go, '/api/users', { method: 'POST', token: referenceAccessToken, body: {
+        username: 'parity-inactive-user', password: 'parity-inactive-password', type: 'user',
+        isActive: false, librariesAccessible: [bookLibraryId],
+        permissions: { download: false, update: false, delete: false }
+      } })
+    ])
+    results.push(compare('inactive-user-create', nodeInactive, goInactive))
+    const nodeInactiveId = nodeInactive.body?.user?.id
+    const goInactiveId = goInactive.body?.user?.id
+    if (nodeInactiveId && goInactiveId) {
+      // Denied login wire shape (reviewer-verified): passport's default
+      // failure ends with 401, 'Unauthorized', Content-Length:12 and NO
+      // Content-Type. Compare all three without a header exception.
+      const [nodeDenied, goDenied] = await Promise.all([
+        call(node, '/login', { method: 'POST', body: { username: 'parity-inactive-user', password: 'parity-inactive-password' }, collectHeaders: ['content-length'] }),
+        call(go, '/login', { method: 'POST', body: { username: 'parity-inactive-user', password: 'parity-inactive-password' }, collectHeaders: ['content-length'] })
+      ])
+      results.push(compare('inactive-user-login-denied', nodeDenied, goDenied))
+    } else {
+      results.push({ id: 'inactive-user-login-denied', passed: false, skipped: true, prerequisite: 'both inactive-user creates must return IDs' })
+    }
+  }
+  }
+
+  }
+  if (selectedRun) {
+    for (const rangeCase of directRangeCases) {
+      if (requestedCases.has(rangeCase.id)) await compareDirectRange(rangeCase)
+    }
+    const report = {
+      schemaVersion: 1,
+      baseline: fixture.baseline,
+      casesFile: path.relative(path.resolve(__dirname, '../../..'), casesPath),
+      fixtureUserId: fixture.userId,
+      generatedAt: new Date().toISOString(),
+      note: 'Focused differential: only requested case IDs are included; this is not a full-suite result.',
+      summary: {
+        total: results.filter(result => requestedCases.has(result.id)).length,
+        passed: results.filter(result => requestedCases.has(result.id) && result.passed).length,
+        failed: results.filter(result => requestedCases.has(result.id) && !result.passed && !result.skipped).length,
+        skipped: results.filter(result => requestedCases.has(result.id) && result.skipped).length
+      },
+      cases: results.filter(result => requestedCases.has(result.id))
+    }
+    report.summary.executed = report.cases.filter(result => !result.skipped).length
+    const output = path.resolve(args.out || 'parity-results.json')
+    fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
+    console.log(JSON.stringify({ output, summary: report.summary }, null, 2))
+    if (report.summary.executed === 0) {
+      console.error('0 cases executed')
+      process.exitCode = 1
+    }
+    if (report.summary.failed || report.summary.skipped) process.exitCode = 1
+    return
+  }
 
   // Use the valid upstream access token on both independent database copies.
   // This keeps read comparisons useful before Go login/token issuance lands.
@@ -1132,6 +1488,7 @@ async function main() {
     ['progress-read', `/api/me/progress/${bookItemId}`, { method: 'GET', token: referenceAccessToken }]
   ]
   for (const [id, route, options] of commonCalls) {
+    if (selectedRun && !requestedCases.has(id)) continue
     const [reference, candidate] = await Promise.all([call(node, route, options), call(go, route, options)])
     results.push(compare(id, reference, candidate, id === 'progress-write'
       ? ['This case mutates only independent fixture copies; rerun fixture creation before another clean run.']
@@ -1140,11 +1497,7 @@ async function main() {
 
   // Each media copy carries its own filesystem inode for the same audio file,
   // so the file-id route is compared per side.
-  const [fileRangeReference, fileRangeCandidate] = await Promise.all([
-    call(node, `/api/items/${bookItemId}/file/${audioFileId}`, { method: 'GET', token: referenceAccessToken, headers: { Range: 'bytes=0-127' } }),
-    call(go, `/api/items/${bookItemId}/file/${audioFileIdGo}`, { method: 'GET', token: referenceAccessToken, headers: { Range: 'bytes=0-127' } })
-  ])
-  results.push(compare('direct-file-range', fileRangeReference, fileRangeCandidate))
+  for (const rangeCase of directRangeCases) await compareDirectRange(rangeCase)
 
   const [nodeDownload, goDownload] = await Promise.all([
     call(node, `/api/items/${bookItemId}/download`, { token: referenceAccessToken }),
@@ -1194,19 +1547,11 @@ async function main() {
     ['bookmark-read-after-delete', bookmarkReadRoute, { method: 'GET', token: referenceAccessToken }]
   ]
   for (const [id, route, options] of bookmarkSteps) {
+    if (selectedRun && !requestedCases.has(id)) continue
     const [reference, candidate] = await Promise.all([call(node, route, options), call(go, route, options)])
     results.push(compare(id, reference, candidate))
   }
 
-  const comparePair = async (id, referenceRoute, goRoute, options) => {
-    const { nodeToken, goToken, nodeBody, goBody, ...requestOptions } = options
-    const [reference, candidate] = await Promise.all([
-      call(node, referenceRoute, { ...requestOptions, body: nodeBody ?? requestOptions.body, token: nodeToken || requestOptions.token || referenceAccessToken }),
-      call(go, goRoute, { ...requestOptions, body: goBody ?? requestOptions.body, token: goToken || requestOptions.token || referenceAccessToken })
-    ])
-    results.push(compare(id, reference, candidate))
-    return [reference, candidate]
-  }
   // Static errors and malformed/empty inputs are compared without body normalization.
   const errorCalls = [
     ['libraries-unauthorized', '/api/libraries', { method: 'GET' }],
@@ -1229,7 +1574,11 @@ async function main() {
     ['backup-missing-download', '/api/backups/00000000-0000-0000-0000-000000000000/download', { method: 'GET', token: referenceAccessToken }],
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
   ]
-  for (const [id, route, options] of errorCalls) await comparePair(id, route, route, options)
+  for (const [id, route, options] of errorCalls) {
+    if (selectedRun && !requestedCases.has(id)) continue
+    await comparePair(id, route, route, options)
+  }
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('email-'))) {
   await comparePair('email-settings-read-defaults-initial', '/api/emails/settings', '/api/emails/settings', {
     method: 'GET', token: referenceAccessToken
   })
@@ -1240,6 +1589,8 @@ async function main() {
   await comparePair('email-settings-read-after-coercion', '/api/emails/settings', '/api/emails/settings', {
     method: 'GET', token: referenceAccessToken
   })
+  }
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) {
   await comparePair('notifications-settings-read-defaults-initial', '/api/notifications', '/api/notifications', {
     method: 'GET', token: referenceAccessToken
   })
@@ -1259,6 +1610,7 @@ async function main() {
   await comparePair('notifications-clear-apprise-url', '/api/notifications', '/api/notifications', {
     method: 'PATCH', token: referenceAccessToken, body: { appriseApiUrl: null }
   })
+  }
   const notificationCreateBody = {
     libraryId: bookLibraryId,
     eventName: 'onTest',
@@ -1268,12 +1620,16 @@ async function main() {
     enabled: false,
     type: 'info'
   }
-  const [nodeNotification, goNotification] = await comparePair('notification-create', '/api/notifications', '/api/notifications', {
+  let nodeNotification = { body: { notifications: [] } }
+  let goNotification = { body: { notifications: [] } }
+  let nodeNotificationID = null
+  let goNotificationID = null
+  ;[nodeNotification, goNotification] = await comparePair('notification-create', '/api/notifications', '/api/notifications', {
     method: 'POST', token: referenceAccessToken, body: notificationCreateBody
   })
-  const nodeNotificationID = nodeNotification.body?.notifications?.at(-1)?.id
-  const goNotificationID = goNotification.body?.notifications?.at(-1)?.id
-  if (nodeNotificationID && goNotificationID) {
+  nodeNotificationID = nodeNotification.body?.notifications?.at(-1)?.id
+  goNotificationID = goNotification.body?.notifications?.at(-1)?.id
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) if (nodeNotificationID && goNotificationID) {
     await comparePair('notification-test-existing-id-unconfigured', `/api/notifications/${nodeNotificationID}/test`, `/api/notifications/${goNotificationID}/test`, {
       method: 'GET', token: referenceAccessToken
     })
@@ -1363,6 +1719,7 @@ async function main() {
     const [nodeReadAfterUpdate, goReadAfterUpdate] = await comparePair('notification-read-after-update', '/api/notifications', '/api/notifications', {
       method: 'GET', token: referenceAccessToken
     })
+    if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-event-'))) {
     const activeOnTest = response => response.body.settings.notifications.filter(entry => entry.eventName === 'onTest' && entry.enabled)
     const nodeActiveOnTest = activeOnTest(nodeReadAfterUpdate)
     const goActiveOnTest = activeOnTest(goReadAfterUpdate)
@@ -1486,10 +1843,11 @@ async function main() {
     } finally {
       await new Promise(resolve => globalApprise.server.close(resolve))
     }
-    await comparePair('notification-delete', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
+    }
+    if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) await comparePair('notification-delete', `/api/notifications/${nodeNotificationID}`, `/api/notifications/${goNotificationID}`, {
       method: 'DELETE', token: referenceAccessToken
     })
-    await comparePair('notification-read-after-delete', '/api/notifications', '/api/notifications', {
+    if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) await comparePair('notification-read-after-delete', '/api/notifications', '/api/notifications', {
       method: 'GET', token: referenceAccessToken
     })
   } else {
@@ -1497,17 +1855,17 @@ async function main() {
       results.push({ id, passed: false, skipped: true, prerequisite: 'both notification create responses must return UUIDs' })
     }
   }
-  await comparePair('notification-update-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) await comparePair('notification-update-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
     method: 'PATCH', token: referenceAccessToken, body: { id: '00000000-0000-4000-8000-000000000000', enabled: true }
   })
-  await comparePair('notification-delete-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
+  if (!selectedRun || [...requestedCases].some(id => id.startsWith('notification-'))) await comparePair('notification-delete-missing', '/api/notifications/00000000-0000-4000-8000-000000000000', '/api/notifications/00000000-0000-4000-8000-000000000000', {
     method: 'DELETE', token: referenceAccessToken
   })
-  await comparePair('playlist-empty-items', '/api/playlists', '/api/playlists', {
+  if (!selectedRun || requestedCases.has('playlist-empty-items')) await comparePair('playlist-empty-items', '/api/playlists', '/api/playlists', {
     method: 'POST', token: referenceAccessToken,
     body: { libraryId: bookLibraryId, name: 'Empty parity playlist', items: [] }
   })
-  await comparePair('series-list-paginated', `/api/libraries/${bookLibraryId}/series?sort=name&desc=0&limit=2&page=1`, `/api/libraries/${bookLibraryId}/series?sort=name&desc=0&limit=2&page=1`, { method: 'GET' })
+  if (!selectedRun || requestedCases.has('series-list-paginated')) await comparePair('series-list-paginated', `/api/libraries/${bookLibraryId}/series?sort=name&desc=0&limit=2&page=1`, `/api/libraries/${bookLibraryId}/series?sort=name&desc=0&limit=2&page=1`, { method: 'GET' })
   const [nodeSessions, goSessions] = await Promise.all([
     call(node, '/api/me/sessions', { token: nodeLogin.body.user.accessToken, refreshToken: nodeLogin.body.user.refreshToken }),
     call(go, '/api/me/sessions', { token: goLogin.body.user.accessToken, refreshToken: goLogin.body.user.refreshToken })
@@ -1640,8 +1998,8 @@ async function main() {
     call(node, `/api/items/${bookItemId}`, { token: referenceAccessToken }),
     call(go, `/api/items/${bookItemId}`, { token: referenceAccessToken })
   ])
-  const nodeAudioPath = nodeItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
-  const goAudioPath = goItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
+  nodeAudioPath = nodeItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
+  goAudioPath = goItemBeforeCover.body?.libraryFiles?.[0]?.metadata?.path
   for (const directory of [fixture.directories.node, fixture.directories.go]) {
     const coverDir = path.join(directory, 'metadata', 'items', bookItemId)
     fs.mkdirSync(coverDir, { recursive: true })
@@ -2027,9 +2385,11 @@ async function main() {
     }
     fs.copyFileSync(fixture.coverAsset, nodeAudioPath)
     fs.copyFileSync(fixture.coverAsset, goAudioPath)
-    await comparePair('cover-patch-success', coverRoute, coverRoute, {
-      method: 'PATCH', nodeBody: { cover: nodeAudioPath }, goBody: { cover: goAudioPath }
-    })
+    const [nodePatchSuccess, goPatchSuccess] = await Promise.all([
+      call(node, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: nodeAudioPath } }),
+      call(go, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: goAudioPath } })
+    ])
+    results.push(compare('cover-patch-success', nodePatchSuccess, goPatchSuccess))
     const [nodePatch, goPatch] = await Promise.all([
       call(node, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: nodeAudioPath } }),
       call(go, coverRoute, { method: 'PATCH', token: referenceAccessToken, body: { cover: goAudioPath } })
@@ -2104,6 +2464,7 @@ async function main() {
     }
   }
 
+  const reportCases = selectedRun ? results.filter(result => requestedCases.has(result.id)) : results
   const report = {
     schemaVersion: 1,
     baseline: fixture.baseline,
@@ -2114,22 +2475,31 @@ async function main() {
       loginRefresh: ['user.accessToken', 'user.refreshToken', 'user.lastSeen'],
       authorization: ['user.lastSeen', 'user.updatedAt', 'serverSettings.backupPath'],
       progressRead: ['lastUpdate', 'startedAt', 'finishedAt'],
-      playbackSession: ['id', 'startedAt', 'updatedAt', 'deviceInfo.id', 'audioTracks[].contentUrl session UUID']
+      playbackSession: ['id', 'startedAt', 'updatedAt', 'deviceInfo.id', 'audioTracks[].contentUrl session UUID'],
+    localSession: ['per-side access/refresh tokens and JWT fingerprints; dedicated reader sessions; cleared epoch cookies compared exactly'],
+    localSessionCookie: ['within-side actual login connect.sid sent to logout; logout and repeated logout must each replace the previously presented signed session ID; random values normalized only across Node/Go sides'],
+      refreshGraceReplay: ['set-cookie refresh_token value and Expires date normalized; Max-Age/Path/HttpOnly/order exact; login/refresh 200 etag+content-length normalized with the etag length-prefix integrity check (fixture root names differ in byte length)'],
+      inactiveUser: ['per-side user UUID; creation isActive:false verified against login denial; denied-login Content-Length and absence of Content-Type compared exactly']
     },
     note: 'Failed cases are compatibility gaps. Skipped cases are unmet prerequisites and are reported separately; neither is treated as equivalent behavior.',
     summary: {
-      total: results.length,
-      passed: results.filter((r) => r.passed).length,
-      failed: results.filter((r) => !r.passed && !r.skipped).length,
-      skipped: results.filter((r) => r.skipped).length
+      total: reportCases.length,
+      passed: reportCases.filter((r) => r.passed).length,
+      failed: reportCases.filter((r) => !r.passed && !r.skipped).length,
+      skipped: reportCases.filter((r) => r.skipped).length
     },
     statefulChecks: { coverDelete: coverDeleteState, coverUpload: coverUploadState, coverPatch: coverPatchState, coverURLFailure: coverURLFailureState, coverURLRedirect: coverURLRedirectState, emailDevices: emailDevicesState },
-    cases: results
+    cases: reportCases
   }
+  report.summary.executed = report.cases.filter(result => !result.skipped).length
   const output = path.resolve(args.out || 'parity-results.json')
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
   console.log(JSON.stringify({ output, summary: report.summary }, null, 2))
-  if (report.summary.failed || !report.statefulChecks.coverDelete.equal || !report.statefulChecks.coverUpload.equal || !report.statefulChecks.coverPatch.equal || (report.statefulChecks.emailDevices && !report.statefulChecks.emailDevices.equal)) process.exitCode = 1
+  if (report.summary.executed === 0) {
+    console.error('0 cases executed')
+    process.exitCode = 1
+  }
+  if (report.summary.failed || (!selectedRun && (!report.statefulChecks.coverDelete.equal || !report.statefulChecks.coverUpload.equal || !report.statefulChecks.coverPatch.equal || (report.statefulChecks.emailDevices && !report.statefulChecks.emailDevices.equal)))) process.exitCode = 1
 }
 
 main().catch((error) => {

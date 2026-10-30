@@ -1,0 +1,107 @@
+{
+  "browser": "Playwright Chromium headless",
+  "fixture": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/f06-run/fixture/fixture-manifest.json",
+  "output": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/f06-run/out2-root",
+  "boot": {
+    "go": "CGO_ENABLED=0 binary; isolated copied config/metadata; ABS_GO_CLIENT_PATH=client/dist; ROUTER_BASE_PATH=/audiobookshelf",
+    "node": "mise exec node@22 -- dist/index.js; isolated copied config/metadata"
+  },
+  "results": {
+    "go": {
+      "steps": {
+        "shell": true,
+        "noConsoleErrors": false,
+        "allAPI2xx": true,
+        "playbackMatchesUpstream": true,
+        "runtimeFailuresMatchUpstream": false
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/6446b40.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/0daab17.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+        "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/cf07719.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+        "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/52805c0.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+      ],
+      "pageErrors": [],
+      "apiFailures": [],
+      "playback": {},
+      "screenshots": {
+        "shell": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/f06-run/out2-root/go-shell.png"
+      },
+      "error": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input').first() to be visible\u001b[22m\n\n    at checkBrowser (/Users/paul/projects/audiobookshelf-go/go-backend/tools/parity/browser-check.cjs:140:20)\n    at async main (/Users/paul/projects/audiobookshelf-go/go-backend/tools/parity/browser-check.cjs:307:23)"
+    },
+    "node": {
+      "steps": {
+        "shell": true,
+        "noConsoleErrors": false,
+        "allAPI2xx": true,
+        "playbackMatchesUpstream": true,
+        "runtimeFailuresMatchUpstream": false
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/6446b40.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/0daab17.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/cf07719.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/52805c0.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled."
+      ],
+      "pageErrors": [],
+      "apiFailures": [],
+      "playback": {},
+      "screenshots": {
+        "shell": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/f06-run/out2-root/node-shell.png"
+      },
+      "error": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input').first() to be visible\u001b[22m\n\n    at checkBrowser (/Users/paul/projects/audiobookshelf-go/go-backend/tools/parity/browser-check.cjs:140:20)\n    at async main (/Users/paul/projects/audiobookshelf-go/go-backend/tools/parity/browser-check.cjs:307:23)"
+    },
+    "comparison": {
+      "playbackEqual": true,
+      "goPlayback": {
+        "start": {},
+        "close": {}
+      },
+      "nodePlayback": {
+        "start": {},
+        "close": {}
+      },
+      "apiFailuresEqual": true,
+      "apiFailures": {
+        "go": [],
+        "node": []
+      },
+      "consoleErrorsEqual": false,
+      "consoleErrors": {
+        "go": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/6446b40.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/0daab17.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+          "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/cf07719.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+          "Refused to execute script from 'http://127.0.0.1:52680/audiobookshelf/_nuxt/52805c0.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+        ],
+        "node": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/6446b40.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/0daab17.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/cf07719.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "Refused to execute script from 'http://127.0.0.1:52690/audiobookshelf/_nuxt/52805c0.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled."
+        ]
+      },
+      "pageErrorsEqual": true,
+      "pageErrors": {
+        "go": [],
+        "node": []
+      }
+    }
+  }
+}

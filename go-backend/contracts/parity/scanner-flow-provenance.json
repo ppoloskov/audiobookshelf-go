@@ -1,0 +1,19 @@
+{
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "method": "tools/parity/create-fixture.cjs (fresh upstream-generated DB, independent node/ and go/ config+metadata+media copies; copied media re-stat'ed into the go fixture database) + tools/parity/run-local.cjs + differential.cjs",
+ "goBuild": "CGO_ENABLED=0 go build -trimpath ./cmd/audiobookshelf-go",
+ "nodeVersion": "v22 via mise",
+ "scannerFixPackets": [
+  "S1 audio import semantics",
+  "S2 discovery/grouping",
+  "S2b claim-based grouping",
+  "S2c item-relative relPath",
+  "S3 metadata precedence",
+  "S4 reconciliation/events",
+  "S4c expanded events/cleanup/sidecars"
+ ],
+ "notes": [
+  "Replaces the pre-isolation provisional scanner report marked invalid in docs/agent-work/capabilities/cap-sub-scanner-watcher.json.",
+  "Cover/download/socket.io failures are separate capability packets, excluded from scanner evidence; they remain failing in the full report."
+ ]
+}

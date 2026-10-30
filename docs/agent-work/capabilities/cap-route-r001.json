@@ -1,0 +1,74 @@
+{
+ "id": "route-r001",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /auth/refresh candidate recorded from server/Auth.js:331. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:331"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#refresh (differential pass)",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation (rotation)",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay (old token replay within 10-minute grace)",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked (revoked token 401)",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R001-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled POST /auth/refresh via differential case(s) refresh: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: authentication.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:331"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#refresh"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  },
+  {
+   "id": "INV-R001-REFRESH-LIFECYCLE-001",
+   "class": "state_transition",
+   "contract": "Refresh lifecycle relationships verified per side: rotation CHANGES the refresh token and its Set-Cookie refresh_token equals the returned token; the rotated (old) token replays within the 10-minute grace returning the SAME stored rotated token re-cookied with matching Max-Age/Path/Expires/HttpOnly/SameSite=Lax; a CONCURRENT second refresh with the same original token returns the same rotated token (race/grace branch, TokenManager.js:246); the sqlite session row references the rotated token exactly once; after logout with the current token the row is deleted and that token refreshes with 401 json {'error':'Invalid refresh token'}.",
+   "status": "verified",
+   "source": [
+    "server/auth/TokenManager.js:408-420",
+    "server/auth/TokenManager.js:531-547",
+    "server/Auth.js:331-358"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-rotation-grace-replay",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-concurrent-grace"
+   ],
+   "exceptions": [
+    "Grace replay sampled immediately within the default 600s window; exact expiry boundary and non-grace replay remain unverified. Logout with a rotated/stale token does not revoke a live session upstream (observed characterization). Go's concurrency unit test pins the race branch but does not establish upstream equivalence."
+   ]
+  }
+ ]
+}

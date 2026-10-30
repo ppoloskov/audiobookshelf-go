@@ -1,0 +1,1889 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "workDir": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/persisted-state-final4",
+  "sourceSemantics": {
+    "playback": "PlaybackSessionManager.js:313-363 starts sessions in memory only; :421-431 close saves only if no syncData or syncs then removes from the in-memory sessions list, not the DB row. saveSession at :433-441 skips zero-listening sessions and otherwise creates/updates rows. PlaybackSession.js:209-236 initializes session timestamps and listening time.",
+    "progress": "User.js:730-831 locates progress by media item/user, calls applyProgressUpdate for an existing row and creates only if absent; MediaProgress.js:190-249 applies changed values and finish rules.",
+    "transactions": "CollectionController.js:69-97 wraps collection plus collectionBooks bulkCreate in a transaction with rollback on failure. Feed.js:171-187, :266-278 and :355-367 similarly wrap feed plus batch episodes; FeedEpisode.js:109 and :206/:243 use bulkCreate updateOnDuplicate."
+  },
+  "node": {
+    "kind": "node",
+    "itemId": "77e7b06a-504d-4bac-9065-fa1732f0b9d2",
+    "steps": [
+      {
+        "label": "initialized-and-item-created",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [],
+          "devices": []
+        }
+      },
+      {
+        "label": "play",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-1",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 1.25,
+              "isFinished": 0,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": null,
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":0.15625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.898 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-2",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 2.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.928 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":1}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.928 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-3",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 0,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.959 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":1}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.959 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "session-sync",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "197cc0e9-aa5e-4fad-9b7a-8d3ef79aae65",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 4.5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 5,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"4de1fa87-da04-45e5-aab2-7bce607cd855\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\"}",
+              "createdAt": "2026-10-29 22:47:09.865 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.993 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "libraryId": "9c2bd14d-64f9-40a4-adf6-bfe57f8b72c8"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 4.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.959 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":0.5625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.994 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "close",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "197cc0e9-aa5e-4fad-9b7a-8d3ef79aae65",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"4de1fa87-da04-45e5-aab2-7bce607cd855\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\"}",
+              "createdAt": "2026-10-29 22:47:09.865 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.027 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "libraryId": "9c2bd14d-64f9-40a4-adf6-bfe57f8b72c8"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.959 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":0.625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.028 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "reopen",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "197cc0e9-aa5e-4fad-9b7a-8d3ef79aae65",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"4de1fa87-da04-45e5-aab2-7bce607cd855\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\"}",
+              "createdAt": "2026-10-29 22:47:09.865 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.027 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "libraryId": "9c2bd14d-64f9-40a4-adf6-bfe57f8b72c8"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.959 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":0.625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.028 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            },
+            {
+              "id": "e78f575c-15d0-4323-9def-f0d39f87857a",
+              "deviceId": "e78f575c-15d0-4323-9def-f0d39f87857a",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:10.065 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.065 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      },
+      {
+        "label": "reclose",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "197cc0e9-aa5e-4fad-9b7a-8d3ef79aae65",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"4de1fa87-da04-45e5-aab2-7bce607cd855\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\"}",
+              "createdAt": "2026-10-29 22:47:09.865 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.027 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "libraryId": "9c2bd14d-64f9-40a4-adf6-bfe57f8b72c8"
+            },
+            {
+              "id": "08873b2b-6649-4a3c-b386-f60c78d7d459",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5.5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 1,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"4de1fa87-da04-45e5-aab2-7bce607cd855\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\"}",
+              "createdAt": "2026-10-29 22:47:10.067 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.097 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee",
+              "deviceId": "e78f575c-15d0-4323-9def-f0d39f87857a",
+              "libraryId": "9c2bd14d-64f9-40a4-adf6-bfe57f8b72c8"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "775ca5e4-9866-48ae-a208-914cb3e8ef3c",
+              "mediaItemId": "65e73fb9-1cda-45e8-bce2-5cfaf2d0c135",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:09.959 +00:00",
+              "extraData": "{\"libraryItemId\":\"77e7b06a-504d-4bac-9065-fa1732f0b9d2\",\"progress\":0.6875}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:09.897 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.098 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ],
+          "devices": [
+            {
+              "id": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "deviceId": "ad2994e8-e6c4-4074-b098-e682e97e2fcf",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:09.863 +00:00",
+              "updatedAt": "2026-10-29 22:47:09.863 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            },
+            {
+              "id": "e78f575c-15d0-4323-9def-f0d39f87857a",
+              "deviceId": "e78f575c-15d0-4323-9def-f0d39f87857a",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:10.065 +00:00",
+              "updatedAt": "2026-10-29 22:47:10.065 +00:00",
+              "userId": "e2239620-1eac-4523-9a4c-b6739e9fc6ee"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "go": {
+    "kind": "go",
+    "itemId": "c3defca7-ff69-4b75-8db9-d64ce6f59cf4",
+    "steps": [
+      {
+        "label": "initialized-and-item-created",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [],
+          "devices": []
+        }
+      },
+      {
+        "label": "play",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-1",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 1.25,
+              "isFinished": 0,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": null,
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":0.15625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.064 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-2",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 2.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":1}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.091 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "progress-patch-3",
+        "rows": {
+          "playbackSessions": [],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 0,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":1}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.119 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "session-sync",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "334cc99a-264d-420b-b893-26c1b82e0d74",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 4.5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 5,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"480ce084-89c6-4124-8896-a2eb774181d9\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\"}",
+              "createdAt": "2026-10-29 22:47:11.034 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.153 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "libraryId": "f7fbbe98-cee2-4a99-a451-6f335c307540"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 4.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":0.5625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.154 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "close",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "334cc99a-264d-420b-b893-26c1b82e0d74",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"480ce084-89c6-4124-8896-a2eb774181d9\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\"}",
+              "createdAt": "2026-10-29 22:47:11.034 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.182 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "libraryId": "f7fbbe98-cee2-4a99-a451-6f335c307540"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":0.625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.183 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "reopen",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "334cc99a-264d-420b-b893-26c1b82e0d74",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"480ce084-89c6-4124-8896-a2eb774181d9\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\"}",
+              "createdAt": "2026-10-29 22:47:11.034 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.182 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "libraryId": "f7fbbe98-cee2-4a99-a451-6f335c307540"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":0.625}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.183 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            },
+            {
+              "id": "86d7e764-41be-4b57-8bb5-a98abd3c1cf8",
+              "deviceId": "86d7e764-41be-4b57-8bb5-a98abd3c1cf8",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.210 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.210 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      },
+      {
+        "label": "reclose",
+        "rows": {
+          "playbackSessions": [
+            {
+              "id": "334cc99a-264d-420b-b893-26c1b82e0d74",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 6,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"480ce084-89c6-4124-8896-a2eb774181d9\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\"}",
+              "createdAt": "2026-10-29 22:47:11.034 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.182 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "libraryId": "f7fbbe98-cee2-4a99-a451-6f335c307540"
+            },
+            {
+              "id": "0fb2bc24-5e10-47a7-855a-4f10ac0e8b4c",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "displayTitle": "Persisted Book",
+              "displayAuthor": "Persisted Author",
+              "duration": 8,
+              "playMethod": 0,
+              "mediaPlayer": "persisted-state-check",
+              "startTime": 0,
+              "currentTime": 5.5,
+              "serverVersion": "2.37.2",
+              "coverPath": null,
+              "timeListening": 1,
+              "mediaMetadata": "{\"title\":\"Persisted Book\",\"subtitle\":null,\"authors\":[{\"id\":\"480ce084-89c6-4124-8896-a2eb774181d9\",\"name\":\"Persisted Author\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false}",
+              "date": "2026-10-30",
+              "dayOfWeek": "Friday",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\"}",
+              "createdAt": "2026-10-29 22:47:11.211 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.239 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268",
+              "deviceId": "86d7e764-41be-4b57-8bb5-a98abd3c1cf8",
+              "libraryId": "f7fbbe98-cee2-4a99-a451-6f335c307540"
+            }
+          ],
+          "mediaProgresses": [
+            {
+              "id": "05e7f06f-6201-4e46-a0d4-ff41851c1d65",
+              "mediaItemId": "05c0a09e-b29f-4c73-a325-089b08e05b40",
+              "mediaItemType": "book",
+              "duration": 8,
+              "currentTime": 5.5,
+              "isFinished": 1,
+              "hideFromContinueListening": 0,
+              "ebookLocation": null,
+              "ebookProgress": 0,
+              "finishedAt": "2026-10-29 22:47:11.091 +00:00",
+              "extraData": "{\"libraryItemId\":\"c3defca7-ff69-4b75-8db9-d64ce6f59cf4\",\"progress\":0.6875}",
+              "podcastId": null,
+              "createdAt": "2026-10-29 22:47:11.064 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.240 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ],
+          "devices": [
+            {
+              "id": "53ceab90-4535-44c6-806f-345323e86bef",
+              "deviceId": "53ceab90-4535-44c6-806f-345323e86bef",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.033 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.033 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            },
+            {
+              "id": "86d7e764-41be-4b57-8bb5-a98abd3c1cf8",
+              "deviceId": "86d7e764-41be-4b57-8bb5-a98abd3c1cf8",
+              "clientName": "Unknown",
+              "clientVersion": "2.37.2",
+              "ipAddress": "127.0.0.1",
+              "deviceName": null,
+              "deviceVersion": null,
+              "extraData": "{}",
+              "createdAt": "2026-10-29 22:47:11.210 +00:00",
+              "updatedAt": "2026-10-29 22:47:11.210 +00:00",
+              "userId": "735a34b7-64aa-478d-9edf-aa62cc7f3268"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "initialized-and-item-created.playbackSessions.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "initialized-and-item-created.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "initialized-and-item-created.mediaProgresses.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "initialized-and-item-created.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "initialized-and-item-created.devices.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "initialized-and-item-created.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "play.playbackSessions.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "play.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "play.mediaProgresses.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "play.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "play.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "play.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-1.playbackSessions.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "progress-patch-1.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "progress-patch-1.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-1.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-1.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-1.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-2.playbackSessions.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "progress-patch-2.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "progress-patch-2.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-2.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-2.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-2.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-3.playbackSessions.count",
+      "pass": true,
+      "node": 0,
+      "go": 0
+    },
+    {
+      "name": "progress-patch-3.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": null,
+      "goColumns": null
+    },
+    {
+      "name": "progress-patch-3.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-3.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "progress-patch-3.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "progress-patch-3.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "session-sync.playbackSessions.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "session-sync.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ]
+    },
+    {
+      "name": "session-sync.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "session-sync.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "session-sync.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "session-sync.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "close.playbackSessions.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "close.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ]
+    },
+    {
+      "name": "close.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "close.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "close.devices.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "close.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "reopen.playbackSessions.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "reopen.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ]
+    },
+    {
+      "name": "reopen.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "reopen.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "reopen.devices.count",
+      "pass": true,
+      "node": 2,
+      "go": 2
+    },
+    {
+      "name": "reopen.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "reclose.playbackSessions.count",
+      "pass": true,
+      "node": 2,
+      "go": 2
+    },
+    {
+      "name": "reclose.playbackSessions.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "displayTitle",
+        "displayAuthor",
+        "duration",
+        "playMethod",
+        "mediaPlayer",
+        "startTime",
+        "currentTime",
+        "serverVersion",
+        "coverPath",
+        "timeListening",
+        "mediaMetadata",
+        "date",
+        "dayOfWeek",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId",
+        "deviceId",
+        "libraryId"
+      ]
+    },
+    {
+      "name": "reclose.mediaProgresses.count",
+      "pass": true,
+      "node": 1,
+      "go": 1
+    },
+    {
+      "name": "reclose.mediaProgresses.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "mediaItemId",
+        "mediaItemType",
+        "duration",
+        "currentTime",
+        "isFinished",
+        "hideFromContinueListening",
+        "ebookLocation",
+        "ebookProgress",
+        "finishedAt",
+        "extraData",
+        "podcastId",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "reclose.devices.count",
+      "pass": true,
+      "node": 2,
+      "go": 2
+    },
+    {
+      "name": "reclose.devices.columns-and-values",
+      "pass": true,
+      "nodeColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ],
+      "goColumns": [
+        "id",
+        "deviceId",
+        "clientName",
+        "clientVersion",
+        "ipAddress",
+        "deviceName",
+        "deviceVersion",
+        "extraData",
+        "createdAt",
+        "updatedAt",
+        "userId"
+      ]
+    },
+    {
+      "name": "node.repeated-progress-upsert-single-row",
+      "pass": true,
+      "count": 1
+    },
+    {
+      "name": "node.close-retains-persisted-session",
+      "pass": true,
+      "count": 1
+    },
+    {
+      "name": "go.repeated-progress-upsert-single-row",
+      "pass": true,
+      "count": 1
+    },
+    {
+      "name": "go.close-retains-persisted-session",
+      "pass": true,
+      "count": 1
+    }
+  ],
+  "result": "PASS",
+  "reportedGoDefects": []
+}

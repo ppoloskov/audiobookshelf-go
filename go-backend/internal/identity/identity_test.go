@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -162,6 +164,34 @@ func TestLocalLoginRejectsWrongPasswordAndSetsSecureCookie(t *testing.T) {
 		}
 	}
 	t.Fatal("login did not set refresh token cookie")
+}
+
+func TestDeniedLoginMatchesPassportWireHeaders(t *testing.T) {
+	db, handler := identityFixture(t)
+	defer db.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.Handle(w, r)
+	}))
+	defer server.Close()
+	response, err := server.Client().Post(server.URL+"/login", "application/json", strings.NewReader(`{"username":"reader","password":"wrong"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Passport's default failure ends the response with these exact bytes.
+	if response.StatusCode != 401 || string(body) != "Unauthorized" {
+		t.Fatalf("denial = %d %q", response.StatusCode, body)
+	}
+	if _, present := response.Header["Content-Type"]; present {
+		t.Fatalf("passport denial must omit Content-Type: %v", response.Header)
+	}
+	if response.Header.Get("Content-Length") != "12" || len(response.TransferEncoding) != 0 {
+		t.Fatalf("denial must have Content-Length: 12 without chunking: %v, transfer=%v", response.Header, response.TransferEncoding)
+	}
 }
 
 func TestAPIKeyAuthenticationAndInitOneTime(t *testing.T) {

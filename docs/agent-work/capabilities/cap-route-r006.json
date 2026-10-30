@@ -1,58 +1,85 @@
 {
-  "id": "route-r006",
-  "parent": "http/identity",
-  "kind": "operation",
-  "scope": "in",
-  "status": "implemented",
-  "contract": "POST /logout candidate recorded from server/Auth.js:486. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
-  "source": [
-    "server/Auth.js:486"
-  ],
-  "implementation": [
-    "go-backend/internal/identity/identity.go"
-  ],
-  "cases": {
-    "normal": "verified",
-    "error": "unverified",
-    "edge": "unverified"
-  },
-  "stateful": true,
-  "tests": [
+ "id": "route-r006",
+ "parent": "http/identity",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /logout candidate recorded from server/Auth.js:486. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/Auth.js:486"
+ ],
+ "implementation": [
+  "go-backend/internal/identity/identity.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/identity/oidc_test.go:TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies",
+  "go-backend/tools/parity/oidc-differential.cjs:oidc-web-logout"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-logout",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout (cookie clearing + session reissue + redirect_url null)",
+  "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-session-list (access token usability + list after logout)",
+  "go-backend/contracts/parity/parity-f01-f07-closure-report.json#differential"
+ ],
+ "exceptions": [
+  "This record covers one successful web OIDC logout state transition; repeat, error and edge variants remain unverified."
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "unverified",
+  "changed": "not_applicable",
+  "force": "not_applicable",
+  "failure": "unverified"
+ },
+ "invariants": [
+  {
+   "id": "INV-LOGOUT-OIDC-SESSION-001",
+   "class": "state_transition",
+   "contract": "In the selected web OIDC session case, POST /logout matches Express response JSON and ETag, clears the three auth cookies with upstream attributes, and deletes the active refresh session while retaining the user. Passport regenerates connect.sid during logout; the existing OIDC differential normalizes its value, so OIDC-specific replacement remains unverified.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:486-523"
+   ],
+   "tests": [
     "go-backend/internal/identity/oidc_test.go:TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies",
     "go-backend/tools/parity/oidc-differential.cjs:oidc-web-logout"
-  ],
-  "evidence": [
+   ],
+   "evidence": [
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-logout"
-  ],
-  "exceptions": [
-    "This record covers one successful web OIDC logout state transition; repeat, error and edge variants remain unverified."
-  ],
-  "state_scenarios": {
-    "initial": "verified",
-    "repeat": "unverified",
-    "changed": "not_applicable",
-    "force": "not_applicable",
-    "failure": "unverified"
+   ],
+   "exceptions": [
+    "Only a successful web OIDC session with no provider logout endpoint is covered; logout errors, allDevices and mobile logout remain unverified."
+   ]
   },
-  "invariants": [
-    {
-      "id": "INV-LOGOUT-OIDC-SESSION-001",
-      "class": "state_transition",
-      "contract": "In the selected web OIDC session case, POST /logout matches Express response JSON and ETag, clears the three auth cookies with upstream attributes, reissues the signed connect.sid unchanged, and deletes the active refresh session while retaining the user.",
-      "status": "verified",
-      "source": [
-        "server/Auth.js:486-523"
-      ],
-      "tests": [
-        "go-backend/internal/identity/oidc_test.go:TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies",
-        "go-backend/tools/parity/oidc-differential.cjs:oidc-web-logout"
-      ],
-      "evidence": [
-        "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-logout"
-      ],
-      "exceptions": [
-        "Only a successful web OIDC session with no provider logout endpoint is covered; logout errors, allDevices and mobile logout remain unverified."
-      ]
-    }
-  ]
+  {
+   "id": "INV-R006-LOCAL-LOGOUT-001",
+   "class": "shape",
+   "contract": "Local logout without OIDC: clears refresh_token and auth_method cookies with epoch Expires, REGENERATES the session \u2014 every logout responds with a fresh signed connect.sid (Path=/, HttpOnly) replacing the previously presented identifier \u2014 responds 200 json {'redirect_url':null} with exact Express JSON headers (21-byte body), deletes the session row for the presented current refresh token (a rotated/stale token leaves a live session), and the access token remains usable afterwards.",
+   "status": "verified",
+   "source": [
+    "server/Auth.js:486-524",
+    "server/auth/TokenManager.js:531-547"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-login",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-session-list",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#local-session-logout-refresh-revoked",
+    "go-backend/contracts/parity/parity-f05-local-session-differential.json#refresh-concurrent-grace"
+   ],
+   "exceptions": [
+    "Local login/logout connect.sid regeneration is verified by F05 within-side value assertions. OIDC-specific callback/start/logout cookie lifecycle remains unverified because the OIDC differential normalizes connect.sid values.",
+    "Logout with no refresh token presented, allDevices=1, logout errors and mobile logout remain separate unverified variants."
+   ]
+  }
+ ]
 }

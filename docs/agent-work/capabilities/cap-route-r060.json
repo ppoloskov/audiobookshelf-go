@@ -1,0 +1,25 @@
+{
+ "id": "route-r060",
+ "parent": "http/playback",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /items/:id/play/:episodeId candidate recorded from server/routers/ApiRouter.js:118. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:118"
+ ],
+ "implementation": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

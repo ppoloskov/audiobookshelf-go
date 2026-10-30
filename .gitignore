@@ -1,4 +1,21 @@
+# Local and production environment files. Keep checked-in templates explicit.
 .env
+.env.*
+*.env
+.envrc
+!.env.example
+!.env.*.example
+
+# Local credentials and private key material.
+.secrets/
+secrets/
+*.secret
+*.secret.*
+*.pem
+*.key
+*.p12
+*.pfx
+
 /dev.js
 **/node_modules/
 /config/
@@ -15,13 +32,30 @@
 /deploy/
 /coverage/
 /.nyc_output/
+**/.cache/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.tox/
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
 /ffmpeg*
 /ffprobe*
 /unicode*
 /libnusqlite3*
 
+# Compiled executables and shared libraries.
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
 sw.*
-.DS_STORE
+.DS_Store
+*.log
 .idea/*
 tailwind.compiled.css
 tailwind.config.js

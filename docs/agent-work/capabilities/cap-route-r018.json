@@ -1,0 +1,57 @@
+{
+ "id": "route-r018",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /libraries candidate recorded from server/routers/ApiRouter.js:70. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:70"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#libraries (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#libraries-restricted-user (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#libraries-unauthorized (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#library-list-after-create (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#library-list-after-delete (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#api-key-auth-library-read (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R018-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /libraries via differential case(s) libraries, libraries-restricted-user, libraries-unauthorized, library-list-after-create, library-list-after-delete, api-key-auth-library-read: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: catalog, library-crud, permissions.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:70"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#libraries",
+    "go-backend/contracts/parity/full-suite-report.json#libraries-restricted-user",
+    "go-backend/contracts/parity/full-suite-report.json#libraries-unauthorized",
+    "go-backend/contracts/parity/full-suite-report.json#library-list-after-create",
+    "go-backend/contracts/parity/full-suite-report.json#library-list-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#api-key-auth-library-read"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

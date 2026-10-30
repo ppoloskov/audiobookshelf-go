@@ -1,0 +1,525 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "workDir": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5",
+  "sides": [
+    {
+      "kind": "node",
+      "obs": {
+        "api-key-owner-create-use-delete-other": {
+          "createStatus": 200,
+          "keyUseStatus": 200,
+          "nonAdminDeleteStatus": 403,
+          "adminForeignDeleteStatus": 200,
+          "rootDeleteStatus": 200,
+          "otherOwnerKeyRemains": true
+        },
+        "restricted-tag-overlap": {
+          "allowed": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json; charset=utf-8"
+            },
+            "body": "{\"id\":\"54420ce5-be8d-4522-9575-99339f883533\",\"ino\":\"253287605\",\"oldLibraryItemId\":null,\"libraryId\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"folderId\":\"45e101a5-ce96-4850-aaa9-49429b03fd8e\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book\",\"relPath\":\"ACL Fixture/ACL Book\",\"isFile\":false,\"mtimeMs\":1793323836439,\"ctimeMs\":1793323836439,\"birthtimeMs\":1793323836363,\"addedAt\":1793323837583,\"updatedAt\":1793323840249,\"lastScan\":1793323837583,\"scanVersion\":\"2.37.2\",\"isMissing\":false,\"isInvalid\":false,\"mediaType\":\"book\",\"media\":{\"id\":\"b47c3c58-1c5b-4322-ab57-102d6028013f\",\"libraryItemId\":\"54420ce5-be8d-4522-9575-99339f883533\",\"metadata\":{\"title\":\"ACL Book\",\"subtitle\":null,\"authors\":[{\"id\":\"30c1c6b6-51e3-4757-80ed-a56567ee920c\",\"name\":\"ACL Fixture\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false},\"coverPath\":null,\"tags\":[\"tag-a\",\"tag-b\"],\"audioFiles\":[{\"index\":1,\"ino\":\"253287606\",\"metadata\":{\"filename\":\"ACL Book.m4b\",\"ext\":\".m4b\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936,\"mtimeMs\":1793323836449,\"ctimeMs\":1793323836449,\"birthtimeMs\":1793323836439},\"addedAt\":1793323837582,\"updatedAt\":1793323837582,\"trackNumFromMeta\":null,\"discNumFromMeta\":null,\"trackNumFromFilename\":null,\"discNumFromFilename\":null,\"manuallyVerified\":false,\"exclude\":false,\"error\":null,\"format\":\"QuickTime / MOV\",\"duration\":3,\"bitRate\":1426,\"language\":\"und\",\"codec\":\"aac\",\"timeBase\":\"1/44100\",\"channels\":1,\"channelLayout\":\"mono\",\"chapters\":[],\"embeddedCoverArt\":null,\"metaTags\":{\"tagArtist\":\"ACL Fixture\",\"tagTitle\":\"ACL Book\",\"tagEncoder\":\"Lavf63.1.102\"},\"mimeType\":\"audio/mp4\"}],\"chapters\":[],\"ebookFile\":null},\"libraryFiles\":[{\"ino\":\"253287606\",\"metadata\":{\"filename\":\"ACL Book.m4b\",\"ext\":\".m4b\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936,\"mtimeMs\":1793323836449,\"ctimeMs\":1793323836449,\"birthtimeMs\":1793323836439},\"isSupplementary\":null,\"addedAt\":1793323837470,\"updatedAt\":1793323837470,\"fileType\":\"audio\"}]}"
+          },
+          "denied": {
+            "status": 403,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Forbidden"
+          }
+        },
+        "explicit-content-access": {
+          "denied": {
+            "status": 403,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Forbidden"
+          },
+          "allowed": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json; charset=utf-8"
+            },
+            "body": "{\"id\":\"ec34208c-8319-4a30-a1cc-24174a332593\",\"ino\":\"253287736\",\"oldLibraryItemId\":null,\"libraryId\":\"a22a75f1-8102-4ace-a936-574f9caf2627\",\"folderId\":\"950b94e3-f544-495b-8524-efbc48b801e6\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/podcasts/Explicit Feed\",\"relPath\":\"Explicit Feed\",\"isFile\":false,\"mtimeMs\":1793323840268,\"ctimeMs\":1793323840268,\"birthtimeMs\":1793323840268,\"addedAt\":1793323840270,\"updatedAt\":1793323840270,\"scanVersion\":null,\"isMissing\":false,\"isInvalid\":false,\"mediaType\":\"podcast\",\"media\":{\"id\":\"d5482058-fb88-49c5-9732-6ed4f42a00fe\",\"libraryItemId\":\"ec34208c-8319-4a30-a1cc-24174a332593\",\"metadata\":{\"title\":\"Explicit Feed\",\"author\":\"ACL Fixture\",\"description\":null,\"releaseDate\":null,\"genres\":[],\"feedUrl\":null,\"imageUrl\":null,\"itunesPageUrl\":null,\"itunesId\":null,\"itunesArtistId\":null,\"explicit\":true,\"language\":null,\"type\":null},\"coverPath\":null,\"tags\":[],\"episodes\":[],\"autoDownloadEpisodes\":false,\"autoDownloadSchedule\":\"0 * * * *\",\"lastEpisodeCheck\":1793323840269,\"maxEpisodesToKeep\":0,\"maxNewEpisodesToDownload\":3},\"libraryFiles\":[]}"
+          }
+        },
+        "inactive-login-and-api-key": {
+          "login": {
+            "status": 401,
+            "headers": {},
+            "body": "Unauthorized"
+          },
+          "apiKeyUse": {
+            "status": 401,
+            "headers": {},
+            "body": "Unauthorized"
+          }
+        },
+        "restricted-library-listing": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"libraries\":[{\"id\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"name\":\"ACL Books\",\"folders\":[{\"id\":\"45e101a5-ce96-4850-aaa9-49429b03fd8e\",\"fullPath\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books\",\"libraryId\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"addedAt\":1793323837452}],\"displayOrder\":1,\"icon\":\"database\",\"mediaType\":\"book\",\"provider\":\"google\",\"settings\":{\"coverAspectRatio\":1,\"disableWatcher\":false,\"autoScanCronExpression\":null,\"skipMatchingMediaWithAsin\":true,\"skipMatchingMediaWithIsbn\":true,\"audiobooksOnly\":false,\"epubsAllowScriptedContent\":false,\"hideSingleBookSeries\":false,\"onlyShowLaterBooksInContinueSeries\":false,\"metadataPrecedence\":[\"folderStructure\",\"audioMetatags\",\"nfoFile\",\"txtFiles\",\"opfFile\",\"absMetadata\"],\"markAsFinishedPercentComplete\":null,\"markAsFinishedTimeRemaining\":10},\"lastScan\":1793323837593,\"lastScanVersion\":\"2.37.2\",\"createdAt\":1793323837450,\"lastUpdate\":1793323837593}]}"
+        },
+        "malformed-permissions-create": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"user\":{\"id\":\"c9f96684-afd4-4ee2-bc06-ad643beec292\",\"username\":\"bad-permissions\",\"email\":null,\"type\":\"user\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjOWY5NjY4NC1hZmQ0LTRlZTItYmMwNi1hZDY0M2JlZWMyOTIiLCJ1c2VybmFtZSI6ImJhZC1wZXJtaXNzaW9ucyIsImlhdCI6MTc5MzMyMzg0MH0.1v_Gd8lzOhq01kp9vd7ZgwFWW8Q54zzzh5dcmLkm3Rg\",\"mediaProgress\":[],\"seriesHideFromContinueListening\":[],\"bookmarks\":[],\"isActive\":false,\"isLocked\":false,\"lastSeen\":null,\"createdAt\":1793323840352,\"permissions\":{\"download\":true,\"update\":false,\"delete\":false,\"upload\":false,\"createEreader\":false,\"accessAllLibraries\":true,\"accessAllTags\":true,\"accessExplicitContent\":false,\"selectedTagsNotAccessible\":false},\"librariesAccessible\":[],\"itemTagsSelected\":[],\"hasOpenIDLink\":false}}"
+        },
+        "ordinary-create-user": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "ordinary-update-root": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "admin-delete-root": {
+          "status": 404,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Not Found"
+        },
+        "root-update-restricted": {
+          "status": 404,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Not Found"
+        },
+        "ordinary-delete-self": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        }
+      }
+    },
+    {
+      "kind": "go",
+      "obs": {
+        "api-key-owner-create-use-delete-other": {
+          "createStatus": 200,
+          "keyUseStatus": 200,
+          "nonAdminDeleteStatus": 403,
+          "adminForeignDeleteStatus": 200,
+          "rootDeleteStatus": 200,
+          "otherOwnerKeyRemains": true
+        },
+        "restricted-tag-overlap": {
+          "allowed": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json; charset=utf-8"
+            },
+            "body": "{\"addedAt\":1793323840894,\"birthtimeMs\":1793323840428,\"ctimeMs\":1793323840428,\"folderId\":\"0154b653-15a4-4322-9de6-70f2ea746e92\",\"id\":\"1889d733-b845-4e8d-bd35-886d1707462b\",\"ino\":\"253287751\",\"isFile\":false,\"isInvalid\":false,\"isMissing\":false,\"lastScan\":1793323840894,\"libraryFiles\":[{\"addedAt\":1793323840434,\"fileType\":\"audio\",\"ino\":\"253287752\",\"isSupplementary\":null,\"metadata\":{\"birthtimeMs\":1793323840434,\"ctimeMs\":1793323840434,\"ext\":\".m4b\",\"filename\":\"ACL Book.m4b\",\"mtimeMs\":1793323840434,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936},\"updatedAt\":1793323840434}],\"libraryId\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\",\"media\":{\"audioFiles\":[{\"addedAt\":1793323840434,\"bitRate\":1426,\"channelLayout\":\"mono\",\"channels\":1,\"chapters\":[],\"codec\":\"aac\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":3,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"QuickTime / MOV\",\"index\":1,\"ino\":\"253287752\",\"language\":\"und\",\"manuallyVerified\":false,\"metaTags\":{\"tagArtist\":\"ACL Fixture\",\"tagEncoder\":\"Lavf63.1.102\",\"tagTitle\":\"ACL Book\"},\"metadata\":{\"birthtimeMs\":1793323840434,\"ctimeMs\":1793323840434,\"ext\":\".m4b\",\"filename\":\"ACL Book.m4b\",\"mtimeMs\":1793323840434,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936},\"mimeType\":\"audio/mp4\",\"timeBase\":\"1/44100\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":1793323840434}],\"chapters\":[],\"coverPath\":null,\"ebookFile\":null,\"id\":\"d431c890-f7d5-4663-b800-126267932eb8\",\"libraryItemId\":\"1889d733-b845-4e8d-bd35-886d1707462b\",\"metadata\":{\"abridged\":false,\"asin\":null,\"authors\":[{\"id\":\"3f146c95-f755-4400-baef-6d1dcc490ca8\",\"name\":\"ACL Fixture\"}],\"description\":null,\"explicit\":false,\"genres\":[],\"isbn\":null,\"language\":null,\"narrators\":[],\"publishedDate\":null,\"publishedYear\":null,\"publisher\":null,\"series\":[],\"subtitle\":null,\"title\":\"ACL Book\"},\"tags\":[\"tag-a\",\"tag-b\"]},\"mediaType\":\"book\",\"mtimeMs\":1793323840428,\"oldLibraryItemId\":null,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book\",\"relPath\":\"ACL Fixture/ACL Book\",\"scanVersion\":\"2.37.2\",\"updatedAt\":1793323843531}\n"
+          },
+          "denied": {
+            "status": 403,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Forbidden"
+          }
+        },
+        "explicit-content-access": {
+          "denied": {
+            "status": 403,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Forbidden"
+          },
+          "allowed": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json; charset=utf-8"
+            },
+            "body": "{\"addedAt\":1793323843539,\"birthtimeMs\":1793323843539,\"ctimeMs\":1793323843539,\"folderId\":\"c08ad911-9d02-463a-a1d0-053ddca2533d\",\"id\":\"29d374ab-afa5-405a-9650-a15ddb3c0b19\",\"ino\":\"253287786\",\"isFile\":false,\"isInvalid\":false,\"isMissing\":false,\"libraryFiles\":[],\"libraryId\":\"580293e5-53c3-4398-a645-1ed2d1cdb567\",\"media\":{\"autoDownloadEpisodes\":false,\"autoDownloadSchedule\":\"0 * * * *\",\"coverPath\":null,\"episodes\":[],\"id\":\"d53b093e-eb9c-47cf-b6a7-871a69ce3b6b\",\"lastEpisodeCheck\":1793323843539,\"libraryItemId\":\"29d374ab-afa5-405a-9650-a15ddb3c0b19\",\"maxEpisodesToKeep\":0,\"maxNewEpisodesToDownload\":3,\"metadata\":{\"author\":\"ACL Fixture\",\"description\":null,\"explicit\":true,\"feedUrl\":null,\"genres\":[],\"imageUrl\":null,\"itunesArtistId\":null,\"itunesId\":null,\"itunesPageUrl\":null,\"language\":null,\"releaseDate\":null,\"title\":\"Explicit Feed\",\"type\":null},\"size\":0,\"tags\":[]},\"mediaType\":\"podcast\",\"mtimeMs\":1793323843539,\"oldLibraryItemId\":null,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/podcasts/Explicit Feed\",\"relPath\":\"Explicit Feed\",\"scanVersion\":null,\"updatedAt\":1793323843539}\n"
+          }
+        },
+        "inactive-login-and-api-key": {
+          "login": {
+            "status": 401,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Unauthorized"
+          },
+          "apiKeyUse": {
+            "status": 401,
+            "headers": {
+              "content-type": "text/plain; charset=utf-8"
+            },
+            "body": "Unauthorized"
+          }
+        },
+        "restricted-library-listing": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"libraries\":[{\"id\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\",\"name\":\"ACL Books\",\"folders\":[{\"addedAt\":1793323840801,\"fullPath\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books\",\"id\":\"0154b653-15a4-4322-9de6-70f2ea746e92\",\"libraryId\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\"}],\"displayOrder\":1,\"icon\":\"database\",\"mediaType\":\"book\",\"provider\":\"google\",\"settings\":{\"audiobooksOnly\":false,\"autoScanCronExpression\":null,\"coverAspectRatio\":1,\"disableWatcher\":false,\"epubsAllowScriptedContent\":false,\"hideSingleBookSeries\":false,\"markAsFinishedPercentComplete\":null,\"markAsFinishedTimeRemaining\":10,\"metadataPrecedence\":[\"folderStructure\",\"audioMetatags\",\"nfoFile\",\"txtFiles\",\"opfFile\",\"absMetadata\"],\"onlyShowLaterBooksInContinueSeries\":false,\"skipMatchingMediaWithAsin\":true,\"skipMatchingMediaWithIsbn\":true},\"lastScan\":1793323840988,\"lastScanVersion\":\"2.37.2\",\"createdAt\":1793323840801,\"lastUpdate\":1793323840801}]}"
+        },
+        "malformed-permissions-create": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"user\":{\"bookmarks\":[],\"createdAt\":1793323843578,\"email\":null,\"hasOpenIDLink\":false,\"id\":\"c3439871-c153-4a0e-aa44-4eaf3d2af873\",\"isActive\":false,\"isLocked\":false,\"itemTagsSelected\":[],\"lastSeen\":null,\"librariesAccessible\":[],\"mediaProgress\":[],\"permissions\":{\"accessAllLibraries\":true,\"accessAllTags\":true,\"accessExplicitContent\":false,\"createEreader\":false,\"delete\":false,\"download\":true,\"selectedTagsNotAccessible\":false,\"update\":false,\"upload\":false},\"seriesHideFromContinueListening\":[],\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3OTMzMjM4NDMsInVzZXJJZCI6ImMzNDM5ODcxLWMxNTMtNGEwZS1hYTQ0LTRlYWYzZDJhZjg3MyIsInVzZXJuYW1lIjoiYmFkLXBlcm1pc3Npb25zIn0.Sd-wmtkMi-L2mq3_XoDi9awSSDR8KXoCT1oS4iJBgGI\",\"type\":\"user\",\"username\":\"bad-permissions\"}}"
+        },
+        "ordinary-create-user": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "ordinary-update-root": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "admin-delete-root": {
+          "status": 404,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Not Found"
+        },
+        "root-update-restricted": {
+          "status": 404,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Not Found"
+        },
+        "ordinary-delete-self": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        }
+      }
+    }
+  ],
+  "matrix": [
+    {
+      "id": "api-key-owner-create-use-delete-other",
+      "status": "pass",
+      "source": [
+        "server/controllers/ApiKeyController.js:50-103, 112-170, 174-220"
+      ],
+      "node": {
+        "createStatus": 200,
+        "keyUseStatus": 200,
+        "nonAdminDeleteStatus": 403,
+        "adminForeignDeleteStatus": 200,
+        "rootDeleteStatus": 200,
+        "otherOwnerKeyRemains": true
+      },
+      "go": {
+        "createStatus": 200,
+        "keyUseStatus": 200,
+        "nonAdminDeleteStatus": 403,
+        "adminForeignDeleteStatus": 200,
+        "rootDeleteStatus": 200,
+        "otherOwnerKeyRemains": true
+      }
+    },
+    {
+      "id": "restricted-tag-overlap",
+      "status": "pass",
+      "source": [
+        "server/models/User.js:658-682"
+      ],
+      "node": {
+        "allowed": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"id\":\"54420ce5-be8d-4522-9575-99339f883533\",\"ino\":\"253287605\",\"oldLibraryItemId\":null,\"libraryId\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"folderId\":\"45e101a5-ce96-4850-aaa9-49429b03fd8e\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book\",\"relPath\":\"ACL Fixture/ACL Book\",\"isFile\":false,\"mtimeMs\":1793323836439,\"ctimeMs\":1793323836439,\"birthtimeMs\":1793323836363,\"addedAt\":1793323837583,\"updatedAt\":1793323840249,\"lastScan\":1793323837583,\"scanVersion\":\"2.37.2\",\"isMissing\":false,\"isInvalid\":false,\"mediaType\":\"book\",\"media\":{\"id\":\"b47c3c58-1c5b-4322-ab57-102d6028013f\",\"libraryItemId\":\"54420ce5-be8d-4522-9575-99339f883533\",\"metadata\":{\"title\":\"ACL Book\",\"subtitle\":null,\"authors\":[{\"id\":\"30c1c6b6-51e3-4757-80ed-a56567ee920c\",\"name\":\"ACL Fixture\"}],\"narrators\":[],\"series\":[],\"genres\":[],\"publishedYear\":null,\"publishedDate\":null,\"publisher\":null,\"description\":null,\"isbn\":null,\"asin\":null,\"language\":null,\"explicit\":false,\"abridged\":false},\"coverPath\":null,\"tags\":[\"tag-a\",\"tag-b\"],\"audioFiles\":[{\"index\":1,\"ino\":\"253287606\",\"metadata\":{\"filename\":\"ACL Book.m4b\",\"ext\":\".m4b\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936,\"mtimeMs\":1793323836449,\"ctimeMs\":1793323836449,\"birthtimeMs\":1793323836439},\"addedAt\":1793323837582,\"updatedAt\":1793323837582,\"trackNumFromMeta\":null,\"discNumFromMeta\":null,\"trackNumFromFilename\":null,\"discNumFromFilename\":null,\"manuallyVerified\":false,\"exclude\":false,\"error\":null,\"format\":\"QuickTime / MOV\",\"duration\":3,\"bitRate\":1426,\"language\":\"und\",\"codec\":\"aac\",\"timeBase\":\"1/44100\",\"channels\":1,\"channelLayout\":\"mono\",\"chapters\":[],\"embeddedCoverArt\":null,\"metaTags\":{\"tagArtist\":\"ACL Fixture\",\"tagTitle\":\"ACL Book\",\"tagEncoder\":\"Lavf63.1.102\"},\"mimeType\":\"audio/mp4\"}],\"chapters\":[],\"ebookFile\":null},\"libraryFiles\":[{\"ino\":\"253287606\",\"metadata\":{\"filename\":\"ACL Book.m4b\",\"ext\":\".m4b\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936,\"mtimeMs\":1793323836449,\"ctimeMs\":1793323836449,\"birthtimeMs\":1793323836439},\"isSupplementary\":null,\"addedAt\":1793323837470,\"updatedAt\":1793323837470,\"fileType\":\"audio\"}]}"
+        },
+        "denied": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        }
+      },
+      "go": {
+        "allowed": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"addedAt\":1793323840894,\"birthtimeMs\":1793323840428,\"ctimeMs\":1793323840428,\"folderId\":\"0154b653-15a4-4322-9de6-70f2ea746e92\",\"id\":\"1889d733-b845-4e8d-bd35-886d1707462b\",\"ino\":\"253287751\",\"isFile\":false,\"isInvalid\":false,\"isMissing\":false,\"lastScan\":1793323840894,\"libraryFiles\":[{\"addedAt\":1793323840434,\"fileType\":\"audio\",\"ino\":\"253287752\",\"isSupplementary\":null,\"metadata\":{\"birthtimeMs\":1793323840434,\"ctimeMs\":1793323840434,\"ext\":\".m4b\",\"filename\":\"ACL Book.m4b\",\"mtimeMs\":1793323840434,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936},\"updatedAt\":1793323840434}],\"libraryId\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\",\"media\":{\"audioFiles\":[{\"addedAt\":1793323840434,\"bitRate\":1426,\"channelLayout\":\"mono\",\"channels\":1,\"chapters\":[],\"codec\":\"aac\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":3,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"QuickTime / MOV\",\"index\":1,\"ino\":\"253287752\",\"language\":\"und\",\"manuallyVerified\":false,\"metaTags\":{\"tagArtist\":\"ACL Fixture\",\"tagEncoder\":\"Lavf63.1.102\",\"tagTitle\":\"ACL Book\"},\"metadata\":{\"birthtimeMs\":1793323840434,\"ctimeMs\":1793323840434,\"ext\":\".m4b\",\"filename\":\"ACL Book.m4b\",\"mtimeMs\":1793323840434,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book/ACL Book.m4b\",\"relPath\":\"ACL Book.m4b\",\"size\":1936},\"mimeType\":\"audio/mp4\",\"timeBase\":\"1/44100\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":1793323840434}],\"chapters\":[],\"coverPath\":null,\"ebookFile\":null,\"id\":\"d431c890-f7d5-4663-b800-126267932eb8\",\"libraryItemId\":\"1889d733-b845-4e8d-bd35-886d1707462b\",\"metadata\":{\"abridged\":false,\"asin\":null,\"authors\":[{\"id\":\"3f146c95-f755-4400-baef-6d1dcc490ca8\",\"name\":\"ACL Fixture\"}],\"description\":null,\"explicit\":false,\"genres\":[],\"isbn\":null,\"language\":null,\"narrators\":[],\"publishedDate\":null,\"publishedYear\":null,\"publisher\":null,\"series\":[],\"subtitle\":null,\"title\":\"ACL Book\"},\"tags\":[\"tag-a\",\"tag-b\"]},\"mediaType\":\"book\",\"mtimeMs\":1793323840428,\"oldLibraryItemId\":null,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books/ACL Fixture/ACL Book\",\"relPath\":\"ACL Fixture/ACL Book\",\"scanVersion\":\"2.37.2\",\"updatedAt\":1793323843531}\n"
+        },
+        "denied": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        }
+      }
+    },
+    {
+      "id": "explicit-content-access",
+      "status": "pass",
+      "source": [
+        "server/models/User.js:675-682",
+        "server/controllers/PodcastController.js:560-582"
+      ],
+      "node": {
+        "denied": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "allowed": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"id\":\"ec34208c-8319-4a30-a1cc-24174a332593\",\"ino\":\"253287736\",\"oldLibraryItemId\":null,\"libraryId\":\"a22a75f1-8102-4ace-a936-574f9caf2627\",\"folderId\":\"950b94e3-f544-495b-8524-efbc48b801e6\",\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/podcasts/Explicit Feed\",\"relPath\":\"Explicit Feed\",\"isFile\":false,\"mtimeMs\":1793323840268,\"ctimeMs\":1793323840268,\"birthtimeMs\":1793323840268,\"addedAt\":1793323840270,\"updatedAt\":1793323840270,\"scanVersion\":null,\"isMissing\":false,\"isInvalid\":false,\"mediaType\":\"podcast\",\"media\":{\"id\":\"d5482058-fb88-49c5-9732-6ed4f42a00fe\",\"libraryItemId\":\"ec34208c-8319-4a30-a1cc-24174a332593\",\"metadata\":{\"title\":\"Explicit Feed\",\"author\":\"ACL Fixture\",\"description\":null,\"releaseDate\":null,\"genres\":[],\"feedUrl\":null,\"imageUrl\":null,\"itunesPageUrl\":null,\"itunesId\":null,\"itunesArtistId\":null,\"explicit\":true,\"language\":null,\"type\":null},\"coverPath\":null,\"tags\":[],\"episodes\":[],\"autoDownloadEpisodes\":false,\"autoDownloadSchedule\":\"0 * * * *\",\"lastEpisodeCheck\":1793323840269,\"maxEpisodesToKeep\":0,\"maxNewEpisodesToDownload\":3},\"libraryFiles\":[]}"
+        }
+      },
+      "go": {
+        "denied": {
+          "status": 403,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Forbidden"
+        },
+        "allowed": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json; charset=utf-8"
+          },
+          "body": "{\"addedAt\":1793323843539,\"birthtimeMs\":1793323843539,\"ctimeMs\":1793323843539,\"folderId\":\"c08ad911-9d02-463a-a1d0-053ddca2533d\",\"id\":\"29d374ab-afa5-405a-9650-a15ddb3c0b19\",\"ino\":\"253287786\",\"isFile\":false,\"isInvalid\":false,\"isMissing\":false,\"libraryFiles\":[],\"libraryId\":\"580293e5-53c3-4398-a645-1ed2d1cdb567\",\"media\":{\"autoDownloadEpisodes\":false,\"autoDownloadSchedule\":\"0 * * * *\",\"coverPath\":null,\"episodes\":[],\"id\":\"d53b093e-eb9c-47cf-b6a7-871a69ce3b6b\",\"lastEpisodeCheck\":1793323843539,\"libraryItemId\":\"29d374ab-afa5-405a-9650-a15ddb3c0b19\",\"maxEpisodesToKeep\":0,\"maxNewEpisodesToDownload\":3,\"metadata\":{\"author\":\"ACL Fixture\",\"description\":null,\"explicit\":true,\"feedUrl\":null,\"genres\":[],\"imageUrl\":null,\"itunesArtistId\":null,\"itunesId\":null,\"itunesPageUrl\":null,\"language\":null,\"releaseDate\":null,\"title\":\"Explicit Feed\",\"type\":null},\"size\":0,\"tags\":[]},\"mediaType\":\"podcast\",\"mtimeMs\":1793323843539,\"oldLibraryItemId\":null,\"path\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/podcasts/Explicit Feed\",\"relPath\":\"Explicit Feed\",\"scanVersion\":null,\"updatedAt\":1793323843539}\n"
+        }
+      }
+    },
+    {
+      "id": "inactive-login-and-api-key",
+      "status": "pass",
+      "source": [
+        "server/auth/LocalAuthStrategy.js:51-62",
+        "server/auth/TokenManager.js:282-323"
+      ],
+      "node": {
+        "login": {
+          "status": 401,
+          "headers": {},
+          "body": "Unauthorized"
+        },
+        "apiKeyUse": {
+          "status": 401,
+          "headers": {},
+          "body": "Unauthorized"
+        }
+      },
+      "go": {
+        "login": {
+          "status": 401,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Unauthorized"
+        },
+        "apiKeyUse": {
+          "status": 401,
+          "headers": {
+            "content-type": "text/plain; charset=utf-8"
+          },
+          "body": "Unauthorized"
+        }
+      }
+    },
+    {
+      "id": "restricted-library-listing",
+      "status": "pass",
+      "source": [
+        "server/controllers/LibraryController.js:191-192",
+        "server/models/User.js:646-650,675-682"
+      ],
+      "node": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": "{\"libraries\":[{\"id\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"name\":\"ACL Books\",\"folders\":[{\"id\":\"45e101a5-ce96-4850-aaa9-49429b03fd8e\",\"fullPath\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/node/media/books\",\"libraryId\":\"fe3cfd41-f91c-48b9-b1a0-a50897322e7f\",\"addedAt\":1793323837452}],\"displayOrder\":1,\"icon\":\"database\",\"mediaType\":\"book\",\"provider\":\"google\",\"settings\":{\"coverAspectRatio\":1,\"disableWatcher\":false,\"autoScanCronExpression\":null,\"skipMatchingMediaWithAsin\":true,\"skipMatchingMediaWithIsbn\":true,\"audiobooksOnly\":false,\"epubsAllowScriptedContent\":false,\"hideSingleBookSeries\":false,\"onlyShowLaterBooksInContinueSeries\":false,\"metadataPrecedence\":[\"folderStructure\",\"audioMetatags\",\"nfoFile\",\"txtFiles\",\"opfFile\",\"absMetadata\"],\"markAsFinishedPercentComplete\":null,\"markAsFinishedTimeRemaining\":10},\"lastScan\":1793323837593,\"lastScanVersion\":\"2.37.2\",\"createdAt\":1793323837450,\"lastUpdate\":1793323837593}]}"
+      },
+      "go": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": "{\"libraries\":[{\"id\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\",\"name\":\"ACL Books\",\"folders\":[{\"addedAt\":1793323840801,\"fullPath\":\"/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w5-final5/go/media/books\",\"id\":\"0154b653-15a4-4322-9de6-70f2ea746e92\",\"libraryId\":\"9803460d-0441-4a26-8c2b-2d7d432057a0\"}],\"displayOrder\":1,\"icon\":\"database\",\"mediaType\":\"book\",\"provider\":\"google\",\"settings\":{\"audiobooksOnly\":false,\"autoScanCronExpression\":null,\"coverAspectRatio\":1,\"disableWatcher\":false,\"epubsAllowScriptedContent\":false,\"hideSingleBookSeries\":false,\"markAsFinishedPercentComplete\":null,\"markAsFinishedTimeRemaining\":10,\"metadataPrecedence\":[\"folderStructure\",\"audioMetatags\",\"nfoFile\",\"txtFiles\",\"opfFile\",\"absMetadata\"],\"onlyShowLaterBooksInContinueSeries\":false,\"skipMatchingMediaWithAsin\":true,\"skipMatchingMediaWithIsbn\":true},\"lastScan\":1793323840988,\"lastScanVersion\":\"2.37.2\",\"createdAt\":1793323840801,\"lastUpdate\":1793323840801}]}"
+      }
+    },
+    {
+      "id": "malformed-permissions-create",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:116-179"
+      ],
+      "node": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": "{\"user\":{\"id\":\"c9f96684-afd4-4ee2-bc06-ad643beec292\",\"username\":\"bad-permissions\",\"email\":null,\"type\":\"user\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjOWY5NjY4NC1hZmQ0LTRlZTItYmMwNi1hZDY0M2JlZWMyOTIiLCJ1c2VybmFtZSI6ImJhZC1wZXJtaXNzaW9ucyIsImlhdCI6MTc5MzMyMzg0MH0.1v_Gd8lzOhq01kp9vd7ZgwFWW8Q54zzzh5dcmLkm3Rg\",\"mediaProgress\":[],\"seriesHideFromContinueListening\":[],\"bookmarks\":[],\"isActive\":false,\"isLocked\":false,\"lastSeen\":null,\"createdAt\":1793323840352,\"permissions\":{\"download\":true,\"update\":false,\"delete\":false,\"upload\":false,\"createEreader\":false,\"accessAllLibraries\":true,\"accessAllTags\":true,\"accessExplicitContent\":false,\"selectedTagsNotAccessible\":false},\"librariesAccessible\":[],\"itemTagsSelected\":[],\"hasOpenIDLink\":false}}"
+      },
+      "go": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": "{\"user\":{\"bookmarks\":[],\"createdAt\":1793323843578,\"email\":null,\"hasOpenIDLink\":false,\"id\":\"c3439871-c153-4a0e-aa44-4eaf3d2af873\",\"isActive\":false,\"isLocked\":false,\"itemTagsSelected\":[],\"lastSeen\":null,\"librariesAccessible\":[],\"mediaProgress\":[],\"permissions\":{\"accessAllLibraries\":true,\"accessAllTags\":true,\"accessExplicitContent\":false,\"createEreader\":false,\"delete\":false,\"download\":true,\"selectedTagsNotAccessible\":false,\"update\":false,\"upload\":false},\"seriesHideFromContinueListening\":[],\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3OTMzMjM4NDMsInVzZXJJZCI6ImMzNDM5ODcxLWMxNTMtNGEwZS1hYTQ0LTRlYWYzZDJhZjg3MyIsInVzZXJuYW1lIjoiYmFkLXBlcm1pc3Npb25zIn0.Sd-wmtkMi-L2mq3_XoDi9awSSDR8KXoCT1oS4iJBgGI\",\"type\":\"user\",\"username\":\"bad-permissions\"}}"
+      }
+    },
+    {
+      "id": "ordinary-create-user",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:116-193",
+        "server/routers/ApiRouter.js:133"
+      ],
+      "node": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      },
+      "go": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      }
+    },
+    {
+      "id": "ordinary-update-root",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:205-215",
+        "server/routers/ApiRouter.js:137"
+      ],
+      "node": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      },
+      "go": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      }
+    },
+    {
+      "id": "admin-delete-root",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:357-400",
+        "server/models/User.js:535-539"
+      ],
+      "node": {
+        "status": 404,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Not Found"
+      },
+      "go": {
+        "status": 404,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Not Found"
+      }
+    },
+    {
+      "id": "root-update-restricted",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:205-215, 231-322"
+      ],
+      "node": {
+        "status": 404,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Not Found"
+      },
+      "go": {
+        "status": 404,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Not Found"
+      }
+    },
+    {
+      "id": "ordinary-delete-self",
+      "status": "pass",
+      "source": [
+        "server/controllers/UserController.js:357-400",
+        "server/models/User.js:535-539",
+        "server/routers/ApiRouter.js:138"
+      ],
+      "node": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      },
+      "go": {
+        "status": 403,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8"
+        },
+        "body": "Forbidden"
+      }
+    }
+  ],
+  "divergences": [],
+  "setupFailures": [],
+  "checksRun": [
+    "CGO_ENABLED=0 Go build",
+    "isolated Node 22 and Go fresh initialization",
+    "ffmpeg book fixture",
+    "user creation/logins",
+    "HTTP probes per side"
+  ],
+  "result": "PASS"
+}

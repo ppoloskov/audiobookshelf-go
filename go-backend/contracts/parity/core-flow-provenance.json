@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "report": "core-flow-report.json",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "generatedAt": "2026-10-28T09:09:32.779Z",
+  "repositoryHead": "8ed33a58d3ab24d2ee13da7b6670f824e493753f",
+  "reference": {
+    "implementation": "Audiobookshelf Node server built from checked-out source using npm run build:server",
+    "command": "node go-backend/tools/parity/create-fixture.cjs <fixture-dir>; node go-backend/tools/parity/run-local.cjs --fixture <fixture-dir>/fixture-manifest.json --go-bin <go-backend-binary> --out <fixture-dir>/core-flow-report.json",
+    "nodeVersion": "v24.22.1",
+    "npmVersion": "11.9.0"
+  },
+  "candidate": {
+    "implementation": "CGO-free Go backend command",
+    "goVersion": "go version go1.26.1 linux/amd64",
+    "buildMode": "CGO_ENABLED=0"
+  },
+  "fixture": {
+    "source": "Created through the actual Node server and APIs; two independent database/metadata copies were used.",
+    "media": "Generated synthetic two-second silent audio only.",
+    "credentials": "Fixed fixture credentials are omitted from this report and were not used outside the disposable fixture.",
+    "location": "Ephemeral runtime fixture; only this sanitized report and provenance are retained in contracts."
+  },
+  "normalization": {
+    "policy": "Only explicit generated token/time/path/session UUID fields are normalized, after required presence and type/format validation. All other deterministic response fields, headers, status codes, and content bodies remain compared.",
+    "requiredFields": {
+      "loginRefreshReaderLogin": [
+        "user.accessToken",
+        "user.refreshToken",
+        "user.token",
+        "user.lastSeen",
+        "serverSettings.backupPath"
+      ],
+      "authorize": [
+        "user.lastSeen",
+        "user.token",
+        "serverSettings.backupPath"
+      ],
+      "progressRead": [
+        "lastUpdate",
+        "startedAt",
+        "finishedAt"
+      ],
+      "playbackSession": [
+        "id",
+        "startedAt",
+        "updatedAt",
+        "deviceInfo.id",
+        "audioTracks[].contentUrl contains session UUID"
+      ]
+    }
+  },
+  "scripts": {
+    "go-backend/tools/parity/create-fixture.cjs": "19141b5077a58b4077d45c12460a3c0a16ae0c94959f363f7f689b238d123139",
+    "go-backend/tools/parity/run-local.cjs": "7eda96698e0af9c409e3ef0211bad15135a18949ad8aa6c59560c020d00e8971",
+    "go-backend/tools/parity/differential.cjs": "c068b1c26ef12ba91d0faadc22d1f031de5d7257c0d080c8efaf08d626b869b0",
+    "go-backend/contracts/parity/differential-cases.json": "eb08d453dad419cedf0d7e87f6090d477040c0e7d59da20ae942e78f976db664",
+    "go-backend/tools/parity/README.md": "bce05cf4edaee72a0556fd18f560421a99f3fd0aef8eabe0636050957ec34bef"
+  },
+  "limitations": [
+    "These 17 cases establish only the listed request shapes and fixture state; they do not verify every route or authorization branch.",
+    "The source-inspected route ledger contains candidates and remains unverified unless an executable case is added and passes.",
+    "Error paths, pagination beyond the fixture, scanner jobs, CRUD lifecycle operations, and concurrent load are outside this core-flow run."
+  ]
+}

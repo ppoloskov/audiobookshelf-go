@@ -1,0 +1,19 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sqliteUserVersion": 0,
+  "tables": [
+    {
+      "table": "migrationsMeta",
+      "rows": [
+        {
+          "key": "version",
+          "value": "2.37.2"
+        },
+        {
+          "key": "maxVersion",
+          "value": "2.37.2"
+        }
+      ]
+    }
+  ]
+}

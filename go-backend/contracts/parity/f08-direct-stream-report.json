@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "casesFile": "go-backend/contracts/parity/differential-cases.json",
+  "fixtureUserId": "86690140-9b04-4c35-a4a6-122a3bd638af",
+  "generatedAt": "2026-10-30T11:27:23.210Z",
+  "note": "Focused differential: only requested case IDs are included; this is not a full-suite result.",
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "direct-file-range",
+      "passed": true,
+      "referenceStatus": 206,
+      "goStatus": 206,
+      "referenceHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1600",
+        "accept-ranges": "bytes",
+        "content-length": "128",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "goHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1600",
+        "accept-ranges": "bytes",
+        "content-length": "128",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "referenceBody": "AAAAHGZ0eXBNNEEgAAACAE00QSBpc29taXNvMgAAAAhmcmVlAAABd21kYXTcAExhdmM2My4xLjEwMgACMEAOARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwE=",
+      "goBody": "AAAAHGZ0eXBNNEEgAAACAE00QSBpc29taXNvMgAAAAhmcmVlAAABd21kYXTcAExhdmM2My4xLjEwMgACMEAOARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwEYIAcBGCAHARggBwE=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "direct-file-head-range",
+      "passed": true,
+      "referenceStatus": 206,
+      "goStatus": 206,
+      "referenceHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1600",
+        "accept-ranges": "bytes",
+        "content-length": "128",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "goHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1600",
+        "accept-ranges": "bytes",
+        "content-length": "128",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "referenceBody": "",
+      "goBody": "",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "direct-file-invalid-range",
+      "passed": true,
+      "referenceStatus": 416,
+      "goStatus": 416,
+      "referenceHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-range": "bytes */1600",
+        "accept-ranges": "bytes",
+        "content-length": "148",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "goHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-range": "bytes */1600",
+        "accept-ranges": "bytes",
+        "content-length": "148",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "referenceBody": "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkVycm9yPC90aXRsZT4KPC9oZWFkPgo8Ym9keT4KPHByZT5SYW5nZSBOb3QgU2F0aXNmaWFibGU8L3ByZT4KPC9ib2R5Pgo8L2h0bWw+Cg==",
+      "goBody": "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPHRpdGxlPkVycm9yPC90aXRsZT4KPC9oZWFkPgo8Ym9keT4KPHByZT5SYW5nZSBOb3QgU2F0aXNmaWFibGU8L3ByZT4KPC9ib2R5Pgo8L2h0bWw+Cg==",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "direct-file-head-invalid-range",
+      "passed": true,
+      "referenceStatus": 416,
+      "goStatus": 416,
+      "referenceHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-range": "bytes */1600",
+        "accept-ranges": "bytes",
+        "content-length": "148",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "goHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-range": "bytes */1600",
+        "accept-ranges": "bytes",
+        "content-length": "148",
+        "last-modified": "Fri, 30 Oct 2026 11:27:01 GMT",
+        "etag": "W/\"640-1a18c902b8e\""
+      },
+      "referenceBody": "",
+      "goBody": "",
+      "differences": [],
+      "notes": []
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "sub-authorization-ownership-w5",
+  "parent": "userapi",
+  "kind": "behaviour",
+  "scope": "in",
+  "status": "implemented",
+  "contract": "W5 differential subset: ordinary/admin/root user CRUD gates, restricted library and tag visibility, explicit-content access, inactive login/API-key behavior, malformed permission input, and API-key route gate/ownership behavior.",
+  "source": [
+    "server/models/User.js:646-682",
+    "server/controllers/UserController.js",
+    "server/controllers/ApiKeyController.js",
+    "server/auth/LocalAuthStrategy.js",
+    "server/auth/TokenManager.js"
+  ],
+  "implementation": [
+    "go-backend/internal/userapi/",
+    "go-backend/internal/catalog/handler.go"
+  ],
+  "cases": {
+    "normal": "verified",
+    "error": "verified",
+    "edge": "verified"
+  },
+  "invariants": [
+    {
+      "id": "INV-W5-ACL-ITEM-001",
+      "class": "error",
+      "contract": "Direct item detail applies library, explicit-content, and selected-tag access checks; selected-tag allowlists use any overlap and denied requests match upstream status/body.",
+      "status": "verified",
+      "source": ["server/models/User.js:658-682"],
+      "tests": ["go-backend/internal/catalog/handler_test.go:TestItemDetailEnforcesExplicitAndTagPermissions"],
+      "evidence": ["go-backend/contracts/parity/acl-differential-report.json#restricted-tag-overlap", "go-backend/contracts/parity/acl-differential-report.json#explicit-content-access"],
+      "exceptions": []
+    },
+    {
+      "id": "INV-W5-ACL-USER-001",
+      "class": "error",
+      "contract": "W5 sampled user CRUD authorization outcomes and malformed-permission creation behavior match the pinned server.",
+      "status": "verified",
+      "source": ["server/controllers/UserController.js"],
+      "tests": ["go-backend/tools/parity/acl-differential.cjs"],
+      "evidence": ["go-backend/contracts/parity/acl-differential-report.json"],
+      "exceptions": []
+    }
+  ],
+  "stateful": true,
+  "state_scenarios": {
+    "initial": "verified",
+    "repeat": "unverified",
+    "changed": "verified",
+    "force": "not_applicable",
+    "failure": "verified"
+  },
+  "tests": [
+    "go-backend/tools/parity/acl-differential.cjs",
+    "go-backend/internal/catalog/handler_test.go"
+  ],
+  "evidence": [
+    "go-backend/contracts/parity/acl-differential-report.json (fresh independent Node/Go fixture run: all 11 registered cases pass, zero divergences; includes successful API-key use and cross-user delete behavior)",
+    "go-backend/internal/catalog/handler_test.go:TestItemDetailEnforcesExplicitAndTagPermissions"
+  ],
+  "exceptions": [
+    "This record covers only the named W5 subset, not every authorization route or ownership combination."
+  ]
+}

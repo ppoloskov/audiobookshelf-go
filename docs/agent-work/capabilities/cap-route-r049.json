@@ -1,0 +1,25 @@
+{
+ "id": "route-r049",
+ "parent": "http/scanner",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /items/batch/scan candidate recorded from server/routers/ApiRouter.js:106. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:106"
+ ],
+ "implementation": [
+  "go-backend/internal/scanner/scanner.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/scanner/scanner.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

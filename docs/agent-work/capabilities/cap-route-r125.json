@@ -1,0 +1,47 @@
+{
+ "id": "route-r125",
+ "parent": "http/backup",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /backups/:id/download candidate recorded from server/routers/ApiRouter.js:203. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:203"
+ ],
+ "implementation": [
+  "go-backend/internal/backup/backup.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/backup/backup.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#backup-missing-download (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R125-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /backups/:id/download via differential case(s) backup-missing-download: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: errors.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:203"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#backup-missing-download"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

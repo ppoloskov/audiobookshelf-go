@@ -1,0 +1,32 @@
+{
+  "abridged": false,
+  "asin": null,
+  "authors": [],
+  "chapters": [
+    {
+      "end": 1,
+      "id": 0,
+      "start": 0,
+      "title": "a"
+    },
+    {
+      "end": 2,
+      "id": 1,
+      "start": 1,
+      "title": "b"
+    }
+  ],
+  "description": null,
+  "explicit": false,
+  "genres": [],
+  "isbn": null,
+  "language": null,
+  "narrators": [],
+  "publishedDate": null,
+  "publishedYear": null,
+  "publisher": null,
+  "series": [],
+  "subtitle": null,
+  "tags": [],
+  "title": "Book"
+}

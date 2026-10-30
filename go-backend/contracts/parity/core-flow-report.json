@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "sanitized upstream differential run",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "id": "login",
+      "method": "POST",
+      "route": "/login",
+      "category": "authentication",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{Source,ereaderDevices,serverSettings,user,userDefaultLibraryId}",
+      "referenceBodySha256": "1c659abdcf7de1a4731be8cd6d32f0abf20cf3ee8d74550f282d46bdf776a779",
+      "goBodySha256": "1c659abdcf7de1a4731be8cd6d32f0abf20cf3ee8d74550f282d46bdf776a779",
+      "differences": 0
+    },
+    {
+      "id": "refresh",
+      "method": "POST",
+      "route": "/auth/refresh",
+      "category": "authentication",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{Source,ereaderDevices,serverSettings,user,userDefaultLibraryId}",
+      "referenceBodySha256": "1c659abdcf7de1a4731be8cd6d32f0abf20cf3ee8d74550f282d46bdf776a779",
+      "goBodySha256": "1c659abdcf7de1a4731be8cd6d32f0abf20cf3ee8d74550f282d46bdf776a779",
+      "differences": 0
+    },
+    {
+      "id": "reader-login",
+      "method": "POST",
+      "route": "/login",
+      "category": "authentication",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{Source,ereaderDevices,serverSettings,user,userDefaultLibraryId}",
+      "referenceBodySha256": "94074842e0eee4e559cfbe11d9649f4d3e43ffaad42ead6abf240638289f5bd6",
+      "goBodySha256": "94074842e0eee4e559cfbe11d9649f4d3e43ffaad42ead6abf240638289f5bd6",
+      "differences": 0
+    },
+    {
+      "id": "authorize",
+      "method": "POST",
+      "route": "/api/authorize",
+      "category": "authentication",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{Source,ereaderDevices,serverSettings,user,userDefaultLibraryId}",
+      "referenceBodySha256": "3e01086d47d817604c47241a78d160e28c08f00b79d43276ec1bf8455c2971d7",
+      "goBodySha256": "3e01086d47d817604c47241a78d160e28c08f00b79d43276ec1bf8455c2971d7",
+      "differences": 0
+    },
+    {
+      "id": "libraries",
+      "method": "GET",
+      "route": "/api/libraries",
+      "category": "catalog",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{libraries}",
+      "referenceBodySha256": "1c21e5833a4db45fa54eee2aa6862f146cabd4ff8f7fd50925f96edf6d32db2b",
+      "goBodySha256": "1c21e5833a4db45fa54eee2aa6862f146cabd4ff8f7fd50925f96edf6d32db2b",
+      "differences": 0
+    },
+    {
+      "id": "libraries-restricted-user",
+      "method": "GET",
+      "route": "/api/libraries",
+      "category": "permissions",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{libraries}",
+      "referenceBodySha256": "f87b261eb19a10790aa242fdb00ef66c1903d50f83dd5cff21394f5b63fae9de",
+      "goBodySha256": "f87b261eb19a10790aa242fdb00ef66c1903d50f83dd5cff21394f5b63fae9de",
+      "differences": 0
+    },
+    {
+      "id": "book-library-items",
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?limit=10&page=0",
+      "category": "catalog",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{collapseseries,include,limit,mediaType,minified,offset,page,results,sortDesc,total}",
+      "referenceBodySha256": "31fcc4dc2caaceaa2cb716b05fc0a48b71f52b783a86025fffe600ff692931db",
+      "goBodySha256": "31fcc4dc2caaceaa2cb716b05fc0a48b71f52b783a86025fffe600ff692931db",
+      "differences": 0
+    },
+    {
+      "id": "book-library-items-minified",
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?limit=10&page=0&minified=1",
+      "category": "catalog",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{collapseseries,include,limit,mediaType,minified,offset,page,results,sortDesc,total}",
+      "referenceBodySha256": "6ac72a930b3fc3281c14e52de56b95184d2989c841c744fb25c10cc3a2037a90",
+      "goBodySha256": "6ac72a930b3fc3281c14e52de56b95184d2989c841c744fb25c10cc3a2037a90",
+      "differences": 0
+    },
+    {
+      "id": "book-item-detail",
+      "method": "GET",
+      "route": "/api/items/{bookItemId}",
+      "category": "catalog",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{addedAt,birthtimeMs,ctimeMs,folderId,id,ino,isFile,isInvalid,isMissing,lastScan,libraryFiles,libraryId,media,mediaType,mtimeMs,oldLibraryItemId,path,relPath,scanVersion,updatedAt}",
+      "referenceBodySha256": "e6e5e06caf8f6c7a40f007029343ce2d109d507a446181b764cbecf6175e3f26",
+      "goBodySha256": "e6e5e06caf8f6c7a40f007029343ce2d109d507a446181b764cbecf6175e3f26",
+      "differences": 0
+    },
+    {
+      "id": "direct-file-range",
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}",
+      "category": "playback",
+      "passed": true,
+      "referenceStatus": 206,
+      "goStatus": 206,
+      "referenceHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1603",
+        "accept-ranges": "bytes"
+      },
+      "goHeaders": {
+        "content-type": "audio/mp4",
+        "content-range": "bytes 0-127/1603",
+        "accept-ranges": "bytes"
+      },
+      "normalizedBodyShape": "string",
+      "referenceBodySha256": "c591452921ec0390e768aa69b6af339c2d261e759f1a6f2390b8e55cde4313a3",
+      "goBodySha256": "c591452921ec0390e768aa69b6af339c2d261e759f1a6f2390b8e55cde4313a3",
+      "differences": 0
+    },
+    {
+      "id": "progress-write",
+      "method": "PATCH",
+      "route": "/api/me/progress/{bookItemId}",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "normalizedBodyShape": "string",
+      "referenceBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "goBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "differences": 0
+    },
+    {
+      "id": "progress-read",
+      "method": "GET",
+      "route": "/api/me/progress/{bookItemId}",
+      "category": "progress",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{currentTime,duration,ebookLocation,ebookProgress,episodeId,finishedAt,hideFromContinueListening,id,isFinished,lastUpdate,libraryItemId,mediaItemId,mediaItemType,progress,startedAt,userId}",
+      "referenceBodySha256": "865d4329fd16e76390034440db74916af316cd76fdf07f7137908a770234b945",
+      "goBodySha256": "865d4329fd16e76390034440db74916af316cd76fdf07f7137908a770234b945",
+      "differences": 0
+    },
+    {
+      "id": "playback-session",
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/play",
+      "category": "playback",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "normalizedBodyShape": "object{audioTracks,bookId,chapters,coverPath,currentTime,date,dayOfWeek,deviceInfo,displayAuthor,displayTitle,duration,episodeId,id,libraryId,libraryItem,libraryItemId,mediaMetadata,mediaPlayer,mediaType,playMethod,serverVersion,startTime,startedAt,timeListening,updatedAt,userId}",
+      "referenceBodySha256": "d62ee6d94bb226d885b7d86d345303c2f25273cdbb6c9dd4e774ffaac1e929d5",
+      "goBodySha256": "d62ee6d94bb226d885b7d86d345303c2f25273cdbb6c9dd4e774ffaac1e929d5",
+      "differences": 0
+    },
+    {
+      "id": "hls-playlist",
+      "method": "GET",
+      "route": "/hls/{sessionId}/output.m3u8",
+      "category": "playback",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "accept-ranges": "bytes"
+      },
+      "goHeaders": {
+        "content-type": "application/vnd.apple.mpegurl",
+        "accept-ranges": "bytes"
+      },
+      "normalizedBodyShape": "string",
+      "referenceBodySha256": "cbef55ae0c19f1f2c0c8b89994b8dcbbe4a52cf2ca7a884a07e9b3095d940b78",
+      "goBodySha256": "cbef55ae0c19f1f2c0c8b89994b8dcbbe4a52cf2ca7a884a07e9b3095d940b78",
+      "differences": 0
+    },
+    {
+      "id": "session-close",
+      "method": "POST",
+      "route": "/api/session/{sessionId}/close",
+      "category": "playback",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "normalizedBodyShape": "string",
+      "referenceBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "goBodySha256": "2b72628f740ace747edc1b7e33329cc58ce8a462fc0f31d36ea36719b18ab50b",
+      "differences": 0
+    },
+    {
+      "id": "socket-connect-prefixed",
+      "method": "SOCKET.IO",
+      "route": "/audiobookshelf/socket.io",
+      "category": "realtime",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "normalizedBodyShape": "object{userId,username}",
+      "referenceBodySha256": "e198f5357d0a6f949fbe841905db5d0d056bdda6583b523c36615feff5f82cbc",
+      "goBodySha256": "e198f5357d0a6f949fbe841905db5d0d056bdda6583b523c36615feff5f82cbc",
+      "differences": 0
+    },
+    {
+      "id": "socket-connect-legacy",
+      "method": "SOCKET.IO",
+      "route": "/socket.io",
+      "category": "realtime",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "normalizedBodyShape": "object{userId,username}",
+      "referenceBodySha256": "e198f5357d0a6f949fbe841905db5d0d056bdda6583b523c36615feff5f82cbc",
+      "goBodySha256": "e198f5357d0a6f949fbe841905db5d0d056bdda6583b523c36615feff5f82cbc",
+      "differences": 0
+    }
+  ]
+}

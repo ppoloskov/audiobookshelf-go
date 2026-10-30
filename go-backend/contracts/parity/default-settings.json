@@ -1,0 +1,92 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "note": "Rows selected from settings immediately after upstream Database.init, before root creation. Secret-bearing keys are omitted.",
+  "rows": [
+    {
+      "key": "server-settings",
+      "value": {
+        "id": "server-settings",
+        "scannerFindCovers": false,
+        "scannerCoverProvider": "google",
+        "scannerParseSubtitle": false,
+        "scannerPreferMatchedMetadata": false,
+        "scannerDisableWatcher": false,
+        "storeCoverWithItem": false,
+        "storeMetadataWithItem": false,
+        "metadataFileFormat": "json",
+        "rateLimitLoginRequests": 10,
+        "rateLimitLoginWindow": 600000,
+        "allowIframe": false,
+        "backupSchedule": false,
+        "backupsToKeep": 2,
+        "maxBackupSize": 1,
+        "loggerDailyLogsToKeep": 7,
+        "loggerScannerLogsToKeep": 2,
+        "homeBookshelfView": 1,
+        "bookshelfView": 1,
+        "podcastEpisodeSchedule": "0 * * * *",
+        "sortingIgnorePrefix": false,
+        "sortingPrefixes": [
+          "the",
+          "a"
+        ],
+        "chromecastEnabled": false,
+        "dateFormat": "MM/dd/yyyy",
+        "timeFormat": "HH:mm",
+        "language": "en-us",
+        "allowedOrigins": [],
+        "logLevel": 2,
+        "version": "2.37.2",
+        "buildNumber": 1,
+        "authLoginCustomMessage": null,
+        "authActiveAuthMethods": [
+          "local"
+        ],
+        "authOpenIDIssuerURL": null,
+        "authOpenIDAuthorizationURL": null,
+        "authOpenIDUserInfoURL": null,
+        "authOpenIDJwksURL": null,
+        "authOpenIDLogoutURL": null,
+        "authOpenIDButtonText": "Login with OpenId",
+        "authOpenIDAutoLaunch": false,
+        "authOpenIDAutoRegister": false,
+        "authOpenIDMatchExistingBy": null,
+        "authOpenIDMobileRedirectURIs": [
+          "audiobookshelf://oauth"
+        ],
+        "authOpenIDGroupClaim": "",
+        "authOpenIDAdvancedPermsClaim": ""
+      },
+      "persistedAtFreshInit": true
+    },
+    {
+      "key": "email-settings",
+      "value": {
+        "id": "email-settings",
+        "host": null,
+        "port": 465,
+        "secure": true,
+        "rejectUnauthorized": true,
+        "user": null,
+        "pass": null,
+        "testAddress": null,
+        "fromAddress": null,
+        "ereaderDevices": []
+      },
+      "persistedAtFreshInit": false
+    },
+    {
+      "key": "notification-settings",
+      "value": {
+        "id": "notification-settings",
+        "appriseType": "api",
+        "appriseApiUrl": null,
+        "notifications": [],
+        "maxFailedAttempts": 5,
+        "maxNotificationQueue": 20,
+        "notificationDelay": 1000
+      },
+      "persistedAtFreshInit": false
+    }
+  ]
+}

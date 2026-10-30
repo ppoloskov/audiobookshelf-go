@@ -1,0 +1,19 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "generator": "go-backend/tools/parity/export-schema.cjs",
+  "upstreamSources": {
+    "server/Database.js": "c7a25f2d117862c6f03b0ae8d1d4c4ad35eef95ba61f5874fd9471b64243bc33",
+    "server/managers/MigrationManager.js": "212aab0c4be11e67bae8943a49a76fb4088a23546037c5c090cb9f48d8649ccb",
+    "server/objects/settings/ServerSettings.js": "7da852d861f6796d8eb7b69e1a6c0d16f191436b61ae213a9e3c517436a1078b",
+    "server/objects/settings/EmailSettings.js": "4e993a2ae3aec4222d89ad117e34b6aba54e689e91e3dd7a9adf622202d56be7",
+    "server/objects/settings/NotificationSettings.js": "de5cc8663bd781440e2d3de8ac599e812ef9e815d22fe11e6463fb319342ba50"
+  },
+  "schemaSha256": "62f6e6fb39704863962e87abb8a586c01a30ad83920165fb12ae16f6f08eaa0a",
+  "tableCount": 26,
+  "ddlObjectCount": 60,
+  "migrationTableCount": 1,
+  "migrationStateFile": "migration-state.json",
+  "defaultSettingsFile": "default-settings.json",
+  "migrationStateSha256": "3a79994e01dd8283d176b54424e6bf60987a9475b863a8d5e49a8443e6387eb7",
+  "defaultSettingsSha256": "3f23a47b388f32c1b1238cdb45387b2337576803845387338fcbc43a46551087"
+}

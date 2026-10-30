@@ -1,0 +1,69 @@
+{
+ "schemaVersion": 1,
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "generatedAt": "2026-10-30T10:53:47.856Z",
+ "scope": "F01\u2013F07 independent-review repair closure; no F08 work",
+ "command": "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-f01-f07-closure-final2/fixture-manifest.json --go-bin /private/tmp/abs-f01-f07-closure-go --out /private/tmp/abs-f01-f07-closure-final2/full-report.json",
+ "node": "v22.23.4",
+ "go": "go1.27.0 darwin/arm64, CGO_ENABLED=0",
+ "exitCode": 0,
+ "summary": {
+  "total": 187,
+  "passed": 187,
+  "failed": 0,
+  "skipped": 0
+ },
+ "fixtureManifestSHA256": "fc46a06d493e7cad6eddcd041d3b313c20b7e1d6264ed59f16ee15ba594e182f",
+ "binarySHA256": "01bbabab2d34f8e276b4b4fb391dd6570b206548a823c15dc7de549609059a4d",
+ "sourceSHA256": {
+  "go-backend/internal/identity/identity.go": "68dc24a08d9c67d580f6c886e62e031c0ddb158563212e0b9bb8e0ef07356e94",
+  "go-backend/internal/server/runtime.go": "aceeec5b051ffce4215a6fdf31f0cde6042ca52de1dd9995f581c31222f28979",
+  "go-backend/tools/parity/differential.cjs": "28041ae76e188992ffae92749b5a382cdbd37192df52c6599ef7141c69b5f4ab",
+  "go-backend/tools/parity/run-local.cjs": "b62592432656afdd3a57b205154c41b141fa9b3bb251b15dde2e9d3a520fcdb6",
+  "go-backend/tools/parity/browser-check.cjs": "c899a9ccf5b36d5605121443c8378f26aa16aa7ab17175062f4826c2edcd70ff",
+  "go-backend/tools/parity/existing-db-matrix.cjs": "f04943ab81ef6607eb51c16985c28ca0cca61b31aea03c0e5f9b38e7e7ebd971",
+  "go-backend/tools/parity/f07-rollin-check.cjs": "7d4c9847ce233269c2b2f7c917bcfa0ae42555f14c5c409977ecb72e756db9dd",
+  "docs/specs/planned/build-parity-finalization-traceability.py": "7717be5da23d2a4cbdb56117d93c338e58d6ca99fc90c9fd2038995429589de6"
+ },
+ "normalization": {
+  "loginRefresh": [
+   "user.accessToken",
+   "user.refreshToken",
+   "user.lastSeen"
+  ],
+  "authorization": [
+   "user.lastSeen",
+   "user.updatedAt",
+   "serverSettings.backupPath"
+  ],
+  "progressRead": [
+   "lastUpdate",
+   "startedAt",
+   "finishedAt"
+  ],
+  "playbackSession": [
+   "id",
+   "startedAt",
+   "updatedAt",
+   "deviceInfo.id",
+   "audioTracks[].contentUrl session UUID"
+  ],
+  "localSession": [
+   "per-side access/refresh tokens and JWT fingerprints; dedicated reader sessions; cleared epoch cookies compared exactly"
+  ],
+  "localSessionCookie": [
+   "within-side actual login connect.sid sent to logout; logout and repeated logout must each replace the previously presented signed session ID; random values normalized only across Node/Go sides"
+  ],
+  "refreshGraceReplay": [
+   "set-cookie refresh_token value and Expires date normalized; Max-Age/Path/HttpOnly/order exact; login/refresh 200 etag+content-length normalized with the etag length-prefix integrity check (fixture root names differ in byte length)"
+  ],
+  "inactiveUser": [
+   "per-side user UUID; creation isActive:false verified against login denial; denied-login Content-Length and absence of Content-Type compared exactly"
+  ]
+ },
+ "limits": [
+  "No route-wide or full-parity promotion. OIDC-specific session lifetimes and cookie relationships remain unverified.",
+  "The 185/186 historical reports do not establish the strengthened relationships. Pre-closure report/provenance are preserved beside the current report.",
+  "Concurrent refresh starts from a fresh current token on each side; response equality, change from the original token, and Set-Cookie token relationships are asserted before normalization."
+ ]
+}

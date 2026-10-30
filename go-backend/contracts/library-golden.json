@@ -1,0 +1,214 @@
+{
+  "contract": {
+    "name": "GET /api/libraries legacy serialization and access filtering",
+    "scope": "Actual upstream Library.toOldJSON, LibraryFolder.toOldJSON, and LibraryController.findAll are executed in a VM. Sequelize and unrelated controller dependencies are stubbed. Stats, Express routing, database querying, auth middleware, and full server behavior are outside this fixture.",
+    "source": [
+      "server/models/Library.js:Library.toOldJSON",
+      "server/models/LibraryFolder.js:LibraryFolder.toOldJSON",
+      "server/controllers/LibraryController.js:LibraryController.findAll"
+    ]
+  },
+  "upstream": {
+    "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "sourceHashes": {
+      "server/models/Library.js": "f5bdc6b758bf96a075973431c5abe5a62ae8b0f415dc0f23064c6ad12aa5d388",
+      "server/models/LibraryFolder.js": "65d9f0f5fc65977e24f02e8193442178331ae5908f9b8e89c1755c132a214c07",
+      "server/controllers/LibraryController.js": "61b9830ef4d905536c2b46c8e88763d2c34860393cf44dd98265aea4ee05b6d7"
+    }
+  },
+  "input": {
+    "libraries": [
+      {
+        "id": "book-library",
+        "name": "Fiction Shelf",
+        "displayOrder": 1,
+        "icon": "books",
+        "mediaType": "book",
+        "provider": "google",
+        "lastScan": "2024-03-04T05:06:07.000Z",
+        "lastScanVersion": "2.37.2",
+        "settings": {
+          "coverAspectRatio": 1,
+          "disableWatcher": false,
+          "skipMatchingMediaWithAsin": true,
+          "skipMatchingMediaWithIsbn": false,
+          "audiobooksOnly": false,
+          "hideSingleBookSeries": true,
+          "metadataPrecedence": [
+            "folderStructure",
+            "audioMetatags",
+            "absMetadata"
+          ],
+          "markAsFinishedTimeRemaining": 12,
+          "markAsFinishedPercentComplete": null
+        },
+        "createdAt": "2023-01-02T03:04:05.000Z",
+        "updatedAt": "2024-04-05T06:07:08.000Z",
+        "libraryFolders": [
+          {
+            "id": "book-folder-1",
+            "path": "/media/books/fiction",
+            "libraryId": "book-library",
+            "createdAt": "2023-01-02T03:04:05.000Z",
+            "updatedAt": "2024-04-05T06:07:08.000Z"
+          },
+          {
+            "id": "book-folder-2",
+            "path": "/media/books/mystery",
+            "libraryId": "book-library",
+            "createdAt": "2023-02-03T04:05:06.000Z",
+            "updatedAt": "2024-04-05T06:07:08.000Z"
+          }
+        ]
+      },
+      {
+        "id": "podcast-library",
+        "name": "Science Podcasts",
+        "displayOrder": 2,
+        "icon": "podcast",
+        "mediaType": "podcast",
+        "provider": "podcastIndex",
+        "lastScan": null,
+        "lastScanVersion": null,
+        "settings": {
+          "coverAspectRatio": 1,
+          "disableWatcher": true,
+          "autoScanCronExpression": null,
+          "podcastSearchRegion": "ca",
+          "markAsFinishedPercentComplete": 95,
+          "markAsFinishedTimeRemaining": null
+        },
+        "createdAt": "2023-06-07T08:09:10.000Z",
+        "updatedAt": "2024-07-08T09:10:11.000Z",
+        "libraryFolders": [
+          {
+            "id": "podcast-folder-1",
+            "path": "/media/podcasts/science",
+            "libraryId": "podcast-library",
+            "createdAt": "2023-06-07T08:09:10.000Z",
+            "updatedAt": "2024-07-08T09:10:11.000Z"
+          }
+        ]
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "unrestricted",
+        "librariesAccessible": []
+      },
+      {
+        "name": "restricted",
+        "librariesAccessible": [
+          "podcast-library"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "unrestricted": {
+      "libraries": [
+        {
+          "id": "book-library",
+          "name": "Fiction Shelf",
+          "folders": [
+            {
+              "id": "book-folder-1",
+              "fullPath": "/media/books/fiction",
+              "libraryId": "book-library",
+              "addedAt": 1672628645000
+            },
+            {
+              "id": "book-folder-2",
+              "fullPath": "/media/books/mystery",
+              "libraryId": "book-library",
+              "addedAt": 1675397106000
+            }
+          ],
+          "displayOrder": 1,
+          "icon": "books",
+          "mediaType": "book",
+          "provider": "google",
+          "settings": {
+            "coverAspectRatio": 1,
+            "disableWatcher": false,
+            "skipMatchingMediaWithAsin": true,
+            "skipMatchingMediaWithIsbn": false,
+            "audiobooksOnly": false,
+            "hideSingleBookSeries": true,
+            "metadataPrecedence": [
+              "folderStructure",
+              "audioMetatags",
+              "absMetadata"
+            ],
+            "markAsFinishedTimeRemaining": 12,
+            "markAsFinishedPercentComplete": null
+          },
+          "lastScan": 1709528767000,
+          "lastScanVersion": "2.37.2",
+          "createdAt": 1672628645000,
+          "lastUpdate": 1712297228000
+        },
+        {
+          "id": "podcast-library",
+          "name": "Science Podcasts",
+          "folders": [
+            {
+              "id": "podcast-folder-1",
+              "fullPath": "/media/podcasts/science",
+              "libraryId": "podcast-library",
+              "addedAt": 1686125350000
+            }
+          ],
+          "displayOrder": 2,
+          "icon": "podcast",
+          "mediaType": "podcast",
+          "provider": "podcastIndex",
+          "settings": {
+            "coverAspectRatio": 1,
+            "disableWatcher": true,
+            "autoScanCronExpression": null,
+            "podcastSearchRegion": "ca",
+            "markAsFinishedPercentComplete": 95,
+            "markAsFinishedTimeRemaining": null
+          },
+          "lastScan": null,
+          "lastScanVersion": null,
+          "createdAt": 1686125350000,
+          "lastUpdate": 1720429811000
+        }
+      ]
+    },
+    "restricted": {
+      "libraries": [
+        {
+          "id": "podcast-library",
+          "name": "Science Podcasts",
+          "folders": [
+            {
+              "id": "podcast-folder-1",
+              "fullPath": "/media/podcasts/science",
+              "libraryId": "podcast-library",
+              "addedAt": 1686125350000
+            }
+          ],
+          "displayOrder": 2,
+          "icon": "podcast",
+          "mediaType": "podcast",
+          "provider": "podcastIndex",
+          "settings": {
+            "coverAspectRatio": 1,
+            "disableWatcher": true,
+            "autoScanCronExpression": null,
+            "podcastSearchRegion": "ca",
+            "markAsFinishedPercentComplete": 95,
+            "markAsFinishedTimeRemaining": null
+          },
+          "lastScan": null,
+          "lastScanVersion": null,
+          "createdAt": 1686125350000,
+          "lastUpdate": 1720429811000
+        }
+      ]
+    }
+  }
+}

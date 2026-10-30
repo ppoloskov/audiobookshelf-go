@@ -1,0 +1,605 @@
+{
+  "browser": "Playwright Chromium headless",
+  "fixture": "/private/tmp/abs-f08-final-green/fixture-manifest.json",
+  "output": "/private/tmp/abs-f09-transcode-red",
+  "boot": {
+    "go": "CGO_ENABLED=0 binary; isolated copied config/metadata; ABS_GO_CLIENT_PATH=client/dist; ROUTER_BASE_PATH=/audiobookshelf",
+    "node": "mise exec node@22 -- dist/index.js; isolated copied config/metadata"
+  },
+  "results": {
+    "go": {
+      "origin": "http://127.0.0.1:58162",
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "playbackStart": true,
+        "transcodeSelected": true,
+        "ffmpegAliveBeforeClose": true,
+        "audioLoaded": true,
+        "playbackPlaying": true,
+        "transcodePlayingAdvances": true,
+        "hlsPlaylistAndSegmentServed": true,
+        "playbackClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "transcodeOutputRemovedOnClose": true,
+        "transcodeProgressPersisted": false,
+        "noConsoleErrors": false,
+        "allAPI2xx": false,
+        "playbackMatchesUpstream": false,
+        "runtimeFailuresMatchUpstream": false
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event",
+        "[HLS] Error mediaError fragParsingError {type: mediaError, details: fragParsingError, fatal: false, error: Error: Failed to find demuxer by probing fragment data\n    at Ir.configureTransmuxer (http://127.0.…, reason: Failed to find demuxer by probing fragment data}",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "pageErrors": [],
+      "apiFailures": [
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58162/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58162/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58162/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58162/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        }
+      ],
+      "assetFailures": [],
+      "playback": {
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "0"
+          },
+          {
+            "extension": ".ts",
+            "status": 404,
+            "contentType": "text/plain; charset=utf-8",
+            "contentLength": "19"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56964"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56212"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "57152"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "57340"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56776"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "57528"
+          }
+        ],
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "ffmpegBeforeClose": [
+          {
+            "pid": 61776,
+            "command": "ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i /private/tmp/abs-f09-transcode-red/fixture/go/metadata/streams/6f1c6ea4-1054-4c7b-997d-afbef93d0e7f/files.txt -map 0:a -c:a aac -f hls -copyts -avoid_negative_ts make_non_negative -max_delay 5000000 -max_muxing_queue_size 2048 -hls_time 6 -hls_segment_type mpegts -start_number 0 -hls_playlist_type vod -hls_list_size 0 -hls_allow_cache 0 -hls_segment_filename /private/tmp/abs-f09-transcode-red/fixture/go/metadata/streams/6f1c6ea4-1054-4c7b-997d-afbef93d0e7f/output-%d.ts /private/tmp/abs-f09-transcode-red/fixture/go/metadata/streams/6f1c6ea4-1054-4c7b-997d-afbef93d0e7f/final-output.m3u8"
+          }
+        ],
+        "streamDir": "/private/tmp/abs-f09-transcode-red/fixture/go/metadata/streams/6f1c6ea4-1054-4c7b-997d-afbef93d0e7f",
+        "loaded": {
+          "readyState": 1,
+          "duration": 600,
+          "paused": false,
+          "currentSrc": "http://127.0.0.1:58162/669e5889-2d46-4755-9e46-f6e09136a11a"
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0.017343
+        },
+        "hlsObserved": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "0"
+          },
+          {
+            "extension": ".ts",
+            "status": 404,
+            "contentType": "text/plain; charset=utf-8",
+            "contentLength": "19"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56964"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56212"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "57152"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "57340"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "56776"
+          }
+        ],
+        "beforeClose": {
+          "currentTime": 1.020998,
+          "duration": 600,
+          "paused": false
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        },
+        "ffmpegAfterClose": [],
+        "streamDirPresentAfterClose": false,
+        "progressAfterClose": null
+      },
+      "screenshots": {
+        "shell": "/private/tmp/abs-f09-transcode-red/go-shell.png",
+        "login": "/private/tmp/abs-f09-transcode-red/go-login.png",
+        "library": "/private/tmp/abs-f09-transcode-red/go-library.png",
+        "detail": "/private/tmp/abs-f09-transcode-red/go-detail.png"
+      }
+    },
+    "node": {
+      "origin": "http://127.0.0.1:58182",
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "playbackStart": true,
+        "transcodeSelected": true,
+        "ffmpegAliveBeforeClose": true,
+        "audioLoaded": true,
+        "playbackPlaying": true,
+        "transcodePlayingAdvances": true,
+        "hlsPlaylistAndSegmentServed": true,
+        "playbackClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "transcodeOutputRemovedOnClose": true,
+        "transcodeProgressPersisted": false,
+        "noConsoleErrors": false,
+        "allAPI2xx": false,
+        "playbackMatchesUpstream": false,
+        "runtimeFailuresMatchUpstream": false
+      },
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "ImgError Event"
+      ],
+      "pageErrors": [],
+      "apiFailures": [
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58182/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58182/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58182/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:58182/audiobookshelf/api/items/f9219a33-681e-474b-b085-c99c465223ca/cover?ts=1793359622755",
+          "body": "Internal Server Error"
+        }
+      ],
+      "assetFailures": [],
+      "playback": {
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904"
+          }
+        ],
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "ffmpegBeforeClose": [
+          {
+            "pid": 61934,
+            "command": "/opt/homebrew/bin/ffmpeg -seek_timestamp 1 -f concat -safe 0 -i /private/tmp/abs-f09-transcode-red/fixture/node/metadata/streams/cd471a45-616d-4f23-a36c-09d36a3a6001/files.txt -y -loglevel error -map 0:a -c:a copy -f hls -copyts -avoid_negative_ts make_non_negative -max_delay 5000000 -max_muxing_queue_size 2048 -hls_time 6 -hls_segment_type mpegts -start_number 0 -hls_playlist_type vod -hls_list_size 0 -hls_allow_cache 0 -hls_segment_filename /private/tmp/abs-f09-transcode-red/fixture/node/metadata/streams/cd471a45-616d-4f23-a36c-09d36a3a6001/output-%d.ts /private/tmp/abs-f09-transcode-red/fixture/node/metadata/streams/cd471a45-616d-4f23-a36c-09d36a3a6001/final-output.m3u8"
+          }
+        ],
+        "streamDir": "/private/tmp/abs-f09-transcode-red/fixture/node/metadata/streams/cd471a45-616d-4f23-a36c-09d36a3a6001",
+        "loaded": {
+          "readyState": 1,
+          "duration": 600,
+          "paused": false,
+          "currentSrc": "http://127.0.0.1:58182/6e96cc06-ced3-4bf6-afcc-fdf9f53e697d"
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0.005624
+        },
+        "hlsObserved": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl",
+            "contentLength": "2524"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104152"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104904"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t",
+            "contentLength": "104528"
+          }
+        ],
+        "beforeClose": {
+          "currentTime": 1.024369,
+          "duration": 600,
+          "paused": false
+        },
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        },
+        "ffmpegAfterClose": [],
+        "streamDirPresentAfterClose": false,
+        "progressAfterClose": null
+      },
+      "screenshots": {
+        "shell": "/private/tmp/abs-f09-transcode-red/node-shell.png",
+        "login": "/private/tmp/abs-f09-transcode-red/node-login.png",
+        "library": "/private/tmp/abs-f09-transcode-red/node-library.png",
+        "detail": "/private/tmp/abs-f09-transcode-red/node-detail.png"
+      }
+    },
+    "comparison": {
+      "playbackEqual": false,
+      "goPlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 600
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0
+        },
+        "beforeClose": {
+          "currentTime": 1,
+          "duration": 600,
+          "paused": false
+        },
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 404,
+            "contentType": "text/plain; charset=utf-8"
+          }
+        ],
+        "ffmpegAliveBeforeClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "streamDirPresentAfterClose": false,
+        "progressAfterClose": null,
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "nodePlayback": {
+        "start": {
+          "status": 200,
+          "sessionIdPresent": true,
+          "playMethod": 2
+        },
+        "loaded": {
+          "readyState": 1,
+          "duration": 600
+        },
+        "afterPlay": {
+          "paused": false,
+          "currentTime": 0
+        },
+        "beforeClose": {
+          "currentTime": 1,
+          "duration": 600,
+          "paused": false
+        },
+        "hlsResponses": [
+          {
+            "extension": ".m3u8",
+            "status": 200,
+            "contentType": "application/vnd.apple.mpegurl"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          },
+          {
+            "extension": ".ts",
+            "status": 200,
+            "contentType": "video/mp2t"
+          }
+        ],
+        "ffmpegAliveBeforeClose": true,
+        "ffmpegTerminatedOnClose": true,
+        "streamDirPresentAfterClose": false,
+        "progressAfterClose": null,
+        "close": {
+          "status": 200,
+          "sessionIdMatches": true
+        }
+      },
+      "apiFailuresEqual": true,
+      "apiFailures": {
+        "go": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ],
+        "node": [
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          },
+          {
+            "status": 500,
+            "route": "/audiobookshelf/api/items/:id/cover",
+            "body": "Internal Server Error"
+          }
+        ]
+      },
+      "consoleErrorsEqual": false,
+      "consoleErrors": {
+        "go": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "[HLS] Error mediaError fragParsingError {type: mediaError, details: fragParsingError, fatal: false, error: Error: Failed to find demuxer by probing fragment data\n    at Ir.configureTransmuxer (http://127.0.…, reason: Failed to find demuxer by probing fragment data}",
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ],
+        "node": [
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event",
+          "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+          "ImgError Event"
+        ]
+      },
+      "rootAssetFailuresEqual": false,
+      "pageErrorsEqual": true,
+      "pageErrors": {
+        "go": [],
+        "node": []
+      },
+      "restrictedVisibilityEqual": false
+    }
+  }
+}

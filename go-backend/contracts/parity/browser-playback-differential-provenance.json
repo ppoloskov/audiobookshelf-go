@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "command": "BROWSER_CHECK_OUT=<isolated writable temp dir> node go-backend/tools/parity/browser-check.cjs",
+  "upstream": "Node v22.23.4; pinned dist-server/index.js",
+  "go": "CGO_ENABLED=0 binary built from current go-backend source",
+  "fixture": "Generated silent AAC media; isolated copied fixture databases and metadata; copied DB coverPath values rewritten to their corresponding copied metadata roots.",
+  "normalizations": [
+    "Per-side playback session UUID and origin are omitted from comparisons.",
+    "Current time is rounded to 100 ms for the paired browser state comparison.",
+    "Cover image resize 500s are retained and compared exactly by route, status, and body; they are not treated as Go-only differences."
+  ],
+  "limitations": [
+    "Only Chromium direct-play of the generated two-second AAC fixture was exercised.",
+    "HLS/transcode selection, socket reconnection, and session recovery remain unverified.",
+    "Both servers returned four identical 500 cover-resize responses because the host FFmpeg build has no WebP encoder; this shared fixture limitation is retained in the report."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "source": "pinned v2.37.2; server/controllers/LibraryItemController.js getLibraryFile uses Express res.sendFile",
+  "command": "GOCACHE=/private/tmp/abs-f08-gocache mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-f08-final/fixture-manifest.json --go-bin /private/tmp/abs-f08-final-go --cases direct-file-range,direct-file-head-range,direct-file-invalid-range,direct-file-head-invalid-range --out /private/tmp/abs-f08-final/f08-focused-report.json",
+  "upstream": "Node v22.23.4; pinned dist-server/index.js",
+  "go": "CGO_ENABLED=0 binary built from current go-backend source; Go 1.27.0",
+  "fixture": "Fresh create-fixture.cjs output under /private/tmp/abs-f08-final; independent upstream-created Node/Go config, database and media copies; synthetic 2-second AAC file.",
+  "result": {
+    "total": 4,
+    "passed": 0,
+    "mismatched": 4,
+    "skipped": 0,
+    "exitCode": 1
+  },
+  "observed": {
+    "valid_get": "Both 206, bytes and range headers match; Go omits upstream ETag W/\"640-1a18c8a1a1a\".",
+    "valid_head": "Both 206 with empty bodies and matching range headers; Go omits the same upstream ETag.",
+    "unsatisfiable_get": "Both 416 with Content-Range bytes */1600; upstream returns 148-byte Express HTML \"Range Not Satisfiable\" with text/html, Accept-Ranges, Last-Modified and weak ETag. Go returns 33-byte text/plain http.ServeContent error without Accept-Ranges, Last-Modified or ETag.",
+    "unsatisfiable_head": "Both 416 with empty body; upstream range headers/ETag differ from Go in the same way."
+  },
+  "normalization": [],
+  "limits": [
+    "Red evidence only; no production repair is represented in this report.",
+    "Browser direct-play state advancement remains covered by the retained browser-playback-differential report."
+  ]
+}

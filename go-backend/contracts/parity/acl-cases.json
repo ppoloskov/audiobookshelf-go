@@ -1,0 +1,18 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "purpose": "Authorization and ownership HTTP differential; expected behavior is measured from Node, not assumed.",
+  "cases": [
+    {"id":"ordinary-create-user","source":["server/controllers/UserController.js:116-193","server/routers/ApiRouter.js:133"],"expectation":"ordinary actor access result measured; Node/Go observed equal"},
+    {"id":"ordinary-update-root","source":["server/controllers/UserController.js:205-215","server/routers/ApiRouter.js:137"],"expectation":"Node/Go observed equal"},
+    {"id":"ordinary-delete-self","source":["server/controllers/UserController.js:357-400","server/models/User.js:535-539","server/routers/ApiRouter.js:138"],"expectation":"Node/Go observed equal"},
+    {"id":"admin-delete-root","source":["server/controllers/UserController.js:357-400","server/models/User.js:535-539"],"expectation":"Node/Go observed equal"},
+    {"id":"root-update-restricted","source":["server/controllers/UserController.js:205-215, 231-322"],"expectation":"root type is immutable; permissions update request observed"},
+    {"id":"api-key-owner-create-use-delete-other","source":["server/controllers/ApiKeyController.js:50-103, 112-170, 174-220"],"expectation":"admin route gate, API-key authentication, and cross-user key deletion measured empirically"},
+    {"id":"restricted-tag-overlap","source":["server/models/User.js:658-682"],"expectation":"any selected-tag overlap grants tag access when selectedTagsNotAccessible is false"},
+    {"id":"explicit-content-access","source":["server/models/User.js:675-682","server/controllers/PodcastController.js:560-582"],"expectation":"explicit item blocked when canAccessExplicitContent is false; allowed to root"},
+    {"id":"restricted-library-listing","source":["server/controllers/LibraryController.js:191-192","server/models/User.js:646-650,675-682"],"expectation":"only permitted libraries/items visible; Node/Go observed equal"},
+    {"id":"inactive-login-and-api-key","source":["server/auth/LocalAuthStrategy.js:51-62","server/auth/TokenManager.js:282-323"],"expectation":"inactive login rejected; API key authentication observed empirically"},
+    {"id":"malformed-permissions-create","source":["server/controllers/UserController.js:116-179"],"expectation":"JSON string is not an object; create permission defaults are used unless validation rejects"}
+  ],
+  "limitations": ["RSS fixture and audio scan require local ffmpeg and Node fetch support.", "API-key creation can be admin/root-gated by router middleware; Node result is authoritative.", "IDs/tokens are normalized by stable entity order; unsupported/unavailable setup is reported unresolved, never PASS."]
+}

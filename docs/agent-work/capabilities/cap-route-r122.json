@@ -1,0 +1,25 @@
+{
+ "id": "route-r122",
+ "parent": "http/backup",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /backups candidate recorded from server/routers/ApiRouter.js:200. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:200"
+ ],
+ "implementation": [
+  "go-backend/internal/backup/backup.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/backup/backup.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

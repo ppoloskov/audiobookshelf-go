@@ -1,0 +1,6 @@
+{
+  "cases": [
+    {"name": "healthcheck", "method": "GET", "path": "/audiobookshelf/healthcheck", "compare_headers": ["content-type"]},
+    {"name": "ping", "method": "GET", "path": "/audiobookshelf/ping", "compare_headers": ["content-type"]}
+  ]
+}

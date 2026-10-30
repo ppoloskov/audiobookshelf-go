@@ -463,13 +463,24 @@ func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 		t.Fatalf("unexpected end-session redirect %#v err=%v", body["redirect_url"], err)
 	}
 	cleared := map[string]bool{}
+	regenerated := false
 	for _, cookie := range w.Result().Cookies() {
 		if cookie.Expires.Year() == 1970 && cookie.MaxAge == 0 {
 			cleared[cookie.Name] = true
 		}
 		if cookie.Name == "connect.sid" && cookie.Value != sessionCookie {
-			t.Fatalf("logout changed the signed session cookie: got %q want %q", cookie.Value, sessionCookie)
+			// Upstream passport logOut regenerates the express-session on every
+			// logout, so the logout response replaces the presented identifier
+			// with a fresh signed session value (inv-R006 revision 2026-10-30).
+			regenerated = true
+			decoded, decodeErr := url.QueryUnescape(cookie.Value)
+			if decodeErr != nil || !handler.validSessionCookie(decoded) {
+				t.Fatalf("logout replacement connect.sid is not a valid signed session cookie: %q", cookie.Value)
+			}
 		}
+	}
+	if !regenerated {
+		t.Fatalf("logout must replace the signed session identifier (upstream regeneration), got the presented value")
 	}
 	if !cleared["refresh_token"] || !cleared["auth_method"] || !cleared["openid_id_token"] {
 		t.Fatalf("logout did not expire expected cookies: %#v", cleared)

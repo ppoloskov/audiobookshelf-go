@@ -1,0 +1,24 @@
+?   	audiobookshelf-compat/cmd/abs-compat	[no test files]
+?   	audiobookshelf-compat/cmd/audiobookshelf-go	[no test files]
+?   	audiobookshelf-compat/contracts/parity	[no test files]
+ok  	audiobookshelf-compat/internal/adminops	0.009s
+ok  	audiobookshelf-compat/internal/audiotools	1.202s
+ok  	audiobookshelf-compat/internal/auth	0.005s
+ok  	audiobookshelf-compat/internal/backup	0.039s
+ok  	audiobookshelf-compat/internal/bootstrap	3.356s
+ok  	audiobookshelf-compat/internal/catalog	1.033s
+ok  	audiobookshelf-compat/internal/compat	0.021s
+ok  	audiobookshelf-compat/internal/config	0.007s
+ok  	audiobookshelf-compat/internal/emailapi	0.005s
+ok  	audiobookshelf-compat/internal/identity	0.816s
+ok  	audiobookshelf-compat/internal/notifications	0.009s
+ok  	audiobookshelf-compat/internal/playback	0.127s
+ok  	audiobookshelf-compat/internal/podcasts	0.326s
+?   	audiobookshelf-compat/internal/progressdto	[no test files]
+ok  	audiobookshelf-compat/internal/providers	0.077s
+ok  	audiobookshelf-compat/internal/realtime	0.681s
+ok  	audiobookshelf-compat/internal/scanner	1.776s
+ok  	audiobookshelf-compat/internal/server	0.285s
+ok  	audiobookshelf-compat/internal/sharing	0.021s
+ok  	audiobookshelf-compat/internal/store	0.077s
+ok  	audiobookshelf-compat/internal/userapi	0.038s

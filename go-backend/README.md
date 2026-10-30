@@ -1,8 +1,10 @@
 # Audiobookshelf Go backend rewrite
 
-Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest default-mode differential passes 176/176 selected cases, including the 18-case global notification event slice; separate reports cover selected OIDC flows (now 24/24, including web logout/session invalidation and a callback after 10 minutes), covers/downloads, SMTP behavior, and email-device proxy-mode scenarios. Strict ledger verification still fails; route-wide and overall compatibility are not established. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
+Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest default-mode differential passes 187/187 selected cases, including the 18-case global notification event slice; separate reports cover selected OIDC flows (now 24/24, including web logout/session invalidation and a callback after 10 minutes), covers/downloads, SMTP behavior, and email-device proxy-mode scenarios. Strict ledger verification still fails; route-wide and overall compatibility are not established. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
 
 ## Target
+
+The approved bounded finalization queue is [parity-finalization-work-queue.md](../docs/specs/planned/parity-finalization-work-queue.md) (approved 2026-10-30). It prioritizes operational playback before remaining services, preserves existing evidence, and requires one behavior per worker assignment. F01–F08 are complete for their recorded variants: direct stream playback/ranges, Chromium play/pause/seek, and a fresh 190/190 default differential pass. The host FFmpeg WebP encoder issue and root hydration limitation remain recorded. F09 is active: verify forced-transcode playback in the retained browser and confirm process closure. Full parity remains unverified. See the task ledger and `contracts/parity/f08-direct-stream-report.json`. No parity status changes are implied by this pointer.
 
 - Upstream: `advplyr/audiobookshelf`, release `v2.37.2`.
 - Baseline commit: `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
@@ -16,7 +18,7 @@ Status: experimental Go backend under active parity development. This is **not**
 1. `tools/source_inventory.py`: reproducible source evidence for route registrations, Socket.IO candidates and model files, with source hashes and locations.
 2. `contracts/source-inventory.json`: the generated baseline. This is a source index, not a complete compatibility contract.
 3. `cmd/abs-compat`: a standard-library Go HTTP differential harness. It compares explicitly selected GET/HEAD requests against two isolated servers. It does not test write flows, authentication lifecycles, realtime protocols or database equivalence yet.
-4. `ROADMAP.md`: implementation sequence, ownership and release gates.
+4. `ROADMAP.md`: historical implementation sequence, ownership and release gates. Active sequencing and dispatch follow `../docs/specs/planned/parity-finalization-work-queue.md` (approved 2026-10-30).
 5. `cmd/audiobookshelf-go`: a Go HTTP server with fresh-database initialization from the source-executed baseline schema, local authentication, token lifecycle, library/item browsing, progress/bookmarks, playback/HLS, and Socket.IO.
 6. Domain packages for catalog/user changes, scanning/watchers, media tools, backups, settings and OIDC are being implemented and tested. Individual handlers and sampled scenarios do not establish complete route parity.
 7. `tools/parity`: starts the actual upstream and Go executables on independent source-created fixtures and compares HTTP, media bytes, mutations and Socket.IO. Sanitized reports and source provenance are in `contracts/parity`.

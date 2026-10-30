@@ -2727,7 +2727,57 @@ func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target strin
 	if media != "" {
 		w.Header().Set("Content-Type", media)
 	}
-	http.ServeContent(w, r, filepath.Base(target), info.ModTime(), f)
+	// Express's etag helper uses stat.mtime.getTime(), which rounds the
+	// filesystem timestamp to the nearest millisecond before hex encoding.
+	fileETag := fmt.Sprintf(`W/"%x-%x"`, info.Size(), info.ModTime().Round(time.Millisecond).UnixMilli())
+	w.Header().Set("ETag", fileETag)
+	http.ServeContent(&sendFileRangeErrorWriter{
+		ResponseWriter: w,
+		method:         r.Method,
+		etag:           fileETag,
+		lastModified:   info.ModTime().UTC().Format(http.TimeFormat),
+	}, r, filepath.Base(target), info.ModTime(), f)
+}
+
+const expressRangeNotSatisfiableBody = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Range Not Satisfiable</pre>\n</body>\n</html>\n"
+
+// sendFileRangeErrorWriter preserves streaming for successful responses while
+// translating net/http's plain-text 416 into Express sendFile's finalhandler
+// response. It buffers only the status until the 416 body arrives.
+type sendFileRangeErrorWriter struct {
+	http.ResponseWriter
+	method       string
+	etag         string
+	lastModified string
+	status       int
+}
+
+func (w *sendFileRangeErrorWriter) WriteHeader(status int) {
+	if status == http.StatusRequestedRangeNotSatisfiable {
+		w.status = status
+		return
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *sendFileRangeErrorWriter) Write(p []byte) (int, error) {
+	if w.status != http.StatusRequestedRangeNotSatisfiable {
+		return w.ResponseWriter.Write(p)
+	}
+	body := []byte(expressRangeNotSatisfiableBody)
+	header := w.Header()
+	header.Set("Content-Type", "text/html; charset=utf-8")
+	header.Set("Content-Length", strconv.Itoa(len(body)))
+	header.Set("Accept-Ranges", "bytes")
+	header.Set("ETag", w.etag)
+	header.Set("Last-Modified", w.lastModified)
+	w.ResponseWriter.WriteHeader(w.status)
+	if w.method != http.MethodHead {
+		if _, err := w.ResponseWriter.Write(body); err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
 }
 
 func filePath(file map[string]any) string {

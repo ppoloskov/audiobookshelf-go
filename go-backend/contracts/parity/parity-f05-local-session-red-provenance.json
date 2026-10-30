@@ -1,0 +1,27 @@
+{
+ "schemaVersion": 1,
+ "role": "RED evidence for packet F05 (pre-repair run, 2026-10-30): summary.total=185, passed=180, failed=5.",
+ "preFixDivergences": [
+  {
+   "id": "local-session-logout",
+   "cause": "harness case used /api/logout (wrong mount: upstream route is POST /logout, Auth.js:486); upstream 404 Express HTML vs Go 501 JSON there is unknown-path fidelity (F44 scope); the true F05 divergence was the missing connect.sid reissue"
+  },
+  {
+   "id": "local-session-logout-refresh-revoked",
+   "cause": "cascade of the wrong logout path; also revealed the missing Express ETag on auth JSON res.json responses"
+  },
+  {
+   "id": "local-session-logout-session-list",
+   "cause": "harness normalization did not cover the new case id (session ids/times per-side dynamic)"
+  },
+  {
+   "id": "refresh-rotation-grace-replay",
+   "cause": "missing Express ETag + content-length noise from per-copy backupPath"
+  },
+  {
+   "id": "inactive-user-login-denied",
+   "cause": "Go denied login added Content-Type (Go sniffing) where passport res.end sends none"
+  }
+ ],
+ "fixes": "see TASK-20261030 F05 entry and cap-route-r000/r001/r006 invariants; post-fix run 185/185 exit 0 (parity-f05-local-session-differential.json)"
+}

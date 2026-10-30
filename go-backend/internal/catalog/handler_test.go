@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -960,6 +961,49 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	}
 	if w.Code != http.StatusPartialContent || w.Body.String() != "234" {
 		t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
+	}
+	info, err := os.Stat(mediaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantETag := `W/"` + strconv.FormatInt(info.Size(), 16) + `-` + strconv.FormatInt(info.ModTime().Round(time.Millisecond).UnixMilli(), 16) + `"`
+	if got := w.Header().Get("ETag"); got != wantETag {
+		t.Fatalf("valid range ETag=%q, want %q", got, wantETag)
+	}
+
+	invalid := httptest.NewRecorder()
+	invalidRequest := httptest.NewRequest("GET", "/api/items/i1/file/audio-1", nil)
+	invalidRequest.Header.Set("Range", "bytes=999999999-")
+	if !h.Handle(invalid, invalidRequest, u) {
+		t.Fatal("invalid-range route did not match")
+	}
+	wantBody := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Range Not Satisfiable</pre>\n</body>\n</html>\n"
+	if invalid.Code != http.StatusRequestedRangeNotSatisfiable || invalid.Body.String() != wantBody {
+		t.Fatalf("invalid range = %d %q, want upstream body %q", invalid.Code, invalid.Body.String(), wantBody)
+	}
+	for name, want := range map[string]string{
+		"Content-Type":   "text/html; charset=utf-8",
+		"Content-Range":  "bytes */10",
+		"Accept-Ranges":  "bytes",
+		"Content-Length": strconv.Itoa(len(wantBody)),
+		"Last-Modified":  info.ModTime().UTC().Format(http.TimeFormat),
+		"ETag":           wantETag,
+	} {
+		if got := invalid.Header().Get(name); got != want {
+			t.Errorf("invalid range %s=%q, want %q", name, got, want)
+		}
+	}
+	head := httptest.NewRecorder()
+	headRequest := httptest.NewRequest("HEAD", "/api/items/i1/file/audio-1", nil)
+	headRequest.Header.Set("Range", "bytes=999999999-")
+	if !h.Handle(head, headRequest, u) {
+		t.Fatal("HEAD invalid-range route did not match")
+	}
+	if head.Code != http.StatusRequestedRangeNotSatisfiable || head.Body.Len() != 0 {
+		t.Fatalf("HEAD invalid range = %d with %d body bytes", head.Code, head.Body.Len())
+	}
+	if head.Header().Get("Content-Length") != strconv.Itoa(len(wantBody)) || head.Header().Get("ETag") != wantETag {
+		t.Fatalf("HEAD invalid range headers content-length=%q ETag=%q", head.Header().Get("Content-Length"), head.Header().Get("ETag"))
 	}
 	m4bPath := filepath.Join(root, "audio.m4b")
 	if err := os.WriteFile(m4bPath, []byte("m4b"), 0600); err != nil {

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "obligation": "F08 direct stream play/pause and valid/invalid byte-range responses, including HEAD status, bytes, and selected headers, alongside actual browser media advancement.",
+  "toolingRationale": {
+    "existingRunnerGap": "Focused mode returned success with 0/0 cases before playback selection; full mode threw ReferenceError because comparePair was nested inside an earlier branch.",
+    "smallestObservation": "Execute only the four registered direct-file GET/HEAD valid/invalid range cases in focused mode; the shared default run is also used to prove the full path remains operational.",
+    "scope": "Reused differential.cjs and run-local.cjs. No new runner, generic harness, or comparison normalization."
+  },
+  "command": "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 GOCACHE=/private/tmp/abs-f08-gocache mise exec node@22 -- node go-backend/tools/parity/run-local.cjs --fixture /private/tmp/abs-f08-full-whitelisted/fixture-manifest.json --go-bin /private/tmp/abs-f08-go-final --out /private/tmp/abs-f08-full-whitelisted/f08-full-differential-report.json",
+  "runtime": "Pinned upstream v2.37.2; Node v22.23.4; Go 1.27.0; CGO_ENABLED=0 binary built from current source.",
+  "binarySHA256": "e2e1bb4fee45ab658e0df0b9b3b0585769a67aa65f727d58b7d522c336452ccc",
+  "fixture": "/private/tmp/abs-f08-full-whitelisted, fresh create-fixture.cjs manifest; independent Node and Go config/database/media copies.",
+  "result": { "total": 190, "passed": 190, "failed": 0, "skipped": 0, "exitCode": 0 },
+  "normalizations": [],
+  "limits": [
+    "The full run is retained-runner evidence; F08-specific acceptance is the four-case focused report plus the fresh Chromium direct-play report.",
+    "Only named direct-play and direct-file/range variants are closed. Other file routes and playback lifecycle variants remain open.",
+    "Browser report preserves equal cover-resize 500s caused by the host FFmpeg build lacking WebP encoding."
+  ]
+}

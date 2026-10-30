@@ -1,0 +1,181 @@
+{
+ "id": "sub-scanner-watcher",
+ "parent": "scanner",
+ "kind": "job",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "Library/item scans, file discovery, metadata precedence, watcher/scheduler wiring, metadata writing equivalent to upstream LibraryScanner/LibraryItemScanner/BookScanner/AudioFileScanner",
+ "source": [
+  "server/scanner/",
+  "server/utils/scandir.js",
+  "server/utils/fileUtils.js",
+  "server/managers/TaskManager.js"
+ ],
+ "implementation": [
+  "go-backend/internal/scanner/scanner.go",
+  "go-backend/internal/scanner/files.go",
+  "go-backend/internal/scanner/metadata.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "invariants": [
+  {
+   "id": "INV-SCAN-SEMANTICS-001",
+   "class": "state_transition",
+   "contract": "Scan counters (added/updated/missing): missing counts on every full scan incl. already-missing items; podcast items whose path still exists are exempt (LibraryScanner.js:182-200).",
+   "status": "verified",
+   "source": [
+    "server/scanner/LibraryScanner.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_events_test.go",
+    "go-backend/internal/scanner/scanner_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-SCAN-IDENTITY-001",
+   "class": "identity",
+   "contract": "Item identity across rescans: exact-path match then inode fallback for renames; per-item lastScan/lastScanVersion written only on detected change (LibraryScanner.js:169-180, LibraryItemScanData.js:264-280).",
+   "status": "verified",
+   "source": [
+    "server/scanner/LibraryScanner.js",
+    "server/scanner/LibraryItemScanData.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": [
+    "Reciprocal single-file ino-to-other-item matching deliberately omitted, documented in importGroup."
+   ]
+  },
+  {
+   "id": "INV-SCAN-AUDIO-001",
+   "class": "shape",
+   "contract": "Audio object shape and ordering: flat FileMetadata metadata, top-level ino, 1-based smart disc/track ordering with metadata/filename selection rules and sequential-gap rule; chapter construction per AudioFileScanner.js:495-573; failed probes and no-audio-stream files produce no entry.",
+   "status": "verified",
+   "source": [
+    "server/scanner/AudioFileScanner.js",
+    "server/objects/files/AudioFile.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": [
+    "OverDrive MediaMarkers not obtainable via ffprobe JSON (recorded limitation)."
+   ]
+  },
+  {
+   "id": "INV-SCAN-DISCOVERY-001",
+   "class": "shape",
+   "contract": "Claim-based shallowest-group joining with CD-disc folding, dot/@eaDir/temp-extension/.ignore exclusions, isFile=1 root items, podcast root files dropped (scandir.js:48-121, fileUtils.js:140-166,227-249).",
+   "status": "verified",
+   "source": [
+    "server/utils/scandir.js",
+    "server/utils/fileUtils.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": [
+    "Ebook-only items grouped but not imported \u2014 owner-approved compatibility-stub exception (2026-10-30): no ebook engine required; ebook media files are classified and grouped safely."
+   ]
+  },
+  {
+   "id": "INV-SCAN-PRECEDENCE-001",
+   "class": "precedence",
+   "contract": "Library-configured source order (folderStructure/audioMetatags/nfoFile/txtFiles/opfFile/absMetadata) with per-source nonempty-array replacement rules; precedence change forces rescan and persists the snapshot in extraData (BookScanner.js:660-817, LibraryScanner.js:62-67).",
+   "status": "verified",
+   "source": [
+    "server/scanner/BookScanner.js",
+    "server/scanner/LibraryScanner.js",
+    "server/scanner/AbsMetadataFileScanner.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-SCAN-EVENTS-001",
+   "class": "state_transition",
+   "contract": "Chunked (10) items_added/items_updated with expanded item JSON and per-user filtering; author/series add + orphan-cleanup events + authors_num_books_updated after commit (LibraryScanner.js:224-280, BookScanner.js:911-1009, SocketAuthority.js:97-131).",
+   "status": "verified",
+   "source": [
+    "server/scanner/LibraryScanner.js",
+    "server/scanner/BookScanner.js",
+    "server/SocketAuthority.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_events_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": [
+    "Series RSS-feed closure on removed series not wired to the Go RSS manager."
+   ]
+  },
+  {
+   "id": "INV-SCAN-SIDECAR-001",
+   "class": "state_transition",
+   "contract": "metadata.json sidecar written during scan after the media save with storeMetadataWithItem location rules and libraryFiles/timestamp refresh (BookScanner.js:825-901).",
+   "status": "verified",
+   "source": [
+    "server/scanner/BookScanner.js"
+   ],
+   "tests": [
+    "go-backend/internal/scanner/scanner_events_test.go"
+   ],
+   "evidence": [
+    "contracts/parity/scanner-flow-report.json"
+   ],
+   "exceptions": []
+  }
+ ],
+ "stateful": true,
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "verified",
+  "force": "verified",
+  "failure": "verified"
+ },
+ "tests": [
+   "go-backend/internal/scanner/scanner_test.go",
+   "go-backend/internal/scanner/scanner_events_test.go",
+   "go-backend/internal/userapi/userapi_test.go",
+   "go-backend/tools/parity/cascades-differential.cjs"
+ ],
+ "evidence": [
+   "contracts/parity/scanner-flow-report.json (valid isolated differential run: 7/7 scanner-related cases pass; replaces the invalid provisional run)",
+   "contracts/parity/cascades-differential-report.json (2026-10-30 fresh isolated scan lifecycle: task_started → author_added → items_added → task_finished matches pinned Node event sequence; new-author count event suppressed)",
+  "internal/scanner package tests incl. red/green regressions for audio semantics, grouping, precedence, reconciliation, events, sidecars",
+  "full-suite differential: 60/70 (remaining failures are cover/download/socket.io capabilities, excluded here and tracked in TASK ledger)"
+ ],
+ "exceptions": [
+  "OverDrive MediaMarkers chapters are unimplementable with the pin's ffprobe JSON path (recorded limitation).",
+  "Watcher add/unlink/rename precise per-file remapping is approximated by library-level rescan with debounce; watcher differential cases not yet run.",
+  "Ebook-only library items are grouped but not imported (no ebookFile) \u2014 owner-approved compatibility-stub exception (2026-10-30): no ebook engine required; ebook media classification/grouping stays safe.",
+  "Series RSS-feed closure on removed series not wired to the Go RSS manager.",
+  "Reciprocal single-file inode matching (file ino to another item's ino) deliberately omitted, documented in importGroup."
+ ]
+}

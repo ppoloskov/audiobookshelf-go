@@ -1,0 +1,74 @@
+{
+ "schemaVersion": 1,
+ "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+ "generatedAt": "2026-10-30T09:59:17.632Z",
+ "sourceScript": "go-backend/tools/parity/differential.cjs + run-local.cjs",
+ "fixture": "create-fixture.cjs fixture-f05k (fresh independent per-side copies)",
+ "binary": "CGO_ENABLED=0 go build ./cmd/audiobookshelf-go (go1.27.0 darwin/arm64, current source)",
+ "node": "Node v22.23.4 (mise exec node@22)",
+ "envFilter": "SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1",
+ "summary": {
+  "total": 186,
+  "passed": 186,
+  "failed": 0,
+  "skipped": 0
+ },
+ "caseRelationships": [
+  "login: within-side connect.sid issuance + attributes (path=/, httponly) + refresh-token-by-cookie-or-body; paired values normalized",
+  "rotation: returned refreshToken differs from the login token AND equals its own Set-Cookie value",
+  "grace replay: returns the SAME rotated token, re-cookie equal",
+  "concurrent refresh (2 parallel, same original): both return the stored rotated token (TokenManager race/grace branch)",
+  "sqlite: exactly one session row references the rotated token; after logout-with-current-token the row is deleted and the same token refreshes with 401",
+  "repeated logout replaces the connect.sid identifier (regeneration)"
+ ],
+ "addedCases": [
+  "local-session-login",
+  "local-session-logout",
+  "local-session-logout-refresh-revoked",
+  "local-session-logout-session-list",
+  "local-session-relogin",
+  "refresh-rotation",
+  "refresh-rotation-grace-replay",
+  "refresh-concurrent-grace",
+  "inactive-user-create",
+  "inactive-user-login-denied"
+ ],
+ "normalization": {
+  "loginRefresh": [
+   "user.accessToken",
+   "user.refreshToken",
+   "user.lastSeen"
+  ],
+  "authorization": [
+   "user.lastSeen",
+   "user.updatedAt",
+   "serverSettings.backupPath"
+  ],
+  "progressRead": [
+   "lastUpdate",
+   "startedAt",
+   "finishedAt"
+  ],
+  "playbackSession": [
+   "id",
+   "startedAt",
+   "updatedAt",
+   "deviceInfo.id",
+   "audioTracks[].contentUrl session UUID"
+  ],
+  "localSession": [
+   "per-side access/refresh tokens and JWT fingerprints; dedicated reader sessions; cleared epoch cookies compared exactly"
+  ],
+  "refreshGraceReplay": [
+   "set-cookie refresh_token value and Expires date normalized; Max-Age/Path/HttpOnly/order exact; login/refresh 200 etag+content-length normalized with the etag length-prefix integrity check (fixture root names differ in byte length)"
+  ],
+  "inactiveUser": [
+   "per-side user UUID; creation isActive:false verified against login denial; denied-login Content-Length compared exactly; Go's sniffed content-type dropped as the recorded owner-approval-pending exception on cap-route-r000"
+  ]
+ },
+ "limits": [
+  "Logout with a rotated/stale token does NOT revoke a live session upstream (observed; characterization, not asserted)",
+  "allDevices, logout no-token/error/mobile, OIDC-flow session values and the exact grace boundary remain unverified",
+  "Go denied login adds a sniffed Content-Type (owner-approval-pending exception, cap-route-r000)"
+ ]
+}

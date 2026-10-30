@@ -1,0 +1,123 @@
+{
+ "id": "route-r059",
+ "parent": "http/playback",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /items/:id/play candidate recorded from server/routers/ApiRouter.js:117. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:117"
+ ],
+ "implementation": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "verified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/playback/playback.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#playback-session (differential pass)",
+  "go-backend/contracts/parity/browser-playback-differential-report.json#results.playback",
+  "go-backend/contracts/parity/operational-playback-milestone-report.json#stages",
+  "go-backend/contracts/parity/f09-forced-transcode-browser-report.json#results"
+ ],
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "unverified"
+ },
+ "exceptions": [
+  "The force state scenario is not_applicable: POST /items/:id/play starts a playback session and has no force/refresh operation; forced transcode is a playback mode, covered separately by its recorded operational evidence."
+ ],
+ "invariants": [
+  {
+   "id": "INV-R059-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled POST /items/:id/play via differential case(s) playback-session: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:117"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#playback-session"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  },
+  {
+   "id": "INV-R059-BROWSER-DIRECT-PLAYBACK-001",
+   "class": "state_transition",
+   "contract": "The unchanged Chromium client starts the selected book session, loads and plays its generated AAC track, pauses it, seeks to approximately 70 percent, and closes the same session with Node and Go response and browser state matching.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:117",
+    "client/players/PlayerHandler.js:196-207",
+    "client/players/PlayerHandler.js:240-245",
+    "client/components/player/PlayerTrackBar.vue:97-111"
+   ],
+   "tests": [
+    "go-backend/tools/parity/browser-check.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/browser-playback-differential-report.json#results.playback"
+   ],
+   "exceptions": [
+    "One Chromium browser and the generated two-second AAC direct-play fixture are covered, including backward then forward seeks. The selected forced-transcode HLS browser path is covered separately; reset/seek races, socket reconnection, session recovery, error variants, and broader playback routes remain unverified."
+   ]
+  },
+  {
+   "id": "INV-R059-EXISTING-INSTALLATION-RESTART-RESUME-001",
+   "class": "state_transition",
+   "contract": "On a disposable copy of a representative existing v2.37.2 database, Go accepted direct-play and forced-transcode sessions, persisted progress at 30 seconds after moving backward to 15 seconds, returned 30 seconds as the resume position after process restart, and left a database that pinned upstream reopened and read with the same progress.",
+   "status": "verified",
+   "source": [
+    "server/controllers/PlaybackSessionManager.js",
+    "server/models/MediaProgress.js",
+    "server/models/User.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/operational-milestone.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/operational-playback-milestone-report.json#stages"
+   ],
+   "exceptions": [
+    "The selected forced-transcode HLS browser path and process close are covered by f09-forced-transcode-browser-report.json. Socket reconnection, session recovery, other codec/error paths, and broader playback variants remain unverified. The disposable fixture's seeded completed progress row was cleared before the new progress scenario."
+   ]
+  },
+  {
+   "id": "INV-R059-FORCED-TRANSCODE-BROWSER-CLOSE-001",
+   "class": "state_transition",
+   "contract": "On independent pinned and Go installations, the retained Chromium client selects forced transcode, receives matching HLS playlist and segment responses, advances media time, closes the same session, and leaves no stream-scoped FFmpeg process or stream directory.",
+   "status": "verified",
+   "source": [
+    "server/managers/PlaybackSessionManager.js:startSessionRequest/startSession/closeSession/removeSession",
+    "server/objects/Stream.js:start/close",
+    "server/routers/HlsRouter.js:streamFileRequest",
+    "client/players/PlayerHandler.js:prepare/prepareSession",
+    "client/players/LocalAudioPlayer.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/browser-check.cjs",
+    "go-backend/internal/playback/playback_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/f09-forced-transcode-browser-report.json#results"
+   ],
+   "exceptions": [
+    "One forced-transcode Chromium AAC fixture and its observed HLS responses are covered. Other codec-forcing/error paths, reset/seek concurrency, reconnect, and broader lifecycle variants remain unverified."
+   ]
+  }
+ ]
+}

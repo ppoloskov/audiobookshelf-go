@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "requirement": "F09 forced transcode starts, produces browser-playable HLS, advances media progress, and closes with FFmpeg terminated and stream output removed.",
+  "source": [
+    "server/managers/PlaybackSessionManager.js:startSessionRequest/startSession/closeSession/removeSession",
+    "server/objects/Stream.js:start/close/waitCancelTranscode",
+    "server/routers/HlsRouter.js:streamFileRequest",
+    "client/players/PlayerHandler.js:prepare/prepareSession",
+    "client/players/LocalAudioPlayer.js HLS lifecycle"
+  ],
+  "capabilities": [
+    "route-r059",
+    "route-r219"
+  ],
+  "toolingScope": {
+    "obligation": "Observe the existing browser's forced-transcode path, HLS playlist/segment responses, actual media-time advancement, and the stream-scoped FFmpeg process before and after close.",
+    "existingRunnerGap": "browser-check.cjs exercised direct play only; operational-milestone.cjs fetched HLS over HTTP but did not use Chromium, compare Node against Go, retain HLS response bodies, or observe process liveness/termination.",
+    "smallestObservation": "Added one forced-transcode variant to existing browser-check.cjs; it uses separate deterministic long multi-file fixtures per implementation and records HLS response status, selected headers, body length/hash, media time, FFmpeg PID visibility, and stream-directory cleanup.",
+    "notAdded": "No new runner, report framework, generic harness abstraction, or broad normalization. Session IDs are reduced to presence/matching, currentTime is rounded to 100ms only in the paired summary, and every HLS response count/status/type/length/body hash is compared."
+  },
+  "red": {
+    "command": "BROWSER_CHECK_OUT=/private/tmp/abs-f09-transcode-red GOCACHE=/private/tmp/abs-f09-gocache mise exec node@22 -- node go-backend/tools/parity/browser-check.cjs --variant transcode --fixture /private/tmp/abs-f08-final-green/fixture-manifest.json",
+    "report": "go-backend/contracts/parity/f09-forced-transcode-browser-red-report.json",
+    "result": "The HLS media workflow diverged. Go always encoded AAC while pinned Stream.js copied AAC input. Go exposed an empty first segment then a 404 while it was being produced; Chromium reported an HLS demuxer error. Node served readable segments without that error. Both sides had live FFmpeg before close and terminated/removed stream output afterward."
+  },
+  "green": {
+    "command": "BROWSER_CHECK_OUT=/private/tmp/abs-f09-transcode-final GOCACHE=/private/tmp/abs-f09-gocache SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 mise exec node@22 -- node go-backend/tools/parity/browser-check.cjs --variant transcode --fixture /private/tmp/abs-f08-final-green/fixture-manifest.json",
+    "report": "go-backend/contracts/parity/f09-forced-transcode-browser-report.json",
+    "runtime": "Node v22.23.4; Go 1.27.0; actual host FFmpeg; Playwright Chromium; independent per-side copied databases/metadata and separately generated seeded two-part audio files.",
+    "binarySHA256": "df246da965bee8db7df8830904617d398b2d1f6c0cd978e98c6c8b7b79d3273a",
+    "sourceSHA256": {
+      "go-backend/internal/playback/playback.go": "40e602e18efe882f8f01b50975da9ea75922aac9ed2cbdc79a18ef0fce8902ea",
+      "go-backend/internal/playback/playback_test.go": "eceb95d4e0dcd01192cc03bc584607d71d55e0e5e9a3a5cf83335d99f95359b3",
+      "go-backend/tools/parity/browser-check.cjs": "eb06ad1703d44c1863498bbc6fb8b46cd3d7a51f62b7b5694341c96d48db01f8"
+    },
+    "result": {
+      "pairedBrowserRuns": 1,
+      "goRequiredStepsPassed": 16,
+      "nodeRequiredStepsPassed": 16,
+      "hlsResponsesPerSide": 6,
+      "hlsResponsesAll200": true,
+      "hlsResponseHeadersLengthsAndBodyHashesEqual": true,
+      "mediaTimeBeforeCloseSeconds": {
+        "go": 1.02132,
+        "node": 1.016786
+      },
+      "ffmpegAliveBeforeClose": {
+        "goPid": 62768,
+        "nodePid": 62926
+      },
+      "ffmpegAbsentAfterClose": true,
+      "streamDirectoryRemovedAfterClose": true,
+      "playbackComparison": "matched",
+      "runtimeFailureComparison": "matched",
+      "exitCode": 0
+    }
+  },
+  "verification": {
+    "codecPolicyRegressionTest": "red before implementation (undefined transcodeAudioCodec), green after implementation",
+    "goTestCount1InternalPlayback": "exit 0",
+    "goVetInternalPlayback": "exit 0",
+    "cgoDisabledBuild": "exit 0",
+    "nodeCheckBrowserRunner": "exit 0"
+  },
+  "limitations": [
+    "Four WebP cover-resize API requests return matching 500 responses because the host FFmpeg lacks a WebP encoder; these remain explicit shared failures, not successful cover behavior.",
+    "Media-time advancement is verified in F09. Durable periodic progress synchronization is separately assigned to F12; the client source first syncs at 20 seconds.",
+    "Only this forced-transcode AAC copy path is compared. Other force-AAC codecs, reset/seek races, shutdown during reset, and broader playback variants remain open."
+  ]
+}

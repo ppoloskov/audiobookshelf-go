@@ -1,0 +1,49 @@
+{
+ "id": "route-r080",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /collections candidate recorded from server/routers/ApiRouter.js:146. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:146"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#collection-empty-name (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#collection-create (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R080-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled POST /collections via differential case(s) collection-empty-name, collection-create: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: collections, errors.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:146"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#collection-empty-name",
+    "go-backend/contracts/parity/full-suite-report.json#collection-create"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

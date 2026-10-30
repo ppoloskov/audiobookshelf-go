@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -468,18 +469,18 @@ func isPublicPlayback(path string) bool {
 
 func (rt *Runtime) serveClient(w http.ResponseWriter, r *http.Request, path string) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		http.NotFound(w, r)
+		writeClientNotFound(w, r)
 		return
 	}
 	root := rt.cfg.ClientPath
 	if root == "" {
-		http.NotFound(w, r)
+		writeClientNotFound(w, r)
 		return
 	}
 	rel := strings.TrimPrefix(filepath.Clean("/"+path), "/")
 	target := filepath.Join(root, rel)
 	if !strings.HasPrefix(target, filepath.Clean(root)+string(os.PathSeparator)) && target != filepath.Clean(root) {
-		http.NotFound(w, r)
+		writeClientNotFound(w, r)
 		return
 	}
 	if info, err := os.Stat(target); err == nil && !info.IsDir() {
@@ -494,7 +495,7 @@ func (rt *Runtime) serveClient(w http.ResponseWriter, r *http.Request, path stri
 			http.ServeFile(w, r, index)
 			return
 		}
-		http.NotFound(w, r)
+		writeClientNotFound(w, r)
 		return
 	}
 	index := filepath.Join(target, "index.html")
@@ -508,13 +509,27 @@ func (rt *Runtime) serveClient(w http.ResponseWriter, r *http.Request, path stri
 	if matchesClientDynamicRoute(path) {
 		index := filepath.Join(root, "index.html")
 		if _, err := os.Stat(index); err != nil {
-			http.NotFound(w, r)
+			writeClientNotFound(w, r)
 			return
 		}
 		http.ServeFile(w, r, index)
 		return
 	}
-	http.NotFound(w, r)
+	writeClientNotFound(w, r)
+}
+
+// Express finalhandler supplies the default Nuxt branch's missing-page response.
+func writeClientNotFound(w http.ResponseWriter, r *http.Request) {
+	message := html.EscapeString("Cannot " + r.Method + " " + r.URL.EscapedPath())
+	body := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + message + "</pre>\n</body>\n</html>\n"
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("Content-Security-Policy", "default-src 'none'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusNotFound)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write([]byte(body))
+	}
 }
 
 // clientDynamicRoutes mirrors the enumerated Vue/Nuxt client dynamic routes

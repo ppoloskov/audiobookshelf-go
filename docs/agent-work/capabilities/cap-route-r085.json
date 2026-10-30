@@ -1,0 +1,25 @@
+{
+ "id": "route-r085",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "POST /collections/:id/book candidate recorded from server/routers/ApiRouter.js:151. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:151"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": true,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [],
+ "exceptions": []
+}

@@ -1,0 +1,49 @@
+{
+  "browser": "Playwright Chromium headless",
+  "fixture": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/audit-repair-final-parity/fixture-manifest.json",
+  "output": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance",
+  "boot": {
+    "go": "CGO_ENABLED=0 binary; isolated copied config/metadata; ABS_GO_CLIENT_PATH=client/dist; ROUTER_BASE_PATH=/audiobookshelf",
+    "node": "mise exec node@22 -- dist/index.js; isolated copied config/metadata"
+  },
+  "results": {
+    "go": {
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "noConsoleErrors": true,
+        "allAPI2xx": true
+      },
+      "consoleErrors": [],
+      "pageErrors": [],
+      "apiFailures": [],
+      "screenshots": {
+        "shell": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/go-shell.png",
+        "login": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/go-login.png",
+        "library": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/go-library.png",
+        "detail": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/go-detail.png"
+      }
+    },
+    "node": {
+      "steps": {
+        "shell": true,
+        "login": true,
+        "library": true,
+        "detail": true,
+        "noConsoleErrors": true,
+        "allAPI2xx": true
+      },
+      "consoleErrors": [],
+      "pageErrors": [],
+      "apiFailures": [],
+      "screenshots": {
+        "shell": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/node-shell.png",
+        "login": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/node-login.png",
+        "library": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/node-library.png",
+        "detail": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance/node-detail.png"
+      }
+    }
+  }
+}

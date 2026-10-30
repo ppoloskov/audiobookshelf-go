@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "result": "PASS",
+  "scope": "On one disposable copy of a representative existing v2.37.2 installation: Go login/browse, direct audio, transcoded HLS segment, backward/forward progress, Go restart/resume, and pinned-upstream reopen of the Go-written database.",
+  "fixtureAdjustment": "Replaced only the disposable copy’s two-second AAC clip with a 60-second equivalent and cleared the seeded root-user progress row so the upstream short-item auto-finish rule would not erase the resume point.",
+  "stages": [
+    {
+      "name": "go-login-browse",
+      "pass": true,
+      "libraryCount": 2,
+      "title": "Deterministic Book",
+      "duration": 60
+    },
+    {
+      "name": "go-direct-audio",
+      "pass": true,
+      "status": 200,
+      "duration": 60,
+      "contentLength": 1600,
+      "bytes": 0
+    },
+    {
+      "name": "go-transcoded-audio",
+      "pass": true,
+      "playMethod": 2,
+      "playlistStatus": 200,
+      "segmentStatus": 200,
+      "segmentBytes": 3760
+    },
+    {
+      "name": "go-back-forward-progress",
+      "pass": true,
+      "initialForwardSeekSeconds": 30,
+      "backwardSeekSeconds": 15,
+      "forwardSeekSeconds": 30,
+      "persistedCurrentTime": 30
+    },
+    {
+      "name": "go-restart-resume",
+      "pass": true,
+      "resumedCurrentTime": 30
+    },
+    {
+      "name": "pinned-upstream-reopens-go-database",
+      "pass": true,
+      "title": "Deterministic Book",
+      "currentTime": 30
+    }
+  ]
+}

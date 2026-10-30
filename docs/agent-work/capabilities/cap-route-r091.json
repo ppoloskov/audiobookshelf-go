@@ -1,0 +1,49 @@
+{
+ "id": "route-r091",
+ "parent": "http/userapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /playlists/:id candidate recorded from server/routers/ApiRouter.js:161. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:161"
+ ],
+ "implementation": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/userapi/userapi.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#playlist-missing (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#playlist-read (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R091-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /playlists/:id via differential case(s) playlist-missing, playlist-read: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: errors, playlists.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:161"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#playlist-missing",
+    "go-backend/contracts/parity/full-suite-report.json#playlist-read"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}
