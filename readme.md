@@ -192,3 +192,7 @@ If you are using VSCode, this project includes a couple of pre-defined targets t
 - `Debug server`—Run the server.
 - `Debug client (nuxt)`—Run the client with live reload.
 - `Debug server and client (nuxt)`—Runs both the preceding two debug targets.
+
+## Go compatibility rewrite
+
+This checkout includes an ongoing Go drop-in compatibility implementation in [go-backend/](go-backend/README.md). It targets pinned upstream v2.37.2 and is not yet at full parity. Read [agents.md](agents.md) and [handover.md](handover.md) before continuing. The contract, capability ledger, evidence, and next action live under [docs/agent-work/](docs/agent-work/).

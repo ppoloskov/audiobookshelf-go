@@ -1,0 +1,172 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "provider": "local ephemeral RS256 provider",
+  "compared": 4,
+  "matched": 4,
+  "mismatched": 0,
+  "cases": [
+    {
+      "name": "oidc-web-auto-register-success",
+      "node": {
+        "status": 302,
+        "redirectPath": "/audiobookshelf/login",
+        "redirectError": null,
+        "hasSetToken": true,
+        "hasAccessToken": true,
+        "userState": null,
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/audiobookshelf/login",
+        "redirectError": null,
+        "hasSetToken": true,
+        "hasAccessToken": true,
+        "userState": null,
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-provider-error",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-state-replay-after-provider-error",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "No sign-in session",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "No sign-in session",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-expired-id-token",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    }
+  ],
+  "limits": [
+    "Web auto-registration success, provider-error redirect, replay after provider error, and expired ID-token rejection are exercised.",
+    "Denial, linking, and Socket.IO user_added observations remain uncovered.",
+    "UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared."
+  ]
+}

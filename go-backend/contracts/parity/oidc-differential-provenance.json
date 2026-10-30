@@ -1,0 +1,33 @@
+{
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized fixture, with one ephemeral local RS256 provider",
+  "fixtureSource": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final5/fixture-manifest.json",
+  "workDir": "/private/tmp/abs-oidc-differential-3",
+  "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-go ./cmd/audiobookshelf-go",
+  "runtime": {
+    "node": "v22.23.4 via mise",
+    "go": "go1.27.0 darwin/arm64"
+  },
+  "sourceHashes": {
+    "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
+    "server/models/User.js": "c7a50501f29e9eaf317501239bc7ba8c8c0c398efb6e8c716ec3052489d3cf52",
+    "server/Auth.js": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d",
+    "go-backend/internal/identity/oidc.go": "42949d2d45bf405ce83481332536cfdd0c2d4d0e314928f68ed9c4c514f0e352",
+    "go-backend/tools/parity/oidc-differential.cjs": "530647f12fb19939db556d56ef0ed9a1ee7cdb7eba281145f531cd2d46f52326"
+  },
+  "results": {
+    "compared": 4,
+    "matched": 4,
+    "mismatched": 0
+  },
+  "normalization": [
+    "Random UUIDs, access/refresh tokens, ID tokens, and timestamps are not retained; compare their semantic effects via selected user fields, redirect shape, and session count.",
+    "Node and Go use separate copied fixture directories and database files."
+  ],
+  "limits": [
+    "Covered web auto-registration success, provider error, replay after provider error, and expired ID-token rejection.",
+    "Did not exercise authentication denial, existing-user linking, invalid signature/issuer/audience/nonce, mobile flow, expiry of in-memory flow state, callback cookies in detail, or Socket.IO user_added event recipients/payloads.",
+    "The report establishes only these four local mock-provider cases, not overall OIDC or identity parity."
+  ],
+  "report": "go-backend/contracts/parity/oidc-differential-report.json"
+}
