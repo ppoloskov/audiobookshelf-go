@@ -91,6 +91,10 @@ const EXPECTED_STATUS = {
   'backup-missing-download': 404, 'collection-empty-name': 400,
   'playlist-empty-items': 200,
   'item-download': 200,
+  'item-file-download': 200, 'item-file-download-range': 206,
+  'item-file-download-missing-item': 404, 'item-file-download-missing-file': 404,
+  'item-file-download-disk-missing': 404,
+  'item-file-download-denied': 403, 'item-file-download-denied-missing-file': 404,
   'playback-session': 200, 'hls-playlist': 200, 'session-close': 200,
   'socket-connect-prefixed': 200, 'socket-connect-legacy': 200,
   'socket-event-user-updated': 200
@@ -151,6 +155,7 @@ async function call(server, route, options = {}) {
   }
   if (route.startsWith('/api/items/') && route.endsWith('/download')) {
     headerNames.push('content-disposition', 'content-length', 'last-modified')
+    if ([403, 404].includes(response.status)) headerNames.push('etag')
   }
   if ((route.startsWith('/api/emails/') || route.startsWith('/api/notifications')) && [403, 404].includes(response.status)) {
     headerNames.push('etag', 'content-length')
@@ -902,6 +907,36 @@ async function main() {
   ])
   results.push(compare('item-download', nodeDownload, goDownload))
 
+  const fileDownloadRoutes = {
+    node: `/api/items/${bookItemId}/file/${audioFileId}/download`,
+    go: `/api/items/${bookItemId}/file/${audioFileIdGo}/download`
+  }
+  const [nodeFileDownload, goFileDownload] = await Promise.all([
+    call(node, fileDownloadRoutes.node, { token: referenceAccessToken }),
+    call(go, fileDownloadRoutes.go, { token: referenceAccessToken })
+  ])
+  results.push(compare('item-file-download', nodeFileDownload, goFileDownload))
+
+  const [nodeFileDownloadRange, goFileDownloadRange] = await Promise.all([
+    call(node, fileDownloadRoutes.node, { token: referenceAccessToken, headers: { Range: 'bytes=0-127' } }),
+    call(go, fileDownloadRoutes.go, { token: referenceAccessToken, headers: { Range: 'bytes=0-127' } })
+  ])
+  results.push(compare('item-file-download-range', nodeFileDownloadRange, goFileDownloadRange))
+
+  const missingFileRoute = `/api/items/${bookItemId}/file/absent-file-ino/download`
+  const [nodeMissingFile, goMissingFile] = await Promise.all([
+    call(node, missingFileRoute, { token: referenceAccessToken }),
+    call(go, missingFileRoute, { token: referenceAccessToken })
+  ])
+  results.push(compare('item-file-download-missing-file', nodeMissingFile, goMissingFile))
+
+  const missingItemFileRoute = '/api/items/00000000-0000-0000-0000-000000000000/file/absent-file-ino/download'
+  const [nodeMissingItemFile, goMissingItemFile] = await Promise.all([
+    call(node, missingItemFileRoute, { token: referenceAccessToken }),
+    call(go, missingItemFileRoute, { token: referenceAccessToken })
+  ])
+  results.push(compare('item-file-download-missing-item', nodeMissingItemFile, goMissingItemFile))
+
   // Exercise the bookmark lifecycle against the same independently seeded user copies.
   const bookmarkTime = 1.25
   const bookmarkCreateRoute = `/api/me/item/${bookItemId}/bookmark`
@@ -1018,11 +1053,15 @@ async function main() {
       await comparePair('api-key-list', '/api/api-keys', '/api/api-keys', { method: 'GET' })
       await comparePair('api-key-auth-library-read', '/api/libraries', '/api/libraries', { method: 'GET', nodeToken: nodeKey.apiKey, goToken: goKey.apiKey })
       await comparePair('api-key-denied-download', `/api/items/${bookItemId}/download`, `/api/items/${bookItemId}/download`, { method: 'GET', nodeToken: nodeKey.apiKey, goToken: goKey.apiKey })
+      await comparePair('item-file-download-denied', fileDownloadRoutes.node, fileDownloadRoutes.go, { method: 'GET', nodeToken: nodeKey.apiKey, goToken: goKey.apiKey })
+      const missingNodeFileRoute = `/api/items/${bookItemId}/file/absent-file-ino/download`
+      const missingGoFileRoute = `/api/items/${bookItemId}/file/absent-file-ino/download`
+      await comparePair('item-file-download-denied-missing-file', missingNodeFileRoute, missingGoFileRoute, { method: 'GET', nodeToken: nodeKey.apiKey, goToken: goKey.apiKey })
       await comparePair('api-key-update', `/api/api-keys/${nodeApiKeyId}`, `/api/api-keys/${goApiKeyId}`, { method: 'PATCH', body: { isActive: false } })
       await comparePair('api-key-delete', `/api/api-keys/${nodeApiKeyId}`, `/api/api-keys/${goApiKeyId}`, { method: 'DELETE' })
     } else {
       results.push({ id: 'api-key-list', passed: false, skipped: true, prerequisite: 'both API key create calls must return active key tokens' })
-      for (const id of ['api-key-auth-library-read', 'api-key-denied-download', 'api-key-update', 'api-key-delete']) results.push({ id, passed: false, skipped: true, prerequisite: 'both API key create calls must return active key tokens' })
+      for (const id of ['api-key-auth-library-read', 'api-key-denied-download', 'item-file-download-denied', 'item-file-download-denied-missing-file', 'api-key-update', 'api-key-delete']) results.push({ id, passed: false, skipped: true, prerequisite: 'both API key create calls must return active key tokens' })
     }
     await comparePair('user-delete', `/api/users/${nodeUserId}`, `/api/users/${goUserId}`, { method: 'DELETE' })
     await comparePair('user-list-after-delete', '/api/users', '/api/users', { method: 'GET' })
@@ -1368,6 +1407,34 @@ async function main() {
       coverPatchState.node.coverFiles.includes('cover.svg') && coverPatchState.go.coverFiles.includes('cover.svg')
   } else {
     for (const id of ['cover-patch-success', 'cover-patch-repeat']) results.push({ id, passed: false, skipped: true, prerequisite: 'both item details must expose a library file path' })
+  }
+
+  // Run this fixture-only rename probe last: upstream's filesystem watcher
+  // observes the rename and may start a scan, so no later API cases should be
+  // exposed to that background work.
+  const [nodeDownloadItem, goDownloadItem] = await Promise.all([
+    call(node, `/api/items/${bookItemId}`, { token: referenceAccessToken }),
+    call(go, `/api/items/${bookItemId}`, { token: referenceAccessToken })
+  ])
+  const nodeDownloadPath = nodeDownloadItem.body?.libraryFiles?.find((file) => file.ino === audioFileId)?.metadata?.path
+  const goDownloadPath = goDownloadItem.body?.libraryFiles?.find((file) => file.ino === audioFileIdGo)?.metadata?.path
+  if (typeof nodeDownloadPath !== 'string' || typeof goDownloadPath !== 'string') {
+    throw new Error('item-file-download-disk-missing: source-created fixture file paths are missing')
+  }
+  const hiddenDownloads = []
+  try {
+    for (const filePath of [nodeDownloadPath, goDownloadPath]) {
+      const hiddenPath = `${filePath}.parity-hidden`
+      fs.renameSync(filePath, hiddenPath)
+      hiddenDownloads.push([hiddenPath, filePath])
+    }
+    const [nodeMissingDisk, goMissingDisk] = await Promise.all([
+      call(node, fileDownloadRoutes.node, { token: referenceAccessToken }),
+      call(go, fileDownloadRoutes.go, { token: referenceAccessToken })
+    ])
+    results.push(compare('item-file-download-disk-missing', nodeMissingDisk, goMissingDisk))
+  } finally {
+    for (const [hiddenPath, filePath] of hiddenDownloads.reverse()) fs.renameSync(hiddenPath, filePath)
   }
 
   const report = {

@@ -1,11 +1,11 @@
 {
  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
- "method": "tools/parity/create-fixture.cjs + run-local.cjs + differential.cjs (103 HTTP cases on fresh independent API-created fixtures; paired pinned upstream v2.37.2 and Go servers) + prior persisted-state-check.cjs + rollback-check.cjs + client-check.cjs",
- "goBuild": "GOCACHE=/private/tmp/audiobookshelf-go-cache CGO_ENABLED=0 go build -o /private/tmp/abs-email-notification-check ./cmd/audiobookshelf-go",
+ "method": "tools/parity/create-fixture.cjs + run-local.cjs + differential.cjs (110 HTTP cases on fresh independent API-created fixtures; pinned upstream v2.37.2 and Go servers) + prior persisted-state-check.cjs + rollback-check.cjs + client-check.cjs",
+ "goBuild": "GOCACHE=/private/tmp/audiobookshelf-go-cache CGO_ENABLED=0 go build -o /private/tmp/abs-file-download-errors ./cmd/audiobookshelf-go",
  "nodeVersion": "v22.23.4 via mise",
  "results": {
-  "total": 103,
-  "passed": 103,
+  "total": 110,
+  "passed": 110,
   "failed": 0
  },
  "rollback": "rollback-check.cjs PASS (exit 0) after final cover fixes: pinned Node reopens the suite-mutated Go database and serves login/libraries/item.",
@@ -15,9 +15,12 @@
   "playbackSessions stayed EMPTY during the 86-case run for the create+close flow on both sides; persisted-state-check now supplies the dedicated session-row lifecycle evidence instead.",
   "This is sampled capability evidence, not the reconciled in-scope inventory; the reconciled subset target and remaining queue are recorded in docs/agent-work/audits/coverage-risk-groups.md.",
   "Cover variants: default-mode differential checks one local 307 redirect success, one explicitly whitelisted local image URL, one literal RFC1918 rejection, unsupported GIF extension rejection, and multipart URL-over-file precedence, and a 1.1 MB JSON PATCH parser probe. Successful PATCH copy/repeat validates response headers per side, removes seeded stale cache, and retains unrelated cover.svg. Separate EXP_PROXY_SUPPORT=1 evidence checks 307 rejection; private-address probing is skipped in that mode because upstream disables SSRF filtering. 301/302 chains, DNS rebinding, and the full SSRF address matrix remain unverified.",
-  "Fresh 2026-10-30 run added real reader-token coverage: user-create-forbidden 403, user-delete-forbidden 403, email-settings-reader-admin-gate 404, and notifications-reader-admin-gate 403 all matched, including denial body/headers. comparePair now preserves supplied per-case tokens instead of replacing them with the root token. Loopback URL samples used SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1. This is sampled evidence only; normal/admin payloads, other email and notification routes, and their mutation/state variants remain open."
+  "Fresh 2026-10-30 run added real reader-token coverage: user-create-forbidden 403, user-delete-forbidden 403, email-settings-reader-admin-gate 404, and notifications-reader-admin-gate 403 all matched, including denial body/headers. comparePair now preserves supplied per-case tokens instead of replacing them with the root token. Loopback URL samples used SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1. This is sampled evidence only; normal/admin payloads, other email and notification routes, and their mutation/state variants remain open.",
+  "Fresh file-download characterization reproduced three upstream divergences before the fix: missing file IDs returned 404 text/html instead of 404 sendStatus text/plain; denied valid-file responses returned 403 text/html instead of sendStatus text/plain; and a denied user with a missing file ID got 403 in Go while upstream middleware returns 404 before the controller permission gate. Go now resolves item/library access/file ID first and uses Express sendStatus for these branches. Fresh fixed run passed all six file-download cases: valid, byte range, missing item, missing file, denied valid file, and denied missing file. Apple-mobile MIME override, X-Accel behavior, and alternate library-file types remain open.",
+  "Fresh per-file download characterization: six initial cases reproduced three Go divergences, all corrected. A seventh fixture-only missing-disk-file case first returned the expected upstream 404 body but the earlier harness ordering let upstream’s filesystem watcher collide with a later scan call; the probe now runs last and restores the renamed fixture file in a finally block. One clean rerun had a legacy Socket.IO timeout; a second fresh fixture passed 110/110 including all seven file-download cases. The download error helper now preserves a previously selected audio MIME type and adds Express string-response charset, Content-Length, and weak ETag. Unverified download branches include Apple-mobile MIME override, X-Accel-Redirect, other library-file types, and non-ENOENT filesystem errors."
  ],
  "persistedState": "tools/parity/persisted-state-check.cjs PASS on both implementations: row counts per step, single-row progress upsert across 3 patches, close retains persisted session rows, progress recompute (currentTime/duration), device extraData {}, persisted mediaMetadata byte-shape (ordered keys) — evidence contracts/parity/persisted-state-report.json",
- "coverLifecycle": "103/103 differential PASS in the latest fresh run; previous cover PATCH/upload/delete lifecycle evidence remains as separately described in the notes.",
- "clientAcceptance": "client-check.cjs PASS (exit 0) after final cover fixes: shell/assets/dynamic routes/unknown-path 404/login/boot API."
+ "coverLifecycle": "Previous dedicated cover upload/PATCH/delete lifecycle evidence remains verified by the prior cover report; this latest 110-case report adds the per-file download matrix.",
+ "clientAcceptance": "client-check.cjs PASS (exit 0) after final cover fixes: shell/assets/dynamic routes/unknown-path 404/login/boot API.",
+ "downloads": "110/110 latest full-suite differential. Seven file-download cases pass: valid file, byte range, missing item, missing file record, valid-file permission denial, missing-record-before-permission ordering, and missing-disk-file controller error with preserved audio MIME."
 }

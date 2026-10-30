@@ -2520,7 +2520,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusNotFound, "")
+		writeStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -2528,16 +2528,8 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 		return
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		writeStatus(w, http.StatusForbidden)
 		return
-	}
-	if download {
-		var permissions map[string]any
-		_ = json.Unmarshal(user.Permissions, &permissions)
-		if !user.IsActive || permissions["download"] != true {
-			writeError(w, http.StatusForbidden, "")
-			return
-		}
 	}
 	var target string
 	for _, file := range decodeArray(raw) {
@@ -2549,11 +2541,32 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 		}
 	}
 	if target == "" {
-		writeError(w, http.StatusNotFound, "")
+		writeStatus(w, http.StatusNotFound)
 		return
 	}
+	if download {
+		var permissions map[string]any
+		_ = json.Unmarshal(user.Permissions, &permissions)
+		if !user.IsActive || permissions["download"] != true {
+			writeStatus(w, http.StatusForbidden)
+			return
+		}
+		if mimeType := audioMIMEType(filepath.Ext(target)); mimeType != "" {
+			w.Header().Set("Content-Type", mimeType)
+		}
+	}
 	if !h.pathAllowed(r.Context(), target, libraryID, false) {
-		writeError(w, http.StatusNotFound, "")
+		if download {
+			if _, statErr := os.Stat(target); statErr != nil {
+				if os.IsNotExist(statErr) {
+					sendDownloadText(w, http.StatusNotFound, "File not found")
+				} else {
+					sendDownloadText(w, http.StatusInternalServerError, "Download failed")
+				}
+				return
+			}
+		}
+		writeStatus(w, http.StatusNotFound)
 		return
 	}
 	if download {

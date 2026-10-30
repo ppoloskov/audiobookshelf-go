@@ -101,6 +101,13 @@
     { "id": "api-key-update", "method": "PATCH", "route": "/api/api-keys/{apiKeyId}", "auth": "bearer", "category": "api-keys", "status": "ready" },
     { "id": "api-key-auth-library-read", "method": "GET", "route": "/api/libraries", "auth": "api-key", "category": "permissions", "status": "ready" },
     { "id": "api-key-denied-download", "method": "GET", "route": "/api/items/{bookItemId}/download", "auth": "api-key-without-download-permission", "category": "permissions", "status": "ready" },
+    { "id": "item-file-download", "method": "GET", "route": "/api/items/{bookItemId}/file/{audioFileId}/download", "auth": "bearer", "category": "normal", "status": "ready" },
+    { "id": "item-file-download-range", "method": "GET", "route": "/api/items/{bookItemId}/file/{audioFileId}/download", "auth": "bearer", "category": "edge-cases", "status": "ready" },
+    { "id": "item-file-download-missing-item", "method": "GET", "route": "/api/items/{missingItemId}/file/{missingFileId}/download", "auth": "bearer", "category": "errors", "status": "ready" },
+    { "id": "item-file-download-missing-file", "method": "GET", "route": "/api/items/{bookItemId}/file/{missingFileId}/download", "auth": "bearer", "category": "errors", "status": "ready" },
+    { "id": "item-file-download-disk-missing", "method": "GET", "route": "/api/items/{bookItemId}/file/{audioFileId}/download", "auth": "bearer", "category": "errors", "status": "ready" },
+    { "id": "item-file-download-denied", "method": "GET", "route": "/api/items/{bookItemId}/file/{audioFileId}/download", "auth": "api-key-without-download-permission", "category": "permissions", "status": "ready" },
+    { "id": "item-file-download-denied-missing-file", "method": "GET", "route": "/api/items/{bookItemId}/file/{missingFileId}/download", "auth": "api-key-without-download-permission", "category": "permissions", "status": "ready" },
     { "id": "api-key-delete", "method": "DELETE", "route": "/api/api-keys/{apiKeyId}", "auth": "bearer", "category": "api-keys", "status": "ready" },
     { "id": "socket-connect-prefixed", "method": "SOCKET.IO", "route": "/audiobookshelf/socket.io", "auth": "bearer", "category": "realtime", "status": "ready" },
     { "id": "socket-connect-legacy", "method": "SOCKET.IO", "route": "/socket.io", "auth": "bearer", "category": "realtime", "status": "ready" }

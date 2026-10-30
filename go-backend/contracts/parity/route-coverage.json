@@ -9,7 +9,7 @@
     "go-backend/internal/adminops/handler.go": "a94174321c59bf8ead74b8201b21b1f545d4d1c84a1275d3af851391c7a788c3",
     "go-backend/internal/audiotools/tools.go": "8e4cbe43afd7e4491600ede87f7fbfde5e7e5ab05f28a35a11fa9dc7b00ea38b",
     "go-backend/internal/backup/backup.go": "32c7dd7723020926475d0157970169490ece9be440146015c26985f4f20f687e",
-    "go-backend/internal/catalog/handler.go": "b7975119f917e6aba61a3c03a34e498acaab1620a05b3e95ccb680b7af096a61",
+    "go-backend/internal/catalog/handler.go": "ebf0698c7aaa2e823420ffe520aa962167f791d56c1cadc55a6d02e9877bfd80",
     "go-backend/internal/emailapi/handler.go": "0bc1951a0a76046fc2ba7a8c65a7084f14f23236589ffc4420bf5a6e239d3a41",
     "go-backend/internal/identity/identity.go": "c5b3c1af6a71eaac21559563ffa1a2f1116536c0a6a6014bd409336d14d2a16d",
     "go-backend/internal/notifications/handler.go": "b7d85402e05f2b00d348b5164b120e617fa1817af161252e1e5f49c0c31aab3c",
@@ -78,10 +78,10 @@
       "dynamic_expression": 1,
       "regex_literal": 1
     },
-    "routesWithDifferentialVariants": 56,
-    "declaredDifferentialVariants": 99,
-    "sampledDifferentialVariants": 103,
-    "sampledPassingVariants": 103,
+    "routesWithDifferentialVariants": 57,
+    "declaredDifferentialVariants": 106,
+    "sampledDifferentialVariants": 110,
+    "sampledPassingVariants": 110,
     "sampledFailingVariants": 0
   },
   "routes": [
@@ -2501,10 +2501,60 @@
         "route": "GET /api/items/:id/file/:fileid/download",
         "evidence": "go-backend/internal/catalog/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "item-file-download",
+          "category": "normal",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-range",
+          "category": "edge-cases",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-missing-item",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-missing-file",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-disk-missing",
+          "category": "errors",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-denied",
+          "category": "permissions",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-denied-missing-file",
+          "category": "permissions",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        }
+      ],
+      "differentialVariantCount": 7,
+      "sampledVariantCount": 7,
+      "sampledPassingVariantCount": 7,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },

@@ -1,6 +1,6 @@
 # Parity development status
 
-Updated 2026-10-30 during continued parity work. This remains an experimental backend, not a drop-in replacement. The latest fresh Node-vs-Go HTTP differential passes 103/103; the strict ledger gate still fails with 1,681 diagnostics across 236 capability records, and all 226 route compatibility statuses remain unverified. See root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for precise evidence, limitations, and the next work packets. The active-work descriptions below record implementation scope, not running agents.
+Updated 2026-10-30 during continued parity work. This remains an experimental backend, not a drop-in replacement. The latest fresh Node-vs-Go HTTP differential passes 110/110; the strict ledger gate still fails with 1,679 diagnostics across 236 capability records, and all 226 route compatibility statuses remain unverified. See root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for precise evidence, limitations, and the next work packets. The active-work descriptions below record implementation scope, not running agents.
 
 Target: upstream v2.37.2 (`edb1f7efc92ecacdef51aafb4d9d5054ce10604f`). User instruction is to continue until feature parity, using Luna implementation agents. Do not treat a passing sampled flow as complete route parity.
 

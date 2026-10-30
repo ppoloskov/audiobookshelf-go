@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "validator": "check-ledger.go -require-verified -require-invariants",
   "validatorExitCode": 1,
-  "diagnosticCount": 1681,
+  "diagnosticCount": 1679,
   "distinctCapabilitiesWithFindings": 236,
   "capabilityStatusNotVerified": 236,
   "causeCounts": {
     "initial_scenario_not_verified": 120,
-    "missing_invariant_record": 176,
+    "missing_invariant_record": 175,
     "missing_or_unverified_scenario_changed": 124,
     "missing_or_unverified_scenario_failure": 120,
     "missing_or_unverified_scenario_force": 120,
@@ -15,7 +15,7 @@
     "missing_or_unverified_scenario_repeat": 122,
     "missing_repeat_operation_invariant": 128,
     "missing_stateful_classification": 3,
-    "no_verified_invariant": 176,
+    "no_verified_invariant": 175,
     "unverified_capability_status": 472
   },
   "parentDiagnosticCounts": {
@@ -26,7 +26,7 @@
     "http/adminops": 171,
     "http/audiotools": 48,
     "http/backup": 54,
-    "http/catalog": 395,
+    "http/catalog": 393,
     "http/emailapi": 48,
     "http/identity": 65,
     "http/notifications": 60,
@@ -1172,10 +1172,8 @@
       "kind": "operation",
       "scope": "in",
       "status": "implemented",
-      "findingCount": 4,
+      "findingCount": 2,
       "causes": {
-        "missing_invariant_record": 1,
-        "no_verified_invariant": 1,
         "unverified_capability_status": 2
       }
     },
@@ -7168,20 +7166,6 @@
       "parent": "http/catalog",
       "cause": "unverified_capability_status",
       "diagnostic": "-require-invariants: in-scope capability is not verified"
-    },
-    {
-      "file": "cap-route-r068.json",
-      "id": "route-r068",
-      "parent": "http/catalog",
-      "cause": "missing_invariant_record",
-      "diagnostic": "-require-invariants: at least one source-backed invariant required"
-    },
-    {
-      "file": "cap-route-r068.json",
-      "id": "route-r068",
-      "parent": "http/catalog",
-      "cause": "no_verified_invariant",
-      "diagnostic": "-require-invariants: at least one invariant must be verified, not all not_applicable"
     },
     {
       "file": "cap-route-r068.json",

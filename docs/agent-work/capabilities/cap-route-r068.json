@@ -1,0 +1,73 @@
+{
+ "id": "route-r068",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /items/:id/file/:fileid/download candidate recorded from server/routers/ApiRouter.js:126. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:126"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "stateful": false,
+ "invariants": [
+  {
+   "id": "INV-R068-FILE-LOOKUP-ORDER-001",
+   "class": "error",
+   "contract": "LibraryItemController middleware resolves the item, library access, and requested library file ID before downloadLibraryFile checks canDownload; therefore a missing file ID returns sendStatus(404) even for a user without download permission, while an existing file returns sendStatus(403).",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:1073-1080,1220-1235"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go",
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied-missing-file",
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-R068-DISK-ERROR-001",
+   "class": "error",
+   "contract": "When the requested library file record exists but its disk path is missing, upstream download handling returns status 404 with body 'File not found'; an audio MIME type selected before res.download is preserved and receives the string-response charset, Content-Length, and weak ETag.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:1073-1108"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go",
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#item-file-download-disk-missing"
+   ],
+   "exceptions": []
+  }
+ ],
+ "tests": [
+  "go-backend/internal/catalog/handler_test.go",
+  "go-backend/tools/parity/differential.cjs"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-range",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-missing-item",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-missing-file",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-denied-missing-file",
+  "go-backend/contracts/parity/full-suite-report.json#item-file-download-disk-missing"
+ ],
+ "exceptions": [
+  "This sample verifies selected file-download normal/error/edge behavior; Apple-mobile MIME override, X-Accel-Redirect, other library-file types, and non-ENOENT filesystem errors remain unverified."
+ ]
+}
