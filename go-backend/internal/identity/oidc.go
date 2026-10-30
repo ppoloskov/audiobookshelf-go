@@ -558,6 +558,9 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			return store.User{}, err
 		}
 		created = true
+		if h.userAddedEmitter != nil {
+			h.userAddedEmitter(UserBrowser(user, false, false))
+		}
 	}
 	if !user.IsActive {
 		return user, errors.New("user not active or not found")

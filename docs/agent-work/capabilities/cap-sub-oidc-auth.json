@@ -62,6 +62,25 @@
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
    ],
    "exceptions": []
+  },
+  {
+   "id": "INV-OIDC-USER-ADDED-001",
+   "class": "state_transition",
+   "contract": "Successful OIDC auto-registration emits one user_added payload with the legacy browser user shape to root/admin sockets and does not deliver it to an ordinary user socket.",
+   "status": "verified",
+   "source": [
+    "server/models/User.js:311-345"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/server/runtime.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success"
+   ],
+   "exceptions": [
+    "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
+   ]
   }
  ],
  "stateful": true,
@@ -78,10 +97,10 @@
   "go-backend/tools/parity/oidc-differential.cjs"
  ],
  "evidence": [
-  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: six web callback/state/persistence cases, 6/6 matched after the persisted extraData order fix; see provenance for exact limits)"
+  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: six web callback/state/persistence cases, 6/6 matched; includes one real-socket user_added recipient/payload case; see provenance for exact limits)"
  ],
  "exceptions": [
-  "Invalid signature/issuer/audience/nonce, mobile flow, flow-state expiry, detailed cookie attributes, and Socket.IO user_added behavior remain unverified.",
+  "Invalid signature/issuer/audience/nonce, mobile flow, flow-state expiry, detailed cookie attributes, and the general Socket.IO event inventory remain unverified.",
   "OIDC capability normal/error/edge categories remain unverified as a whole despite six matched cases; no full OIDC parity claim is made.",
   "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
  ]

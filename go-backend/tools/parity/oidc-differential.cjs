@@ -142,6 +142,62 @@ async function get(url, jar) {
   return response
 }
 
+async function loginToken(base, credentials) {
+  const response = await fetch(`${base}${PREFIX}/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-return-tokens': 'true' },
+    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
+    signal: AbortSignal.timeout(15000)
+  })
+  const body = await response.json()
+  const token = body.user?.accessToken || body.accessToken
+  if (!response.ok || !token) throw new Error(`fixture user login failed (${response.status})`)
+  return token
+}
+
+async function openSocket(base, token) {
+  const { io } = require('socket.io-client')
+  const socket = io(base, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+  const connected = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Socket.IO init timeout')), 10000)
+    socket.once('connect', () => socket.emit('auth', token))
+    socket.once('init', () => { clearTimeout(timer); resolve() })
+    socket.once('connect_error', error => { clearTimeout(timer); reject(error) })
+  })
+  try { await connected } catch (error) { socket.disconnect(); throw error }
+  return socket
+}
+
+function normalizeAddedUser(value) {
+  if (Array.isArray(value)) return value.map(normalizeAddedUser)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+    if (key === 'id') return [key, '<new-user-id>']
+    if (key === 'token') return [key, '<new-user-token>']
+    if (key === 'createdAt') return [key, '<dynamic-time>']
+    return [key, normalizeAddedUser(item)]
+  }))
+}
+
+function canonicalJSON(value) {
+  if (Array.isArray(value)) return value.map(canonicalJSON)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalJSON(item)]))
+}
+
+async function watchUserAdded(base, fixture) {
+  const rootToken = await loginToken(base, fixture.rootCredentials)
+  const readerToken = await loginToken(base, fixture.readerCredentials)
+  const [admin, reader] = await Promise.all([openSocket(base, rootToken), openSocket(base, readerToken)])
+  const adminEvents = [], readerEvents = []
+  admin.on('user_added', payload => adminEvents.push(normalizeAddedUser(payload)))
+  reader.on('user_added', payload => readerEvents.push(normalizeAddedUser(payload)))
+  return {
+    result: async () => { await delay(500); return { adminEvents, readerEventCount: readerEvents.length } },
+    close: () => { admin.disconnect(); reader.disconnect() }
+  }
+}
+
 function redirectSummary(response, base) {
   const location = response.headers.get('location') || ''
   const target = location ? new URL(location, base) : null
@@ -159,13 +215,14 @@ async function snapshotDB(file) {
   } finally { await new Promise(resolve => db.close(resolve)) }
 }
 
-async function runFlow(kind, dir, goBin, provider, work, mode = 'success') {
+async function runFlow(kind, dir, goBin, provider, work, fixture, mode = 'success') {
   const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `${kind}.log`)
   await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, mode)
   const proc = startServer(kind, dir, port, logPath, goBin)
   try {
     await ready(proc, base, logPath)
     const jar = new Map()
+    const socketWatch = mode === 'success' ? await watchUserAdded(base, fixture) : null
     const start = await get(`${base}${PREFIX}/auth/openid?callback=${encodeURIComponent(`${PREFIX}/login`)}`, jar)
     if (start.status !== 302) throw new Error(`${kind} OIDC start returned ${start.status}: ${await start.text()}`)
     const authorization = new URL(start.headers.get('location'))
@@ -183,8 +240,10 @@ async function runFlow(kind, dir, goBin, provider, work, mode = 'success') {
       hasSetToken: Boolean(parsedLocation?.searchParams.get('setToken')),
       hasAccessToken: Boolean(parsedLocation?.searchParams.get('accessToken')),
       userState: parsedLocation?.searchParams.get('state') || null,
-      persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
+      persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite')),
+      realtime: socketWatch ? await socketWatch.result() : undefined
     }
+    if (socketWatch) socketWatch.close()
     if (mode === 'denied') return { denied: summary }
     if (mode === 'link') return { linked: summary }
     const startErrorFlow = await get(`${base}${PREFIX}/auth/openid?callback=${encodeURIComponent(`${PREFIX}/login`)}`, jar)
@@ -228,15 +287,15 @@ async function main() {
   provider.setBase(`http://127.0.0.1:${providerPort}`)
   let result
   try {
-    const node = await runFlow('node', scenarios.success.node, args['go-bin'], provider, work)
-    const go = await runFlow('go', scenarios.success.go, args['go-bin'], provider, work)
-    const nodeLink = await runFlow('node', scenarios.link.node, args['go-bin'], provider, work, 'link')
-    const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, 'link')
-    const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, 'denied')
-    const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, 'denied')
-    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }].map(test => ({ ...test, equal: JSON.stringify(test.node) === JSON.stringify(test.go) }))
+    const node = await runFlow('node', scenarios.success.node, args['go-bin'], provider, work, fixture)
+    const go = await runFlow('go', scenarios.success.go, args['go-bin'], provider, work, fixture)
+    const nodeLink = await runFlow('node', scenarios.link.node, args['go-bin'], provider, work, fixture, 'link')
+    const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, fixture, 'link')
+    const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, fixture, 'denied')
+    const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, fixture, 'denied')
+    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, and auto-registration denial are exercised.', 'Socket.IO user_added recipient/payload behavior, detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, auto-registration denial, and the selected admin-only user_added event are exercised.', 'Detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

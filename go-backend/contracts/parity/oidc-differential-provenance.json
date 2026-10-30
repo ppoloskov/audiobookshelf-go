@@ -2,8 +2,8 @@
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized fixture, with one ephemeral local RS256 provider",
   "fixtureSource": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final5/fixture-manifest.json",
-  "workDir": "/private/tmp/abs-oidc-differential-final",
-  "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-go2 ./cmd/audiobookshelf-go",
+  "workDir": "/private/tmp/abs-oidc-differential-events-final",
+  "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-go-events ./cmd/audiobookshelf-go",
   "runtime": {
     "node": "v22.23.4 via mise",
     "go": "go1.27.0 darwin/arm64"
@@ -12,9 +12,11 @@
     "server/auth/OidcAuthStrategy.js": "6543ef88d09a14221afa8069ab39d946dfbb9dc9f931f19e5b87b20a59fd4ac2",
     "server/models/User.js": "c7a50501f29e9eaf317501239bc7ba8c8c0c398efb6e8c716ec3052489d3cf52",
     "server/Auth.js": "3c9fb4679ce92f5541863180678daa57306901579131a94d120de821f881334d",
-    "go-backend/internal/identity/oidc.go": "6f96576468f68b2ddce07d1c9718a25a7a54bf628e1cc667e89f14c491d6f3e5",
+    "go-backend/internal/identity/identity.go": "c5b3c1af6a71eaac21559563ffa1a2f1116536c0a6a6014bd409336d14d2a16d",
+    "go-backend/internal/identity/oidc.go": "d6b3732b10b6591ea4b03b35c0283a3470a02af632075f965bd2e7f3d8ab89e5",
     "go-backend/internal/identity/oidc_test.go": "8e10f2b91efe23fd8e869b69a12a00929886b82f14af86a9c02e8432e8fe8844",
-    "go-backend/tools/parity/oidc-differential.cjs": "d6947ecfdedba5aa12caffb86c8717eb6c3042c8864d19cb23c492b381a01441"
+    "go-backend/internal/server/runtime.go": "a0429a4465f26c2445e3b52f1a426d85d5aabc898402839ddb5aa8c847f9bee9",
+    "go-backend/tools/parity/oidc-differential.cjs": "c8c848af485be688fe69a4d52e91c50e9f9893aa7203013c2530767c4a30c460"
   },
   "results": {
     "compared": 6,
@@ -23,11 +25,12 @@
   },
   "normalization": [
     "Random UUIDs, access/refresh tokens, ID tokens, and timestamps are not retained; compare their semantic effects via selected user fields, redirect shape, and session count.",
-    "Node and Go use separate copied fixture directories and database files."
+    "Node and Go use separate copied fixture directories and database files.",
+    "JSON object member order is canonicalized for Socket.IO event payload comparison because JSON object order is not semantically significant; array order, scalar values, null versus empty, and the linked user's raw persisted extraData text remain strict."
   ],
   "limits": [
-    "Covered web auto-registration success, provider error, replay after provider error, expired ID-token rejection, existing-user email linking, and disabled auto-registration denial.",
-    "Did not exercise invalid signature/issuer/audience/nonce, mobile flow, expiry of in-memory flow state, callback cookies in detail, or Socket.IO user_added event recipients/payloads.",
+    "Covered web auto-registration success, provider error, replay after provider error, expired ID-token rejection, existing-user email linking, disabled auto-registration denial, and one real-socket user_added recipient/payload case.",
+    "Did not exercise invalid signature/issuer/audience/nonce, mobile flow, expiry of in-memory flow state, callback cookies in detail, or the general Socket.IO event inventory.",
   "The report establishes only these six local mock-provider cases, not overall OIDC or identity parity."
   ],
   "report": "go-backend/contracts/parity/oidc-differential-report.json"

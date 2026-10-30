@@ -7,7 +7,7 @@ Updated 2026-10-30. Continue from `docs/agent-work/tasks/TASK-20261030.md`; do n
 - Upstream is pinned to v2.37.2 at `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
 - W5 ACL differential passes 11/11; W6 destructive lifecycle passes nine scenarios with zero divergences. Their limits and normalizations are recorded in the task ledger and capability records.
 - Structural ledger validation passes for 15 tasks and 237 capability records. Strict `-require-verified -require-invariants` fails with 1,758 diagnostics; full parity is not established.
-- OIDC now has a pinned Node-versus-Go local-provider differential: auto-registration success, provider error, state replay, expired ID token, existing-user email linking, and disabled-auto-registration denial pass 6/6. A red/green regression fixed `extraData` key ordering on linked users. See `go-backend/contracts/parity/oidc-differential-{report,provenance}.json`. Mobile flow, detailed cookies, and the `user_added` event remain unverified, so overall OIDC capability is still partial.
+- OIDC now has a pinned Node-versus-Go local-provider differential: auto-registration success, provider error, state replay, expired ID token, existing-user email linking, and disabled-auto-registration denial pass 6/6. Red/green fixes preserve linked-user `extraData` member order and emit admin-only `user_added` on auto-registration; the latter is verified on real Node and Go sockets. See `go-backend/contracts/parity/oidc-differential-{report,provenance}.json`. Mobile flow and detailed cookies remain unverified, so overall OIDC capability is still partial.
 - Cover PATCH/DELETE and remote upload, download variants, email/notification ACL, and realistic browser playback/session recovery remain open.
 
 ## Gotchas
@@ -21,4 +21,4 @@ Updated 2026-10-30. Continue from `docs/agent-work/tasks/TASK-20261030.md`; do n
 
 ## Next executable action
 
-Probe the OIDC `user_added` event on real sockets and add invalid signature/issuer/audience/nonce cases. Then add cover PATCH/DELETE and remote-URL upload cases, followed by download edge cases and email/notification ACL coverage.
+Add OIDC invalid signature/issuer/audience/nonce cases. Then add cover PATCH/DELETE and remote-URL upload cases, followed by download edge cases and email/notification ACL coverage.

@@ -25,6 +25,39 @@
             }
           ],
           "sessionCount": 1
+        },
+        "realtime": {
+          "adminEvents": [
+            {
+              "id": "<new-user-id>",
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "token": "<new-user-token>",
+              "mediaProgress": [],
+              "seriesHideFromContinueListening": [],
+              "bookmarks": [],
+              "isActive": true,
+              "isLocked": false,
+              "lastSeen": null,
+              "createdAt": "<dynamic-time>",
+              "permissions": {
+                "download": true,
+                "update": false,
+                "delete": false,
+                "upload": false,
+                "createEreader": false,
+                "accessAllLibraries": true,
+                "accessAllTags": true,
+                "accessExplicitContent": false,
+                "selectedTagsNotAccessible": false
+              },
+              "librariesAccessible": [],
+              "itemTagsSelected": [],
+              "hasOpenIDLink": true
+            }
+          ],
+          "readerEventCount": 0
         }
       },
       "go": {
@@ -45,6 +78,39 @@
             }
           ],
           "sessionCount": 1
+        },
+        "realtime": {
+          "adminEvents": [
+            {
+              "bookmarks": [],
+              "createdAt": "<dynamic-time>",
+              "email": "oidc-differential@example.test",
+              "hasOpenIDLink": true,
+              "id": "<new-user-id>",
+              "isActive": true,
+              "isLocked": false,
+              "itemTagsSelected": [],
+              "lastSeen": null,
+              "librariesAccessible": [],
+              "mediaProgress": [],
+              "permissions": {
+                "accessAllLibraries": true,
+                "accessAllTags": true,
+                "accessExplicitContent": false,
+                "createEreader": false,
+                "delete": false,
+                "download": true,
+                "selectedTagsNotAccessible": false,
+                "update": false,
+                "upload": false
+              },
+              "seriesHideFromContinueListening": [],
+              "token": "<new-user-token>",
+              "type": "user",
+              "username": "oidc-differential"
+            }
+          ],
+          "readerEventCount": 0
         }
       },
       "equal": true
