@@ -81,6 +81,27 @@
    "exceptions": [
     "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
    ]
+  },
+  {
+   "id": "INV-OIDC-IDTOKEN-VALIDATION-001",
+   "class": "state_transition",
+   "contract": "Web OIDC callback rejects ID tokens with an invalid nonce, issuer, audience, or RS256 signature using upstream redirect behavior, without changing the resulting user or session state.",
+   "status": "verified",
+   "source": [
+    "server/auth/OidcAuthStrategy.js"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-nonce",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-issuer",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-audience",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-invalid-signature"
+   ],
+   "exceptions": [
+    "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow."
+   ]
   }
  ],
  "stateful": true,
@@ -97,11 +118,11 @@
   "go-backend/tools/parity/oidc-differential.cjs"
  ],
  "evidence": [
-  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: six web callback/state/persistence cases, 6/6 matched; includes one real-socket user_added recipient/payload case; see provenance for exact limits)"
+  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: ten local mock-provider cases matched, including selected real-socket user_added behavior; provenance states the exact limits)"
  ],
  "exceptions": [
-  "Invalid signature/issuer/audience/nonce, mobile flow, flow-state expiry, detailed cookie attributes, and the general Socket.IO event inventory remain unverified.",
-  "OIDC capability normal/error/edge categories remain unverified as a whole despite six matched cases; no full OIDC parity claim is made.",
+  "Mobile flow, in-memory flow-state expiry, detailed callback cookie attributes, and the general Socket.IO event inventory remain unverified.",
+  "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
   "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
  ]
 }

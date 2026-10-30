@@ -2,8 +2,8 @@
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "method": "tools/parity/oidc-differential.cjs against isolated copies of the API-initialized fixture, with one ephemeral local RS256 provider",
   "fixtureSource": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/w6-final5/fixture-manifest.json",
-  "workDir": "/private/tmp/abs-oidc-differential-events-final",
-  "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-go-events ./cmd/audiobookshelf-go",
+  "workDir": "/private/tmp/abs-oidc-differential-claims-20261030",
+  "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-oidc-go-claims ./cmd/audiobookshelf-go",
   "runtime": {
     "node": "v22.23.4 via mise",
     "go": "go1.27.0 darwin/arm64"
@@ -16,11 +16,11 @@
     "go-backend/internal/identity/oidc.go": "d6b3732b10b6591ea4b03b35c0283a3470a02af632075f965bd2e7f3d8ab89e5",
     "go-backend/internal/identity/oidc_test.go": "8e10f2b91efe23fd8e869b69a12a00929886b82f14af86a9c02e8432e8fe8844",
     "go-backend/internal/server/runtime.go": "a0429a4465f26c2445e3b52f1a426d85d5aabc898402839ddb5aa8c847f9bee9",
-    "go-backend/tools/parity/oidc-differential.cjs": "c8c848af485be688fe69a4d52e91c50e9f9893aa7203013c2530767c4a30c460"
+    "go-backend/tools/parity/oidc-differential.cjs": "669ffba4c42280b3a0ab2a8b9c20aa167c150e2991cf06a10fdc7edbc757e210"
   },
   "results": {
-    "compared": 6,
-    "matched": 6,
+    "compared": 10,
+    "matched": 10,
     "mismatched": 0
   },
   "normalization": [
@@ -29,9 +29,9 @@
     "JSON object member order is canonicalized for Socket.IO event payload comparison because JSON object order is not semantically significant; array order, scalar values, null versus empty, and the linked user's raw persisted extraData text remain strict."
   ],
   "limits": [
-    "Covered web auto-registration success, provider error, replay after provider error, expired ID-token rejection, existing-user email linking, disabled auto-registration denial, and one real-socket user_added recipient/payload case.",
-    "Did not exercise invalid signature/issuer/audience/nonce, mobile flow, expiry of in-memory flow state, callback cookies in detail, or the general Socket.IO event inventory.",
-  "The report establishes only these six local mock-provider cases, not overall OIDC or identity parity."
+    "Covered web auto-registration success, provider error, replay after provider error, expired ID-token rejection, existing-user email linking, disabled-auto-registration denial, invalid nonce/issuer/audience/signature rejection, and one real-socket user_added recipient/payload case.",
+    "Did not exercise mobile flow, expiry of in-memory flow state, detailed callback cookie attributes, or the general Socket.IO event inventory.",
+    "Random UUIDs, access/refresh tokens, ID tokens, and timestamps were not compared literally; semantic user fields, redirect shape, and session count were compared. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null versus empty, and raw persisted extraData text remain strict."
   ],
   "report": "go-backend/contracts/parity/oidc-differential-report.json"
 }

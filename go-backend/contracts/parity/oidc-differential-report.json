@@ -1,8 +1,8 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "provider": "local ephemeral RS256 provider",
-  "compared": 6,
-  "matched": 6,
+  "compared": 10,
+  "matched": 10,
   "mismatched": 0,
   "cases": [
     {
@@ -300,11 +300,164 @@
         }
       },
       "equal": true
+    },
+    {
+      "name": "oidc-invalid-nonce",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-invalid-issuer",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-invalid-audience",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-invalid-signature",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "persisted": {
+          "users": [
+            {
+              "username": "oidc-differential",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"authOpenIDSub\":\"oidc-differential-sub\",\"seriesHideFromContinueListening\":[]}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
     }
   ],
   "limits": [
-    "Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, and auto-registration denial are exercised.",
-    "Socket.IO user_added recipient/payload behavior, detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered.",
-    "UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared."
-  ]
+    "Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, and the selected admin-only user_added event are exercised.",
+    "Detailed cookies, mobile flow, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.",
+    "UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict."
+  ],
+  "report": "go-backend/contracts/parity/oidc-differential-report.json"
 }

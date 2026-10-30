@@ -35,6 +35,7 @@ function b64url(value) { return Buffer.from(value).toString('base64url') }
 
 function makeProvider() {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 })
+  const { privateKey: untrustedPrivateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 })
   const jwk = publicKey.export({ format: 'jwk' })
   const flows = new Map()
   let base
@@ -54,10 +55,18 @@ function makeProvider() {
       }
       const now = Math.floor(Date.now() / 1000)
       const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'oidc-test-key' }))
-      const expired = body.get('code').includes('-expired')
-      const claims = b64url(JSON.stringify({ iss: base, aud: CLIENT_ID, sub: USER.sub, nonce: flow.nonce, iat: now, exp: expired ? now - 60 : now + 3600 }))
+      const code = body.get('code')
+      const claims = b64url(JSON.stringify({
+        iss: code.endsWith('-invalid-issuer') ? `${base}/wrong` : base,
+        aud: code.endsWith('-invalid-audience') ? 'wrong-client' : CLIENT_ID,
+        sub: USER.sub,
+        nonce: code.endsWith('-invalid-nonce') ? `${flow.nonce}-wrong` : flow.nonce,
+        iat: now,
+        exp: code.includes('-expired') ? now - 60 : now + 3600
+      }))
       const unsigned = `${header}.${claims}`
-      const token = `${unsigned}.${crypto.sign('RSA-SHA256', Buffer.from(unsigned), privateKey).toString('base64url')}`
+      const signer = code.endsWith('-invalid-signature') ? untrustedPrivateKey : privateKey
+      const token = `${unsigned}.${crypto.sign('RSA-SHA256', Buffer.from(unsigned), signer).toString('base64url')}`
       res.writeHead(200, { 'content-type': 'application/json' })
       return res.end(JSON.stringify({ access_token: 'oidc-provider-access', token_type: 'Bearer', expires_in: 3600, id_token: token }))
     }
@@ -204,6 +213,18 @@ function redirectSummary(response, base) {
   return { status: response.status, redirectPath: target?.pathname || null, redirectError: target?.searchParams.get('error') || null }
 }
 
+async function rejectedTokenFlow(kind, base, dir, jar, provider, flavor) {
+  const start = await get(`${base}${PREFIX}/auth/openid?callback=${encodeURIComponent(`${PREFIX}/login`)}`, jar)
+  if (start.status !== 302) throw new Error(`${kind} ${flavor} OIDC start returned ${start.status}`)
+  const authorization = new URL(start.headers.get('location'))
+  const code = `code-${kind}-${flavor}`
+  provider.flows.set(code, { nonce: authorization.searchParams.get('nonce'), challenge: authorization.searchParams.get('code_challenge'), redirectURI: authorization.searchParams.get('redirect_uri') })
+  const callback = new URL(`${base}${PREFIX}/auth/openid/callback`)
+  callback.searchParams.set('code', code); callback.searchParams.set('state', authorization.searchParams.get('state'))
+  const response = await get(callback, jar)
+  return { ...redirectSummary(response, base), persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite')) }
+}
+
 async function snapshotDB(file) {
   const sqlite = require('sqlite3').verbose(); const db = new sqlite.Database(file)
   const all = (sql, args = []) => new Promise((resolve, reject) => db.all(sql, args, (err, rows) => err ? reject(err) : resolve(rows)))
@@ -264,7 +285,11 @@ async function runFlow(kind, dir, goBin, provider, work, fixture, mode = 'succes
     expiredCallback.searchParams.set('code', expiredCode); expiredCallback.searchParams.set('state', expiredAuthorization.searchParams.get('state'))
     const expiredResponse = await get(expiredCallback, jar)
     const expiredSummary = { ...redirectSummary(expiredResponse, base), persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite')) }
-    return { success: summary, providerError: providerErrorSummary, replay: replaySummary, expiredToken: expiredSummary }
+    const invalidNonce = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-nonce')
+    const invalidIssuer = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-issuer')
+    const invalidAudience = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-audience')
+    const invalidSignature = await rejectedTokenFlow(kind, base, dir, jar, provider, 'invalid-signature')
+    return { success: summary, providerError: providerErrorSummary, replay: replaySummary, expiredToken: expiredSummary, invalidNonce, invalidIssuer, invalidAudience, invalidSignature }
   } finally { await stop(proc) }
 }
 
@@ -293,9 +318,9 @@ async function main() {
     const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, fixture, 'link')
     const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, fixture, 'denied')
     const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, fixture, 'denied')
-    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
+    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }].map(test => ({ ...test, equal: JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, auto-registration denial, and the selected admin-only user_added event are exercised.', 'Detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, and the selected admin-only user_added event are exercised.', 'Detailed cookies, mobile flow, and flow-state expiry remain uncovered; this does not cover the general Socket.IO event inventory.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared. JSON object key order is canonicalized for event-payload comparison, while arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)
