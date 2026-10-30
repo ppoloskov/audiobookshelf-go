@@ -1,8 +1,8 @@
 {
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "provider": "local ephemeral RS256 provider",
-  "compared": 4,
-  "matched": 4,
+  "compared": 6,
+  "matched": 6,
   "mismatched": 0,
   "cases": [
     {
@@ -162,11 +162,83 @@
         }
       },
       "equal": true
+    },
+    {
+      "name": "oidc-existing-user-email-link",
+      "node": {
+        "status": 302,
+        "redirectPath": "/audiobookshelf/login",
+        "redirectError": null,
+        "hasSetToken": true,
+        "hasAccessToken": true,
+        "userState": null,
+        "persisted": {
+          "users": [
+            {
+              "username": "oracle-reader",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"seriesHideFromContinueListening\":[],\"authOpenIDSub\":\"oidc-differential-sub\"}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/audiobookshelf/login",
+        "redirectError": null,
+        "hasSetToken": true,
+        "hasAccessToken": true,
+        "userState": null,
+        "persisted": {
+          "users": [
+            {
+              "username": "oracle-reader",
+              "email": "oidc-differential@example.test",
+              "type": "user",
+              "isActive": 1,
+              "extraData": "{\"seriesHideFromContinueListening\":[],\"authOpenIDSub\":\"oidc-differential-sub\"}"
+            }
+          ],
+          "sessionCount": 1
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "oidc-auto-registration-denied",
+      "node": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "hasSetToken": false,
+        "hasAccessToken": false,
+        "userState": null,
+        "persisted": {
+          "users": [],
+          "sessionCount": 0
+        }
+      },
+      "go": {
+        "status": 302,
+        "redirectPath": "/login",
+        "redirectError": "Unauthorized",
+        "hasSetToken": false,
+        "hasAccessToken": false,
+        "userState": null,
+        "persisted": {
+          "users": [],
+          "sessionCount": 0
+        }
+      },
+      "equal": true
     }
   ],
   "limits": [
-    "Web auto-registration success, provider-error redirect, replay after provider error, and expired ID-token rejection are exercised.",
-    "Denial, linking, and Socket.IO user_added observations remain uncovered.",
+    "Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, and auto-registration denial are exercised.",
+    "Socket.IO user_added recipient/payload behavior, detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered.",
     "UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared."
   ]
 }

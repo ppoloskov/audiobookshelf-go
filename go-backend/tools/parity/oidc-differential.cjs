@@ -70,7 +70,7 @@ function makeProvider() {
   return { server, flows, setBase(value) { base = value }, get base() { return base } }
 }
 
-async function configureDB(file, provider) {
+async function configureDB(file, provider, mode) {
   const sqlite = require('sqlite3').verbose()
   const db = new sqlite.Database(file)
   const run = (sql, args) => new Promise((resolve, reject) => db.run(sql, args, err => err ? reject(err) : resolve()))
@@ -91,12 +91,13 @@ async function configureDB(file, provider) {
       authOpenIDClientSecret: 'oidc-test-secret',
       authOpenIDTokenSigningAlgorithm: 'RS256',
       authOpenIDSubfolderForRedirectURLs: PREFIX,
-      authOpenIDAutoRegister: true,
-      authOpenIDMatchExistingBy: null,
+      authOpenIDAutoRegister: mode !== 'denied',
+      authOpenIDMatchExistingBy: mode === 'link' ? 'email' : null,
       authOpenIDGroupClaim: '',
       authOpenIDAdvancedPermsClaim: ''
     })
     await run("UPDATE settings SET value=? WHERE key='server-settings'", [JSON.stringify(settings)])
+    if (mode === 'link') await run('UPDATE users SET email=? WHERE username=?', [USER.email, 'oracle-reader'])
   } finally { await new Promise(resolve => db.close(resolve)) }
 }
 
@@ -151,15 +152,16 @@ async function snapshotDB(file) {
   const sqlite = require('sqlite3').verbose(); const db = new sqlite.Database(file)
   const all = (sql, args = []) => new Promise((resolve, reject) => db.all(sql, args, (err, rows) => err ? reject(err) : resolve(rows)))
   try {
-    const users = await all('SELECT username,email,type,isActive,extraData FROM users WHERE username=? ORDER BY username', [USER.preferred_username])
-    const sessions = await all('SELECT COUNT(*) AS count FROM sessions WHERE userId IN (SELECT id FROM users WHERE username=?)', [USER.preferred_username])
+    const subject = `%${USER.sub}%`
+    const users = await all('SELECT username,email,type,isActive,extraData FROM users WHERE extraData LIKE ? ORDER BY username', [subject])
+    const sessions = await all('SELECT COUNT(*) AS count FROM sessions WHERE userId IN (SELECT id FROM users WHERE extraData LIKE ?)', [subject])
     return { users, sessionCount: sessions[0].count }
   } finally { await new Promise(resolve => db.close(resolve)) }
 }
 
-async function runFlow(kind, dir, goBin, provider, work) {
+async function runFlow(kind, dir, goBin, provider, work, mode = 'success') {
   const port = await freePort(), base = `http://127.0.0.1:${port}`, logPath = path.join(work, `${kind}.log`)
-  await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base)
+  await configureDB(path.join(dir, 'config', 'absdatabase.sqlite'), provider.base, mode)
   const proc = startServer(kind, dir, port, logPath, goBin)
   try {
     await ready(proc, base, logPath)
@@ -183,6 +185,8 @@ async function runFlow(kind, dir, goBin, provider, work) {
       userState: parsedLocation?.searchParams.get('state') || null,
       persisted: await snapshotDB(path.join(dir, 'config', 'absdatabase.sqlite'))
     }
+    if (mode === 'denied') return { denied: summary }
+    if (mode === 'link') return { linked: summary }
     const startErrorFlow = await get(`${base}${PREFIX}/auth/openid?callback=${encodeURIComponent(`${PREFIX}/login`)}`, jar)
     if (startErrorFlow.status !== 302) throw new Error(`${kind} error-flow OIDC start returned ${startErrorFlow.status}`)
     const errorAuthorization = new URL(startErrorFlow.headers.get('location'))
@@ -210,20 +214,29 @@ async function main() {
   const work = path.resolve(args['work-dir'])
   if (fs.existsSync(work) && fs.readdirSync(work).length) throw new Error(`work directory must be empty: ${work}`)
   fs.mkdirSync(work, { recursive: true })
-  const dirs = {}
-  for (const kind of ['node', 'go']) {
-    dirs[kind] = path.join(work, kind)
-    fs.cpSync(fixture.directories[kind], dirs[kind], { recursive: true, preserveTimestamps: true })
+  const scenarios = {}
+  for (const scenario of ['success', 'link', 'denied']) {
+    scenarios[scenario] = {}
+    for (const kind of ['node', 'go']) {
+      const dir = path.join(work, scenario, kind)
+      fs.mkdirSync(path.dirname(dir), { recursive: true })
+      fs.cpSync(fixture.directories[kind], dir, { recursive: true, preserveTimestamps: true })
+      scenarios[scenario][kind] = dir
+    }
   }
   const provider = makeProvider(), providerPort = await listen(provider.server)
   provider.setBase(`http://127.0.0.1:${providerPort}`)
   let result
   try {
-    const node = await runFlow('node', dirs.node, args['go-bin'], provider, work)
-    const go = await runFlow('go', dirs.go, args['go-bin'], provider, work)
-    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }].map(test => ({ ...test, equal: JSON.stringify(test.node) === JSON.stringify(test.go) }))
+    const node = await runFlow('node', scenarios.success.node, args['go-bin'], provider, work)
+    const go = await runFlow('go', scenarios.success.go, args['go-bin'], provider, work)
+    const nodeLink = await runFlow('node', scenarios.link.node, args['go-bin'], provider, work, 'link')
+    const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, 'link')
+    const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, 'denied')
+    const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, 'denied')
+    const cases = [{ name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }].map(test => ({ ...test, equal: JSON.stringify(test.node) === JSON.stringify(test.go) }))
     const matched = cases.filter(test => test.equal).length
-    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider-error redirect, replay after provider error, and expired ID-token rejection are exercised.', 'Denial, linking, and Socket.IO user_added observations remain uncovered.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared.'] }
+    result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web auto-registration success, provider error, state replay, expired ID-token rejection, email linking, and auto-registration denial are exercised.', 'Socket.IO user_added recipient/payload behavior, detailed cookies, mobile flow, invalid signature/issuer/audience/nonce, and flow-state expiry remain uncovered.', 'UUIDs, timestamps, and tokens are excluded from persisted-state comparison; semantic user fields and session count are compared.'] }
   } finally { await new Promise(resolve => provider.server.close(resolve)) }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)

@@ -23,7 +23,7 @@
   {
    "id": "INV-OIDC-WEB-CALLBACK-001",
    "class": "state_transition",
-   "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, and expired ID token match upstream response routing and create no additional user or session.",
+   "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, expired ID token, and disabled auto-registration match upstream response routing and create no additional user or session.",
    "status": "verified",
    "source": [
     "server/auth/OidcAuthStrategy.js",
@@ -38,11 +38,30 @@
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-provider-error",
     "go-backend/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error",
-    "go-backend/contracts/parity/oidc-differential-report.json#oidc-expired-id-token"
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-expired-id-token",
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-auto-registration-denied"
    ],
    "exceptions": [
-    "Evidence covers the named web flow cases only; it does not establish all callback cookies, linking, denial, mobile, or event behavior."
+    "Evidence covers the named web flow cases only; it does not establish all callback cookies, mobile, or event behavior."
    ]
+  },
+  {
+   "id": "INV-OIDC-EMAIL-LINK-001",
+   "class": "state_transition",
+   "contract": "When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that user, creates one session, and retains the existing extraData member order when appending authOpenIDSub.",
+   "status": "verified",
+   "source": [
+    "server/models/User.js:220-308",
+    "server/auth/OidcAuthStrategy.js:112-164"
+   ],
+   "tests": [
+    "go-backend/tools/parity/oidc-differential.cjs",
+    "go-backend/internal/identity/oidc_test.go:TestOIDCLinksExistingUserByConfiguredUsername"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link"
+   ],
+   "exceptions": []
   }
  ],
  "stateful": true,
@@ -59,11 +78,11 @@
   "go-backend/tools/parity/oidc-differential.cjs"
  ],
  "evidence": [
-  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: four web callback/state/persistence cases, 4/4 matched; see provenance for exact limits)"
+  "go-backend/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: six web callback/state/persistence cases, 6/6 matched after the persisted extraData order fix; see provenance for exact limits)"
  ],
  "exceptions": [
-  "Authentication denial, existing-user linking, invalid signature/issuer/audience/nonce, mobile flow, flow-state expiry, detailed cookie attributes, and Socket.IO user_added behavior remain unverified.",
-  "OIDC capability normal/error/edge categories remain unverified as a whole despite four matched cases; no full OIDC parity claim is made.",
+  "Invalid signature/issuer/audience/nonce, mobile flow, flow-state expiry, detailed cookie attributes, and Socket.IO user_added behavior remain unverified.",
+  "OIDC capability normal/error/edge categories remain unverified as a whole despite six matched cases; no full OIDC parity claim is made.",
   "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario."
  ]
 }
