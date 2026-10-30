@@ -1,0 +1,65 @@
+{
+ "id": "route-r054",
+ "parent": "http/catalog",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /items/:id/cover candidate recorded from server/routers/ApiRouter.js:112. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:112"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "unverified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#cover-raw (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-default (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-jpeg-size (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-png-size (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-webp-size (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-ts-header (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-raw-after-delete (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-after-delete (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete (differential pass)",
+  "go-backend/contracts/parity/full-suite-report.json#cover-cache-png-after-delete (differential pass)"
+ ],
+ "exceptions": [],
+ "invariants": [
+  {
+   "id": "INV-R054-SAMPLED",
+   "class": "shape",
+   "contract": "Sampled GET /items/:id/cover via differential case(s) cover-raw, cover-cache-default, cover-cache-jpeg-size, cover-cache-png-size, cover-cache-webp-size, cover-cache-ts-header, cover-raw-after-delete, cover-cache-after-delete, cover-cache-jpeg-after-delete, cover-cache-png-after-delete: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category samples: covers.",
+   "status": "verified",
+   "source": [
+    "server/routers/ApiRouter.js:112"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-raw",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-default",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-jpeg-size",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-png-size",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-webp-size",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-ts-header",
+    "go-backend/contracts/parity/full-suite-report.json#cover-raw-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-png-after-delete"
+   ],
+   "exceptions": [
+    "Sampled evidence; unsampled request-shape variants are separate behaviors."
+   ]
+  }
+ ]
+}

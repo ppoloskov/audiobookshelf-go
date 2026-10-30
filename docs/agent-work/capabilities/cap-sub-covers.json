@@ -1,0 +1,122 @@
+{
+ "id": "sub-covers",
+ "parent": "covers",
+ "kind": "subsystem",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "Cover upload (POST), raw serving (GET ?raw=1), resized cache (GET with width/height/format incl. webp selection rules, cache files under metadata/cache/covers, purge on upload), matching headers (ETag, Cache-Control, chunked streaming), ffmpeg-resize parity",
+ "source": [
+  "server/controllers/LibraryItemController.js:842-950",
+  "server/managers/CoverManager.js",
+  "server/managers/CacheManager.js",
+  "server/utils/constants.js"
+ ],
+ "implementation": [
+  "go-backend/internal/catalog/cover.go",
+  "go-backend/internal/catalog/handler.go"
+ ],
+ "cases": {
+  "normal": "verified",
+  "error": "verified",
+  "edge": "verified"
+ },
+ "invariants": [
+  {
+   "id": "INV-COVER-CACHE-001",
+   "class": "shape",
+   "contract": "Cover cache files named {itemId}_{width}[x{height}].{format} under metadata/cache/covers; cache hits stream chunked without Content-Length; resize uses ffmpeg scale=<w||-1>:<h||-1> into the cache file (CacheManager.js:43-102, ffmpegHelpers.js:78-97).",
+   "status": "verified",
+   "source": [
+    "server/managers/CacheManager.js",
+    "server/utils/ffmpegHelpers.js"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/scanner-flow-report.json#cover-cache-*"
+   ],
+   "exceptions": [
+    "webp renders 500 on ffmpeg builds without libwebp on BOTH sides (same shared ffmpeg binary); case expectations pin 500 for this environment"
+   ]
+  },
+  {
+   "id": "INV-COVER-UPLOAD-001",
+   "class": "state_transition",
+   "contract": "Upload writes cover.<ext> (storeCoverWithItem decides item path vs metadata/items/<id>), removes older cover.* files, purges the item cache, persists media.coverPath + item updatedAt, emits item_updated after commit, responds {success, cover} with express weak ETag (LibraryItemController.js:295-333, CoverManager.js).",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js",
+    "server/managers/CoverManager.js"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/scanner-flow-report.json#cover-upload"
+   ],
+   "exceptions": [
+    "body.url remote-download variant belongs to the provider capability and is not covered by this record"
+   ]
+  },
+  {
+   "id": "INV-COVER-RAW-001",
+   "class": "shape",
+   "contract": "raw=1 serves the original bytes with express sendFile defaults (Cache-Control public max-age=0 filled only when absent, weak file ETag W/<size hex>-<mtime hex>, Last-Modified) \u2014 send/index.js:862; byte-equal bodies verified.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js",
+    "node_modules/send/index.js"
+   ],
+   "tests": [
+    "go-backend/internal/catalog/handler_test.go"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/scanner-flow-report.json#cover-raw"
+   ],
+   "exceptions": []
+  },
+  {
+   "id": "INV-COVER-DELETE-001",
+   "class": "state_transition",
+   "contract": "DELETE /api/items/:id/cover responds with Express sendStatus(200), clears the persisted media coverPath, purges every resized cache entry for the library item, and makes subsequent raw and resized cover reads return the upstream 404 response.",
+   "status": "verified",
+   "source": [
+    "server/controllers/LibraryItemController.js:376-397",
+    "server/managers/CacheManager.js:93-110"
+   ],
+   "tests": [
+    "go-backend/tools/parity/differential.cjs"
+   ],
+   "evidence": [
+    "go-backend/contracts/parity/full-suite-report.json#cover-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-raw-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#cover-cache-png-after-delete",
+    "go-backend/contracts/parity/full-suite-report.json#statefulChecks.coverDelete"
+   ],
+   "exceptions": [
+    "Evidence covers deletion after one successful multipart upload with the named cached formats; it does not cover all PATCH/permission/failure variants or remote-URL upload."
+   ]
+  }
+ ],
+ "stateful": true,
+ "state_scenarios": {
+  "initial": "verified",
+  "repeat": "verified",
+  "changed": "verified",
+  "force": "not_applicable",
+  "failure": "verified"
+ },
+ "tests": [
+  "go-backend/internal/catalog/handler_test.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json (2026-10-30: 91/91 HTTP cases plus persisted coverPath/cache assertion; existing upload/raw/cache cases and delete lifecycle match)"
+ ],
+ "exceptions": [
+  "PATCH cover variants and body.url remote upload remain uncovered.",
+  "webp cache renders return sendStatus(500) on the shared ffmpeg build of this environment (no libwebp); both implementations match, but other ffmpeg builds and codecs are not covered.",
+  "Cover error and edge cases remain sampled; general cover route parity is not claimed."
+ ]
+}

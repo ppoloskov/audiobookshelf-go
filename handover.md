@@ -5,10 +5,10 @@ Updated 2026-10-30. Continue from `docs/agent-work/tasks/TASK-20261030.md`; do n
 ## Current state
 
 - Upstream is pinned to v2.37.2 at `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
-- W5 ACL differential passes 11/11; W6 destructive lifecycle passes nine scenarios with zero divergences. Their limits and normalizations are recorded in the task ledger and capability records.
-- Structural ledger validation passes for 15 tasks and 237 capability records. Strict `-require-verified -require-invariants` fails with 1,758 diagnostics; full parity is not established.
+- W5 ACL differential passes 11/11; W6 destructive lifecycle passes nine scenarios with zero divergences; the refreshed full API suite passes 91/91 including cover deletion. Their limits and normalizations are recorded in the task ledger and capability records.
+- Structural ledger validation passes for 15 tasks and 237 capability records. Route coverage now attaches all 91 passing full-suite variants across 53 route candidates; the generated route records keep unsampled error/edge and state requirements unverified. Strict `-require-verified -require-invariants` fails with 1,688 diagnostics; full parity is not established.
 - OIDC now has a pinned Node-versus-Go local-provider differential with 10/10 matched cases: auto-registration success, provider error, state replay, expired ID token, existing-user email linking, disabled-auto-registration denial, and invalid nonce/issuer/audience/signature. The selected admin-only `user_added` event is verified on real sockets. Red/green fixes preserve linked-user `extraData` member order and emit admin-only `user_added` on auto-registration; the latter is verified on real Node and Go sockets. See `go-backend/contracts/parity/oidc-differential-{report,provenance}.json`. Mobile flow, flow-state expiry, and detailed cookies remain unverified, so overall OIDC capability is still partial.
-- Cover PATCH/DELETE and remote upload, download variants, email/notification ACL, and realistic browser playback/session recovery remain open. OIDC mobile flow, flow-state expiry, detailed cookie attributes, and general Socket.IO coverage remain open.
+- Cover DELETE lifecycle is now differentially verified with persisted cache cleanup; cover PATCH and remote URL upload remain open. Download variants, email/notification ACL, and realistic browser playback/session recovery remain open. OIDC mobile flow, flow-state expiry, detailed cookie attributes, and general Socket.IO coverage remain open.
 
 ## Gotchas
 
@@ -21,4 +21,4 @@ Updated 2026-10-30. Continue from `docs/agent-work/tasks/TASK-20261030.md`; do n
 
 ## Next executable action
 
-Add cover PATCH/DELETE and remote-URL upload cases, followed by download edge cases and email/notification ACL coverage. Continue OIDC mobile/cookie and flow-state-expiry work as route priorities allow.
+Add cover PATCH and remote-URL upload cases, followed by download edge cases and email/notification ACL coverage. Continue OIDC mobile/cookie and flow-state-expiry work as route priorities allow.
