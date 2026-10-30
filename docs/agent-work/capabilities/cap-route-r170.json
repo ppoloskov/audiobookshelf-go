@@ -1,0 +1,29 @@
+{
+ "id": "route-r170",
+ "parent": "http/emailapi",
+ "kind": "operation",
+ "scope": "in",
+ "status": "implemented",
+ "contract": "GET /emails/settings candidate recorded from server/routers/ApiRouter.js:277. Method, path, query/body variants, auth/permission gates, payload shape/types, errors and side effects must match upstream v2.37.2.",
+ "source": [
+  "server/routers/ApiRouter.js:277"
+ ],
+ "implementation": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "cases": {
+  "normal": "unverified",
+  "error": "verified",
+  "edge": "unverified"
+ },
+ "stateful": false,
+ "tests": [
+  "go-backend/internal/emailapi/handler.go"
+ ],
+ "evidence": [
+  "go-backend/contracts/parity/full-suite-report.json#email-settings-reader-admin-gate (reader denial response; only this permission branch is verified)"
+ ],
+ "exceptions": [
+  "The fresh differential covers only the reader admin-gate denial; normal admin response, settings payload, and other email routes remain unverified."
+ ]
+}

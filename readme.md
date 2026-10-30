@@ -16,6 +16,10 @@
 
 # About
 
+## Go backend rewrite status
+
+This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The latest sampled differential run passes 103/103 cases, including reader-denial responses for user writes, email settings, and notifications. Full feature parity is not established: strict ledger gates still fail and most route variants remain unverified. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for current scope and evidence.
+
 Audiobookshelf is a self-hosted audiobook and podcast server.
 
 ### Features

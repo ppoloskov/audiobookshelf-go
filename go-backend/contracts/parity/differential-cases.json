@@ -18,6 +18,8 @@
     { "id": "playlist-missing", "method": "GET", "route": "/api/playlists/00000000-0000-0000-0000-000000000000", "auth": "bearer", "category": "errors", "status": "ready" },
     { "id": "user-create-forbidden", "method": "POST", "route": "/api/users", "auth": "reader-bearer", "category": "permissions", "status": "ready" },
     { "id": "user-delete-forbidden", "method": "DELETE", "route": "/api/users/00000000-0000-0000-0000-000000000000", "auth": "reader-bearer", "category": "permissions", "status": "ready" },
+    { "id": "email-settings-reader-admin-gate", "method": "GET", "route": "/api/emails/settings", "auth": "reader-bearer", "category": "permissions", "status": "ready" },
+    { "id": "notifications-reader-admin-gate", "method": "GET", "route": "/api/notifications", "auth": "reader-bearer", "category": "permissions", "status": "ready" },
     { "id": "session-delete-missing", "method": "DELETE", "route": "/api/me/sessions/00000000-0000-0000-0000-000000000000", "auth": "bearer", "category": "errors", "status": "ready" },
     { "id": "backup-missing-download", "method": "GET", "route": "/api/backups/00000000-0000-0000-0000-000000000000/download", "auth": "bearer", "category": "errors", "status": "ready" },
     { "id": "collection-empty-name", "method": "POST", "route": "/api/collections", "auth": "bearer", "category": "errors", "status": "ready" },

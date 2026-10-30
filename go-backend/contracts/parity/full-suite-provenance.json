@@ -1,11 +1,11 @@
 {
  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
- "method": "tools/parity/create-fixture.cjs + run-local.cjs + differential.cjs (101 HTTP cases and persisted cover upload/failure/PATCH/delete-state assertions; independent API-created fixture per side) + persisted-state-check.cjs + rollback-check.cjs + client-check.cjs",
- "goBuild": "CGO_ENABLED=0 go build -o /private/tmp/abs-cover-patch-final3 ./cmd/audiobookshelf-go",
- "nodeVersion": "v22.23.4 via mise; socket.io-client 4.8.1 for the v4 protocol probe",
+ "method": "tools/parity/create-fixture.cjs + run-local.cjs + differential.cjs (103 HTTP cases on fresh independent API-created fixtures; paired pinned upstream v2.37.2 and Go servers) + prior persisted-state-check.cjs + rollback-check.cjs + client-check.cjs",
+ "goBuild": "GOCACHE=/private/tmp/audiobookshelf-go-cache CGO_ENABLED=0 go build -o /private/tmp/abs-email-notification-check ./cmd/audiobookshelf-go",
+ "nodeVersion": "v22.23.4 via mise",
  "results": {
-  "total": 101,
-  "passed": 101,
+  "total": 103,
+  "passed": 103,
   "failed": 0
  },
  "rollback": "rollback-check.cjs PASS (exit 0) after final cover fixes: pinned Node reopens the suite-mutated Go database and serves login/libraries/item.",
@@ -14,9 +14,10 @@
   "Express error conventions now split and pinned: res.sendStatus -> text/plain + status text (sendStatus(500)/404 paths), res.status().send(text) -> text/html no newline; ETag included; session delete validates UUID first (400 malformed) then 404 misses (MeController.js:85-97).",
   "playbackSessions stayed EMPTY during the 86-case run for the create+close flow on both sides; persisted-state-check now supplies the dedicated session-row lifecycle evidence instead.",
   "This is sampled capability evidence, not the reconciled in-scope inventory; the reconciled subset target and remaining queue are recorded in docs/agent-work/audits/coverage-risk-groups.md.",
-  "Cover variants: default-mode differential checks one local 307 redirect success, one explicitly whitelisted local image URL, one literal RFC1918 rejection, unsupported GIF extension rejection, and multipart URL-over-file precedence, and a 1.1 MB JSON PATCH parser probe. Successful PATCH copy/repeat validates response headers per side, removes seeded stale cache, and retains unrelated cover.svg. Separate EXP_PROXY_SUPPORT=1 evidence checks 307 rejection; private-address probing is skipped in that mode because upstream disables SSRF filtering. 301/302 chains, DNS rebinding, and the full SSRF address matrix remain unverified."
+  "Cover variants: default-mode differential checks one local 307 redirect success, one explicitly whitelisted local image URL, one literal RFC1918 rejection, unsupported GIF extension rejection, and multipart URL-over-file precedence, and a 1.1 MB JSON PATCH parser probe. Successful PATCH copy/repeat validates response headers per side, removes seeded stale cache, and retains unrelated cover.svg. Separate EXP_PROXY_SUPPORT=1 evidence checks 307 rejection; private-address probing is skipped in that mode because upstream disables SSRF filtering. 301/302 chains, DNS rebinding, and the full SSRF address matrix remain unverified.",
+  "Fresh 2026-10-30 run added real reader-token coverage: user-create-forbidden 403, user-delete-forbidden 403, email-settings-reader-admin-gate 404, and notifications-reader-admin-gate 403 all matched, including denial body/headers. comparePair now preserves supplied per-case tokens instead of replacing them with the root token. Loopback URL samples used SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1. This is sampled evidence only; normal/admin payloads, other email and notification routes, and their mutation/state variants remain open."
  ],
  "persistedState": "tools/parity/persisted-state-check.cjs PASS on both implementations: row counts per step, single-row progress upsert across 3 patches, close retains persisted session rows, progress recompute (currentTime/duration), device extraData {}, persisted mediaMetadata byte-shape (ordered keys) — evidence contracts/parity/persisted-state-report.json",
- "coverLifecycle": "101/101 differential PASS. Cover PATCH includes invalid-image error, successful copy from a valid scanned file, same-path repeat, per-side exact Express Content-Length/weak-ETag checks, stale-cache purge, and retained unrelated cover.svg. Multipart upload URL precedence over a simultaneously supplied file is checked with an unsupported local image signature. Existing URL upload, redirect, SSRF, read/cache, and delete checks pass. A 1.1 MB PATCH JSON request reaches invalid-path validation, consistent with upstream’s 10 MB parser rather than Go’s former 1 MiB cap.",
+ "coverLifecycle": "103/103 differential PASS in the latest fresh run; previous cover PATCH/upload/delete lifecycle evidence remains as separately described in the notes.",
  "clientAcceptance": "client-check.cjs PASS (exit 0) after final cover fixes: shell/assets/dynamic routes/unknown-path 404/login/boot API."
 }

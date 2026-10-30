@@ -85,8 +85,9 @@ const EXPECTED_STATUS = {
   'libraries-unauthorized': 200, 'item-detail-missing': 404,
   'item-detail-invalid-id': 404, 'library-items-invalid-pagination': 400,
   'progress-write-invalid': 200, 'collection-missing': 404,
-  'playlist-missing': 404, 'user-create-forbidden': 200,
-  'user-delete-forbidden': 404, 'session-delete-missing': 404,
+  'playlist-missing': 404, 'user-create-forbidden': 403,
+  'user-delete-forbidden': 403, 'session-delete-missing': 404,
+  'email-settings-reader-admin-gate': 404, 'notifications-reader-admin-gate': 403,
   'backup-missing-download': 404, 'collection-empty-name': 400,
   'playlist-empty-items': 200,
   'item-download': 200,
@@ -150,6 +151,9 @@ async function call(server, route, options = {}) {
   }
   if (route.startsWith('/api/items/') && route.endsWith('/download')) {
     headerNames.push('content-disposition', 'content-length', 'last-modified')
+  }
+  if ((route.startsWith('/api/emails/') || route.startsWith('/api/notifications')) && [403, 404].includes(response.status)) {
+    headerNames.push('etag', 'content-length')
   }
   for (const key of headerNames) {
     const value = response.headers.get(key)
@@ -917,8 +921,8 @@ async function main() {
   const comparePair = async (id, referenceRoute, goRoute, options) => {
     const { nodeToken, goToken, nodeBody, goBody, ...requestOptions } = options
     const [reference, candidate] = await Promise.all([
-      call(node, referenceRoute, { ...requestOptions, body: nodeBody ?? requestOptions.body, token: nodeToken || referenceAccessToken }),
-      call(go, goRoute, { ...requestOptions, body: goBody ?? requestOptions.body, token: goToken || referenceAccessToken })
+      call(node, referenceRoute, { ...requestOptions, body: nodeBody ?? requestOptions.body, token: nodeToken || requestOptions.token || referenceAccessToken }),
+      call(go, goRoute, { ...requestOptions, body: goBody ?? requestOptions.body, token: goToken || requestOptions.token || referenceAccessToken })
     ])
     results.push(compare(id, reference, candidate))
     return [reference, candidate]
@@ -934,6 +938,8 @@ async function main() {
     ['playlist-missing', '/api/playlists/00000000-0000-0000-0000-000000000000', { method: 'GET', token: referenceAccessToken }],
     ['user-create-forbidden', '/api/users', { method: 'POST', token: readerAccessToken, body: { username: 'forbidden-user', password: 'forbidden-password', type: 'user' } }],
     ['user-delete-forbidden', '/api/users/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: readerAccessToken }],
+    ['email-settings-reader-admin-gate', '/api/emails/settings', { method: 'GET', token: readerAccessToken }],
+    ['notifications-reader-admin-gate', '/api/notifications', { method: 'GET', token: readerAccessToken }],
     ['session-delete-missing', '/api/me/sessions/00000000-0000-0000-0000-000000000000', { method: 'DELETE', token: referenceAccessToken }],
     ['backup-missing-download', '/api/backups/00000000-0000-0000-0000-000000000000/download', { method: 'GET', token: referenceAccessToken }],
     ['collection-empty-name', '/api/collections', { method: 'POST', token: referenceAccessToken, body: { name: '', libraryId: bookLibraryId, books: [] } }]
