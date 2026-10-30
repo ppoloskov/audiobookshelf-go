@@ -66,6 +66,30 @@ func TestEmailSettingsUseUpstreamDefaultsAndPersistFirstUpdate(t *testing.T) {
 	}
 }
 
+func TestEmailTestVerificationFailureUsesExpressSendResponse(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:email-test-smtp-failure?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY,value JSON,createdAt DATETIME NOT NULL,updatedAt DATETIME NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	h := New(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/emails/test", strings.NewReader(`{}`)), store.User{Type: "admin"})
+	if w.Code != http.StatusBadRequest || w.Body.String() != "Failed to verify SMTP connection configuration" {
+		t.Fatalf("SMTP verification response = %d %q", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if got := w.Header().Get("Content-Length"); got != "46" {
+		t.Fatalf("Content-Length = %q", got)
+	}
+}
+
 func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:email-devices-normalization?mode=memory&cache=shared")
 	if err != nil {

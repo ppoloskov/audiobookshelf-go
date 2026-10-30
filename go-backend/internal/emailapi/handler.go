@@ -81,6 +81,15 @@ func writeStatus(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
 }
+func writeExpressText(w http.ResponseWriter, status int, body string) {
+	sum := sha1.Sum([]byte(body))
+	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
 	e := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
@@ -214,7 +223,7 @@ func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		http.Error(w, "Failed to verify SMTP connection configuration", 400)
+		writeExpressText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 		return
 	}
 	to, _ := m["testAddress"].(string)
@@ -222,10 +231,14 @@ func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 		to, _ = m["fromAddress"].(string)
 	}
 	if e = sendMail(r.Context(), m, to, "Test email from Audiobookshelf", "Success!", nil); e != nil {
-		http.Error(w, e.Error(), 400)
+		message := e.Error()
+		if message == "" {
+			message = "Failed to send test email"
+		}
+		writeExpressText(w, http.StatusBadRequest, message)
 		return
 	}
-	w.WriteHeader(200)
+	writeStatus(w, http.StatusOK)
 }
 func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User) {
 	var p struct {
@@ -293,16 +306,20 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		http.Error(w, "Failed to verify SMTP connection configuration", 400)
+		writeExpressText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 		return
 	}
 	from, _ := m["fromAddress"].(string)
 	if e = sendMail(r.Context(), m, device["email"].(string), "Here is your Ebook!", "", &attachment{name: ebook.Metadata.Filename, data: data}); e != nil {
-		http.Error(w, e.Error(), 400)
+		message := e.Error()
+		if message == "" {
+			message = "Failed to send ebook to device"
+		}
+		writeExpressText(w, http.StatusBadRequest, message)
 		return
 	}
 	_ = from
-	w.WriteHeader(200)
+	writeStatus(w, http.StatusOK)
 }
 
 type attachment struct {

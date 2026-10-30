@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "target": "Audiobookshelf v2.37.2",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "sourceReport": "/private/tmp/abs-email-smtp-final3/report.json",
+  "runMode": "default SSRF filter enabled; only 127.0.0.1 hostname whitelisted for local image/SMTP fixtures",
+  "suiteSummary": {
+    "total": 144,
+    "passed": 144,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "id": "email-test-configure-smtp",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "settings": {
+          "ereaderDevices": [],
+          "fromAddress": "sender@example.test",
+          "host": "127.0.0.1",
+          "id": "email-settings",
+          "pass": null,
+          "port": 57861,
+          "rejectUnauthorized": true,
+          "secure": false,
+          "testAddress": "reader@example.test",
+          "user": null
+        }
+      },
+      "goBody": {
+        "settings": {
+          "ereaderDevices": [],
+          "fromAddress": "sender@example.test",
+          "host": "127.0.0.1",
+          "id": "email-settings",
+          "pass": null,
+          "port": 57861,
+          "rejectUnauthorized": true,
+          "secure": false,
+          "testAddress": "reader@example.test",
+          "user": null
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-test-success",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "referenceBody": "T0s=",
+      "goBody": "T0s=",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-test-smtp-message",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {},
+      "goHeaders": {},
+      "referenceBody": [
+        {
+          "body": "Success!",
+          "contentType": "text/plain; charset=utf-8",
+          "from": "sender@example.test",
+          "mailFrom": "sender@example.test",
+          "recipients": [
+            "reader@example.test"
+          ],
+          "subject": "Test email from Audiobookshelf",
+          "to": "reader@example.test"
+        }
+      ],
+      "goBody": [
+        {
+          "body": "Success!",
+          "contentType": "text/plain; charset=utf-8",
+          "from": "sender@example.test",
+          "mailFrom": "sender@example.test",
+          "recipients": [
+            "reader@example.test"
+          ],
+          "subject": "Test email from Audiobookshelf",
+          "to": "reader@example.test"
+        }
+      ],
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-test-configure-rejected-smtp",
+      "passed": true,
+      "referenceStatus": 200,
+      "goStatus": 200,
+      "referenceHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "referenceBody": {
+        "settings": {
+          "ereaderDevices": [],
+          "fromAddress": "sender@example.test",
+          "host": "127.0.0.1",
+          "id": "email-settings",
+          "pass": null,
+          "port": 57866,
+          "rejectUnauthorized": true,
+          "secure": false,
+          "testAddress": "reader@example.test",
+          "user": null
+        }
+      },
+      "goBody": {
+        "settings": {
+          "ereaderDevices": [],
+          "fromAddress": "sender@example.test",
+          "host": "127.0.0.1",
+          "id": "email-settings",
+          "pass": null,
+          "port": 57866,
+          "rejectUnauthorized": true,
+          "secure": false,
+          "testAddress": "reader@example.test",
+          "user": null
+        }
+      },
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-test-verification-failure",
+      "passed": true,
+      "referenceStatus": 400,
+      "goStatus": 400,
+      "referenceHeaders": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "goHeaders": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "referenceBody": "RmFpbGVkIHRvIHZlcmlmeSBTTVRQIGNvbm5lY3Rpb24gY29uZmlndXJhdGlvbg==",
+      "goBody": "RmFpbGVkIHRvIHZlcmlmeSBTTVRQIGNvbm5lY3Rpb24gY29uZmlndXJhdGlvbg==",
+      "differences": [],
+      "notes": []
+    },
+    {
+      "id": "email-test-no-message-on-verification-failure",
+      "passed": true,
+      "referenceMessageCount": 0,
+      "goMessageCount": 0,
+      "differences": []
+    }
+  ]
+}

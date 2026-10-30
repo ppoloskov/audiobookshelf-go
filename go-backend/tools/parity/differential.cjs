@@ -90,6 +90,9 @@ const EXPECTED_STATUS = {
   'email-settings-reader-admin-gate': 404, 'notifications-reader-admin-gate': 403,
   'email-settings-patch-coercion': 200, 'email-settings-read-after-coercion': 200,
   'email-settings-read-defaults-initial': 200,
+  'email-test-configure-smtp': 200, 'email-test-success': 200,
+  'email-test-smtp-message': 200, 'email-test-configure-rejected-smtp': 200,
+  'email-test-verification-failure': 400, 'email-test-no-message-on-verification-failure': 200,
   'email-devices-normalization-update': 200, 'email-devices-read-after-update': 200,
   'email-devices-update-event': 200, 'email-devices-persisted-state': 200,
   'email-devices-repeat': 200, 'email-devices-repeat-event': 200,
@@ -202,6 +205,75 @@ async function startCoverSource(file) {
   const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (err) => err ? reject(err) : resolve(server.address().port)))
   server.unref()
   return { server, url: `http://127.0.0.1:${port}/cover.png` }
+}
+
+async function startSMTPFixture({ rejectConnection = false } = {}) {
+  const net = require('node:net')
+  const sessions = []
+  const server = net.createServer((socket) => {
+    const session = { mailFrom: null, recipients: [], message: '' }
+    sessions.push(session)
+    let input = ''
+    let inData = false
+    if (rejectConnection) {
+      socket.end('421 4.3.0 service unavailable\r\n')
+      return
+    }
+    socket.write('220 parity-smtp.local ESMTP\r\n')
+    socket.on('data', chunk => {
+      input += chunk.toString('utf8')
+      while (true) {
+        if (inData) {
+          const end = input.indexOf('\r\n.\r\n')
+          if (end < 0) break
+          session.message += input.slice(0, end + 2)
+          input = input.slice(end + 5)
+          inData = false
+          socket.write('250 2.0.0 queued\r\n')
+          continue
+        }
+        const end = input.indexOf('\r\n')
+        if (end < 0) break
+        const line = input.slice(0, end)
+        input = input.slice(end + 2)
+        const command = line.split(' ', 1)[0].toUpperCase()
+        if (command === 'EHLO' || command === 'HELO') socket.write('250-parity-smtp.local\r\n250 PIPELINING\r\n')
+        else if (command === 'MAIL') {
+          session.mailFrom = line.slice(line.indexOf(':') + 1).replace(/[<>]/g, '').trim()
+          socket.write('250 2.1.0 sender ok\r\n')
+        } else if (command === 'RCPT') {
+          session.recipients.push(line.slice(line.indexOf(':') + 1).replace(/[<>]/g, '').trim())
+          socket.write('250 2.1.5 recipient ok\r\n')
+        } else if (command === 'DATA') {
+          inData = true
+          socket.write('354 end with <CRLF>.<CRLF>\r\n')
+        } else if (command === 'QUIT') {
+          socket.end('221 2.0.0 bye\r\n')
+        } else socket.write('250 2.0.0 ok\r\n')
+      }
+    })
+  })
+  const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
+  server.unref()
+  return { server, port, sessions }
+}
+
+function smtpMessageShape(session) {
+  const normalized = session.message.replace(/\r\n/g, '\n')
+  const split = normalized.indexOf('\n\n')
+  const headers = Object.fromEntries(normalized.slice(0, split).split('\n').map(line => {
+    const colon = line.indexOf(':')
+    return [line.slice(0, colon).toLowerCase(), line.slice(colon + 1).trim()]
+  }))
+  return {
+    mailFrom: session.mailFrom,
+    recipients: session.recipients,
+    from: headers.from,
+    to: headers.to,
+    subject: headers.subject,
+    contentType: headers['content-type'],
+    body: normalized.slice(split + 2).replace(/\n$/, '')
+  }
 }
 
 async function readEmailDeviceState(directory) {
@@ -1408,6 +1480,51 @@ async function main() {
       prerequisite: 'both playback-session endpoints must return a valid session before cleanup',
       referenceStatus: nodeSession.status, goStatus: goSession.status
     })
+  }
+
+  const smtp = await startSMTPFixture()
+  try {
+    await comparePair('email-test-configure-smtp', '/api/emails/settings', '/api/emails/settings', {
+      method: 'PATCH', token: referenceAccessToken,
+      body: { host: '127.0.0.1', port: smtp.port, secure: false, fromAddress: 'sender@example.test', testAddress: 'reader@example.test' }
+    })
+    let firstMessage = smtp.sessions.length
+    const nodeEmailTest = await call(node, '/api/emails/test', { method: 'POST', token: referenceAccessToken, body: {} })
+    const nodeMessage = smtp.sessions.slice(firstMessage).filter(session => session.message).map(smtpMessageShape)
+    firstMessage = smtp.sessions.length
+    const goEmailTest = await call(go, '/api/emails/test', { method: 'POST', token: referenceAccessToken, body: {} })
+    const goMessage = smtp.sessions.slice(firstMessage).filter(session => session.message).map(smtpMessageShape)
+    results.push(compare('email-test-success', nodeEmailTest, goEmailTest))
+    results.push(compare('email-test-smtp-message',
+      { status: 200, headers: {}, body: nodeMessage },
+      { status: 200, headers: {}, body: goMessage }))
+  } finally {
+    await new Promise(resolve => smtp.server.close(resolve))
+  }
+  const rejectedSMTP = await startSMTPFixture({ rejectConnection: true })
+  try {
+    await comparePair('email-test-configure-rejected-smtp', '/api/emails/settings', '/api/emails/settings', {
+      method: 'PATCH', token: referenceAccessToken,
+      body: { host: '127.0.0.1', port: rejectedSMTP.port, secure: false, fromAddress: 'sender@example.test', testAddress: 'reader@example.test' }
+    })
+    let failedStart = rejectedSMTP.sessions.length
+    const nodeFailure = await call(node, '/api/emails/test', { method: 'POST', token: referenceAccessToken, body: {} })
+    const nodeFailedDeliveryCount = rejectedSMTP.sessions.slice(failedStart).filter(session => session.message).length
+    failedStart = rejectedSMTP.sessions.length
+    const goFailure = await call(go, '/api/emails/test', { method: 'POST', token: referenceAccessToken, body: {} })
+    const goFailedDeliveryCount = rejectedSMTP.sessions.slice(failedStart).filter(session => session.message).length
+    results.push(compare('email-test-verification-failure', nodeFailure, goFailure))
+    results.push({
+      id: 'email-test-no-message-on-verification-failure',
+      passed: nodeFailedDeliveryCount === 0 && goFailedDeliveryCount === 0,
+      referenceMessageCount: nodeFailedDeliveryCount,
+      goMessageCount: goFailedDeliveryCount,
+      differences: nodeFailedDeliveryCount === 0 && goFailedDeliveryCount === 0
+        ? []
+        : [{ path: '$.messageCount', reference: nodeFailedDeliveryCount, go: goFailedDeliveryCount, expected: 0 }]
+    })
+  } finally {
+    await new Promise(resolve => rejectedSMTP.server.close(resolve))
   }
 
   let ioClient
