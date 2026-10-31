@@ -3,21 +3,23 @@
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "inventorySourceRevision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
   "inventorySha256": "1415063550010bc2d5abadb13c85f8037da2539426203901dca9097b9be6fc5e",
+  "caseCatalog": "go-backend/tools/parity/cases/core.json",
+  "caseCatalogSha256": "d8b9c5d73bd7e05c4741ad4f7be9435390db1ed561b6acbce2101ff120996cda",
   "goSourceHashesAtGeneration": {
     "go-backend/internal/server/server.go": "825a3260d63fe38e8e38d650d3c016dbfdb6f91b58024291b55ea7cfa089d2cc",
-    "go-backend/internal/server/runtime.go": "a0429a4465f26c2445e3b52f1a426d85d5aabc898402839ddb5aa8c847f9bee9",
+    "go-backend/internal/server/runtime.go": "f93a5fbd97c8fa9832c49a0313bf90cffcde289066a7c3106ca0e2e8070ae094",
     "go-backend/internal/adminops/handler.go": "a94174321c59bf8ead74b8201b21b1f545d4d1c84a1275d3af851391c7a788c3",
     "go-backend/internal/audiotools/tools.go": "8e4cbe43afd7e4491600ede87f7fbfde5e7e5ab05f28a35a11fa9dc7b00ea38b",
     "go-backend/internal/backup/backup.go": "32c7dd7723020926475d0157970169490ece9be440146015c26985f4f20f687e",
-    "go-backend/internal/catalog/handler.go": "ebf0698c7aaa2e823420ffe520aa962167f791d56c1cadc55a6d02e9877bfd80",
-    "go-backend/internal/emailapi/handler.go": "7db9e61947c99082fa6ad7e4fc2c1b9c07a6e6e213d454be26690d0f4c8229bf",
-    "go-backend/internal/identity/identity.go": "fdfb0c112648044d5ae32488e0ab6998f4428e70dd08ce8b2541010ed6dbecb3",
-    "go-backend/internal/notifications/handler.go": "c2bc21c9f708e48f966cdc9739d95d03de4345997a7c6f057c11d8385fb19b09",
+    "go-backend/internal/catalog/handler.go": "cacfdcbf23fc996fd18d38086395afef887414186a8cbaa7e1c4ddfb4966f133",
+    "go-backend/internal/emailapi/handler.go": "132d39e3dc0bf819869094cc3b96274e97692dc490c7e14e8de736a1c980e8d1",
+    "go-backend/internal/identity/identity.go": "68dc24a08d9c67d580f6c886e62e031c0ddb158563212e0b9bb8e0ef07356e94",
+    "go-backend/internal/notifications/handler.go": "bb4ad4c79dd04a5e601f3965b434f7eb4a3b202bbf23caf1db1cc01ca648b047",
     "go-backend/internal/podcasts/podcasts.go": "c18f604a29bcfb0311b41bcf31702467a698ecf095825f700aa920e36cb086cd",
     "go-backend/internal/providers/handler.go": "bd3c31e1ab8511eaa7ed1d2d493ede78ab868aae5024c0334324054b72af1ee5",
-    "go-backend/internal/userapi/userapi.go": "2f76f11e8d91b7868563ca30637f6644b0ad2ef2c5449fa7bb6fb30fd664250d",
-    "go-backend/internal/playback/playback.go": "ba9e4f6f875ff335729bc8cc746e03b33670910aa35a640193bb453106b4301e",
-    "go-backend/internal/scanner/scanner.go": "95fa7155fb614ca48b646370a9520b720a2fb73b757f6a7cc2b05f27baa0cab9",
+    "go-backend/internal/userapi/userapi.go": "926f28f1f6fd0b0e45ea577ba56753335aa76c593a18341c9c2fb14f7104f5e9",
+    "go-backend/internal/playback/playback.go": "40e602e18efe882f8f01b50975da9ea75922aac9ed2cbdc79a18ef0fce8902ea",
+    "go-backend/internal/scanner/scanner.go": "86ba0e033a633b57aa2ed3647c7f22ad6f5016259eeabcdaf724e0ec9b160b78",
     "go-backend/internal/sharing/handler.go": "3eef066b9722fe2bbade5ff82a3e945c33423a00ac32fdbfba7f3ce0cca0fba3"
   },
   "limitations": [
@@ -78,8 +80,8 @@
       "dynamic_expression": 1,
       "regex_literal": 1
     },
-    "routesWithDifferentialVariants": 57,
-    "declaredDifferentialVariants": 106,
+    "routesWithDifferentialVariants": 66,
+    "declaredDifferentialVariants": 164,
     "sampledDifferentialVariants": 129,
     "sampledPassingVariants": 129,
     "sampledFailingVariants": 0
@@ -122,9 +124,30 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "local-session-login",
+          "category": "authentication",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "local-session-relogin",
+          "category": "authentication",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "inactive-user-login-denied",
+          "category": "errors",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 2,
+      "differentialVariantCount": 5,
       "sampledVariantCount": 2,
       "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
@@ -160,9 +183,37 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "local-session-logout-refresh-revoked",
+          "category": "errors",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "refresh-rotation",
+          "category": "authentication",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "refresh-rotation-grace-replay",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "refresh-concurrent-grace",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 1,
+      "differentialVariantCount": 5,
       "sampledVariantCount": 1,
       "sampledPassingVariantCount": 1,
       "sampledFailingVariantCount": 0,
@@ -311,8 +362,23 @@
         "route": "POST /logout",
         "evidence": "go-backend/internal/identity/identity.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "local-session-logout",
+          "category": "authentication",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "local-session-cookie-regeneration",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 2,
       "sampledVariantCount": 0,
       "sampledPassingVariantCount": 0,
       "sampledFailingVariantCount": 0,
@@ -859,13 +925,6 @@
       },
       "differentialVariants": [
         {
-          "id": "library-items-invalid-pagination",
-          "category": "errors",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
           "id": "book-library-items",
           "category": "catalog",
           "sampled": true,
@@ -875,6 +934,13 @@
         {
           "id": "book-library-items-minified",
           "category": "catalog",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "library-items-invalid-pagination",
+          "category": "errors",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
@@ -1744,6 +1810,13 @@
       },
       "differentialVariants": [
         {
+          "id": "book-item-detail",
+          "category": "catalog",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
           "id": "item-detail-missing",
           "category": "errors",
           "sampled": true,
@@ -1753,13 +1826,6 @@
         {
           "id": "item-detail-invalid-id",
           "category": "errors",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "book-item-detail",
-          "category": "catalog",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
@@ -1901,6 +1967,34 @@
       },
       "differentialVariants": [
         {
+          "id": "cover-raw-after-delete",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-cache-after-delete",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-cache-jpeg-after-delete",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "cover-cache-png-after-delete",
+          "category": "covers",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
           "id": "cover-raw",
           "category": "covers",
           "sampled": true,
@@ -1937,34 +2031,6 @@
         },
         {
           "id": "cover-cache-ts-header",
-          "category": "covers",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "cover-raw-after-delete",
-          "category": "covers",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "cover-cache-after-delete",
-          "category": "covers",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "cover-cache-jpeg-after-delete",
-          "category": "covers",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "cover-cache-png-after-delete",
           "category": "covers",
           "sampled": true,
           "sampledPass": true,
@@ -2016,7 +2082,7 @@
           "report": "full-suite-report.json"
         },
         {
-          "id": "cover-upload-multipart-url-precedence",
+          "id": "cover-url-ssrf-blocked",
           "category": "errors",
           "sampled": true,
           "sampledPass": true,
@@ -2030,14 +2096,14 @@
           "report": "full-suite-report.json"
         },
         {
-          "id": "cover-url-unsupported-image-format",
+          "id": "cover-upload-multipart-url-precedence",
           "category": "errors",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
         },
         {
-          "id": "cover-url-ssrf-blocked",
+          "id": "cover-url-unsupported-image-format",
           "category": "errors",
           "sampled": true,
           "sampledPass": true,
@@ -2440,9 +2506,16 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "direct-file-invalid-range",
+          "category": "playback",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 1,
+      "differentialVariantCount": 2,
       "sampledVariantCount": 1,
       "sampledPassingVariantCount": 1,
       "sampledFailingVariantCount": 0,
@@ -2503,6 +2576,20 @@
       },
       "differentialVariants": [
         {
+          "id": "item-file-download-denied",
+          "category": "permissions",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "item-file-download-denied-missing-file",
+          "category": "permissions",
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
           "id": "item-file-download",
           "category": "normal",
           "sampled": true,
@@ -2533,20 +2620,6 @@
         {
           "id": "item-file-download-disk-missing",
           "category": "errors",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "item-file-download-denied",
-          "category": "permissions",
-          "sampled": true,
-          "sampledPass": true,
-          "report": "full-suite-report.json"
-        },
-        {
-          "id": "item-file-download-denied-missing-file",
-          "category": "permissions",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
@@ -2655,9 +2728,16 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "inactive-user-create",
+          "category": "users",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 2,
+      "differentialVariantCount": 3,
       "sampledVariantCount": 2,
       "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
@@ -3411,6 +3491,13 @@
       },
       "differentialVariants": [
         {
+          "id": "playlist-from-collection-read",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
           "id": "playlist-missing",
           "category": "errors",
           "sampled": true,
@@ -3425,7 +3512,7 @@
           "report": "full-suite-report.json"
         }
       ],
-      "differentialVariantCount": 2,
+      "differentialVariantCount": 3,
       "sampledVariantCount": 2,
       "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
@@ -3494,6 +3581,13 @@
       },
       "differentialVariants": [
         {
+          "id": "playlist-from-collection-delete",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
           "id": "playlist-delete",
           "category": "playlists",
           "sampled": true,
@@ -3501,7 +3595,7 @@
           "report": "full-suite-report.json"
         }
       ],
-      "differentialVariantCount": 1,
+      "differentialVariantCount": 2,
       "sampledVariantCount": 1,
       "sampledPassingVariantCount": 1,
       "sampledFailingVariantCount": 0,
@@ -3666,8 +3760,16 @@
         "route": "POST /api/playlists/collection/:collectionId",
         "evidence": "go-backend/internal/userapi/userapi.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "playlist-from-collection-create",
+          "category": "stateful",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 1,
       "sampledVariantCount": 0,
       "sampledPassingVariantCount": 0,
       "sampledFailingVariantCount": 0,
@@ -3740,9 +3842,16 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "local-session-logout-session-list",
+          "category": "sessions",
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 2,
+      "differentialVariantCount": 3,
       "sampledVariantCount": 2,
       "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
@@ -4111,15 +4220,15 @@
       },
       "differentialVariants": [
         {
-          "id": "progress-write-invalid",
-          "category": "errors",
+          "id": "progress-write",
+          "category": "progress",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
         },
         {
-          "id": "progress-write",
-          "category": "progress",
+          "id": "progress-write-invalid",
+          "category": "errors",
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
@@ -5701,11 +5810,88 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "notifications-settings-read-defaults-initial",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notifications-settings-read-after-custom",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notifications-settings-read-after-defaults",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-read-after-test-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-read-after-test-failure",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-read-after-create",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-read-after-update",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-read-after-event-test-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-read-after-event-test-repeat",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-read-after-event-test-failure",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-read-after-delete",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
         }
       ],
-      "differentialVariantCount": 1,
-      "sampledVariantCount": 1,
-      "sampledPassingVariantCount": 1,
+      "differentialVariantCount": 12,
+      "sampledVariantCount": 7,
+      "sampledPassingVariantCount": 7,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5732,10 +5918,60 @@
         "route": "PATCH /api/notifications",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notifications-settings-patch-custom",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notifications-settings-patch-defaults",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notifications-clear-apprise-url",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-apprise-fixture-configure-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-apprise-fixture-configure-failure",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-apprise-global-configure-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-set-failure-threshold",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 7,
+      "sampledVariantCount": 2,
+      "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5792,8 +6028,51 @@
         "route": "GET /api/notifications/test",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notification-event-test-unconfigured",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-fail-unconfigured",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-admin-denied",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-send-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-repeat-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-event-test-intentional-failure",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 6,
       "sampledVariantCount": 0,
       "sampledPassingVariantCount": 0,
       "sampledFailingVariantCount": 0,
@@ -5822,10 +6101,32 @@
         "route": "POST /api/notifications",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notification-create",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-create-empty-urls",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-create-minimal",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        }
+      ],
+      "differentialVariantCount": 3,
+      "sampledVariantCount": 3,
+      "sampledPassingVariantCount": 3,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5852,10 +6153,25 @@
         "route": "DELETE /api/notifications/:id",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notification-delete",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-delete-missing",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        }
+      ],
+      "differentialVariantCount": 2,
+      "sampledVariantCount": 2,
+      "sampledPassingVariantCount": 2,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5882,10 +6198,32 @@
         "route": "PATCH /api/notifications/:id",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notification-update-without-body-id",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-update",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "notification-update-missing",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        }
+      ],
+      "differentialVariantCount": 3,
+      "sampledVariantCount": 3,
+      "sampledPassingVariantCount": 3,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5912,8 +6250,44 @@
         "route": "GET /api/notifications/:id/test",
         "evidence": "go-backend/internal/notifications/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "notification-test-missing-id-unconfigured",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-test-admin-denied",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-test-existing-id-unconfigured",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-test-send-success",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "notification-test-send-failure",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 5,
       "sampledVariantCount": 0,
       "sampledPassingVariantCount": 0,
       "sampledFailingVariantCount": 0,
@@ -5949,11 +6323,32 @@
           "sampled": true,
           "sampledPass": true,
           "report": "full-suite-report.json"
+        },
+        {
+          "id": "email-settings-read-defaults-initial",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "email-settings-read-after-coercion",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "email-devices-read-after-update",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
         }
       ],
-      "differentialVariantCount": 1,
-      "sampledVariantCount": 1,
-      "sampledPassingVariantCount": 1,
+      "differentialVariantCount": 4,
+      "sampledVariantCount": 3,
+      "sampledPassingVariantCount": 3,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
@@ -5980,10 +6375,32 @@
         "route": "PATCH /api/emails/settings",
         "evidence": "go-backend/internal/emailapi/handler.go"
       },
-      "differentialVariants": [],
-      "differentialVariantCount": 0,
-      "sampledVariantCount": 0,
-      "sampledPassingVariantCount": 0,
+      "differentialVariants": [
+        {
+          "id": "email-settings-patch-coercion",
+          "category": null,
+          "sampled": true,
+          "sampledPass": true,
+          "report": "full-suite-report.json"
+        },
+        {
+          "id": "email-test-configure-smtp",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        },
+        {
+          "id": "email-test-configure-rejected-smtp",
+          "category": null,
+          "sampled": false,
+          "sampledPass": null,
+          "report": null
+        }
+      ],
+      "differentialVariantCount": 3,
+      "sampledVariantCount": 1,
+      "sampledPassingVariantCount": 1,
       "sampledFailingVariantCount": 0,
       "compatibilityStatus": "unverified"
     },
