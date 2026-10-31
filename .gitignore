@@ -53,6 +53,13 @@ secrets/
 *.dylib
 *.test
 
+# Scratch archives.
+*.zip
+
+# Scanner test sidecars: fixtures are written to temporary roots only
+# (go-backend review V7); keep them out of the source tree.
+go-backend/internal/scanner/items/
+
 sw.*
 .DS_Store
 *.log
