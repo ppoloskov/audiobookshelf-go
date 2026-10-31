@@ -16,10 +16,31 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
+
+var scannerTestMetadataRoot string
+
+func TestMain(m *testing.M) {
+	root, err := os.MkdirTemp("", "abs-scanner-test-metadata-")
+	if err != nil {
+		panic(err)
+	}
+	scannerTestMetadataRoot = root
+	code := m.Run()
+	_ = os.RemoveAll(root)
+	os.Exit(code)
+}
+
+func newScannerForTest(db *sql.DB, cfg config.Config, emit EmitFunc) (*Scanner, error) {
+	if cfg.MetadataPath == "" {
+		cfg.MetadataPath = scannerTestMetadataRoot
+	}
+	return New(db, cfg, emit, catalog.New(db, cfg, nil))
+}
 
 // These DDL statements are copied from the pinned v2.37.2 baseline schema.sql.
 func scannerTestDB(t *testing.T, root string) *sql.DB {
@@ -196,7 +217,7 @@ func TestPrecedenceChangeForcesAndPersistsSnapshot(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraries SET settings=?,extraData=? WHERE id='lib-1'`, defaultOrder, defaultExtra); err != nil {
 		t.Fatal(err)
 	}
-	s, _ := New(db, config.Config{}, nil)
+	s, _ := newScannerForTest(db, config.Config{}, nil)
 	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +273,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +356,7 @@ func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +445,7 @@ func TestAudioEntryIdentityPreservedOnCompanionUpdateAndRemoval(t *testing.T) {
 		}
 	}
 	db := scannerTestDB(t, root)
-	s, _ := New(db, config.Config{}, nil)
+	s, _ := newScannerForTest(db, config.Config{}, nil)
 	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -493,7 +514,7 @@ func TestScanPersistsConfiguredTitleIgnorePrefixes(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO settings(key,value,createdAt,updatedAt) VALUES('server-settings',?,'2020','2020')`, `{"sortingPrefixes":["the","a"]}`); err != nil {
 		t.Fatal(err)
 	}
-	s, _ := New(db, config.Config{}, nil)
+	s, _ := newScannerForTest(db, config.Config{}, nil)
 	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -562,7 +583,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 		scope, name string
 		payload     any
 	}
-	s, err := New(db, cfg, func(scope, event string, payload any) {
+	s, err := newScannerForTest(db, cfg, func(scope, event string, payload any) {
 		events = append(events, struct {
 			scope, name string
 			payload     any
@@ -587,7 +608,9 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if !ok || len(addedItems) != 1 || addedItems[0]["id"] == nil || addedItems[0]["path"] == nil || addedItems[0]["mediaType"] != "book" {
 		t.Fatalf("expanded items_added payload = %#v", events[3].payload)
 	}
-	media, _ := addedItems[0]["media"].(map[string]any)
+	mediaRaw, _ := json.Marshal(addedItems[0]["media"])
+	var media map[string]any
+	_ = json.Unmarshal(mediaRaw, &media)
 	md, _ := media["metadata"].(map[string]any)
 	if md["title"] != "Sidecar Title" {
 		t.Fatalf("expanded event metadata title = %#v", md["title"])
@@ -782,7 +805,7 @@ func TestScanDropsProbeFailedAudio(t *testing.T) {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -838,7 +861,7 @@ func TestScanEmitsAddedAndUpdatedItemsInChunksOfTen(t *testing.T) {
 		name    string
 		payload any
 	}
-	s, err := New(db, config.Config{}, func(_ string, name string, payload any) {
+	s, err := newScannerForTest(db, config.Config{}, func(_ string, name string, payload any) {
 		events = append(events, struct {
 			name    string
 			payload any
@@ -982,7 +1005,7 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 		name    string
 		payload any
 	}
-	s, err := New(db, config.Config{}, func(_ string, name string, payload any) {
+	s, err := newScannerForTest(db, config.Config{}, func(_ string, name string, payload any) {
 		events = append(events, struct {
 			name    string
 			payload any
@@ -1063,7 +1086,7 @@ func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1141,7 +1164,7 @@ func TestProbeAudioDropsFilesWithoutAudioStreams(t *testing.T) {
 		t.Fatalf("generate video-only mp4: %v: %s", e, out)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1224,7 +1247,7 @@ func TestScanCancellationAndRouteOwnership(t *testing.T) {
 	root := t.TempDir()
 	db := scannerTestDB(t, root)
 	var emitted []string
-	s, err := New(db, config.Config{}, func(_ string, event string, _ any) { emitted = append(emitted, event) })
+	s, err := newScannerForTest(db, config.Config{}, func(_ string, event string, _ any) { emitted = append(emitted, event) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1295,7 +1318,7 @@ func TestScannedFileRelPathsAreItemRelative(t *testing.T) {
 				}
 			}
 			db := scannerTestDB(t, root)
-			s, err := New(db, config.Config{}, nil)
+			s, err := newScannerForTest(db, config.Config{}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1468,7 +1491,7 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(book, "track.mp3"), []byte("not audio"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		s, err := New(db, config.Config{}, nil)
+		s, err := newScannerForTest(db, config.Config{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1595,7 +1618,7 @@ func TestStartRejectsInvalidPerLibraryCron(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraries SET settings=? WHERE id='lib-1'`, `{"autoScanCronExpression":"not a cron"}`); err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1612,7 +1635,7 @@ func TestWatcherDiscoversNewNestedFoldersAndCloseStopsIt(t *testing.T) {
 	}
 	root := t.TempDir()
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1661,7 +1684,7 @@ func TestCronScheduleRunsLibraryScan(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraries SET settings=? WHERE id='lib-1'`, `{"autoScanCronExpression":"@every 1s"}`); err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1701,7 +1724,7 @@ func TestQuickMatchPodcastEpisodesPersistsFeedFields(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO podcastEpisodes(id,podcastId,title,createdAt,updatedAt) VALUES('ep-1','pod-1','The Story','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`); err != nil {
 		t.Fatal(err)
 	}
-	s, err := New(db, config.Config{}, nil)
+	s, err := newScannerForTest(db, config.Config{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

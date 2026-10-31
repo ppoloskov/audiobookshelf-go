@@ -101,7 +101,7 @@ func TestScanEmitsChunkedExpandedItems(t *testing.T) {
 	db := scannerTestDB(t, root)
 	fakeFFprobe(t)
 	emit, events := captureEvents()
-	s, err := New(db, config.Config{}, emit)
+	s, err := newScannerForTest(db, config.Config{}, emit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestScanCleansOrphanedAuthorsAndSeries(t *testing.T) {
 	}
 	db := scannerTestDB(t, root)
 	emit, events := captureEvents()
-	s, err := New(db, config.Config{}, emit)
+	s, err := newScannerForTest(db, config.Config{}, emit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestScanSidecarDefaultLocationAndInItem(t *testing.T) {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
-	s, err := New(db, config.Config{MetadataPath: metaRoot}, nil)
+	s, err := newScannerForTest(db, config.Config{MetadataPath: metaRoot}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 	}
 	db := scannerTestDB(t, root)
 	emit, events := captureEvents()
-	s, err := New(db, config.Config{}, emit)
+	s, err := newScannerForTest(db, config.Config{}, emit)
 	if err != nil {
 		t.Fatal(err)
 	}

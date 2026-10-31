@@ -18,6 +18,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 
 	"github.com/zishang520/engine.io/v2/types"
@@ -516,13 +517,11 @@ func payloadAccessible(user store.User, payload any) bool {
 		return true // global events without item/library metadata are unrestricted.
 	}
 	libraryID, hasLibrary := metadata["libraryId"].(string)
-	media, _ := metadata["media"].(map[string]any)
+	media, hasMedia := metadata["media"]
 	if !hasLibrary {
 		if item, ok := metadata["item"].(map[string]any); ok {
 			libraryID, hasLibrary = item["libraryId"].(string)
-			if nested, ok := item["media"].(map[string]any); ok {
-				media = nested
-			}
+			media, hasMedia = item["media"]
 		}
 	}
 	if !hasLibrary || libraryID == "" {
@@ -537,21 +536,23 @@ func payloadAccessible(user store.User, payload any) bool {
 			return false
 		}
 	}
-	if media == nil {
+	// Collection events carry a top-level libraryId but no media; upstream
+	// broadcasts them after the library check and has no item/tag ACL to apply.
+	if !hasMedia {
 		return true
 	}
-	explicit := boolValue(media["explicit"])
-	if metadataValue, ok := media["metadata"].(map[string]any); ok {
-		explicit = explicit || boolValue(metadataValue["explicit"])
+	access, ok := itemapi.AccessMedia(media)
+	if !ok {
+		return false
 	}
-	if explicit && !boolValue(permissions["accessExplicitContent"]) {
+	if access.Explicit && !boolValue(permissions["accessExplicitContent"]) {
 		return false
 	}
 	if boolValue(permissions["accessAllTags"]) {
 		return true
 	}
 	userTags := stringsValue(permissions["itemTagsSelected"])
-	itemTags := stringsValue(media["tags"])
+	itemTags := access.Tags
 	if boolValue(permissions["selectedTagsNotAccessible"]) {
 		if len(itemTags) == 0 {
 			return true

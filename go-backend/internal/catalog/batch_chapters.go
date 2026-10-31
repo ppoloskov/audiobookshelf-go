@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 func canUpdateCatalog(user store.User) bool {
@@ -250,32 +251,34 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	media, _ := item["media"].(map[string]any)
-	metadata, _ := media["metadata"].(map[string]any)
-	authors, _ := metadata["authors"].([]map[string]any)
-	authorNames := make([]string, 0, len(authors))
-	for _, author := range authors {
-		authorNames = append(authorNames, stringValue(author["name"]))
+	media, ok := item["media"].(wire.BookFull)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "database read failed")
+		return
+	}
+	metadata := media.Metadata
+	authorNames := make([]string, 0, len(metadata.Authors))
+	for _, author := range metadata.Authors {
+		authorNames = append(authorNames, author.Name)
 	}
 	values := map[string]any{
-		"title": metadata["title"], "artist": strings.Join(authorNames, ", "), "album_artist": strings.Join(authorNames, ", "),
-		"album": stringValue(metadata["title"]) + func() string {
-			if subtitle := stringValue(metadata["subtitle"]); subtitle != "" {
+		"title": nullableStringPointerValue(metadata.Title), "artist": strings.Join(authorNames, ", "), "album_artist": strings.Join(authorNames, ", "),
+		"album": stringPointerValue(metadata.Title) + func() string {
+			if subtitle := stringPointerValue(metadata.Subtitle); subtitle != "" {
 				return ": " + subtitle
 			}
 			return ""
 		}(),
-		"TIT3": metadata["subtitle"], "genre": strings.Join(anyStrings(metadata["genres"]), "; "),
-		"date": metadata["publishedYear"], "comment": metadata["description"], "description": metadata["description"],
-		"composer": strings.Join(anyStrings(metadata["narrators"]), ", "), "copyright": metadata["publisher"], "publisher": metadata["publisher"],
+		"TIT3": nullableStringPointerValue(metadata.Subtitle), "genre": strings.Join(metadata.Genres, "; "),
+		"date": nullableStringPointerValue(metadata.PublishedYear), "comment": nullableStringPointerValue(metadata.Description), "description": nullableStringPointerValue(metadata.Description),
+		"composer": strings.Join(metadata.Narrators, ", "), "copyright": nullableStringPointerValue(metadata.Publisher), "publisher": nullableStringPointerValue(metadata.Publisher),
 		"TRACKTOTAL": fmt.Sprint(audioCount),
 	}
-	series, _ := metadata["series"].([]map[string]any)
-	groups := make([]string, 0, len(series))
-	for _, row := range series {
-		name := stringValue(row["name"])
-		if sequence := stringValue(row["sequence"]); sequence != "" {
-			name += " #" + sequence
+	groups := make([]string, 0, len(metadata.Series))
+	for _, entry := range metadata.Series {
+		name := entry.Name
+		if entry.Sequence != nil && *entry.Sequence != "" {
+			name += " #" + *entry.Sequence
 		}
 		groups = append(groups, name)
 	}

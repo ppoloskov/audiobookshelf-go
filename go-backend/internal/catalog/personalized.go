@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 // personalized implements the book shelves whose upstream source is
@@ -81,11 +82,21 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 			audio := make([]map[string]any, 0, len(items))
 			reading := make([]map[string]any, 0, len(items))
 			for _, item := range items {
-				media, _ := item["media"].(map[string]any)
-				tracks := number(media["numTracks"])
+				var tracks int
+				var ebookFormat any
+				switch media := item["media"].(type) {
+				case map[string]any:
+					tracks = int(number(media["numTracks"]))
+					ebookFormat = media["ebookFormat"]
+				case wire.BookMinified:
+					tracks = media.NumTracks
+					if len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null" {
+						ebookFormat = media.EbookFormat
+					}
+				}
 				if tracks > 0 {
 					audio = append(audio, item)
-				} else if media["ebookFormat"] != nil {
+				} else if ebookFormat != nil {
 					reading = append(reading, item)
 				}
 			}

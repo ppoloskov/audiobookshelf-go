@@ -9,6 +9,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 
+	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -709,8 +710,8 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 			mediaID := stringValue(entry["episodeId"])
 			if mediaID == "" {
 				if libraryItem, ok := entry["libraryItem"].(map[string]any); ok {
-					if media, ok := libraryItem["media"].(map[string]any); ok {
-						mediaID = stringValue(media["id"])
+					if access, ok := itemapi.AccessMedia(libraryItem["media"]); ok {
+						mediaID = access.ID
 					}
 				}
 			}
@@ -817,11 +818,10 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		if !ok {
 			continue
 		}
-		media, ok := item["media"].(map[string]any)
-		if !ok {
-			continue
+		mediaID := ""
+		if access, ok := itemapi.AccessMedia(item["media"]); ok {
+			mediaID = access.ID
 		}
-		mediaID := stringValue(media["id"])
 		if mediaID == "" {
 			continue
 		}

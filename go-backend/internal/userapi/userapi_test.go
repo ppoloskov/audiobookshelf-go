@@ -13,10 +13,19 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
+
+func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
+	h, err := New(db, cfg, emit, catalog.New(db, cfg, nil))
+	if err != nil {
+		panic(err)
+	}
+	return h
+}
 
 func userFixture(t *testing.T) (*sql.DB, store.User) {
 	t.Helper()
@@ -59,7 +68,7 @@ func TestPlaylistCreateListAndOwnerRestriction(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO libraries(id) VALUES ('lib1')`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	create := httptest.NewRequest(http.MethodPost, "/api/playlists", strings.NewReader(`{"name":"<b>Queue</b>","libraryId":"lib1"}`))
 	w := httptest.NewRecorder()
 	if !h.Handle(w, create, user) || w.Code != http.StatusOK {
@@ -91,7 +100,7 @@ func TestPlaylistBatchAddMissingLibraryItemUsesLegacyError(t *testing.T) {
 	defer db.Close()
 	_, _ = db.Exec(`INSERT INTO libraries(id) VALUES ('lib1')`)
 	_, _ = db.Exec(`INSERT INTO playlists(id,name,libraryId,userId,createdAt,updatedAt) VALUES ('p1','Queue','lib1','u1',1,1)`)
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/playlists/p1/batch/add", strings.NewReader(`{"items":[{"libraryItemId":"missing"}]}`))
 	r.Header.Set("Content-Type", "application/json")
@@ -120,7 +129,7 @@ func TestCollectionMissingUsesExpressSend(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt DATETIME, updatedAt DATETIME)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	for _, path := range []string{"/api/collections/missing", "/api/playlists/missing"} {
 		w := httptest.NewRecorder()
 		if !h.Handle(w, httptest.NewRequest(http.MethodGet, path, nil), user) {
@@ -142,7 +151,7 @@ func TestDeleteMissingSessionUsesSendStatusNotFound(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE sessions (id TEXT, userId TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodDelete, "/api/me/sessions/00000000-0000-0000-0000-000000000000", nil), user) {
 		t.Fatal("route did not match")
@@ -158,7 +167,7 @@ func TestDeleteMalformedSessionIDMatchesUpstreamValidation(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE sessions (id TEXT, userId TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodDelete, "/api/me/sessions/not-a-uuid", nil), user) {
 		t.Fatal("route did not match")
@@ -172,7 +181,7 @@ func TestEmptyCollectionNameUsesExpressSend(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
 	user.Permissions = json.RawMessage(`{"update":true,"accessAllLibraries":true}`)
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/collections", strings.NewReader(`{"name":"","libraryId":"lib1","books":["li1"]}`)), user) {
 		t.Fatal("route did not match")
@@ -208,7 +217,7 @@ func TestProgressReadAndUpdate(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO mediaProgresses(id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookProgress,extraData,createdAt,updatedAt) VALUES ('p1','u1','book1','book',100,25,0,0,0,?,?,?)`, `{"libraryItemId":"li1","progress":0.25}`, now, now); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	r := httptest.NewRequest(http.MethodGet, "/me/progress", nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 {
@@ -264,7 +273,7 @@ func TestMePreservesNullEmail(t *testing.T) {
 	if _, err := db.Exec(`UPDATE users SET email=NULL WHERE id='u1'`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	r := httptest.NewRequest(http.MethodGet, "/api/me", nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != http.StatusOK {
@@ -311,7 +320,7 @@ func TestBookmarkCreateAndLibraryPermissionDenial(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO books(id,explicit,tags) VALUES ('book1',0,'[]')`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	r := httptest.NewRequest(http.MethodPost, "/me/item/li1/bookmark", strings.NewReader(`{"time":42,"title":"Chapter"}`))
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 || !strings.Contains(w.Body.String(), `"title":"Chapter"`) {
@@ -337,7 +346,7 @@ func TestBookmarkCreateAndLibraryPermissionDenial(t *testing.T) {
 func TestRouteMissRemainsUnhandled(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := newUserAPIForTest(db, config.Config{}, nil)
 	if h.Handle(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/tags", nil), user) {
 		t.Fatal("unsupported user admin route was claimed")
 	}
@@ -347,7 +356,7 @@ func TestUserAdministrationAndAPIKeyReadCreate(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
 	user.Type = "admin"
-	h := New(db, config.Config{JWTSecret: "test-secret"}, nil)
+	h := newUserAPIForTest(db, config.Config{JWTSecret: "test-secret"}, nil)
 	r := httptest.NewRequest(http.MethodGet, "/api/users", nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 {

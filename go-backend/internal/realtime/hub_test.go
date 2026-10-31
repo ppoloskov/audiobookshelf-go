@@ -18,6 +18,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 
 	_ "modernc.org/sqlite"
 )
@@ -89,6 +90,52 @@ func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing
 	}
 	if !payloadAccessible(user, map[string]any{"message": "global"}) {
 		t.Fatal("global payload without item metadata should pass")
+	}
+	typedAllowed := map[string]any{
+		"libraryId": "lib-1",
+		"media": wire.BookExpanded{
+			ID:       "book-1",
+			Tags:     []string{"mystery"},
+			Metadata: wire.BookMetadataExpanded{BookMetadataFull: wire.BookMetadataFull{Explicit: false}},
+		},
+	}
+	if !payloadAccessible(user, typedAllowed) {
+		t.Fatal("typed book media with an accessible tag should pass")
+	}
+	typedExplicit := map[string]any{
+		"libraryId": "lib-1",
+		"media": wire.BookExpanded{
+			ID:       "book-2",
+			Tags:     []string{"mystery"},
+			Metadata: wire.BookMetadataExpanded{BookMetadataFull: wire.BookMetadataFull{Explicit: true}},
+		},
+	}
+	if payloadAccessible(user, typedExplicit) {
+		t.Fatal("typed explicit book media passed without explicit-content permission")
+	}
+	if payloadAccessible(user, map[string]any{"libraryId": "lib-1", "media": struct{}{}}) {
+		t.Fatal("unrecognized media must fail closed")
+	}
+	collection := map[string]any{"id": "collection-1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
+	if !payloadAccessible(user, collection) {
+		t.Fatal("collection event with library access should be delivered")
+	}
+	libraryOnly := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"]}`)}
+	if !payloadAccessible(libraryOnly, collection) {
+		t.Fatal("collection event should not require item/tag permissions")
+	}
+	if payloadAccessible(user, map[string]any{"id": "collection-2", "libraryId": "lib-2", "name": "Other", "books": []any{}}) {
+		t.Fatal("collection event without library access passed")
+	}
+	noLibrary := store.User{Permissions: []byte(`{"librariesAccessible":["lib-2"]}`)}
+	if payloadAccessible(noLibrary, collection) {
+		t.Fatal("collection event was delivered to a user without library access")
+	}
+	if _, send := payloadForUser(user, collection); !send {
+		t.Fatal("collection broadcast was not sent to a user with library access")
+	}
+	if _, send := payloadForUser(noLibrary, collection); send {
+		t.Fatal("collection broadcast was sent to a user without library access")
 	}
 	filtered, send := payloadForUser(user, []any{allowed, wrongLibrary})
 	items, ok := filtered.([]any)

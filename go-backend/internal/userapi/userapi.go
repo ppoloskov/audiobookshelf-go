@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
@@ -37,7 +37,7 @@ type Handler struct {
 	db                 *sql.DB
 	cfg                config.Config
 	emit               EmitFunc
-	items              *catalog.Handler
+	items              items.Reader
 	invalidateSessions func(context.Context, string, string) (string, string, error)
 	changePassword     func(context.Context, string, string, string) error
 	setRefreshCookie   func(http.ResponseWriter, *http.Request, string)
@@ -45,8 +45,14 @@ type Handler struct {
 	openSessions       func() []map[string]any
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
-	return &Handler{db: db, cfg: cfg, emit: EmitFunc(emit), items: catalog.New(db, cfg, nil)}
+func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any), itemReader items.Reader) (*Handler, error) {
+	if db == nil {
+		return nil, errors.New("userapi: database is nil")
+	}
+	if itemReader == nil {
+		return nil, errors.New("userapi: item reader is nil")
+	}
+	return &Handler{db: db, cfg: cfg, emit: EmitFunc(emit), items: itemReader}, nil
 }
 
 func (h *Handler) SetCredentialHooks(invalidate func(context.Context, string, string) (string, string, error), changePassword func(context.Context, string, string, string) error, setCookie func(http.ResponseWriter, *http.Request, string)) {

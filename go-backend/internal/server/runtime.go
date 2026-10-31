@@ -85,7 +85,8 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	ident.SetUserAddedEmitter(func(payload map[string]any) {
 		hub.Emit("@admins", "user_added", payload)
 	})
-	sc, err := scanner.New(db, cfg, hub.Emit)
+	catalogHandler := catalog.New(db, cfg, hub.Emit)
+	sc, err := scanner.New(db, cfg, hub.Emit, catalogHandler)
 	if err != nil {
 		hub.Close()
 		return nil, err
@@ -96,11 +97,17 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
+	userapiHandler, err := userapi.New(db, cfg, hub.Emit, catalogHandler)
+	if err != nil {
+		sc.Close()
+		hub.Close()
+		return nil, err
+	}
 	rt := &Runtime{
 		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
-		catalog:       catalog.New(db, cfg, hub.Emit),
+		catalog:       catalogHandler,
 		playback:      playback.New(db, cfg, hub.Emit),
-		userapi:       userapi.New(db, cfg, hub.Emit),
+		userapi:       userapiHandler,
 		adminops:      adminops.New(db, cfg, hub.Emit),
 		emailapi:      emailapi.New(db, cfg, hub.Emit),
 		notifications: notifications.New(db, cfg, hub.Emit),

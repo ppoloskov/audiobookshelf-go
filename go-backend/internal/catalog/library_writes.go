@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -399,10 +398,9 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		cleanupUser := user
 		cleanupUser.Permissions = json.RawMessage(`{"accessAllLibraries":true,"delete":true}`)
 		for _, itemID := range itemIDs {
-			rec := httptest.NewRecorder()
-			h.deleteItem(rec, httptest.NewRequest(http.MethodDelete, "/api/items/"+itemID, nil), cleanupUser, itemID)
-			if rec.Code != http.StatusOK {
-				writeError(w, rec.Code, "library folder item cleanup failed")
+			status, _ := h.deleteLibraryItem(r.Context(), cleanupUser, itemID, false)
+			if status != http.StatusOK {
+				writeError(w, status, "library folder item cleanup failed")
 				return
 			}
 		}

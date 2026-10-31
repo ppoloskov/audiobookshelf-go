@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -75,100 +76,6 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 		item["size"] = size
 	}
 	return item, mediaID.String, nil
-}
-
-func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded bool) (map[string]any, error) {
-	var id, title, subtitle, year, publishedDate, publisher, description, isbn, asin, language, coverPath sql.NullString
-	var explicit, abridged int64
-	var duration any
-	var narratorsRaw, audioRaw, ebookRaw, chapterRaw, tagRaw, genreRaw []byte
-	err := h.db.QueryRowContext(ctx, `SELECT id,title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres FROM books WHERE id=?`, bookID).
-		Scan(&id, &title, &subtitle, &year, &publishedDate, &publisher, &description, &isbn, &asin, &language, &explicit, &abridged, &coverPath, &duration, &narratorsRaw, &audioRaw, &ebookRaw, &chapterRaw, &tagRaw, &genreRaw)
-	if err != nil {
-		return nil, err
-	}
-	authors, series, err := h.bookRelations(ctx, bookID)
-	if err != nil {
-		return nil, err
-	}
-	narrators := decodeStrings(narratorsRaw)
-	genres, tags := decodeStrings(genreRaw), decodeStrings(tagRaw)
-	audio := decodeArray(audioRaw)
-	chapters := decodeArray(chapterRaw)
-	ebook := decodeObject(ebookRaw)
-	if len(ebook) == 0 || string(ebookRaw) == "null" {
-		ebook = nil
-	}
-	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
-	for _, author := range authors {
-		authorNames = append(authorNames, stringValue(author["name"]))
-		authorNamesLF = append(authorNamesLF, lastFirst(stringValue(author["name"])))
-	}
-	seriesNames := make([]string, 0, len(series))
-	for _, row := range series {
-		n := stringValue(row["name"])
-		seq := stringValue(row["sequence"])
-		if seq != "" {
-			n += " #" + seq
-		}
-		seriesNames = append(seriesNames, n)
-	}
-	metadata := map[string]any{
-		"title": nullString(title), "subtitle": nullString(subtitle), "authors": authors, "narrators": narrators, "series": series,
-		"genres": genres, "publishedYear": nullString(year), "publishedDate": nullString(publishedDate), "publisher": nullString(publisher),
-		"description": nullString(description), "isbn": nullString(isbn), "asin": nullString(asin), "language": nullString(language),
-		"explicit": explicit != 0, "abridged": abridged != 0,
-	}
-	minMetadata := map[string]any{
-		"title": nullString(title), "titleIgnorePrefix": h.titlePrefix(ctx, title.String), "subtitle": nullString(subtitle),
-		"authorName": strings.Join(authorNames, ", "), "authorNameLF": strings.Join(authorNamesLF, ", "), "narratorName": strings.Join(narrators, ", "),
-		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": nullString(year), "publishedDate": nullString(publishedDate),
-		"publisher": nullString(publisher), "description": nullString(description), "isbn": nullString(isbn), "asin": nullString(asin),
-		"language": nullString(language), "explicit": explicit != 0, "abridged": abridged != 0,
-	}
-	book := map[string]any{"id": id.String, "metadata": metadata, "coverPath": nullString(coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
-	if expanded {
-		if description.Valid && description.String != "" {
-			minMetadata["descriptionPlain"] = stripHTML(description.String)
-		} else {
-			minMetadata["descriptionPlain"] = nil
-		}
-		book["metadata"] = minMetadata
-		book["libraryItemId"] = itemID
-		book["numTracks"] = includedAudioCount(audio)
-		book["numAudioFiles"] = len(audio)
-		book["numChapters"] = len(chapters)
-		book["duration"] = duration
-		book["size"] = audioSize(audio, ebook)
-		if format, ok := ebook["ebookFormat"]; ok {
-			book["ebookFormat"] = format
-		}
-		book["tracks"] = makeTracks(itemID, audio)
-		delete(book, "audioFiles")
-		delete(book, "chapters")
-		delete(book, "ebookFile")
-		return book, nil
-	}
-	book["libraryItemId"] = itemID
-	return book, nil
-}
-
-// bookMinifiedJSON mirrors Book.toOldJSONMinified. It is intentionally kept
-// separate from the expanded serializer because their fields differ.
-func (h *Handler) bookMinifiedJSON(ctx context.Context, bookID, itemID string) (map[string]any, error) {
-	book, err := h.bookJSON(ctx, bookID, itemID, true)
-	if err != nil {
-		return nil, err
-	}
-	delete(book, "libraryItemId")
-	delete(book, "audioFiles")
-	delete(book, "chapters")
-	delete(book, "ebookFile")
-	delete(book, "tracks")
-	if metadata, ok := book["metadata"].(map[string]any); ok {
-		delete(metadata, "descriptionPlain")
-	}
-	return book, nil
 }
 
 func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[string]any, []map[string]any, error) {
@@ -370,57 +277,10 @@ func episodesSize(episodes []map[string]any) int64 {
 }
 
 func (h *Handler) expandedBookItem(ctx context.Context, item map[string]any, bookID, itemID string) (map[string]any, error) {
-	media, err := h.bookJSON(ctx, bookID, itemID, false)
+	media, err := h.bookExpanded(ctx, bookID, itemID)
 	if err != nil {
 		return nil, err
 	}
-	metadata, _ := media["metadata"].(map[string]any)
-	if metadata != nil {
-		metadata["titleIgnorePrefix"] = h.titlePrefix(ctx, stringValue(metadata["title"]))
-		authors, _ := metadata["authors"].([]map[string]any)
-		authorNames := make([]string, 0, len(authors))
-		authorNamesLF := make([]string, 0, len(authors))
-		for _, author := range authors {
-			name := stringValue(author["name"])
-			authorNames = append(authorNames, name)
-			authorNamesLF = append(authorNamesLF, lastFirst(name))
-		}
-		metadata["authorName"] = strings.Join(authorNames, ", ")
-		metadata["authorNameLF"] = strings.Join(authorNamesLF, ", ")
-		narrators, _ := metadata["narrators"].([]string)
-		metadata["narratorName"] = strings.Join(narrators, ", ")
-		series, _ := metadata["series"].([]map[string]any)
-		seriesNames := make([]string, 0, len(series))
-		for _, entry := range series {
-			name := stringValue(entry["name"])
-			if sequence := stringValue(entry["sequence"]); sequence != "" {
-				name += " #" + sequence
-			}
-			seriesNames = append(seriesNames, name)
-		}
-		metadata["seriesName"] = strings.Join(seriesNames, ", ")
-		if description := stringValue(metadata["description"]); description != "" {
-			metadata["descriptionPlain"] = stripHTML(description)
-		} else {
-			metadata["descriptionPlain"] = nil
-		}
-	}
-	audio, _ := media["audioFiles"].([]map[string]any)
-	chapters, _ := media["chapters"].([]map[string]any)
-	ebook, _ := media["ebookFile"].(map[string]any)
-	media["numTracks"] = includedAudioCount(audio)
-	media["numAudioFiles"] = len(audio)
-	media["numChapters"] = len(chapters)
-	var duration any
-	if err := h.db.QueryRowContext(ctx, `SELECT duration FROM books WHERE id=?`, bookID).Scan(&duration); err != nil {
-		return nil, err
-	}
-	media["duration"] = duration
-	media["size"] = audioSize(audio, ebook)
-	if format, ok := ebook["ebookFormat"]; ok {
-		media["ebookFormat"] = format
-	}
-	media["tracks"] = makeTracks(itemID, audio)
 	item["media"] = media
 	if _, ok := item["lastScan"]; !ok {
 		item["lastScan"] = nil
@@ -2082,20 +1942,6 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 		if err != nil {
 			return nil, err
 		}
-		if media, ok := item["media"].(map[string]any); ok {
-			// Series associations serialize their book via Book.toOldJSONMinified,
-			// not the expanded media shape used by ItemMinifiedJSON.
-			media, err = h.bookJSON(ctx, stringValue(media["id"]), ref.id, true)
-			if err != nil {
-				return nil, err
-			}
-			delete(media, "libraryItemId")
-			delete(media, "tracks")
-			if metadata, ok := media["metadata"].(map[string]any); ok {
-				delete(metadata, "descriptionPlain")
-			}
-			item["media"] = media
-		}
 		result = append(result, item)
 	}
 	return result, nil
@@ -2158,8 +2004,10 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		for _, book := range books {
 			itemID := stringValue(book["id"])
 			ids = append(ids, itemID)
-			media := book["media"].(map[string]any)
-			mediaID := stringValue(media["id"])
+			mediaID := ""
+			if access, ok := itemapi.AccessMedia(book["media"]); ok {
+				mediaID = access.ID
+			}
 			var isFinished bool
 			_ = h.db.QueryRowContext(r.Context(), `SELECT COALESCE(isFinished,0) FROM mediaProgresses WHERE userId=? AND mediaItemId=?`, user.ID, mediaID).Scan(&isFinished)
 			if isFinished {
@@ -2301,7 +2149,11 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		delete(row.item, "libraryFiles")
 		var media map[string]any
 		if mediaType == "book" {
-			media, err = h.bookMinifiedJSON(r.Context(), row.mediaID, row.item["id"].(string))
+			book, bookErr := h.bookMinified(r.Context(), row.mediaID, row.item["id"].(string))
+			err = bookErr
+			if bookErr == nil {
+				row.item["media"] = book
+			}
 		} else {
 			media, err = h.podcastJSON(r.Context(), row.mediaID, row.item["id"].(string), true)
 		}
@@ -2309,7 +2161,9 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		row.item["media"] = media
+		if media != nil {
+			row.item["media"] = media
+		}
 		if includeHas(r, "rssfeed") {
 			if feed, ok, feedErr := h.feedMinified(r.Context(), mediaType, row.mediaID); feedErr != nil {
 				writeError(w, http.StatusInternalServerError, "database read failed")
@@ -2369,37 +2223,19 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, 
 }
 
 func userCanAccessItem(user store.User, item map[string]any) bool {
-	media, _ := item["media"].(map[string]any)
-	if media == nil {
+	access, ok := itemapi.AccessMedia(item["media"])
+	if !ok {
 		return false
 	}
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
-	metadata, _ := media["metadata"].(map[string]any)
-	if item["mediaType"] == "book" {
-		if value, exists := metadata["explicit"]; exists {
-			metadata = map[string]any{"explicit": value}
-		}
-	}
-	if metadata == nil {
-		return false
-	}
-	if explicit, _ := metadata["explicit"].(bool); explicit && permissions["accessExplicitContent"] != true {
+	if access.Explicit && permissions["accessExplicitContent"] != true {
 		return false
 	}
 	if permissions["accessAllTags"] == true {
 		return true
 	}
-	tags, _ := media["tags"].([]string)
-	if tags == nil {
-		if raw, ok := media["tags"].([]any); ok {
-			for _, tag := range raw {
-				if value, ok := tag.(string); ok {
-					tags = append(tags, value)
-				}
-			}
-		}
-	}
+	tags := access.Tags
 	selected := make(map[string]bool)
 	for _, tag := range stringValues(permissions["itemTagsSelected"]) {
 		selected[tag] = true
@@ -2446,7 +2282,7 @@ func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (m
 		if expanded {
 			return h.expandedBookItem(ctx, item, mediaID, itemID)
 		}
-		media, err := h.bookJSON(ctx, mediaID, itemID, false)
+		media, err := h.bookFull(ctx, mediaID, itemID)
 		if err != nil {
 			return nil, err
 		}
@@ -2480,9 +2316,9 @@ func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[stri
 	delete(item, "lastScan")
 	delete(item, "scanVersion")
 	delete(item, "libraryFiles")
-	var media map[string]any
+	var media any
 	if item["mediaType"] == "book" {
-		media, err = h.bookJSON(ctx, mediaID, itemID, true)
+		media, err = h.bookMinified(ctx, mediaID, itemID)
 	} else if item["mediaType"] == "podcast" {
 		media, err = h.podcastJSON(ctx, mediaID, itemID, true)
 	} else {
@@ -2491,7 +2327,9 @@ func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	item["media"] = media
+	if media != nil {
+		item["media"] = media
+	}
 	return item, nil
 }
 

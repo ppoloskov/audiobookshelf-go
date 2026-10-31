@@ -1,0 +1,2315 @@
+{
+  "contract": {
+    "name": "Book-backed LibraryItem legacy, minified, and expanded serializers",
+    "scope": "Actual pinned Book.toOldJSON/toOldJSONMinified/toOldJSONExpanded and LibraryItem.toOldJSON/toOldJSONMinified/toOldJSONExpanded methods; Sequelize, filesystem, and event infrastructure are stubbed. Database loading, routes, podcasts, and Socket.IO are outside this source fixture.",
+    "source": [
+      "server/models/Book.js",
+      "server/models/LibraryItem.js",
+      "server/utils/index.js",
+      "server/utils/htmlSanitizer.js",
+      "server/utils/parsers/parseNameString.js"
+    ]
+  },
+  "upstream": {
+    "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "sourceHashes": {
+      "server/models/Book.js": "c56b5254ab525a8f95ffc6dd484506e84f2a4481f44c74f5c87ea39e855b36e4",
+      "server/models/LibraryItem.js": "448b5910a496b3748615d5ec1314d3c50c443c44a6db087446ba0b202e2c1f8d",
+      "server/utils/index.js": "9d2eb74a7a84959a515dbd1f881152f1858ebd370195ddbb8e103e7cad272411",
+      "server/utils/htmlSanitizer.js": "4c1f0722620e59e670301ff035ca52b7ad4f5f023bc9ea5e087100571f8bf3fd",
+      "server/utils/parsers/parseNameString.js": "ec37a8df3e25cea4504d7e3a2b0c4e5c34bb24a13f77eabb2679d178b0d69230"
+    }
+  },
+  "input": {
+    "books": [
+      {
+        "name": "synthetic fixture book",
+        "item": {
+          "id": "item-fixture",
+          "ino": "item-ino-fixture",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/fixture",
+          "relPath": "fixture",
+          "isFile": false,
+          "mtime": 1704067200000,
+          "ctime": 1704067200000,
+          "birthtime": 1704067200000,
+          "createdAt": 1704067200000,
+          "updatedAt": 1704067200000,
+          "lastScan": 1704067200000,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-fixture",
+          "title": "Deterministic Book",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": "<p>A deterministic <strong>story</strong>.</p>",
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": false,
+          "abridged": false,
+          "coverPath": null,
+          "duration": 2,
+          "narrators": [
+            "Reader"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-fixture",
+              "metadata": {
+                "filename": "deterministic.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/deterministic.mp3",
+                "relPath": "deterministic.mp3",
+                "size": 32000,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 2,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "ebookFile": null,
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 2,
+              "title": "Chapter 1"
+            }
+          ],
+          "tags": [
+            "tag"
+          ],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [
+            {
+              "id": "fixture-author",
+              "name": "Fixture Author"
+            }
+          ],
+          "series": []
+        },
+        "ebookColumn": "null"
+      },
+      {
+        "name": "multiple audio files and excluded track",
+        "item": {
+          "id": "item-multi",
+          "ino": "item-ino-multi",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/multi",
+          "relPath": "multi",
+          "isFile": false,
+          "mtime": 1704067200001,
+          "ctime": 1704067200001,
+          "birthtime": 1704067200001,
+          "createdAt": 1704067200001,
+          "updatedAt": 1704067200001,
+          "lastScan": 1704067200001,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-multi",
+          "title": "The Multiple Book",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": "<p>Multi <strong>file</strong> book.</p>",
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": false,
+          "abridged": false,
+          "coverPath": null,
+          "duration": 20,
+          "narrators": [
+            "Reader"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-multi-1",
+              "metadata": {
+                "filename": "01-first.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/01-first.mp3",
+                "relPath": "01-first.mp3",
+                "size": 80,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 8,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-2",
+              "metadata": {
+                "filename": "02-excluded.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/02-excluded.mp3",
+                "relPath": "02-excluded.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": true
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-3",
+              "metadata": {
+                "filename": "03-last.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/03-last.mp3",
+                "relPath": "03-last.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "ebookFile": null,
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 8,
+              "title": "First"
+            },
+            {
+              "id": 1,
+              "start": 8,
+              "end": 20,
+              "title": "Last"
+            }
+          ],
+          "tags": [
+            "tag"
+          ],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [
+            {
+              "id": "author-book-multi",
+              "name": "Ada Author"
+            }
+          ],
+          "series": [
+            {
+              "id": "series-multi",
+              "name": "Sequence Series",
+              "bookSeries": {
+                "sequence": "2.5"
+              }
+            }
+          ]
+        },
+        "ebookColumn": "null"
+      },
+      {
+        "name": "null description",
+        "item": {
+          "id": "item-null-description",
+          "ino": "item-ino-null-description",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/null-description",
+          "relPath": "null-description",
+          "isFile": false,
+          "mtime": 1704067200002,
+          "ctime": 1704067200002,
+          "birthtime": 1704067200002,
+          "createdAt": 1704067200002,
+          "updatedAt": 1704067200002,
+          "lastScan": 1704067200002,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-null-description",
+          "title": "No Description",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": null,
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": false,
+          "abridged": false,
+          "coverPath": null,
+          "duration": 12.5,
+          "narrators": [],
+          "audioFiles": [],
+          "ebookFile": null,
+          "chapters": [],
+          "tags": [
+            "tag"
+          ],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [],
+          "series": []
+        },
+        "ebookColumn": "null"
+      },
+      {
+        "name": "series without sequence",
+        "item": {
+          "id": "item-no-sequence",
+          "ino": "item-ino-no-sequence",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/no-sequence",
+          "relPath": "no-sequence",
+          "isFile": false,
+          "mtime": 1704067200003,
+          "ctime": 1704067200003,
+          "birthtime": 1704067200003,
+          "createdAt": 1704067200003,
+          "updatedAt": 1704067200003,
+          "lastScan": 1704067200003,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-no-sequence",
+          "title": "No Sequence",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": "<p>A story</p>",
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": false,
+          "abridged": false,
+          "coverPath": null,
+          "duration": 12.5,
+          "narrators": [
+            "Reader"
+          ],
+          "audioFiles": [],
+          "ebookFile": null,
+          "chapters": [],
+          "tags": [
+            "tag"
+          ],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [
+            {
+              "id": "author-book-no-sequence",
+              "name": "Ada Author"
+            }
+          ],
+          "series": [
+            {
+              "id": "series-no-sequence",
+              "name": "Unnumbered Series",
+              "bookSeries": {
+                "sequence": null
+              }
+            }
+          ]
+        },
+        "ebookColumn": "null"
+      },
+      {
+        "name": "explicit and abridged",
+        "item": {
+          "id": "item-explicit-abridged",
+          "ino": "item-ino-explicit-abridged",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/explicit-abridged",
+          "relPath": "explicit-abridged",
+          "isFile": false,
+          "mtime": 1704067200004,
+          "ctime": 1704067200004,
+          "birthtime": 1704067200004,
+          "createdAt": 1704067200004,
+          "updatedAt": 1704067200004,
+          "lastScan": 1704067200004,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-explicit-abridged",
+          "title": "Explicit Abridged",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": "<p>A story</p>",
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": true,
+          "abridged": true,
+          "coverPath": null,
+          "duration": 12.5,
+          "narrators": [
+            "Reader"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-explicit",
+              "metadata": {
+                "filename": "explicit.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/explicit.mp3",
+                "relPath": "explicit.mp3",
+                "size": 100,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12.5,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "ebookFile": null,
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 12.5,
+              "title": "Chapter 1"
+            }
+          ],
+          "tags": [
+            "tag"
+          ],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [
+            {
+              "id": "author-book-explicit-abridged",
+              "name": "Ada Author"
+            }
+          ],
+          "series": [
+            {
+              "id": "series-book-explicit-abridged",
+              "name": "First Series",
+              "bookSeries": {
+                "sequence": "1"
+              }
+            }
+          ]
+        },
+        "ebookColumn": "null"
+      },
+      {
+        "name": "non-null ebook, cover and null duration",
+        "item": {
+          "id": "item-ebook-cover",
+          "ino": "item-ino-ebook-cover",
+          "extraData": {},
+          "libraryId": "book-library",
+          "libraryFolderId": "book-folder",
+          "path": "/fixture/books/ebook-cover",
+          "relPath": "ebook-cover",
+          "isFile": false,
+          "mtime": 1704067200005,
+          "ctime": 1704067200005,
+          "birthtime": 1704067200005,
+          "createdAt": 1704067200005,
+          "updatedAt": 1704067200005,
+          "lastScan": 1704067200005,
+          "lastScanVersion": "2.37.2",
+          "isMissing": false,
+          "isInvalid": false,
+          "mediaType": "book",
+          "libraryFiles": [],
+          "numFiles": 0,
+          "size": 0
+        },
+        "book": {
+          "id": "book-ebook-cover",
+          "title": "Ebook Cover",
+          "subtitle": null,
+          "publishedYear": null,
+          "publishedDate": null,
+          "publisher": null,
+          "description": "<p>A story</p>",
+          "isbn": null,
+          "asin": null,
+          "language": "en",
+          "explicit": false,
+          "abridged": false,
+          "coverPath": "/fixture/books/ebook-cover/cover.jpg",
+          "duration": null,
+          "narrators": [
+            "Reader"
+          ],
+          "audioFiles": [],
+          "ebookFile": {
+            "ino": "ebook-ino",
+            "ebookFormat": "epub",
+            "metadata": {
+              "filename": "ebook.epub",
+              "ext": ".epub",
+              "path": "/fixture/books/ebook-cover/ebook.epub",
+              "relPath": "ebook.epub",
+              "size": 1234,
+              "mtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "birthtimeMs": 1704067200000
+            }
+          },
+          "chapters": [],
+          "tags": [],
+          "genres": [
+            "fiction"
+          ],
+          "authors": [
+            {
+              "id": "author-book-ebook-cover",
+              "name": "Ada Author"
+            }
+          ],
+          "series": []
+        },
+        "ebookColumn": "{\"ino\":\"ebook-ino\",\"ebookFormat\":\"epub\",\"metadata\":{\"filename\":\"ebook.epub\",\"ext\":\".epub\",\"path\":\"/fixture/books/ebook-cover/ebook.epub\",\"relPath\":\"ebook.epub\",\"size\":1234,\"mtimeMs\":1704067200000,\"ctimeMs\":1704067200000,\"birthtimeMs\":1704067200000}}"
+      }
+    ]
+  },
+  "expected": {
+    "synthetic fixture book": {
+      "itemJSON": {
+        "id": "item-fixture",
+        "ino": "item-ino-fixture",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/fixture",
+        "relPath": "fixture",
+        "isFile": false,
+        "mtimeMs": 1704067200000,
+        "ctimeMs": 1704067200000,
+        "birthtimeMs": 1704067200000,
+        "addedAt": 1704067200000,
+        "updatedAt": 1704067200000,
+        "lastScan": 1704067200000,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-fixture",
+          "libraryItemId": "item-fixture",
+          "metadata": {
+            "title": "Deterministic Book",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "fixture-author",
+                "name": "Fixture Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A deterministic <strong>story</strong>.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-fixture",
+              "metadata": {
+                "filename": "deterministic.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/deterministic.mp3",
+                "relPath": "deterministic.mp3",
+                "size": 32000,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 2,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 2,
+              "title": "Chapter 1"
+            }
+          ],
+          "ebookFile": null
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-fixture",
+        "ino": "item-ino-fixture",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/fixture",
+        "relPath": "fixture",
+        "isFile": false,
+        "mtimeMs": 1704067200000,
+        "ctimeMs": 1704067200000,
+        "birthtimeMs": 1704067200000,
+        "addedAt": 1704067200000,
+        "updatedAt": 1704067200000,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-fixture",
+          "metadata": {
+            "title": "Deterministic Book",
+            "titleIgnorePrefix": "Deterministic Book",
+            "subtitle": null,
+            "authorName": "Fixture Author",
+            "authorNameLF": "Author, Fixture",
+            "narratorName": "Reader",
+            "seriesName": "",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A deterministic <strong>story</strong>.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 1,
+          "numAudioFiles": 1,
+          "numChapters": 1,
+          "duration": 2,
+          "size": 32000
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-fixture",
+        "ino": "item-ino-fixture",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/fixture",
+        "relPath": "fixture",
+        "isFile": false,
+        "mtimeMs": 1704067200000,
+        "ctimeMs": 1704067200000,
+        "birthtimeMs": 1704067200000,
+        "addedAt": 1704067200000,
+        "updatedAt": 1704067200000,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-fixture",
+          "metadata": {
+            "title": "Deterministic Book",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "fixture-author",
+                "name": "Fixture Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A deterministic <strong>story</strong>.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false,
+            "titleIgnorePrefix": "Deterministic Book",
+            "authorName": "Fixture Author",
+            "authorNameLF": "Author, Fixture",
+            "narratorName": "Reader",
+            "seriesName": "",
+            "descriptionPlain": "A deterministic story."
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 1,
+          "numAudioFiles": 1,
+          "numChapters": 1,
+          "duration": 2,
+          "size": 32000,
+          "libraryItemId": "item-fixture",
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-fixture",
+              "metadata": {
+                "filename": "deterministic.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/deterministic.mp3",
+                "relPath": "deterministic.mp3",
+                "size": 32000,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 2,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 2,
+              "title": "Chapter 1"
+            }
+          ],
+          "ebookFile": null,
+          "tracks": [
+            {
+              "index": 0,
+              "ino": "audio-fixture",
+              "metadata": {
+                "filename": "deterministic.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/deterministic.mp3",
+                "relPath": "deterministic.mp3",
+                "size": 32000,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 2,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false,
+              "title": "deterministic.mp3",
+              "startOffset": 0,
+              "contentUrl": "/api/items/item-fixture/file/audio-fixture"
+            }
+          ]
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200000,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    },
+    "multiple audio files and excluded track": {
+      "itemJSON": {
+        "id": "item-multi",
+        "ino": "item-ino-multi",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/multi",
+        "relPath": "multi",
+        "isFile": false,
+        "mtimeMs": 1704067200001,
+        "ctimeMs": 1704067200001,
+        "birthtimeMs": 1704067200001,
+        "addedAt": 1704067200001,
+        "updatedAt": 1704067200001,
+        "lastScan": 1704067200001,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-multi",
+          "libraryItemId": "item-multi",
+          "metadata": {
+            "title": "The Multiple Book",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-multi",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-multi",
+                "name": "Sequence Series",
+                "sequence": "2.5"
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>Multi <strong>file</strong> book.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-multi-1",
+              "metadata": {
+                "filename": "01-first.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/01-first.mp3",
+                "relPath": "01-first.mp3",
+                "size": 80,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 8,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-2",
+              "metadata": {
+                "filename": "02-excluded.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/02-excluded.mp3",
+                "relPath": "02-excluded.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": true
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-3",
+              "metadata": {
+                "filename": "03-last.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/03-last.mp3",
+                "relPath": "03-last.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 8,
+              "title": "First"
+            },
+            {
+              "id": 1,
+              "start": 8,
+              "end": 20,
+              "title": "Last"
+            }
+          ],
+          "ebookFile": null
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-multi",
+        "ino": "item-ino-multi",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/multi",
+        "relPath": "multi",
+        "isFile": false,
+        "mtimeMs": 1704067200001,
+        "ctimeMs": 1704067200001,
+        "birthtimeMs": 1704067200001,
+        "addedAt": 1704067200001,
+        "updatedAt": 1704067200001,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-multi",
+          "metadata": {
+            "title": "The Multiple Book",
+            "titleIgnorePrefix": "Multiple Book, The",
+            "subtitle": null,
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "Sequence Series #2.5",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>Multi <strong>file</strong> book.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 2,
+          "numAudioFiles": 3,
+          "numChapters": 2,
+          "duration": 20,
+          "size": 320
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-multi",
+        "ino": "item-ino-multi",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/multi",
+        "relPath": "multi",
+        "isFile": false,
+        "mtimeMs": 1704067200001,
+        "ctimeMs": 1704067200001,
+        "birthtimeMs": 1704067200001,
+        "addedAt": 1704067200001,
+        "updatedAt": 1704067200001,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-multi",
+          "metadata": {
+            "title": "The Multiple Book",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-multi",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-multi",
+                "name": "Sequence Series",
+                "sequence": "2.5"
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>Multi <strong>file</strong> book.</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false,
+            "titleIgnorePrefix": "Multiple Book, The",
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "Sequence Series #2.5",
+            "descriptionPlain": "Multi file book."
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 2,
+          "numAudioFiles": 3,
+          "numChapters": 2,
+          "duration": 20,
+          "size": 320,
+          "libraryItemId": "item-multi",
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-multi-1",
+              "metadata": {
+                "filename": "01-first.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/01-first.mp3",
+                "relPath": "01-first.mp3",
+                "size": 80,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 8,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-2",
+              "metadata": {
+                "filename": "02-excluded.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/02-excluded.mp3",
+                "relPath": "02-excluded.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": true
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-3",
+              "metadata": {
+                "filename": "03-last.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/03-last.mp3",
+                "relPath": "03-last.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 8,
+              "title": "First"
+            },
+            {
+              "id": 1,
+              "start": 8,
+              "end": 20,
+              "title": "Last"
+            }
+          ],
+          "ebookFile": null,
+          "tracks": [
+            {
+              "index": 0,
+              "ino": "audio-multi-1",
+              "metadata": {
+                "filename": "01-first.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/01-first.mp3",
+                "relPath": "01-first.mp3",
+                "size": 80,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 8,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false,
+              "title": "01-first.mp3",
+              "startOffset": 0,
+              "contentUrl": "/api/items/item-multi/file/audio-multi-1"
+            },
+            {
+              "index": 0,
+              "ino": "audio-multi-3",
+              "metadata": {
+                "filename": "03-last.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/03-last.mp3",
+                "relPath": "03-last.mp3",
+                "size": 120,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false,
+              "title": "03-last.mp3",
+              "startOffset": 8,
+              "contentUrl": "/api/items/item-multi/file/audio-multi-3"
+            }
+          ]
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200001,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    },
+    "null description": {
+      "itemJSON": {
+        "id": "item-null-description",
+        "ino": "item-ino-null-description",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/null-description",
+        "relPath": "null-description",
+        "isFile": false,
+        "mtimeMs": 1704067200002,
+        "ctimeMs": 1704067200002,
+        "birthtimeMs": 1704067200002,
+        "addedAt": 1704067200002,
+        "updatedAt": 1704067200002,
+        "lastScan": 1704067200002,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-null-description",
+          "libraryItemId": "item-null-description",
+          "metadata": {
+            "title": "No Description",
+            "subtitle": null,
+            "authors": [],
+            "narrators": [],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": null,
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": null
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-null-description",
+        "ino": "item-ino-null-description",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/null-description",
+        "relPath": "null-description",
+        "isFile": false,
+        "mtimeMs": 1704067200002,
+        "ctimeMs": 1704067200002,
+        "birthtimeMs": 1704067200002,
+        "addedAt": 1704067200002,
+        "updatedAt": 1704067200002,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-null-description",
+          "metadata": {
+            "title": "No Description",
+            "titleIgnorePrefix": "No Description",
+            "subtitle": null,
+            "authorName": "",
+            "authorNameLF": "",
+            "narratorName": "",
+            "seriesName": "",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": null,
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": 12.5,
+          "size": 0
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-null-description",
+        "ino": "item-ino-null-description",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/null-description",
+        "relPath": "null-description",
+        "isFile": false,
+        "mtimeMs": 1704067200002,
+        "ctimeMs": 1704067200002,
+        "birthtimeMs": 1704067200002,
+        "addedAt": 1704067200002,
+        "updatedAt": 1704067200002,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-null-description",
+          "metadata": {
+            "title": "No Description",
+            "subtitle": null,
+            "authors": [],
+            "narrators": [],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": null,
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false,
+            "titleIgnorePrefix": "No Description",
+            "authorName": "",
+            "authorNameLF": "",
+            "narratorName": "",
+            "seriesName": "",
+            "descriptionPlain": null
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": 12.5,
+          "size": 0,
+          "libraryItemId": "item-null-description",
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": null,
+          "tracks": []
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200002,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    },
+    "series without sequence": {
+      "itemJSON": {
+        "id": "item-no-sequence",
+        "ino": "item-ino-no-sequence",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/no-sequence",
+        "relPath": "no-sequence",
+        "isFile": false,
+        "mtimeMs": 1704067200003,
+        "ctimeMs": 1704067200003,
+        "birthtimeMs": 1704067200003,
+        "addedAt": 1704067200003,
+        "updatedAt": 1704067200003,
+        "lastScan": 1704067200003,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-no-sequence",
+          "libraryItemId": "item-no-sequence",
+          "metadata": {
+            "title": "No Sequence",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-no-sequence",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-no-sequence",
+                "name": "Unnumbered Series",
+                "sequence": null
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": null
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-no-sequence",
+        "ino": "item-ino-no-sequence",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/no-sequence",
+        "relPath": "no-sequence",
+        "isFile": false,
+        "mtimeMs": 1704067200003,
+        "ctimeMs": 1704067200003,
+        "birthtimeMs": 1704067200003,
+        "addedAt": 1704067200003,
+        "updatedAt": 1704067200003,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-no-sequence",
+          "metadata": {
+            "title": "No Sequence",
+            "titleIgnorePrefix": "No Sequence",
+            "subtitle": null,
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "Unnumbered Series",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": 12.5,
+          "size": 0
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-no-sequence",
+        "ino": "item-ino-no-sequence",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/no-sequence",
+        "relPath": "no-sequence",
+        "isFile": false,
+        "mtimeMs": 1704067200003,
+        "ctimeMs": 1704067200003,
+        "birthtimeMs": 1704067200003,
+        "addedAt": 1704067200003,
+        "updatedAt": 1704067200003,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-no-sequence",
+          "metadata": {
+            "title": "No Sequence",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-no-sequence",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-no-sequence",
+                "name": "Unnumbered Series",
+                "sequence": null
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false,
+            "titleIgnorePrefix": "No Sequence",
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "Unnumbered Series",
+            "descriptionPlain": "A story"
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": 12.5,
+          "size": 0,
+          "libraryItemId": "item-no-sequence",
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": null,
+          "tracks": []
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200003,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    },
+    "explicit and abridged": {
+      "itemJSON": {
+        "id": "item-explicit-abridged",
+        "ino": "item-ino-explicit-abridged",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/explicit-abridged",
+        "relPath": "explicit-abridged",
+        "isFile": false,
+        "mtimeMs": 1704067200004,
+        "ctimeMs": 1704067200004,
+        "birthtimeMs": 1704067200004,
+        "addedAt": 1704067200004,
+        "updatedAt": 1704067200004,
+        "lastScan": 1704067200004,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-explicit-abridged",
+          "libraryItemId": "item-explicit-abridged",
+          "metadata": {
+            "title": "Explicit Abridged",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-explicit-abridged",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-book-explicit-abridged",
+                "name": "First Series",
+                "sequence": "1"
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": true,
+            "abridged": true
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-explicit",
+              "metadata": {
+                "filename": "explicit.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/explicit.mp3",
+                "relPath": "explicit.mp3",
+                "size": 100,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12.5,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 12.5,
+              "title": "Chapter 1"
+            }
+          ],
+          "ebookFile": null
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-explicit-abridged",
+        "ino": "item-ino-explicit-abridged",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/explicit-abridged",
+        "relPath": "explicit-abridged",
+        "isFile": false,
+        "mtimeMs": 1704067200004,
+        "ctimeMs": 1704067200004,
+        "birthtimeMs": 1704067200004,
+        "addedAt": 1704067200004,
+        "updatedAt": 1704067200004,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-explicit-abridged",
+          "metadata": {
+            "title": "Explicit Abridged",
+            "titleIgnorePrefix": "Explicit Abridged",
+            "subtitle": null,
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "First Series #1",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": true,
+            "abridged": true
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 1,
+          "numAudioFiles": 1,
+          "numChapters": 1,
+          "duration": 12.5,
+          "size": 100
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-explicit-abridged",
+        "ino": "item-ino-explicit-abridged",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/explicit-abridged",
+        "relPath": "explicit-abridged",
+        "isFile": false,
+        "mtimeMs": 1704067200004,
+        "ctimeMs": 1704067200004,
+        "birthtimeMs": 1704067200004,
+        "addedAt": 1704067200004,
+        "updatedAt": 1704067200004,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-explicit-abridged",
+          "metadata": {
+            "title": "Explicit Abridged",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-explicit-abridged",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [
+              {
+                "id": "series-book-explicit-abridged",
+                "name": "First Series",
+                "sequence": "1"
+              }
+            ],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": true,
+            "abridged": true,
+            "titleIgnorePrefix": "Explicit Abridged",
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "First Series #1",
+            "descriptionPlain": "A story"
+          },
+          "coverPath": null,
+          "tags": [
+            "tag"
+          ],
+          "numTracks": 1,
+          "numAudioFiles": 1,
+          "numChapters": 1,
+          "duration": 12.5,
+          "size": 100,
+          "libraryItemId": "item-explicit-abridged",
+          "audioFiles": [
+            {
+              "index": 0,
+              "ino": "audio-explicit",
+              "metadata": {
+                "filename": "explicit.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/explicit.mp3",
+                "relPath": "explicit.mp3",
+                "size": 100,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12.5,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false
+            }
+          ],
+          "chapters": [
+            {
+              "id": 0,
+              "start": 0,
+              "end": 12.5,
+              "title": "Chapter 1"
+            }
+          ],
+          "ebookFile": null,
+          "tracks": [
+            {
+              "index": 0,
+              "ino": "audio-explicit",
+              "metadata": {
+                "filename": "explicit.mp3",
+                "ext": ".mp3",
+                "path": "/fixture/books/explicit.mp3",
+                "relPath": "explicit.mp3",
+                "size": 100,
+                "mtimeMs": 1704067200000,
+                "ctimeMs": 1704067200000,
+                "birthtimeMs": 1704067200000
+              },
+              "addedAt": 1704067200000,
+              "updatedAt": 1704067200000,
+              "trackNumFromMeta": 1,
+              "discNumFromMeta": 1,
+              "trackNumFromFilename": 1,
+              "discNumFromFilename": 1,
+              "manuallyVerified": false,
+              "format": "MP3",
+              "duration": 12.5,
+              "bitRate": 128000,
+              "language": "eng",
+              "codec": "mp3",
+              "timeBase": "1/44100",
+              "channels": 2,
+              "channelLayout": "stereo",
+              "chapters": [],
+              "metaTags": {},
+              "mimeType": "audio/mpeg",
+              "exclude": false,
+              "title": "explicit.mp3",
+              "startOffset": 0,
+              "contentUrl": "/api/items/item-explicit-abridged/file/audio-explicit"
+            }
+          ]
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200004,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    },
+    "non-null ebook, cover and null duration": {
+      "itemJSON": {
+        "id": "item-ebook-cover",
+        "ino": "item-ino-ebook-cover",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/ebook-cover",
+        "relPath": "ebook-cover",
+        "isFile": false,
+        "mtimeMs": 1704067200005,
+        "ctimeMs": 1704067200005,
+        "birthtimeMs": 1704067200005,
+        "addedAt": 1704067200005,
+        "updatedAt": 1704067200005,
+        "lastScan": 1704067200005,
+        "scanVersion": "2.37.2",
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-ebook-cover",
+          "libraryItemId": "item-ebook-cover",
+          "metadata": {
+            "title": "Ebook Cover",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-ebook-cover",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": "/fixture/books/ebook-cover/cover.jpg",
+          "tags": [],
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": {
+            "ino": "ebook-ino",
+            "ebookFormat": "epub",
+            "metadata": {
+              "filename": "ebook.epub",
+              "ext": ".epub",
+              "path": "/fixture/books/ebook-cover/ebook.epub",
+              "relPath": "ebook.epub",
+              "size": 1234,
+              "mtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "birthtimeMs": 1704067200000
+            }
+          }
+        },
+        "libraryFiles": []
+      },
+      "itemMinifiedJSON": {
+        "id": "item-ebook-cover",
+        "ino": "item-ino-ebook-cover",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/ebook-cover",
+        "relPath": "ebook-cover",
+        "isFile": false,
+        "mtimeMs": 1704067200005,
+        "ctimeMs": 1704067200005,
+        "birthtimeMs": 1704067200005,
+        "addedAt": 1704067200005,
+        "updatedAt": 1704067200005,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-ebook-cover",
+          "metadata": {
+            "title": "Ebook Cover",
+            "titleIgnorePrefix": "Ebook Cover",
+            "subtitle": null,
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "",
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false
+          },
+          "coverPath": "/fixture/books/ebook-cover/cover.jpg",
+          "tags": [],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": null,
+          "size": 1234,
+          "ebookFormat": "epub"
+        },
+        "numFiles": 0,
+        "size": 0
+      },
+      "itemExpandedJSON": {
+        "id": "item-ebook-cover",
+        "ino": "item-ino-ebook-cover",
+        "oldLibraryItemId": null,
+        "libraryId": "book-library",
+        "folderId": "book-folder",
+        "path": "/fixture/books/ebook-cover",
+        "relPath": "ebook-cover",
+        "isFile": false,
+        "mtimeMs": 1704067200005,
+        "ctimeMs": 1704067200005,
+        "birthtimeMs": 1704067200005,
+        "addedAt": 1704067200005,
+        "updatedAt": 1704067200005,
+        "isMissing": false,
+        "isInvalid": false,
+        "mediaType": "book",
+        "media": {
+          "id": "book-ebook-cover",
+          "metadata": {
+            "title": "Ebook Cover",
+            "subtitle": null,
+            "authors": [
+              {
+                "id": "author-book-ebook-cover",
+                "name": "Ada Author"
+              }
+            ],
+            "narrators": [
+              "Reader"
+            ],
+            "series": [],
+            "genres": [
+              "fiction"
+            ],
+            "publishedYear": null,
+            "publishedDate": null,
+            "publisher": null,
+            "description": "<p>A story</p>",
+            "isbn": null,
+            "asin": null,
+            "language": "en",
+            "explicit": false,
+            "abridged": false,
+            "titleIgnorePrefix": "Ebook Cover",
+            "authorName": "Ada Author",
+            "authorNameLF": "Author, Ada",
+            "narratorName": "Reader",
+            "seriesName": "",
+            "descriptionPlain": "A story"
+          },
+          "coverPath": "/fixture/books/ebook-cover/cover.jpg",
+          "tags": [],
+          "numTracks": 0,
+          "numAudioFiles": 0,
+          "numChapters": 0,
+          "duration": null,
+          "size": 1234,
+          "ebookFormat": "epub",
+          "libraryItemId": "item-ebook-cover",
+          "audioFiles": [],
+          "chapters": [],
+          "ebookFile": {
+            "ino": "ebook-ino",
+            "ebookFormat": "epub",
+            "metadata": {
+              "filename": "ebook.epub",
+              "ext": ".epub",
+              "path": "/fixture/books/ebook-cover/ebook.epub",
+              "relPath": "ebook.epub",
+              "size": 1234,
+              "mtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "birthtimeMs": 1704067200000
+            }
+          },
+          "tracks": []
+        },
+        "numFiles": 0,
+        "size": 0,
+        "lastScan": 1704067200005,
+        "scanVersion": "2.37.2",
+        "libraryFiles": []
+      }
+    }
+  }
+}

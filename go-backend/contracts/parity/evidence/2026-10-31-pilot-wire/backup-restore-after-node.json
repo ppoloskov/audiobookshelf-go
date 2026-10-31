@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "Go archive imported and applied by upstream Node server",
+  "archive": {
+    "name": "upstream-source.audiobookshelf",
+    "bytes": 22801,
+    "sha256": "3610a572d1ae1d2893e7450c2b29d69a8a60fcb6163c0a5f800392e8b891073c"
+  },
+  "checks": {
+    "malformedUploadRejected": true,
+    "uploadAccepted": true,
+    "applyReturned200": true,
+    "preRestoreMutationApplied": true,
+    "targetMetadataRemovedBeforeApply": true,
+    "librariesUnchanged": true,
+    "itemDetailUnchanged": true,
+    "itemMetadataRestored": true,
+    "authorMetadataRestored": true
+  },
+  "malformedUpload": {
+    "status": 500,
+    "body": "Invalid backup file"
+  },
+  "apiDigests": {
+    "librariesBefore": "c83a168f83cc34520e20ade76bda7591c878a29c676ed3f2985fa4f23387d1c4",
+    "librariesAfter": "c83a168f83cc34520e20ade76bda7591c878a29c676ed3f2985fa4f23387d1c4",
+    "itemBefore": "bb164c749ad36e00499678b627385eabb321ad05acd34b849a37b4017d0ea628",
+    "itemAfter": "bb164c749ad36e00499678b627385eabb321ad05acd34b849a37b4017d0ea628"
+  }
+}

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -58,6 +59,376 @@ func catalogFixture(t *testing.T) *sql.DB {
 		}
 	}
 	return db
+}
+
+func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
+	goldenPath := filepath.Join("..", "..", "contracts", "parity", "book-item-golden.json")
+	goldenBytes, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var golden struct {
+		Input struct {
+			Books []struct {
+				Name string `json:"name"`
+				Item struct {
+					ID              string          `json:"id"`
+					Ino             string          `json:"ino"`
+					ExtraData       json.RawMessage `json:"extraData"`
+					LibraryID       string          `json:"libraryId"`
+					FolderID        string          `json:"libraryFolderId"`
+					Path            string          `json:"path"`
+					RelPath         string          `json:"relPath"`
+					IsFile          bool            `json:"isFile"`
+					Mtime           int64           `json:"mtime"`
+					Ctime           int64           `json:"ctime"`
+					Birthtime       int64           `json:"birthtime"`
+					CreatedAt       int64           `json:"createdAt"`
+					UpdatedAt       int64           `json:"updatedAt"`
+					LastScan        *int64          `json:"lastScan"`
+					LastScanVersion *string         `json:"lastScanVersion"`
+					IsMissing       bool            `json:"isMissing"`
+					IsInvalid       bool            `json:"isInvalid"`
+					MediaType       string          `json:"mediaType"`
+					LibraryFiles    json.RawMessage `json:"libraryFiles"`
+					Size            int64           `json:"size"`
+				} `json:"item"`
+				Book struct {
+					ID            string          `json:"id"`
+					Title         string          `json:"title"`
+					Subtitle      *string         `json:"subtitle"`
+					PublishedYear *string         `json:"publishedYear"`
+					PublishedDate *string         `json:"publishedDate"`
+					Publisher     *string         `json:"publisher"`
+					Description   *string         `json:"description"`
+					ISBN          *string         `json:"isbn"`
+					ASIN          *string         `json:"asin"`
+					Language      *string         `json:"language"`
+					Explicit      bool            `json:"explicit"`
+					Abridged      bool            `json:"abridged"`
+					CoverPath     *string         `json:"coverPath"`
+					Duration      *float64        `json:"duration"`
+					Narrators     json.RawMessage `json:"narrators"`
+					AudioFiles    json.RawMessage `json:"audioFiles"`
+					Chapters      json.RawMessage `json:"chapters"`
+					Tags          json.RawMessage `json:"tags"`
+					Genres        json.RawMessage `json:"genres"`
+					Authors       []struct {
+						ID   string `json:"id"`
+						Name string `json:"name"`
+					} `json:"authors"`
+					Series []struct {
+						ID         string `json:"id"`
+						Name       string `json:"name"`
+						BookSeries struct {
+							Sequence *string `json:"sequence"`
+						} `json:"bookSeries"`
+					} `json:"series"`
+				} `json:"book"`
+				EbookColumn string `json:"ebookColumn"`
+			} `json:"books"`
+		} `json:"input"`
+		Expected map[string]map[string]json.RawMessage `json:"expected"`
+	}
+	if err := json.Unmarshal(goldenBytes, &golden); err != nil {
+		t.Fatal(err)
+	}
+
+	db := catalogFixture(t)
+	defer db.Close()
+	date := func(ms int64) string { return time.UnixMilli(ms).UTC().Format(time.RFC3339Nano) }
+	nullable := func(value *string) any {
+		if value == nil {
+			return nil
+		}
+		return *value
+	}
+	nullableFloat := func(value *float64) any {
+		if value == nil {
+			return nil
+		}
+		return *value
+	}
+	for _, fixture := range golden.Input.Books {
+		book := fixture.Book
+		if _, err := db.Exec(`INSERT INTO books (id,title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			book.ID, book.Title, nullable(book.Subtitle), nullable(book.PublishedYear), nullable(book.PublishedDate), nullable(book.Publisher), nullable(book.Description), nullable(book.ISBN), nullable(book.ASIN), nullable(book.Language), book.Explicit, book.Abridged, nullable(book.CoverPath), nullableFloat(book.Duration), string(book.Narrators), string(book.AudioFiles), fixture.EbookColumn, string(book.Chapters), string(book.Tags), string(book.Genres), date(fixture.Item.CreatedAt), date(fixture.Item.UpdatedAt)); err != nil {
+			t.Fatalf("%s insert book: %v", fixture.Name, err)
+		}
+		for _, author := range book.Authors {
+			if _, err := db.Exec(`INSERT INTO authors (id,name,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?)`, author.ID, author.Name, "l1", date(fixture.Item.CreatedAt), date(fixture.Item.UpdatedAt)); err != nil {
+				t.Fatalf("%s insert author: %v", fixture.Name, err)
+			}
+			if _, err := db.Exec(`INSERT INTO bookAuthors (id,bookId,authorId,createdAt) VALUES (?,?,?,?)`, "ba-"+author.ID, book.ID, author.ID, date(fixture.Item.CreatedAt)); err != nil {
+				t.Fatalf("%s link author: %v", fixture.Name, err)
+			}
+		}
+		for _, series := range book.Series {
+			if _, err := db.Exec(`INSERT INTO series (id,name,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?)`, series.ID, series.Name, "l1", date(fixture.Item.CreatedAt), date(fixture.Item.UpdatedAt)); err != nil {
+				t.Fatalf("%s insert series: %v", fixture.Name, err)
+			}
+			if _, err := db.Exec(`INSERT INTO bookSeries (id,sequence,bookId,seriesId,createdAt) VALUES (?,?,?,?,?)`, "bs-"+series.ID, nullable(series.BookSeries.Sequence), book.ID, series.ID, date(fixture.Item.CreatedAt)); err != nil {
+				t.Fatalf("%s link series: %v", fixture.Name, err)
+			}
+		}
+		item := fixture.Item
+		if _, err := db.Exec(`INSERT INTO libraryItems (id,ino,libraryId,libraryFolderId,path,relPath,isFile,mtime,ctime,birthtime,createdAt,updatedAt,lastScan,lastScanVersion,isMissing,isInvalid,mediaType,size,extraData,libraryFiles,mediaId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			item.ID, item.Ino, item.LibraryID, item.FolderID, item.Path, item.RelPath, item.IsFile, date(item.Mtime), date(item.Ctime), date(item.Birthtime), date(item.CreatedAt), date(item.UpdatedAt), func() any {
+				if item.LastScan == nil {
+					return nil
+				}
+				return date(*item.LastScan)
+			}(), func() any {
+				if item.LastScanVersion == nil {
+					return nil
+				}
+				return *item.LastScanVersion
+			}(), item.IsMissing, item.IsInvalid, item.MediaType, item.Size, string(item.ExtraData), string(item.LibraryFiles), book.ID); err != nil {
+			t.Fatalf("%s insert item: %v", fixture.Name, err)
+		}
+	}
+
+	h := New(db, config.Config{}, nil)
+	assertGolden := func(name, shape string, got any) {
+		t.Helper()
+		actual, err := json.Marshal(got)
+		if err != nil {
+			t.Fatalf("%s %s marshal: %v", name, shape, err)
+		}
+		var actualValue, expectedValue any
+		if err := json.Unmarshal(actual, &actualValue); err != nil {
+			t.Fatalf("%s %s decode actual: %v", name, shape, err)
+		}
+		if err := json.Unmarshal(golden.Expected[name][shape], &expectedValue); err != nil {
+			t.Fatalf("%s %s decode golden: %v", name, shape, err)
+		}
+		if !reflect.DeepEqual(actualValue, expectedValue) {
+			actualJSON, _ := json.MarshalIndent(actualValue, "", "  ")
+			expectedJSON, _ := json.MarshalIndent(expectedValue, "", "  ")
+			t.Errorf("%s %s differs from pinned source golden\nactual: %s\nexpected: %s", name, shape, actualJSON, expectedJSON)
+		}
+	}
+	assertTypedMediaGolden := func(name, shape string, got any) {
+		t.Helper()
+		var expected struct {
+			Media json.RawMessage `json:"media"`
+		}
+		if err := json.Unmarshal(golden.Expected[name][shape], &expected); err != nil {
+			t.Fatalf("%s %s decode expected media: %v", name, shape, err)
+		}
+		actualJSON, err := json.Marshal(got)
+		if err != nil {
+			t.Fatalf("%s %s marshal typed media: %v", name, shape, err)
+		}
+		var actualValue, expectedValue any
+		if err := json.Unmarshal(actualJSON, &actualValue); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(expected.Media, &expectedValue); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(actualValue, expectedValue) {
+			t.Errorf("%s typed %s media differs from pinned source golden", name, shape)
+		}
+	}
+	assertDualRun := func(name, shape string, typed, legacy any) {
+		t.Helper()
+		actualJSON, err := json.Marshal(typed)
+		if err != nil {
+			t.Fatalf("%s typed %s marshal: %v", name, shape, err)
+		}
+		legacyJSON, err := json.Marshal(legacy)
+		if err != nil {
+			t.Fatalf("%s legacy %s marshal: %v", name, shape, err)
+		}
+		var actualValue, legacyValue any
+		_ = json.Unmarshal(actualJSON, &actualValue)
+		_ = json.Unmarshal(legacyJSON, &legacyValue)
+		if !reflect.DeepEqual(actualValue, legacyValue) {
+			t.Errorf("%s typed %s builder differs from legacy builder", name, shape)
+		}
+	}
+	for _, fixture := range golden.Input.Books {
+		t.Run(fixture.Name, func(t *testing.T) {
+			full, err := h.ItemJSON(t.Context(), fixture.Item.ID, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertGolden(fixture.Name, "itemJSON", full)
+			minified, err := h.ItemMinifiedJSON(t.Context(), fixture.Item.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertGolden(fixture.Name, "itemMinifiedJSON", minified)
+			expanded, err := h.ItemJSON(t.Context(), fixture.Item.ID, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertGolden(fixture.Name, "itemExpandedJSON", expanded)
+			fullMedia, err := h.bookFull(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			if err != nil {
+				t.Fatalf("full builder: %v", err)
+			}
+			assertTypedMediaGolden(fixture.Name, "itemJSON", fullMedia)
+			legacyFull, err := h.bookJSON(t.Context(), fixture.Book.ID, fixture.Item.ID, false)
+			if err != nil {
+				t.Fatalf("legacy full builder: %v", err)
+			}
+			assertDualRun(fixture.Name, "full", fullMedia, legacyFull)
+
+			minifiedMedia, err := h.bookMinified(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			if err != nil {
+				t.Fatalf("minified builder: %v", err)
+			}
+			assertTypedMediaGolden(fixture.Name, "itemMinifiedJSON", minifiedMedia)
+			legacyMinified, err := h.bookMinifiedJSON(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			if err != nil {
+				t.Fatalf("legacy minified builder: %v", err)
+			}
+			assertDualRun(fixture.Name, "minified", minifiedMedia, legacyMinified)
+
+			expandedMedia, err := h.bookExpanded(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			if err != nil {
+				t.Fatalf("expanded builder: %v", err)
+			}
+			assertTypedMediaGolden(fixture.Name, "itemExpandedJSON", expandedMedia)
+			legacyExpanded, err := legacyExpandedBookMedia(t, h, fixture.Book.ID, fixture.Item.ID)
+			if err != nil {
+				t.Fatalf("legacy expanded builder: %v", err)
+			}
+			assertDualRun(fixture.Name, "expanded", expandedMedia, legacyExpanded)
+		})
+	}
+}
+
+func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (map[string]any, error) {
+	t.Helper()
+	media, err := h.bookJSON(t.Context(), bookID, itemID, false)
+	if err != nil {
+		return nil, err
+	}
+	metadata := media["metadata"].(map[string]any)
+	metadata["titleIgnorePrefix"] = h.titlePrefix(t.Context(), stringValue(metadata["title"]))
+	authors := metadata["authors"].([]map[string]any)
+	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
+	for _, author := range authors {
+		name := stringValue(author["name"])
+		authorNames = append(authorNames, name)
+		authorNamesLF = append(authorNamesLF, lastFirst(name))
+	}
+	metadata["authorName"] = strings.Join(authorNames, ", ")
+	metadata["authorNameLF"] = strings.Join(authorNamesLF, ", ")
+	narrators := metadata["narrators"].([]string)
+	metadata["narratorName"] = strings.Join(narrators, ", ")
+	series := metadata["series"].([]map[string]any)
+	seriesNames := make([]string, 0, len(series))
+	for _, row := range series {
+		name := stringValue(row["name"])
+		if sequence := stringValue(row["sequence"]); sequence != "" {
+			name += " #" + sequence
+		}
+		seriesNames = append(seriesNames, name)
+	}
+	metadata["seriesName"] = strings.Join(seriesNames, ", ")
+	if description := stringValue(metadata["description"]); description != "" {
+		metadata["descriptionPlain"] = stripHTML(description)
+	} else {
+		metadata["descriptionPlain"] = nil
+	}
+	audio := media["audioFiles"].([]map[string]any)
+	chapters := media["chapters"].([]map[string]any)
+	ebook, _ := media["ebookFile"].(map[string]any)
+	media["numTracks"], media["numAudioFiles"], media["numChapters"] = includedAudioCount(audio), len(audio), len(chapters)
+	var duration any
+	if err := h.db.QueryRowContext(t.Context(), `SELECT duration FROM books WHERE id=?`, bookID).Scan(&duration); err != nil {
+		return nil, err
+	}
+	media["duration"], media["size"] = duration, audioSize(audio, ebook)
+	if format, ok := ebook["ebookFormat"]; ok {
+		media["ebookFormat"] = format
+	}
+	media["tracks"] = makeTracks(itemID, audio)
+	return media, nil
+}
+
+// bookJSON is the pre-pilot map builder, retained only in tests so each typed
+// builder can be dual-run against the exact implementation it replaces.
+func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded bool) (map[string]any, error) {
+	row, err := h.loadBookRow(ctx, bookID)
+	if err != nil {
+		return nil, err
+	}
+	authors, series, err := h.bookRelations(ctx, bookID)
+	if err != nil {
+		return nil, err
+	}
+	narrators := decodeStrings(row.narrators)
+	genres, tags := decodeStrings(row.genres), decodeStrings(row.tags)
+	audio, chapters := decodeArray(row.audio), decodeArray(row.chapters)
+	ebook := decodeObject(row.ebook)
+	if len(ebook) == 0 || string(row.ebook) == "null" {
+		ebook = nil
+	}
+	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
+	for _, author := range authors {
+		name := stringValue(author["name"])
+		authorNames = append(authorNames, name)
+		authorNamesLF = append(authorNamesLF, lastFirst(name))
+	}
+	seriesNames := make([]string, 0, len(series))
+	for _, entry := range series {
+		name := stringValue(entry["name"])
+		if sequence := stringValue(entry["sequence"]); sequence != "" {
+			name += " #" + sequence
+		}
+		seriesNames = append(seriesNames, name)
+	}
+	metadata := map[string]any{
+		"title": nullString(row.title), "subtitle": nullString(row.subtitle), "authors": authors, "narrators": narrators, "series": series,
+		"genres": genres, "publishedYear": nullString(row.year), "publishedDate": nullString(row.publishedDate), "publisher": nullString(row.publisher),
+		"description": nullString(row.description), "isbn": nullString(row.isbn), "asin": nullString(row.asin), "language": nullString(row.language),
+		"explicit": row.explicit != 0, "abridged": row.abridged != 0,
+	}
+	minMetadata := map[string]any{
+		"title": nullString(row.title), "titleIgnorePrefix": h.titlePrefix(ctx, row.title.String), "subtitle": nullString(row.subtitle),
+		"authorName": strings.Join(authorNames, ", "), "authorNameLF": strings.Join(authorNamesLF, ", "), "narratorName": strings.Join(narrators, ", "),
+		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": nullString(row.year), "publishedDate": nullString(row.publishedDate),
+		"publisher": nullString(row.publisher), "description": nullString(row.description), "isbn": nullString(row.isbn), "asin": nullString(row.asin),
+		"language": nullString(row.language), "explicit": row.explicit != 0, "abridged": row.abridged != 0,
+	}
+	book := map[string]any{"id": row.id.String, "metadata": metadata, "coverPath": nullString(row.coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
+	if expanded {
+		if row.description.Valid && row.description.String != "" {
+			minMetadata["descriptionPlain"] = stripHTML(row.description.String)
+		} else {
+			minMetadata["descriptionPlain"] = nil
+		}
+		book["metadata"] = minMetadata
+		book["libraryItemId"] = itemID
+		book["numTracks"], book["numAudioFiles"], book["numChapters"] = includedAudioCount(audio), len(audio), len(chapters)
+		book["duration"], book["size"] = row.duration, audioSize(audio, ebook)
+		if format, ok := ebook["ebookFormat"]; ok {
+			book["ebookFormat"] = format
+		}
+		book["tracks"] = makeTracks(itemID, audio)
+		delete(book, "audioFiles")
+		delete(book, "chapters")
+		delete(book, "ebookFile")
+		return book, nil
+	}
+	book["libraryItemId"] = itemID
+	return book, nil
+}
+
+func (h *Handler) bookMinifiedJSON(ctx context.Context, bookID, itemID string) (map[string]any, error) {
+	book, err := h.bookJSON(ctx, bookID, itemID, true)
+	if err != nil {
+		return nil, err
+	}
+	delete(book, "libraryItemId")
+	delete(book, "tracks")
+	delete(book["metadata"].(map[string]any), "descriptionPlain")
+	return book, nil
 }
 
 func TestHandleLibraryItemsAndItemDetail(t *testing.T) {

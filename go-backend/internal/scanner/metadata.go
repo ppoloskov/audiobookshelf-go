@@ -24,7 +24,14 @@ func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemI
 		return errors.New("scanner: metadata item id is empty")
 	}
 	mediaType, _ := itemJSON["mediaType"].(string)
-	media, _ := itemJSON["media"].(map[string]any)
+	mediaRaw, err := json.Marshal(itemJSON["media"])
+	if err != nil {
+		return fmt.Errorf("scanner: encode expanded item media: %w", err)
+	}
+	var media map[string]any
+	if err := json.Unmarshal(mediaRaw, &media); err != nil {
+		return fmt.Errorf("scanner: decode expanded item media: %w", err)
+	}
 	if media == nil {
 		return errors.New("scanner: expanded item media is missing")
 	}
@@ -47,6 +54,9 @@ func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemI
 		metadataDir = itemPath
 	} else {
 		withItem = false
+	}
+	if !withItem && cfg.MetadataPath == "" {
+		return errors.New("scanner: metadata path is empty")
 	}
 	if err := os.MkdirAll(metadataDir, 0755); err != nil {
 		return fmt.Errorf("scanner: create metadata directory: %w", err)

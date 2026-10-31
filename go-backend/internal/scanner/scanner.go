@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
@@ -45,14 +45,17 @@ type Scanner struct {
 	runs               map[string]context.CancelFunc
 	watchCancel        context.CancelFunc
 	podcastFeedFetcher func(context.Context, string) ([]map[string]any, error)
-	items              *catalog.Handler
+	items              items.Reader
 }
 
-func New(db *sql.DB, cfg config.Config, emit EmitFunc) (*Scanner, error) {
+func New(db *sql.DB, cfg config.Config, emit EmitFunc, itemReader items.Reader) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
 	}
-	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), items: catalog.New(db, cfg, nil)}, nil
+	if itemReader == nil {
+		return nil, errors.New("scanner: item reader is nil")
+	}
+	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), items: itemReader}, nil
 }
 
 func (s *Scanner) Scan(ctx context.Context, libraryID string) (Result, error) {
