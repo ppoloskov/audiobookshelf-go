@@ -5,7 +5,7 @@ Baseline: upstream `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`. This audit classi
 Reproduce from the repository root:
 
 ```sh
-python3 go-backend/tools/parity/classify-ledger-findings.py > go-backend/contracts/parity/strict-ledger-findings.json
+python3 docs/agent-work/archive/parity-tools/classify-ledger-findings.py > go-backend/contracts/parity/strict-ledger-findings.json
 ```
 
 The script runs `check-ledger.go -require-verified -require-invariants`, preserves each diagnostic with its capability ID/parent/root cause, and writes `strict-ledger-findings.json`. The latest refreshed run exits 1 with **1,620 diagnostics across 236 distinct capability records** (226 route records plus 10 subsystem records). All 236 records have at least one unverified-status diagnostic. The run summary is in the JSON report; the full per-capability listing is in its `records` array.

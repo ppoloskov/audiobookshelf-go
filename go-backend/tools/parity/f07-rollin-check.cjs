@@ -6,11 +6,12 @@
 // consulted while this runner executes.
 const fs = require('node:fs')
 const path = require('node:path')
-const net = require('node:net')
 const crypto = require('node:crypto')
-const { spawn, spawnSync } = require('node:child_process')
-const { setTimeout: delay } = require('node:timers/promises')
+const { spawnSync } = require('node:child_process')
 const { createRequire } = require('node:module')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { createRequester } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
@@ -85,13 +86,6 @@ function fileState(root, roots) {
   visit(root)
   return files
 }
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise(resolve => server.close(resolve))
-  return port
-}
 async function start(side, dirs, port, logPath, goBin) {
   const command = side === 'go' ? goBin : (process.env.NODE22 || 'mise')
   const args = side === 'go'
@@ -100,37 +94,13 @@ async function start(side, dirs, port, logPath, goBin) {
   const env = side === 'go'
     ? { ...process.env, CONFIG_PATH: dirs.config, METADATA_PATH: dirs.metadata, HOST: '127.0.0.1', PORT: String(port), ROUTER_BASE_PATH: BASE, SOURCE: 'docker' }
     : { ...process.env, NODE_ENV: 'production', ROUTER_BASE_PATH: BASE }
-  const child = spawn(command, args, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath)
-  child.stdout.pipe(log); child.stderr.pipe(log)
+  const server = spawnLogged(command, args, { cwd: ROOT, env }, logPath)
   const base = `http://127.0.0.1:${port}`
-  for (let i = 0; i < 120; i++) {
-    if (child.exitCode !== null) throw new Error(`${side} exited before readiness; see ${logPath}`)
-    try { if ((await fetch(`${base}${BASE}/ping`)).ok) return { child, log, base } } catch {}
-    await delay(250)
-  }
-  child.kill('SIGINT')
-  throw new Error(`${side} did not become ready; see ${logPath}`)
+  await waitReady(server, base, { pathPrefix: BASE, logPath, exitMessage: `${side} exited before readiness; see ${logPath}`, timeoutMessage: `${side} did not become ready; see ${logPath}` })
+  return { ...server, base }
 }
-async function stop(server) {
-  if (!server) return
-  if (server.child.exitCode === null) {
-    server.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => server.child.once('exit', resolve)), delay(12000).then(() => server.child.kill('SIGKILL'))])
-  }
-  server.log.end()
-}
-async function request(base, route, options = {}) {
-  const response = await fetch(`${base}${BASE}${route}`, {
-    method: options.method || 'GET',
-    headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}) },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  })
-  const text = await response.text()
-  let body
-  try { body = JSON.parse(text) } catch { body = text }
-  return { status: response.status, body }
-}
+const stopServer = server => stop(server, 12000)
+const request = createRequester({ pathPrefix: BASE, resultKey: 'body', includeHeaders: false, omitFalsyBody: true })
 function normalize(value, roots) {
   if (typeof value === 'string') {
     let result = value
@@ -210,7 +180,7 @@ async function main() {
         persistentState: normalize(afterRuntimeState, [[sideDirs[side].root, '<SNAPSHOT>']])
       }
     }
-  } finally { await Promise.all([stop(servers.go), stop(servers.node)]) }
+  } finally { await Promise.all([stopServer(servers.go), stopServer(servers.node)]) }
   for (const side of ['go', 'node']) {
     report.sides[side].files = Object.fromEntries(['metadata', 'media'].map(key => [key,
       fileState(sideDirs[side][key], [[sideDirs[side].root, '<SNAPSHOT>']])]))
@@ -234,7 +204,7 @@ async function main() {
   report.reopenContractMatched = paired
   report.stateTablesCompared = Object.keys(beforeStates.go)
   report.limits = ['Sessions are excluded from post-request state equality because each server independently creates random login sessions; users.lastSeen and users.updatedAt are volatile login fields. All other tables and columns are compared after both servers reopen the snapshot and execute the same root/reader requests.', 'The restricted-reader permission is applied identically to both disposable reopen copies after capturing the preserved snapshot state.', 'This verifies this snapshot and the selected F04-F06 state; it does not prove the complete mutation corpus or all restart behaviors.']
-  fs.writeFileSync(path.join(workRoot, 'report.json'), JSON.stringify(report, null, 2) + '\n')
+  writeJSON(path.join(workRoot, 'report.json'), report)
   console.log(`${beforeEqual ? 'PASS' : 'FAIL'} f07.preboot-logical-state-equal`)
   console.log(`${paired ? 'PASS' : 'FAIL'} f07.node-go-reopen-and-restricted-state`)
   console.log(`${report.filesMatched ? 'PASS' : 'FAIL'} f07.metadata-and-media-files`)

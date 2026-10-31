@@ -6,50 +6,23 @@
 // pinned upstream only after the Go process has stopped.
 const fs = require('node:fs')
 const path = require('node:path')
-const { spawn, spawnSync } = require('node:child_process')
-const net = require('node:net')
+const { spawnSync } = require('node:child_process')
 const sqlite3 = require('sqlite3').verbose()
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { requestJSON } = require('./lib/http.cjs')
+const { parseArgs } = require('./lib/args.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-function arg(name) { const i = process.argv.indexOf(`--${name}`); return i < 0 ? null : process.argv[i + 1] }
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', e => e ? reject(e) : resolve()))
-  const port = server.address().port
-  await new Promise(resolve => server.close(resolve))
-  return port
-}
 function start(command, args, env, logFile) {
-  const log = fs.createWriteStream(logFile)
-  const child = spawn(command, args, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
-  child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
+  return spawnLogged(command, args, { cwd: ROOT, env }, logFile)
 }
-async function stop(server) {
-  if (!server) return
-  if (server.child.exitCode === null) {
-    server.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => server.child.once('exit', resolve)), sleep(15000).then(() => server.child.kill('SIGKILL'))])
-  }
-  server.log.end()
-}
-async function ready(server, url, logFile) {
-  for (let i = 0; i < 120; i++) {
-    if (server.child.exitCode !== null) throw new Error(`server exited; inspect ${logFile}`)
-    try { if ((await fetch(`${url}${BASE}/ping`)).ok) return } catch {}
-    await sleep(250)
-  }
-  throw new Error(`server did not become ready; inspect ${logFile}`)
-}
+const ready = (server, url, logFile) => waitReady(server, url, { pathPrefix: BASE, logPath: logFile, exitMessage: `server exited; inspect ${logFile}`, timeoutMessage: `server did not become ready; inspect ${logFile}` })
 async function call(url, route, { method = 'GET', token, body } = {}) {
-  const response = await fetch(`${url}${BASE}${route}`, {
-    method,
-    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  })
-  const bytes = Buffer.from(await response.arrayBuffer())
+  const response = await requestJSON(url, route, { pathPrefix: BASE, method, token, body })
+  const bytes = response.bytes
   let value
   try { value = JSON.parse(bytes.toString()) } catch { value = bytes.toString() }
   return { status: response.status, value, bytes }
@@ -88,8 +61,9 @@ async function lengthenFixtureAudio(dbPath, itemId, username, mediaDir) {
 }
 
 async function main() {
-  const manifestPath = path.resolve(arg('fixture') || '')
-  const out = path.resolve(arg('out') || path.join(path.dirname(manifestPath), 'operational-milestone'))
+  const args = parseArgs()
+  const manifestPath = path.resolve(args.fixture || '')
+  const out = path.resolve(args.out || path.join(path.dirname(manifestPath), 'operational-milestone'))
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
   const target = path.join(out, 'installation')
   assert(!fs.existsSync(out), `refusing to reuse existing output directory: ${out}`)
@@ -194,10 +168,10 @@ async function main() {
   } finally { await stop(server) }
 
   evidence.result = evidence.stages.every(stage => stage.pass) ? 'PASS' : 'FAIL'
-  fs.writeFileSync(path.join(out, 'operational-milestone-report.json'), `${JSON.stringify(evidence, null, 2)}\n`)
+  writeJSON(path.join(out, 'operational-milestone-report.json'), evidence)
   if (evidence.result === 'PASS') {
-    const reportPath = path.join(ROOT, 'go-backend/contracts/parity/operational-playback-milestone-report.json')
-    const provenancePath = path.join(ROOT, 'go-backend/contracts/parity/operational-playback-milestone-provenance.json')
+    const reportPath = path.resolve(args['report-out'] || path.join(ROOT, 'go-backend/contracts/parity/operational-playback-milestone-report.json'))
+    const provenancePath = path.resolve(args['provenance-out'] || path.join(ROOT, 'go-backend/contracts/parity/operational-playback-milestone-provenance.json'))
     const report = {
       schemaVersion: 1,
       baseline: manifest.baseline,
@@ -215,8 +189,8 @@ async function main() {
       fixture: 'Independent output copy of the fixture’s Go config and metadata; modified track and database remain under the output directory and are opened serially by Go and Node.',
       limits: ['Direct-play browser controls were separately checked by browser-playback-differential-report.json.', 'Transcoded playback was verified at the HTTP/HLS layer by fetching a generated segment; Chromium HLS decoding was not exercised.', 'Socket reconnect/session recovery and longer-duration periodic browser progress synchronization remain unverified.', 'The fixture’s seeded progress row was cleared; this does not verify resume behavior from a pre-existing completed row.']
     }
-    fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`)
-    fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`)
+    writeJSON(reportPath, report)
+    writeJSON(provenancePath, provenance)
   }
   console.log(JSON.stringify(evidence, null, 2))
 }

@@ -9,9 +9,11 @@ const fsp = require('node:fs/promises')
 const crypto = require('node:crypto')
 const os = require('node:os')
 const path = require('node:path')
-const net = require('node:net')
 const { spawn, spawnSync } = require('node:child_process')
 const { setTimeout: delay } = require('node:timers/promises')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { createRequester } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
@@ -21,77 +23,51 @@ const READER_USERNAME = 'oracle-reader'
 const READER_PASSWORD = 'oracle-reader-password'
 const createSourceBackup = process.argv.includes('--source-backup')
 
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (error) => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
-  return port
-}
-
-async function request(baseUrl, route, { method = 'GET', token, body, headers = {} } = {}) {
-  const response = await fetch(`${baseUrl}${BASE}${route}`, {
-    method,
-    headers: {
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers
-    },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  })
-  const bytes = Buffer.from(await response.arrayBuffer())
-  let value = null
-  try { value = JSON.parse(bytes.toString('utf8')) } catch { value = bytes.toString('utf8') || null }
-  if (!response.ok) throw new Error(`${method} ${route} -> ${response.status}: ${JSON.stringify(value)}`)
-  return { status: response.status, value }
-}
+const request = createRequester({ pathPrefix: BASE, throwOnError: true })
 
 async function startServer(config, metadata, port, logPath) {
-  const log = fs.createWriteStream(logPath)
-  const child = spawn(process.execPath, [
+  const server = spawnLogged(process.execPath, [
     path.join(ROOT, 'dist-server/index.js'), '--config', config, '--metadata', metadata,
     '--port', String(port), '--host', '127.0.0.1', '--source', 'docker'
-  ], { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] })
-  child.stdout.pipe(log)
-  child.stderr.pipe(log)
+  ], { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' } }, logPath)
   const baseUrl = `http://127.0.0.1:${port}`
-  let lastError = ''
-  for (let i = 0; i < 120; i++) {
-    if (child.exitCode !== null) throw new Error(`upstream server exited early; log: ${logPath}`)
-    try {
-      const response = await fetch(`${baseUrl}${BASE}/ping`)
-      if (response.ok) return { child, log, baseUrl }
-    } catch (error) { lastError = error.message }
-    await delay(250)
+  try {
+    await waitReady(server, baseUrl, { pathPrefix: BASE, logPath, exitMessage: `upstream server exited early; log: ${logPath}`, timeoutMessage: `upstream server did not become ready; log: ${logPath}` })
+    return { ...server, baseUrl }
+  } catch (error) {
+    await stop(server)
+    throw error
   }
-  child.kill('SIGINT')
-  throw new Error(`upstream server did not become ready (${lastError}); log: ${logPath}`)
 }
 
-async function stopServer(server) {
-  if (!server) return
-  if (server.child.exitCode === null) {
-    server.child.kill('SIGINT')
-    await Promise.race([
-      new Promise((resolve) => server.child.once('exit', resolve)),
-      delay(15000).then(() => { server.child.kill('SIGKILL') })
-    ])
+const stopServer = stop
+
+function lastLogLines(logPath, count = 20) {
+  try {
+    return fs.readFileSync(logPath, 'utf8').trimEnd().split('\n').slice(-count).join('\n') || '(empty log)'
+  } catch (error) {
+    return `(could not read upstream log: ${error.message})`
   }
-  server.log.end()
 }
 
 function copyTree(source, target) {
   fs.cpSync(source, target, { recursive: true, force: true, preserveTimestamps: true })
 }
 
-async function waitForBook(baseUrl, token, libraryId) {
+async function waitForBook(baseUrl, token, libraryId, scanResponse, logPath, scanLogOffset) {
   for (let i = 0; i < 90; i++) {
     const { value } = await request(baseUrl, `/api/libraries/${libraryId}/items?limit=10&page=0`, { token })
     const item = value.results?.find((result) => result.mediaType === 'book' && result.media?.metadata?.title === 'Deterministic Book')
     if (item) return item
+
+    let scanLog = ''
+    try { scanLog = fs.readFileSync(logPath, 'utf8').slice(scanLogOffset) } catch {}
+    if (/Library scan "[^"]+" completed[^\n]*\| 0 Added \|/.test(scanLog)) {
+      throw new Error(`upstream scan completed without adding the synthetic book; scan response: ${JSON.stringify(scanResponse)}\nLast 20 upstream log lines:\n${lastLogLines(logPath)}`)
+    }
     await delay(500)
   }
-  throw new Error('upstream scan did not add the synthetic book within 45 seconds')
+  throw new Error(`upstream scan did not add the synthetic book within 45 seconds; scan response: ${JSON.stringify(scanResponse)}\nLast 20 upstream log lines:\n${lastLogLines(logPath)}`)
 }
 
 function rewriteFixturePaths(value, rootPairs) {
@@ -227,14 +203,17 @@ function rewriteMetadataPaths(dir, rootPairs) {
     else if (entry.isFile() && entry.name.endsWith('.json')) {
       try {
         const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
-        fs.writeFileSync(fullPath, `${JSON.stringify(rewriteFixturePaths(parsed, rootPairs), null, 2)}\n`)
+        writeJSON(fullPath, rewriteFixturePaths(parsed, rootPairs))
       } catch {}
     }
   }
 }
 
 async function main() {
-  const workDir = path.resolve(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'abs-parity-')))
+  const requestedWorkDir = path.resolve(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'abs-parity-')))
+  fs.mkdirSync(requestedWorkDir, { recursive: true })
+  const workDir = fs.realpathSync(requestedWorkDir)
+  if (workDir !== requestedWorkDir) console.log(`Canonical fixture path: ${workDir} (requested ${requestedWorkDir})`)
   const config = path.join(workDir, 'node', 'config')
   const metadata = path.join(workDir, 'node', 'metadata')
   const media = path.join(workDir, 'node', 'media')
@@ -320,8 +299,15 @@ async function main() {
       }
     })
 
-    await request(baseUrl, `/api/libraries/${bookLibraryId}/scan`, { method: 'POST', token, body: {} })
-    const bookItem = await waitForBook(baseUrl, token, bookLibraryId)
+    const upstreamLogPath = path.join(workDir, 'upstream.log')
+    const scanLogOffset = fs.existsSync(upstreamLogPath) ? fs.statSync(upstreamLogPath).size : 0
+    let scanResponse
+    try {
+      scanResponse = await request(baseUrl, `/api/libraries/${bookLibraryId}/scan`, { method: 'POST', token, body: {} })
+    } catch (error) {
+      throw new Error(`upstream library scan request failed: ${error.message}\nLast 20 upstream log lines:\n${lastLogLines(upstreamLogPath)}`)
+    }
+    const bookItem = await waitForBook(baseUrl, token, bookLibraryId, scanResponse, upstreamLogPath, scanLogOffset)
     const bookDetail = await request(baseUrl, `/api/items/${bookItem.id}`, { token })
     const audioFileId = bookDetail.value.libraryFiles?.find((file) => file.fileType === 'audio')?.ino
     if (!audioFileId) throw new Error('upstream expanded book did not expose an audio file ID')
@@ -447,7 +433,7 @@ async function main() {
         'Synthetic media contains generated silent audio only; no user data or external credentials are used.'
       ]
     }
-    fs.writeFileSync(path.join(workDir, 'fixture-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+    writeJSON(path.join(workDir, 'fixture-manifest.json'), manifest)
     console.log(JSON.stringify({ workDir, userId, libraryIds: manifest.libraries, itemIds: manifest.items, fixtureManifest: path.join(workDir, 'fixture-manifest.json') }, null, 2))
   } finally {
     await stopServer(upstream)

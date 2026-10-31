@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 VALIDATOR = Path.home() / ".agents/skills/go-scope-ledger/scripts/check-ledger.go"
 TASKS = ROOT / "docs/agent-work/tasks"
 CAPABILITIES = ROOT / "docs/agent-work/capabilities"

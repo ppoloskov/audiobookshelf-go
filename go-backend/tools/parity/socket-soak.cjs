@@ -4,9 +4,11 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
-const net = require('node:net')
 const { spawn, spawnSync } = require('node:child_process')
-const { setTimeout: delay } = require('node:timers/promises')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { login } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { parseArgs } = require('./lib/args.cjs')
 const { io } = require('socket.io-client')
 
 const ROOT = path.resolve(__dirname, '../../..')
@@ -14,40 +16,8 @@ const PREFIX = '/audiobookshelf'
 const DEFAULT_FIXTURE = '/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/abs-parity-fixture/fixture-manifest.json'
 
 function args() {
-  const out = {}
-  for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) out[process.argv[i].slice(2)] = process.argv[++i]
+  const out = parseArgs()
   return { fixture: out.fixture || DEFAULT_FIXTURE, rounds: Number(out.rounds || 3), cycles: Number(out.cycles || 12), workers: Number(out.workers || 6), 'go-bin': out['go-bin'] || '/tmp/abs-soak-go' }
-}
-
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', e => e ? reject(e) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve, reject) => server.close(e => e ? reject(e) : resolve()))
-  return port
-}
-
-function spawnLogged(command, argv, options, logPath) {
-  const child = spawn(command, argv, { ...options, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath)
-  child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
-}
-async function waitReady(proc, url, logPath) {
-  for (let i = 0; i < 120; i++) {
-    if (proc.child.exitCode !== null) throw new Error(`server exited; see ${logPath}`)
-    try { if ((await fetch(`${url}${PREFIX}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`server not ready at ${url}; see ${logPath}`)
-}
-async function stop(proc) {
-  if (!proc) return
-  if (proc.child.exitCode === null) {
-    proc.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => proc.child.once('exit', resolve)), delay(15000).then(() => proc.child.kill('SIGKILL'))])
-  }
-  proc.log.end()
 }
 
 function fixtureCopy(manifest, dir, side) {
@@ -61,18 +31,8 @@ function fixtureCopy(manifest, dir, side) {
   clone.directories[side === 'node' ? 'nodeMedia' : 'goMedia'] = mediaTarget
   clone.directories.media = mediaTarget
   const file = path.join(dir, 'fixture-manifest.json')
-  fs.writeFileSync(file, JSON.stringify(clone, null, 2))
+  writeJSON(file, clone, { newline: false })
   return file
-}
-
-async function login(url, credentials) {
-  const response = await fetch(`${url}${PREFIX}/login`, {
-    method: 'POST', headers: { 'content-type': 'application/json', 'X-Return-Tokens': 'true' },
-    body: JSON.stringify(credentials), signal: AbortSignal.timeout(15000)
-  })
-  const body = await response.json()
-  if (!response.ok || !body.user?.accessToken) throw new Error(`login failed ${response.status}: ${JSON.stringify(body)}`)
-  return body.user.accessToken
 }
 
 function connectAuth(url, socketPath, token) {
@@ -109,8 +69,8 @@ async function runRound(server, round, options, manifest) {
       const goRoot = fixture.directories.go
       proc = spawnLogged(options['go-bin'], [], { cwd: ROOT, env: { ...process.env, CONFIG_PATH: path.join(goRoot, 'config'), METADATA_PATH: path.join(goRoot, 'metadata'), HOST: '127.0.0.1', PORT: String(port), ROUTER_BASE_PATH: PREFIX, SOURCE: 'docker' } }, logPath)
     }
-    await waitReady(proc, url, logPath)
-    const token = await login(url, fixture.rootCredentials)
+    await waitReady(proc, url, { pathPrefix: PREFIX, logPath })
+      const { token } = await login(url, fixture.rootCredentials, { pathPrefix: PREFIX, timeoutMs: 15000 })
     const patchUrl = `${url}${PREFIX}/api/me/progress/${fixture.items.book}`
     let patchErrors = 0
     let pressure = true

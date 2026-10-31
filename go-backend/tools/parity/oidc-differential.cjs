@@ -5,29 +5,22 @@
 // Each implementation gets an isolated copy of the same initialized fixture.
 const fs = require('node:fs')
 const path = require('node:path')
-const net = require('node:net')
 const crypto = require('node:crypto')
-const { spawn } = require('node:child_process')
+const { freePort, spawnLogged, waitReady, stop: stopProcess } = require('./lib/process.cjs')
 const { setTimeout: delay } = require('node:timers/promises')
+const { parseArgs } = require('./lib/args.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { login } = require('./lib/http.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const PREFIX = '/audiobookshelf'
 const CLIENT_ID = 'abs-oidc-differential'
 const USER = { sub: 'oidc-differential-sub', email: 'oidc-differential@example.test', email_verified: true, name: 'OIDC Differential', preferred_username: 'oidc-differential' }
 
-function parseArgs() {
-  const out = {}
-  for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) out[process.argv[i].slice(2)] = process.argv[++i]
+function validatedArgs() {
+  const out = parseArgs()
   if (!out.fixture || !out['go-bin'] || !out['work-dir']) throw new Error('Usage: oidc-differential.cjs --fixture <fixture-manifest.json> --go-bin <binary> --work-dir <new-directory> [--out <report.json>] [--include-web-state-expiry true]')
   return out
-}
-
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', err => err ? reject(err) : resolve()))
-  const value = server.address().port
-  await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()))
-  return value
 }
 
 function listen(server) { return new Promise((resolve, reject) => server.listen(0, '127.0.0.1', err => err ? reject(err) : resolve(server.address().port))) }
@@ -112,30 +105,26 @@ async function configureDB(file, provider, mode) {
 }
 
 function startServer(kind, directory, port, logPath, goBin) {
-  const child = kind === 'node'
-    ? spawn('mise', ['exec', 'node@22', '--', 'node', path.join(ROOT, 'dist-server/index.js'), '--config', path.join(directory, 'config'), '--metadata', path.join(directory, 'metadata'), '--port', String(port), '--host', '127.0.0.1', '--source', 'docker'], { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] })
-    : spawn(path.resolve(goBin), [], { cwd: ROOT, env: { ...process.env, CONFIG_PATH: path.join(directory, 'config'), METADATA_PATH: path.join(directory, 'metadata'), HOST: '127.0.0.1', PORT: String(port), ROUTER_BASE_PATH: PREFIX, SOURCE: 'docker' }, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath); child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
+  const command = kind === 'node'
+    ? 'mise'
+    : path.resolve(goBin)
+  const args = kind === 'node'
+    ? ['exec', 'node@22', '--', 'node', path.join(ROOT, 'dist-server/index.js'), '--config', path.join(directory, 'config'), '--metadata', path.join(directory, 'metadata'), '--port', String(port), '--host', '127.0.0.1', '--source', 'docker']
+    : []
+  const options = kind === 'node'
+    ? { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' } }
+    : { cwd: ROOT, env: { ...process.env, CONFIG_PATH: path.join(directory, 'config'), METADATA_PATH: path.join(directory, 'metadata'), HOST: '127.0.0.1', PORT: String(port), ROUTER_BASE_PATH: PREFIX, SOURCE: 'docker' } }
+  return spawnLogged(command, args, options, logPath)
 }
 
-async function ready(proc, base, logPath) {
-  for (let i = 0; i < 100; i++) {
-    if (proc.child.exitCode !== null) throw new Error(`server exited; inspect ${logPath}`)
-    try { if ((await fetch(`${base}${PREFIX}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`readiness timeout; inspect ${logPath}`)
-}
-
-async function stop(proc) {
-  if (!proc) return
-  if (proc.child.exitCode === null) {
-    proc.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => proc.child.once('exit', resolve)), delay(10000).then(() => proc.child.kill('SIGKILL'))])
-  }
-  proc.log.end()
-}
+const ready = (proc, base, logPath) => waitReady(proc, base, {
+  pathPrefix: PREFIX,
+  logPath,
+  attempts: 100,
+  exitMessage: `server exited; inspect ${logPath}`,
+  timeoutMessage: `readiness timeout; inspect ${logPath}`
+})
+const stop = proc => stopProcess(proc, 10000)
 
 function cookieJar(headers, jar) {
   const values = headers.getSetCookie ? headers.getSetCookie() : [headers.get('set-cookie') || '']
@@ -213,16 +202,13 @@ async function post(url, jar) {
 }
 
 async function loginToken(base, credentials) {
-  const response = await fetch(`${base}${PREFIX}/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-return-tokens': 'true' },
-    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
-    signal: AbortSignal.timeout(15000)
+  const response = await login(base, { username: credentials.username, password: credentials.password }, {
+    pathPrefix: PREFIX,
+    timeoutMs: 15000,
+    tokenSelector: body => body?.user?.accessToken || body?.accessToken,
+    errorMessage: status => `fixture user login failed (${status})`
   })
-  const body = await response.json()
-  const token = body.user?.accessToken || body.accessToken
-  if (!response.ok || !token) throw new Error(`fixture user login failed (${response.status})`)
-  return token
+  return response.token
 }
 
 async function openSocket(base, token) {
@@ -253,6 +239,10 @@ function canonicalJSON(value) {
   if (Array.isArray(value)) return value.map(canonicalJSON)
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalJSON(item)]))
+}
+
+function resolvePath(source, expression) {
+  return expression.split('.').reduce((value, key) => value?.[key], source)
 }
 
 async function watchUserAdded(base, fixture) {
@@ -635,7 +625,7 @@ async function runMobileInvalidVerifier(kind, dir, goBin, provider, work) {
 }
 
 async function main() {
-  const args = parseArgs(), fixture = JSON.parse(fs.readFileSync(args.fixture, 'utf8'))
+  const args = validatedArgs(), fixture = JSON.parse(fs.readFileSync(args.fixture, 'utf8'))
   const work = path.resolve(args['work-dir'])
   if (fs.existsSync(work) && fs.readdirSync(work).length) throw new Error(`work directory must be empty: ${work}`)
   fs.mkdirSync(work, { recursive: true })
@@ -663,42 +653,29 @@ async function main() {
   provider.setBase(`http://127.0.0.1:${providerPort}`)
   let result
   try {
-    const node = await runFlow('node', scenarios.success.node, args['go-bin'], provider, work, fixture)
-    const go = await runFlow('go', scenarios.success.go, args['go-bin'], provider, work, fixture)
-    const nodeLink = await runFlow('node', scenarios.link.node, args['go-bin'], provider, work, fixture, 'link')
-    const goLink = await runFlow('go', scenarios.link.go, args['go-bin'], provider, work, fixture, 'link')
-    const nodeDenied = await runFlow('node', scenarios.denied.node, args['go-bin'], provider, work, fixture, 'denied')
-    const goDenied = await runFlow('go', scenarios.denied.go, args['go-bin'], provider, work, fixture, 'denied')
-    const nodeMobile = await runMobileRedirect('node', scenarios.mobile.node, args['go-bin'], provider, work)
-    const goMobile = await runMobileRedirect('go', scenarios.mobile.go, args['go-bin'], provider, work)
-    const nodeMobileInvalidVerifier = await runMobileInvalidVerifier('node', scenarios['mobile-invalid-verifier'].node, args['go-bin'], provider, work)
-    const goMobileInvalidVerifier = await runMobileInvalidVerifier('go', scenarios['mobile-invalid-verifier'].go, args['go-bin'], provider, work)
-    const webStateExpiry = args['include-web-state-expiry'] === 'true'
-      ? await runWebStateExpiryPair(scenarios['web-state-expiry'].node, scenarios['web-state-expiry'].go, args['go-bin'], provider, work)
-      : null
-    const mobileStart = { name: 'oidc-mobile-start', node: nodeMobile.start, go: goMobile.start }
-    const mobileCallback = { name: 'oidc-mobile-redirect', node: nodeMobile.callback, go: goMobile.callback }
-    const mobileReplay = { name: 'oidc-mobile-state-replay', node: nodeMobile.replay, go: goMobile.replay }
-    const mobileExchange = { name: 'oidc-mobile-token-exchange', node: nodeMobile.exchange, go: goMobile.exchange }
-    const mobileExchangeReplay = { name: 'oidc-mobile-token-exchange-replay', node: nodeMobile.exchangeReplay, go: goMobile.exchangeReplay }
-    const mobileInvalidVerifier = { name: 'oidc-mobile-invalid-verifier', node: nodeMobileInvalidVerifier, go: goMobileInvalidVerifier }
-    const mobileCases = [
-      { name: 'oidc-mobile-invalid-redirect', node: nodeMobile.badRedirect, go: goMobile.badRedirect },
-      { name: 'oidc-mobile-missing-pkce-challenge', node: nodeMobile.missingChallenge, go: goMobile.missingChallenge },
-      { name: 'oidc-mobile-unsupported-pkce-method', node: nodeMobile.badChallengeMethod, go: goMobile.badChallengeMethod },
-      mobileStart, mobileCallback, mobileReplay, mobileExchange, mobileExchangeReplay, mobileInvalidVerifier
-    ]
-    const cases = [{ name: 'oidc-web-callback-no-session-empty-verifier', node: node.success.missingWebSession, go: go.success.missingWebSession }, { name: 'oidc-mobile-callback-no-session-duplicate-empty-verifier', node: node.success.missingMobileSession, go: go.success.missingMobileSession }, { name: 'oidc-web-auto-register-success', node: node.success, go: go.success }, { name: 'oidc-web-logout', node: node.logout, go: go.logout }, { name: 'oidc-provider-error', node: node.providerError, go: go.providerError }, { name: 'oidc-state-replay-after-provider-error', node: node.replay, go: go.replay }, { name: 'oidc-expired-id-token', node: node.expiredToken, go: go.expiredToken }, { name: 'oidc-existing-user-email-link', node: nodeLink.linked, go: goLink.linked }, { name: 'oidc-auto-registration-denied', node: nodeDenied.denied, go: goDenied.denied }, { name: 'oidc-invalid-nonce', node: node.invalidNonce, go: go.invalidNonce }, { name: 'oidc-invalid-issuer', node: node.invalidIssuer, go: go.invalidIssuer }, { name: 'oidc-invalid-audience', node: node.invalidAudience, go: go.invalidAudience }, { name: 'oidc-invalid-signature', node: node.invalidSignature, go: go.invalidSignature }, ...mobileCases]
-    if (webStateExpiry) {
-      cases.push({ name: 'oidc-web-state-after-ten-minutes', node: webStateExpiry.node.web, go: webStateExpiry.go.web })
-      cases.push({ name: 'oidc-mobile-redirect-state-after-ten-minutes', node: webStateExpiry.node.mobile, go: webStateExpiry.go.mobile })
+    const stepContext = {}
+    const stepRuntime = { scenarios, args, fixture, provider, work, runFlow, runMobileRedirect, runMobileInvalidVerifier, runWebStateExpiryPair }
+    const oidcSteps = JSON.parse(fs.readFileSync(path.join(__dirname, 'cases/oidc-steps.json'), 'utf8'))
+    for (const step of oidcSteps) {
+      if (step.when && args['include-web-state-expiry'] !== 'true') continue
+      const runStep = require(path.resolve(__dirname, 'cases', step.module))
+      const output = await runStep({ step, runtime: stepRuntime })
+      for (const [source, target] of Object.entries(step.as)) stepContext[target] = output[source]
     }
+    const caseContext = stepContext
+    const cases = JSON.parse(fs.readFileSync(path.join(__dirname, 'cases/oidc.json'), 'utf8'))
+      .filter(test => !test.when || (test.when === 'web-state-expiry' && caseContext.webStateExpiry))
+      .map(test => ({ name: test.id, node: resolvePath(caseContext, test.node), go: resolvePath(caseContext, test.go) }))
     cases.forEach(test => { test.equal = JSON.stringify(canonicalJSON(test.node)) === JSON.stringify(canonicalJSON(test.go)) })
     const matched = cases.filter(test => test.equal).length
     result = { baseline: fixture.baseline, provider: 'local ephemeral RS256 provider', compared: cases.length, matched, mismatched: cases.length - matched, cases, limits: ['Web callback without session and empty code_verifier, duplicate empty code_verifier mobile classification, auto-registration success, provider error, callback state replay, expired ID token, email linking, auto-registration denial, invalid nonce/issuer/audience/signature, selected admin-only user_added event, mobile redirect allowlist/PKCE errors, valid mobile token exchange, consumed-flow callback replay, mobile redirect state replay and expiry after 10 minutes, invalid mobile PKCE verifier failure plus replay, web callback after 10 minutes, and selected web OIDC logout cookie/session effects are exercised.', 'Selected web/mobile start, successful callback and web logout cookies are compared by name/stable value/Max-Age/Path/Expires/HttpOnly/Secure/SameSite and signed connect.sid. JWT algorithms/claims are compared, normalizing only UUID identifiers and timestamps; each ID-token nonce is checked against its own authorization request. The exact 24-hour session-expiry boundary and rolling session-touch renewal remain unverified. Logout errors, mobile logout behavior, other callback variants, and general Socket.IO inventory remain unverified.', 'Persisted user fields and session counts are compared; only fixture-specific backup paths, UUID identifiers, and timestamps are normalized. JSON object member order is canonicalized only for Socket.IO event payloads; arrays, scalar values, null/empty distinctions, and raw persisted extraData text remain strict.'] }
-  } finally { await new Promise(resolve => provider.server.close(resolve)) }
+  } finally {
+    provider.server.closeIdleConnections?.()
+    provider.server.closeAllConnections?.()
+    await new Promise(resolve => provider.server.close(resolve))
+  }
   const output = args.out ? path.resolve(args.out) : path.join(work, 'oidc-report.json')
-  fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`)
+  writeJSON(output, result, { ensureDirectory: true })
   process.stdout.write(`${JSON.stringify({ ...result, report: output }, null, 2)}\n`)
   if (result.mismatched) process.exitCode = 1
 }

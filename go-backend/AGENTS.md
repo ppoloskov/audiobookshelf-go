@@ -28,8 +28,8 @@ status from memory of an older document.
 | # | Check | Command | State |
 |---|-------|---------|-------|
 | 1 | Builds, vets, unit tests pass | `cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...` | exists |
-| 2 | Differential passes, **with at least one case executed** and no fewer cases than before | `make parity` | planned (Phase 0) |
-| 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | planned (Phase 1) |
+| 2 | Differential passes, **with at least one case executed** and no fewer cases than before | `make parity` | exists |
+| 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | exists |
 | 4 | New or changed behavior has a differential case or a golden test | n/a | review |
 | 5 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
 
@@ -85,21 +85,23 @@ Run from the upstream repository root unless noted.
 # Upstream (reference server), once:
 npm ci && npm run build:server           # use Node v22.x; Node 26 breaks the dependency tree
 
-# Go build (from go-backend/):
-CGO_ENABLED=0 go build -trimpath -o audiobookshelf-go ./cmd/audiobookshelf-go
+# Fast core parity (rebuilds Go and creates a fresh fixture):
+make parity
 
-# Fresh fixture (one per clean run; mutations consume it):
-node go-backend/tools/parity/create-fixture.cjs /tmp/abs-fixture-$(date +%s)
+# All named parity and operational suites (fresh fixture per suite):
+make parity-full
 
-# Differential (rebuild the Go binary first; stale binaries gave false failures):
-node go-backend/tools/parity/run-local.cjs \
-  --fixture /tmp/abs-fixture-XXXX/fixture-manifest.json \
-  --go-bin ./go-backend/audiobookshelf-go \
-  [--cases id1,id2]
+# Prove report repeatability using two independent fresh fixtures:
+make parity-equivalence
+
+# Harness self-test (binds two temporary loopback HTTP servers):
+mise exec node@22 -- node --test go-backend/tools/parity/test-differential-selftest.cjs
 ```
 
-Planned targets (the roadmap creates them): `make parity`, `make ratchet`,
-`make ratchet-update`, `make status`.
+Guardrail targets: `make ratchet`, `make ratchet-update`, `make status`.
+Dependency-rule negative witnesses: `node go-backend/tools/test-dependency-boundaries.cjs`
+(requires golangci-lint 2.15.0). Report/status witnesses:
+`mise exec node@22 -- node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs`.
 
 Environment notes:
 
@@ -110,14 +112,10 @@ Environment notes:
 
 ## When blocked
 
+For the independently reproduced phase-review findings and their verification,
+see [PHASES-0-2-REVIEW-2026-10-31.md](PHASES-0-2-REVIEW-2026-10-31.md).
+Re-run its negative witnesses before treating the affected guardrails as enforced.
+
 Stop. Report the exact command, its output, and the smallest repair you would
 propose. Do not work around a failing check by changing expected values,
 widening normalization, or narrowing the case list.
-
-## Environment
-
-On macOS, `/tmp` is a symlink to `/private/tmp`. The upstream file walker resolves
-media paths to `/private/tmp`, so running `create-fixture.cjs` with a `/tmp/...`
-fixture directory produces incorrect relative media paths and the book scan adds
-zero items. Use a canonical fixture path, for example
-`/private/tmp/abs-fixture-$(date +%s)`, for fixture creation and differential runs.

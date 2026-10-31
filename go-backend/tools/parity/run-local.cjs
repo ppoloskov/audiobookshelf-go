@@ -3,65 +3,26 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
-const net = require('node:net')
-const { spawn, spawnSync } = require('node:child_process')
-const { setTimeout: delay } = require('node:timers/promises')
+const { spawnSync } = require('node:child_process')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { parseArgs } = require('./lib/args.cjs')
+const { inputDigest } = require('./status.cjs')
+const { prepareOracle } = require('./lib/oracle.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const PREFIX = '/audiobookshelf'
 
-function parseArgs() {
-  const out = {}
-  for (let i = 2; i < process.argv.length; i++) {
-    const arg = process.argv[i]
-    if (arg.startsWith('--')) out[arg.slice(2)] = process.argv[++i]
-  }
+function validatedArgs() {
+  const out = parseArgs()
   if (!out.fixture || !out['go-bin']) throw new Error('Usage: run-local.cjs --fixture <fixture-manifest.json> --go-bin <audiobookshelf-go> [--out <report.json>] [--cases <comma-separated-case-ids>]')
   return out
 }
 
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (error) => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
-  return port
-}
-
-function spawnLogged(command, args, options, logFile) {
-  const child = spawn(command, args, { ...options, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logFile)
-  child.stdout.pipe(log)
-  child.stderr.pipe(log)
-  return { child, log }
-}
-
-async function waitReady(processInfo, url, logFile) {
-  for (let i = 0; i < 120; i++) {
-    if (processInfo.child.exitCode !== null) throw new Error(`server exited before readiness; inspect ${logFile}`)
-    try {
-      const response = await fetch(`${url}${PREFIX}/ping`)
-      if (response.ok) return
-    } catch {}
-    await delay(250)
-  }
-  throw new Error(`server did not become ready at ${url}; inspect ${logFile}`)
-}
-
-async function stop(processInfo) {
-  if (!processInfo) return
-  if (processInfo.child.exitCode === null) {
-    processInfo.child.kill('SIGINT')
-    await Promise.race([
-      new Promise((resolve) => processInfo.child.once('exit', resolve)),
-      delay(15000).then(() => processInfo.child.kill('SIGKILL'))
-    ])
-  }
-  processInfo.log.end()
-}
-
 async function main() {
-  const args = parseArgs()
+  const args = validatedArgs()
+  prepareOracle()
+  const startedInputDigest = inputDigest()
+  if (args['built-input-digest'] && args['built-input-digest'] !== startedInputDigest) throw new Error('source inputs no longer match the freshly built binary; rerun parity')
   const fixturePath = path.resolve(args.fixture)
   const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'))
   const nodeConfig = path.join(fixture.directories.node, 'config')
@@ -88,10 +49,11 @@ async function main() {
     const nodeUrl = `http://127.0.0.1:${nodePort}`
     const goUrl = `http://127.0.0.1:${goPort}`
     await Promise.all([
-      waitReady(nodeProcess, nodeUrl, path.join(runDir, 'reference-server.log')),
-      waitReady(goProcess, goUrl, path.join(runDir, 'go-server.log'))
+      waitReady(nodeProcess, nodeUrl, { pathPrefix: PREFIX, logPath: path.join(runDir, 'reference-server.log') }),
+      waitReady(goProcess, goUrl, { pathPrefix: PREFIX, logPath: path.join(runDir, 'go-server.log') })
     ])
     const output = path.resolve(args.out || path.join(runDir, 'parity-report.json'))
+    fs.rmSync(output, { force: true })
     const run = spawnSync(process.execPath, [
       path.join(__dirname, 'differential.cjs'), '--node-url', nodeUrl, '--go-url', goUrl,
       '--fixture', fixturePath, '--out', output,
@@ -100,6 +62,12 @@ async function main() {
     process.stdout.write(run.stdout)
     process.stderr.write(run.stderr)
     if (run.error) throw run.error
+    if (fs.existsSync(output)) {
+      const report = JSON.parse(fs.readFileSync(output, 'utf8'))
+      report.verification = { inputDigest: startedInputDigest, completedInputDigest: inputDigest() }
+      fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
+      if (report.verification.inputDigest !== report.verification.completedInputDigest) throw new Error('executable inputs changed during parity; rerun on stable source')
+    }
     if (run.status !== 0) process.exitCode = run.status ?? 1
   } finally {
     await Promise.all([stop(nodeProcess), stop(goProcess)])

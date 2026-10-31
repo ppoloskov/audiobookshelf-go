@@ -3,74 +3,39 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
-const net = require('node:net')
 const crypto = require('node:crypto')
 const { spawn } = require('node:child_process')
 const { setTimeout: delay } = require('node:timers/promises')
+const { parseArgs } = require('./lib/args.cjs')
+const { freePort, waitReady, stop } = require('./lib/process.cjs')
+const { requestJSON } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const PREFIX = '/audiobookshelf'
 
-function parseArgs() {
-  const out = {}
-  for (let i = 2; i < process.argv.length; i++) {
-    if (process.argv[i].startsWith('--')) out[process.argv[i].slice(2)] = process.argv[++i]
-  }
+function validatedArgs() {
+  const out = parseArgs()
   for (const key of ['fixture', 'archive', 'out']) if (!out[key]) throw new Error(`missing --${key}`)
   out.implementation = out.implementation || 'node'
   if (out.implementation === 'go' && !out['go-bin']) throw new Error('--go-bin is required for --implementation go')
   return out
 }
 
-async function freePort() {
-  const server = net.createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-  return port
-}
-
 async function api(url, route, { method = 'GET', token, body } = {}) {
-  const response = await fetch(`${url}${PREFIX}${route}`, {
-    method,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(method === 'POST' && route === '/login' ? { 'X-Return-Tokens': 'true' } : {}),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' })
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(30000)
+  const response = await requestJSON(url, route, {
+    pathPrefix: PREFIX, method, token, body, timeoutMs: 30000,
+    headers: method === 'POST' && route === '/login' ? { 'X-Return-Tokens': 'true' } : {},
+    throwOnError: false
   })
-  const bytes = Buffer.from(await response.arrayBuffer())
-  let parsed
-  try { parsed = JSON.parse(bytes.toString('utf8')) } catch { parsed = bytes.toString('utf8') }
-  if (!response.ok) throw new Error(`${method} ${route} returned ${response.status}: ${JSON.stringify(parsed)}`)
-  return { status: response.status, body: parsed }
+  if (!response.ok) throw new Error(`${method} ${route} returned ${response.status}: ${JSON.stringify(response.value)}`)
+  return { status: response.status, body: response.value }
 }
 
-async function waitReady(child, url, logPath) {
-  for (let i = 0; i < 120; i++) {
-    if (child.exitCode !== null) throw new Error(`Node server exited before readiness; inspect ${logPath}`)
-    try { if ((await fetch(`${url}${PREFIX}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`Node server did not become ready at ${url}; inspect ${logPath}`)
-}
-
-async function stop(child, log, logPath) {
-  if (!child) return
-  if (child.exitCode === null) {
-    child.kill('SIGINT')
-    await Promise.race([
-      new Promise(resolve => child.once('exit', resolve)),
-      delay(15000).then(() => child.kill('SIGKILL'))
-    ])
-  }
-  log.end()
-}
+const waitNodeReady = (child, url, logPath) => waitReady(child, url, { pathPrefix: PREFIX, logPath, timeoutMessage: `Node server did not become ready at ${url}; inspect ${logPath}` })
 
 async function main() {
-  const args = parseArgs()
+  const args = validatedArgs()
   const fixturePath = path.resolve(args.fixture)
   const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'))
   const runDir = path.dirname(fixturePath)
@@ -78,7 +43,10 @@ async function main() {
   const config = path.join(nodeDir, 'config')
   const metadata = path.join(nodeDir, 'metadata')
   fs.rmSync(nodeDir, { recursive: true, force: true })
-  fs.cpSync(args.implementation === 'go' ? fixture.directories.go : fixture.directories.node, nodeDir, { recursive: true })
+  // The imported archive was authored from the Node fixture. Start both
+  // targets from that same copy so strict before/after API equality compares
+  // identical media paths and filesystem inode values across the restore.
+  fs.cpSync(fixture.directories.node, nodeDir, { recursive: true })
   fs.mkdirSync(path.join(metadata, 'backups'), { recursive: true })
 
   const port = await freePort()
@@ -99,12 +67,16 @@ async function main() {
 
   let result
   try {
-    await waitReady(child, url, logPath)
+    await waitNodeReady(child, url, logPath)
     const login = await api(url, '/login', { method: 'POST', body: fixture.rootCredentials })
     const token = login.body?.user?.accessToken
     if (!token) throw new Error('Node login did not return an access token')
     const beforeLibraries = await api(url, '/api/libraries', { token })
     const beforeItem = await api(url, `/api/items/${fixture.items.book}`, { token })
+    const itemMetadata = path.join(metadata, 'items', fixture.items.book, 'metadata.json')
+    const authorId = beforeItem.body.media?.metadata?.authors?.[0]?.id
+    const authorMetadata = authorId ? path.join(metadata, 'authors', `${authorId}.png`) : null
+    if (!authorMetadata) throw new Error('book detail did not identify its author metadata asset')
     // Upstream BackupController.upload delegates malformed archives to
     // BackupManager.uploadBackup; retain the observed status/body without
     // treating the expected rejection as a harness failure.
@@ -117,6 +89,20 @@ async function main() {
     const malformedText = await malformedResponse.text()
     let malformedBody
     try { malformedBody = JSON.parse(malformedText) } catch { malformedBody = malformedText }
+    const changedTitle = `${beforeItem.body.media.metadata.title} before restore`
+    await api(url, `/api/items/${fixture.items.book}/media`, {
+      method: 'PATCH', token, body: { metadata: { title: changedTitle } }
+    })
+    const changedItem = await api(url, `/api/items/${fixture.items.book}`, { token })
+    if (changedItem.body.media?.metadata?.title !== changedTitle) {
+      throw new Error('pre-restore item title change was not visible')
+    }
+    fs.rmSync(itemMetadata, { force: true })
+    fs.rmSync(authorMetadata, { force: true })
+    const targetMetadataRemovedBeforeApply = !fs.existsSync(itemMetadata) && !fs.existsSync(authorMetadata)
+    if (!targetMetadataRemovedBeforeApply) {
+      throw new Error('could not remove target metadata files before restore')
+    }
     const fileBytes = fs.readFileSync(path.resolve(args.archive))
     const form = new FormData()
     form.append('file', new Blob([fileBytes], { type: 'application/zip' }), path.basename(args.archive))
@@ -135,9 +121,6 @@ async function main() {
     if (!restoredToken) throw new Error('Node relogin after backup apply failed')
     const afterLibraries = await api(url, '/api/libraries', { token: restoredToken })
     const afterItem = await api(url, `/api/items/${fixture.items.book}`, { token: restoredToken })
-    const itemMetadata = path.join(metadata, 'items', fixture.items.book, 'metadata.json')
-    const authorId = beforeItem.body.media?.metadata?.authors?.[0]?.id
-    const authorMetadata = authorId ? path.join(metadata, 'authors', `${authorId}.png`) : null
     const itemMetadataExists = fs.existsSync(itemMetadata)
     const authorMetadataExists = !!authorMetadata && fs.existsSync(authorMetadata)
     const bodyHash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -151,6 +134,8 @@ async function main() {
         malformedUploadRejected: !malformedResponse.ok,
         uploadAccepted: uploadResponse.ok,
         applyReturned200: true,
+        preRestoreMutationApplied: changedItem.body.media?.metadata?.title === changedTitle,
+        targetMetadataRemovedBeforeApply,
         librariesUnchanged: sameLibraries,
         itemDetailUnchanged: sameItem,
         itemMetadataRestored: itemMetadataExists,
@@ -159,11 +144,11 @@ async function main() {
       malformedUpload: { status: malformedResponse.status, body: malformedBody },
       apiDigests: { librariesBefore: bodyHash(beforeLibraries.body), librariesAfter: bodyHash(afterLibraries.body), itemBefore: bodyHash(beforeItem.body), itemAfter: bodyHash(afterItem.body) }
     }
-    fs.writeFileSync(path.resolve(args.out), `${JSON.stringify(result, null, 2)}\n`)
+    writeJSON(path.resolve(args.out), result)
     console.log(JSON.stringify({ out: path.resolve(args.out), checks: result.checks }, null, 2))
     if (Object.values(result.checks).some(value => value !== true)) process.exitCode = 1
   } finally {
-    await stop(child, log, logPath)
+    await stop({ child, log })
   }
 }
 

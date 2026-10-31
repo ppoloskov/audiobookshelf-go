@@ -1,0 +1,986 @@
+{
+  "schemaVersion": 1,
+  "suite": "core",
+  "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "generatedAt": "2026-10-31T03:32:35.561Z",
+  "sourceReport": "/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/abs-parity-j01VVF/core-fixture/core-report.json",
+  "inputDigest": "d51a341be46308889ee1e6302a2021037d6edee015fc801c5f3734511f1feb44",
+  "summary": {
+    "total": 193,
+    "executed": 193,
+    "passed": 193,
+    "failed": 0,
+    "skipped": 0
+  },
+  "executionError": null,
+  "failedStateChecks": [],
+  "equivalencePassed": true,
+  "gateError": null,
+  "cases": [
+    {
+      "id": "login",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "refresh",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "reader-login",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-login",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "refresh-rotation",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "refresh-rotation-grace-replay",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "refresh-concurrent-grace",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-logout-session-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-cookie-regeneration",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-logout",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-logout-refresh-revoked",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "local-session-relogin",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "inactive-user-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "inactive-user-login-denied",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "authorize",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "libraries",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "libraries-restricted-user",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-library-items",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-library-items-minified",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-item-detail",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "progress-write",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "progress-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "direct-file-range",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "direct-file-head-range",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "direct-file-invalid-range",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "direct-file-head-invalid-range",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-download",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-range",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-missing-file",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-missing-item",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "bookmark-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "bookmark-read-after-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "bookmark-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "bookmark-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "bookmark-read-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "libraries-unauthorized",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-detail-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-detail-invalid-id",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-items-invalid-pagination",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "progress-write-invalid",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-create-forbidden",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-delete-forbidden",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-settings-reader-admin-gate",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-reader-admin-gate",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-missing-id-unconfigured",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-admin-denied",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-unconfigured",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-fail-unconfigured",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-admin-denied",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "session-delete-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "backup-missing-download",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-empty-name",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-settings-read-defaults-initial",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-settings-patch-coercion",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-settings-read-after-coercion",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-settings-read-defaults-initial",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-settings-patch-custom",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-settings-read-after-custom",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-settings-patch-defaults",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-settings-read-after-defaults",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notifications-clear-apprise-url",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-existing-id-unconfigured",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-apprise-fixture-configure-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-send-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-apprise-payload",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-test-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-no-state-change-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-apprise-fixture-configure-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-send-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-test-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-test-no-state-change-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-create-empty-urls",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-create-minimal",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-update-without-body-id",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-apprise-global-configure-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-send-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-broadcast-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-delivery-payloads",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-event-test-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-state-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-repeat-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-repeat-payloads",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-event-test-repeat",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-state-repeat",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-set-failure-threshold",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-intentional-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-broadcast-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-no-delivery-on-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-event-test-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-event-test-state-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-read-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-update-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "notification-delete-missing",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-empty-items",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "series-list-paginated",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "session-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "session-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "session-list-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-list-after-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-list-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-auth-library-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-denied-download",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-denied",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-denied-missing-file",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "api-key-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "user-list-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-from-collection-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-from-collection-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-from-collection-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-batch-remove",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-batch-add",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "collection-list-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-create",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-read",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-list",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-batch-add",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-batch-remove",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playlist-list-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-patch-invalid-image",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-patch-large-invalid-path",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-upload",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-upload-unsupported-gif",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-upload-multipart-url-precedence",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-url-unsupported-image-format",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-url-ssrf-blocked",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-url-upload",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-url-redirect-307",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-raw",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-default",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-jpeg-size",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-png-size",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-webp-size",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-ts-header",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-raw-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-jpeg-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-cache-png-after-delete",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "playback-session",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "hls-playlist",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "session-close",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-configure-smtp",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-smtp-message",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-configure-rejected-smtp",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-verification-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-test-no-message-on-verification-failure",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-normalization-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-update-event",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-read-after-update",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-persisted-state",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-repeat",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-repeat-event",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-changed",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-changed-event",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "email-devices-changed-persisted-state",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "socket-connect-prefixed",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "socket-connect-legacy",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "socket-event-user-updated",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "library-scan-rerun",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-detail-after-library-scan",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-item-scan-rerun",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "book-list-after-library-scan",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-patch-success",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "cover-patch-repeat",
+      "passed": true,
+      "skipped": false
+    },
+    {
+      "id": "item-file-download-disk-missing",
+      "passed": true,
+      "skipped": false
+    }
+  ]
+}

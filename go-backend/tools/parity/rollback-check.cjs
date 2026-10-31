@@ -12,6 +12,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const crypto = require('node:crypto')
 const { spawn } = require('node:child_process')
+const { freePort } = require('./lib/process.cjs')
+const { createRequester } = require('./lib/http.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
@@ -52,29 +54,7 @@ async function stopServer(server) {
   server.log.end()
 }
 
-async function request(baseUrl, route, { method = 'GET', token, headers = {}, body } = {}) {
-  const response = await fetch(`${baseUrl}${BASE}${route}`, {
-    method,
-    headers: {
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers
-    },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  })
-  const bytes = Buffer.from(await response.arrayBuffer())
-  let value = null
-  try { value = JSON.parse(bytes.toString('utf8')) } catch { value = bytes.toString('utf8') || null }
-  return { status: response.status, value }
-}
-
-async function freePort() {
-  const server = require('node:net').createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (error) => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve) => server.close(resolve))
-  return port
-}
+const request = createRequester({ pathPrefix: BASE })
 
 async function main() {
   const manifestPath = process.argv[2]

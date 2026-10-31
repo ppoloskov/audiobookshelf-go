@@ -1,0 +1,2803 @@
+[
+  {
+    "id": "playlist-from-collection-create",
+    "route": "/api/playlists/collection/{{nodeCollectionId}}",
+    "goRoute": "/api/playlists/collection/{{goCollectionId}}",
+    "options": { "method": "POST" },
+    "group": "inline",
+    "coverage": { "method": "POST", "route": "/api/playlists/collection/{collectionId}", "auth": "bearer", "category": "stateful", "status": "ready" }
+  },
+  {
+    "id": "playlist-from-collection-read",
+    "route": "/api/playlists/{{nodePlaylistId}}",
+    "goRoute": "/api/playlists/{{goPlaylistId}}",
+    "options": { "method": "GET" },
+    "group": "inline",
+    "coverage": { "method": "GET", "route": "/api/playlists/{playlistId}", "auth": "bearer", "category": "stateful", "status": "ready" }
+  },
+  {
+    "id": "playlist-from-collection-delete",
+    "route": "/api/playlists/{{nodePlaylistId}}",
+    "goRoute": "/api/playlists/{{goPlaylistId}}",
+    "options": { "method": "DELETE" },
+    "group": "inline",
+    "coverage": { "method": "DELETE", "route": "/api/playlists/{playlistId}", "auth": "bearer", "category": "stateful", "status": "ready" }
+  },
+  {
+    "id": "authorize",
+    "route": "/api/authorize",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "POST",
+      "route": "/api/authorize",
+      "auth": "bearer",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "libraries",
+    "route": "/api/libraries",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "bearer",
+      "category": "catalog",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "libraries-restricted-user",
+    "route": "/api/libraries",
+    "auth": "reader",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "readerToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "reader-bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-library-items",
+    "route": "/api/libraries/{{bookLibraryId}}/items?limit=10&page=0&sort=media.metadata.title",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?limit=10&page=0&sort=media.metadata.title",
+      "auth": "bearer",
+      "category": "catalog",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-library-items-minified",
+    "route": "/api/libraries/{{bookLibraryId}}/items?limit=10&page=0&minified=1&sort=media.metadata.title",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?limit=10&page=0&minified=1&sort=media.metadata.title",
+      "auth": "bearer",
+      "category": "catalog",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-item-detail",
+    "route": "/api/items/{{bookItemId}}",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}",
+      "auth": "bearer",
+      "category": "catalog",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "direct-file-range",
+    "route": "/api/items/{{bookItemId}}/file/{{audioFileId}}",
+    "goRoute": "/api/items/{{bookItemId}}/file/{{audioFileIdGo}}",
+    "group": "direct-files",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      },
+      "headers": {
+        "Range": "bytes=0-127"
+      },
+      "collectHeaders": [
+        "content-length",
+        "last-modified",
+        "etag"
+      ]
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "direct-file-head-range",
+    "route": "/api/items/{{bookItemId}}/file/{{audioFileId}}",
+    "goRoute": "/api/items/{{bookItemId}}/file/{{audioFileIdGo}}",
+    "group": "direct-files",
+    "options": {
+      "method": "HEAD",
+      "token": {
+        "$ref": "rootToken"
+      },
+      "headers": {
+        "Range": "bytes=0-127"
+      },
+      "collectHeaders": [
+        "content-length",
+        "last-modified",
+        "etag"
+      ]
+    },
+    "coverage": {
+      "method": "HEAD",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "direct-file-invalid-range",
+    "route": "/api/items/{{bookItemId}}/file/{{audioFileId}}",
+    "goRoute": "/api/items/{{bookItemId}}/file/{{audioFileIdGo}}",
+    "group": "direct-files",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      },
+      "headers": {
+        "Range": "bytes=999999999-"
+      },
+      "collectHeaders": [
+        "content-length",
+        "last-modified",
+        "etag"
+      ]
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "direct-file-head-invalid-range",
+    "route": "/api/items/{{bookItemId}}/file/{{audioFileId}}",
+    "goRoute": "/api/items/{{bookItemId}}/file/{{audioFileIdGo}}",
+    "group": "direct-files",
+    "options": {
+      "method": "HEAD",
+      "token": {
+        "$ref": "rootToken"
+      },
+      "headers": {
+        "Range": "bytes=999999999-"
+      },
+      "collectHeaders": [
+        "content-length",
+        "last-modified",
+        "etag"
+      ]
+    },
+    "coverage": {
+      "method": "HEAD",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "progress-write",
+    "route": "/api/me/progress/{{bookItemId}}",
+    "auth": "root",
+    "body": {
+      "duration": 2,
+      "currentTime": 1.5,
+      "progress": 0.75,
+      "isFinished": false
+    },
+    "notes": [
+      "This case mutates only independent fixture copies; rerun fixture creation before another clean run."
+    ],
+    "group": "common",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/me/progress/{bookItemId}",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "progress-read",
+    "route": "/api/me/progress/{{bookItemId}}",
+    "auth": "root",
+    "group": "common",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/progress/{bookItemId}",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "bookmark-create",
+    "route": "/api/me/item/{{bookItemId}}/bookmark",
+    "auth": "root",
+    "body": {
+      "time": 1.25,
+      "title": "Parity bookmark"
+    },
+    "group": "bookmarks",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "POST",
+      "route": "/api/me/item/{bookItemId}/bookmark",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "bookmark-read-after-create",
+    "route": "/api/me/bookmarks/{{bookItemId}}",
+    "auth": "root",
+    "group": "bookmarks",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/bookmarks/{bookItemId}",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "bookmark-update",
+    "route": "/api/me/item/{{bookItemId}}/bookmark",
+    "auth": "root",
+    "body": {
+      "time": 1.25,
+      "title": "Updated parity bookmark"
+    },
+    "group": "bookmarks",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/me/item/{bookItemId}/bookmark",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "bookmark-delete",
+    "route": "/api/me/item/{{bookItemId}}/bookmark/1.25",
+    "auth": "root",
+    "group": "bookmarks",
+    "options": {
+      "method": "DELETE",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/me/item/{bookItemId}/bookmark/{time}",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "bookmark-read-after-delete",
+    "route": "/api/me/bookmarks/{{bookItemId}}",
+    "auth": "root",
+    "group": "bookmarks",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/bookmarks/{bookItemId}",
+      "auth": "bearer",
+      "category": "progress",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "libraries-unauthorized",
+    "route": "/api/libraries",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "none",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-detail-missing",
+    "route": "/api/items/00000000-0000-0000-0000-000000000000",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/00000000-0000-0000-0000-000000000000",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-detail-invalid-id",
+    "route": "/api/items/not-a-uuid",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/not-a-uuid",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-items-invalid-pagination",
+    "route": "/api/libraries/{{bookLibraryId}}/items?page=-1",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?page=-1",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "progress-write-invalid",
+    "route": "/api/me/progress/{{bookItemId}}",
+    "auth": "root",
+    "body": {
+      "currentTime": "abc"
+    },
+    "group": "errors",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/me/progress/{bookItemId}",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-missing",
+    "route": "/api/collections/00000000-0000-0000-0000-000000000000",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/collections/00000000-0000-0000-0000-000000000000",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-missing",
+    "route": "/api/playlists/00000000-0000-0000-0000-000000000000",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/playlists/00000000-0000-0000-0000-000000000000",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-create-forbidden",
+    "route": "/api/users",
+    "auth": "reader",
+    "body": {
+      "username": "forbidden-user",
+      "password": "forbidden-password",
+      "type": "user"
+    },
+    "group": "errors",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "readerToken"
+      }
+    },
+    "coverage": {
+      "method": "POST",
+      "route": "/api/users",
+      "auth": "reader-bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-delete-forbidden",
+    "route": "/api/users/00000000-0000-0000-0000-000000000000",
+    "auth": "reader",
+    "group": "errors",
+    "options": {
+      "method": "DELETE",
+      "token": {
+        "$ref": "readerToken"
+      }
+    },
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/users/00000000-0000-0000-0000-000000000000",
+      "auth": "reader-bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "email-settings-reader-admin-gate",
+    "route": "/api/emails/settings",
+    "auth": "reader",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "readerToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/emails/settings",
+      "auth": "reader-bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "notifications-reader-admin-gate",
+    "route": "/api/notifications",
+    "auth": "reader",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "readerToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/notifications",
+      "auth": "reader-bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "notification-test-missing-id-unconfigured",
+    "route": "/api/notifications/00000000-0000-4000-8000-000000000000/test",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    }
+  },
+  {
+    "id": "notification-test-admin-denied",
+    "route": "/api/notifications/00000000-0000-4000-8000-000000000000/test",
+    "auth": "reader",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "readerToken"
+      }
+    }
+  },
+  {
+    "id": "notification-event-test-unconfigured",
+    "route": "/api/notifications/test",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    }
+  },
+  {
+    "id": "notification-event-test-fail-unconfigured",
+    "route": "/api/notifications/test?fail=1",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    }
+  },
+  {
+    "id": "notification-event-test-admin-denied",
+    "route": "/api/notifications/test",
+    "auth": "reader",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "readerToken"
+      }
+    }
+  },
+  {
+    "id": "session-delete-missing",
+    "route": "/api/me/sessions/00000000-0000-0000-0000-000000000000",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "DELETE",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/me/sessions/00000000-0000-0000-0000-000000000000",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "backup-missing-download",
+    "route": "/api/backups/00000000-0000-0000-0000-000000000000/download",
+    "auth": "root",
+    "group": "errors",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "GET",
+      "route": "/api/backups/00000000-0000-0000-0000-000000000000/download",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-empty-name",
+    "route": "/api/collections",
+    "auth": "root",
+    "body": {
+      "name": "",
+      "libraryId": "{{bookLibraryId}}",
+      "books": []
+    },
+    "group": "errors",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "rootToken"
+      }
+    },
+    "coverage": {
+      "method": "POST",
+      "route": "/api/collections",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "email-settings-read-defaults-initial",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "email-settings-patch-coercion",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "host": "smtp.example.invalid",
+        "port": "587",
+        "secure": "false"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "email-settings-read-after-coercion",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-settings-read-defaults-initial",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-settings-patch-custom",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "appriseApiUrl": "http://apprise.example.invalid",
+        "maxFailedAttempts": 3,
+        "maxNotificationQueue": 8
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-settings-read-after-custom",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-settings-patch-defaults",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {}
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-settings-read-after-defaults",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notifications-clear-apprise-url",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "appriseApiUrl": null
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-create",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "$ref": "notificationCreateBody"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-test-existing-id-unconfigured",
+    "route": "/api/notifications/{{nodeNotificationID}}/test",
+    "goRoute": "/api/notifications/{{goNotificationID}}/test",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-apprise-fixture-configure-success",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "appriseApiUrl": "{{apprise.url}}/node/success"
+      },
+      "goBody": {
+        "appriseApiUrl": "{{apprise.url}}/go/success"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-test-send-success",
+    "route": "/api/notifications/{{nodeNotificationID}}/test",
+    "goRoute": "/api/notifications/{{goNotificationID}}/test",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-test-success",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-apprise-fixture-configure-failure",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "appriseApiUrl": "{{apprise.url}}/node/failure"
+      },
+      "goBody": {
+        "appriseApiUrl": "{{apprise.url}}/go/failure"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-test-send-failure",
+    "route": "/api/notifications/{{nodeNotificationID}}/test",
+    "goRoute": "/api/notifications/{{goNotificationID}}/test",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-test-failure",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-create-empty-urls",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "eventName": "onTest",
+        "urls": [],
+        "titleTemplate": "Ignored",
+        "bodyTemplate": "Ignored"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-create-minimal",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "eventName": "onTest",
+        "urls": [
+          "discord://minimal"
+        ],
+        "enabled": "false",
+        "libraryId": "",
+        "type": ""
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-create",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-update-without-body-id",
+    "route": "/api/notifications/{{nodeNotificationID}}",
+    "goRoute": "/api/notifications/{{goNotificationID}}",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "titleTemplate": "Must remain unchanged"
+      },
+      "goBody": {
+        "titleTemplate": "Must remain unchanged"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-update",
+    "route": "/api/notifications/{{nodeNotificationID}}",
+    "goRoute": "/api/notifications/{{goNotificationID}}",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "id": {
+          "$ref": "nodeNotificationID"
+        },
+        "enabled": true,
+        "titleTemplate": "Updated parity notification",
+        "urls": [
+          "discord://parity-updated"
+        ]
+      },
+      "goBody": {
+        "id": {
+          "$ref": "goNotificationID"
+        },
+        "enabled": true,
+        "titleTemplate": "Updated parity notification",
+        "urls": [
+          "discord://parity-updated"
+        ]
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-update",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-apprise-global-configure-success",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "appriseApiUrl": "{{globalApprise.url}}/node/success"
+      },
+      "goBody": {
+        "appriseApiUrl": "{{globalApprise.url}}/go/success"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-event-test-send-success",
+    "route": "/api/notifications/test",
+    "goRoute": "/api/notifications/test",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-event-test-success",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-event-test-repeat-success",
+    "route": "/api/notifications/test",
+    "goRoute": "/api/notifications/test",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-event-test-repeat",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-event-test-set-failure-threshold",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "nodeBody": {
+        "maxFailedAttempts": 1,
+        "appriseApiUrl": "{{globalApprise.url}}/node/success"
+      },
+      "goBody": {
+        "maxFailedAttempts": 1,
+        "appriseApiUrl": "{{globalApprise.url}}/go/success"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-event-test-intentional-failure",
+    "route": "/api/notifications/test?fail=1",
+    "goRoute": "/api/notifications/test?fail=1",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-event-test-failure",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-delete",
+    "route": "/api/notifications/{{nodeNotificationID}}",
+    "goRoute": "/api/notifications/{{goNotificationID}}",
+    "options": {
+      "method": "DELETE",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-read-after-delete",
+    "route": "/api/notifications",
+    "goRoute": "/api/notifications",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-update-missing",
+    "route": "/api/notifications/00000000-0000-4000-8000-000000000000",
+    "goRoute": "/api/notifications/00000000-0000-4000-8000-000000000000",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000000",
+        "enabled": true
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "notification-delete-missing",
+    "route": "/api/notifications/00000000-0000-4000-8000-000000000000",
+    "goRoute": "/api/notifications/00000000-0000-4000-8000-000000000000",
+    "options": {
+      "method": "DELETE",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "playlist-empty-items",
+    "route": "/api/playlists",
+    "goRoute": "/api/playlists",
+    "options": {
+      "method": "POST",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "libraryId": {
+          "$ref": "bookLibraryId"
+        },
+        "name": "Empty parity playlist",
+        "items": []
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/playlists",
+      "auth": "bearer",
+      "category": "edge-cases",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "series-list-paginated",
+    "route": "/api/libraries/{{bookLibraryId}}/series?sort=name&desc=0&limit=2&page=1",
+    "goRoute": "/api/libraries/{{bookLibraryId}}/series?sort=name&desc=0&limit=2&page=1",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/series?sort=name&desc=0&limit=2&page=1",
+      "auth": "bearer",
+      "category": "catalog",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-read",
+    "route": "/api/libraries/{{nodeLibraryId}}",
+    "goRoute": "/api/libraries/{{goLibraryId}}",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{libraryId}",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-update",
+    "route": "/api/libraries/{{nodeLibraryId}}",
+    "goRoute": "/api/libraries/{{goLibraryId}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "name": "Parity CRUD Library Updated"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/libraries/{libraryId}",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-list-after-create",
+    "route": "/api/libraries",
+    "goRoute": "/api/libraries",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-delete",
+    "route": "/api/libraries/{{nodeLibraryId}}",
+    "goRoute": "/api/libraries/{{goLibraryId}}",
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/libraries/{libraryId}",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-list-after-delete",
+    "route": "/api/libraries",
+    "goRoute": "/api/libraries",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-create",
+    "route": "/api/users",
+    "goRoute": "/api/users",
+    "options": {
+      "method": "POST",
+      "body": {
+        "$ref": "userPayload"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/users",
+      "auth": "bearer",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-read",
+    "route": "/api/users/{{nodeUserId}}",
+    "goRoute": "/api/users/{{goUserId}}",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/users/{userId}",
+      "auth": "bearer",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-update",
+    "route": "/api/users/{{nodeUserId}}",
+    "goRoute": "/api/users/{{goUserId}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "permissions": {
+          "canUpdate": true,
+          "canDelete": false,
+          "canDownload": false
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/users/{userId}",
+      "auth": "bearer",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-list",
+    "route": "/api/users",
+    "goRoute": "/api/users",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/users",
+      "auth": "bearer",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-list",
+    "route": "/api/api-keys",
+    "goRoute": "/api/api-keys",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/api-keys",
+      "auth": "bearer",
+      "category": "api-keys",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-auth-library-read",
+    "route": "/api/libraries",
+    "goRoute": "/api/libraries",
+    "options": {
+      "method": "GET",
+      "nodeToken": {
+        "$ref": "nodeKey.apiKey"
+      },
+      "goToken": {
+        "$ref": "goKey.apiKey"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries",
+      "auth": "api-key",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-denied-download",
+    "route": "/api/items/{{bookItemId}}/download",
+    "goRoute": "/api/items/{{bookItemId}}/download",
+    "options": {
+      "method": "GET",
+      "nodeToken": {
+        "$ref": "nodeKey.apiKey"
+      },
+      "goToken": {
+        "$ref": "goKey.apiKey"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/download",
+      "auth": "api-key-without-download-permission",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-denied",
+    "route": {
+      "$ref": "fileDownloadRoutes.node"
+    },
+    "goRoute": {
+      "$ref": "fileDownloadRoutes.go"
+    },
+    "options": {
+      "method": "GET",
+      "nodeToken": {
+        "$ref": "nodeKey.apiKey"
+      },
+      "goToken": {
+        "$ref": "goKey.apiKey"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}/download",
+      "auth": "api-key-without-download-permission",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-denied-missing-file",
+    "route": {
+      "$ref": "missingNodeFileRoute"
+    },
+    "goRoute": {
+      "$ref": "missingGoFileRoute"
+    },
+    "options": {
+      "method": "GET",
+      "nodeToken": {
+        "$ref": "nodeKey.apiKey"
+      },
+      "goToken": {
+        "$ref": "goKey.apiKey"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{missingFileId}/download",
+      "auth": "api-key-without-download-permission",
+      "category": "permissions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-update",
+    "route": "/api/api-keys/{{nodeApiKeyId}}",
+    "goRoute": "/api/api-keys/{{goApiKeyId}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "isActive": false
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/api-keys/{apiKeyId}",
+      "auth": "bearer",
+      "category": "api-keys",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-delete",
+    "route": "/api/api-keys/{{nodeApiKeyId}}",
+    "goRoute": "/api/api-keys/{{goApiKeyId}}",
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/api-keys/{apiKeyId}",
+      "auth": "bearer",
+      "category": "api-keys",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-delete",
+    "route": "/api/users/{{nodeUserId}}",
+    "goRoute": "/api/users/{{goUserId}}",
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/users/{userId}",
+      "auth": "bearer",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "user-list-after-delete",
+    "route": "/api/users",
+    "goRoute": "/api/users",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/users",
+      "auth": "bearer",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-create",
+    "route": "/api/collections",
+    "goRoute": "/api/collections",
+    "options": {
+      "method": "POST",
+      "body": {
+        "libraryId": {
+          "$ref": "bookLibraryId"
+        },
+        "name": "Parity Collection",
+        "description": "Source parity",
+        "books": [
+          {
+            "$ref": "bookItemId"
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/collections",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-read",
+    "route": "/api/collections/{{nodeCollectionId}}?include=books",
+    "goRoute": "/api/collections/{{goCollectionId}}?include=books",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/collections/{collectionId}?include=books",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-update",
+    "route": "/api/collections/{{nodeCollectionId}}",
+    "goRoute": "/api/collections/{{goCollectionId}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "name": "Parity Collection Updated",
+        "description": "Updated source parity"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/collections/{collectionId}",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-list",
+    "route": "/api/collections",
+    "goRoute": "/api/collections",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/collections",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-batch-remove",
+    "route": "/api/collections/{{nodeCollectionId}}/batch/remove",
+    "goRoute": "/api/collections/{{goCollectionId}}/batch/remove",
+    "options": {
+      "method": "POST",
+      "body": {
+        "books": [
+          {
+            "$ref": "bookItemId"
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/collections/{collectionId}/batch/remove",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-batch-add",
+    "route": "/api/collections/{{nodeCollectionId}}/batch/add",
+    "goRoute": "/api/collections/{{goCollectionId}}/batch/add",
+    "options": {
+      "method": "POST",
+      "body": {
+        "books": [
+          {
+            "$ref": "bookItemId"
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/collections/{collectionId}/batch/add",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-delete",
+    "route": "/api/collections/{{nodeCollectionId}}",
+    "goRoute": "/api/collections/{{goCollectionId}}",
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/collections/{collectionId}",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "collection-list-after-delete",
+    "route": "/api/collections",
+    "goRoute": "/api/collections",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/collections",
+      "auth": "bearer",
+      "category": "collections",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-create",
+    "route": "/api/playlists",
+    "goRoute": "/api/playlists",
+    "options": {
+      "method": "POST",
+      "body": {
+        "libraryId": {
+          "$ref": "bookLibraryId"
+        },
+        "name": "Parity Playlist",
+        "description": "Source parity",
+        "items": [
+          {
+            "libraryItemId": {
+              "$ref": "bookItemId"
+            }
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/playlists",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-read",
+    "route": "/api/playlists/{{nodePlaylistId}}",
+    "goRoute": "/api/playlists/{{goPlaylistId}}",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/playlists/{playlistId}",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-update",
+    "route": "/api/playlists/{{nodePlaylistId}}",
+    "goRoute": "/api/playlists/{{goPlaylistId}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "name": "Parity Playlist Updated",
+        "description": "Updated source parity"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/playlists/{playlistId}",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-list",
+    "route": "/api/playlists",
+    "goRoute": "/api/playlists",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/playlists",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-batch-add",
+    "route": "/api/playlists/{{nodePlaylistId}}/batch/add",
+    "goRoute": "/api/playlists/{{goPlaylistId}}/batch/add",
+    "options": {
+      "method": "POST",
+      "body": {
+        "items": [
+          {
+            "libraryItemId": {
+              "$ref": "bookItemId"
+            }
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/playlists/{playlistId}/batch/add",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-batch-remove",
+    "route": "/api/playlists/{{nodePlaylistId}}/batch/remove",
+    "goRoute": "/api/playlists/{{goPlaylistId}}/batch/remove",
+    "options": {
+      "method": "POST",
+      "body": {
+        "items": [
+          {
+            "libraryItemId": {
+              "$ref": "bookItemId"
+            }
+          }
+        ]
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/playlists/{playlistId}/batch/remove",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-delete",
+    "route": "/api/playlists/{{nodePlaylistId}}",
+    "goRoute": "/api/playlists/{{goPlaylistId}}",
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/playlists/{playlistId}",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playlist-list-after-delete",
+    "route": "/api/playlists",
+    "goRoute": "/api/playlists",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/playlists",
+      "auth": "bearer",
+      "category": "playlists",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-patch-invalid-image",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "PATCH",
+      "nodeBody": {
+        "cover": {
+          "$ref": "nodeAudioPath"
+        }
+      },
+      "goBody": {
+        "cover": {
+          "$ref": "goAudioPath"
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-upload",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "POST",
+      "file": {
+        "field": "cover",
+        "path": {
+          "$ref": "fixture.coverAsset"
+        },
+        "type": "image/png",
+        "name": "cover-fixture.png"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-multipart",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-upload-unsupported-gif",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "POST",
+      "file": {
+        "field": "cover",
+        "path": {
+          "$ref": "fixture.coverAsset"
+        },
+        "type": "image/gif",
+        "name": "cover-fixture.gif"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-multipart",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-url-ssrf-blocked",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "POST",
+      "body": {
+        "url": "http://10.255.255.1/cover.png"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-url-upload",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "POST",
+      "body": {
+        "url": {
+          "$ref": "coverSource.url"
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-delete",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "DELETE"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-raw-after-delete",
+    "route": "{{coverRoute}}?raw=1",
+    "goRoute": "{{coverRoute}}?raw=1",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?raw=1",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-after-delete",
+    "route": {
+      "$ref": "coverRoute"
+    },
+    "goRoute": {
+      "$ref": "coverRoute"
+    },
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-jpeg-after-delete",
+    "route": "{{coverRoute}}?width=16&height=16&format=jpeg",
+    "goRoute": "{{coverRoute}}?width=16&height=16&format=jpeg",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?width=16&height=16&format=jpeg",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-png-after-delete",
+    "route": "{{coverRoute}}?width=16&height=16&format=png",
+    "goRoute": "{{coverRoute}}?width=16&height=16&format=png",
+    "options": {
+      "method": "GET"
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?width=16&height=16&format=png",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "email-test-configure-smtp",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "host": "127.0.0.1",
+        "port": {
+          "$ref": "smtp.port"
+        },
+        "secure": false,
+        "fromAddress": "sender@example.test",
+        "testAddress": "reader@example.test"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "email-test-configure-rejected-smtp",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "PATCH",
+      "token": {
+        "$ref": "referenceAccessToken"
+      },
+      "body": {
+        "host": "127.0.0.1",
+        "port": {
+          "$ref": "rejectedSMTP.port"
+        },
+        "secure": false,
+        "fromAddress": "sender@example.test",
+        "testAddress": "reader@example.test"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "email-devices-read-after-update",
+    "route": "/api/emails/settings",
+    "goRoute": "/api/emails/settings",
+    "options": {
+      "method": "GET",
+      "token": {
+        "$ref": "referenceAccessToken"
+      }
+    },
+    "group": "inline"
+  },
+  {
+    "id": "cover-patch-large-invalid-path",
+    "route": "{{coverRoute}}",
+    "goRoute": "{{coverRoute}}",
+    "options": {
+      "method": "PATCH",
+      "body": {
+        "cover": {
+          "$repeat": {
+            "value": "x",
+            "count": 1100000
+          }
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "edge-cases",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-upload-multipart-url-precedence",
+    "route": "{{coverRoute}}",
+    "goRoute": "{{coverRoute}}",
+    "options": {
+      "method": "POST",
+      "fields": {
+        "url": {
+          "$replace": {
+            "ref": "coverSource.url",
+            "from": "/cover.png",
+            "to": "/unsupported-format"
+          }
+        }
+      },
+      "file": {
+        "field": "cover",
+        "path": {
+          "$ref": "fixture.coverAsset"
+        },
+        "type": "image/png",
+        "name": "cover-fixture.png"
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-multipart",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-url-unsupported-image-format",
+    "route": "{{coverRoute}}",
+    "goRoute": "{{coverRoute}}",
+    "options": {
+      "method": "POST",
+      "body": {
+        "url": {
+          "$replace": {
+            "ref": "coverSource.url",
+            "from": "/cover.png",
+            "to": "/unsupported-format"
+          }
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-url-redirect-307",
+    "route": "{{coverRoute}}",
+    "goRoute": "{{coverRoute}}",
+    "options": {
+      "method": "POST",
+      "body": {
+        "url": {
+          "$replace": {
+            "ref": "coverSource.url",
+            "from": "/cover.png",
+            "to": "/redirect-307.png"
+          }
+        }
+      }
+    },
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "edge-cases",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-raw",
+    "route": "{{coverRoute}}?raw=1",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?raw=1",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-default",
+    "route": "{{coverRoute}}",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-jpeg-size",
+    "route": "{{coverRoute}}?width=16&height=16&format=jpeg",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?width=16&height=16&format=jpeg",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-png-size",
+    "route": "{{coverRoute}}?width=16&height=16&format=png",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?width=16&height=16&format=png",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-webp-size",
+    "route": "{{coverRoute}}?width=16&height=16&format=webp",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?width=16&height=16&format=webp",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-cache-ts-header",
+    "route": "{{coverRoute}}?ts=1&width=16&height=16&format=jpeg",
+    "options": {
+      "method": "GET"
+    },
+    "group": "cover-cache",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/cover?ts=1&width=16&height=16&format=jpeg",
+      "auth": "none",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "login",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/login",
+      "auth": "none",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "refresh",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "auth": "refresh-token",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "reader-login",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/login",
+      "auth": "none",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "playback-session",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/play",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "hls-playlist",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/hls/{sessionId}/output.m3u8",
+      "auth": "capability-url",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "session-close",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/session/{sessionId}/close",
+      "auth": "bearer",
+      "category": "playback",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-scan-rerun",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/libraries/{bookLibraryId}/scan",
+      "auth": "bearer",
+      "category": "scanner",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-detail-after-library-scan",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}",
+      "auth": "bearer",
+      "category": "scanner",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-item-scan-rerun",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/items/{bookItemId}/scan",
+      "auth": "bearer",
+      "category": "scanner",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "book-list-after-library-scan",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/libraries/{bookLibraryId}/items?limit=10&page=0&sort=media.metadata.title",
+      "auth": "bearer",
+      "category": "scanner",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-patch-success",
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "covers",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "cover-patch-repeat",
+    "group": "inline",
+    "coverage": {
+      "method": "PATCH",
+      "route": "/api/items/{bookItemId}/cover",
+      "auth": "bearer-json",
+      "category": "stateful",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "session-list",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/sessions",
+      "auth": "bearer-and-refresh-token",
+      "category": "sessions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "session-delete",
+    "group": "inline",
+    "coverage": {
+      "method": "DELETE",
+      "route": "/api/me/sessions/{sessionId}",
+      "auth": "bearer",
+      "category": "sessions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "session-list-after-delete",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/sessions",
+      "auth": "bearer-and-refresh-token",
+      "category": "sessions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "library-create",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/libraries",
+      "auth": "bearer",
+      "category": "library-crud",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "api-key-create",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/api-keys",
+      "auth": "bearer",
+      "category": "api-keys",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}/download",
+      "auth": "bearer",
+      "category": "normal",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-range",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}/download",
+      "auth": "bearer",
+      "category": "edge-cases",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-missing-item",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{missingItemId}/file/{missingFileId}/download",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-missing-file",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{missingFileId}/download",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "item-file-download-disk-missing",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/items/{bookItemId}/file/{audioFileId}/download",
+      "auth": "bearer",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "socket-connect-prefixed",
+    "group": "inline",
+    "coverage": {
+      "method": "SOCKET.IO",
+      "route": "/audiobookshelf/socket.io",
+      "auth": "bearer",
+      "category": "realtime",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "socket-connect-legacy",
+    "group": "inline",
+    "coverage": {
+      "method": "SOCKET.IO",
+      "route": "/socket.io",
+      "auth": "bearer",
+      "category": "realtime",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-login",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/login",
+      "auth": "none",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-logout",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/logout",
+      "auth": "bearer-and-refresh-token",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-cookie-regeneration",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/logout",
+      "auth": "actual-session-cookie",
+      "category": "stateful",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-logout-refresh-revoked",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "auth": "revoked-refresh-token",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-logout-session-list",
+    "group": "inline",
+    "coverage": {
+      "method": "GET",
+      "route": "/api/me/sessions",
+      "auth": "access-token-after-logout",
+      "category": "sessions",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "local-session-relogin",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/login",
+      "auth": "none",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "refresh-rotation",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "auth": "refresh-token",
+      "category": "authentication",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "refresh-rotation-grace-replay",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "auth": "rotated-refresh-token-in-grace",
+      "category": "stateful",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "inactive-user-create",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/api/users",
+      "auth": "bearer-admin-only",
+      "category": "users",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "inactive-user-login-denied",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/login",
+      "auth": "none",
+      "category": "errors",
+      "status": "ready"
+    }
+  },
+  {
+    "id": "refresh-concurrent-grace",
+    "group": "inline",
+    "coverage": {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "auth": "concurrent-current-refresh-token",
+      "category": "stateful",
+      "status": "ready"
+    }
+  }
+]

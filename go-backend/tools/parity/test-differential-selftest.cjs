@@ -8,6 +8,10 @@ const os = require('node:os')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 const test = require('node:test')
+const { advertisedProfile, withEncodeProbe, webpExpectedStatus } = require('./lib/ffmpeg-profile.cjs')
+const { caseInventoryError } = require('./lib/case-data.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { fullRunIsComplete } = require('./differential.cjs')
 
 const differential = path.join(__dirname, 'differential.cjs')
 const jwt = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJyb290In0.signature'
@@ -35,12 +39,12 @@ async function runPair(changeRight, cases = 'login') {
   const right = await startStub(changeRight)
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'abs-differential-selftest-'))
   const fixturePath = path.join(directory, 'fixture.json')
-  fs.writeFileSync(fixturePath, JSON.stringify({
+  writeJSON(fixturePath, {
     baseline: 'selftest', userId: 'root', rootCredentials: { username: 'root', password: 'secret' },
     readerCredentials: { username: 'reader', password: 'secret' },
     directories: { node: directory, go: directory, nodeMedia: directory, goMedia: directory },
     libraries: { book: 'library' }, items: { book: 'book', audioFile: '1' }
-  }))
+  })
   const output = path.join(directory, 'report.json')
   const child = spawn(process.execPath, [differential, '--node-url', left.url, '--go-url', right.url,
     '--fixture', fixturePath, '--out', output, '--cases', cases], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -81,6 +85,20 @@ test('different compared header fails', async () => {
   assert.equal(result.report.summary.failed, 1)
 })
 
+test('a skipped case fails the differential run', async () => {
+  const result = await runPair(({ body }) => { delete body.user.refreshToken }, 'refresh')
+  assert.notEqual(result.status, 0)
+  assert.equal(result.report.summary.skipped, 1)
+  assert.equal(result.report.cases[0].id, 'refresh')
+  assert.equal(result.report.cases[0].skipped, true)
+})
+
+test('full runs reject skipped or unexecuted cases', () => {
+  assert.equal(fullRunIsComplete({ total: 2, executed: 1, skipped: 1 }), false)
+  assert.equal(fullRunIsComplete({ total: 2, executed: 1, skipped: 0 }), false)
+  assert.equal(fullRunIsComplete({ total: 2, executed: 2, skipped: 0 }), true)
+})
+
 test('a selected case that never reaches an execution point fails with zero cases', async () => {
   const result = await runPair(() => {}, 'playback-session')
   assert.notEqual(result.status, 0)
@@ -88,9 +106,33 @@ test('a selected case that never reaches an execution point fails with zero case
   assert.equal(result.report.summary.executed, 0)
 })
 
+test('a partly omitted requested case fails even when login passed', async () => {
+  const result = await runPair(() => {}, 'login,playback-session')
+  assert.notEqual(result.status, 0)
+  assert.equal(result.report.summary.executed, 1)
+  assert.match(result.report.executionError, /missing: playback-session/)
+})
+
 test('an unknown selected case ID is rejected', async () => {
   const result = await runPair(() => {}, 'does-not-exist')
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /unknown case ID.*does-not-exist/)
   assert.equal(result.report, null)
+})
+
+test('FFmpeg capability profile requires a successful WebP encode when advertised', () => {
+  assert.deepEqual(advertisedProfile(' V....D libwebp'), { libwebpAdvertised: true })
+  assert.deepEqual(advertisedProfile(' V..... png'), { libwebpAdvertised: false })
+  assert.throws(() => withEncodeProbe({ libwebpAdvertised: true }, false), /synthetic encode probe failed/)
+  const incapable = withEncodeProbe({ libwebpAdvertised: false }, false)
+  const capable = withEncodeProbe({ libwebpAdvertised: true }, true)
+  assert.deepEqual(incapable, { libwebpAdvertised: false, webpEncodeProbe: false, webp: false })
+  assert.deepEqual(capable, { libwebpAdvertised: true, webpEncodeProbe: true, webp: true })
+  assert.equal(webpExpectedStatus(incapable), 500)
+  assert.equal(webpExpectedStatus(capable), 200)
+})
+
+test('case inventory rejects duplicate and missing executions', () => {
+  assert.match(caseInventoryError(['login', 'playback-session'], [{ id: 'login' }, { id: 'login' }]), /missing: playback-session; duplicate: login/)
+  assert.equal(caseInventoryError(['login'], [{ id: 'login' }]), null)
 })

@@ -11,19 +11,13 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
+const { freePort } = require('./lib/process.cjs')
+const { login: loginRequest } = require('./lib/http.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
 
 const GO_BIN = process.env.GO_BIN || path.join(ROOT, 'go-backend', 'audiobookshelf-go')
-
-async function freePort() {
-  const server = require('node:net').createServer()
-  await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', (error) => error ? reject(error) : resolve()))
-  const port = server.address().port
-  await new Promise((resolve) => server.close(resolve))
-  return port
-}
 
 function startGo(config, metadata, port, logPath) {
   const log = fs.createWriteStream(logPath)
@@ -109,17 +103,12 @@ async function main() {
     results.unknownPath404 = unknown.status === 404
 
     // 5. Login through the served client path (the client's auth flow origin).
-    const login = await fetch(`${server.baseUrl}${BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(manifest.rootCredentials)
-    })
-    const loginBody = await login.json()
-    results.login = login.status === 200 && Boolean(loginBody?.user?.accessToken)
+    const login = await loginRequest(server.baseUrl, manifest.rootCredentials, { pathPrefix: BASE, returnTokensHeader: false, tokenRequired: false })
+    results.login = login.status === 200 && Boolean(login.value?.user?.accessToken)
 
     // 6. Client boot API: libraries list with the login token.
     const list = await fetch(`${server.baseUrl}${BASE}/api/libraries`, {
-      headers: { Authorization: `Bearer ${loginBody.user.accessToken}` }
+      headers: { Authorization: `Bearer ${login.value.user.accessToken}` }
     })
     const listBody = await list.json()
     results.bootApi = list.status === 200 && Array.isArray(listBody?.libraries) && listBody.libraries.length >= 2

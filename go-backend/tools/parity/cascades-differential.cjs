@@ -5,9 +5,12 @@
 // the API-initialized create-fixture manifest; never point both servers at one DB.
 const fs = require('node:fs')
 const path = require('node:path')
-const net = require('node:net')
-const { spawn, spawnSync } = require('node:child_process')
+const { spawnSync } = require('node:child_process')
 const { setTimeout: delay } = require('node:timers/promises')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { parseArgs } = require('./lib/args.cjs')
+const { requestJSON } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const PREFIX = '/audiobookshelf'
@@ -21,50 +24,29 @@ const citations = {
 }
 
 function args() {
-  const a = {}
-  for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) a[process.argv[i].slice(2)] = process.argv[++i]
+  const a = parseArgs()
   if (!a.fixture || !a['go-bin']) throw new Error('Usage: cascades-differential.cjs --fixture <manifest> --go-bin <binary> [--out <report.json>]')
   return a
 }
-async function port() {
-  const s = net.createServer()
-  await new Promise((r, j) => s.listen(0, '127.0.0.1', e => e ? j(e) : r()))
-  const p = s.address().port
-  await new Promise((r, j) => s.close(e => e ? j(e) : r()))
-  return p
-}
+const port = freePort
 function spawnServer(kind, fixture, p, logPath, goBin) {
   const dir = fixture.directories[kind]
   // The pinned Node server must boot under Node 22 (Node 26 crashes on its
   // dependency tree; see TASK-20261030 environment pitfalls) — spawn through
   // mise explicitly instead of the current process.execPath (Node 26).
-  const child = kind === 'node'
-    ? spawn('mise', ['exec', 'node@22', '--', 'node', path.join(ROOT, 'dist-server/index.js'), '--config', path.join(dir, 'config'), '--metadata', path.join(dir, 'metadata'), '--port', String(p), '--host', '127.0.0.1', '--source', 'docker'], { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] })
-    : spawn(path.resolve(goBin), [], { cwd: ROOT, env: { ...process.env, CONFIG_PATH: path.join(dir, 'config'), METADATA_PATH: path.join(dir, 'metadata'), HOST: '127.0.0.1', PORT: String(p), ROUTER_BASE_PATH: PREFIX, SOURCE: 'docker' }, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath); child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
-}
-async function stop(s) {
-  if (!s) return
-  if (s.child.exitCode === null) {
-    s.child.kill('SIGINT')
-    await Promise.race([new Promise(r => s.child.once('exit', r)), delay(12000).then(() => s.child.kill('SIGKILL'))])
-  }
-  s.log.end()
-}
-async function ready(s, url, log) {
-  for (let i = 0; i < 120; i++) {
-    if (s.child.exitCode !== null) throw new Error(`server exited; inspect ${log}`)
-    try { if ((await fetch(`${url}${PREFIX}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`server readiness timeout; inspect ${log}`)
+  const command = kind === 'node' ? 'mise' : path.resolve(goBin)
+  const args = kind === 'node'
+    ? ['exec', 'node@22', '--', 'node', path.join(ROOT, 'dist-server/index.js'), '--config', path.join(dir, 'config'), '--metadata', path.join(dir, 'metadata'), '--port', String(p), '--host', '127.0.0.1', '--source', 'docker']
+    : []
+  const options = kind === 'node'
+    ? { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production' } }
+    : { cwd: ROOT, env: { ...process.env, CONFIG_PATH: path.join(dir, 'config'), METADATA_PATH: path.join(dir, 'metadata'), HOST: '127.0.0.1', PORT: String(p), ROUTER_BASE_PATH: PREFIX, SOURCE: 'docker' } }
+  const processInfo = spawnLogged(command, args, options, logPath)
+  return processInfo
 }
 async function req(url, route, { method = 'GET', token, body } = {}) {
-  const r = await fetch(`${url}${PREFIX}${route}`, { method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(30000) })
-  const text = await r.text(); let value
-  try { value = JSON.parse(text) } catch { value = text }
-  return { status: r.status, body: value }
+  const r = await requestJSON(url, route, { pathPrefix: PREFIX, method, token, body, timeoutMs: 30000 })
+  return { status: r.status, body: r.value }
 }
 function dbSnapshot(file) {
   const tables = ['libraryItems', 'books', 'bookAuthors', 'bookSeries', 'mediaProgresses', 'bookmarks', 'playbackSessions', 'libraries', 'libraryFolders', 'series', 'collectionBooks', 'playlistMediaItems']
@@ -170,7 +152,7 @@ async function runSide(kind, fixture, goBin, work) {
   const server = spawnServer(kind, fixture, p, log, goBin)
   const marker = { base: mediaRoot, metadata: path.join(base, 'metadata') }
   try {
-    await ready(server, url, log)
+    await waitReady(server, url, { pathPrefix: PREFIX, logPath: log, exitMessage: `server exited; inspect ${log}`, timeoutMessage: `server readiness timeout; inspect ${log}` })
     const login = await req(url, '/login', { method: 'POST', body: fixture.rootCredentials })
     const token = login.body?.user?.accessToken || login.body?.accessToken
     if (!token) throw new Error(`${kind}: login did not return token (${login.status})`)
@@ -260,7 +242,7 @@ async function runSide(kind, fixture, goBin, work) {
     socketProbe.socket.disconnect()
     push('socket-event-sequence', { cascadeEvents: cascadeEventWindow, restoreEvents: eventWindow })
     return { kind, token, results, snapshots: { afterItemDelete, afterLibraryDelete, afterRestore, beforeItemDelete }, marker }
-  } finally { await stop(server) }
+  } finally { await stop(server, 12000) }
 }
 async function main() {
   const a = args(), fixturePath = path.resolve(a.fixture), fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'))
@@ -298,7 +280,7 @@ async function main() {
   }
   for (const name of ['beforeItemDelete', 'afterItemDelete', 'afterLibraryDelete', 'afterRestore']) compareSnapshot(name)
   const report = { schemaVersion: 1, generatedAt: new Date().toISOString(), fixture: path.basename(fixturePath), sourceRevision: 'edb1f7efc92ecacdef51aafb4d9d5054ce10604f', upstreamFirst: true, results: { node: { results: node.results }, go: { results: go.results } }, divergences, checks: { independentFixtureDirectories: fixture.directories.node !== fixture.directories.go, node22Spawn: true, socketEventSequenceCaptured: true } }
-  fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`)
+  writeJSON(out, report, { ensureDirectory: true })
   console.log(JSON.stringify({ out, divergences: divergences.length, scenarios: node.results.map(r => r.scenario) }, null, 2))
   if (divergences.length) process.exitCode = 1
 }

@@ -18,9 +18,12 @@
 
 ## Go backend rewrite status
 
-Approved next-work breakdown: [bounded parity finalization queue](docs/specs/planned/parity-finalization-work-queue.md), approved 2026-10-30. Milestone 1 rows F04–F07 and F08's direct-play/range variants are complete with recorded evidence. Milestone 2 is active at F09 (forced-transcode browser playback and process closure); see the active task ledger. No later row has started.
-
-This repository also contains an experimental Go backend targeting drop-in compatibility with Audiobookshelf v2.37.2. The latest fresh default-mode Node-vs-Go differential passes 187/187, including selected SMTP and notification delivery/event behavior. Chromium direct-play interactions match between Node and Go, including backward and forward seek. A separate disposable-installation run verified direct audio, forced-transcode HLS output, progress persistence across Go restart/resume, and pinned-upstream reopening the Go-written database. The browser fixture still produces four matching cover-resize 500s because the host FFmpeg build lacks a WebP encoder; Chromium HLS decoding and socket/session recovery remain unverified. Full feature parity is not established: strict ledger verification still fails and many routes, state transitions, error variants, and events remain open. See [go-backend/README.md](go-backend/README.md) and [handover.md](handover.md) for evidence and limits.
+The experimental Go backend targets drop-in compatibility with Audiobookshelf
+v2.37.2. Its working status is generated in
+[go-backend/STATUS.md](go-backend/STATUS.md); the current phase and required
+checks are in [go-backend/ROADMAP.md](go-backend/ROADMAP.md). For setup,
+architecture, and known gotchas, see [go-backend/README.md](go-backend/README.md)
+and [go-backend/handover.md](go-backend/handover.md).
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 
@@ -201,4 +204,4 @@ If you are using VSCode, this project includes a couple of pre-defined targets t
 
 ## Go compatibility rewrite
 
-This checkout includes an ongoing Go drop-in compatibility implementation in [go-backend/](go-backend/README.md). It targets pinned upstream v2.37.2 and is not yet at full parity. Recent differentials verify selected ACL, destructive-lifecycle, OIDC web/mobile flows (24/24, including web logout and a web callback after 10 minutes), cover upload/URL/PATCH/delete, per-file download, email/notification settings and CRUD, nine email-device cases in a separate proxy-support run, selected SMTP behavior, and notification test routes. The latest default-mode suite passes 187/187, including 18 global notification event cases. The strict capability gate still fails, so no overall parity claim is made. Read [agents.md](agents.md) and [handover.md](handover.md) before continuing. The contract, capability ledger, evidence, and next action live under [docs/agent-work/](docs/agent-work/).
+This checkout includes an ongoing Go compatibility rewrite targeting pinned upstream v2.37.2. Current phase, generated verification status, and remaining gates are maintained in [go-backend/ROADMAP.md](go-backend/ROADMAP.md), [go-backend/STATUS.md](go-backend/STATUS.md), and [go-backend/handover.md](go-backend/handover.md). No overall parity claim is made here. Read [agents.md](agents.md) before continuing.

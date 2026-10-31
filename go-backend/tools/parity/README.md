@@ -25,6 +25,16 @@ The exporter removes secret-bearing settings and environment-specific path setti
 
 ## Differential API run
 
+Compare saved reports with `node go-backend/tools/parity/compare-reports.cjs <baseline.json> <current.json>`. It requires matching case IDs and compares status codes, headers, and full reference/Go bodies. Normalization is limited to body UUIDs mapped by first appearance (also replaced in paths), ISO-8601 or epoch-ms values in fields ending in `At`, `Seen`, `Scan`, `Update`, or `Time`, and integer `port` fields. It also compares each report's `normalizationApplied` block and prints every differing path; missing/extra cases or any residual difference produce a non-zero exit. Run its self-tests with `mise exec node@22 -- node --test go-backend/tools/parity/test-compare-reports.cjs`.
+
+From the repository root, `make parity` rebuilds the Go binary, creates a fresh
+fixture, and runs the core differential. `make parity-full` runs the named
+core, ACL, cascades, OIDC, socket-soak, existing-database, rollback, backup
+restore, F07 roll-in, and operational-milestone suites. Each suite receives
+disposable state under a printed temporary work directory; preserve that path
+when inspecting logs or reports after a failure. Both targets require Node 22,
+the built upstream `dist-server`, and loopback permission.
+
 Build the upstream server, build the Go command with `CGO_ENABLED=0`, then run:
 
 ```sh
@@ -33,7 +43,7 @@ node go-backend/tools/parity/run-local.cjs \
   --go-bin /path/to/audiobookshelf-go
 ```
 
-The runner starts Node and Go against the separate database copies and writes `parity-report.json` beside the fixture. The core 17 cases compare login, refresh, authorization, root and restricted library visibility, expanded and minified item lists, item detail, direct file byte ranges, progress writes and reads, playback session creation, HLS playlist bytes, session close responses, and authenticated Socket.IO connections over both the configured and legacy paths. The runner also executes bookmark create, read, update, delete, and post-delete read as ordered mutations. The Socket.IO probe uses the JavaScript v4 client. A route mismatch remains a failure; unsupported responses are not counted as compatibility. Progress, bookmark, and playback requests mutate their disposable databases, so generate a new fixture for each clean run.
+The runner starts Node and Go against separate database copies and writes `parity-report.json` beside the fixture. The core suite compares authentication, authorization, catalog reads and mutations, byte ranges, progress, playback, bookmarks, notifications, cover handling, email devices, scans, downloads, and authenticated Socket.IO behavior over configured and legacy paths. The Socket.IO probe uses the JavaScript v4 client. A route mismatch remains a failure; unsupported responses are not counted as compatibility. Mutating requests consume their disposable databases, so create a fresh fixture for each clean run.
 
 `differential.cjs` can also run against servers started by another harness:
 
@@ -44,17 +54,19 @@ node go-backend/tools/parity/differential.cjs \
   --out /tmp/abs-parity-fixture/report.json
 ```
 
-`differential-cases.json` records the executable cases and their methods, routes, authentication, category, and case-specific normalization contract. Every field replaced during normalization is required to be present and is checked for its expected type or format. IDs, output types, collection order, status codes, headers, media fields and byte bodies remain part of the comparison.
+`go-backend/tools/parity/cases/core.json` is the core case catalog: executable request descriptors and the former registry's coverage metadata share one record per case. The older `go-backend/contracts/parity/differential-cases.json` remains as a historical contract artifact, but the runner no longer treats it as a second case source. Stateful ordered flows are named in `go-backend/tools/parity/cases/steps.json` and implemented in `go-backend/tools/parity/cases/steps/`. The differential engine rejects unknown selected IDs, reports zero executions as failure, writes its report before returning failure, and compares status, selected headers and normalized bodies without relaxing case contracts.
+
+The OIDC suite keeps its specialized provider and persistence checks in `oidc-differential.cjs`. Its stateful flow order is data-indexed in `cases/oidc-steps.json`, with named modules in `cases/steps/`; the compared result paths and case IDs are in `cases/oidc.json`. The full-suite runner enables the expiry pair so the committed OIDC golden's case set is exercised.
 
 ## Operational playback milestone
 
 `operational-milestone.cjs` accepts an existing fixture manifest and creates a new disposable copy of its Go config/metadata under `--out`. The output directory must be new; the runner refuses to replace an existing `installation/`. It lengthens only the copied AAC track and clears only the copied root user's seeded progress row, then verifies login/browse, direct audio, HLS transcode output, backward/forward progress, restart/resume, and pinned Node reopening the Go-written database. It writes a sanitized report and provenance under `contracts/parity/`. This validates HLS playlist/segment delivery, not Chromium HLS decoding. The separate `browser-check.cjs` verifies browser direct-play and backward/forward track-bar seeks.
 
-The capability ledger generator can refresh generated route fields but cannot derive curated state scenarios or review notes. It merges old evidence, verified cases, invariants, state scenarios, exceptions and unknown fields into regenerated output so a routine run does not erase them, keeps reviewed `status` and `contract` values instead of overwriting them with re-derived text, unions reviewed `tests`, `implementation` and `source` references, preserves manually classified `stateful` records, and refuses to overwrite an existing record it cannot parse (exit status 2). `--out DIR` generates into another directory — tests use temporary directories, never the live ledger; see `test_build_capabilities.py`.
+The former Python capability-ledger generator, classifier, and regression test are archived in `docs/agent-work/archive/parity-tools/`. The active route inventory remains `build_route_coverage.py --check`; the archive is historical tooling, not an active parity gate.
 
-`core-flow-report.json` is a sanitized evidence summary from one source-created 17-case run. It records response status/header parity and SHA-256 digests of normalized bodies without retaining fixture identifiers, credentials, tokens, or environment-specific paths. `core-flow-provenance.json` records the baseline, tool versions, source-script hashes, fixture method, normalization contract, and the run's limits. This run verifies only the listed request shapes and seeded fixture state; it does not establish parity for every route or permission branch.
+`core-flow-report.json` is a historical sanitized evidence summary from a narrower source-created run. It records response status/header parity and SHA-256 digests of normalized bodies without retaining fixture identifiers, credentials, tokens, or environment-specific paths. `core-flow-provenance.json` records its baseline, tool versions, source-script hashes, fixture method, normalization contract, and limits. It does not describe the current full core catalog.
 
-`mutation-flow-report.json` and `mutation-flow-provenance.json` record a later fresh-fixture run of those same 17 core cases followed by bookmark create, read, update, delete, and post-delete read. The five bookmark cases pass; their `createdAt` field is required and type-checked before normalization.
+`mutation-flow-report.json` and `mutation-flow-provenance.json` are historical artifacts from a later fresh-fixture run of that narrower core set followed by bookmark create, read, update, delete, and post-delete read. Their `createdAt` field is required and type-checked before normalization.
 
 ## Route inventory ledger
 

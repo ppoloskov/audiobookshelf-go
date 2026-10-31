@@ -1,0 +1,8 @@
+[
+  { "id": "web-success", "module": "./steps/oidc-web-flow.cjs", "scenario": "success", "as": { "node": "node", "go": "go" } },
+  { "id": "web-link", "module": "./steps/oidc-web-flow.cjs", "scenario": "link", "mode": "link", "as": { "node": "nodeLink", "go": "goLink" } },
+  { "id": "web-registration-denied", "module": "./steps/oidc-web-flow.cjs", "scenario": "denied", "mode": "denied", "as": { "node": "nodeDenied", "go": "goDenied" } },
+  { "id": "mobile-redirect", "module": "./steps/oidc-mobile-redirect.cjs", "scenario": "mobile", "as": { "node": "nodeMobile", "go": "goMobile" } },
+  { "id": "mobile-invalid-verifier", "module": "./steps/oidc-mobile-invalid-verifier.cjs", "scenario": "mobile-invalid-verifier", "as": { "node": "nodeMobileInvalidVerifier", "go": "goMobileInvalidVerifier" } },
+  { "id": "web-state-expiry", "module": "./steps/oidc-web-state-expiry.cjs", "scenario": "web-state-expiry", "when": "include-web-state-expiry", "as": { "webStateExpiry": "webStateExpiry" } }
+]

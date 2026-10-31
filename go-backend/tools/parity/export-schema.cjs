@@ -7,6 +7,8 @@
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { parseArgs } = require('./lib/args.cjs')
 const sqlite3 = require('sqlite3')
 
 const ROOT = path.resolve(__dirname, '../../..')
@@ -20,11 +22,7 @@ const SOURCES = [
 ]
 
 function args() {
-  const values = {}
-  for (let i = 2; i < process.argv.length; i++) {
-    const key = process.argv[i]
-    if (key.startsWith('--')) values[key.slice(2)] = process.argv[++i]
-  }
+  const values = parseArgs()
   if (!values.db || !values.out) throw new Error('Usage: export-schema.cjs --db <absdatabase.sqlite> --out <parity directory>')
   return values
 }
@@ -103,17 +101,17 @@ async function main() {
     const schema = `${header}${ddl}\n`
     fs.writeFileSync(path.join(outDir, 'schema.sql'), schema)
     const schemaHash = hash(schema)
-    fs.writeFileSync(path.join(outDir, 'default-settings.json'), `${JSON.stringify({
+    writeJSON(path.join(outDir, 'default-settings.json'), {
       baseline: BASELINE,
       note: 'Rows selected from settings immediately after upstream Database.init, before root creation. Secret-bearing keys are omitted.',
       rows: defaultSettings
-    }, null, 2)}\n`)
-    fs.writeFileSync(path.join(outDir, 'migration-state.json'), `${JSON.stringify({
+    })
+    writeJSON(path.join(outDir, 'migration-state.json'), {
       baseline: BASELINE,
       sqliteUserVersion: version.user_version,
       tables: migrationState
-    }, null, 2)}\n`)
-    fs.writeFileSync(path.join(outDir, 'schema-provenance.json'), `${JSON.stringify({
+    })
+    writeJSON(path.join(outDir, 'schema-provenance.json'), {
       baseline: BASELINE,
       generator: 'go-backend/tools/parity/export-schema.cjs',
       upstreamSources: sourceHashes,
@@ -125,7 +123,7 @@ async function main() {
       defaultSettingsFile: 'default-settings.json',
       migrationStateSha256: hash(fs.readFileSync(path.join(outDir, 'migration-state.json'))),
       defaultSettingsSha256: hash(fs.readFileSync(path.join(outDir, 'default-settings.json')))
-    }, null, 2)}\n`)
+    })
     console.log(JSON.stringify({ schemaSha256: schemaHash, tableCount: objects.filter((row) => row.type === 'table').length, migrationTables: migrationState.map((m) => m.table) }))
   } finally {
     await new Promise((resolve, reject) => db.close((error) => error ? reject(error) : resolve()))

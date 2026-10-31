@@ -14,7 +14,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.1'
@@ -22,15 +22,32 @@ jobs:
         run: python3 -m unittest -v go-backend/tools/test_source_inventory.py
       - name: Check source-executed library golden
         run: node go-backend/tools/test-library-oracle.cjs
+      - name: Check source-executed book/item serializer golden
+        run: node go-backend/tools/test-book-item-oracle.cjs
       - name: Check source-inspected route coverage ledger
         run: python3 go-backend/tools/parity/build_route_coverage.py --check
-      - name: Run Go tests and vet without CGO
+      - name: Check route catalog ownership
+        run: python3 -m unittest -v go-backend/tools/parity/test_route_coverage.py
+      - name: Check report and status integrity
+        run: node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs
+      - name: Build, test, vet, and ratchet without CGO
         working-directory: go-backend
         env:
           CGO_ENABLED: '0'
         run: |
+          go build ./...
           go test ./...
           go vet ./...
+          cd ..
+          make ratchet
+      - name: Enforce dependency boundaries
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.15.0
+          working-directory: go-backend
+          args: --config=../.golangci.yml --timeout=5m ./...
+      - name: Prove dependency rules reject forbidden imports
+        run: node go-backend/tools/test-dependency-boundaries.cjs
 
   cross-build:
     runs-on: ubuntu-latest
@@ -60,7 +77,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.1'
@@ -72,27 +89,19 @@ jobs:
         run: npm ci
       - name: Build upstream Node server
         run: npm run build:server
-      - name: Build CGO-free Go server
-        working-directory: go-backend
-        env:
-          CGO_ENABLED: '0'
-        run: go build -trimpath -o /tmp/audiobookshelf-go ./cmd/audiobookshelf-go
       - name: Install JavaScript Socket.IO v4 probe client
         run: npm install --prefix /tmp/abs-parity-node-deps --no-save socket.io-client@4.8.1
-      - name: Create isolated upstream fixture and run 17-case parity suite
+      - name: Check differential harness integrity
+        run: node --test go-backend/tools/parity/test-differential-selftest.cjs
+      - name: Run independent fresh-fixture core equivalence
         env:
           ABS_PARITY_REQUIRE_SOCKETIO: '1'
           NODE_PATH: /tmp/abs-parity-node-deps/node_modules
-        run: |
-          node go-backend/tools/parity/create-fixture.cjs /tmp/abs-parity-ci
-          node go-backend/tools/parity/run-local.cjs \
-            --fixture /tmp/abs-parity-ci/fixture-manifest.json \
-            --go-bin /tmp/audiobookshelf-go \
-            --out /tmp/abs-parity-ci/parity-report.json
+        run: make PARITY_NODE=node parity-equivalence
       - name: Upload differential report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: upstream-parity-report
-          path: /tmp/abs-parity-ci/parity-report.json
+          path: /tmp/abs-parity-*/core-fixture/core-report.json
           if-no-files-found: warn

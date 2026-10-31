@@ -32,7 +32,7 @@ GO_SOURCES = {
     "sharing": ROOT / "go-backend/internal/sharing/handler.go",
 }
 
-CASES_FILE = ROOT / "go-backend/contracts/parity/differential-cases.json"
+CASES_FILE = ROOT / "go-backend/tools/parity/cases/core.json"
 EVIDENCE_FILES = [
     ROOT / "go-backend/contracts/parity/differential-flow-report.json",
     ROOT / "go-backend/contracts/parity/core-flow-report.json",
@@ -156,6 +156,30 @@ def implementation_for(route: dict, owner: str | None) -> tuple[str, str | None,
     return status, go_route, f"go-backend/internal/{module}/{GO_SOURCES[module].name}"
 
 
+def load_cases(path: Path) -> list[dict]:
+    """Project executable cases into route metadata; never consult the archive."""
+    records = json.loads(path.read_text())
+    cases = []
+    seen = set()
+    for record in records:
+        case_id = record["id"]
+        if case_id in seen:
+            raise ValueError(f"duplicate case ID: {case_id}")
+        seen.add(case_id)
+        metadata = record.get("coverage", {})
+        route = metadata.get("route", record.get("route"))
+        if not route:
+            continue  # Non-HTTP observations have no route to inventory.
+        method = metadata.get("method", record.get("method", record.get("options", {}).get("method", "GET")))
+        cases.append({
+            **metadata,
+            "id": case_id,
+            "method": method,
+            "route": re.sub(r"\{\{([^{}]+)\}\}", r"{\1}", route),
+        })
+    return cases
+
+
 def cases_for(route: dict, cases: list[dict]) -> list[dict]:
     return [case for case in cases if case_matches(route, case)]
 
@@ -166,7 +190,7 @@ def sha(path: Path) -> str:
 
 def build() -> dict:
     inventory = json.loads(INVENTORY.read_text())
-    cases = json.loads(CASES_FILE.read_text())["cases"] if CASES_FILE.exists() else []
+    cases = load_cases(CASES_FILE)
     evidence = {}
     evidence_files = []
     for report_path in EVIDENCE_FILES:
@@ -236,6 +260,8 @@ def build() -> dict:
         "baseline": PINNED,
         "inventorySourceRevision": inventory["source_revision"],
         "inventorySha256": sha(INVENTORY),
+        "caseCatalog": str(CASES_FILE.relative_to(ROOT)),
+        "caseCatalogSha256": sha(CASES_FILE),
         "goSourceHashesAtGeneration": {
             "go-backend/internal/server/server.go": sha(GO_SERVER),
             "go-backend/internal/server/runtime.go": sha(GO_RUNTIME),

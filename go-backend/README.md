@@ -1,10 +1,12 @@
 # Audiobookshelf Go backend rewrite
 
-Status: experimental Go backend under active parity development. This is **not** a drop-in replacement yet. The latest default-mode differential passes 187/187 selected cases, including the 18-case global notification event slice; separate reports cover selected OIDC flows (now 24/24, including web logout/session invalidation and a callback after 10 minutes), covers/downloads, SMTP behavior, and email-device proxy-mode scenarios. Strict ledger verification still fails; route-wide and overall compatibility are not established. The pinned Node server remains the behavior reference, and the original frontend is retained. See the root `handover.md` and `docs/agent-work/tasks/TASK-20261030.md` for verified scope and remaining work.
+This experimental Go backend targets drop-in compatibility with pinned Audiobookshelf v2.37.2. The TypeScript server remains the behavior oracle; the active engineering sequence and acceptance gates are in [ROADMAP.md](ROADMAP.md), and generated status belongs in `STATUS.md` and is produced by `make status` after a core parity run. The original frontend is retained. See [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [handover.md](handover.md) for working rules, target structure, and gotchas.
 
 ## Target
 
-The approved bounded finalization queue is [parity-finalization-work-queue.md](../docs/specs/planned/parity-finalization-work-queue.md) (approved 2026-10-30). It prioritizes operational playback before remaining services, preserves existing evidence, and requires one behavior per worker assignment. F01–F08 are complete for their recorded variants: direct stream playback/ranges, Chromium play/pause/seek, and a fresh 190/190 default differential pass. The host FFmpeg WebP encoder issue and root hydration limitation remain recorded. F09 is active: verify forced-transcode playback in the retained browser and confirm process closure. Full parity remains unverified. See the task ledger and `contracts/parity/f08-direct-stream-report.json`. No parity status changes are implied by this pointer.
+The [independent phases 0–2 review](PHASES-0-2-REVIEW-2026-10-31.md) and its [independent follow-up](PHASES-0-2-INDEPENDENT-REVIEW-2026-10-31.md) record reproduced correctness, guardrail and architecture gaps and the recommended repair order. They are dated evidence, not current generated status.
+
+The active sequence and exit criteria are in [ROADMAP.md](ROADMAP.md). It supersedes conflicting sequencing in the historical finalization queue. [STATUS.md](STATUS.md) is generated from recorded harness output by `make status`; it distinguishes stale source inputs from current sampled results. Full parity and client acceptance remain separate roadmap gates. The [phase-review remediation task](../docs/agent-work/tasks/TASK-20261031-phase-review-remediation.md) records repairs and their verification.
 
 - Upstream: `advplyr/audiobookshelf`, release `v2.37.2`.
 - Baseline commit: `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
@@ -18,10 +20,11 @@ The approved bounded finalization queue is [parity-finalization-work-queue.md](.
 1. `tools/source_inventory.py`: reproducible source evidence for route registrations, Socket.IO candidates and model files, with source hashes and locations.
 2. `contracts/source-inventory.json`: the generated baseline. This is a source index, not a complete compatibility contract.
 3. `cmd/abs-compat`: a standard-library Go HTTP differential harness. It compares explicitly selected GET/HEAD requests against two isolated servers. It does not test write flows, authentication lifecycles, realtime protocols or database equivalence yet.
-4. `ROADMAP.md`: historical implementation sequence, ownership and release gates. Active sequencing and dispatch follow `../docs/specs/planned/parity-finalization-work-queue.md` (approved 2026-10-30).
+4. `ROADMAP.md`: authoritative implementation sequence and acceptance gates. Older queues and reports are historical evidence.
 5. `cmd/audiobookshelf-go`: a Go HTTP server with fresh-database initialization from the source-executed baseline schema, local authentication, token lifecycle, library/item browsing, progress/bookmarks, playback/HLS, and Socket.IO.
 6. Domain packages for catalog/user changes, scanning/watchers, media tools, backups, settings and OIDC are being implemented and tested. Individual handlers and sampled scenarios do not establish complete route parity.
 7. `tools/parity`: starts the actual upstream and Go executables on independent source-created fixtures and compares HTTP, media bytes, mutations and Socket.IO. Sanitized reports and source provenance are in `contracts/parity`.
+8. Book item serialization uses separate `internal/wire` envelopes for full, minified, and expanded shapes. `tools/book-item-oracle.cjs` and `contracts/parity/book-item-golden.json` pin source-generated outputs; nested book objects remain opaque until a later DTO phase.
 
 ## Run the experimental server
 
@@ -47,6 +50,9 @@ Build the original frontend with `npm ci` and `npm run generate` in `client/`, t
 From the upstream repository root:
 
 ```sh
+make parity             # fresh-fixture core plus report equivalence
+make parity-equivalence # two independent fresh fixtures, also used in CI
+make status             # regenerate status from the latest recorded core run
 python3 -m unittest -v go-backend/tools/test_source_inventory.py
 python3 go-backend/tools/source_inventory.py --output go-backend/contracts/source-inventory.json
 cd go-backend

@@ -6,9 +6,12 @@
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const net = require('node:net')
-const { spawn, spawnSync } = require('node:child_process')
+const { spawnSync } = require('node:child_process')
 const { setTimeout: delay } = require('node:timers/promises')
+const { freePort, spawnLogged, waitReady, stop: stopProcess } = require('./lib/process.cjs')
+const { createRequester } = require('./lib/http.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
+const { parseArgs } = require('./lib/args.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const PREFIX = '/audiobookshelf'
@@ -16,50 +19,15 @@ const USERNAME = 'persisted-check-root'
 const PASSWORD = 'persisted-check-password'
 
 function args() {
-  const out = {}
-  for (let i = 2; i < process.argv.length; i++) if (process.argv[i].startsWith('--')) out[process.argv[i].slice(2)] = process.argv[++i]
+  const out = parseArgs()
   if (!out['go-bin']) throw new Error('Usage: node tools/parity/persisted-state-check.cjs --go-bin <binary> [--out <json>] [--work-dir <dir>]')
   return out
 }
-async function port() {
-  const s = net.createServer()
-  await new Promise((resolve, reject) => s.listen(0, '127.0.0.1', e => e ? reject(e) : resolve()))
-  const p = s.address().port
-  await new Promise((resolve, reject) => s.close(e => e ? reject(e) : resolve()))
-  return p
-}
-function logged(command, argv, options, logPath) {
-  const child = spawn(command, argv, { ...options, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath)
-  child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
-}
-async function stop(p) {
-  if (!p) return
-  if (p.child.exitCode === null) {
-    p.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => p.child.once('exit', resolve)), delay(12000).then(() => p.child.kill('SIGKILL'))])
-  }
-  p.log.end()
-}
-async function request(url, route, { method = 'GET', token, body, headers = {} } = {}) {
-  const response = await fetch(`${url}${PREFIX}${route}`, {
-    method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  })
-  const text = await response.text()
-  let value; try { value = JSON.parse(text) } catch { value = text }
-  if (!response.ok) throw new Error(`${method} ${route} -> ${response.status}: ${JSON.stringify(value)}`)
-  return value
-}
-async function ready(p, url, logPath) {
-  for (let i = 0; i < 120; i++) {
-    if (p.child.exitCode !== null) throw new Error(`server exited early; log ${logPath}`)
-    try { if ((await fetch(`${url}${PREFIX}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`server readiness timeout; log ${logPath}`)
-}
+const port = freePort
+const logged = spawnLogged
+const stop = server => stopProcess(server, 12000)
+const request = createRequester({ pathPrefix: PREFIX, throwOnError: true, valueOnly: true })
+const ready = (p, url, logPath) => waitReady(p, url, { pathPrefix: PREFIX, logPath })
 function sqlite(dbPath, sql) {
   const r = spawnSync('sqlite3', ['-json', dbPath, sql], { encoding: 'utf8' })
   if (r.status !== 0) throw new Error(`sqlite3 failed: ${r.stderr}`)
@@ -192,7 +160,7 @@ async function main() {
     progress: 'User.js:730-831 locates progress by media item/user, calls applyProgressUpdate for an existing row and creates only if absent; MediaProgress.js:190-249 applies changed values and finish rules.',
     transactions: 'CollectionController.js:69-97 wraps collection plus collectionBooks bulkCreate in a transaction with rollback on failure. Feed.js:171-187, :266-278 and :355-367 similarly wrap feed plus batch episodes; FeedEpisode.js:109 and :206/:243 use bulkCreate updateOnDuplicate.'
   }, node, go, checks, result: checks.every(c => c.pass) ? 'PASS' : 'FAIL', reportedGoDefects: checks.filter(c => !c.pass).map(c => ({ check: c.name, detail: c })) }
-  fs.writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`)
+  writeJSON(out, evidence)
   console.log(JSON.stringify({ result: evidence.result, evidence: out, checks: checks.map(({ name, pass }) => ({ name, pass })) }, null, 2))
   if (evidence.result !== 'PASS') process.exitCode = 1
 }

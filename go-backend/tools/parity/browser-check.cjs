@@ -16,9 +16,10 @@
 const fs = require('node:fs')
 const crypto = require('node:crypto')
 const path = require('node:path')
-const net = require('node:net')
-const { spawn, spawnSync } = require('node:child_process')
+const { spawnSync } = require('node:child_process')
 const { setTimeout: delay } = require('node:timers/promises')
+const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
+const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const FULL_BASE = '/audiobookshelf'
@@ -37,27 +38,10 @@ function playwright() {
   try { return require(require.resolve('playwright', { paths: ['/Users/paul/.npm/_npx/e41f203b7505f1fb/node_modules'] })) } catch {}
   throw new Error('Playwright module not found; run npx -y playwright@latest install chromium and expose its module')
 }
-async function freePort() {
-  const s = net.createServer()
-  await new Promise((resolve, reject) => s.listen(0, '127.0.0.1', e => e ? reject(e) : resolve()))
-  const p = s.address().port
-  await new Promise(resolve => s.close(resolve))
-  return p
-}
 function start(command, args, options, logPath) {
-  const child = spawn(command, args, { ...options, stdio: ['ignore', 'pipe', 'pipe'] })
-  const log = fs.createWriteStream(logPath)
-  child.stdout.pipe(log); child.stderr.pipe(log)
-  return { child, log }
+  return spawnLogged(command, args, options, logPath)
 }
-async function waitReady(proc, url, logPath) {
-  for (let i = 0; i < 120; i++) {
-    if (proc.child.exitCode !== null) throw new Error(`server exited before readiness; see ${logPath}`)
-    try { if ((await fetch(`${url}${BASE}/ping`)).ok) return } catch {}
-    await delay(250)
-  }
-  throw new Error(`server not ready at ${url}; see ${logPath}`)
-}
+const stopServer = proc => stop(proc, 12000)
 
 // Fresh-init schema comparison: table list + DDL and migrationsMeta state
 // must match between the two servers' independently created databases.
@@ -75,14 +59,6 @@ function freshInitState(configDir) {
       })
     })
   })
-}
-async function stop(proc) {
-  if (!proc) return
-  if (proc.child.exitCode === null) {
-    proc.child.kill('SIGINT')
-    await Promise.race([new Promise(resolve => proc.child.once('exit', resolve)), delay(12000).then(() => proc.child.kill('SIGKILL'))])
-  }
-  proc.log.end()
 }
 async function rewriteCopiedCoverPaths(databasePath, fromMetadata, toMetadata) {
   const sqlite3 = require('sqlite3').verbose()
@@ -488,11 +464,11 @@ async function main() {
           '--port', String(port), '--host', '127.0.0.1', '--source', 'docker'],
         { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production', ROUTER_BASE_PATH: BASE } }, logPath)
       }
-      await waitReady(servers[side], url, logPath)
+      await waitReady(servers[side], url, { pathPrefix: BASE, logPath })
       results[side] = await checkBrowser(pw.chromium, side, url, manifest)
       if (VARIANT === 'fresh') results[side].freshInit = await freshInitState(path.join(dirs, 'config'))
     }
-  } finally { await Promise.all([stop(servers.go), stop(servers.node)]) }
+  } finally { await Promise.all([stopServer(servers.go), stopServer(servers.node)]) }
   const goPlayback = results.go.playback || {}
   const nodePlayback = results.node.playback || {}
   const normalizePlayback = playback => VARIANT === 'transcode' ? ({
@@ -568,8 +544,8 @@ async function main() {
   }
   const contractPath = path.join(ROOT, 'go-backend/contracts/parity/browser-playback-differential-report.json')
   if (VARIANT === 'full') {
-    fs.writeFileSync(contractPath, JSON.stringify(contractReport, null, 2) + '\n')
-  fs.writeFileSync(path.join(ROOT, 'go-backend/contracts/parity/browser-playback-differential-provenance.json'), JSON.stringify({
+    writeJSON(contractPath, contractReport)
+  writeJSON(path.join(ROOT, 'go-backend/contracts/parity/browser-playback-differential-provenance.json'), {
     schemaVersion: 1,
     baseline: manifest.baseline,
     command: 'BROWSER_CHECK_OUT=<isolated writable temp dir> node go-backend/tools/parity/browser-check.cjs',
@@ -578,7 +554,7 @@ async function main() {
     fixture: 'Generated silent AAC media; isolated copied fixture databases and metadata; copied DB coverPath values rewritten to their corresponding copied metadata roots.',
     normalizations: ['Per-side playback session UUID and origin are omitted from comparisons.', 'Current time is rounded to 100 ms for the paired browser state comparison.', 'Cover image resize 500s are retained and compared exactly by route, status, and body; they are not treated as Go-only differences.'],
     limitations: contractReport.results.limitations
-  }, null, 2) + '\n')
+  })
   }
   for (const [side, value] of Object.entries(results)) {
     if (side === 'comparison') continue
@@ -604,7 +580,7 @@ async function main() {
     requiredSteps.push('freshInitMatchesUpstream')
   }
   const ok = ['go', 'node'].every(side => !results[side].error && requiredSteps.every(step => results[side].steps[step]))
-  fs.writeFileSync(path.join(OUT, 'browser-report.json'), JSON.stringify(report, null, 2) + '\n')
+  writeJSON(path.join(OUT, 'browser-report.json'), report)
   console.log(`Report: ${path.join(OUT, 'browser-report.json')} variant=${VARIANT}`)
   process.exitCode = ok ? 0 : 1
 }

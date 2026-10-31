@@ -52,12 +52,13 @@ Feature packages keep their 1:1 mapping to upstream controllers. That mapping
 is navigable and lets code cite upstream source lines. The problem was copied
 helpers, not package boundaries.
 
-**Dependency rules** [planned: `depguard` in `.golangci.yml`, Phase 1]:
+**Dependency rules** [enforced: `.golangci.yml`; negative witnesses in
+`tools/test-dependency-boundaries.cjs`]:
 
 - `wire` imports nothing from `internal/`.
 - Leaf packages (`httputil`, `dbtime`, `events`, `ids`, `media`, `authz`) import
   only the standard library and `wire`.
-- Feature packages may import leaf packages, `store`, `auth`, `config`.
+- Feature packages may import leaf packages, `items`, `store`, `auth`, `config`.
 - Feature packages must not import each other. Shared read-side serialization
   moves to a shared package (see DECISION D1).
 - Nothing outside `*_test.go` imports `net/http/httptest`.
@@ -207,24 +208,28 @@ introduce it speculatively.
 
 ## Ratchet metrics
 
-`make ratchet` [planned: Phase 1] counts these and compares to
+`make ratchet` counts these and compares to
 `ratchet-baseline.json`. Counts may not rise. After a drop, the
 baseline must be lowered in the same commit.
 
-| Metric | Baseline (2026-10-30 snapshot) | Phase target |
+| Metric | Baseline (Phase 1 snapshot) | Phase target |
 |--------|-------------------------------|--------------|
-| `map[string]any` and aliases of it | 1057 | set after pilot |
+| `map[string]any` and aliases of it | 1136 | set after pilot |
 | Hand-rolled `Handle(w, r, ...) bool` routers | 13 | 0 (Phase 5) |
 | `writeJSON`-style copies | 12 | 1 in `httputil` (Phase 3) |
 | `EmitFunc`-style type declarations | 7 | 0 (Phase 3) |
 | `Set*` injector methods | 20 | 0 (Phase 4) |
-| `catalog.New` call sites | 3 | 1 or 0 with `items` (Phase 4) |
-| `httptest` imports in non-test files | 1 | 0 (Phase 4) |
-| Inline `comparePair(...)` calls in `tools/parity/differential.cjs` | 91 | 0 (Phase 0b) |
-| Duplicated harness helper definitions (`freePort`, `login`, `request`, `waitReady`, `parseArgs`) across `tools/parity/*.cjs` | 10, 10, 5, 4, 4 copies | 1 each (Phase 0b) |
+| `catalog.New` call sites | 1 | 0 or 1 shared by injection (Phase 4) |
+| `httptest` imports in non-test files | 0 | 0 (Phase 4) |
+| Inline `comparePair(...)` calls in `tools/parity/differential.cjs` | 0 | 0 (Phase 0b) |
+| Duplicated harness helper definitions (`freePort`, `login`, `request`, `waitReady`, `parseArgs`) across `tools/parity/**/*.cjs` | 1 each | 1 each (Phase 0b) |
 
-The Go metrics use `go/ast`; the two harness metrics use a regex counter over
-`tools/parity/`. Aliases such as `type JSON = map[string]any` count as the thing they alias.
+The Go metrics use `go/ast`; the harness metrics use regex counters over
+`tools/parity/`. The active snapshot is in `ratchet-baseline.json`; test files
+are excluded. Aliases such as `type JSON = map[string]any` count as the thing
+they alias. The dynamic-map measurement counts declarations and type uses,
+including chained/imported aliases and equivalent `interface{}` values;
+ordinary value identifiers and scalar `any` aliases are not dynamic-map types.
 The ratchet is a floor, not proof of quality; review still checks intent.
 
 ## Open decisions

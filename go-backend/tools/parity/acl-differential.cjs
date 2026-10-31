@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 'use strict'
 // ACL differential probes on fresh independent Node and Go instances.
-const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=require('node:net'),http=require('node:http')
-const {spawn,spawnSync}=require('node:child_process')
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http')
+const {spawnSync}=require('node:child_process')
 const {setTimeout:delay}=require('node:timers/promises')
+const {freePort,spawnLogged,waitReady,stop}=require('./lib/process.cjs')
+const {parseArgs}=require('./lib/args.cjs')
+const {requestJSON}=require('./lib/http.cjs')
+const {writeJSON}=require('./lib/artifacts.cjs')
 const ROOT=path.resolve(__dirname,'../../..'), PREFIX='/audiobookshelf', PASSWORD='acl-password'
-function args(){const a={};for(let i=2;i<process.argv.length;i++)if(process.argv[i].startsWith('--'))a[process.argv[i].slice(2)]=process.argv[++i];return a}
+function args(){return parseArgs()}
 const CASES=JSON.parse(fs.readFileSync(path.join(ROOT,'go-backend/contracts/parity/acl-cases.json'),'utf8'))
-async function port(){const s=net.createServer();await new Promise((r,j)=>s.listen(0,'127.0.0.1',e=>e?j(e):r()));const p=s.address().port;await new Promise((r,j)=>s.close(e=>e?j(e):r()));return p}
-function launch(c,a,o,l){const child=spawn(c,a,{...o,stdio:['ignore','pipe','pipe']}),log=fs.createWriteStream(l);child.stdout.pipe(log);child.stderr.pipe(log);return{child,log}}
-async function stop(p){if(!p)return;if(p.child.exitCode===null){p.child.kill('SIGINT');await Promise.race([new Promise(r=>p.child.once('exit',r)),delay(12000).then(()=>p.child.kill('SIGKILL'))])}p.log.end()}
-async function ready(p,u,l){for(let i=0;i<120;i++){if(p.child.exitCode!==null)throw Error(`server exited; see ${l}`);try{if((await fetch(u+PREFIX+'/ping')).ok)return}catch{}await delay(250)}throw Error(`readiness timeout; see ${l}`)}
-async function req(u,route,{method='GET',token,body,headers={}}={}){try{const r=await fetch(u+PREFIX+route,{method,redirect:'manual',signal:AbortSignal.timeout(20000),headers:{...(token?{Authorization:`Bearer ${token}`}:{ }),...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text(),h={};for(const n of ['content-type','www-authenticate','location'])if(r.headers.get(n)!==null)h[n]=r.headers.get(n);return{status:r.status,headers:h,body:text}}catch(e){return{status:0,headers:{},body:String(e)}}}
+const port=freePort
+const launch=spawnLogged
+const stopProcess=(p)=>stop(p,12000)
+const ready=(p,u,l)=>waitReady(p,u,{pathPrefix:PREFIX,logPath:l,exitMessage:`server exited; see ${l}`,timeoutMessage:`readiness timeout; see ${l}`})
+async function req(u,route,{method='GET',token,body,headers={}}={}){try{const r=await requestJSON(u,route,{pathPrefix:PREFIX,method,redirect:'manual',timeoutMs:20000,token,body,headers});const h={};for(const n of ['content-type','www-authenticate','location'])if(r.headers.get(n)!==null)h[n]=r.headers.get(n);return{status:r.status,headers:h,body:r.bytes.toString('utf8')}}catch(e){return{status:0,headers:{},body:String(e)}}}
 function media(dir,title){fs.mkdirSync(dir,{recursive:true});const r=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i','anullsrc=r=44100:cl=mono','-t','3','-c:a','aac','-metadata',`title=${title}`,'-metadata','artist=ACL Fixture','-y',path.join(dir,title+'.m4b')],{encoding:'utf8'});if(r.status!==0)throw Error(`ffmpeg: ${r.stderr}`)}
 function parsed(r){try{return JSON.parse(r.body)}catch{return{}}}
 async function side(kind,work,bin,specs){
@@ -84,7 +88,7 @@ async function side(kind,work,bin,specs){
   }catch(e){return{kind,setupError:String(e),obs:{}}}
   finally{
     await new Promise(r=>rss.close(()=>r()))
-    await stop(proc)
+    await stopProcess(proc)
   }
 }
 const specs=[
@@ -121,7 +125,7 @@ async function main(){const a=args(),specsRef=specs,work=path.resolve(a['work-di
 for(const k of ['node','go']){try{sideState=await side(k,work,a['go-bin'],specs);sides.push(sideState)}catch(e){failures.push({side:k,error:String(e)});sides.push({kind:k,setupError:String(e)})}}
 const obs={node:null,go:null}
 for(const s of sides){if(s.setupError){obs[s.kind]={}}else obs[s.kind]=s.obs}
-const matrix=specs.map(([id])=>{const n=obs.node?.[id],g=obs.go?.[id];const pass=n&&g&&aclEqual(id,n,g);return{id,status:pass?'pass':n&&g?'divergence':'unresolved',source:CASES.cases.find(c=>c.id===id)?.source||[],node:n||null,go:g||null}});for(const c of CASES.cases)if(!specs.some(([id])=>id===c.id))matrix.push({id:c.id,status:'unresolved',source:c.source,reason:'Requires a separately initialized witness or route probe not yet implemented.'});const divergences=matrix.filter(c=>c.status==='divergence').map(c=>({id:c.id,node:c.node,go:c.go}));const report={baseline:CASES.baseline,workDir:work,sides:sides.map(({url,...s})=>s),matrix,divergences,setupFailures:failures,checksRun:['CGO_ENABLED=0 Go build','isolated Node 22 and Go fresh initialization','ffmpeg book fixture','user creation/logins','HTTP probes per side'],result:failures.length?'UNRESOLVED':divergences.length?'DIVERGENCE':matrix.some(c=>c.status==='unresolved')?'PARTIAL':'PASS'};fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({result:report.result,report:out,cases:matrix.map(({id,status})=>({id,status})),divergences},null,2));if(failures.length||divergences.length)process.exitCode=1}
+const matrix=specs.map(([id])=>{const n=obs.node?.[id],g=obs.go?.[id];const pass=n&&g&&aclEqual(id,n,g);return{id,status:pass?'pass':n&&g?'divergence':'unresolved',source:CASES.cases.find(c=>c.id===id)?.source||[],node:n||null,go:g||null}});for(const c of CASES.cases)if(!specs.some(([id])=>id===c.id))matrix.push({id:c.id,status:'unresolved',source:c.source,reason:'Requires a separately initialized witness or route probe not yet implemented.'});const divergences=matrix.filter(c=>c.status==='divergence').map(c=>({id:c.id,node:c.node,go:c.go}));const report={baseline:CASES.baseline,workDir:work,sides:sides.map(({url,...s})=>s),matrix,divergences,setupFailures:failures,checksRun:['CGO_ENABLED=0 Go build','isolated Node 22 and Go fresh initialization','ffmpeg book fixture','user creation/logins','HTTP probes per side'],result:failures.length?'UNRESOLVED':divergences.length?'DIVERGENCE':matrix.some(c=>c.status==='unresolved')?'PARTIAL':'PASS'};writeJSON(out,report);console.log(JSON.stringify({result:report.result,report:out,cases:matrix.map(({id,status})=>({id,status})),divergences},null,2));if(failures.length||divergences.length)process.exitCode=1}
 main().catch(e=>{console.error(e.stack||e);process.exitCode=1})
 // Order-insensitive body equality: JSON bodies parse then compare; other
 // texts compare exactly; non-JSON parseable composite objects (from multi-step

@@ -29,8 +29,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-SCRIPT = REPO / "go-backend/tools/parity/build_capabilities.py"
+REPO = Path(__file__).resolve().parents[4]
+SCRIPT = Path(__file__).with_name("build_capabilities.py")
 COVERAGE = REPO / "go-backend/contracts/parity/route-coverage.json"
 LIVE_LEDGER = REPO / "docs/agent-work/capabilities"
 
