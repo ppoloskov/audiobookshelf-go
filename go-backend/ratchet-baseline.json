@@ -1,0 +1,15 @@
+{
+  "EmitFunc-style declarations": 7,
+  "Set* injector methods": 20,
+  "catalog.New call sites": 1,
+  "freePort helper definitions": 1,
+  "hand-rolled Handle bool routers": 13,
+  "httptest imports in non-test files": 0,
+  "inline comparePair calls": 0,
+  "login helper definitions": 1,
+  "map[string]any and aliases": 1115,
+  "parseArgs helper definitions": 1,
+  "request helper definitions": 1,
+  "waitReady helper definitions": 1,
+  "writeJSON-style copies": 12
+}

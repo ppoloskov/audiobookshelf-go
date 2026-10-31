@@ -1,0 +1,98 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        wire-no-internal:
+          list-mode: lax
+          files:
+            - "**/internal/wire/*.go"
+            - "**/internal/wire/**/*.go"
+          deny:
+            - pkg: audiobookshelf-compat/internal
+        leaf-boundaries:
+          list-mode: strict
+          files:
+            - '!**/*_test.go'
+            - "**/internal/httputil/*.go"
+            - "**/internal/httputil/**/*.go"
+            - "**/internal/dbtime/*.go"
+            - "**/internal/dbtime/**/*.go"
+            - "**/internal/events/*.go"
+            - "**/internal/events/**/*.go"
+            - "**/internal/ids/*.go"
+            - "**/internal/ids/**/*.go"
+            - "**/internal/media/*.go"
+            - "**/internal/media/**/*.go"
+            - "**/internal/authz/*.go"
+            - "**/internal/authz/**/*.go"
+          allow:
+            - $gostd
+            - audiobookshelf-compat/internal/wire
+        auth-leaf-dependency:
+          list-mode: strict
+          files:
+            - '!**/*_test.go'
+            - "**/internal/auth/*.go"
+            - "**/internal/auth/**/*.go"
+          allow:
+            - $gostd
+            - golang.org/x/net/html
+        production-httptest:
+          list-mode: lax
+          files:
+            - '!**/*_test.go'
+          deny:
+            - pkg: net/http/httptest$
+        feature-cross-imports:
+          list-mode: lax
+          files:
+            - '!**/*_test.go'
+            - "**/internal/catalog/*.go"
+            - "**/internal/catalog/**/*.go"
+            - "**/internal/userapi/*.go"
+            - "**/internal/userapi/**/*.go"
+            - "**/internal/identity/*.go"
+            - "**/internal/identity/**/*.go"
+            - "**/internal/playback/*.go"
+            - "**/internal/playback/**/*.go"
+            - "**/internal/scanner/*.go"
+            - "**/internal/scanner/**/*.go"
+            - "**/internal/podcasts/*.go"
+            - "**/internal/podcasts/**/*.go"
+            - "**/internal/providers/*.go"
+            - "**/internal/providers/**/*.go"
+            - "**/internal/sharing/*.go"
+            - "**/internal/sharing/**/*.go"
+            - "**/internal/adminops/*.go"
+            - "**/internal/adminops/**/*.go"
+            - "**/internal/notifications/*.go"
+            - "**/internal/notifications/**/*.go"
+            - "**/internal/emailapi/*.go"
+            - "**/internal/emailapi/**/*.go"
+            - "**/internal/backup/*.go"
+            - "**/internal/backup/**/*.go"
+            - "**/internal/audiotools/*.go"
+            - "**/internal/audiotools/**/*.go"
+            - "**/internal/realtime/*.go"
+            - "**/internal/realtime/**/*.go"
+          deny:
+            - pkg: audiobookshelf-compat/internal/catalog$
+            - pkg: audiobookshelf-compat/internal/userapi$
+            - pkg: audiobookshelf-compat/internal/identity$
+            - pkg: audiobookshelf-compat/internal/playback$
+            - pkg: audiobookshelf-compat/internal/scanner$
+            - pkg: audiobookshelf-compat/internal/podcasts$
+            - pkg: audiobookshelf-compat/internal/providers$
+            - pkg: audiobookshelf-compat/internal/sharing$
+            - pkg: audiobookshelf-compat/internal/adminops$
+            - pkg: audiobookshelf-compat/internal/notifications$
+            - pkg: audiobookshelf-compat/internal/emailapi$
+            - pkg: audiobookshelf-compat/internal/backup$
+            - pkg: audiobookshelf-compat/internal/audiotools$
+            - pkg: audiobookshelf-compat/internal/realtime$
+
