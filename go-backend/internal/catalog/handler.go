@@ -2190,13 +2190,9 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		if media != nil {
 			row.item["media"] = media
 		}
-		if includeHas(r, "rssfeed") {
-			if feed, ok, feedErr := h.feedMinified(r.Context(), mediaType, row.mediaID); feedErr != nil {
-				writeError(w, http.StatusInternalServerError, "database read failed")
-				return
-			} else if ok {
-				row.item["rssFeed"] = feed
-			}
+		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), row.item["id"].(string), row.item["media"], func(k string, v any) { row.item[k] = v }); err != nil {
+			writeError(w, http.StatusInternalServerError, "database read failed")
+			return
 		}
 		if mediaType == "podcast" && includeHas(r, "numepisodesincomplete") {
 			var totalEpisodes, finishedEpisodes int64
@@ -2292,6 +2288,15 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item ma
 		} else {
 			item["rssFeed"] = nil
 		}
+	}
+	// LibraryItemController.findOne: `item.mediaItemShare = ShareManager.
+	// findByMediaItemId(item.media.id)`, null when no open share exists.
+	if has("share") && isAdminOrUp(user) && item["mediaType"] == "book" {
+		share, err := h.openMediaItemShare(r.Context(), itemMediaAccess(item["media"]))
+		if err != nil {
+			return err
+		}
+		item["mediaItemShare"] = share
 	}
 	return nil
 }

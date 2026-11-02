@@ -43,6 +43,21 @@ type CollapsedSeries struct {
 	LibraryItemIDs   []string `json:"libraryItemIds"`
 }
 
+// MediaItemShareForClient is libraryItem.mediaItemShare, the open share of a
+// book as ShareManager.findByMediaItemId returns it
+// (server/managers/ShareManager.js:49-60): MediaItemShare.toJSON() without
+// pash, userId and extraData, so its dates serialize as ISO strings.
+type MediaItemShareForClient struct {
+	ID             string  `json:"id"`
+	MediaItemID    string  `json:"mediaItemId"`
+	MediaItemType  string  `json:"mediaItemType"`
+	Slug           string  `json:"slug"`
+	ExpiresAt      *string `json:"expiresAt"`
+	IsDownloadable bool    `json:"isDownloadable"`
+	CreatedAt      *string `json:"createdAt"`
+	UpdatedAt      *string `json:"updatedAt"`
+}
+
 // CollapsedSubseries is libraryItem.collapsedSeries on a series-filtered
 // library page with collapseseries=1
 // (server/utils/libraryHelpers.js:233-258). It differs from CollapsedSeries:

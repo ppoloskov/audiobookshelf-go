@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "suite": "core",
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "generatedAt": "2026-11-02T09:09:53.344Z",
-  "sourceReport": "/tmp/abs-parity-kA3L6t/core-fixture/core-report.json",
-  "inputDigest": "e349e7d0b67633cd8be099dd606d4b25905293e66409de640b6aa09b1b522de5",
+  "generatedAt": "2026-11-02T09:20:26.536Z",
+  "sourceReport": "/tmp/abs-parity-M1agcj/core-fixture/core-report.json",
+  "inputDigest": "90994c1bb56d53515b3fa7e51b33e6740ef8dc3f135176f6498e0295a8870135",
   "summary": {
     "total": 193,
     "executed": 193,

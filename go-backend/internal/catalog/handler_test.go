@@ -802,7 +802,7 @@ func TestLibraryItemIncludeAttachesMinifiedFeed(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE feeds (id TEXT PRIMARY KEY,entityType TEXT,entityId TEXT,feedURL TEXT,title TEXT,description TEXT,preventIndexing BOOLEAN,ownerName TEXT,ownerEmail TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO feeds VALUES ('feed-1','book','b1','https://example.test/feed','The Feed','Description',1,'Owner','owner@example.test')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO feeds VALUES ('feed-1','libraryItem','i1','https://example.test/feed','The Feed','Description',1,'Owner','owner@example.test')`); err != nil {
 		t.Fatal(err)
 	}
 	h := New(db, config.Config{}, nil)

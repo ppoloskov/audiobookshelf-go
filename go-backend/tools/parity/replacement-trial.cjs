@@ -233,6 +233,18 @@ async function seed(work, booksRoot) {
       timeListening: 9, startTime: 0, currentTime: 9, startedAt: now - 86400000, updatedAt: now - 86400000 + 9000
     }
     await must(call('/api/session/local-all', { method: 'POST', token: lt, body: { deviceInfo: IOS_DEVICE, sessions: [local] } }), 'local-all')
+
+    // Open RSS feeds (saga1, novel) and media item shares (saga2, novel), for
+    // the include=rssfeed / include=share steps at the end of the journey.
+    for (const k of ['saga1', 'novel']) {
+      await must(call(`/api/feeds/item/${ids[k]}/open`, { method: 'POST', token: rt, body: {
+        serverAddress: 'http://trial.invalid', slug: `trial-feed-${k}`, metadataDetails: { preventIndexing: true, ownerName: 'Trial Owner', ownerEmail: 'owner@example.com' } } }), `open feed ${k}`)
+    }
+    for (const k of ['saga2', 'novel']) {
+      const item = await must(call(`/api/items/${ids[k]}?expanded=1`, { token: rt }), `item ${k}`)
+      await must(call('/api/share/mediaitem', { method: 'POST', token: rt, body: {
+        slug: `trial-share-${k}`, mediaItemType: 'book', mediaItemId: item.media.id, expiresAt: 0, isDownloadable: k === 'novel' } }), `share ${k}`)
+    }
     return { dirs, ids }
   } finally {
     await stop(server)
@@ -385,6 +397,24 @@ function journeySteps(ids) {
   sub('subseries.finisher', 'finisher', '&sort=media.metadata.title')
   add('subseries.missing', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('00000000-0000-4000-8000-000000000000').toString('base64')}`)
   add('subseries.no-series', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('no-series').toString('base64')}`)
+
+  // include=rssfeed / include=share on shelves and pages: library items carry
+  // their open RSS feed (libraryItemsBookFilters.js:407-408, 670-677 and
+  // libraryFilters.js) and, for admins only, their open media item share.
+  // The feeds and shares themselves are created by upstream in seed().
+  add('includes.root.finish', R, `/api/me/progress/${ids.saga1}`, { method: 'PATCH', body: { isFinished: true } })
+  add('includes.root.progress', R, `/api/me/progress/${ids.novel}`, { method: 'PATCH', body: { currentTime: 10, duration: 45 } })
+  const shelfQuery = `/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`
+  add('includes.personalized.root', R, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.listener', L, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.finisher', 'finisher', `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.none', R, `/api/libraries/${ids.library}/personalized?minified=1`)
+  add('includes.items.root', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('includes.items.listener', L, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  for (const k of ['saga1', 'saga2', 'novel', 'ebook']) {
+    add(`includes.item.root.${k}`, R, `/api/items/${ids[k]}?expanded=1&include=rssfeed,share`)
+  }
+  add('includes.item.listener.novel', L, `/api/items/${ids.novel}?expanded=1&include=rssfeed,share`)
   return s
 }
 
