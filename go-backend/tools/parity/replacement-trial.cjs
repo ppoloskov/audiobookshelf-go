@@ -625,6 +625,88 @@ function journeySteps(ids) {
     add(`includes.item.root.${k}`, R, `/api/items/${ids[k]}?expanded=1&include=rssfeed,share`)
   }
   add('includes.item.listener.novel', L, `/api/items/${ids.novel}?expanded=1&include=rssfeed,share`)
+
+  // Feeds and shares created through the server under test (not seeded by
+  // upstream): the HTTP responses, the rss_feed_* / share_* Socket.IO events a
+  // root client receives, the public routes, and (after the journey) the
+  // persisted rows, which are compared in main() via dumpRows().
+  // RssFeedManager.openFeedForItem/Collection/Series, Feed.getFeedObjFor*,
+  // FeedEpisode.getFeedEpisodeObjFrom*, ShareController.js:263-345, ShareManager.js.
+  const FA = 'http://trial.invalid'
+  const feedBody = (slug, metadataDetails) => ({ serverAddress: FA, slug, ...(metadataDetails ? { metadataDetails } : {}) })
+  const seededFeedId = (ctx, key) => ctx.feedsSeeded.feeds.find(f => f.entityId === ids[key]).id
+  const seriesId = (ctx, name) => ctx.seriesList.results.find(x => x.name === name).id
+  add('life.feeds.seeded', R, '/api/feeds', { capture: 'feedsSeeded' })
+  add('life.feed.open.invalid', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: { slug: 'life-x' } })
+  add('life.feed.open.missing', R, '/api/feeds/item/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.noaudio', R, `/api/feeds/item/${ids.ebook}/open`, { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.listener', L, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.slugused', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: feedBody('trial-feed-saga1') })
+  add('life.feed.open.saga2', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', capture: 'feedSaga2', events: 1, isoShape: true,
+    body: feedBody('life-saga2', { preventIndexing: false, ownerName: 'Life Owner', ownerEmail: 'life@example.com' }) })
+  add('life.feed.close.missing', R, '/api/feeds/00000000-0000-4000-8000-000000000000/close', { method: 'POST' })
+  add('life.feed.close.listener', L, ctx => `/api/feeds/${ctx.feedSaga2.feed.id}/close`, { method: 'POST' })
+  // Close the seeded feeds and reopen them without owner details / with odd values, so
+  // columns that upstream leaves NULL are exercised.
+  add('life.feed.close.saga1', R, ctx => `/api/feeds/${seededFeedId(ctx, 'saga1')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.saga1.default', R, `/api/feeds/item/${ids.saga1}/open`, { method: 'POST', body: feedBody('life-saga1'), capture: 'feedSaga1', events: 1 })
+  add('life.feed.close.novel', R, ctx => `/api/feeds/${seededFeedId(ctx, 'novel')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.novel.odd', R, `/api/feeds/item/${ids.novel}/open`, { method: 'POST', events: 1,
+    body: feedBody('life-novel', { preventIndexing: 'no', ownerName: '', ownerEmail: 42 }) })
+  add('life.feed.close.podcast', R, ctx => `/api/feeds/${seededFeedId(ctx, 'podcast')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.podcast', R, `/api/feeds/item/${ids.podcast}/open`, { method: 'POST', events: 1,
+    body: feedBody('life-cast', { preventIndexing: false, ownerName: 'Cast Owner' }) })
+  add('life.feed.open.collection', R, `/api/feeds/collection/${ids.collection}/open`, { method: 'POST', events: 1, body: feedBody('life-collection', { ownerEmail: 'col@example.com' }) })
+  add('life.feed.open.collection.missing', R, '/api/feeds/collection/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-y') })
+  add('life.feed.open.series.mega', R, ctx => `/api/feeds/series/${seriesId(ctx, 'Mega Cycle')}/open`, { method: 'POST', events: 1, body: feedBody('life-series-mega') })
+  add('life.feed.open.series.long', R, ctx => `/api/feeds/series/${seriesId(ctx, 'Long Saga')}/open`, { method: 'POST', events: 1, capture: 'feedLong', body: feedBody('life-series-long', { preventIndexing: false }) })
+  add('life.feed.open.series.missing', R, '/api/feeds/series/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-z') })
+  // Entities edited after their feed was opened: the next GET /feed/:slug
+  // refreshes the feed (RssFeedManager.checkFeedRequiresUpdate, Feed.updateFeedForEntity).
+  add('life.feed.stale.saga2.patch', R, `/api/items/${ids.saga2}/media`, { method: 'PATCH', body: { metadata: { title: 'The Middle Revised', description: 'A <b>revised</b> description.' } } })
+  add('life.feed.stale.collection.patch', R, `/api/collections/${ids.collection}`, { method: 'PATCH', body: { name: 'Favourites Renamed', description: 'Renamed collection' } })
+  add('life.feeds.list', R, '/api/feeds')
+  add('life.feeds.list.listener', L, '/api/feeds')
+  add('life.feed.xml.saga2', null, '/feed/life-saga2', { binary: 'xml' })
+  add('life.feed.xml.saga1', null, '/feed/life-saga1', { binary: 'xml' })
+  add('life.feed.xml.novel', null, '/feed/life-novel', { binary: 'xml' })
+  add('life.feed.xml.podcast', null, '/feed/life-cast', { binary: 'xml' })
+  add('life.feed.xml.collection', null, '/feed/life-collection', { binary: 'xml' })
+  add('life.feed.xml.series', null, '/feed/life-series-mega', { binary: 'xml' })
+  add('life.feed.xml.missing', null, '/feed/life-nope', { binary: 'xml' })
+  add('life.feed.cover.saga1', null, '/feed/life-saga1/cover.jpg', { binary: 'bytes' })
+  add('life.items.rssfeed', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('life.feed.close.series.long', R, ctx => `/api/feeds/${ctx.feedLong.feed.id}/close`, { method: 'POST', events: 1 })
+  add('life.feeds.list.after', R, '/api/feeds')
+
+  const bookId = (key) => ctx => ctx[`item_${key}`].media.id
+  for (const k of ['saga1', 'saga2', 'ebook']) add(`life.share.item.${k}`, R, `/api/items/${ids[k]}?expanded=1`, { capture: `item_${k}` })
+  const shareBody = (key, extra) => ctx => ({ slug: `life-share-${key}`, mediaItemType: 'book', mediaItemId: bookId(key)(ctx), expiresAt: 0, ...extra })
+  add('life.share.create.listener', L, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1') })
+  add('life.share.create.invalid', R, '/api/share/mediaitem', { method: 'POST', body: { slug: ' ', mediaItemType: 'book', mediaItemId: 'x', expiresAt: 0 } })
+  add('life.share.create.badtype', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { mediaItemType: 'nope' }) })
+  add('life.share.create.badexpiry', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { expiresAt: -5 }) })
+  add('life.share.create.missingitem', R, '/api/share/mediaitem', { method: 'POST', body: { slug: 'life-share-none', mediaItemType: 'book', mediaItemId: '00000000-0000-4000-8000-000000000000', expiresAt: 0 } })
+  add('life.share.create.saga1', R, '/api/share/mediaitem', { method: 'POST', capture: 'shareSaga1', events: 1, isoShape: true, body: shareBody('saga1', { isDownloadable: true }) })
+  add('life.share.create.dup.item', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { slug: 'life-share-other' }) })
+  add('life.share.create.dup.slug', R, '/api/share/mediaitem', { method: 'POST', body: { slug: 'life-share-saga1', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep2, expiresAt: 0 } })
+  // Fixed far-future expiry (2100-01-01): the exact ISO value is compared.
+  add('life.share.create.ebook', R, '/api/share/mediaitem', { method: 'POST', capture: 'shareEbook', events: 1, isoShape: true, body: shareBody('ebook', { expiresAt: 4102444800000, isDownloadable: false }) })
+  // isDownloadable absent: omitted from the response and event, NULL in the row.
+  add('life.share.create.episode', R, '/api/share/mediaitem', { method: 'POST', events: 1, isoShape: true, body: { slug: 'life-share-ep3', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep3, expiresAt: 4102444800000 } })
+  // Expiry already past: upstream answers 201 and emits share_open, but drops the row at once.
+  add('life.share.create.pastexpiry', R, '/api/share/mediaitem', { method: 'POST', events: 1, isoShape: true, body: { slug: 'life-share-past', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep1, expiresAt: 1000 } })
+  add('life.share.public.saga1', null, '/public/share/life-share-saga1', { capture: 'publicShare', isoShape: true })
+  add('life.share.public.saga1.t', null, '/public/share/life-share-saga1?t=7', { isoShape: true })
+  add('life.share.public.ebook', null, '/public/share/life-share-ebook', { isoShape: true })
+  add('life.share.public.episode', null, '/public/share/life-share-ep3', { isoShape: true })
+  add('life.share.public.pastexpiry', null, '/public/share/life-share-past')
+  add('life.share.public.missing', null, '/public/share/life-share-nope')
+  add('life.share.delete.listener', L, ctx => `/api/share/mediaitem/${ctx.shareSaga1.id}`, { method: 'DELETE' })
+  add('life.share.delete.missing', R, '/api/share/mediaitem/00000000-0000-4000-8000-000000000000', { method: 'DELETE' })
+  add('life.items.share', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('life.share.delete.ebook', R, ctx => `/api/share/mediaitem/${ctx.shareEbook.id}`, { method: 'DELETE', events: 1, isoShape: true })
+  add('life.share.public.ebook.deleted', null, '/public/share/life-share-ebook')
   return s
 }
 
@@ -642,7 +724,9 @@ function normalize(value, known, fresh, key = '') {
     if (decoded && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(decoded) && !known.has(decoded)) return `${m[1]}.<b64:new-uuid>`
   }
   if (typeof value === 'string') {
-    let v = value.replace(JWT, '<jwt>')
+    // Feed cover URLs carry the entity's updatedAt in ms (Feed.getFeedImageURL),
+    // which is the wall-clock time of an earlier journey mutation.
+    let v = value.replace(JWT, '<jwt>').replace(/(\/cover\.\w+)\?ts=\d+$/, '$1?ts=<ms>')
     if (WORK_DIR) v = v.split(WORK_DIR).join('<work>')
     v = v.replace(UUID, m => known.has(m) ? m : '<new-uuid>')
     v = v.replace(/play_local_[a-z0-9]+/g, m => m)
@@ -665,6 +749,49 @@ function normalize(value, known, fresh, key = '') {
   return value
 }
 
+// ISO date strings are normalized to <iso> by normalize(), which would hide a
+// wrong format (epoch millis vs ISO, missing milliseconds). With isoShape the
+// digits are kept as a shape ("9999-99-99T99:99:99.999Z"), except expiresAt,
+// whose value is fixed by the step and compared exactly.
+function isoShape(value, key = '') {
+  if (typeof value === 'string' && key !== 'expiresAt' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) return `iso-shape:${value.replace(/\d/g, '9')}`
+  if (Array.isArray(value)) return value.map(v => isoShape(v, key))
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, isoShape(v, k)]))
+  return value
+}
+
+// The generated RSS has the request host (random port) and wall-clock dates.
+function normalizeFeedXML(text) {
+  return text.replace(UUID, '<uuid>').replace(/http:\/\/127\.0\.0\.1:\d+/g, '<host>')
+    .replace(/<lastBuildDate>[^<]*<\/lastBuildDate>/g, '<lastBuildDate>').replace(/\?ts=\d+/g, '?ts=<ms>')
+}
+
+// A root Socket.IO client that records the feed and share events emitted during
+// the journey; take(n) waits (up to 3s) for n events and drains the buffer.
+async function connectEventSocket(server, token) {
+  const io = loadSocketIOClient()
+  if (!io) return null
+  const socket = io(server.baseUrl, { path: `${BASE}/socket.io`, transports: ['websocket'], reconnection: false, timeout: 8000 })
+  const buffer = []
+  for (const name of ['rss_feed_open', 'rss_feed_closed', 'share_open', 'share_closed']) socket.on(name, payload => buffer.push({ event: name, payload }))
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('event socket: no init')), 10000)
+    socket.on('connect', () => socket.emit('auth', token))
+    socket.on('init', () => { clearTimeout(t); resolve() })
+    socket.on('connect_error', reject)
+  })
+  buffer.length = 0
+  return {
+    async take(n) {
+      const deadline = Date.now() + 3000
+      while (buffer.length < n && Date.now() < deadline) await delay(25)
+      await delay(150)
+      return buffer.splice(0)
+    },
+    close() { socket.disconnect() }
+  }
+}
+
 async function runJourney(server, ids, logDir) {
   const call = api(server)
   const ctx = {}
@@ -673,43 +800,56 @@ async function runJourney(server, ids, logDir) {
   const known = snapshotUUIDs(ids)
   const fresh = new Map()
   const resolve = (v) => typeof v === 'function' ? v(ctx) : v
-  for (const step of journeySteps(ids)) {
-    if (step.skip) continue
-    let route
-    try { route = resolve(step.route) } catch (e) { results[step.id] = { error: `route unresolved: ${e.message}` }; continue }
-    const token = step.who ? tokens[step.who] : undefined
-    if (step.tokenQuery && token && !/[?&]token=/.test(route)) route += (route.includes('?') ? '&' : '?') + `token=${token}`
-    let body, headers
-    try { body = resolve(step.body); headers = resolve(step.headers) || {} } catch (e) { results[step.id] = { error: `body unresolved: ${e.message}` }; continue }
-    let r
-    for (let attempt = 0; attempt <= (step.retry || 0); attempt++) {
-      try {
-        r = await requestJSON(server.baseUrl, route, { method: step.method || 'GET', token: step.tokenQuery ? undefined : token, body, headers, timeoutMs: 30000 })
-      } catch (e) { r = { status: 0, value: e.message, bytes: Buffer.alloc(0), headers: new Headers() } }
-      if (r.status !== 404 && r.status !== 0) break
-      await delay(500)
+  let rootSocket = null
+  try {
+    for (const step of journeySteps(ids)) {
+      if (step.skip) continue
+      let route
+      try { route = resolve(step.route) } catch (e) { results[step.id] = { error: `route unresolved: ${e.message}` }; continue }
+      const token = step.who ? tokens[step.who] : undefined
+      if (step.tokenQuery && token && !/[?&]token=/.test(route)) route += (route.includes('?') ? '&' : '?') + `token=${token}`
+      let body, headers
+      try { body = resolve(step.body); headers = resolve(step.headers) || {} } catch (e) { results[step.id] = { error: `body unresolved: ${e.message}` }; continue }
+      let r
+      for (let attempt = 0; attempt <= (step.retry || 0); attempt++) {
+        try {
+          r = await requestJSON(server.baseUrl, route, { method: step.method || 'GET', token: step.tokenQuery ? undefined : token, body, headers, timeoutMs: 30000 })
+        } catch (e) { r = { status: 0, value: e.message, bytes: Buffer.alloc(0), headers: new Headers() } }
+        if (r.status !== 404 && r.status !== 0) break
+        await delay(500)
+      }
+      // Normalization: the "discover" shelf is ORDER BY RANDOM() upstream
+      // (libraryItemsBookFilters.getDiscoverLibraryItems), so compare its
+      // entity set, not its order.
+      if (Array.isArray(r.value) && step.route.toString().includes('/personalized')) {
+        for (const shelf of r.value) if (shelf?.id === 'discover' && Array.isArray(shelf.entities)) shelf.entities.sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      }
+      if (step.capture && r.ok) ctx[step.capture] = r.value
+      if (step.id === 'login.listener.mobile' && r.ok) {
+        tokens.listener = r.value.user.accessToken
+        ctx.listenerRefresh = r.value.user.refreshToken
+        ctx.listenerId = r.value.user.id
+        known.add(ctx.listenerId)
+      }
+      if (step.id === 'login.root' && r.ok) {
+        tokens.root = r.value.user.accessToken
+        rootSocket = await connectEventSocket(server, tokens.root)
+      }
+      if (step.id === 'login.finisher' && r.ok) tokens.finisher = r.value.user.accessToken
+      let recorded
+      if (step.binary === 'bytes') recorded = { len: r.bytes.length, sha: require('node:crypto').createHash('sha256').update(r.bytes).digest('hex'), type: r.headers.get('content-type'), range: r.headers.get('content-range') }
+      else if (step.binary === 'meta') recorded = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
+      else if (step.binary === 'xml') recorded = { status: r.status, type: r.headers.get('content-type'), text: typeof r.value === 'string' ? normalizeFeedXML(r.value) : r.value }
+      else if (step.binary === 'text') recorded = { type: r.headers.get('content-type'), text: typeof r.value === 'string' ? r.value.replace(UUID, '<uuid>').replace(/[?&]token=[^\s&]+/g, '') : r.value }
+      else recorded = normalize(step.isoShape ? isoShape(r.value) : r.value, known, fresh)
+      results[step.id] = { status: r.status, body: recorded }
+      if (step.events) {
+        const events = await rootSocket?.take(step.events)
+        results[step.id].events = normalize(step.isoShape ? isoShape(events) : events, known, fresh)
+      }
     }
-    // Normalization: the "discover" shelf is ORDER BY RANDOM() upstream
-    // (libraryItemsBookFilters.getDiscoverLibraryItems), so compare its
-    // entity set, not its order.
-    if (Array.isArray(r.value) && step.route.toString().includes('/personalized')) {
-      for (const shelf of r.value) if (shelf?.id === 'discover' && Array.isArray(shelf.entities)) shelf.entities.sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    }
-    if (step.capture && r.ok) ctx[step.capture] = r.value
-    if (step.id === 'login.listener.mobile' && r.ok) {
-      tokens.listener = r.value.user.accessToken
-      ctx.listenerRefresh = r.value.user.refreshToken
-      ctx.listenerId = r.value.user.id
-      known.add(ctx.listenerId)
-    }
-    if (step.id === 'login.root' && r.ok) tokens.root = r.value.user.accessToken
-    if (step.id === 'login.finisher' && r.ok) tokens.finisher = r.value.user.accessToken
-    let recorded
-    if (step.binary === 'bytes') recorded = { len: r.bytes.length, sha: require('node:crypto').createHash('sha256').update(r.bytes).digest('hex'), type: r.headers.get('content-type'), range: r.headers.get('content-range') }
-    else if (step.binary === 'meta') recorded = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
-    else if (step.binary === 'text') recorded = { type: r.headers.get('content-type'), text: typeof r.value === 'string' ? r.value.replace(UUID, '<uuid>').replace(/[?&]token=[^\s&]+/g, '') : r.value }
-    else recorded = normalize(r.value, known, fresh)
-    results[step.id] = { status: r.status, body: recorded }
+  } finally {
+    rootSocket?.close()
   }
   fs.writeFileSync(path.join(logDir, `journey-${server.kind}.json`), JSON.stringify(results, null, 2))
   return results
@@ -743,6 +883,41 @@ function snapshotUUIDs(ids) {
   const set = new Set(Object.values(ids))
   if (SNAPSHOT_DB) for (const m of fs.readFileSync(SNAPSHOT_DB, 'latin1').match(UUID) || []) set.add(m)
   return set
+}
+
+// Persisted rows written by the journey (feeds, feed episodes, shares), read
+// from the stopped server's database. IDs created during the journey and
+// timestamps are normalized; everything else (NULL vs '', booleans, dates,
+// URLs) is compared exactly. node:sqlite is experimental in Node 22.
+function dumpRows(dbPath, ids) {
+  const { DatabaseSync } = require('node:sqlite')
+  const db = new DatabaseSync(dbPath, { readOnly: true })
+  const known = snapshotUUIDs(ids)
+  const shape = (v, key) => {
+    if (typeof v === 'string') {
+      if (/(^|[a-z])(createdAt|updatedAt)$/.test(key)) return `ts-shape:${v.replace(/\d/g, '9')}`
+      return v.replace(UUID, m => known.has(m) ? m : '<new-uuid>')
+    }
+    return v
+  }
+  const rows = (sql) => db.prepare(sql).all().map(r => {
+    // imageURL's ?ts= must equal entityUpdatedAt in ms; the instant itself is journey wall-clock.
+    if (typeof r.imageURL === 'string' && typeof r.entityUpdatedAt === 'string') {
+      const ms = Date.parse(r.entityUpdatedAt.replace(' +00:00', 'Z').replace(' ', 'T'))
+      r.imageURL = r.imageURL.replace(/\?ts=(\d+)$/, (m, ts) => Number(ts) === ms ? '?ts=<entityUpdatedAt>' : m)
+      r.entityUpdatedAt = 'ts-shape:' + r.entityUpdatedAt.replace(/\d/g, '9')
+    }
+    return Object.fromEntries(Object.keys(r).sort().map(k => [k, shape(r[k], k)]))
+  })
+  const out = {
+    'db.feeds': rows('SELECT * FROM feeds ORDER BY slug'),
+    'db.feedEpisodes': rows('SELECT fe.*, f.slug AS feedSlug FROM feedEpisodes fe LEFT JOIN feeds f ON f.id = fe.feedId ORDER BY f.slug, fe.pubDate, fe.filePath'),
+    'db.mediaItemShares': rows('SELECT * FROM mediaItemShares ORDER BY slug'),
+    // Devices created by public share visits (no user): PlaybackSessionManager.getDeviceInfo.
+    'db.devices.public': rows('SELECT * FROM devices WHERE userId IS NULL ORDER BY clientName, deviceName')
+  }
+  db.close()
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { status: 200, body: v }]))
 }
 
 function diffResults(a, b) {
@@ -798,6 +973,7 @@ async function main() {
   const upLogin = await loginAs(api(up), LISTENER)
   const upSocket = await socketProgressProbe(up, ids, upLogin.accessToken)
   await stop(up)
+  Object.assign(upstream, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Swap: restore the pre-journey installation to the same paths, boot Go.
   copyTree(snapshot, path.join(work, 'install'))
@@ -807,6 +983,7 @@ async function main() {
   try { goSocket = await socketProgressProbe(go, ids, (await loginAs(api(go), LISTENER)).accessToken) } catch (e) { goSocket = { status: 'error', error: e.message } }
   const goProgress = await requestJSON(go.baseUrl, '/api/me', { token: (await loginAs(api(go), LISTENER)).accessToken })
   await stop(go)
+  Object.assign(goResults, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Rollback: upstream reopens the Go-written installation.
   let rollback
@@ -830,6 +1007,9 @@ async function main() {
     await stop(up)
   }
 
+  const unresolved = Object.entries(upstream).filter(([, v]) => v?.error).map(([k, v]) => `${k}: ${v.error}`)
+  if (unresolved.length) throw new Error(`upstream journey steps could not run:\n${unresolved.join('\n')}`)
+  for (const [kind, results] of [['upstream', upstream], ['go', goResults]]) fs.writeFileSync(path.join(work, `journey-${kind}.json`), JSON.stringify(results, null, 2))
   const diffs = diffResults(upstream, goResults)
   const report = {
     steps: Object.keys(upstream).length,

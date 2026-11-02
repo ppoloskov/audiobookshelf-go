@@ -20,7 +20,7 @@
     "go-backend/internal/userapi/userapi.go": "a2591e5f18927b0d2c48bc357817d2a26b82e73d7bc0f02cff95e9e79f4a8845",
     "go-backend/internal/playback/playback.go": "3ddd5eee5367c6a8e2d2dc926fcf3502e50a04934bd8141bab1e4ed8ff0902ba",
     "go-backend/internal/scanner/scanner.go": "86ba0e033a633b57aa2ed3647c7f22ad6f5016259eeabcdaf724e0ec9b160b78",
-    "go-backend/internal/sharing/handler.go": "3eef066b9722fe2bbade5ff82a3e945c33423a00ac32fdbfba7f3ce0cca0fba3"
+    "go-backend/internal/sharing/handler.go": "225ec580ea624b9f9b0b7812f0f1861e29fe5adcf26ec0e7ae0eee8a899bed90"
   },
   "limitations": [
     "All 226 entries are source-syntax candidates, not resolved Express routes; mount paths and middleware behavior are not resolved.",
