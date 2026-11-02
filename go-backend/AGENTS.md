@@ -30,7 +30,8 @@ status from memory of an older document.
 | 1 | Builds, vets, unit tests pass | `cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...` | exists |
 | 2 | Differential passes, **with at least one case executed** and no fewer cases than before | `make parity` | exists |
 | 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | exists |
-| 4 | Product-facing packets (anything a client can observe): the replacement trial passes, with no fewer steps than before and rollback ok | `make parity-replacement` | exists |
+| 4 | Product-facing packets (anything a client can observe): the replacement trial passes (and the scan trial, `make parity-scan`, for scanner/watcher/metadata-edit changes), with no fewer steps than before and rollback ok | `make parity-replacement` | exists |
+| 4b | Route inventory is current after adding or changing a route | `python3 go-backend/tools/parity/build_route_coverage.py --check` (regenerate without `--check`) | exists |
 | 5 | New or changed behavior has a differential case or a golden test | n/a | review |
 | 6 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
 
