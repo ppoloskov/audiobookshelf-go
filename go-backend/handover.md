@@ -8,17 +8,22 @@ Earlier handover and status documents are in [archive/](archive/).
 
 ## Linux and worktrees
 
-- The Makefile defaults to `mise exec node@22 -- node`. There is no `mise` on
-  the Linux box: run `make PARITY_NODE=node parity` or call `node` directly.
-  Use Node 22.x; Node 26 breaks the upstream dependency tree.
+- The Makefile `PARITY_NODE` defaults to `mise exec node@22 -- node` when
+  `mise` is installed and to plain `node` otherwise (override with
+  `make PARITY_NODE=... parity`). Use Node 22.x; Node 26 breaks the upstream
+  dependency tree.
 - A fresh git worktree has none of the untracked build outputs. Before any
   harness run it needs `node_modules` (`npm ci`), `dist-server`
   (`npm run build:server`) and `client/dist` (build in `client/`), or symlinks
   to a checkout that has them.
-- `tools/parity/browser-check.cjs` (Chromium web-client acceptance) is not
-  portable yet: it hardcodes macOS paths and spawns `mise`. On Linux set
-  `BROWSER_CHECK_OUT` and put a `mise` shim on `PATH` that execs `node`. Tracked
-  as part of the operational workstream in the roadmap.
+- `make browser-check` (Chromium web-client acceptance) is portable: it uses a
+  fresh temp output dir (`BROWSER_CHECK_OUT` to override), creates its own
+  fixture unless `--fixture` is given, and starts upstream with the running Node
+  (`ABS_PARITY_NODE` to override). It needs `playwright` + Chromium. It never
+  rewrites the checked-in browser contract unless `--write-contract` is passed.
+  Other harness tools (`acl-differential`, `f07-rollin-check`,
+  `operational-milestone`, `cascades-differential`) still spawn `mise`; on Linux
+  put a `mise` shim on `PATH` that execs `node` when running them.
 
 ## Running the harness
 

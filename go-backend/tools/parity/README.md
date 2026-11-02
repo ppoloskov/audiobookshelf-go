@@ -68,6 +68,12 @@ The former Python capability-ledger generator, classifier, and regression test a
 
 `mutation-flow-report.json` and `mutation-flow-provenance.json` are historical artifacts from a later fresh-fixture run of that narrower core set followed by bookmark create, read, update, delete, and post-delete read. Their `createdAt` field is required and type-checked before normalization.
 
+## Browser check
+
+`make browser-check` (or `node go-backend/tools/parity/browser-check.cjs [--fixture MANIFEST] [--variant full|transcode|restricted|root|fresh] [--write-contract]`) drives the unchanged web client in headless Chromium (Playwright) against isolated copies of the same fixture, once on upstream and once on Go, and compares login, library, detail and direct-play (or HLS, restricted-reader, root-prefix or first-boot) behavior. It needs `playwright` resolvable from Node (`require('playwright')`) with Chromium installed.
+
+Without `--fixture` it creates a fresh one with `create-fixture.cjs` (needs the built `dist-server/`). Output goes to `BROWSER_CHECK_OUT`, default a fresh `os.tmpdir()` directory; `browser-report.json` there is the result. Upstream runs under the Node that runs the script (`process.execPath`), or `ABS_PARITY_NODE` when set; use Node 22.x. The checked-in `contracts/parity/browser-playback-differential-*.json` files are rewritten only by the `full` variant with `--write-contract`. Browser timing values (the first-loaded `readyState`, the post-play/pause `currentTime`) are compared as loaded/advanced booleans; seek positions stay exact.
+
 ## Route inventory ledger
 
 Regenerate the source-inspected ledger with:
