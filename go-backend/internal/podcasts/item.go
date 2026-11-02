@@ -15,6 +15,7 @@ type podcastItem struct {
 	LibraryFiles                                                              sql.NullString
 	CreatedAt, UpdatedAt, MTime, CTime, BirthTime, LastScan                   sql.NullString
 	ScanVersion                                                               sql.NullString
+	Size                                                                      int64
 	Title, Author, ReleaseDate, FeedURL, ImageURL, Description                sql.NullString
 	ITunesPageURL, ITunesID, ITunesArtistID, Language, PodcastType, CoverPath sql.NullString
 	Explicit, AutoDownload                                                    bool
@@ -36,7 +37,7 @@ type podcastEpisode struct {
 
 func (h *Handler) loadItem(ctx context.Context, id string) (podcastItem, error) {
 	var x podcastItem
-	err := h.db.QueryRowContext(ctx, `SELECT li.id,li.libraryId,li.mediaId,li.path,li.relPath,li.libraryFolderId,li.ino,li.libraryFiles,li.createdAt,li.updatedAt,li.mtime,li.ctime,li.birthtime,li.lastScan,li.lastScanVersion,p.title,p.author,p.releaseDate,p.feedURL,p.imageURL,p.description,p.itunesPageURL,p.itunesId,p.itunesArtistId,p.language,p.podcastType,COALESCE(p.explicit,0),COALESCE(p.autoDownloadEpisodes,0),p.autoDownloadSchedule,p.lastEpisodeCheck,COALESCE(p.maxEpisodesToKeep,0),COALESCE(p.maxNewEpisodesToDownload,3),p.coverPath,p.tags,p.genres,COALESCE(p.numEpisodes,0) FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.id=? AND li.mediaType='podcast'`, id).Scan(&x.ID, &x.LibraryID, &x.MediaID, &x.Path, &x.RelPath, &x.FolderID, &x.Ino, &x.LibraryFiles, &x.CreatedAt, &x.UpdatedAt, &x.MTime, &x.CTime, &x.BirthTime, &x.LastScan, &x.ScanVersion, &x.Title, &x.Author, &x.ReleaseDate, &x.FeedURL, &x.ImageURL, &x.Description, &x.ITunesPageURL, &x.ITunesID, &x.ITunesArtistID, &x.Language, &x.PodcastType, &x.Explicit, &x.AutoDownload, &x.AutoSchedule, &x.LastEpisodeCheck, &x.MaxKeep, &x.MaxNew, &x.CoverPath, &x.Tags, &x.Genres, &x.NumEpisodes)
+	err := h.db.QueryRowContext(ctx, `SELECT li.id,li.libraryId,li.mediaId,li.path,li.relPath,li.libraryFolderId,li.ino,li.libraryFiles,li.createdAt,li.updatedAt,li.mtime,li.ctime,li.birthtime,li.lastScan,li.lastScanVersion,p.title,p.author,p.releaseDate,p.feedURL,p.imageURL,p.description,p.itunesPageURL,p.itunesId,p.itunesArtistId,p.language,p.podcastType,COALESCE(p.explicit,0),COALESCE(p.autoDownloadEpisodes,0),p.autoDownloadSchedule,p.lastEpisodeCheck,COALESCE(p.maxEpisodesToKeep,0),COALESCE(p.maxNewEpisodesToDownload,3),p.coverPath,p.tags,p.genres,COALESCE(p.numEpisodes,0),COALESCE(li.size,0) FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.id=? AND li.mediaType='podcast'`, id).Scan(&x.ID, &x.LibraryID, &x.MediaID, &x.Path, &x.RelPath, &x.FolderID, &x.Ino, &x.LibraryFiles, &x.CreatedAt, &x.UpdatedAt, &x.MTime, &x.CTime, &x.BirthTime, &x.LastScan, &x.ScanVersion, &x.Title, &x.Author, &x.ReleaseDate, &x.FeedURL, &x.ImageURL, &x.Description, &x.ITunesPageURL, &x.ITunesID, &x.ITunesArtistID, &x.Language, &x.PodcastType, &x.Explicit, &x.AutoDownload, &x.AutoSchedule, &x.LastEpisodeCheck, &x.MaxKeep, &x.MaxNew, &x.CoverPath, &x.Tags, &x.Genres, &x.NumEpisodes, &x.Size)
 	if err != nil {
 		return x, err
 	}
@@ -97,7 +98,7 @@ func (x podcastItem) oldJSON() map[string]any {
 	}
 	added := sqlMillis(x.CreatedAt)
 	updated := sqlMillis(x.UpdatedAt)
-	return map[string]any{"id": x.ID, "ino": x.Ino, "oldLibraryItemId": nil, "libraryId": x.LibraryID, "folderId": x.FolderID, "path": x.Path, "relPath": x.RelPath, "isFile": false, "mtimeMs": sqlMillis(x.MTime), "ctimeMs": sqlMillis(x.CTime), "birthtimeMs": sqlMillis(x.BirthTime), "addedAt": added, "updatedAt": updated, "isMissing": false, "isInvalid": false, "mediaType": "podcast", "media": mergeMap(minified, map[string]any{"libraryItemId": x.ID, "episodes": episodes}), "numFiles": len(files), "size": int64(total), "lastScan": sqlMillis(x.LastScan), "scanVersion": nullableSQL(x.ScanVersion), "libraryFiles": files}
+	return map[string]any{"id": x.ID, "ino": x.Ino, "oldLibraryItemId": nil, "libraryId": x.LibraryID, "folderId": x.FolderID, "path": x.Path, "relPath": x.RelPath, "isFile": false, "mtimeMs": sqlMillis(x.MTime), "ctimeMs": sqlMillis(x.CTime), "birthtimeMs": sqlMillis(x.BirthTime), "addedAt": added, "updatedAt": updated, "isMissing": false, "isInvalid": false, "mediaType": "podcast", "media": mergeMap(minified, map[string]any{"libraryItemId": x.ID, "episodes": episodes}), "numFiles": len(files), "size": x.Size, "lastScan": sqlMillis(x.LastScan), "scanVersion": nullableSQL(x.ScanVersion), "libraryFiles": files}
 }
 
 func (x podcastItem) legacyJSON() map[string]any {

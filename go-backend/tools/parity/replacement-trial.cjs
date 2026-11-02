@@ -299,6 +299,8 @@ async function seed(work, media) {
     const ppl = await must(call('/api/playlists', { method: 'POST', token: lt, body: { libraryId: ids.podcastLibrary, name: 'Cast queue',
       items: [{ libraryItemId: ids.podcast, episodeId: ids.ep3 }, { libraryItemId: ids.podcast, episodeId: ids.ep1 }] } }), 'podcast playlist')
     ids.podcastPlaylist = ppl.id
+    // An open RSS feed on the podcast, so include=rssfeed has something to report.
+    await must(call(`/api/feeds/item/${ids.podcast}/open`, { method: 'POST', token: rt, body: { serverAddress: 'http://trial.invalid', slug: 'fixture-cast-feed', metadataDetails: { preventIndexing: true } } }), 'open podcast feed')
     return { dirs, ids }
   } finally {
     await stop(server)
@@ -421,6 +423,8 @@ function journeySteps(ids) {
   add('plib.recent-episodes.page2', L, `/api/libraries/${PL}/recent-episodes?limit=1&page=1`)
   add('plib.podcast-titles', L, `/api/libraries/${PL}/podcast-titles`)
   add('plib.search', L, `/api/libraries/${PL}/search?q=fixture&limit=12`)
+  add('plib.search.episode', L, `/api/libraries/${PL}/search?q=pilot&limit=12`)
+  add('plib.search.genre', L, `/api/libraries/${PL}/search?q=technology&limit=12`)
   add('plib.search.none', L, `/api/libraries/${PL}/search?q=zzzznothing&limit=12`)
   add('plib.playlists', L, `/api/libraries/${PL}/playlists?minified=1`)
   add('plib.playlist', L, `/api/playlists/${ids.podcastPlaylist}`)

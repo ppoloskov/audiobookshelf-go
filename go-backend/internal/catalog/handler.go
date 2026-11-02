@@ -2974,7 +2974,12 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 		return
 	}
 	if mediaType == "podcast" {
-		writeJSON(w, r, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": []any{}})
+		episodes, err := h.searchEpisodes(r.Context(), libraryID, pattern, permissionSQL, permissionArgs, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "database read failed")
+			return
+		}
+		writeJSON(w, r, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes})
 		return
 	}
 	narrators, err := h.searchJSONValues(r.Context(), libraryID, table, "narrators", query, limit)
@@ -2993,6 +2998,55 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 		return
 	}
 	writeJSON(w, r, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors})
+}
+
+// searchEpisodes is the episode half of libraryItemsPodcastFilters.search
+// (server/utils/queries/libraryItemsPodcastFilters.js:411-440): episodes whose
+// title matches, each with its podcast (loaded without episodes) and the
+// expanded episode as recentEpisode.
+func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permissionSQL string, permissionArgs []any, limit int) ([]wire.ItemMatch, error) {
+	query := `SELECT li.id, e.id FROM podcastEpisodes e JOIN podcasts b ON b.id=e.podcastId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='podcast' WHERE li.libraryId=? AND lower(e.title) LIKE lower(?)` + permissionSQL + ` ORDER BY e.rowid`
+	args := append([]any{libraryID, pattern}, permissionArgs...)
+	rows, err := h.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	type ref struct{ itemID, episodeID string }
+	refs := make([]ref, 0)
+	for rows.Next() {
+		var x ref
+		if err := rows.Scan(&x.itemID, &x.episodeID); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		refs = append(refs, x)
+		if limit > 0 && len(refs) >= limit {
+			break
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	out := make([]wire.ItemMatch, 0, len(refs))
+	for _, x := range refs {
+		item, err := h.ItemJSON(ctx, x.itemID, true)
+		if err != nil {
+			return nil, err
+		}
+		media := item["media"].(map[string]any)
+		var recent any
+		for _, ep := range media["episodes"].([]map[string]any) {
+			if ep["id"] == x.episodeID {
+				recent = ep
+			}
+		}
+		media["episodes"] = []any{}
+		media["numEpisodes"] = 0
+		media["size"] = 0
+		item["recentEpisode"] = recent
+		out = append(out, wire.ItemMatch{LibraryItem: item})
+	}
+	return out, nil
 }
 
 func (h *Handler) searchJSONValues(ctx context.Context, libraryID, table, column, query string, limit int) ([]map[string]any, error) {

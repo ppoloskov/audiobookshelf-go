@@ -230,7 +230,9 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	}
 	item, err := h.loadItem(r.Context(), itemID, episodeID)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
+		// LibraryItemController.middleware / startEpisodePlaybackSession
+		// (LibraryItemController.js:460-470): res.sendStatus(404).
+		sendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -238,7 +240,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if !canAccess(user, item) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		sendStatus(w, http.StatusForbidden)
 		return
 	}
 	if len(item.Files) == 0 {
@@ -2148,6 +2150,16 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_, _ = w.Write(b)
 }
+
+// sendStatus is Express res.sendStatus: the status text as a text/plain body.
+func sendStatus(w http.ResponseWriter, status int) {
+	body := http.StatusText(status)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
 func sendOK(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", "2")

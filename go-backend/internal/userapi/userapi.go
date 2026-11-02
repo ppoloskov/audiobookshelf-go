@@ -2182,36 +2182,6 @@ func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {
 
 type rowScanner interface{ Scan(...any) error }
 
-func scanProgress(row rowScanner) (map[string]any, error) {
-	var id, userID, mediaItemID, mediaType string
-	var duration, current, ebook sql.NullFloat64
-	var finished, hide int
-	var ebookLocation sql.NullString
-	var finishedAt, createdAt, updatedAt any
-	var extraRaw []byte
-	if err := row.Scan(&id, &userID, &mediaItemID, &mediaType, &duration, &current, &finished, &hide, &ebookLocation, &ebook, &finishedAt, &extraRaw, &createdAt, &updatedAt); err != nil {
-		return nil, err
-	}
-	var extra map[string]any
-	_ = json.Unmarshal(extraRaw, &extra)
-	var libID any
-	if extra != nil {
-		libID = extra["libraryItemId"]
-	}
-	var epID any
-	if mediaType == "podcastEpisode" {
-		epID = mediaItemID
-	}
-	var progress any
-	if extra != nil {
-		progress = extra["progress"]
-	}
-	if progress == nil {
-		progress = 0
-	}
-	return map[string]any{"id": id, "userId": userID, "libraryItemId": libID, "episodeId": epID, "mediaItemId": mediaItemID, "mediaItemType": mediaType, "duration": nullNumber(duration), "progress": progress, "currentTime": nullNumber(current), "isFinished": finished != 0, "hideFromContinueListening": hide != 0, "ebookLocation": nullableValue(ebookLocation), "ebookProgress": nullNumber(ebook), "lastUpdate": millis(updatedAt), "startedAt": millis(createdAt), "finishedAt": nullableMillis(finishedAt)}, nil
-}
-
 func browserUser(user store.User, progress []any, bookmarks []any) map[string]any {
 	var permissionsMap map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissionsMap)

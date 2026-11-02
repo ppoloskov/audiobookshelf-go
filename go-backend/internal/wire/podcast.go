@@ -36,3 +36,9 @@ type EpisodeDownloadQueue struct {
 	CurrentDownload *EpisodeDownload  `json:"currentDownload,omitempty"`
 	Queue           []EpisodeDownload `json:"queue"`
 }
+
+// ItemMatch is one library item hit in a search response
+// ({libraryItem} entries of server/utils/queries/libraryItemsPodcastFilters.js search).
+type ItemMatch struct {
+	LibraryItem any `json:"libraryItem"`
+}
