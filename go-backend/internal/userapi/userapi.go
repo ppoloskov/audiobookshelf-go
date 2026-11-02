@@ -28,6 +28,7 @@ import (
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -272,24 +273,17 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			sendStatus(w, 404)
 			return
 		}
-		var episode any
+		episodeID := ""
 		if len(parts) == 2 {
-			episode = parts[1]
+			episodeID = parts[1]
 		}
-		query := `SELECT id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId = ? AND json_extract(extraData,'$.libraryItemId') = ?`
-		args := []any{user.ID, parts[0]}
-		if episode != nil {
-			query += ` AND mediaItemId = ?`
-			args = append(args, episode)
-		}
-		query += ` ORDER BY createdAt ASC LIMIT 1`
-		p, err := scanProgress(h.db.QueryRowContext(r.Context(), query, args...))
-		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
-			return
-		}
+		p, err := progressdto.ReadOne(r.Context(), h.db, user.ID, parts[0], episodeID)
 		if err != nil {
 			http.Error(w, "database read failed", 500)
+			return
+		}
+		if p == nil {
+			sendStatus(w, 404)
 			return
 		}
 		writeJSON(w, 200, p)
@@ -311,17 +305,15 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		sendStatus(w, 200)
 	case http.MethodPatch:
 		if len(parts) == 2 && parts[0] == "batch" && parts[1] == "update" {
-			var batch []map[string]any
+			var batch []progressdto.Payload
 			defer r.Body.Close()
-			dec := json.NewDecoder(r.Body)
-			dec.UseNumber()
-			if err := dec.Decode(&batch); err != nil || len(batch) == 0 {
+			if err := json.NewDecoder(r.Body).Decode(&batch); err != nil || len(batch) == 0 {
 				http.Error(w, "Missing request payload", 400)
 				return
 			}
 			updated := false
 			for _, payload := range batch {
-				if h.updateProgress(r.Context(), user, payload) == nil {
+				if _, err := h.updateProgress(r.Context(), user, payload); err == nil {
 					updated = true
 				}
 			}
@@ -335,17 +327,20 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			sendStatus(w, 404)
 			return
 		}
-		payload, err := decodeBody(r)
-		if err != nil {
+		// MeController.createUpdateMediaProgress (MeController.js:277): the
+		// body is spread first, so the URL's libraryItemId and (possibly
+		// absent) episodeId always win.
+		var payload progressdto.Payload
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "Invalid request body", 400)
 			return
 		}
-		payload["libraryItemId"] = parts[0]
+		payload.LibraryItemID, payload.EpisodeID = parts[0], ""
 		if len(parts) == 2 {
-			payload["episodeId"] = parts[1]
+			payload.EpisodeID = parts[1]
 		}
-		err = h.updateProgress(r.Context(), user, payload)
-		if err != nil {
+		if _, err := h.updateProgress(r.Context(), user, payload); err != nil {
 			writeError(w, err)
 			return
 		}
@@ -356,146 +351,29 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 	}
 }
 
-func (h *Handler) updateProgress(ctx context.Context, user store.User, p map[string]any) error {
-	itemID, _ := p["libraryItemId"].(string)
-	episodeID, _ := p["episodeId"].(string)
-	if itemID == "" {
-		return apiError{400, "Invalid library item id"}
-	}
-	var mediaItemID, mediaType, libraryID string
-	var podcastID any
-	if episodeID != "" {
-		err := h.db.QueryRowContext(ctx, `SELECT pe.id, pe.podcastId, li.id, li.libraryId FROM podcastEpisodes pe JOIN podcasts p ON p.id = pe.podcastId JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast' WHERE pe.id = ?`, episodeID).Scan(&mediaItemID, &podcastID, &itemID, &libraryID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return apiError{404, "Episode not found"}
-		}
-		if err != nil {
-			return err
-		}
-		mediaType = "podcastEpisode"
+// updateProgress applies one progress payload for the user
+// (User.createUpdateMediaProgressFromPayload, server/models/User.js:728). The
+// library access check is stricter than upstream, which has none here.
+func (h *Handler) updateProgress(ctx context.Context, user store.User, p progressdto.Payload) (wire.MediaProgress, error) {
+	var libraryID string
+	var err error
+	if p.EpisodeID != "" {
+		err = h.db.QueryRowContext(ctx, `SELECT li.libraryId FROM podcastEpisodes pe JOIN libraryItems li ON li.mediaId = pe.podcastId WHERE pe.id = ?`, p.EpisodeID).Scan(&libraryID)
 	} else {
-		err := h.db.QueryRowContext(ctx, `SELECT mediaId, mediaType, libraryId FROM libraryItems WHERE id = ?`, itemID).Scan(&mediaItemID, &mediaType, &libraryID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return apiError{404, "Library item not found"}
-		}
-		if err != nil {
-			return err
-		}
-		if mediaType != "book" {
-			return apiError{400, "Library item is not a book"}
-		}
-		mediaType = "book"
+		err = h.db.QueryRowContext(ctx, `SELECT libraryId FROM libraryItems WHERE id = ?`, p.LibraryItemID).Scan(&libraryID)
 	}
-	permission := permissions(user)
-	if !canAccessLibrary(permission, libraryID) {
-		return apiError{403, "Forbidden"}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return wire.MediaProgress{}, err
 	}
-	now := dbtime.Now()
-	var id string
-	var oldDuration, oldCurrent, oldEbook sql.NullFloat64
-	var oldEbookLocation sql.NullString
-	var oldFinished bool
-	var oldHide bool
-	var oldFinishedAt any
-	var oldExtra []byte
-	err := h.db.QueryRowContext(ctx, `SELECT id,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData FROM mediaProgresses WHERE userId = ? AND mediaItemId = ? AND mediaItemType = ? LIMIT 1`, user.ID, mediaItemID, mediaType).Scan(&id, &oldDuration, &oldCurrent, &oldFinished, &oldHide, &oldEbookLocation, &oldEbook, &oldFinishedAt, &oldExtra)
-	if errors.Is(err, sql.ErrNoRows) {
-		duration := number(p["duration"], 0)
-		current := number(p["currentTime"], 0)
-		ebook := number(p["ebookProgress"], 0)
-		finished, _ := p["isFinished"].(bool)
-		hide, _ := p["hideFromContinueListening"].(bool)
-		progress := number(p["progress"], 0)
-		if finished {
-			progress = 1
-		}
-		extra, _ := json.Marshal(map[string]any{"libraryItemId": itemID, "progress": progress})
-		finishedAt := any(nil)
-		if finished {
-			finishedAt = now
-		}
-		_, err = h.db.ExecContext(ctx, `INSERT INTO mediaProgresses (id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,podcastId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, newUUID(), user.ID, mediaItemID, mediaType, duration, current, finished, hide, p["ebookLocation"], ebook, finishedAt, extra, podcastID, timestampString(p["createdAt"], now), now)
-		if err != nil {
-			return err
-		}
-		return nil
+	if libraryID != "" && !canAccessLibrary(permissions(user), libraryID) {
+		return wire.MediaProgress{}, apiError{403, "Forbidden"}
 	}
-	if err != nil {
-		return err
+	progress, err := progressdto.Apply(ctx, h.db, user.ID, p)
+	var refused *progressdto.StatusError
+	if errors.As(err, &refused) {
+		return wire.MediaProgress{}, apiError{refused.Status, refused.Message}
 	}
-	current := oldCurrent.Float64
-	if v, ok := p["currentTime"]; ok {
-		current = number(v, oldCurrent.Float64)
-	}
-	duration := oldDuration.Float64
-	if v, ok := p["duration"]; ok {
-		duration = number(v, oldDuration.Float64)
-	}
-	finished := oldFinished
-	if v, ok := p["isFinished"].(bool); ok {
-		finished = v
-	}
-	if explicitFinished, ok := p["isFinished"].(bool); ok && !explicitFinished && oldFinished {
-		current = 0
-	}
-	hide := oldHide
-	if v, ok := p["hideFromContinueListening"].(bool); ok {
-		hide = v
-	}
-	if _, changed := p["currentTime"]; changed && !hide {
-		hide = false
-	}
-	var extra map[string]any
-	_ = json.Unmarshal(oldExtra, &extra)
-	if extra == nil {
-		extra = map[string]any{"libraryItemId": itemID}
-	}
-	if v, ok := p["progress"]; ok {
-		extra["progress"] = number(v, 0)
-	}
-	if explicitFinished, ok := p["isFinished"].(bool); ok && !explicitFinished && oldFinished {
-		extra["progress"] = 0
-	}
-	if finished {
-		extra["progress"] = 1
-	}
-	shouldFinish := false
-	if duration > 0 {
-		thresholdPercent := number(p["markAsFinishedPercentComplete"], 0)
-		if thresholdPercent > 0 {
-			shouldFinish = thresholdPercent/100 < current/duration
-		} else {
-			shouldFinish = duration-current < number(p["markAsFinishedTimeRemaining"], 10)
-		}
-	}
-	if !finished && shouldFinish {
-		finished = true
-		extra["progress"] = 1
-	} else if finished && p["currentTime"] != nil && !shouldFinish {
-		finished = false
-	}
-	finishedAt := oldFinishedAt
-	if finished && !oldFinished {
-		finishedAt = timestampString(p["finishedAt"], now)
-	} else if !finished && oldFinished {
-		finishedAt = nil
-	} else if p["finishedAt"] != nil {
-		finishedAt = timestampString(p["finishedAt"], now)
-	}
-	extraJSON, _ := json.Marshal(extra)
-	ebookLocation := any(nil)
-	if oldEbookLocation.Valid {
-		ebookLocation = oldEbookLocation.String
-	}
-	if v, ok := p["ebookLocation"]; ok {
-		ebookLocation = v
-	}
-	ebookProgress := oldEbook.Float64
-	if v, ok := p["ebookProgress"]; ok {
-		ebookProgress = number(v, oldEbook.Float64)
-	}
-	_, err = h.db.ExecContext(ctx, `UPDATE mediaProgresses SET duration=?,currentTime=?,isFinished=?,hideFromContinueListening=?,ebookLocation=?,ebookProgress=?,finishedAt=?,extraData=?,updatedAt=? WHERE id=? AND userId=?`, duration, current, finished, hide, ebookLocation, ebookProgress, finishedAt, extraJSON, timestampString(p["lastUpdate"], now), id, user.ID)
-	return err
+	return progress, err
 }
 
 func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
@@ -2304,36 +2182,6 @@ func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {
 
 type rowScanner interface{ Scan(...any) error }
 
-func scanProgress(row rowScanner) (map[string]any, error) {
-	var id, userID, mediaItemID, mediaType string
-	var duration, current, ebook sql.NullFloat64
-	var finished, hide int
-	var ebookLocation sql.NullString
-	var finishedAt, createdAt, updatedAt any
-	var extraRaw []byte
-	if err := row.Scan(&id, &userID, &mediaItemID, &mediaType, &duration, &current, &finished, &hide, &ebookLocation, &ebook, &finishedAt, &extraRaw, &createdAt, &updatedAt); err != nil {
-		return nil, err
-	}
-	var extra map[string]any
-	_ = json.Unmarshal(extraRaw, &extra)
-	var libID any
-	if extra != nil {
-		libID = extra["libraryItemId"]
-	}
-	var epID any
-	if mediaType == "podcastEpisode" {
-		epID = mediaItemID
-	}
-	var progress any
-	if extra != nil {
-		progress = extra["progress"]
-	}
-	if progress == nil {
-		progress = 0
-	}
-	return map[string]any{"id": id, "userId": userID, "libraryItemId": libID, "episodeId": epID, "mediaItemId": mediaItemID, "mediaItemType": mediaType, "duration": nullNumber(duration), "progress": progress, "currentTime": nullNumber(current), "isFinished": finished != 0, "hideFromContinueListening": hide != 0, "ebookLocation": nullableValue(ebookLocation), "ebookProgress": nullNumber(ebook), "lastUpdate": millis(updatedAt), "startedAt": millis(createdAt), "finishedAt": nullableMillis(finishedAt)}, nil
-}
-
 func browserUser(user store.User, progress []any, bookmarks []any) map[string]any {
 	var permissionsMap map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissionsMap)
@@ -2540,7 +2388,8 @@ func (e apiError) Error() string { return e.message }
 func writeError(w http.ResponseWriter, err error) {
 	var ae apiError
 	if errors.As(err, &ae) {
-		http.Error(w, ae.message, ae.status)
+		// Express res.status(n).send(string): text/html, no trailing newline.
+		sendEntityNotFoundStatus(w, ae.status, ae.message)
 		return
 	}
 	http.Error(w, "database write failed", 500)
@@ -2599,10 +2448,16 @@ func sendStatus(w http.ResponseWriter, status int) {
 // Express res.status(404).send('…') sends the message with Content-Type
 // text/html; charset=utf-8 (CollectionController/PlaylistController middleware).
 func sendEntityNotFound(w http.ResponseWriter, message string) {
+	sendEntityNotFoundStatus(w, http.StatusNotFound, message)
+}
+
+// sendEntityNotFoundStatus is Express res.status(status).send(message) for a
+// string message.
+func sendEntityNotFoundStatus(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(message)))
 	w.Header().Set("ETag", userExpressETag([]byte(message)))
-	w.WriteHeader(http.StatusNotFound)
+	w.WriteHeader(status)
 	_, _ = w.Write([]byte(message))
 }
 

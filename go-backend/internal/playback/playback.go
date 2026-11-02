@@ -26,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -229,7 +230,9 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	}
 	item, err := h.loadItem(r.Context(), itemID, episodeID)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
+		// LibraryItemController.middleware / startEpisodePlaybackSession
+		// (LibraryItemController.js:460-470): res.sendStatus(404).
+		sendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -237,7 +240,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if !canAccess(user, item) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		sendStatus(w, http.StatusForbidden)
 		return
 	}
 	if len(item.Files) == 0 {
@@ -756,7 +759,6 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 			http.Error(w, "Invalid timeListened", 400)
 			return
 		}
-		previousCurrentTime := s.CurrentTime
 		s.CurrentTime = ct
 		s.TimeListening += listened
 		s.UpdatedAt = nowMS()
@@ -766,7 +768,8 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 			h.serverError(w, err)
 			return
 		}
-		if _, err := h.syncProgress(r.Context(), user.ID, s, body, previousCurrentTime); err != nil {
+		syncDuration, _ := asFloat(body["duration"])
+		if _, err := h.syncProgress(r.Context(), user.ID, s, syncDuration, nil); err != nil {
 			h.serverError(w, err)
 			return
 		}
@@ -801,7 +804,7 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	if s.EpisodeID != "" {
 		mediaID, kind = s.EpisodeID, "podcastEpisode"
 	}
-	metadata, err := persistedMetadataJSON(s.MediaMetadata)
+	metadata, err := persistedMetadataJSON(s.MediaMetadata, s.MediaType)
 	if err != nil {
 		return err
 	}
@@ -835,7 +838,25 @@ type persistedMediaMetadata struct {
 	Abridged      json.RawMessage `json:"abridged"`
 }
 
-func persistedMetadataJSON(metadata map[string]any) ([]byte, error) {
+// persistedPodcastMetadata is Podcast.oldMetadataToJSON (server/models/Podcast.js:
+// 402) in key order, which a podcast session stores as its mediaMetadata.
+type persistedPodcastMetadata struct {
+	Title          json.RawMessage `json:"title"`
+	Author         json.RawMessage `json:"author"`
+	Description    json.RawMessage `json:"description"`
+	ReleaseDate    json.RawMessage `json:"releaseDate"`
+	Genres         json.RawMessage `json:"genres"`
+	FeedURL        json.RawMessage `json:"feedUrl"`
+	ImageURL       json.RawMessage `json:"imageUrl"`
+	ITunesPageURL  json.RawMessage `json:"itunesPageUrl"`
+	ITunesID       json.RawMessage `json:"itunesId"`
+	ITunesArtistID json.RawMessage `json:"itunesArtistId"`
+	Explicit       json.RawMessage `json:"explicit"`
+	Language       json.RawMessage `json:"language"`
+	Type           json.RawMessage `json:"type"`
+}
+
+func persistedMetadataJSON(metadata map[string]any, mediaType string) ([]byte, error) {
 	raw, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err
@@ -843,6 +864,13 @@ func persistedMetadataJSON(metadata map[string]any) ([]byte, error) {
 	norm := map[string]json.RawMessage{}
 	if err := json.Unmarshal(raw, &norm); err != nil {
 		return nil, err
+	}
+	if mediaType == "podcast" {
+		return json.Marshal(persistedPodcastMetadata{
+			Title: norm["title"], Author: norm["author"], Description: norm["description"], ReleaseDate: norm["releaseDate"],
+			Genres: norm["genres"], FeedURL: norm["feedUrl"], ImageURL: norm["imageUrl"], ITunesPageURL: norm["itunesPageUrl"],
+			ITunesID: norm["itunesId"], ITunesArtistID: norm["itunesArtistId"], Explicit: norm["explicit"], Language: norm["language"], Type: norm["type"],
+		})
 	}
 	return json.Marshal(persistedMediaMetadata{
 		Title: norm["title"], Subtitle: norm["subtitle"], Authors: norm["authors"], Narrators: norm["narrators"],
@@ -852,109 +880,69 @@ func persistedMetadataJSON(metadata map[string]any) ([]byte, error) {
 	})
 }
 
-func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, body map[string]any, previousCurrentTime float64) (bool, error) {
-	item, err := h.loadItem(ctx, s.LibraryItemID, s.EpisodeID)
-	if err != nil {
-		return false, err
+// sessionProgress is PlaybackSession.progress (server/objects/PlaybackSession.js:176).
+func sessionProgress(s *session) float64 {
+	if s.Duration == 0 {
+		return 0
 	}
-	mediaID, kind, podcastID := s.BookID, "book", any(nil)
-	if s.EpisodeID != "" {
-		mediaID, kind = s.EpisodeID, "podcastEpisode"
-		podcastID = item.MediaID
-	}
-	duration := s.Duration
-	if d, ok := asFloat(body["duration"]); ok && d > 0 {
-		duration = d
-	}
-	current := s.CurrentTime
-	progress := 0.0
-	if duration > 0 {
-		progress = math.Max(0, math.Min(current/duration, 1))
-	}
-	markFinished := false
-	var settingsRaw []byte
-	_ = h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, s.LibraryID).Scan(&settingsRaw)
+	return math.Max(0, math.Min(s.CurrentTime/s.Duration, 1))
+}
+
+// libraryFinishSettings reads the library's markAsFinished* settings, passed
+// on to the progress update (PlaybackSessionManager.js:398).
+func (h *Handler) libraryFinishSettings(ctx context.Context, libraryID string) (percent, remaining progressdto.Optional) {
+	var raw []byte
+	_ = h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, libraryID).Scan(&raw)
 	var settings struct {
-		MarkAsFinishedPercentComplete float64 `json:"markAsFinishedPercentComplete"`
-		MarkAsFinishedTimeRemaining   float64 `json:"markAsFinishedTimeRemaining"`
+		Percent   progressdto.Optional `json:"markAsFinishedPercentComplete"`
+		Remaining progressdto.Optional `json:"markAsFinishedTimeRemaining"`
 	}
-	_ = json.Unmarshal(settingsRaw, &settings)
-	if duration > 0 {
-		if settings.MarkAsFinishedPercentComplete > 0 {
-			markFinished = progress > settings.MarkAsFinishedPercentComplete/100
-		} else {
-			remaining := settings.MarkAsFinishedTimeRemaining
-			if remaining == 0 {
-				remaining = 10
-			}
-			markFinished = duration-current < remaining
-		}
+	_ = json.Unmarshal(raw, &settings)
+	return settings.Percent, settings.Remaining
+}
+
+// syncProgress writes the session's position to the user's media progress and
+// announces it (PlaybackSessionManager.syncSession, :373, and the progress
+// half of syncLocalSession, :232-285). duration is the sync body's duration,
+// 0 when absent; lastUpdate is set for offline sessions, whose progress is
+// skipped when the stored row is newer than the session.
+func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, duration float64, lastUpdate *int64) (bool, error) {
+	mediaID := s.BookID
+	if s.EpisodeID != "" {
+		mediaID = s.EpisodeID
 	}
-	var existingID string
-	var oldFinished int
-	var oldExtra []byte
-	var oldFinishedAt sql.NullString
-	err = h.db.QueryRowContext(ctx, `SELECT id,isFinished,extraData,finishedAt FROM mediaProgresses WHERE userId=? AND mediaItemId=? AND mediaItemType=? LIMIT 1`, userID, mediaID, kind).Scan(&existingID, &oldFinished, &oldExtra, &oldFinishedAt)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, err
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if lastUpdate != nil {
 		var updated any
-		if e := h.db.QueryRowContext(ctx, `SELECT updatedAt FROM mediaProgresses WHERE id=?`, existingID).Scan(&updated); e != nil {
-			return false, e
+		err := h.db.QueryRowContext(ctx, `SELECT updatedAt FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, userID, mediaID).Scan(&updated)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return false, err
 		}
-		if incoming, ok := body["lastUpdate"]; ok {
-			if ms, valid := asFloat(incoming); valid && millis(updated) != nil && number(millis(updated), 0) > ms {
+		if err == nil {
+			if stored, ok := millis(updated).(int64); ok && stored > *lastUpdate {
 				return false, nil
 			}
 		}
 	}
-	if oldFinished != 0 && current != previousCurrentTime && !markFinished {
-		markFinished = false
+	payload := progressdto.Payload{
+		LibraryItemID: s.LibraryItemID, EpisodeID: s.EpisodeID,
+		Duration:    progressdto.Value(s.Duration),
+		CurrentTime: progressdto.Value(s.CurrentTime),
+		Progress:    progressdto.Value(sessionProgress(s)),
 	}
-	finishedAt := any(nil)
-	if markFinished {
-		finishedAt = oldFinishedAt.String
-		if !oldFinishedAt.Valid {
-			finishedAt = dbtime.Now()
-		}
-	} else if oldFinished != 0 && current != previousCurrentTime {
-		finishedAt = nil
+	if duration != 0 {
+		// syncData.duration || session.duration
+		payload.Duration = progressdto.Value(duration)
 	}
-	extra := map[string]any{"libraryItemId": s.LibraryItemID, "progress": progress}
-	if len(oldExtra) > 0 {
-		var old map[string]any
-		_ = json.Unmarshal(oldExtra, &old)
-		for k, v := range old {
-			if k != "progress" && k != "libraryItemId" {
-				extra[k] = v
-			}
-		}
+	if lastUpdate != nil {
+		payload.LastUpdate = progressdto.Value(*lastUpdate)
 	}
-	extraRaw, _ := json.Marshal(extra)
-	now := dbtime.Now()
-	updatedAt := any(now)
-	if raw, exists := body["lastUpdate"]; exists {
-		if ms, ok := asFloat(raw); ok && ms > 0 {
-			updatedAt = dbtime.Format(time.UnixMilli(int64(ms)))
-		}
+	payload.MarkAsFinishedPercentComplete, payload.MarkAsFinishedTimeRemaining = h.libraryFinishSettings(ctx, s.LibraryID)
+	progress, err := progressdto.Apply(ctx, h.db, userID, payload)
+	if err != nil {
+		return false, err
 	}
-	hide := false
-	progressID := existingID
-	if errors.Is(err, sql.ErrNoRows) {
-		progressID = newUUID()
-		_, err = h.db.ExecContext(ctx, `INSERT INTO mediaProgresses (id,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,finishedAt,extraData,podcastId,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, progressID, mediaID, kind, duration, current, markFinished, hide, finishedAt, string(extraRaw), podcastID, userID, now, now)
-	} else {
-		_, err = h.db.ExecContext(ctx, `UPDATE mediaProgresses SET duration=?,currentTime=?,isFinished=?,hideFromContinueListening=?,finishedAt=?,extraData=?,updatedAt=? WHERE id=?`, duration, current, markFinished, hide, finishedAt, string(extraRaw), updatedAt, existingID)
-	}
-	if err == nil {
-		lastUpdate := nowMS()
-		if millis(updatedAt) != nil {
-			lastUpdate = int64(number(millis(updatedAt), float64(lastUpdate)))
-		}
-		h.emit(userID, "user_item_progress_updated", map[string]any{"id": progressID, "sessionId": s.ID, "deviceDescription": deviceDescription(s.Device), "data": map[string]any{"id": progressID, "libraryItemId": s.LibraryItemID, "mediaItemId": mediaID, "mediaItemType": kind, "duration": duration, "currentTime": current, "progress": progress, "isFinished": markFinished, "hideFromContinueListening": false, "lastUpdate": lastUpdate}})
-	}
-	return err == nil, err
+	h.emit(userID, "user_item_progress_updated", wire.ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: deviceDescription(s.Device), Data: progress})
+	return true, nil
 }
 
 func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -1300,8 +1288,7 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	if err = h.saveSessionRecord(ctx, s); err != nil {
 		return nil, "Failed to save session"
 	}
-	payload := map[string]any{"currentTime": current, "timeListened": 0, "duration": duration, "lastUpdate": updated}
-	synced, err := h.syncProgress(ctx, user.ID, s, payload, current)
+	synced, err := h.syncProgress(ctx, user.ID, s, 0, &updated)
 	if err != nil {
 		return nil, "Failed to sync progress"
 	}
@@ -2163,6 +2150,16 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_, _ = w.Write(b)
 }
+
+// sendStatus is Express res.sendStatus: the status text as a text/plain body.
+func sendStatus(w http.ResponseWriter, status int) {
+	body := http.StatusText(status)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
 func sendOK(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", "2")

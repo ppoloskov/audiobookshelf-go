@@ -78,10 +78,10 @@ func TestDownloadCompletionStatusPollingIsSynchronized(t *testing.T) {
 	h.queueMu.Lock()
 	status := d.clientJSON()
 	h.queueMu.Unlock()
-	if status["failed"] != true || status["isFinished"] != true {
+	if !status.Failed || !status.IsFinished {
 		t.Fatalf("failed download status = %#v", status)
 	}
-	if status["finishedAt"] == nil {
+	if status.FinishedAt == nil {
 		t.Fatalf("download lifecycle timestamps missing: %#v", status)
 	}
 }

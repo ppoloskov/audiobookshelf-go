@@ -330,6 +330,31 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			writeError(w, 500, "database read failed")
 			return
 		}
+		// LibraryFilters.getLibraryItemsMostRecentlyAdded podcast branch
+		// (server/utils/queries/libraryFilters.js:113-128).
+		media, _ := item["media"].(map[string]any)
+		podcastID, _ := media["id"].(string)
+		if size := number(item["size"]); size != 0 && number(media["size"]) == 0 {
+			media["size"] = size
+		}
+		if includeHas(r, "rssfeed") {
+			if feed, ok, feedErr := h.feedMinified(r.Context(), "libraryItem", id); feedErr != nil {
+				writeError(w, 500, "database read failed")
+				return
+			} else if ok {
+				item["rssFeed"] = feed
+			}
+		}
+		if includeHas(r, "numepisodesincomplete") {
+			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, podcastID)
+			if incErr != nil {
+				writeError(w, 500, "database read failed")
+				return
+			}
+			if incomplete != 0 {
+				item["numEpisodesIncomplete"] = incomplete
+			}
+		}
 		entities = append(entities, item)
 	}
 	if len(entities) > 0 {

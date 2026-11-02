@@ -10,8 +10,16 @@ import (
 	"time"
 )
 
+// Read returns the user's progress in the order upstream first loads it.
+// Upstream joins mediaProgresses onto the user (server/models/User.js:356,
+// include: mediaProgress) and SQLite walks the
+// media_progresses_user_item_finished_time index (userId, mediaItemId,
+// isFinished, currentTime), so a freshly loaded user lists progress by
+// mediaItemId. Upstream then appends rows created later in the process
+// lifetime (User.js createUpdateMediaProgressFromPayload push); that cache
+// artifact is not reproduced here, a restart reloads index order in both.
 func Read(ctx context.Context, db *sql.DB, userID string) ([]any, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId = ? ORDER BY rowid`, userID)
+	rows, err := db.QueryContext(ctx, `SELECT id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId = ? ORDER BY mediaItemId, isFinished, currentTime`, userID)
 	if err != nil {
 		return nil, err
 	}

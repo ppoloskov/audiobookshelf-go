@@ -3,6 +3,7 @@ package userapi
 import (
 	"database/sql"
 	"encoding/json"
+	"maps"
 	"math"
 	"net/http"
 	"os"
@@ -31,29 +32,32 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 		sendStatus(w, 404)
 		return
 	}
-	if !access.allowed {
-		sendStatus(w, 403)
-		return
-	}
 	var mediaID, mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType FROM libraryItems WHERE id=?`, parts[0]).Scan(&mediaID, &mediaType); err != nil {
 		sendStatus(w, 404)
 		return
 	}
+	// MeController.getItemListeningSessions (MeController.js:185): the episode
+	// is looked up by its id alone, a podcast without one is a 404 before the
+	// access check, and an existing episode id replaces the media item id.
+	episodeFound := false
 	if len(parts) == 2 && parts[1] != "" {
-		if mediaType != "podcast" {
-			sendStatus(w, 404)
-			return
-		}
 		var exists int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=? AND podcastId=?`, parts[1], mediaID).Scan(&exists); err != nil {
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, parts[1]).Scan(&exists); err != nil {
 			http.Error(w, "database read failed", 500)
 			return
 		}
-		if exists == 0 {
-			sendStatus(w, 404)
-			return
-		}
+		episodeFound = exists > 0
+	}
+	if mediaType == "podcast" && !episodeFound {
+		sendStatus(w, 404)
+		return
+	}
+	if !access.allowed {
+		sendStatus(w, 403)
+		return
+	}
+	if episodeFound {
 		mediaID = parts[1]
 	}
 	h.writeListeningSessions(w, r, user.ID, mediaID, false)
@@ -175,10 +179,19 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 			full, e := h.items.ItemJSON(r.Context(), p.itemID, true)
 			if e == nil {
 				media, _ := full["media"].(map[string]any)
+				// findAllExpandedWhere loads the episodes, so the minified media
+				// reports their count and total size (MeController.js:490).
+				copyEpisodeTotals(li, media)
 				if episodes, ok := media["episodes"].([]map[string]any); ok {
 					for _, episode := range episodes {
 						if episode["id"] == p.mediaID {
-							li["recentEpisode"] = episode
+							// Upstream sends episode.toOldJSON, not the expanded
+							// form (MeController.js getAllLibraryItemsInProgress).
+							trimmed := maps.Clone(episode)
+							delete(trimmed, "audioTrack")
+							delete(trimmed, "size")
+							delete(trimmed, "duration")
+							li["recentEpisode"] = trimmed
 							break
 						}
 					}
@@ -477,4 +490,16 @@ func topMonth(m map[int]int) any {
 		return nil
 	}
 	return map[string]any{"month": bestMonth, "time": best}
+}
+
+// copyEpisodeTotals sets numEpisodes and size on a minified item's media from
+// the expanded media. Upstream minifies library items whose episodes ARE
+// loaded in some responses (items in progress, a freshly added playlist
+// episode) and whose episodes are NOT in others (shelves, playlist reloads);
+// the shared minified reader models the latter.
+func copyEpisodeTotals(minified map[string]any, expandedMedia map[string]any) {
+	if media, ok := minified["media"].(map[string]any); ok {
+		media["numEpisodes"] = expandedMedia["numEpisodes"]
+		media["size"] = expandedMedia["size"]
+	}
 }
