@@ -5,8 +5,10 @@
 # /metadata, SOURCE=docker. Existing installs can switch images and keep their
 # volumes.
 
-### STAGE 0: Build the stock web client (identical to Dockerfile) ###
-FROM node:24-alpine AS build-client
+### STAGE 0: Build the stock web client once, on the builder CPU ###
+# The output is static files, identical for every target platform, so this
+# never runs under QEMU (an emulated arm64 npm ci + nuxt generate is very slow).
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build-client
 
 WORKDIR /client
 COPY /client /client
