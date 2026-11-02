@@ -118,7 +118,29 @@ function generateMedia(mediaRoot) {
   const epub = path.join(ebookDir, 'Ebook Only.epub')
   sh('zip', ['-X0q', epub, 'mimetype'], { cwd: epubSrc })
   sh('zip', ['-Xr9Dq', epub, 'META-INF', 'OEBPS'], { cwd: epubSrc })
-  return books
+
+  // 5. A podcast folder with three locally generated episodes (no RSS, no
+  // network). Upstream discovers episodes from the audio files in the folder
+  // (PodcastScanner.scanNewPodcastLibraryItem, server/scanner/PodcastScanner.js)
+  // and maps ID3 comment/subtitle/date/disc/track/title to
+  // description/subtitle/pubDate/season/episode/title
+  // (AudioFileScanner.setPodcastEpisodeMetadataFromAudioMetaTags).
+  const cast = path.join(mediaRoot, 'podcasts', 'Fixture Cast')
+  fs.mkdirSync(cast, { recursive: true })
+  const episodes = [
+    { n: 1, title: 'Pilot Episode', date: '2025-03-01', dur: 24, freq: 330, desc: 'The first episode of the fixture cast.' },
+    { n: 2, title: 'Second Outing', date: '2025-03-08', dur: 18, freq: 440, desc: 'A <b>second</b> episode.' },
+    { n: 3, title: 'Third Time', date: '2025-03-15', dur: 12, freq: 550, desc: 'Episode three closes the season.' }
+  ]
+  for (const e of episodes) {
+    ffmpeg(['-f', 'lavfi', '-i', `sine=frequency=${e.freq}:duration=${e.dur}`, '-ac', '1', '-ar', '22050', '-b:a', '32k',
+      '-metadata', `title=${e.title}`, '-metadata', 'artist=Fixture Host', '-metadata', 'album=Fixture Cast',
+      '-metadata', `track=${e.n}`, '-metadata', 'disc=1', '-metadata', `date=${e.date}`,
+      '-metadata', `comment=${e.desc}`, '-metadata', 'genre=Technology',
+      '-id3v2_version', '3', path.join(cast, `episode-${e.n}.mp3`)])
+  }
+  ffmpeg(['-f', 'lavfi', '-i', 'color=c=teal:s=500x500', '-frames:v', '1', path.join(cast, 'cover.jpg')])
+  return { books, podcasts: path.join(mediaRoot, 'podcasts') }
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +187,8 @@ async function loginAs(call, creds, extraHeaders = {}) {
 // ---------------------------------------------------------------------------
 // Seeding: upstream creates the installation and its history.
 
-async function seed(work, booksRoot) {
+async function seed(work, media) {
+  const booksRoot = media.books
   const dirs = { config: path.join(work, 'install', 'config'), metadata: path.join(work, 'install', 'metadata') }
   fs.mkdirSync(dirs.config, { recursive: true })
   fs.mkdirSync(dirs.metadata, { recursive: true })
@@ -233,6 +256,62 @@ async function seed(work, booksRoot) {
       timeListening: 9, startTime: 0, currentTime: 9, startedAt: now - 86400000, updatedAt: now - 86400000 + 9000
     }
     await must(call('/api/session/local-all', { method: 'POST', token: lt, body: { deviceInfo: IOS_DEVICE, sessions: [local] } }), 'local-all')
+
+    // Podcast library: the folder already exists on disk, so the scan creates
+    // the podcast item and its three episodes without any RSS fetch.
+    const plib = await must(call('/api/libraries', {
+      method: 'POST', token: rt,
+      body: { name: 'Podcasts', mediaType: 'podcast', provider: 'itunes', folders: [{ fullPath: media.podcasts }] }
+    }), 'create podcast library')
+    await must(call(`/api/libraries/${plib.id}/scan`, { method: 'POST', token: rt, body: {} }), 'scan podcasts')
+    let pitems = []
+    for (let i = 0; i < 120 && pitems.length < 1; i++) {
+      await delay(500)
+      pitems = (await must(call(`/api/libraries/${plib.id}/items?limit=50`, { token: rt }), 'podcast items')).results
+    }
+    if (pitems.length !== 1) throw new Error(`upstream scan produced ${pitems.length} podcasts, expected 1`)
+    ids.podcastLibrary = plib.id
+    ids.podcast = pitems[0].id
+    const pfull = await must(call(`/api/items/${ids.podcast}?expanded=1`, { token: rt }), 'podcast item')
+    const epByTitle = Object.fromEntries(pfull.media.episodes.map(e => [e.title, e.id]))
+    ids.ep1 = epByTitle['Pilot Episode']
+    ids.ep2 = epByTitle['Second Outing']
+    ids.ep3 = epByTitle['Third Time']
+    for (const k of ['ep1', 'ep2', 'ep3']) if (!ids[k]) throw new Error(`seed: no episode ${k}; titles=${Object.keys(epByTitle)}`)
+
+    // Android listens to episode 1 (streaming), episode 2 is marked finished,
+    // an iOS offline session is uploaded for episode 3, plus a bookmark and a
+    // playlist holding episodes.
+    const ps = await must(call(`/api/items/${ids.podcast}/play/${ids.ep1}`, { method: 'POST', token: lt, body: {
+      deviceInfo: ANDROID_DEVICE, mediaPlayer: 'exo-player', forceDirectPlay: true, forceTranscode: false, supportedMimeTypes: MOBILE_MIME } }), 'seed podcast play')
+    await must(call(`/api/session/${ps.id}/sync`, { method: 'POST', token: lt, body: { currentTime: 8, timeListened: 8, duration: ps.duration } }), 'seed podcast sync')
+    await must(call(`/api/session/${ps.id}/close`, { method: 'POST', token: lt, body: { currentTime: 10.5, timeListened: 2.5, duration: ps.duration } }), 'seed podcast close')
+    await must(call(`/api/me/progress/${ids.podcast}/${ids.ep2}`, { method: 'PATCH', token: lt, body: { isFinished: true } }), 'finish episode 2')
+    const plocal = {
+      id: 'play_local_trial0003', userId: ids.listener, libraryId: ids.podcastLibrary, libraryItemId: ids.podcast, episodeId: ids.ep3,
+      mediaType: 'podcast', mediaMetadata: {}, chapters: [], displayTitle: 'Third Time', displayAuthor: 'Fixture Host',
+      coverPath: null, duration: 12, playMethod: 3, mediaPlayer: 'AVPlayer', deviceInfo: IOS_DEVICE,
+      serverVersion: '2.37.2', date: new Date(now - 43200000).toISOString().slice(0, 10), dayOfWeek: 'Sunday',
+      timeListening: 6, startTime: 0, currentTime: 6, startedAt: now - 43200000, updatedAt: now - 43200000 + 6000
+    }
+    await must(call('/api/session/local-all', { method: 'POST', token: lt, body: { deviceInfo: IOS_DEVICE, sessions: [plocal] } }), 'local-all podcast')
+    await must(call(`/api/me/item/${ids.podcast}/bookmark`, { method: 'POST', token: lt, body: { time: 5, title: 'Cast bookmark' } }), 'podcast bookmark')
+    const ppl = await must(call('/api/playlists', { method: 'POST', token: lt, body: { libraryId: ids.podcastLibrary, name: 'Cast queue',
+      items: [{ libraryItemId: ids.podcast, episodeId: ids.ep3 }, { libraryItemId: ids.podcast, episodeId: ids.ep1 }] } }), 'podcast playlist')
+    ids.podcastPlaylist = ppl.id
+    // An open RSS feed on the podcast, so include=rssfeed has something to report.
+    await must(call(`/api/feeds/item/${ids.podcast}/open`, { method: 'POST', token: rt, body: { serverAddress: 'http://trial.invalid', slug: 'fixture-cast-feed', metadataDetails: { preventIndexing: true } } }), 'open podcast feed')
+    // Open RSS feeds (saga1, novel) and media item shares (saga2, novel), for
+    // the include=rssfeed / include=share steps at the end of the journey.
+    for (const k of ['saga1', 'novel']) {
+      await must(call(`/api/feeds/item/${ids[k]}/open`, { method: 'POST', token: rt, body: {
+        serverAddress: 'http://trial.invalid', slug: `trial-feed-${k}`, metadataDetails: { preventIndexing: true, ownerName: 'Trial Owner', ownerEmail: 'owner@example.com' } } }), `open feed ${k}`)
+    }
+    for (const k of ['saga2', 'novel']) {
+      const item = await must(call(`/api/items/${ids[k]}?expanded=1`, { token: rt }), `item ${k}`)
+      await must(call('/api/share/mediaitem', { method: 'POST', token: rt, body: {
+        slug: `trial-share-${k}`, mediaItemType: 'book', mediaItemId: item.media.id, expiresAt: 0, isDownloadable: k === 'novel' } }), `share ${k}`)
+    }
     return { dirs, ids }
   } finally {
     await stop(server)
@@ -330,6 +409,116 @@ function journeySteps(ids) {
   add('items-in-progress.after', L, '/api/me/items-in-progress')
   add('listening-sessions.after', L, '/api/me/listening-sessions?itemsPerPage=10&page=0')
 
+  // ---- Podcasts: what the mobile apps and web client call for a podcast
+  // library (local folder; no RSS/iTunes network access).
+  const PL = ids.podcastLibrary
+  const b64 = (v) => Buffer.from(v).toString('base64')
+  add('plib.get', L, `/api/libraries/${PL}`)
+  add('plib.filterdata', L, `/api/libraries/${PL}?include=filterdata`)
+  add('plib.personalized', L, `/api/libraries/${PL}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`)
+  add('plib.personalized.full', L, `/api/libraries/${PL}/personalized?limit=5`)
+  add('plib.items.title', L, `/api/libraries/${PL}/items?limit=20&page=0&minified=1&sort=media.metadata.title&desc=0&include=rssfeed,numEpisodesIncomplete`)
+  add('plib.items.full', L, `/api/libraries/${PL}/items?limit=20&page=0`)
+  add('plib.items.added', L, `/api/libraries/${PL}/items?limit=20&page=0&minified=1&sort=addedAt&desc=1&include=numEpisodesIncomplete`)
+  add('plib.items.numtracks', L, `/api/libraries/${PL}/items?limit=20&minified=1&sort=media.numTracks&desc=1`)
+  add('plib.items.author', L, `/api/libraries/${PL}/items?limit=20&minified=1&sort=media.metadata.author`)
+  add('plib.items.filter.inprogress', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=progress.${b64('in-progress')}&include=numEpisodesIncomplete`)
+  add('plib.items.filter.finished', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=progress.${b64('finished')}`)
+  add('plib.items.filter.notstarted', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=progress.${b64('not-started')}`)
+  add('plib.items.filter.genre', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=genres.${b64('Technology')}`)
+  add('plib.items.filter.explicit', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=explicit.${b64('explicit')}`)
+  add('plib.items.filter.explicit.bare', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=explicit`)
+  add('plib.items.filter.language', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=languages.${b64('en')}`)
+  add('plib.items.filter.recent', L, `/api/libraries/${PL}/items?limit=20&minified=1&filter=recent&sort=media.duration`)
+  add('plib.recent-episodes', L, `/api/libraries/${PL}/recent-episodes?limit=25&page=0`)
+  add('plib.recent-episodes.page2', L, `/api/libraries/${PL}/recent-episodes?limit=1&page=1`)
+  add('plib.podcast-titles', L, `/api/libraries/${PL}/podcast-titles`)
+  add('plib.search', L, `/api/libraries/${PL}/search?q=fixture&limit=12`)
+  add('plib.search.episode', L, `/api/libraries/${PL}/search?q=pilot&limit=12`)
+  add('plib.search.genre', L, `/api/libraries/${PL}/search?q=technology&limit=12`)
+  add('plib.search.none', L, `/api/libraries/${PL}/search?q=zzzznothing&limit=12`)
+  add('plib.playlists', L, `/api/libraries/${PL}/playlists?minified=1`)
+  add('plib.playlist', L, `/api/playlists/${ids.podcastPlaylist}`)
+  add('plib.series', L, `/api/libraries/${PL}/series?limit=20&page=0`)
+  add('plib.authors', L, `/api/libraries/${PL}/authors`)
+  add('plib.collections', L, `/api/libraries/${PL}/collections`)
+  add('plib.episode-downloads', L, `/api/libraries/${PL}/episode-downloads`)
+  add('podcast.item', L, `/api/items/${ids.podcast}`)
+  add('podcast.item.expanded', L, `/api/items/${ids.podcast}?expanded=1&include=progress,rssfeed,downloads`)
+  add('podcast.item.expanded.ep1', L, `/api/items/${ids.podcast}?expanded=1&include=progress,rssfeed,downloads&episode=${ids.ep1}`)
+  add('podcast.item.expanded.ep2', L, `/api/items/${ids.podcast}?expanded=1&include=progress&episode=${ids.ep2}`)
+  add('podcast.item.expanded.ep3', L, `/api/items/${ids.podcast}?expanded=1&include=progress&episode=${ids.ep3}`)
+  add('podcast.item.expanded.epmissing', L, `/api/items/${ids.podcast}?expanded=1&include=progress&episode=00000000-0000-4000-8000-000000000000`)
+  add('podcast.item.minified', L, `/api/items/${ids.podcast}?minified=1`)
+  add('podcast.cover', L, `/api/items/${ids.podcast}/cover`, { binary: 'meta' })
+  add('podcast.cover.thumb', L, `/api/items/${ids.podcast}/cover?width=400&format=jpeg`, { binary: 'meta' })
+  add('podcast.cover.raw', L, `/api/items/${ids.podcast}/cover?raw=1`, { binary: 'bytes' })
+  add('podcast.batch', L, '/api/items/batch/get', { method: 'POST', body: { libraryItemIds: [ids.podcast, ids.saga1] } })
+  add('podcast.downloads', L, `/api/podcasts/${ids.podcast}/downloads`)
+  add('podcast.episode.get', L, `/api/podcasts/${ids.podcast}/episode/${ids.ep1}`)
+  add('podcast.episode.missing', L, `/api/podcasts/${ids.podcast}/episode/00000000-0000-4000-8000-000000000000`)
+  add('podcast.checknew.forbidden', L, `/api/podcasts/${ids.podcast}/checknew`)
+  add('podcast.searchepisode.nofeed', L, `/api/podcasts/${ids.podcast}/search-episode?title=pilot`)
+  add('podcast.notpodcast', L, `/api/podcasts/${ids.saga1}/downloads`)
+  add('podcast.progress.ep1', L, `/api/me/progress/${ids.podcast}/${ids.ep1}`)
+  add('podcast.progress.ep2', L, `/api/me/progress/${ids.podcast}/${ids.ep2}`)
+  add('podcast.progress.ep3', L, `/api/me/progress/${ids.podcast}/${ids.ep3}`)
+  add('podcast.progress.noepisode', L, `/api/me/progress/${ids.podcast}`)
+  add('podcast.itemsessions.ep1', L, `/api/me/item/listening-sessions/${ids.podcast}/${ids.ep1}`)
+  add('podcast.itemsessions.item', L, `/api/me/item/listening-sessions/${ids.podcast}`)
+
+  // Episode playback: Android direct play resumes at 10.5s, then a web
+  // player direct play of episode 3, then forced HLS transcode of episode 2.
+  add('play.ep.android', L, `/api/items/${ids.podcast}/play/${ids.ep1}`, { method: 'POST', capture: 'epSession', body: {
+    deviceInfo: ANDROID_DEVICE, mediaPlayer: 'exo-player', forceDirectPlay: true, forceTranscode: false, supportedMimeTypes: MOBILE_MIME } })
+  add('stream.ep.range', L, ctx => ctx.epSession.audioTracks[0].contentUrl, { headers: { Range: 'bytes=0-4095' }, binary: 'bytes', tokenQuery: true })
+  add('stream.ep.suffix', L, ctx => ctx.epSession.audioTracks[0].contentUrl, { headers: { Range: 'bytes=-1024' }, binary: 'bytes', tokenQuery: true })
+  add('stream.ep.full', L, ctx => ctx.epSession.audioTracks[0].contentUrl, { binary: 'bytes', tokenQuery: true })
+  add('sync.ep.1', L, ctx => `/api/session/${ctx.epSession.id}/sync`, { method: 'POST', body: ctx => ({ currentTime: 15, timeListened: 4.5, duration: ctx.epSession.duration }) })
+  add('podcast.progress.ep1.after.sync', L, `/api/me/progress/${ids.podcast}/${ids.ep1}`)
+  add('close.ep', L, ctx => `/api/session/${ctx.epSession.id}/close`, { method: 'POST', body: ctx => ({ currentTime: 20, timeListened: 5, duration: ctx.epSession.duration }) })
+  add('podcast.progress.ep1.after.close', L, `/api/me/progress/${ids.podcast}/${ids.ep1}`)
+  add('play.ep.web', L, `/api/items/${ids.podcast}/play/${ids.ep3}`, { method: 'POST', capture: 'epWebSession', body: {
+    deviceInfo: { clientName: 'Abs Web', clientVersion: '2.37.2' }, mediaPlayer: 'html5', forceDirectPlay: false, forceTranscode: false,
+    supportedMimeTypes: ['audio/flac', 'audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/aac', 'audio/webm'] } })
+  add('stream.epweb.range', L, ctx => ctx.epWebSession.audioTracks[0].contentUrl, { headers: { Range: 'bytes=100-2047' }, binary: 'bytes', tokenQuery: true })
+  add('close.epweb', L, ctx => `/api/session/${ctx.epWebSession.id}/close`, { method: 'POST', body: { currentTime: 7, timeListened: 1 } })
+  add('play.ep.hls', L, `/api/items/${ids.podcast}/play/${ids.ep2}`, { method: 'POST', capture: 'epHlsSession', body: {
+    deviceInfo: { clientName: 'Abs Web', clientVersion: '2.37.2' }, mediaPlayer: 'html5', forceDirectPlay: false, forceTranscode: true, supportedMimeTypes: ['audio/mpeg'] } })
+  add('hls.ep.playlist', L, ctx => ctx.epHlsSession.audioTracks[0].contentUrl, { binary: 'text', tokenQuery: true, retry: 20 })
+  add('close.ep.hls', L, ctx => `/api/session/${ctx.epHlsSession.id}/close`, { method: 'POST', body: { currentTime: 3, timeListened: 3 } })
+  add('play.ep.missing', L, `/api/items/${ids.podcast}/play/00000000-0000-4000-8000-000000000000`, { method: 'POST', body: { deviceInfo: ANDROID_DEVICE, supportedMimeTypes: MOBILE_MIME } })
+  // POST /play without an episodeId on a podcast makes upstream open a bogus HLS stream (no client sends it), so it is not exercised.
+
+  // Offline mobile listening for an episode, batch progress with episodeId,
+  // per-episode progress writes, bookmark on the podcast item.
+  add('session.local.ep', L, '/api/session/local', { method: 'POST', body: ctx => ({
+    id: 'play_local_trial0004', userId: ctx.listenerId, libraryId: ids.podcastLibrary, libraryItemId: ids.podcast, episodeId: ids.ep1,
+    mediaType: 'podcast', mediaMetadata: {}, chapters: [], displayTitle: 'Pilot Episode', displayAuthor: 'Fixture Host', coverPath: null,
+    duration: 24, playMethod: 3, mediaPlayer: 'exo-player', deviceInfo: ANDROID_DEVICE, serverVersion: '2.37.2',
+    date: '2026-01-06', dayOfWeek: 'Tuesday', timeListening: 8, startTime: 20, currentTime: 22,
+    startedAt: 1767686400000, updatedAt: 1767686408000 }) })
+  add('podcast.progress.ep1.after.local', L, `/api/me/progress/${ids.podcast}/${ids.ep1}`)
+  add('progress.batch.ep', L, '/api/me/progress/batch/update', { method: 'PATCH', body: [
+    { libraryItemId: ids.podcast, episodeId: ids.ep3, currentTime: 9, duration: 12, progress: 0.75 },
+    { libraryItemId: ids.podcast, episodeId: ids.ep2, isFinished: false, currentTime: 2, duration: 18 }] })
+  add('podcast.progress.ep2.after.batch', L, `/api/me/progress/${ids.podcast}/${ids.ep2}`)
+  add('progress.ep3.finish', L, `/api/me/progress/${ids.podcast}/${ids.ep3}`, { method: 'PATCH', body: { isFinished: true } })
+  add('progress.ep3.after.finish', L, `/api/me/progress/${ids.podcast}/${ids.ep3}`)
+  add('progress.ep3.unfinish', L, `/api/me/progress/${ids.podcast}/${ids.ep3}`, { method: 'PATCH', body: { isFinished: false, currentTime: 4 } })
+  add('progress.ep.missing', L, `/api/me/progress/${ids.podcast}/00000000-0000-4000-8000-000000000000`, { method: 'PATCH', body: { currentTime: 1 } })
+  add('podcast.bookmark.create', L, `/api/me/item/${ids.podcast}/bookmark`, { method: 'POST', body: { time: 9, title: 'Cast second' } })
+  add('podcast.bookmark.delete', L, `/api/me/item/${ids.podcast}/bookmark/9`, { method: 'DELETE' })
+  add('podcast.playlist.add', L, `/api/playlists/${ids.podcastPlaylist}/item`, { method: 'POST', body: { libraryItemId: ids.podcast, episodeId: ids.ep2 } })
+  add('podcast.playlist.remove', L, `/api/playlists/${ids.podcastPlaylist}/item/${ids.podcast}/${ids.ep3}`, { method: 'DELETE' })
+  add('podcast.playlist.after', L, `/api/playlists/${ids.podcastPlaylist}`)
+  add('plib.personalized.after', L, `/api/libraries/${PL}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`)
+  add('plib.items.after', L, `/api/libraries/${PL}/items?limit=20&page=0&minified=1&include=numEpisodesIncomplete`)
+  add('podcast.items-in-progress.after', L, '/api/me/items-in-progress')
+  add('podcast.me.after', L, '/api/me')
+  add('podcast.listening-sessions.after', L, '/api/me/listening-sessions?itemsPerPage=10&page=0')
+  add('podcast.listening-stats.after', L, '/api/me/listening-stats')
+
   // Second user: Continue Series shelf and collapsed series with filters.
   add('login.finisher', null, '/login', { method: 'POST', body: FINISHER, headers: { 'X-Return-Tokens': 'true' } })
   add('personalized.finisher', 'finisher', `/api/libraries/${ids.library}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`)
@@ -345,7 +534,179 @@ function journeySteps(ids) {
   add('sessions.all', R, '/api/sessions?itemsPerPage=10&page=0')
   add('library.stats', R, `/api/libraries/${ids.library}/stats`)
   add('users.online', R, '/api/users/online')
+  add('plib.stats', R, `/api/libraries/${ids.podcastLibrary}/stats`)
+  add('plib.get.root', R, `/api/libraries/${ids.podcastLibrary}?include=filterdata`)
+  add('plib.items.root', R, `/api/libraries/${ids.podcastLibrary}/items?limit=20&page=0&minified=1&include=rssfeed,numEpisodesIncomplete`)
+  add('plib.recent-episodes.root', R, `/api/libraries/${ids.podcastLibrary}/recent-episodes?limit=25&page=0`)
+  add('podcast.item.root', R, `/api/items/${ids.podcast}?expanded=1&include=progress,rssfeed,downloads`)
+  add('podcast.checknew.nofeed', R, `/api/podcasts/${ids.podcast}/checknew`)
+  add('podcast.searchepisode.nofeed.root', R, `/api/podcasts/${ids.podcast}/search-episode?title=pilot`)
+  add('podcast.searchepisode.notitle', R, `/api/podcasts/${ids.podcast}/search-episode`)
+  add('podcast.clearqueue', R, `/api/podcasts/${ids.podcast}/clear-queue`)
+  add('podcast.downloadepisodes.empty', R, `/api/podcasts/${ids.podcast}/download-episodes`, { method: 'POST', body: [] })
+  // match-episodes without a feedURL crashes upstream (podcastUtils.getPodcastFeed reads null.startsWith, unhandled rejection), so it is not exercised.
+  add('podcast.opml.parse', R, '/api/podcasts/opml/parse', { method: 'POST', body: { opmlText: '<?xml version="1.0"?><opml version="2.0"><body><outline text="One" type="rss" xmlUrl="https://example.invalid/one.xml"/><outline text="Two" type="rss" xmlUrl="https://example.invalid/two.xml"/></body></opml>' } })
+  add('podcast.opml.parse.empty', R, '/api/podcasts/opml/parse', { method: 'POST', body: {} })
+  add('podcast.feed.invalid', R, '/api/podcasts/feed', { method: 'POST', body: { rssFeed: 'not a url' } })
+  add('podcast.create.invalid', R, '/api/podcasts', { method: 'POST', body: { libraryId: ids.podcastLibrary } })
+  add('podcast.episode.update', R, `/api/podcasts/${ids.podcast}/episode/${ids.ep1}`, { method: 'PATCH', body: {
+    title: 'Pilot Episode (edited)', subtitle: 'Sub <b>line</b>', description: '<p>Edited <script>alert(1)</script>text</p>', season: '2', episode: '5', episodeType: 'bonus',
+    pubDate: 'Sat, 01 Mar 2025 12:00:00 GMT', publishedAt: 1740830400000, ignored: 'x' } })
+  add('podcast.episode.after', R, `/api/podcasts/${ids.podcast}/episode/${ids.ep1}`)
+  add('podcast.episode.update.missing', R, `/api/podcasts/${ids.podcast}/episode/00000000-0000-4000-8000-000000000000`, { method: 'PATCH', body: { title: 'x' } })
+  add('podcast.media.update', R, `/api/items/${ids.podcast}/media`, { method: 'PATCH', body: {
+    metadata: { title: 'Fixture Cast Renamed', author: 'Fixture Host', description: 'Edited podcast', language: 'en', explicit: true, genres: ['Technology', 'News'] },
+    tags: ['cast', 'trial'], autoDownloadEpisodes: false, autoDownloadSchedule: '30 * * * *', maxEpisodesToKeep: 3, maxNewEpisodesToDownload: 2 } })
+  add('podcast.media.update.badcron', R, `/api/items/${ids.podcast}/media`, { method: 'PATCH', body: { autoDownloadSchedule: 'nope' } })
+  add('podcast.item.after.update', R, `/api/items/${ids.podcast}?expanded=1&include=progress,rssfeed,downloads`)
+  add('plib.items.after.update', R, `/api/libraries/${ids.podcastLibrary}/items?limit=20&page=0&minified=1&include=numEpisodesIncomplete`)
+  add('plib.search.renamed', R, `/api/libraries/${ids.podcastLibrary}/search?q=renamed&limit=12`)
+  add('podcast.episode.delete', R, `/api/podcasts/${ids.podcast}/episode/${ids.ep3}`, { method: 'DELETE' })
+  add('podcast.episode.delete.again', R, `/api/podcasts/${ids.podcast}/episode/${ids.ep3}`, { method: 'DELETE' })
+  add('podcast.item.after.delete', R, `/api/items/${ids.podcast}?expanded=1&include=progress`)
+  add('plib.recent-episodes.after.delete', R, `/api/libraries/${ids.podcastLibrary}/recent-episodes?limit=25&page=0`)
+  add('podcast.playlist.after.delete', R, `/api/playlists/${ids.podcastPlaylist}`)
+  add('user.listener.after.podcast', R, ctx => `/api/users/${ctx.listenerId}`)
   add('auth.refresh', null, '/auth/refresh', { method: 'POST', headers: ctx => ({ 'x-refresh-token': ctx.listenerRefresh }) })
+
+  // Playlist ordering: Playlist.getOldPlaylistsForUserAndLibrary sorts by
+  // name.localeCompare (server/models/Playlist.js:85), so mixed case, accents,
+  // digits and punctuation must interleave the way ICU orders them.
+  const playlistNames = ['b', 'B', 'a', 'A', 'Á', 'á', 'Éclair', 'eclair', '10', '9', '_x', 'Zoe', 'zoe']
+  playlistNames.forEach((name, i) => add(`playlist.order.create.${i}`, L, '/api/playlists', { method: 'POST', body: { libraryId: ids.library, name } }))
+  add('playlist.order.all', L, '/api/playlists')
+  add('playlist.order.library', L, `/api/libraries/${ids.library}/playlists?minified=1`)
+  add('playlist.order.library.page', L, `/api/libraries/${ids.library}/playlists?limit=5&page=1`)
+
+  // Collapsed sub-series: a series-filtered page with collapseseries=1 goes
+  // through libraryHelpers.handleCollapseSubseries
+  // (server/controllers/LibraryController.js:625-633). Build "Mega Cycle"
+  // (saga1=1, saga2=2, novel=3, ebook without sequence) around the existing
+  // "Long Saga" (saga1=1, saga2=2), so Long Saga collapses inside it.
+  const setSeries = (id, key, series) => add(id, R, `/api/items/${ids[key]}/media`, { method: 'PATCH', body: { metadata: { series } } })
+  setSeries('subseries.setup.saga1', 'saga1', [{ name: 'Long Saga', sequence: '1' }, { name: 'Mega Cycle', sequence: '1' }])
+  setSeries('subseries.setup.saga2', 'saga2', [{ name: 'Long Saga', sequence: '2' }, { name: 'Mega Cycle', sequence: '2' }])
+  setSeries('subseries.setup.novel', 'novel', [{ name: 'Mega Cycle', sequence: '3' }])
+  setSeries('subseries.setup.ebook', 'ebook', [{ name: 'Mega Cycle' }])
+  add('subseries.setup.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`, { capture: 'seriesList' })
+  const seriesFilter = (ctx, name) => `series.${Buffer.from(ctx.seriesList.results.find(x => x.name === name).id).toString('base64')}`
+  const sub = (id, who, query, name = 'Mega Cycle') => add(id, who, ctx => `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=${encodeURIComponent(seriesFilter(ctx, name))}${query}`)
+  sub('subseries.default', L, '')
+  sub('subseries.root', R, '&include=rssfeed')
+  sub('subseries.sort.title.desc', L, '&sort=media.metadata.title&desc=1')
+  sub('subseries.sort.sequence.desc', L, '&sort=sequence&desc=1')
+  sub('subseries.sort.duration', L, '&sort=media.duration&desc=1')
+  sub('subseries.sort.size', L, '&sort=size')
+  sub('subseries.sort.author', L, '&sort=media.metadata.authorName')
+  sub('subseries.sort.addedAt', L, '&sort=addedAt&desc=1')
+  sub('subseries.sort.invalid', L, '&sort=bogus')
+  sub('subseries.sort.empty', L, '&sort=')
+  sub('subseries.page0', L, '&limit=2&page=0')
+  sub('subseries.page1', L, '&limit=2&page=1')
+  sub('subseries.alone', L, '', 'Long Saga')
+  sub('subseries.finisher', 'finisher', '&sort=media.metadata.title')
+  add('subseries.missing', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('00000000-0000-4000-8000-000000000000').toString('base64')}`)
+  add('subseries.no-series', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('no-series').toString('base64')}`)
+
+  // include=rssfeed / include=share on shelves and pages: library items carry
+  // their open RSS feed (libraryItemsBookFilters.js:407-408, 670-677 and
+  // libraryFilters.js) and, for admins only, their open media item share.
+  // The feeds and shares themselves are created by upstream in seed().
+  add('includes.root.finish', R, `/api/me/progress/${ids.saga1}`, { method: 'PATCH', body: { isFinished: true } })
+  add('includes.root.progress', R, `/api/me/progress/${ids.novel}`, { method: 'PATCH', body: { currentTime: 10, duration: 45 } })
+  const shelfQuery = `/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`
+  add('includes.personalized.root', R, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.listener', L, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.finisher', 'finisher', `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.none', R, `/api/libraries/${ids.library}/personalized?minified=1`)
+  add('includes.items.root', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('includes.items.listener', L, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  for (const k of ['saga1', 'saga2', 'novel', 'ebook']) {
+    add(`includes.item.root.${k}`, R, `/api/items/${ids[k]}?expanded=1&include=rssfeed,share`)
+  }
+  add('includes.item.listener.novel', L, `/api/items/${ids.novel}?expanded=1&include=rssfeed,share`)
+
+  // Feeds and shares created through the server under test (not seeded by
+  // upstream): the HTTP responses, the rss_feed_* / share_* Socket.IO events a
+  // root client receives, the public routes, and (after the journey) the
+  // persisted rows, which are compared in main() via dumpRows().
+  // RssFeedManager.openFeedForItem/Collection/Series, Feed.getFeedObjFor*,
+  // FeedEpisode.getFeedEpisodeObjFrom*, ShareController.js:263-345, ShareManager.js.
+  const FA = 'http://trial.invalid'
+  const feedBody = (slug, metadataDetails) => ({ serverAddress: FA, slug, ...(metadataDetails ? { metadataDetails } : {}) })
+  const seededFeedId = (ctx, key) => ctx.feedsSeeded.feeds.find(f => f.entityId === ids[key]).id
+  const seriesId = (ctx, name) => ctx.seriesList.results.find(x => x.name === name).id
+  add('life.feeds.seeded', R, '/api/feeds', { capture: 'feedsSeeded' })
+  add('life.feed.open.invalid', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: { slug: 'life-x' } })
+  add('life.feed.open.missing', R, '/api/feeds/item/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.noaudio', R, `/api/feeds/item/${ids.ebook}/open`, { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.listener', L, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: feedBody('life-x') })
+  add('life.feed.open.slugused', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', body: feedBody('trial-feed-saga1') })
+  add('life.feed.open.saga2', R, `/api/feeds/item/${ids.saga2}/open`, { method: 'POST', capture: 'feedSaga2', events: 1, isoShape: true,
+    body: feedBody('life-saga2', { preventIndexing: false, ownerName: 'Life Owner', ownerEmail: 'life@example.com' }) })
+  add('life.feed.close.missing', R, '/api/feeds/00000000-0000-4000-8000-000000000000/close', { method: 'POST' })
+  add('life.feed.close.listener', L, ctx => `/api/feeds/${ctx.feedSaga2.feed.id}/close`, { method: 'POST' })
+  // Close the seeded feeds and reopen them without owner details / with odd values, so
+  // columns that upstream leaves NULL are exercised.
+  add('life.feed.close.saga1', R, ctx => `/api/feeds/${seededFeedId(ctx, 'saga1')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.saga1.default', R, `/api/feeds/item/${ids.saga1}/open`, { method: 'POST', body: feedBody('life-saga1'), capture: 'feedSaga1', events: 1 })
+  add('life.feed.close.novel', R, ctx => `/api/feeds/${seededFeedId(ctx, 'novel')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.novel.odd', R, `/api/feeds/item/${ids.novel}/open`, { method: 'POST', events: 1,
+    body: feedBody('life-novel', { preventIndexing: 'no', ownerName: '', ownerEmail: 42 }) })
+  add('life.feed.close.podcast', R, ctx => `/api/feeds/${seededFeedId(ctx, 'podcast')}/close`, { method: 'POST', events: 1 })
+  add('life.feed.open.podcast', R, `/api/feeds/item/${ids.podcast}/open`, { method: 'POST', events: 1,
+    body: feedBody('life-cast', { preventIndexing: false, ownerName: 'Cast Owner' }) })
+  add('life.feed.open.collection', R, `/api/feeds/collection/${ids.collection}/open`, { method: 'POST', events: 1, body: feedBody('life-collection', { ownerEmail: 'col@example.com' }) })
+  add('life.feed.open.collection.missing', R, '/api/feeds/collection/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-y') })
+  add('life.feed.open.series.mega', R, ctx => `/api/feeds/series/${seriesId(ctx, 'Mega Cycle')}/open`, { method: 'POST', events: 1, body: feedBody('life-series-mega') })
+  add('life.feed.open.series.long', R, ctx => `/api/feeds/series/${seriesId(ctx, 'Long Saga')}/open`, { method: 'POST', events: 1, capture: 'feedLong', body: feedBody('life-series-long', { preventIndexing: false }) })
+  add('life.feed.open.series.missing', R, '/api/feeds/series/00000000-0000-4000-8000-000000000000/open', { method: 'POST', body: feedBody('life-z') })
+  // Entities edited after their feed was opened: the next GET /feed/:slug
+  // refreshes the feed (RssFeedManager.checkFeedRequiresUpdate, Feed.updateFeedForEntity).
+  add('life.feed.stale.saga2.patch', R, `/api/items/${ids.saga2}/media`, { method: 'PATCH', body: { metadata: { title: 'The Middle Revised', description: 'A <b>revised</b> description.' } } })
+  add('life.feed.stale.collection.patch', R, `/api/collections/${ids.collection}`, { method: 'PATCH', body: { name: 'Favourites Renamed', description: 'Renamed collection' } })
+  add('life.feeds.list', R, '/api/feeds')
+  add('life.feeds.list.listener', L, '/api/feeds')
+  add('life.feed.xml.saga2', null, '/feed/life-saga2', { binary: 'xml' })
+  add('life.feed.xml.saga1', null, '/feed/life-saga1', { binary: 'xml' })
+  add('life.feed.xml.novel', null, '/feed/life-novel', { binary: 'xml' })
+  add('life.feed.xml.podcast', null, '/feed/life-cast', { binary: 'xml' })
+  add('life.feed.xml.collection', null, '/feed/life-collection', { binary: 'xml' })
+  add('life.feed.xml.series', null, '/feed/life-series-mega', { binary: 'xml' })
+  add('life.feed.xml.missing', null, '/feed/life-nope', { binary: 'xml' })
+  add('life.feed.cover.saga1', null, '/feed/life-saga1/cover.jpg', { binary: 'bytes' })
+  add('life.items.rssfeed', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('life.feed.close.series.long', R, ctx => `/api/feeds/${ctx.feedLong.feed.id}/close`, { method: 'POST', events: 1 })
+  add('life.feeds.list.after', R, '/api/feeds')
+
+  const bookId = (key) => ctx => ctx[`item_${key}`].media.id
+  for (const k of ['saga1', 'saga2', 'ebook']) add(`life.share.item.${k}`, R, `/api/items/${ids[k]}?expanded=1`, { capture: `item_${k}` })
+  const shareBody = (key, extra) => ctx => ({ slug: `life-share-${key}`, mediaItemType: 'book', mediaItemId: bookId(key)(ctx), expiresAt: 0, ...extra })
+  add('life.share.create.listener', L, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1') })
+  add('life.share.create.invalid', R, '/api/share/mediaitem', { method: 'POST', body: { slug: ' ', mediaItemType: 'book', mediaItemId: 'x', expiresAt: 0 } })
+  add('life.share.create.badtype', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { mediaItemType: 'nope' }) })
+  add('life.share.create.badexpiry', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { expiresAt: -5 }) })
+  add('life.share.create.missingitem', R, '/api/share/mediaitem', { method: 'POST', body: { slug: 'life-share-none', mediaItemType: 'book', mediaItemId: '00000000-0000-4000-8000-000000000000', expiresAt: 0 } })
+  add('life.share.create.saga1', R, '/api/share/mediaitem', { method: 'POST', capture: 'shareSaga1', events: 1, isoShape: true, body: shareBody('saga1', { isDownloadable: true }) })
+  add('life.share.create.dup.item', R, '/api/share/mediaitem', { method: 'POST', body: shareBody('saga1', { slug: 'life-share-other' }) })
+  add('life.share.create.dup.slug', R, '/api/share/mediaitem', { method: 'POST', body: { slug: 'life-share-saga1', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep2, expiresAt: 0 } })
+  // Fixed far-future expiry (2100-01-01): the exact ISO value is compared.
+  add('life.share.create.ebook', R, '/api/share/mediaitem', { method: 'POST', capture: 'shareEbook', events: 1, isoShape: true, body: shareBody('ebook', { expiresAt: 4102444800000, isDownloadable: false }) })
+  // isDownloadable absent: omitted from the response and event, NULL in the row.
+  add('life.share.create.episode', R, '/api/share/mediaitem', { method: 'POST', events: 1, isoShape: true, body: { slug: 'life-share-ep3', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep3, expiresAt: 4102444800000 } })
+  // Expiry already past: upstream answers 201 and emits share_open, but drops the row at once.
+  add('life.share.create.pastexpiry', R, '/api/share/mediaitem', { method: 'POST', events: 1, isoShape: true, body: { slug: 'life-share-past', mediaItemType: 'podcastEpisode', mediaItemId: ids.ep1, expiresAt: 1000 } })
+  add('life.share.public.saga1', null, '/public/share/life-share-saga1', { capture: 'publicShare', isoShape: true })
+  add('life.share.public.saga1.t', null, '/public/share/life-share-saga1?t=7', { isoShape: true })
+  add('life.share.public.ebook', null, '/public/share/life-share-ebook', { isoShape: true })
+  add('life.share.public.episode', null, '/public/share/life-share-ep3', { isoShape: true })
+  add('life.share.public.pastexpiry', null, '/public/share/life-share-past')
+  add('life.share.public.missing', null, '/public/share/life-share-nope')
+  add('life.share.delete.listener', L, ctx => `/api/share/mediaitem/${ctx.shareSaga1.id}`, { method: 'DELETE' })
+  add('life.share.delete.missing', R, '/api/share/mediaitem/00000000-0000-4000-8000-000000000000', { method: 'DELETE' })
+  add('life.items.share', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('life.share.delete.ebook', R, ctx => `/api/share/mediaitem/${ctx.shareEbook.id}`, { method: 'DELETE', events: 1, isoShape: true })
+  add('life.share.public.ebook.deleted', null, '/public/share/life-share-ebook')
   return s
 }
 
@@ -355,8 +716,17 @@ let WORK_DIR = ''
 const TIME_KEY = /(At|Time|Update|Seen|Scan|^date|^dayOfWeek|Ms|token|Token)$/
 
 function normalize(value, known, fresh, key = '') {
+  if (typeof value === 'string' && key === 'filterBy') {
+    // Library filters carry ids as base64: "series.<b64 uuid>". Ids created
+    // during the journey differ per server, so normalize the decoded id.
+    const m = /^([a-z]+)\.([A-Za-z0-9+/=]+)$/.exec(value)
+    const decoded = m && Buffer.from(m[2], 'base64').toString()
+    if (decoded && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(decoded) && !known.has(decoded)) return `${m[1]}.<b64:new-uuid>`
+  }
   if (typeof value === 'string') {
-    let v = value.replace(JWT, '<jwt>')
+    // Feed cover URLs carry the entity's updatedAt in ms (Feed.getFeedImageURL),
+    // which is the wall-clock time of an earlier journey mutation.
+    let v = value.replace(JWT, '<jwt>').replace(/(\/cover\.\w+)\?ts=\d+$/, '$1?ts=<ms>')
     if (WORK_DIR) v = v.split(WORK_DIR).join('<work>')
     v = v.replace(UUID, m => known.has(m) ? m : '<new-uuid>')
     v = v.replace(/play_local_[a-z0-9]+/g, m => m)
@@ -379,6 +749,49 @@ function normalize(value, known, fresh, key = '') {
   return value
 }
 
+// ISO date strings are normalized to <iso> by normalize(), which would hide a
+// wrong format (epoch millis vs ISO, missing milliseconds). With isoShape the
+// digits are kept as a shape ("9999-99-99T99:99:99.999Z"), except expiresAt,
+// whose value is fixed by the step and compared exactly.
+function isoShape(value, key = '') {
+  if (typeof value === 'string' && key !== 'expiresAt' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) return `iso-shape:${value.replace(/\d/g, '9')}`
+  if (Array.isArray(value)) return value.map(v => isoShape(v, key))
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, isoShape(v, k)]))
+  return value
+}
+
+// The generated RSS has the request host (random port) and wall-clock dates.
+function normalizeFeedXML(text) {
+  return text.replace(UUID, '<uuid>').replace(/http:\/\/127\.0\.0\.1:\d+/g, '<host>')
+    .replace(/<lastBuildDate>[^<]*<\/lastBuildDate>/g, '<lastBuildDate>').replace(/\?ts=\d+/g, '?ts=<ms>')
+}
+
+// A root Socket.IO client that records the feed and share events emitted during
+// the journey; take(n) waits (up to 3s) for n events and drains the buffer.
+async function connectEventSocket(server, token) {
+  const io = loadSocketIOClient()
+  if (!io) return null
+  const socket = io(server.baseUrl, { path: `${BASE}/socket.io`, transports: ['websocket'], reconnection: false, timeout: 8000 })
+  const buffer = []
+  for (const name of ['rss_feed_open', 'rss_feed_closed', 'share_open', 'share_closed']) socket.on(name, payload => buffer.push({ event: name, payload }))
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('event socket: no init')), 10000)
+    socket.on('connect', () => socket.emit('auth', token))
+    socket.on('init', () => { clearTimeout(t); resolve() })
+    socket.on('connect_error', reject)
+  })
+  buffer.length = 0
+  return {
+    async take(n) {
+      const deadline = Date.now() + 3000
+      while (buffer.length < n && Date.now() < deadline) await delay(25)
+      await delay(150)
+      return buffer.splice(0)
+    },
+    close() { socket.disconnect() }
+  }
+}
+
 async function runJourney(server, ids, logDir) {
   const call = api(server)
   const ctx = {}
@@ -387,43 +800,56 @@ async function runJourney(server, ids, logDir) {
   const known = snapshotUUIDs(ids)
   const fresh = new Map()
   const resolve = (v) => typeof v === 'function' ? v(ctx) : v
-  for (const step of journeySteps(ids)) {
-    if (step.skip) continue
-    let route
-    try { route = resolve(step.route) } catch (e) { results[step.id] = { error: `route unresolved: ${e.message}` }; continue }
-    const token = step.who ? tokens[step.who] : undefined
-    if (step.tokenQuery && token && !/[?&]token=/.test(route)) route += (route.includes('?') ? '&' : '?') + `token=${token}`
-    let body, headers
-    try { body = resolve(step.body); headers = resolve(step.headers) || {} } catch (e) { results[step.id] = { error: `body unresolved: ${e.message}` }; continue }
-    let r
-    for (let attempt = 0; attempt <= (step.retry || 0); attempt++) {
-      try {
-        r = await requestJSON(server.baseUrl, route, { method: step.method || 'GET', token: step.tokenQuery ? undefined : token, body, headers, timeoutMs: 30000 })
-      } catch (e) { r = { status: 0, value: e.message, bytes: Buffer.alloc(0), headers: new Headers() } }
-      if (r.status !== 404 && r.status !== 0) break
-      await delay(500)
+  let rootSocket = null
+  try {
+    for (const step of journeySteps(ids)) {
+      if (step.skip) continue
+      let route
+      try { route = resolve(step.route) } catch (e) { results[step.id] = { error: `route unresolved: ${e.message}` }; continue }
+      const token = step.who ? tokens[step.who] : undefined
+      if (step.tokenQuery && token && !/[?&]token=/.test(route)) route += (route.includes('?') ? '&' : '?') + `token=${token}`
+      let body, headers
+      try { body = resolve(step.body); headers = resolve(step.headers) || {} } catch (e) { results[step.id] = { error: `body unresolved: ${e.message}` }; continue }
+      let r
+      for (let attempt = 0; attempt <= (step.retry || 0); attempt++) {
+        try {
+          r = await requestJSON(server.baseUrl, route, { method: step.method || 'GET', token: step.tokenQuery ? undefined : token, body, headers, timeoutMs: 30000 })
+        } catch (e) { r = { status: 0, value: e.message, bytes: Buffer.alloc(0), headers: new Headers() } }
+        if (r.status !== 404 && r.status !== 0) break
+        await delay(500)
+      }
+      // Normalization: the "discover" shelf is ORDER BY RANDOM() upstream
+      // (libraryItemsBookFilters.getDiscoverLibraryItems), so compare its
+      // entity set, not its order.
+      if (Array.isArray(r.value) && step.route.toString().includes('/personalized')) {
+        for (const shelf of r.value) if (shelf?.id === 'discover' && Array.isArray(shelf.entities)) shelf.entities.sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      }
+      if (step.capture && r.ok) ctx[step.capture] = r.value
+      if (step.id === 'login.listener.mobile' && r.ok) {
+        tokens.listener = r.value.user.accessToken
+        ctx.listenerRefresh = r.value.user.refreshToken
+        ctx.listenerId = r.value.user.id
+        known.add(ctx.listenerId)
+      }
+      if (step.id === 'login.root' && r.ok) {
+        tokens.root = r.value.user.accessToken
+        rootSocket = await connectEventSocket(server, tokens.root)
+      }
+      if (step.id === 'login.finisher' && r.ok) tokens.finisher = r.value.user.accessToken
+      let recorded
+      if (step.binary === 'bytes') recorded = { len: r.bytes.length, sha: require('node:crypto').createHash('sha256').update(r.bytes).digest('hex'), type: r.headers.get('content-type'), range: r.headers.get('content-range') }
+      else if (step.binary === 'meta') recorded = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
+      else if (step.binary === 'xml') recorded = { status: r.status, type: r.headers.get('content-type'), text: typeof r.value === 'string' ? normalizeFeedXML(r.value) : r.value }
+      else if (step.binary === 'text') recorded = { type: r.headers.get('content-type'), text: typeof r.value === 'string' ? r.value.replace(UUID, '<uuid>').replace(/[?&]token=[^\s&]+/g, '') : r.value }
+      else recorded = normalize(step.isoShape ? isoShape(r.value) : r.value, known, fresh)
+      results[step.id] = { status: r.status, body: recorded }
+      if (step.events) {
+        const events = await rootSocket?.take(step.events)
+        results[step.id].events = normalize(step.isoShape ? isoShape(events) : events, known, fresh)
+      }
     }
-    // Normalization: the "discover" shelf is ORDER BY RANDOM() upstream
-    // (libraryItemsBookFilters.getDiscoverLibraryItems), so compare its
-    // entity set, not its order.
-    if (Array.isArray(r.value) && step.route.toString().includes('/personalized')) {
-      for (const shelf of r.value) if (shelf?.id === 'discover' && Array.isArray(shelf.entities)) shelf.entities.sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    }
-    if (step.capture && r.ok) ctx[step.capture] = r.value
-    if (step.id === 'login.listener.mobile' && r.ok) {
-      tokens.listener = r.value.user.accessToken
-      ctx.listenerRefresh = r.value.user.refreshToken
-      ctx.listenerId = r.value.user.id
-      known.add(ctx.listenerId)
-    }
-    if (step.id === 'login.root' && r.ok) tokens.root = r.value.user.accessToken
-    if (step.id === 'login.finisher' && r.ok) tokens.finisher = r.value.user.accessToken
-    let recorded
-    if (step.binary === 'bytes') recorded = { len: r.bytes.length, sha: require('node:crypto').createHash('sha256').update(r.bytes).digest('hex'), type: r.headers.get('content-type'), range: r.headers.get('content-range') }
-    else if (step.binary === 'meta') recorded = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
-    else if (step.binary === 'text') recorded = { type: r.headers.get('content-type'), text: typeof r.value === 'string' ? r.value.replace(UUID, '<uuid>').replace(/[?&]token=[^\s&]+/g, '') : r.value }
-    else recorded = normalize(r.value, known, fresh)
-    results[step.id] = { status: r.status, body: recorded }
+  } finally {
+    rootSocket?.close()
   }
   fs.writeFileSync(path.join(logDir, `journey-${server.kind}.json`), JSON.stringify(results, null, 2))
   return results
@@ -457,6 +883,41 @@ function snapshotUUIDs(ids) {
   const set = new Set(Object.values(ids))
   if (SNAPSHOT_DB) for (const m of fs.readFileSync(SNAPSHOT_DB, 'latin1').match(UUID) || []) set.add(m)
   return set
+}
+
+// Persisted rows written by the journey (feeds, feed episodes, shares), read
+// from the stopped server's database. IDs created during the journey and
+// timestamps are normalized; everything else (NULL vs '', booleans, dates,
+// URLs) is compared exactly. node:sqlite is experimental in Node 22.
+function dumpRows(dbPath, ids) {
+  const { DatabaseSync } = require('node:sqlite')
+  const db = new DatabaseSync(dbPath, { readOnly: true })
+  const known = snapshotUUIDs(ids)
+  const shape = (v, key) => {
+    if (typeof v === 'string') {
+      if (/(^|[a-z])(createdAt|updatedAt)$/.test(key)) return `ts-shape:${v.replace(/\d/g, '9')}`
+      return v.replace(UUID, m => known.has(m) ? m : '<new-uuid>')
+    }
+    return v
+  }
+  const rows = (sql) => db.prepare(sql).all().map(r => {
+    // imageURL's ?ts= must equal entityUpdatedAt in ms; the instant itself is journey wall-clock.
+    if (typeof r.imageURL === 'string' && typeof r.entityUpdatedAt === 'string') {
+      const ms = Date.parse(r.entityUpdatedAt.replace(' +00:00', 'Z').replace(' ', 'T'))
+      r.imageURL = r.imageURL.replace(/\?ts=(\d+)$/, (m, ts) => Number(ts) === ms ? '?ts=<entityUpdatedAt>' : m)
+      r.entityUpdatedAt = 'ts-shape:' + r.entityUpdatedAt.replace(/\d/g, '9')
+    }
+    return Object.fromEntries(Object.keys(r).sort().map(k => [k, shape(r[k], k)]))
+  })
+  const out = {
+    'db.feeds': rows('SELECT * FROM feeds ORDER BY slug'),
+    'db.feedEpisodes': rows('SELECT fe.*, f.slug AS feedSlug FROM feedEpisodes fe LEFT JOIN feeds f ON f.id = fe.feedId ORDER BY f.slug, fe.pubDate, fe.filePath'),
+    'db.mediaItemShares': rows('SELECT * FROM mediaItemShares ORDER BY slug'),
+    // Devices created by public share visits (no user): PlaybackSessionManager.getDeviceInfo.
+    'db.devices.public': rows('SELECT * FROM devices WHERE userId IS NULL ORDER BY clientName, deviceName')
+  }
+  db.close()
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { status: 200, body: v }]))
 }
 
 function diffResults(a, b) {
@@ -499,8 +960,8 @@ async function main() {
     dirs = { config: path.join(work, 'install', 'config'), metadata: path.join(work, 'install', 'metadata') }
     copyTree(snapshot, path.join(work, 'install'))
   } else {
-    const booksRoot = generateMedia(path.join(work, 'media'))
-    ;({ dirs, ids } = await seed(work, booksRoot))
+    const media = generateMedia(path.join(work, 'media'))
+    ;({ dirs, ids } = await seed(work, media))
     copyTree(path.join(work, 'install'), snapshot)
     fs.writeFileSync(path.join(work, 'ids.json'), JSON.stringify(ids, null, 2))
   }
@@ -512,6 +973,7 @@ async function main() {
   const upLogin = await loginAs(api(up), LISTENER)
   const upSocket = await socketProgressProbe(up, ids, upLogin.accessToken)
   await stop(up)
+  Object.assign(upstream, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Swap: restore the pre-journey installation to the same paths, boot Go.
   copyTree(snapshot, path.join(work, 'install'))
@@ -521,6 +983,7 @@ async function main() {
   try { goSocket = await socketProgressProbe(go, ids, (await loginAs(api(go), LISTENER)).accessToken) } catch (e) { goSocket = { status: 'error', error: e.message } }
   const goProgress = await requestJSON(go.baseUrl, '/api/me', { token: (await loginAs(api(go), LISTENER)).accessToken })
   await stop(go)
+  Object.assign(goResults, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Rollback: upstream reopens the Go-written installation.
   let rollback
@@ -529,7 +992,7 @@ async function main() {
     const lt = (await loginAs(api(up), LISTENER)).accessToken
     const me = await requestJSON(up.baseUrl, '/api/me', { token: lt })
     const sessions = await requestJSON(up.baseUrl, '/api/me/listening-sessions?itemsPerPage=50&page=0', { token: lt })
-    const pick = (u) => (u?.mediaProgress || []).map(p => ({ id: p.libraryItemId, t: p.currentTime, f: p.isFinished, e: p.ebookLocation, h: p.hideFromContinueListening })).sort((a, b) => a.id.localeCompare(b.id))
+    const pick = (u) => (u?.mediaProgress || []).map(p => ({ id: p.libraryItemId, ep: p.episodeId || '', t: p.currentTime, f: p.isFinished, e: p.ebookLocation, h: p.hideFromContinueListening })).sort((a, b) => (a.id + a.ep).localeCompare(b.id + b.ep))
     const goView = pick(goProgress.value)
     const upView = pick(me.value)
     rollback = {
@@ -544,6 +1007,9 @@ async function main() {
     await stop(up)
   }
 
+  const unresolved = Object.entries(upstream).filter(([, v]) => v?.error).map(([k, v]) => `${k}: ${v.error}`)
+  if (unresolved.length) throw new Error(`upstream journey steps could not run:\n${unresolved.join('\n')}`)
+  for (const [kind, results] of [['upstream', upstream], ['go', goResults]]) fs.writeFileSync(path.join(work, `journey-${kind}.json`), JSON.stringify(results, null, 2))
   const diffs = diffResults(upstream, goResults)
   const report = {
     steps: Object.keys(upstream).length,

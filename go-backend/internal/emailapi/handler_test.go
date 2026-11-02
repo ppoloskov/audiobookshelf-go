@@ -254,11 +254,18 @@ func TestSendMailAgainstLocalSMTPServer(t *testing.T) {
 		_, _ = fmt.Fprint(conn, "220 localhost ESMTP\r\n")
 		reader := bufio.NewReader(conn)
 		data := false
+		delivered := false
 		var msg strings.Builder
 		for {
 			line, e := reader.ReadString('\n')
 			if e != nil {
-				errs <- e
+				// The client may drop the connection right after the message
+				// is accepted (before or without QUIT). That is not a failure,
+				// and reporting it raced with the delivered message in the
+				// test's select.
+				if !delivered {
+					errs <- e
+				}
 				return
 			}
 			trim := strings.TrimSpace(line)
@@ -266,6 +273,7 @@ func TestSendMailAgainstLocalSMTPServer(t *testing.T) {
 				if trim == "." {
 					data = false
 					_, _ = fmt.Fprint(conn, "250 queued\r\n")
+					delivered = true
 					received <- msg.String()
 					continue
 				}

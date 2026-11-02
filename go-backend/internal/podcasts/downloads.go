@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/wire"
 )
 
 type downloadTask struct {
@@ -32,15 +33,31 @@ type downloadTask struct {
 	cancel                           context.CancelFunc
 }
 
-func (d *downloadTask) clientJSON() map[string]any {
+func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 	title, _ := d.episode["title"].(string)
-	season := d.episode["season"]
-	episode := d.episode["episode"]
 	kind := d.episode["episodeType"]
 	if kind == nil || kind == "" {
 		kind = "full"
 	}
-	return map[string]any{"id": d.id, "episodeDisplayTitle": title, "url": d.url, "libraryItemId": d.item.ID, "libraryId": d.item.LibraryID, "isFinished": d.finished, "failed": d.failed, "appendRandomId": d.appendID, "startedAt": nullableInt64(d.startedAt), "createdAt": d.createdAt, "finishedAt": nullableInt64(d.finishedAt), "podcastTitle": nullableSQL(d.item.Title), "podcastExplicit": d.item.Explicit, "season": season, "episode": episode, "episodeType": kind, "publishedAt": d.episode["publishedAt"], "guid": d.episode["guid"]}
+	libraryID := d.item.LibraryID
+	out := wire.EpisodeDownload{
+		ID: d.id, EpisodeDisplayTitle: &title, URL: d.url, LibraryItemID: d.item.ID, IsFinished: d.finished, Failed: d.failed,
+		AppendRandomID: d.appendID, CreatedAt: d.createdAt, PodcastExplicit: d.item.Explicit,
+		Season: d.episode["season"], Episode: d.episode["episode"], EpisodeType: kind, PublishedAt: d.episode["publishedAt"], GUID: d.episode["guid"],
+	}
+	if libraryID != "" {
+		out.LibraryID = &libraryID
+	}
+	if d.startedAt != 0 {
+		out.StartedAt = &d.startedAt
+	}
+	if d.finishedAt != 0 {
+		out.FinishedAt = &d.finishedAt
+	}
+	if d.item.Title.Valid {
+		out.PodcastTitle = &d.item.Title.String
+	}
+	return out
 }
 func nullableInt64(v int64) any {
 	if v == 0 {
@@ -97,16 +114,30 @@ func (h *Handler) enqueue(item podcastItem, episodes []map[string]any, auto bool
 	return nil
 }
 
-func (h *Handler) downloadsFor(itemID string) []map[string]any {
+func (h *Handler) downloadsFor(itemID string) []wire.EpisodeDownload {
 	h.queueMu.Lock()
 	defer h.queueMu.Unlock()
-	var out []map[string]any
+	out := make([]wire.EpisodeDownload, 0)
 	for _, d := range h.queue {
 		if d.item.ID == itemID {
 			out = append(out, d.clientJSON())
 		}
 	}
 	return out
+}
+
+// EpisodeDownloads reports the queued downloads of a library item and the one
+// running now, if it belongs to the item (LibraryItemController.findOne,
+// server/controllers/LibraryItemController.js:90-95).
+func (h *Handler) EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload) {
+	queued = h.downloadsFor(libraryItemID)
+	h.queueMu.Lock()
+	defer h.queueMu.Unlock()
+	if h.current != nil && h.current.item.ID == libraryItemID {
+		download := h.current.clientJSON()
+		current = &download
+	}
+	return queued, current
 }
 
 func (h *Handler) clearQueue(itemID string) {

@@ -11,9 +11,16 @@
 //  --variant root       launch without a configured prefix and compare the same steps
 //  --variant fresh      both servers first-boot an EMPTY config/metadata tree; compare
 //                       the setup shell and the fresh-init schema instead of playback
-// Only the full variant writes the checked-in browser-playback-differential
-// contract report; variant runs write their own out dir + browser-report.json.
+// Every variant writes its own out dir + browser-report.json. The checked-in
+// browser-playback-differential contract report and provenance are rewritten
+// only by the full variant AND only when --write-contract is passed.
+//
+// Options: --fixture <fixture-manifest.json> (default: a fresh fixture is created
+// with create-fixture.cjs under the out dir), --write-contract, --variant <name>.
+// Env: BROWSER_CHECK_OUT (default: a fresh os.tmpdir() dir), ABS_PARITY_NODE
+// (Node 22 binary for upstream; default process.execPath).
 const fs = require('node:fs')
+const os = require('node:os')
 const crypto = require('node:crypto')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
@@ -23,8 +30,8 @@ const { writeJSON } = require('./lib/artifacts.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const FULL_BASE = '/audiobookshelf'
-const DEFAULT_FIXTURE = '/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/audit-repair-final-parity/fixture-manifest.json'
-const OUT = process.env.BROWSER_CHECK_OUT || '/private/var/folders/jt/2prvbq7965ggn35rz2vwnqrw0000gn/T/opencode/browser-acceptance'
+const OUT = process.env.BROWSER_CHECK_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'abs-browser-check-'))
+const WRITE_CONTRACT = process.argv.includes('--write-contract')
 const VARIANT = (process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : 'full')
 if (!['full', 'transcode', 'restricted', 'root', 'fresh'].includes(VARIANT)) throw new Error(`unknown --variant ${VARIANT}`)
 const BASE = VARIANT === 'root' ? '' : FULL_BASE
@@ -35,8 +42,7 @@ function arg(name, fallback) {
 }
 function playwright() {
   try { return require('playwright') } catch {}
-  try { return require(require.resolve('playwright', { paths: ['/Users/paul/.npm/_npx/e41f203b7505f1fb/node_modules'] })) } catch {}
-  throw new Error('Playwright module not found; run npx -y playwright@latest install chromium and expose its module')
+  throw new Error('Playwright module not found; install it (npm i playwright && npx playwright install chromium) or expose it via NODE_PATH')
 }
 function start(command, args, options, logPath) {
   return spawnLogged(command, args, options, logPath)
@@ -413,10 +419,22 @@ async function checkBrowser(browserType, name, url, manifest) {
   } finally { await browser.close() }
 }
 
+// Without --fixture, create a fresh upstream-seeded fixture (it is consumed by
+// the copies below, so it is never shared between runs).
+function createFreshFixture() {
+  const dir = path.join(OUT, 'source-fixture')
+  const node = process.env.ABS_PARITY_NODE || process.execPath
+  const created = spawnSync(node, [path.join(__dirname, 'create-fixture.cjs'), dir], {
+    cwd: ROOT, encoding: 'utf8', env: { ...process.env, SSRF_REQUEST_FILTER_WHITELIST: process.env.SSRF_REQUEST_FILTER_WHITELIST || '127.0.0.1' }
+  })
+  if (created.status !== 0) throw new Error(`create-fixture.cjs failed (${created.status}): ${created.stderr || created.stdout}`)
+  return path.join(dir, 'fixture-manifest.json')
+}
+
 async function main() {
-  const manifestPath = path.resolve(arg('fixture', DEFAULT_FIXTURE))
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
   fs.mkdirSync(OUT, { recursive: true })
+  const manifestPath = path.resolve(arg('fixture', null) || createFreshFixture())
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
   const fixtureRoot = path.join(OUT, 'fixture')
   fs.mkdirSync(fixtureRoot, { recursive: true })
   for (const side of ['go', 'node']) {
@@ -457,9 +475,9 @@ async function main() {
           ABS_GO_CLIENT_PATH: path.join(ROOT, 'client/dist'), HOST: '127.0.0.1', PORT: String(port),
           ROUTER_BASE_PATH: BASE, SOURCE: 'docker' } }, logPath)
       } else {
-        const node = process.env.NODE22 || 'mise'
+        const node = process.env.ABS_PARITY_NODE || process.execPath
         // Match run-local.cjs: its checked-in production entry point is dist-server/index.js.
-        servers.node = start(node, ['exec', 'node@22', '--', 'node', path.join(ROOT, 'dist-server/index.js'),
+        servers.node = start(node, [path.join(ROOT, 'dist-server/index.js'),
           '--config', path.join(dirs, 'config'), '--metadata', path.join(dirs, 'metadata'),
           '--port', String(port), '--host', '127.0.0.1', '--source', 'docker'],
         { cwd: ROOT, env: { ...process.env, NODE_ENV: 'production', ROUTER_BASE_PATH: BASE } }, logPath)
@@ -483,9 +501,12 @@ async function main() {
     close: { status: playback.close?.status, sessionIdMatches: playback.close?.sessionIdMatches }
   }) : ({
     start: { status: playback.start?.status, sessionIdPresent: playback.start?.sessionIdPresent },
-    loaded: playback.loaded && { readyState: playback.loaded.readyState, duration: playback.loaded.duration },
-    afterPlay: playback.afterPlay && { paused: playback.afterPlay.paused, currentTime: Number(playback.afterPlay.currentTime.toFixed(1)) },
-    afterPause: playback.afterPause && { paused: playback.afterPause.paused, currentTime: Number(playback.afterPause.currentTime.toFixed(1)) },
+    // The snapshot is taken as soon as readyState >= 1, so the exact value (1..4)
+    // and the pause latency are browser timing, not server behavior. Compare
+    // "loaded" and "time advanced" instead; the seek positions below stay exact.
+    loaded: playback.loaded && { loaded: playback.loaded.readyState >= 1, duration: playback.loaded.duration },
+    afterPlay: playback.afterPlay && { paused: playback.afterPlay.paused, advanced: playback.afterPlay.currentTime > 0 },
+    afterPause: playback.afterPause && { paused: playback.afterPause.paused, advanced: playback.afterPause.currentTime > 0 },
     afterSeekForward: playback.afterSeekForward && { paused: playback.afterSeekForward.paused, currentTime: Number(playback.afterSeekForward.currentTime.toFixed(1)), duration: playback.afterSeekForward.duration },
     afterSeekBackward: playback.afterSeekBackward && { paused: playback.afterSeekBackward.paused, currentTime: Number(playback.afterSeekBackward.currentTime.toFixed(1)), duration: playback.afterSeekBackward.duration },
     afterSeek: playback.afterSeek && { paused: playback.afterSeek.paused, currentTime: Number(playback.afterSeek.currentTime.toFixed(1)), duration: playback.afterSeek.duration },
@@ -528,7 +549,7 @@ async function main() {
   }
   const report = { browser: 'Playwright Chromium headless', fixture: manifestPath, output: OUT,
     boot: { go: 'CGO_ENABLED=0 binary; isolated copied config/metadata; ABS_GO_CLIENT_PATH=client/dist; ROUTER_BASE_PATH=/audiobookshelf',
-      node: 'mise exec node@22 -- dist/index.js; isolated copied config/metadata' }, results }
+      node: 'node dist-server/index.js; isolated copied config/metadata' }, results }
   const contractReport = {
     schemaVersion: 1,
     baseline: manifest.baseline,
@@ -543,16 +564,16 @@ async function main() {
     }
   }
   const contractPath = path.join(ROOT, 'go-backend/contracts/parity/browser-playback-differential-report.json')
-  if (VARIANT === 'full') {
+  if (VARIANT === 'full' && WRITE_CONTRACT) {
     writeJSON(contractPath, contractReport)
   writeJSON(path.join(ROOT, 'go-backend/contracts/parity/browser-playback-differential-provenance.json'), {
     schemaVersion: 1,
     baseline: manifest.baseline,
-    command: 'BROWSER_CHECK_OUT=<isolated writable temp dir> node go-backend/tools/parity/browser-check.cjs',
+    command: 'BROWSER_CHECK_OUT=<isolated writable temp dir> node go-backend/tools/parity/browser-check.cjs --fixture <fixture-manifest.json> --write-contract',
     upstream: 'Node v22.23.4; pinned dist-server/index.js',
     go: 'CGO_ENABLED=0 binary built from current go-backend source',
     fixture: 'Generated silent AAC media; isolated copied fixture databases and metadata; copied DB coverPath values rewritten to their corresponding copied metadata roots.',
-    normalizations: ['Per-side playback session UUID and origin are omitted from comparisons.', 'Current time is rounded to 100 ms for the paired browser state comparison.', 'Cover image resize 500s are retained and compared exactly by route, status, and body; they are not treated as Go-only differences.'],
+    normalizations: ['Per-side playback session UUID and origin are omitted from comparisons.', 'Seek positions are rounded to 100 ms for the paired browser state comparison; the loaded readyState and the post-play/pause currentTime are compared as loaded/advanced booleans because they depend on browser timing.', 'Cover image resize 500s are retained and compared exactly by route, status, and body; they are not treated as Go-only differences.'],
     limitations: contractReport.results.limitations
   })
   }

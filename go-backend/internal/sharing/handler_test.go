@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -158,5 +159,133 @@ func TestShareRejectsExpiredAndDownloadDisabled(t *testing.T) {
 	h.Handle(public, httptest.NewRequest(http.MethodGet, "/public/share/expires", nil), store.User{})
 	if public.Code != 404 {
 		t.Fatalf("expired share status %d", public.Code)
+	}
+}
+
+type emitted struct {
+	room, event string
+	payload     any
+}
+
+func emittingHandler(t *testing.T, h *Handler) *[]emitted {
+	t.Helper()
+	var events []emitted
+	h.emit = func(room, event string, payload any) { events = append(events, emitted{room, event, payload}) }
+	return &events
+}
+
+// Feed.getFeedObjForLibraryItem copies media.description, media.language and
+// the owner options verbatim: NULL stays NULL (server/models/Feed.js:112-149,
+// RssFeedManager.getFeedOptionsFromReqOptions).
+func TestOpenFeedKeepsNullColumnsNull(t *testing.T) {
+	db, h, admin, media := sharingFixture(t)
+	events := emittingHandler(t, h)
+	now := sqlDate(time.Now())
+	audio := `[{"index":1,"duration":12,"mimeType":"audio/mpeg","exclude":false,"metadata":{"path":"` + media + `","filename":"book.mp3","size":10}}]`
+	if _, e := db.Exec(`INSERT INTO books(id,title,explicit,duration,chapters,audioFiles,tags,genres,createdAt,updatedAt) VALUES('book-2','Bare Book',0,12,'[]',?,'[]','[]',?,?)`, audio, now, now); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := db.Exec(`INSERT INTO libraryItems(id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,title,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId) VALUES('li-2',?, 'book.mp3','book-2','book',1,0,0,'[]','{}','Bare Book','','',?,?,'lib-1')`, media, now, now); e != nil {
+		t.Fatal(e)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/feeds/item/li-2/open", strings.NewReader(`{"serverAddress":"https://abs.example","slug":"bare","metadataDetails":{"ownerName":"","ownerEmail":42}}`))
+	w := httptest.NewRecorder()
+	if !h.Handle(w, req, admin) || w.Code != 200 {
+		t.Fatalf("open status %d %s", w.Code, w.Body.String())
+	}
+	var nullCols int
+	if e := db.QueryRow(`SELECT COUNT(*) FROM feeds WHERE slug='bare' AND description IS NULL AND language IS NULL AND ownerName IS NULL AND ownerEmail IS NULL AND preventIndexing=1 AND explicit=0 AND coverPath IS NULL AND podcastType='serial'`).Scan(&nullCols); e != nil || nullCols != 1 {
+		t.Fatalf("feed row columns not NULL as upstream: count=%d err=%v", nullCols, e)
+	}
+	var epRows int
+	if e := db.QueryRow(`SELECT COUNT(*) FROM feedEpisodes WHERE description='' AND season IS NULL AND episode IS NULL AND episodeType IS NULL AND explicit=0 AND enclosureSize=10 AND duration=12`).Scan(&epRows); e != nil || epRows != 1 {
+		t.Fatalf("feed episode columns: count=%d err=%v", epRows, e)
+	}
+	var body struct {
+		Feed struct {
+			Meta map[string]any `json:"meta"`
+		} `json:"feed"`
+	}
+	if json.Unmarshal(w.Body.Bytes(), &body) != nil {
+		t.Fatalf("response %s", w.Body.String())
+	}
+	for _, key := range []string{"description", "ownerName", "ownerEmail"} {
+		if v, ok := body.Feed.Meta[key]; !ok || v != nil {
+			t.Fatalf("meta.%s = %#v (present=%v), want null", key, v, ok)
+		}
+	}
+	if len(*events) != 1 || (*events)[0].event != "rss_feed_open" {
+		t.Fatalf("events %#v", *events)
+	}
+}
+
+// Sequelize Dates reach res.json and Socket.IO as ISO strings with
+// milliseconds, not epoch millis (MediaItemShare.toJSONForClient).
+func TestShareDatesAreISOStrings(t *testing.T) {
+	db, h, admin, _ := sharingFixture(t)
+	events := emittingHandler(t, h)
+	create := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(body)), admin)
+		return w
+	}
+	iso := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`)
+	w := create(`{"slug":"iso","expiresAt":4102444800000,"mediaItemType":"book","mediaItemId":"book-1"}`)
+	if w.Code != 201 {
+		t.Fatalf("create %d %s", w.Code, w.Body.String())
+	}
+	var share map[string]any
+	if json.Unmarshal(w.Body.Bytes(), &share) != nil {
+		t.Fatal("bad JSON")
+	}
+	for _, key := range []string{"createdAt", "updatedAt"} {
+		if s, _ := share[key].(string); !iso.MatchString(s) {
+			t.Fatalf("%s = %#v, want ISO string", key, share[key])
+		}
+	}
+	if share["expiresAt"] != "2100-01-01T00:00:00.000Z" {
+		t.Fatalf("expiresAt = %#v", share["expiresAt"])
+	}
+	if _, present := share["isDownloadable"]; present {
+		t.Fatalf("isDownloadable present although the request omitted it: %s", w.Body.String())
+	}
+	var stored string
+	var downloadable sql.NullBool
+	if e := db.QueryRow(`SELECT expiresAt,isDownloadable FROM mediaItemShares WHERE slug='iso'`).Scan(&stored, &downloadable); e != nil || stored != "2100-01-01 00:00:00.000 +00:00" || downloadable.Valid {
+		t.Fatalf("stored expiresAt=%q isDownloadable=%v err=%v", stored, downloadable, e)
+	}
+	public := httptest.NewRecorder()
+	h.Handle(public, httptest.NewRequest(http.MethodGet, "/public/share/iso", nil), store.User{})
+	var served map[string]any
+	_ = json.Unmarshal(public.Body.Bytes(), &served)
+	if s, _ := served["createdAt"].(string); !iso.MatchString(s) {
+		t.Fatalf("public share createdAt = %#v", served["createdAt"])
+	}
+	del := httptest.NewRecorder()
+	h.Handle(del, httptest.NewRequest(http.MethodDelete, "/api/share/mediaitem/"+share["id"].(string), nil), admin)
+	if del.Code != 204 {
+		t.Fatalf("delete %d", del.Code)
+	}
+	if len(*events) != 2 || (*events)[0].event != "share_open" || (*events)[1].event != "share_closed" {
+		t.Fatalf("events %#v", *events)
+	}
+	for _, ev := range *events {
+		raw, _ := json.Marshal(ev.payload)
+		var payload map[string]any
+		_ = json.Unmarshal(raw, &payload)
+		if s, _ := payload["createdAt"].(string); !iso.MatchString(s) {
+			t.Fatalf("%s createdAt = %#v", ev.event, payload["createdAt"])
+		}
+		if ev.room != "@admins" {
+			t.Fatalf("%s room %q", ev.event, ev.room)
+		}
+	}
+	// An already expired share is created (201, share_open) but not kept.
+	if w = create(`{"slug":"past","expiresAt":1000,"mediaItemType":"book","mediaItemId":"book-1"}`); w.Code != 201 {
+		t.Fatalf("past create %d %s", w.Code, w.Body.String())
+	}
+	var kept int
+	if e := db.QueryRow(`SELECT COUNT(*) FROM mediaItemShares`).Scan(&kept); e != nil || kept != 0 {
+		t.Fatalf("expired share kept: %d err=%v", kept, e)
 	}
 }

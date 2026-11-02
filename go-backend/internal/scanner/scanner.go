@@ -263,7 +263,7 @@ func (s *Scanner) resetIssuesFilterData(ctx context.Context, libraryID string) {
 	}
 	var n int
 	if s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID).Scan(&n) == nil {
-		s.filters.SetNumIssues(libraryID, n)
+		s.filters.StoreNumIssues(libraryID, n)
 	}
 }
 

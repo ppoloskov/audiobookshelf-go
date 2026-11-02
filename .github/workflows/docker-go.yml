@@ -36,6 +36,12 @@ jobs:
           go-version-file: go-backend/go.mod
           cache-dependency-path: go-backend/go.sum
 
+      # Scanner tests require FFmpeg/ffprobe and fail (not skip) without them.
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Build
         working-directory: go-backend
         run: go build ./...
@@ -55,7 +61,7 @@ jobs:
       - name: Enforce dependency boundaries
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.5.0
+          version: v2.15.0
           working-directory: go-backend
           args: --config=../.golangci.yml --timeout=5m ./...
 
@@ -93,6 +99,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+
+      # The harness verifies the oracle source matches the pinned upstream
+      # commit (tools/parity/lib/oracle.cjs: git diff --quiet <sha>); a
+      # depth-1 checkout does not contain it.
+      - name: Fetch pinned upstream commit
+        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
 
       - name: Install pinned upstream dependencies
         run: npm ci

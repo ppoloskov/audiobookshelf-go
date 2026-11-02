@@ -20,6 +20,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
+	"github.com/robfig/cron/v3"
 )
 
 type itemScope struct{ libraryID, mediaID, mediaType string }
@@ -84,6 +85,18 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 	}
 	defer tx.Rollback()
 	columns := map[string]any{}
+	if scope.mediaType == "podcast" {
+		// LibraryItemController.updateMedia (LibraryItemController.js:225).
+		if raw, ok := payload["autoDownloadSchedule"]; ok {
+			var schedule string
+			if json.Unmarshal(raw, &schedule) == nil && schedule != "" {
+				if _, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule); err != nil {
+					writeError(w, http.StatusBadRequest, "Invalid auto download schedule cron expression")
+					return
+				}
+			}
+		}
+	}
 	if scope.mediaType == "book" {
 		columns = bookUpdateColumns(metadata, payload)
 	} else if scope.mediaType == "podcast" {

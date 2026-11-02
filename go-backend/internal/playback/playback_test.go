@@ -312,7 +312,7 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 		`CREATE TABLE podcastEpisodes (id TEXT,podcastId TEXT,"index" INTEGER,season TEXT,episode TEXT,episodeType TEXT,title TEXT,subtitle TEXT,description TEXT,enclosureURL TEXT,enclosureSize INTEGER,enclosureType TEXT,pubDate TEXT,audioFile TEXT,chapters TEXT,extraData TEXT,publishedAt TEXT,createdAt TEXT,updatedAt TEXT)`,
 		`CREATE TABLE libraries (id TEXT PRIMARY KEY,settings TEXT)`,
 		`CREATE TABLE devices (id TEXT PRIMARY KEY,deviceId TEXT,clientName TEXT,clientVersion TEXT,ipAddress TEXT,deviceName TEXT,deviceVersion TEXT,extraData TEXT,userId TEXT,createdAt TEXT,updatedAt TEXT)`,
-		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY,mediaItemId TEXT,mediaItemType TEXT,duration REAL,currentTime REAL,isFinished INTEGER,hideFromContinueListening INTEGER,finishedAt TEXT,extraData TEXT,podcastId TEXT,userId TEXT,createdAt TEXT,updatedAt TEXT)`,
+		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY,mediaItemId TEXT,mediaItemType TEXT,duration REAL,currentTime REAL,isFinished INTEGER,hideFromContinueListening INTEGER,ebookLocation TEXT,ebookProgress REAL,finishedAt TEXT,extraData TEXT,podcastId TEXT,userId TEXT,createdAt TEXT,updatedAt TEXT)`,
 		`CREATE TABLE playbackSessions (id TEXT PRIMARY KEY,mediaItemId TEXT,mediaItemType TEXT,displayTitle TEXT,displayAuthor TEXT,duration REAL,playMethod INTEGER,mediaPlayer TEXT,startTime REAL,currentTime REAL,serverVersion TEXT,coverPath TEXT,timeListening INTEGER,mediaMetadata TEXT,date TEXT,dayOfWeek TEXT,extraData TEXT,userId TEXT,deviceId TEXT,libraryId TEXT,createdAt TEXT,updatedAt TEXT)`,
 	}
 	for _, stmt := range stmts {

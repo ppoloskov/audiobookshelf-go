@@ -85,20 +85,24 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	ident.SetUserAddedEmitter(func(payload map[string]any) {
 		hub.Emit("@admins", "user_added", payload)
 	})
-	catalogHandler := catalog.New(db, cfg, hub.Emit)
+	podcastsHandler := podcasts.New(db, cfg, hub.Emit)
+	catalogHandler := catalog.New(db, cfg, hub.Emit, catalog.WithDownloadQueue(podcastsHandler))
 	sc, err := scanner.New(db, cfg, hub.Emit, catalogHandler)
 	if err != nil {
+		podcastsHandler.Close()
 		hub.Close()
 		return nil, err
 	}
 	prov, err := providers.New(db, hub.Emit)
 	if err != nil {
+		podcastsHandler.Close()
 		sc.Close()
 		hub.Close()
 		return nil, err
 	}
 	userapiHandler, err := userapi.New(db, cfg, hub.Emit, catalogHandler)
 	if err != nil {
+		podcastsHandler.Close()
 		sc.Close()
 		hub.Close()
 		return nil, err
@@ -112,7 +116,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		emailapi:      emailapi.New(db, cfg, hub.Emit),
 		notifications: notifications.New(db, cfg, hub.Emit),
 		sharing:       sharing.New(db, cfg, hub.Emit),
-		podcasts:      podcasts.New(db, cfg, hub.Emit),
+		podcasts:      podcastsHandler,
 		providers:     prov,
 		logListeners:  map[string]int{},
 		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),

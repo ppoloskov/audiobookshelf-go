@@ -63,7 +63,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 	// confirms an author whose only book was removed here stays in place with
 	// no author_removed event, so the linked ids are deliberately dropped.
 	_ = linked
-	h.filters.SetNumIssues(libraryID, 0) // LibraryController.js:727-730
+	h.filters.StoreNumIssues(libraryID, 0) // LibraryController.js:727-730
 	writeStatus(w, http.StatusOK)
 }
 

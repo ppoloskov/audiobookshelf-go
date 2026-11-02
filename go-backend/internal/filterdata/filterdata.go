@@ -224,7 +224,7 @@ func (c *Cache) AddLanguage(libraryID, language string) {
 	c.with(libraryID, func(d *Data) { d.Languages = appendUnique(d.Languages, language) })
 }
 
-// SetNumIssues is Database.resetLibraryIssuesFilterData's outcome.
-func (c *Cache) SetNumIssues(libraryID string, n int) {
+// StoreNumIssues is Database.resetLibraryIssuesFilterData's outcome.
+func (c *Cache) StoreNumIssues(libraryID string, n int) {
 	c.with(libraryID, func(d *Data) { d.NumIssues = n })
 }

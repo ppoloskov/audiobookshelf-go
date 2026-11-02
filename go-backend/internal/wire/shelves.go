@@ -43,6 +43,54 @@ type CollapsedSeries struct {
 	LibraryItemIDs   []string `json:"libraryItemIds"`
 }
 
+// MediaItemShareForClient is libraryItem.mediaItemShare, the open share of a
+// book as ShareManager.findByMediaItemId returns it
+// (server/managers/ShareManager.js:49-60): MediaItemShare.toJSON() without
+// pash, userId and extraData, so its dates serialize as ISO strings.
+type MediaItemShareForClient struct {
+	ID             string  `json:"id"`
+	MediaItemID    string  `json:"mediaItemId"`
+	MediaItemType  string  `json:"mediaItemType"`
+	Slug           string  `json:"slug"`
+	ExpiresAt      *string `json:"expiresAt"`
+	IsDownloadable bool    `json:"isDownloadable"`
+	CreatedAt      *string `json:"createdAt"`
+	UpdatedAt      *string `json:"updatedAt"`
+}
+
+// CollapsedSubseries is libraryItem.collapsedSeries on a series-filtered
+// library page with collapseseries=1
+// (server/utils/libraryHelpers.js:233-258). It differs from CollapsedSeries:
+// no sequence, the prefix form is recomputed, and seriesSequenceList lists
+// the filtered series' sequences the sub-series covers.
+type CollapsedSubseries struct {
+	ID                 string   `json:"id"`
+	Name               *string  `json:"name"`
+	NameIgnorePrefix   string   `json:"nameIgnorePrefix"`
+	LibraryItemIDs     []string `json:"libraryItemIds"`
+	NumBooks           int      `json:"numBooks"`
+	SeriesSequenceList string   `json:"seriesSequenceList"`
+}
+
+// CollapsedSubseriesPage is GET /api/libraries/:id/items for a series filter
+// with collapseseries=1: the payload object of LibraryController.getLibraryItems
+// (LibraryController.js:595-635) in assignment order. sortBy is undefined when
+// absent or not a valid collapse sort.
+type CollapsedSubseriesPage struct {
+	Results        []any   `json:"results"`
+	Total          int     `json:"total"`
+	Limit          int     `json:"limit"`
+	Page           int     `json:"page"`
+	SortBy         *string `json:"sortBy,omitempty"`
+	SortDesc       bool    `json:"sortDesc"`
+	FilterBy       string  `json:"filterBy"`
+	MediaType      string  `json:"mediaType"`
+	Minified       bool    `json:"minified"`
+	CollapseSeries bool    `json:"collapseseries"`
+	Include        string  `json:"include"`
+	Offset         int     `json:"offset"`
+}
+
 // LibraryCollectionsPage is GET /api/libraries/:id/collections
 // (server/controllers/LibraryController.js:820-842). sortBy and filterBy are
 // undefined unless supplied.

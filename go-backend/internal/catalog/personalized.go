@@ -73,7 +73,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		items, err := h.personalizedItems(r, spec.query+` LIMIT ?`, append(append([]any{}, args...), limit))
+		items, err := h.personalizedItems(r, user, spec.query+` LIMIT ?`, append(append([]any{}, args...), limit))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
@@ -326,9 +326,37 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	entities := make([]map[string]any, 0, len(itemIDs))
 	for _, id := range itemIDs {
 		item, e := h.ItemMinifiedJSON(r.Context(), id)
+		if e == nil {
+			e = h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), id, item["media"], func(k string, v any) { item[k] = v })
+		}
 		if e != nil {
 			writeError(w, 500, "database read failed")
 			return
+		}
+		// LibraryFilters.getLibraryItemsMostRecentlyAdded podcast branch
+		// (server/utils/queries/libraryFilters.js:113-128).
+		media, _ := item["media"].(map[string]any)
+		podcastID, _ := media["id"].(string)
+		if size := number(item["size"]); size != 0 && number(media["size"]) == 0 {
+			media["size"] = size
+		}
+		if includeHas(r, "rssfeed") {
+			if feed, ok, feedErr := h.feedMinified(r.Context(), "libraryItem", id); feedErr != nil {
+				writeError(w, 500, "database read failed")
+				return
+			} else if ok {
+				item["rssFeed"] = feed
+			}
+		}
+		if includeHas(r, "numepisodesincomplete") {
+			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, podcastID)
+			if incErr != nil {
+				writeError(w, 500, "database read failed")
+				return
+			}
+			if incomplete != 0 {
+				item["numEpisodesIncomplete"] = incomplete
+			}
 		}
 		entities = append(entities, item)
 	}
@@ -365,7 +393,7 @@ func podcastPermissionClause(user store.User) (string, []any) {
 	return strings.Join(parts, ""), args
 }
 
-func (h *Handler) personalizedItems(r *http.Request, query string, args []any) ([]map[string]any, error) {
+func (h *Handler) personalizedItems(r *http.Request, user store.User, query string, args []any) ([]map[string]any, error) {
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		return nil, err
@@ -386,6 +414,9 @@ func (h *Handler) personalizedItems(r *http.Request, query string, args []any) (
 	for _, id := range ids {
 		item, err := h.ItemMinifiedJSON(r.Context(), id)
 		if err != nil {
+			return nil, err
+		}
+		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

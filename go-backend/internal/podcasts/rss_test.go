@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 	_ "modernc.org/sqlite"
 )
 
@@ -174,7 +175,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	}
 	select {
 	case payload := <-finished:
-		if payload.(map[string]any)["failed"] == true {
+		if payload.(wire.EpisodeDownload).Failed {
 			t.Fatalf("episode download failed: %#v", payload)
 		}
 	case <-time.After(5 * time.Second):
@@ -203,7 +204,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	}
 	select {
 	case payload := <-finished:
-		if payload.(map[string]any)["failed"] == true {
+		if payload.(wire.EpisodeDownload).Failed {
 			t.Fatalf("retention fixture download failed: %#v", payload)
 		}
 	case <-time.After(5 * time.Second):
