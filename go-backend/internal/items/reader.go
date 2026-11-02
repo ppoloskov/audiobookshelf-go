@@ -13,6 +13,12 @@ type Reader interface {
 	ItemMinifiedJSON(context.Context, string) (map[string]any, error)
 }
 
+// DownloadQueue reports a library item's podcast episode downloads: the ones
+// queued and the one running now when it belongs to the item.
+type DownloadQueue interface {
+	EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload)
+}
+
 // MediaAccess is the small, shared view of media needed by item ACL and
 // realtime filtering. It is computed once per media value instead of being
 // reconstructed by each consumer.

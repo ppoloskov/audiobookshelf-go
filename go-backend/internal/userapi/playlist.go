@@ -631,6 +631,23 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		http.Error(w, "database read failed", 500)
 		return
 	}
+	if !batch && changed && refs[0].episodeID != "" {
+		// PlaylistController.addItem (PlaylistController.js:321-328) appends the
+		// added episode with the library item it already loaded WITH episodes,
+		// unlike a reloaded playlist whose podcasts have none.
+		entries, _ := item["items"].([]any)
+		if len(entries) > 0 {
+			if entry, ok := entries[len(entries)-1].(map[string]any); ok && entry["episodeId"] == refs[0].episodeID {
+				if full, e := h.items.ItemJSON(r.Context(), refs[0].libraryItemID, true); e == nil {
+					if media, ok := full["media"].(map[string]any); ok {
+						if minified, ok := entry["libraryItem"].(map[string]any); ok {
+							copyEpisodeTotals(minified, media)
+						}
+					}
+				}
+			}
+		}
+	}
 	if changed && h.emit != nil {
 		h.emit(user.ID, "playlist_updated", item)
 	}
