@@ -36,6 +36,12 @@ jobs:
           go-version-file: go-backend/go.mod
           cache-dependency-path: go-backend/go.sum
 
+      # Scanner tests require FFmpeg/ffprobe and fail (not skip) without them.
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Build
         working-directory: go-backend
         run: go build ./...
