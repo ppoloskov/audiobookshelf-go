@@ -2079,17 +2079,15 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	collapse := r.URL.Query().Get("collapseseries") == "1"
-	if collapse && strings.HasPrefix(r.URL.Query().Get("filter"), "series.") {
-		// Collapsed sub-series (libraryHelpers.handleCollapseSubseries,
-		// server/controllers/LibraryController.js:629) is not implemented.
-		writeError(w, http.StatusNotImplemented, "collapsed sub-series are not implemented")
-		return
-	}
 	include := normalizedInclude(r)
 	ignorePrefix := false
 	var settingsJSON []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsJSON); err == nil {
 		ignorePrefix, _ = decodeObject(settingsJSON)["sortingIgnorePrefix"].(bool)
+	}
+	if seriesID, ok := collapseSubseriesFilter(r); ok {
+		h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
+		return
 	}
 	filterValue := r.URL.Query().Get("filter")
 	order, orderArgs, err := orderClauseForRequest(r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1", ignorePrefix, mediaType, filterValue, user)
@@ -2303,6 +2301,12 @@ func userCanAccessItem(user store.User, item map[string]any) bool {
 	if !ok {
 		return false
 	}
+	return userCanAccessMedia(user, access)
+}
+
+// userCanAccessMedia is User.checkCanAccessLibraryItem's explicit and tag
+// checks (server/models/User.js:658-683) on a book's access fields.
+func userCanAccessMedia(user store.User, access itemapi.MediaAccess) bool {
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if access.Explicit && permissions["accessExplicitContent"] != true {

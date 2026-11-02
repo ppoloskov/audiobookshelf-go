@@ -355,6 +355,36 @@ function journeySteps(ids) {
   add('playlist.order.all', L, '/api/playlists')
   add('playlist.order.library', L, `/api/libraries/${ids.library}/playlists?minified=1`)
   add('playlist.order.library.page', L, `/api/libraries/${ids.library}/playlists?limit=5&page=1`)
+
+  // Collapsed sub-series: a series-filtered page with collapseseries=1 goes
+  // through libraryHelpers.handleCollapseSubseries
+  // (server/controllers/LibraryController.js:625-633). Build "Mega Cycle"
+  // (saga1=1, saga2=2, novel=3, ebook without sequence) around the existing
+  // "Long Saga" (saga1=1, saga2=2), so Long Saga collapses inside it.
+  const setSeries = (id, key, series) => add(id, R, `/api/items/${ids[key]}/media`, { method: 'PATCH', body: { metadata: { series } } })
+  setSeries('subseries.setup.saga1', 'saga1', [{ name: 'Long Saga', sequence: '1' }, { name: 'Mega Cycle', sequence: '1' }])
+  setSeries('subseries.setup.saga2', 'saga2', [{ name: 'Long Saga', sequence: '2' }, { name: 'Mega Cycle', sequence: '2' }])
+  setSeries('subseries.setup.novel', 'novel', [{ name: 'Mega Cycle', sequence: '3' }])
+  setSeries('subseries.setup.ebook', 'ebook', [{ name: 'Mega Cycle' }])
+  add('subseries.setup.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`, { capture: 'seriesList' })
+  const seriesFilter = (ctx, name) => `series.${Buffer.from(ctx.seriesList.results.find(x => x.name === name).id).toString('base64')}`
+  const sub = (id, who, query, name = 'Mega Cycle') => add(id, who, ctx => `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=${encodeURIComponent(seriesFilter(ctx, name))}${query}`)
+  sub('subseries.default', L, '')
+  sub('subseries.root', R, '&include=rssfeed')
+  sub('subseries.sort.title.desc', L, '&sort=media.metadata.title&desc=1')
+  sub('subseries.sort.sequence.desc', L, '&sort=sequence&desc=1')
+  sub('subseries.sort.duration', L, '&sort=media.duration&desc=1')
+  sub('subseries.sort.size', L, '&sort=size')
+  sub('subseries.sort.author', L, '&sort=media.metadata.authorName')
+  sub('subseries.sort.addedAt', L, '&sort=addedAt&desc=1')
+  sub('subseries.sort.invalid', L, '&sort=bogus')
+  sub('subseries.sort.empty', L, '&sort=')
+  sub('subseries.page0', L, '&limit=2&page=0')
+  sub('subseries.page1', L, '&limit=2&page=1')
+  sub('subseries.alone', L, '', 'Long Saga')
+  sub('subseries.finisher', 'finisher', '&sort=media.metadata.title')
+  add('subseries.missing', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('00000000-0000-4000-8000-000000000000').toString('base64')}`)
+  add('subseries.no-series', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('no-series').toString('base64')}`)
   return s
 }
 
@@ -364,6 +394,13 @@ let WORK_DIR = ''
 const TIME_KEY = /(At|Time|Update|Seen|Scan|^date|^dayOfWeek|Ms|token|Token)$/
 
 function normalize(value, known, fresh, key = '') {
+  if (typeof value === 'string' && key === 'filterBy') {
+    // Library filters carry ids as base64: "series.<b64 uuid>". Ids created
+    // during the journey differ per server, so normalize the decoded id.
+    const m = /^([a-z]+)\.([A-Za-z0-9+/=]+)$/.exec(value)
+    const decoded = m && Buffer.from(m[2], 'base64').toString()
+    if (decoded && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(decoded) && !known.has(decoded)) return `${m[1]}.<b64:new-uuid>`
+  }
   if (typeof value === 'string') {
     let v = value.replace(JWT, '<jwt>')
     if (WORK_DIR) v = v.split(WORK_DIR).join('<work>')
