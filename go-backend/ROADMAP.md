@@ -213,31 +213,129 @@ workstreams below); web and mobile acceptance pass; upgrade and rollback trial
 passes; realistic library load is measured; `CGO_ENABLED=0` amd64 and arm64
 builds work.
 
-### Next workstreams, in order
+### Product workstreams (done 2026-11-02)
 
-1. **Podcasts in the trial.** Add a podcast library (RSS-backed episodes,
-   downloaded episodes, episode progress, `play` for an episode) to the
-   install and the journey.
-   Exit: the journey includes podcast steps that match upstream, rollback still
-   ok.
-2. **Known gaps.** `collapseseries` combined with a series filter returns 501;
-   playlist sort is byte order, upstream uses `localeCompare`; the `rssfeed`
-   include is missing on personalized book items; non-UTC ICU zone link
-   canonicalization.
-   Exit: each gap has a differential case or trial step that fails before and
-   passes after; no remaining 501 on a Tier 1 route.
-3. **New content after the swap.** Add and scan new items, edit metadata and
-   covers, and let watchers run after Go takes over the install.
-   Exit: a trial phase that adds content on the Go side matches upstream doing
-   the same, and upstream still reopens the resulting database.
-4. **Operational.** Load measurement on a large library, `CGO_ENABLED=0`
-   builds for amd64 and arm64, and browser-check portability.
-   Exit: documented numbers for a large library; both builds produced and
-   smoke-tested; `browser-check.cjs` runs on Linux without hand-set paths or a
-   `mise` shim.
+All four are on master, each with a CI-gated trial (`.github/workflows/docker-go.yml`
+parity job). Details are in the commit messages.
 
-Not yet covered anywhere: real Android and iOS apps (only their API call
-pattern is replayed).
+1. **Podcasts in the trial.** Local podcast library, episode play/sync/close,
+   episode progress, offline sessions, playlists, shelves and search.
+2. **Known gaps.** Collapsed sub-series, `localeCompare` playlist order
+   (`internal/textsort`), `rssfeed`/`share` includes on shelves and items, ICU
+   time zone canonicalization (`internal/identity/icu_zones_gen.go`).
+3. **New content after the swap.** `tools/parity/scan-trial.cjs` (`make
+   parity-scan`): add, extend, rename and delete folders, issues cleanup, item
+   rescans, metadata and cover edits, watcher on and off, compared with
+   realtime events.
+4. **Operational.** `make bench` (large-library latency, memory, cold start),
+   portable `make browser-check`, multi-arch `Dockerfile.go` image published
+   to `ghcr.io/<owner>/audiobookshelf-go` by CI.
+
+**Remaining for the product track:**
+- Real Android and iOS apps against a swapped-in install (owner; only their
+  API call pattern is replayed).
+- Decide whether Go runs `ANALYZE` at boot like upstream does. Without it,
+  planner-dependent orderings (`/api/me` `mediaProgress`, `authorsWithCount`
+  ties) can differ on installs whose statistics differ from the fixtures. It
+  is a database side effect, so it needs an owner decision.
+- Known behavioral gaps: share expiry is lazy (upstream uses timers and emits
+  `share_closed`); the podcast auto-download cron is not rescheduled after
+  `PATCH` media; `POST /api/watcher/update` still runs a full scan; series RSS
+  feeds are not closed when their series is removed; genre/tag/author edits
+  invalidate the filter-data cache instead of patching it. Not exercised:
+  ebook-only and non-media files in scans, and watcher folder renames.
+
+## Simplification and performance (post-replacement)
+
+Assessment of 2026-11-02, after the product workstreams. The code is correct
+against the trials but grew route by route, so its structure lags
+`ARCHITECTURE.md`. An estimated 15-25% of the roughly 39k non-test Go lines
+can go without changing an observable byte. This section orders that work.
+It refines Phases 3-7 above with measured evidence and does not replace them.
+
+**Rules for every item:** behavior-preserving refactors. Required checks are
+those in `AGENTS.md`, including `make parity-replacement` and `make
+parity-scan`, with no fewer steps. Refactor packets must lower at least one
+ratchet metric and raise none. One package or concern per packet.
+
+### Evidence (dated snapshot; regenerate before relying on it)
+
+- Ratchet: `map[string]any` 1036 (catalog 218, userapi 147, podcasts 124,
+  scanner 108, playback 89); hand-rolled `Handle` routers 13; `Set*`
+  injectors 20; `writeJSON`-style copies 12; `EmitFunc` declarations 7.
+- Duplicated helpers across packages: `writeJSON` x8; `number` x7;
+  `sendStatus` x6; `nullableString`/`nullString` x9; `isAdmin`/
+  `canAccessLibrary` x7; time helpers (`parseTime`, `millis`, `dateMillis`,
+  `parseDate`) x10; plus `newUUID`, `parseUA`, `stringValue`, `writeError`.
+  There are 27 `time.Parse` call sites, and 11 files carry their own
+  DATETIME layouts, although `dbtime.Parse` exists. This session found real
+  drift bugs from such copies (two progress-update copies, two device
+  serializers).
+- Largest files: `catalog/handler.go` 3.2k lines, `userapi/userapi.go` 2.5k,
+  `playback/playback.go` 2.2k, `scanner/files.go` 1.8k.
+- Unit-test gaps: `progressdto` (665 lines, the single progress-update
+  implementation) has no tests; `sharing` and `userapi` are thinly tested.
+  CI builds with `CGO_ENABLED=0`, so `-race` never runs.
+- Performance (`make bench`, 2000 books, p95, upstream vs Go):
+  - Go is ahead on cold start (996 vs 63 ms), RSS (328 vs 29 MB),
+    collapse-series pages, item detail and play.
+  - Go is behind on personalized (170 vs 201 ms), series lists (165 vs
+    176 ms), `/api/me` (4 vs 8 ms), `items.duration` (40 vs 55 ms) and
+    listening-stats (11 vs 15 ms).
+- Structural performance smells:
+  - The store uses `SetMaxOpenConns(1)`, so every request, reads included,
+    queues on one connection.
+  - About 40 call sites build item JSON one item at a time, at several
+    queries per item.
+  - 25 places read `server-settings` from the database per call, including
+    `titlePrefix` inside loops.
+
+### Work items, in order
+
+1. **Leaf packages for the copies** (Phase 3). Create `httputil` (writers,
+   `sendStatus`, `sendText`, error bodies), `ids` (UUID), `authz` (admin and
+   library/tag/explicit access checks, characterized per Phase 7) and finish
+   `dbtime` (one parser; replace the 27 `time.Parse` sites and the per-package
+   millis/date helpers). Move the user-agent parser out of
+   playback/sharing into one leaf.
+   Exit: each helper listed above has one definition; `writeJSON`-style
+   copies at 1 or fewer; the dependency rules add the new leaves.
+2. **Tests for `progressdto`.** Table tests for `Apply` covering finished to
+   `progress=1`, hide-from-continue-listening, `lastUpdate`, no-op saves,
+   episodes and batch, each case cited to `User.js`/`MediaProgress.js`.
+   Exit: every branch of `Apply` is covered.
+3. **Settings cache and batched item loading** (catalog first).
+   - Load server and library settings once, invalidated on settings writes.
+   - Add a page-level loader that hydrates N items (books, authors, series,
+     files, progress) in a constant number of queries, and use it for the
+     library page, shelves, collections, playlists and series books.
+   Exit: `make bench` shows no Tier 1 call slower than upstream at p95;
+   query count per page is independent of page size (add a test).
+4. **Typed responses** (Phase 6), in order catalog, userapi, podcasts,
+   playback, scanner events. Inner opaque objects last.
+   Exit: `map[string]any` at least halved from the evidence snapshot;
+   remaining uses are documented opaque pass-through.
+5. **One router and deps structs** (Phases 4-5). Smallest packages first,
+   following the Phase 5 recipe.
+   Exit: hand-rolled `Handle` routers 0, `Set*` injectors 0 (test seams
+   become constructor options), `runtime.go` dispatch replaced by mux
+   registration.
+6. **Split the three largest files** along routes/serializers/queries. Do it
+   as a side effect of items 4-5, not as a separate packet.
+   Exit: no non-generated Go file over about 1000 lines.
+7. **Database read pool** (Phase 4.5).
+   - Keep one write connection and add a pool of 4-8 read connections.
+   - Stay in rollback-journal mode: WAL changes the on-disk format that
+     upstream reopens on rollback, so it is out of scope.
+   - Audit read-modify-write paths first, each with a `-race` test.
+   Exit: a concurrent-client benchmark (add to `make bench`) shows reads no
+   longer serialize behind writes; replacement and scan trials unchanged.
+8. **Race detector in CI.** Add a CGO-enabled `go test -race ./...` job
+   (tests only; the shipped binary stays `CGO_ENABLED=0`).
+   Exit: green `-race` job on master.
+
+Items 1-3 are an estimated 2-3 days of work; items 4-8 are an estimated 1-2
+weeks. Items 1 and 2 have no prerequisites.
 
 ## How parity work and refactors coexist
 
