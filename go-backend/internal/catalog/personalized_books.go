@@ -180,6 +180,11 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 		if err != nil {
 			return nil, 0, err
 		}
+		// The continue-series and discover queries only load feeds; they never
+		// set mediaItemShare (libraryItemsBookFilters.js:707-826, 886-1017).
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, chosen.itemID, item["media"], func(k string, v any) { item[k] = v }); err != nil {
+			return nil, 0, err
+		}
 		name := s.name
 		withBookMinified(item, func(media *wire.BookMinified) {
 			// book.series = [] before toOldJSONMinified, then metadata.series
@@ -409,6 +414,9 @@ func (h *Handler) discoverShelf(r *http.Request, user store.User, libraryID stri
 	for _, id := range itemIDs {
 		item, err := h.ItemMinifiedJSON(ctx, id)
 		if err != nil {
+			return nil, 0, err
+		}
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
 			return nil, 0, err
 		}
 		items = append(items, item)

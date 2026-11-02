@@ -33,6 +33,16 @@ linters:
           allow:
             - $gostd
             - audiobookshelf-compat/internal/wire
+        textsort-leaf-dependency:
+          list-mode: strict
+          files:
+            - '!**/*_test.go'
+            - "**/internal/textsort/*.go"
+            - "**/internal/textsort/**/*.go"
+          allow:
+            - $gostd
+            - golang.org/x/text/collate
+            - golang.org/x/text/language
         auth-leaf-dependency:
           list-mode: strict
           files:

@@ -301,6 +301,17 @@ async function seed(work, media) {
     ids.podcastPlaylist = ppl.id
     // An open RSS feed on the podcast, so include=rssfeed has something to report.
     await must(call(`/api/feeds/item/${ids.podcast}/open`, { method: 'POST', token: rt, body: { serverAddress: 'http://trial.invalid', slug: 'fixture-cast-feed', metadataDetails: { preventIndexing: true } } }), 'open podcast feed')
+    // Open RSS feeds (saga1, novel) and media item shares (saga2, novel), for
+    // the include=rssfeed / include=share steps at the end of the journey.
+    for (const k of ['saga1', 'novel']) {
+      await must(call(`/api/feeds/item/${ids[k]}/open`, { method: 'POST', token: rt, body: {
+        serverAddress: 'http://trial.invalid', slug: `trial-feed-${k}`, metadataDetails: { preventIndexing: true, ownerName: 'Trial Owner', ownerEmail: 'owner@example.com' } } }), `open feed ${k}`)
+    }
+    for (const k of ['saga2', 'novel']) {
+      const item = await must(call(`/api/items/${ids[k]}?expanded=1`, { token: rt }), `item ${k}`)
+      await must(call('/api/share/mediaitem', { method: 'POST', token: rt, body: {
+        slug: `trial-share-${k}`, mediaItemType: 'book', mediaItemId: item.media.id, expiresAt: 0, isDownloadable: k === 'novel' } }), `share ${k}`)
+    }
     return { dirs, ids }
   } finally {
     await stop(server)
@@ -557,6 +568,63 @@ function journeySteps(ids) {
   add('podcast.playlist.after.delete', R, `/api/playlists/${ids.podcastPlaylist}`)
   add('user.listener.after.podcast', R, ctx => `/api/users/${ctx.listenerId}`)
   add('auth.refresh', null, '/auth/refresh', { method: 'POST', headers: ctx => ({ 'x-refresh-token': ctx.listenerRefresh }) })
+
+  // Playlist ordering: Playlist.getOldPlaylistsForUserAndLibrary sorts by
+  // name.localeCompare (server/models/Playlist.js:85), so mixed case, accents,
+  // digits and punctuation must interleave the way ICU orders them.
+  const playlistNames = ['b', 'B', 'a', 'A', 'Á', 'á', 'Éclair', 'eclair', '10', '9', '_x', 'Zoe', 'zoe']
+  playlistNames.forEach((name, i) => add(`playlist.order.create.${i}`, L, '/api/playlists', { method: 'POST', body: { libraryId: ids.library, name } }))
+  add('playlist.order.all', L, '/api/playlists')
+  add('playlist.order.library', L, `/api/libraries/${ids.library}/playlists?minified=1`)
+  add('playlist.order.library.page', L, `/api/libraries/${ids.library}/playlists?limit=5&page=1`)
+
+  // Collapsed sub-series: a series-filtered page with collapseseries=1 goes
+  // through libraryHelpers.handleCollapseSubseries
+  // (server/controllers/LibraryController.js:625-633). Build "Mega Cycle"
+  // (saga1=1, saga2=2, novel=3, ebook without sequence) around the existing
+  // "Long Saga" (saga1=1, saga2=2), so Long Saga collapses inside it.
+  const setSeries = (id, key, series) => add(id, R, `/api/items/${ids[key]}/media`, { method: 'PATCH', body: { metadata: { series } } })
+  setSeries('subseries.setup.saga1', 'saga1', [{ name: 'Long Saga', sequence: '1' }, { name: 'Mega Cycle', sequence: '1' }])
+  setSeries('subseries.setup.saga2', 'saga2', [{ name: 'Long Saga', sequence: '2' }, { name: 'Mega Cycle', sequence: '2' }])
+  setSeries('subseries.setup.novel', 'novel', [{ name: 'Mega Cycle', sequence: '3' }])
+  setSeries('subseries.setup.ebook', 'ebook', [{ name: 'Mega Cycle' }])
+  add('subseries.setup.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`, { capture: 'seriesList' })
+  const seriesFilter = (ctx, name) => `series.${Buffer.from(ctx.seriesList.results.find(x => x.name === name).id).toString('base64')}`
+  const sub = (id, who, query, name = 'Mega Cycle') => add(id, who, ctx => `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=${encodeURIComponent(seriesFilter(ctx, name))}${query}`)
+  sub('subseries.default', L, '')
+  sub('subseries.root', R, '&include=rssfeed')
+  sub('subseries.sort.title.desc', L, '&sort=media.metadata.title&desc=1')
+  sub('subseries.sort.sequence.desc', L, '&sort=sequence&desc=1')
+  sub('subseries.sort.duration', L, '&sort=media.duration&desc=1')
+  sub('subseries.sort.size', L, '&sort=size')
+  sub('subseries.sort.author', L, '&sort=media.metadata.authorName')
+  sub('subseries.sort.addedAt', L, '&sort=addedAt&desc=1')
+  sub('subseries.sort.invalid', L, '&sort=bogus')
+  sub('subseries.sort.empty', L, '&sort=')
+  sub('subseries.page0', L, '&limit=2&page=0')
+  sub('subseries.page1', L, '&limit=2&page=1')
+  sub('subseries.alone', L, '', 'Long Saga')
+  sub('subseries.finisher', 'finisher', '&sort=media.metadata.title')
+  add('subseries.missing', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('00000000-0000-4000-8000-000000000000').toString('base64')}`)
+  add('subseries.no-series', L, `/api/libraries/${ids.library}/items?minified=1&collapseseries=1&filter=series.${Buffer.from('no-series').toString('base64')}`)
+
+  // include=rssfeed / include=share on shelves and pages: library items carry
+  // their open RSS feed (libraryItemsBookFilters.js:407-408, 670-677 and
+  // libraryFilters.js) and, for admins only, their open media item share.
+  // The feeds and shares themselves are created by upstream in seed().
+  add('includes.root.finish', R, `/api/me/progress/${ids.saga1}`, { method: 'PATCH', body: { isFinished: true } })
+  add('includes.root.progress', R, `/api/me/progress/${ids.novel}`, { method: 'PATCH', body: { currentTime: 10, duration: 45 } })
+  const shelfQuery = `/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`
+  add('includes.personalized.root', R, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.listener', L, `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.finisher', 'finisher', `/api/libraries/${ids.library}${shelfQuery}`)
+  add('includes.personalized.none', R, `/api/libraries/${ids.library}/personalized?minified=1`)
+  add('includes.items.root', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  add('includes.items.listener', L, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
+  for (const k of ['saga1', 'saga2', 'novel', 'ebook']) {
+    add(`includes.item.root.${k}`, R, `/api/items/${ids[k]}?expanded=1&include=rssfeed,share`)
+  }
+  add('includes.item.listener.novel', L, `/api/items/${ids.novel}?expanded=1&include=rssfeed,share`)
   return s
 }
 
@@ -566,6 +634,13 @@ let WORK_DIR = ''
 const TIME_KEY = /(At|Time|Update|Seen|Scan|^date|^dayOfWeek|Ms|token|Token)$/
 
 function normalize(value, known, fresh, key = '') {
+  if (typeof value === 'string' && key === 'filterBy') {
+    // Library filters carry ids as base64: "series.<b64 uuid>". Ids created
+    // during the journey differ per server, so normalize the decoded id.
+    const m = /^([a-z]+)\.([A-Za-z0-9+/=]+)$/.exec(value)
+    const decoded = m && Buffer.from(m[2], 'base64').toString()
+    if (decoded && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(decoded) && !known.has(decoded)) return `${m[1]}.<b64:new-uuid>`
+  }
   if (typeof value === 'string') {
     let v = value.replace(JWT, '<jwt>')
     if (WORK_DIR) v = v.split(WORK_DIR).join('<work>')

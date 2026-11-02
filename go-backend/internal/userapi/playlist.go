@@ -11,6 +11,7 @@ import (
 
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 )
 
 // playlistRoute implements the legacy playlist API. Playlist ownership is
@@ -53,7 +54,11 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 				}
 				out = append(out, item)
 			}
-			sort.SliceStable(out, func(i, j int) bool { return stringValue(out[i]["name"]) < stringValue(out[j]["name"]) })
+			// Playlist.getOldPlaylistsForUserAndLibrary: name.localeCompare
+			// (server/models/Playlist.js:85).
+			sort.SliceStable(out, func(i, j int) bool {
+				return textsort.LocaleCompare(stringValue(out[i]["name"]), stringValue(out[j]["name"])) < 0
+			})
 			writeJSON(w, 200, map[string]any{"playlists": out})
 			return true
 		case http.MethodPost:
