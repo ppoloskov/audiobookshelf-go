@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -158,9 +159,9 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 		}
 		playlists = append(playlists, namedPlaylist{name: stringValue(item["name"]), dto: item})
 	}
-	// Playlist.getOldPlaylistsForUserAndLibrary sorts by name.localeCompare;
-	// this uses the same byte order as GET /api/playlists.
-	sort.SliceStable(playlists, func(i, j int) bool { return playlists[i].name < playlists[j].name })
+	// Playlist.getOldPlaylistsForUserAndLibrary sorts by name.localeCompare
+	// (server/models/Playlist.js:85); V8's sort is stable.
+	sort.SliceStable(playlists, func(i, j int) bool { return textsort.LocaleCompare(playlists[i].name, playlists[j].name) < 0 })
 	results := make([]any, 0, len(playlists))
 	for _, p := range paginate(playlists, limit, page) {
 		results = append(results, p.dto)

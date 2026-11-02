@@ -346,6 +346,15 @@ function journeySteps(ids) {
   add('library.stats', R, `/api/libraries/${ids.library}/stats`)
   add('users.online', R, '/api/users/online')
   add('auth.refresh', null, '/auth/refresh', { method: 'POST', headers: ctx => ({ 'x-refresh-token': ctx.listenerRefresh }) })
+
+  // Playlist ordering: Playlist.getOldPlaylistsForUserAndLibrary sorts by
+  // name.localeCompare (server/models/Playlist.js:85), so mixed case, accents,
+  // digits and punctuation must interleave the way ICU orders them.
+  const playlistNames = ['b', 'B', 'a', 'A', 'Á', 'á', 'Éclair', 'eclair', '10', '9', '_x', 'Zoe', 'zoe']
+  playlistNames.forEach((name, i) => add(`playlist.order.create.${i}`, L, '/api/playlists', { method: 'POST', body: { libraryId: ids.library, name } }))
+  add('playlist.order.all', L, '/api/playlists')
+  add('playlist.order.library', L, `/api/libraries/${ids.library}/playlists?minified=1`)
+  add('playlist.order.library.page', L, `/api/libraries/${ids.library}/playlists?limit=5&page=1`)
   return s
 }
 
