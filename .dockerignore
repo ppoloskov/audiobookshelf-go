@@ -14,3 +14,10 @@ test/
 /client/dist/
 /dist/
 /deploy/
+# Not needed in any build context (also keeps Dockerfile.go context small)
+**/node_modules
+/dist-server/
+/.claude/
+/go-backend/audiobookshelf-go
+/go-backend/abs-compat
+/go-backend/*.test
