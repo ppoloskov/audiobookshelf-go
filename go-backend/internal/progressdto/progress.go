@@ -11,7 +11,7 @@ import (
 )
 
 func Read(ctx context.Context, db *sql.DB, userID string) ([]any, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId = ?`, userID)
+	rows, err := db.QueryContext(ctx, `SELECT id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId = ? ORDER BY rowid`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +45,27 @@ func Read(ctx context.Context, db *sql.DB, userID string) ([]any, error) {
 	}
 	return out, rows.Err()
 }
+
+// ReadOne mirrors upstream User.getOldMediaProgress(libraryItemId, episodeId)
+// (server/models/User.js:716): the first progress whose extraData
+// libraryItemId matches, restricted to episodeId when given; nil when absent.
+func ReadOne(ctx context.Context, db *sql.DB, userID, libraryItemID, episodeID string) (map[string]any, error) {
+	all, err := Read(ctx, db, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range all {
+		p := entry.(map[string]any)
+		if episodeID != "" && p["mediaItemId"] != episodeID {
+			continue
+		}
+		if p["libraryItemId"] == libraryItemID {
+			return p, nil
+		}
+	}
+	return nil, nil
+}
+
 func number(v sql.NullFloat64) any {
 	if !v.Valid {
 		return nil

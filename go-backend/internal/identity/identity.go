@@ -755,14 +755,31 @@ func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, er
 // /etc/localtime symlink.
 func hostTimeZone() string {
 	if tz := strings.TrimSpace(os.Getenv("TZ")); tz != "" {
-		return tz
+		return icuZoneName(tz)
 	}
 	if link, err := filepath.EvalSymlinks("/etc/localtime"); err == nil {
 		if index := strings.LastIndex(link, "zoneinfo/"); index >= 0 {
-			return link[index+len("zoneinfo/"):]
+			return icuZoneName(link[index+len("zoneinfo/"):])
 		}
 	}
 	return "UTC"
+}
+
+// icuUTCAliases are the zone IDs that Node 22's ICU resolves to "UTC"
+// (observed with TZ=<id> node -e 'Intl.DateTimeFormat().resolvedOptions().timeZone').
+// Docker images commonly link /etc/localtime to Etc/UTC. Other ICU link
+// canonicalizations (for example US/Pacific -> America/Los_Angeles) are not
+// reproduced.
+var icuUTCAliases = map[string]bool{
+	"Etc/UTC": true, "Etc/GMT": true, "Etc/Universal": true, "Universal": true, "Zulu": true, "Etc/Zulu": true,
+	"UCT": true, "Etc/UCT": true, "GMT0": true, "Etc/GMT0": true, "Greenwich": true, "Etc/Greenwich": true,
+}
+
+func icuZoneName(zone string) string {
+	if icuUTCAliases[zone] {
+		return "UTC"
+	}
+	return zone
 }
 
 func filterDevices(settings map[string]any, user store.User) []any {

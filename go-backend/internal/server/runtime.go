@@ -106,7 +106,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	rt := &Runtime{
 		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
 		catalog:       catalogHandler,
-		playback:      playback.New(db, cfg, hub.Emit),
+		playback:      playback.New(db, cfg, hub.Emit, catalogHandler),
 		userapi:       userapiHandler,
 		adminops:      adminops.New(db, cfg, hub.Emit),
 		emailapi:      emailapi.New(db, cfg, hub.Emit),

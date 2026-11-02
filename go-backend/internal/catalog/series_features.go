@@ -33,7 +33,15 @@ func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string)
 	var id, kind, entity, feedURL sql.NullString
 	var title, description, ownerName, ownerEmail sql.NullString
 	var prevent sql.NullInt64
-	err := h.db.QueryRowContext(ctx, `SELECT id,entityType,entityId,feedURL,title,description,preventIndexing,ownerName,ownerEmail FROM feeds WHERE entityType=? AND entityId=? LIMIT 1`, entityType, entityID).Scan(&id, &kind, &entity, &feedURL, &title, &description, &prevent, &ownerName, &ownerEmail)
+	// An empty entityType matches upstream RssFeedManager.findFeedForEntityId
+	// (server/managers/RssFeedManager.js:59), which filters on entityId only.
+	query := `SELECT id,entityType,entityId,feedURL,title,description,preventIndexing,ownerName,ownerEmail FROM feeds WHERE entityType=? AND entityId=? LIMIT 1`
+	args := []any{entityType, entityID}
+	if entityType == "" {
+		query = `SELECT id,entityType,entityId,feedURL,title,description,preventIndexing,ownerName,ownerEmail FROM feeds WHERE entityId=? LIMIT 1`
+		args = []any{entityID}
+	}
+	err := h.db.QueryRowContext(ctx, query, args...).Scan(&id, &kind, &entity, &feedURL, &title, &description, &prevent, &ownerName, &ownerEmail)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
 	}

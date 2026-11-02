@@ -55,6 +55,10 @@ type BookMetadataMinified struct {
 	Language          *string  `json:"language"`
 	Explicit          bool     `json:"explicit"`
 	Abridged          bool     `json:"abridged"`
+	// Series is set only on "continue-series" shelf items, where upstream
+	// replaces metadata.series with the single series being continued
+	// (server/utils/queries/libraryFilters.js:148).
+	Series *BookSeries `json:"series,omitempty"`
 }
 
 // BookMetadataExpanded is the strict superset used by item detail and socket

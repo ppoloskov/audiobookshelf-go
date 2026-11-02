@@ -117,6 +117,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		h.handleUser(w, r, user, tail)
 	case strings.HasPrefix(path, "/collections") || strings.HasPrefix(path, "/playlists"):
 		return h.collectionPlaylist(w, r, user, path)
+	case strings.HasPrefix(path, "/libraries/") && strings.HasSuffix(path, "/collections") && r.Method == http.MethodGet && strings.Count(path, "/") == 3:
+		h.libraryCollections(w, r, user, strings.Split(path, "/")[2])
+	case strings.HasPrefix(path, "/libraries/") && strings.HasSuffix(path, "/playlists") && r.Method == http.MethodGet && strings.Count(path, "/") == 3:
+		h.libraryPlaylists(w, r, user, strings.Split(path, "/")[2])
 	default:
 		return false
 	}
@@ -804,6 +808,10 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		progress, err := h.progressRows(r.Context(), id)
 		if err != nil {
+			http.Error(w, "database read failed", 500)
+			return
+		}
+		if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -2112,6 +2120,53 @@ func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID str
 	var tags []string
 	_ = json.Unmarshal(rawTags, &tags)
 	return itemAccess{exists: true, allowed: canAccessTags(perms, tags)}, nil
+}
+
+// decorateAdminProgress adds the media fields UserController.findOne attaches
+// to each progress (server/controllers/UserController.js:86-98): displayTitle,
+// plus displaySubtitle for episodes, coverPath and mediaUpdatedAt (a JS Date,
+// so an ISO string). Keys stay absent when the media row is missing.
+func (h *Handler) decorateAdminProgress(ctx context.Context, progress []any) error {
+	for _, raw := range progress {
+		p, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		mediaItemID, _ := p["mediaItemId"].(string)
+		var title, subtitle, cover sql.NullString
+		var updated any
+		var err error
+		if p["mediaItemType"] == "podcastEpisode" {
+			err = h.db.QueryRowContext(ctx, `SELECT pe.title, po.title, po.coverPath, po.updatedAt FROM podcastEpisodes pe LEFT JOIN podcasts po ON po.id = pe.podcastId WHERE pe.id = ?`, mediaItemID).Scan(&title, &subtitle, &cover, &updated)
+		} else {
+			err = h.db.QueryRowContext(ctx, `SELECT title, NULL, coverPath, updatedAt FROM books WHERE id = ?`, mediaItemID).Scan(&title, &subtitle, &cover, &updated)
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		p["displayTitle"] = nullableValue(title)
+		if p["mediaItemType"] == "podcastEpisode" {
+			p["displaySubtitle"] = nullableValue(subtitle)
+		}
+		p["coverPath"] = nullableValue(cover)
+		p["mediaUpdatedAt"] = nil
+		switch v := updated.(type) {
+		case time.Time:
+			p["mediaUpdatedAt"] = dbtime.JSDate(v)
+		case string:
+			if t, ok := dbtime.Parse(v); ok {
+				p["mediaUpdatedAt"] = dbtime.JSDate(t)
+			}
+		case []byte:
+			if t, ok := dbtime.Parse(string(v)); ok {
+				p["mediaUpdatedAt"] = dbtime.JSDate(t)
+			}
+		}
+	}
+	return nil
 }
 
 func (h *Handler) progressRows(ctx context.Context, userID string) ([]any, error) {

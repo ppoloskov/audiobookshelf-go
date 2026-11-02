@@ -684,7 +684,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	var sessions, authors int
-	var totalListen int64
+	var totalListen float64
 	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(timeListening),0) FROM playbackSessions WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&sessions, &totalListen)
 	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM authors WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&authors)
 	var bookCount int

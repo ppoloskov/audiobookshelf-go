@@ -25,7 +25,9 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 type EmitFunc func(userID, event string, payload any)
@@ -34,6 +36,7 @@ type Handler struct {
 	db       *sql.DB
 	cfg      config.Config
 	emit     EmitFunc
+	items    items.Reader
 	mu       sync.RWMutex
 	sessions map[string]*session
 	localIDs map[string]string
@@ -69,7 +72,6 @@ type itemData struct {
 	Tags                              []string
 	Files                             []audioFile
 	Episodes                          []episodeData
-	ItemJSON                          map[string]any
 	Explicit                          bool
 }
 
@@ -112,11 +114,11 @@ type transcode struct {
 
 // New uses the existing database and configuration. It doesn't initialize a
 // playbackSessions table or any other schema.
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
+func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any), itemReader items.Reader) *Handler {
 	if emit == nil {
 		emit = func(string, string, any) {}
 	}
-	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*session{}, localIDs: map[string]string{}}
+	return &Handler{db: db, cfg: cfg, emit: emit, items: itemReader, sessions: map[string]*session{}, localIDs: map[string]string{}}
 }
 
 // Close stops every in-memory session and waits briefly for FFmpeg children.
@@ -293,7 +295,15 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	} else {
 		playMethod = 2
 	}
-	s := &session{ID: newUUID(), UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: item.ItemJSON, Device: device, Files: item.Files}
+	// PlaybackSession.toJSONForClient embeds libraryItem.toOldJSONExpanded()
+	// (server/objects/PlaybackSession.js:86-116); the shared item reader owns
+	// that serializer.
+	itemJSON, err := h.items.ItemJSON(r.Context(), item.ID, true)
+	if err != nil {
+		h.serverError(w, err)
+		return
+	}
+	s := &session{ID: newUUID(), UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if episodeID != "" {
 		s.EpisodeID = episodeID
 		for _, ep := range item.Episodes {
@@ -380,52 +390,6 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 		}
 	}
 	out.Explicit, _ = media["explicit"].(bool)
-	itemMedia := map[string]any{"id": li.mediaID, "libraryItemId": li.id, "metadata": media["metadata"], "coverPath": out.CoverPath, "tags": out.Tags}
-	if li.mediaType == "book" {
-		filesRaw := make([]map[string]any, 0, len(out.Files))
-		tracks := make([]map[string]any, 0, len(out.Files))
-		offset := 0.0
-		for _, f := range out.Files {
-			raw := audioJSON(f)
-			filesRaw = append(filesRaw, raw)
-			t := map[string]any{}
-			for k, v := range raw {
-				t[k] = v
-			}
-			t["title"] = f.Metadata["filename"]
-			t["startOffset"] = offset
-			t["contentUrl"] = "/api/items/" + li.id + "/file/" + f.Ino
-			tracks = append(tracks, t)
-			offset += f.Duration
-		}
-		itemMedia["audioFiles"] = filesRaw
-		itemMedia["chapters"] = out.Chapters
-		itemMedia["ebookFile"] = nil
-		itemMedia["tracks"] = tracks
-		itemMedia["numTracks"] = len(out.Files)
-		itemMedia["numAudioFiles"] = len(out.Files)
-		itemMedia["numChapters"] = len(out.Chapters)
-		itemMedia["duration"] = out.Duration
-		itemMedia["size"] = li.size
-	} else {
-		podcastEpisodes := make([]map[string]any, 0, len(out.Episodes))
-		for _, ep := range out.Episodes {
-			podcastEpisodes = append(podcastEpisodes, ep.JSON)
-		}
-		itemMedia["episodes"] = podcastEpisodes
-		itemMedia["numEpisodes"] = len(out.Episodes)
-	}
-	var extra map[string]any
-	_ = json.Unmarshal(li.extraData, &extra)
-	if extra == nil {
-		extra = map[string]any{}
-	}
-	var libraryFiles []any
-	_ = json.Unmarshal(li.libraryFiles, &libraryFiles)
-	if libraryFiles == nil {
-		libraryFiles = []any{}
-	}
-	out.ItemJSON = map[string]any{"id": li.id, "ino": nullable(li.ino), "oldLibraryItemId": extra["oldLibraryItemId"], "libraryId": li.libraryID, "folderId": nullable(li.folderID), "path": li.path.String, "relPath": nullable(li.relPath), "isFile": li.isFile != 0, "mtimeMs": millis(li.mtime), "ctimeMs": millis(li.ctime), "birthtimeMs": millis(li.birthtime), "addedAt": millis(li.created), "updatedAt": millis(li.updated), "lastScan": millis(li.lastScan), "scanVersion": nullable(li.scanVersion), "isMissing": false, "isInvalid": false, "mediaType": li.mediaType, "media": itemMedia, "libraryFiles": libraryFiles, "numFiles": len(libraryFiles), "size": li.size}
 	return out, nil
 }
 
@@ -844,7 +808,7 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	extra, _ := json.Marshal(map[string]any{"libraryItemId": s.LibraryItemID})
 	now := dbtime.Format(time.UnixMilli(s.UpdatedAt))
 	created := dbtime.Format(time.UnixMilli(s.StartedAt))
-	_, err = h.db.ExecContext(ctx, `INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET currentTime=excluded.currentTime,timeListening=excluded.timeListening,updatedAt=excluded.updatedAt,date=excluded.date,dayOfWeek=excluded.dayOfWeek,mediaMetadata=excluded.mediaMetadata`, s.ID, mediaID, kind, s.DisplayTitle, s.DisplayAuthor, s.Duration, s.PlayMethod, s.MediaPlayer, s.StartTime, s.CurrentTime, "2.37.2", s.CoverPath, int64(s.TimeListening), string(metadata), s.Date, s.DayOfWeek, string(extra), s.UserID, nilIfEmpty(s.DeviceID), s.LibraryID, created, now)
+	_, err = h.db.ExecContext(ctx, `INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET currentTime=excluded.currentTime,timeListening=excluded.timeListening,updatedAt=excluded.updatedAt,date=excluded.date,dayOfWeek=excluded.dayOfWeek,mediaMetadata=excluded.mediaMetadata`, s.ID, mediaID, kind, s.DisplayTitle, s.DisplayAuthor, s.Duration, s.PlayMethod, s.MediaPlayer, s.StartTime, s.CurrentTime, "2.37.2", s.CoverPath, s.TimeListening, string(metadata), s.Date, s.DayOfWeek, string(extra), s.UserID, nilIfEmpty(s.DeviceID), s.LibraryID, created, now)
 	return err
 }
 
@@ -1068,7 +1032,10 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 	}
 	result := []map[string]any{}
 	for _, s := range sessions {
-		device, err := h.oldDevice(r.Context(), s.deviceID.String)
+		device, err := store.LoadDeviceInfo(r.Context(), h.db, s.deviceID.String)
+		if errors.Is(err, sql.ErrNoRows) {
+			device, err = nil, nil
+		}
 		if err != nil {
 			h.serverError(w, err)
 			return
@@ -1078,6 +1045,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 		_ = h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, s.userID).Scan(&username)
 		if username.Valid {
 			obj["user"] = map[string]any{"id": s.userID, "username": username.String}
+			wire.AddPlaybackSessionSpreadFields(obj)
 		}
 		result = append(result, obj)
 	}
@@ -1213,13 +1181,13 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 	if device == nil {
 		device = map[string]any{}
 	}
-	_, device, err = h.upsertDevice(r.Context(), user, r, cleanDevice(device))
+	deviceDBID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
 		h.serverError(w, err)
 		return
 	}
 	if !all {
-		result, errMsg := h.syncOneLocal(r.Context(), user, body, device)
+		result, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
 		if errMsg != "" {
 			http.Error(w, errMsg, 500)
 			return
@@ -1239,7 +1207,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 			results = append(results, map[string]any{"id": nil, "success": false, "error": "Media item not found"})
 			continue
 		}
-		result, msg := h.syncOneLocal(r.Context(), user, obj, device)
+		result, msg := h.syncOneLocal(r.Context(), user, obj, deviceDBID, device)
 		if msg != "" {
 			results = append(results, map[string]any{"id": obj["id"], "success": false, "error": msg})
 		} else {
@@ -1249,7 +1217,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 	writeJSON(w, 200, map[string]any{"results": results})
 }
 
-func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj, device map[string]any) (map[string]any, string) {
+func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[string]any, deviceDBID string, device map[string]any) (map[string]any, string) {
 	itemID, _ := obj["libraryItemId"].(string)
 	episodeID, _ := obj["episodeId"].(string)
 	item, err := h.loadItem(ctx, itemID, episodeID)
@@ -1283,9 +1251,27 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj, device
 	}
 	current := number(obj["currentTime"], 0)
 	listened := number(obj["timeListening"], 0)
-	duration := number(obj["duration"], item.Duration)
-	if duration <= 0 {
-		duration = item.Duration
+	// PlaybackSessionManager.syncLocalSession (server/managers/PlaybackSessionManager.js:203)
+	// always replaces the client duration with the item's playback duration.
+	duration := item.Duration
+	day, weekday := time.UnixMilli(updated).Format("2006-01-02"), time.UnixMilli(updated).Weekday().String()
+	var existingSession int
+	_ = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM playbackSessions WHERE id=?`, id).Scan(&existingSession)
+	if existingSession == 0 {
+		// A new local session is constructed from the client JSON
+		// (PlaybackSessionManager.js:182), keeping its date and dayOfWeek;
+		// only updates recompute them from updatedAt (:212-216).
+		if v, ok := obj["date"].(string); ok && v != "" {
+			day = v
+		}
+		if v, ok := obj["dayOfWeek"].(string); ok && v != "" {
+			weekday = v
+		}
+	}
+	// coverPath also comes from the client JSON, not the library item.
+	var coverPath any
+	if v, ok := obj["coverPath"].(string); ok {
+		coverPath = v
 	}
 	mediaMeta, _ := obj["mediaMetadata"].(map[string]any)
 	if mediaMeta == nil {
@@ -1310,7 +1296,7 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj, device
 	if episodeID != "" {
 		bookID = ""
 	}
-	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, BookID: bookID, EpisodeID: episodeID, MediaType: mediaType, DisplayTitle: title, DisplayAuthor: author, CoverPath: item.CoverPath, PlayMethod: playMethod, MediaPlayer: stringOr(obj["mediaPlayer"], "unknown"), Duration: duration, StartTime: number(obj["startTime"], 0), CurrentTime: current, TimeListening: listened, StartedAt: started, UpdatedAt: updated, Date: time.UnixMilli(updated).Format("2006-01-02"), DayOfWeek: time.UnixMilli(updated).Weekday().String(), MediaMetadata: mediaMeta, Chapters: item.Chapters, Device: device, Files: item.Files}
+	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, BookID: bookID, EpisodeID: episodeID, MediaType: mediaType, DisplayTitle: title, DisplayAuthor: author, CoverPath: coverPath, DeviceID: deviceDBID, PlayMethod: playMethod, MediaPlayer: stringOr(obj["mediaPlayer"], "unknown"), Duration: duration, StartTime: number(obj["startTime"], 0), CurrentTime: current, TimeListening: listened, StartedAt: started, UpdatedAt: updated, Date: day, DayOfWeek: weekday, MediaMetadata: mediaMeta, Chapters: item.Chapters, Device: device, Files: item.Files}
 	if err = h.saveSessionRecord(ctx, s); err != nil {
 		return nil, "Failed to save session"
 	}
@@ -1326,7 +1312,7 @@ type historySession struct {
 	id, userID, libraryID, mediaItemID, mediaItemType, displayTitle, displayAuthor string
 	duration, playMethod, startTime, currentTime                                   float64
 	mediaPlayer, serverVersion, coverPath, date, dayOfWeek                         string
-	timeListening                                                                  int64
+	timeListening                                                                  float64
 	mediaMetadata, extraData                                                       []byte
 	deviceID                                                                       sql.NullString
 	createdAt, updatedAt                                                           any
@@ -1346,7 +1332,7 @@ func scanHistoryRow(rows *sql.Rows) (historySession, error) {
 	s.extraData = []byte(ed.String)
 	return s, err
 }
-func (s historySession) oldJSON(device map[string]any) map[string]any {
+func (s historySession) oldJSON(device *wire.DeviceInfo) map[string]any {
 	var extra, metadata map[string]any
 	_ = json.Unmarshal(s.extraData, &extra)
 	_ = json.Unmarshal(s.mediaMetadata, &metadata)
@@ -1361,27 +1347,6 @@ func (s historySession) oldJSON(device map[string]any) map[string]any {
 	}
 	return map[string]any{"id": s.id, "userId": s.userID, "libraryId": s.libraryID, "libraryItemId": extra["libraryItemId"], "bookId": bookID, "episodeId": episodeID, "mediaType": map[bool]string{true: "podcast", false: "book"}[podcast], "mediaMetadata": metadata, "chapters": []any{}, "displayTitle": s.displayTitle, "displayAuthor": s.displayAuthor, "coverPath": nullableString(s.coverPath), "duration": s.duration, "playMethod": s.playMethod, "mediaPlayer": nullableString(s.mediaPlayer), "deviceInfo": device, "serverVersion": nullableString(s.serverVersion), "date": nullableString(s.date), "dayOfWeek": nullableString(s.dayOfWeek), "timeListening": s.timeListening, "startTime": s.startTime, "currentTime": s.currentTime, "startedAt": millis(s.createdAt), "updatedAt": millis(s.updatedAt)}
 }
-func (h *Handler) oldDevice(ctx context.Context, id string) (map[string]any, error) {
-	if id == "" {
-		return nil, nil
-	}
-	var deviceID, userID, clientName, clientVersion, ip, deviceName, deviceVersion string
-	var extraRaw []byte
-	err := h.db.QueryRowContext(ctx, `SELECT deviceId,userId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData FROM devices WHERE id=?`, id).Scan(&deviceID, &userID, &clientName, &clientVersion, &ip, &deviceName, &deviceVersion, &extraRaw)
-	if err != nil {
-		return nil, err
-	}
-	var e map[string]any
-	_ = json.Unmarshal(extraRaw, &e)
-	browserVersion, sdkVersion := any(nil), any(nil)
-	if clientName == "Abs Android" {
-		sdkVersion = nullableString(deviceVersion)
-	} else {
-		browserVersion = nullableString(deviceVersion)
-	}
-	return map[string]any{"id": id, "deviceId": deviceID, "userId": userID, "ipAddress": ip, "browserName": e["browserName"], "browserVersion": browserVersion, "osName": e["osName"], "osVersion": e["osVersion"], "clientVersion": clientVersion, "manufacturer": e["manufacturer"], "model": e["model"], "sdkVersion": sdkVersion, "deviceName": deviceName, "clientName": clientName}, nil
-}
-
 func (h *Handler) titleIgnorePrefix(ctx context.Context, title string) string {
 	var raw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
@@ -1826,6 +1791,11 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	}
 	clientName := get("clientName")
 	manufacturer, model, sdk := get("manufacturer"), get("model"), get("sdkVersion")
+	// DeviceInfo.setData (server/objects/DeviceInfo.js:100): the Android app
+	// sends sdkVersion as a JSON number, stored as its decimal string.
+	if n, ok := client["sdkVersion"].(float64); ok {
+		sdk = strconv.FormatFloat(n, 'f', -1, 64)
+	}
 	if sdk != "" {
 		if clientName == "" {
 			clientName = "Abs Android"
@@ -1842,11 +1812,10 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 		clientName = "Unknown"
 	}
 	deviceName := ""
+	// DeviceInfo.js:109/112: `${manufacturer || 'Unknown'} ${model || ''}`, untrimmed.
 	switch {
-	case sdk != "":
-		deviceName = strings.TrimSpace(manufacturer + " " + model)
-	case model != "":
-		deviceName = strings.TrimSpace(manufacturer + " " + model)
+	case sdk != "", model != "":
+		deviceName = or(manufacturer, "Unknown") + " " + model
 	case browser != "":
 		deviceName = osName + " " + or(osVersion, "N/A") + " " + browser
 	}

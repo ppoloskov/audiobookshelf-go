@@ -68,6 +68,22 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 		return
 	}
 	rows.Close()
+	// LibraryItem.findAllExpandedWhere (server/models/LibraryItem.js:150-183)
+	// orders the joined rows by bookAuthor.createdAt then bookSeries.createdAt,
+	// and Sequelize emits each item at its first joined row.
+	ordered, err := h.queryStrings(r.Context(), `SELECT li.id FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, args...)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database read failed")
+		return
+	}
+	seenOrdered := map[string]bool{}
+	ids = ids[:0]
+	for _, id := range ordered {
+		if !seenOrdered[id] {
+			seenOrdered[id] = true
+			ids = append(ids, id)
+		}
+	}
 	selected := make([]map[string]any, 0, len(items))
 	for _, id := range ids {
 		ref, ok := items[id]

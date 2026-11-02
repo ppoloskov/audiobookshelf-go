@@ -2,6 +2,7 @@ package playback
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
@@ -150,14 +151,23 @@ func TestPlaybackSessionDeviceAndEmptyMediaArraysMatchOldJSON(t *testing.T) {
 			t.Errorf("mediaMetadata.%s=%#v, want []", key, metadata[key])
 		}
 	}
-	item := got["libraryItem"].(map[string]any)
-	media := item["media"].(map[string]any)
-	for path, value := range map[string]any{"media.tags": media["tags"], "media.metadata.genres": media["metadata"].(map[string]any)["genres"], "media.metadata.narrators": media["metadata"].(map[string]any)["narrators"]} {
-		array, ok := value.([]any)
-		if !ok || len(array) != 0 {
-			t.Errorf("%s=%#v, want []", path, value)
-		}
+	// libraryItem comes from the shared item reader (catalog's expanded
+	// serializer, covered by its golden and dual-run tests); here it is the
+	// stub's payload.
+	if item, _ := got["libraryItem"].(map[string]any); item["id"] != "item-one" {
+		t.Errorf("libraryItem=%#v, want the reader's expanded item", got["libraryItem"])
 	}
+}
+
+// stubItems stands in for the catalog reader on this minimal schema.
+type stubItems struct{}
+
+func (stubItems) ItemJSON(_ context.Context, id string, _ bool) (map[string]any, error) {
+	return map[string]any{"id": id}, nil
+}
+
+func (stubItems) ItemMinifiedJSON(_ context.Context, id string) (map[string]any, error) {
+	return map[string]any{"id": id}, nil
 }
 
 func TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles(t *testing.T) {
@@ -335,7 +345,7 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{MetadataPath: t.TempDir()}
-	h := New(db, cfg, nil)
+	h := New(db, cfg, nil, stubItems{})
 	user := store.User{ID: "user-one", Username: "tester", Type: "user", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	return h, user, "item-one", path
 }

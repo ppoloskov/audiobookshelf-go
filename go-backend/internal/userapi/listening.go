@@ -3,17 +3,21 @@ package userapi
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
 	"time"
+
+	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 type listeningSession struct {
 	id, userID, libraryID, mediaItemID, mediaItemType       string
 	displayTitle, displayAuthor, mediaPlayer, serverVersion string
 	coverPath, date, dayOfWeek                              string
-	timeListening                                           int64
+	timeListening                                           float64
 	duration, playMethod, startTime, currentTime            float64
 	mediaMetadata, extraData                                []byte
 	deviceID                                                sql.NullString
@@ -52,6 +56,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 			var username string
 			if err := h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, session.userID).Scan(&username); err == nil {
 				row["user"] = map[string]any{"id": session.userID, "username": username}
+				wire.AddPlaybackSessionSpreadFields(row)
 			}
 		}
 		results = append(results, row)
@@ -65,7 +70,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	stats := map[string]any{"totalTime": int64(0), "items": map[string]any{}, "days": map[string]any{}, "dayOfWeek": map[string]any{}, "today": int64(0), "recentSessions": []any{}}
+	stats := map[string]any{"totalTime": float64(0), "items": map[string]any{}, "days": map[string]any{}, "dayOfWeek": map[string]any{}, "today": float64(0), "recentSessions": []any{}}
 	items := stats["items"].(map[string]any)
 	days := stats["days"].(map[string]any)
 	dayOfWeek := stats["dayOfWeek"].(map[string]any)
@@ -80,25 +85,27 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 			recent = append(recent, row)
 		}
 		seconds := session.timeListening
-		stats["totalTime"] = stats["totalTime"].(int64) + seconds
+		stats["totalTime"] = stats["totalTime"].(float64) + seconds
 		if session.dayOfWeek != "" {
-			dayOfWeek[session.dayOfWeek] = numberValue(dayOfWeek[session.dayOfWeek]) + float64(seconds)
+			dayOfWeek[session.dayOfWeek] = numberValue(dayOfWeek[session.dayOfWeek]) + seconds
 		}
 		if session.date != "" && seconds > 0 {
-			days[session.date] = numberValue(days[session.date]) + float64(seconds)
+			days[session.date] = numberValue(days[session.date]) + seconds
 			if session.date == time.Now().Format("2006-01-02") {
-				stats["today"] = stats["today"].(int64) + seconds
+				stats["today"] = stats["today"].(float64) + seconds
 			}
 		}
 		var extra map[string]any
 		_ = json.Unmarshal(session.extraData, &extra)
 		itemID, _ := extra["libraryItemId"].(string)
 		if current, ok := items[itemID].(map[string]any); ok {
-			current["timeListening"] = numberValue(current["timeListening"]) + float64(seconds)
+			current["timeListening"] = numberValue(current["timeListening"]) + seconds
 		} else {
 			var metadata map[string]any
 			_ = json.Unmarshal(session.mediaMetadata, &metadata)
-			items[itemID] = map[string]any{"id": itemID, "timeListening": seconds, "mediaMetadata": metadataOrEmpty(metadata), "lastUpdate": millis(session.updatedAt)}
+			// Upstream also assigns lastUpdate: s.lastUpdate, a property the legacy
+			// session object never has, so the key is absent (server/routers/ApiRouter.js:569).
+			items[itemID] = map[string]any{"id": itemID, "timeListening": seconds, "mediaMetadata": metadataOrEmpty(metadata)}
 		}
 	}
 	stats["recentSessions"] = recent
@@ -140,23 +147,12 @@ func (h *Handler) listeningSessionJSON(r *http.Request, s listeningSession) (map
 	if metadata == nil {
 		metadata = map[string]any{}
 	}
-	var device any
-	if s.deviceID.Valid && s.deviceID.String != "" {
-		var id, userID, clientName, clientVersion, ip, deviceName, deviceVersion string
-		var raw sql.NullString
-		err := h.db.QueryRowContext(r.Context(), `SELECT deviceId,userId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData FROM devices WHERE id=?`, s.deviceID.String).Scan(&id, &userID, &clientName, &clientVersion, &ip, &deviceName, &deviceVersion, &raw)
-		if err != nil {
-			return nil, err
-		}
-		var fields map[string]any
-		_ = json.Unmarshal([]byte(raw.String), &fields)
-		browserVersion, sdkVersion := any(nil), any(nil)
-		if clientName == "Abs Android" {
-			sdkVersion = nullableStringValue(deviceVersion)
-		} else {
-			browserVersion = nullableStringValue(deviceVersion)
-		}
-		device = map[string]any{"id": id, "deviceId": id, "userId": userID, "ipAddress": ip, "browserName": fields["browserName"], "browserVersion": browserVersion, "osName": fields["osName"], "osVersion": fields["osVersion"], "clientVersion": clientVersion, "manufacturer": fields["manufacturer"], "model": fields["model"], "sdkVersion": sdkVersion, "deviceName": deviceName, "clientName": clientName}
+	device, err := store.LoadDeviceInfo(r.Context(), h.db, s.deviceID.String)
+	if errors.Is(err, sql.ErrNoRows) {
+		device, err = nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	podcast := s.mediaItemType == "podcastEpisode"
 	var bookID, episodeID any = s.mediaItemID, nil

@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,7 +26,9 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
@@ -388,31 +391,35 @@ func filterClause(raw, mediaType string, user store.User) (string, []any, error)
 		if mediaType != "book" {
 			return "", nil, fmt.Errorf("progress filter is unavailable for podcasts")
 		}
-		base := `SELECT mp.isFinished,mp.currentTime,mp.ebookProgress FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1`
+		// libraryItemsBookFilters.getMediaGroupQuery (server/utils/queries/libraryItemsBookFilters.js:109-183)
+		// LEFT JOINs the user's single progress row; a missing row reads as
+		// NULL, so "not finished"/"not started" include items without one.
+		// An unknown value adds no condition.
+		exists := func(cond string) string {
+			return ` AND EXISTS (SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND (` + cond + `))`
+		}
+		notExists := func(cond string) string {
+			return ` AND NOT EXISTS (SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND (` + cond + `))`
+		}
 		switch value {
 		case "not-finished":
-			clause = ` AND (COALESCE((` + base + `),0)=0)`
+			clause = notExists(`mp.isFinished=1`)
 		case "not-started":
-			clause = ` AND COALESCE((` + base + `),0)=0 AND COALESCE((SELECT mp.currentTime FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1),0)=0`
+			clause = notExists(`NOT ((mp.currentTime IS NULL OR mp.currentTime=0) AND (mp.isFinished IS NULL OR mp.isFinished=0))`)
 		case "finished":
-			clause = ` AND COALESCE((` + base + `),0)=1`
+			clause = exists(`mp.isFinished=1`)
 		case "in-progress":
-			clause = ` AND COALESCE((SELECT (mp.currentTime>0 OR mp.ebookProgress>0) AND mp.isFinished=0 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1),0)=1`
+			clause = exists(`(mp.currentTime>0 OR mp.ebookProgress>0) AND mp.isFinished=0`)
 		case "audio-in-progress":
-			clause = ` AND COALESCE((SELECT mp.currentTime>0 AND mp.isFinished=0 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1),0)=1`
+			clause = exists(`mp.currentTime>0 AND mp.isFinished=0`)
 		case "ebook-in-progress":
-			clause = ` AND json_array_length(b.audioFiles)=0 AND COALESCE((SELECT mp.ebookProgress>0 AND mp.isFinished=0 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1),0)=1`
+			clause = ` AND json_array_length(b.audioFiles)=0` + exists(`mp.ebookProgress>0 AND mp.isFinished=0`)
 		case "ebook-finished":
-			clause = ` AND json_array_length(b.audioFiles)=0 AND b.ebookFile IS NOT NULL AND b.ebookFile!='null' AND COALESCE((` + base + `),0)=1`
+			clause = ` AND json_array_length(b.audioFiles)=0 AND b.ebookFile IS NOT NULL` + exists(`mp.isFinished=1`)
 		default:
-			return "", nil, fmt.Errorf("unsupported progress filter")
+			return "", nil, nil
 		}
-		// Each predicate is scoped to the authenticated user's progress row.
-		args := []any{user.ID}
-		if value == "not-started" || value == "in-progress" || value == "audio-in-progress" || value == "ebook-in-progress" {
-			args = []any{user.ID, user.ID}
-		}
-		return clause, args, nil
+		return clause, []any{user.ID}, nil
 	case "genres", "tags":
 		clause = ` AND EXISTS (SELECT 1 FROM json_each(b.` + group + `) WHERE json_each.value=?)`
 		arg = value
@@ -1290,7 +1297,9 @@ func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (
 		if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM authors WHERE libraryId=?`, id).Scan(&authorTotal); err != nil {
 			return nil, err
 		}
-		authorRows, err := h.db.QueryContext(ctx, `SELECT a.id,a.name,COUNT(ba.bookId) AS n FROM authors a LEFT JOIN bookAuthors ba ON ba.authorId=a.id WHERE a.libraryId=? GROUP BY a.id ORDER BY n DESC LIMIT 10`, id)
+		// authorFilters.getAuthorsWithCount (server/utils/queries/authorFilters.js:27):
+		// inner join from bookAuthors, grouped by authorId, so ties keep group order.
+		authorRows, err := h.db.QueryContext(ctx, `SELECT ba.authorId,a.name,COUNT(ba.authorId) AS count FROM bookAuthors ba INNER JOIN authors a ON a.id=ba.authorId AND a.libraryId=? GROUP BY ba.authorId, a.id ORDER BY count DESC LIMIT 10`, id)
 		if err != nil {
 			return nil, err
 		}
@@ -2069,8 +2078,11 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if r.URL.Query().Get("collapseseries") == "1" {
-		writeError(w, http.StatusNotImplemented, "collapsed series are not implemented")
+	collapse := r.URL.Query().Get("collapseseries") == "1"
+	if collapse && strings.HasPrefix(r.URL.Query().Get("filter"), "series.") {
+		// Collapsed sub-series (libraryHelpers.handleCollapseSubseries,
+		// server/controllers/LibraryController.js:629) is not implemented.
+		writeError(w, http.StatusNotImplemented, "collapsed sub-series are not implemented")
 		return
 	}
 	include := normalizedInclude(r)
@@ -2099,6 +2111,22 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	permissionSQL, permissionArgs := userMediaClause(user, mediaType)
+	var collapsed collapsedSeries
+	if collapse && mediaType == "book" {
+		if collapsed, err = h.collapseSeries(r.Context(), libraryID, filterValue, filterSQL, filterArgs, permissionSQL, permissionArgs); err != nil {
+			writeError(w, http.StatusInternalServerError, "database read failed")
+			return
+		}
+		if len(collapsed.excludeBookIDs) > 0 {
+			permissionSQL += ` AND b.id NOT IN (` + placeholders(len(collapsed.excludeBookIDs)) + `)`
+			for _, id := range collapsed.excludeBookIDs {
+				permissionArgs = append(permissionArgs, id)
+			}
+		}
+		if r.URL.Query().Get("sort") == "media.metadata.title" {
+			order, orderArgs = collapsedTitleOrder(collapsed, ignorePrefix, r.URL.Query().Get("desc") == "1")
+		}
+	}
 	whereSQL := filterSQL + permissionSQL
 	countArgs := append([]any{libraryID, mediaType}, filterArgs...)
 	countArgs = append(countArgs, permissionArgs...)
@@ -2184,12 +2212,22 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 			}
 			row.item["numEpisodesIncomplete"] = totalEpisodes - finishedEpisodes
 		}
+		if collapse && mediaType == "book" {
+			series, err := h.collapsedSeriesJSON(r.Context(), row.mediaID, collapsed)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "database read failed")
+				return
+			}
+			if series != nil {
+				row.item["collapsedSeries"] = series
+			}
+		}
 		results = append(results, row.item)
 	}
 	payload := map[string]any{
 		"results": results, "total": total, "limit": limit, "page": page,
 		"sortDesc": r.URL.Query().Get("desc") == "1", "mediaType": mediaType,
-		"minified": r.URL.Query().Get("minified") == "1", "collapseseries": false, "include": include,
+		"minified": r.URL.Query().Get("minified") == "1", "collapseseries": collapse, "include": include,
 		"offset": page * limit,
 	}
 	if v := r.URL.Query().Get("sort"); v != "" {
@@ -2219,7 +2257,45 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, 
 		writeStatus(w, http.StatusForbidden)
 		return
 	}
+	if r.URL.Query().Get("expanded") == "1" {
+		if err := h.expandedItemIncludes(r, user, item); err != nil {
+			writeError(w, http.StatusInternalServerError, "database read failed")
+			return
+		}
+	}
 	writeJSON(w, r, http.StatusOK, item)
+}
+
+// expandedItemIncludes applies the include= entities of upstream
+// LibraryItemController.findOne (server/controllers/LibraryItemController.js:71-96).
+// Upstream splits include on "," without trimming or lowercasing.
+func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item map[string]any) error {
+	includes := strings.Split(r.URL.Query().Get("include"), ",")
+	has := func(v string) bool { return slices.Contains(includes, v) }
+	itemID, _ := item["id"].(string)
+	if has("progress") {
+		progress, err := progressdto.ReadOne(r.Context(), h.db, user.ID, itemID, r.URL.Query().Get("episode"))
+		if err != nil {
+			return err
+		}
+		if progress == nil {
+			item["userMediaProgress"] = nil
+		} else {
+			item["userMediaProgress"] = progress
+		}
+	}
+	if has("rssfeed") {
+		feed, ok, err := h.feedMinified(r.Context(), "", itemID)
+		if err != nil {
+			return err
+		}
+		if ok {
+			item["rssFeed"] = feed
+		} else {
+			item["rssFeed"] = nil
+		}
+	}
+	return nil
 }
 
 func userCanAccessItem(user store.User, item map[string]any) bool {
@@ -2727,7 +2803,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	series, err := h.searchSeries(r.Context(), libraryID, query, limit)
+	series, err := h.searchSeries(r.Context(), libraryID, query, limit, user)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
@@ -2791,29 +2867,71 @@ func (h *Handler) searchAuthors(ctx context.Context, libraryID, query string, li
 	return out, rows.Err()
 }
 
-func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, limit int) ([]map[string]any, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id,name,nameIgnorePrefix,description,createdAt,updatedAt,libraryId FROM series WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, libraryID, "%"+query+"%", limit)
+// searchSeries mirrors the series part of libraryItemsBookFilters.search
+// (server/utils/queries/libraryItemsBookFilters.js:1227-1270): each match
+// carries its user-visible books as full legacy items with authors and series
+// emptied, and series without visible books are dropped after the limit.
+func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, limit int, user store.User) ([]map[string]any, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT id,name,description,createdAt,updatedAt,libraryId FROM series WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, libraryID, "%"+query+"%", limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := make([]map[string]any, 0)
+	type seriesRow struct {
+		id, library       string
+		name, description sql.NullString
+		added, updated    *int64
+	}
+	matches := make([]seriesRow, 0)
 	for rows.Next() {
-		var id, library string
-		var name, nameIgnore, description sql.NullString
+		var m seriesRow
 		var created, updated any
-		if err := rows.Scan(&id, &name, &nameIgnore, &description, &created, &updated, &library); err != nil {
+		if err := rows.Scan(&m.id, &m.name, &m.description, &created, &updated, &m.library); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		added, e := dateMillis(created)
-		if e != nil {
-			return nil, e
+		if m.added, err = dateMillis(created); err != nil {
+			rows.Close()
+			return nil, err
 		}
-		updatedMs, e := dateMillis(updated)
-		if e != nil {
-			return nil, e
+		if m.updated, err = dateMillis(updated); err != nil {
+			rows.Close()
+			return nil, err
 		}
-		out = append(out, map[string]any{"series": map[string]any{"id": id, "name": nullString(name), "nameIgnorePrefix": nullString(nameIgnore), "description": nullString(description), "addedAt": deref(added), "updatedAt": deref(updatedMs), "libraryId": library}, "books": []any{}})
+		matches = append(matches, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	permission, permissionArgs := userMediaClause(user, "book")
+	out := make([]map[string]any, 0, len(matches))
+	for _, m := range matches {
+		itemIDs, err := h.queryStrings(ctx, `SELECT li.id FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=?`+permission+` ORDER BY bs.rowid`, append([]any{m.id}, permissionArgs...)...)
+		if err != nil {
+			return nil, err
+		}
+		books := make([]any, 0, len(itemIDs))
+		for _, id := range itemIDs {
+			item, err := h.ItemJSON(ctx, id, false)
+			if err != nil {
+				return nil, err
+			}
+			if media, ok := item["media"].(wire.BookFull); ok {
+				media.Metadata.Authors = []wire.BookAuthor{}
+				media.Metadata.Series = []wire.BookSeries{}
+				item["media"] = media
+			}
+			books = append(books, item)
+		}
+		if len(books) == 0 {
+			continue
+		}
+		var nameIgnore any
+		if m.name.Valid {
+			nameIgnore = h.titlePrefix(ctx, m.name.String)
+		}
+		out = append(out, map[string]any{"series": map[string]any{"id": m.id, "name": nullString(m.name), "nameIgnorePrefix": nameIgnore, "description": nullString(m.description), "addedAt": deref(m.added), "updatedAt": deref(m.updated), "libraryId": m.library}, "books": books})
+	}
+	return out, nil
 }

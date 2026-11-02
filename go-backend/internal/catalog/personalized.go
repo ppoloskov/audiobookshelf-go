@@ -119,8 +119,63 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 		} else if len(items) > 0 {
 			shelves = append(shelves, map[string]any{"id": spec.id, "label": spec.label, "labelStringKey": spec.key, "type": "book", "entities": items, "total": total})
 		}
+		// Remaining book shelves, in LibraryItem.getPersonalizedShelves order
+		// (server/models/LibraryItem.js:384-491).
+		var shelfErr error
+		switch spec.id {
+		case "continue-listening":
+			shelfErr = h.appendContinueSeries(r, user, libraryID, limit, &shelves)
+		case "recently-added":
+			shelfErr = h.appendRecentSeriesAndDiscover(r, user, libraryID, limit, &shelves)
+		case "listen-again":
+			shelfErr = h.appendNewestAuthors(r, user, libraryID, limit, &shelves)
+		}
+		if shelfErr != nil {
+			writeError(w, http.StatusInternalServerError, "database read failed")
+			return
+		}
 	}
 	writeJSON(w, r, http.StatusOK, shelves)
+}
+
+func (h *Handler) appendContinueSeries(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+	items, count, err := h.continueSeriesShelf(r, user, libraryID, limit)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		*shelves = append(*shelves, map[string]any{"id": "continue-series", "label": "Continue Series", "labelStringKey": "LabelContinueSeries", "type": "book", "entities": items, "total": count})
+	}
+	return nil
+}
+
+func (h *Handler) appendRecentSeriesAndDiscover(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+	series, count, err := h.recentSeriesShelf(r, user, libraryID, includeHas(r, "rssfeed"))
+	if err != nil {
+		return err
+	}
+	if len(series) > 0 {
+		*shelves = append(*shelves, map[string]any{"id": "recent-series", "label": "Recent Series", "labelStringKey": "LabelRecentSeries", "type": "series", "entities": series, "total": count})
+	}
+	items, count, err := h.discoverShelf(r, user, libraryID, limit)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		*shelves = append(*shelves, map[string]any{"id": "discover", "label": "Discover", "labelStringKey": "LabelDiscover", "type": "book", "entities": items, "total": count})
+	}
+	return nil
+}
+
+func (h *Handler) appendNewestAuthors(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+	authors, count, err := h.newestAuthorsShelf(r, user, libraryID, limit)
+	if err != nil {
+		return err
+	}
+	if len(authors) > 0 {
+		*shelves = append(*shelves, map[string]any{"id": "newest-authors", "label": "Newest Authors", "labelStringKey": "LabelNewestAuthors", "type": "authors", "entities": authors, "total": count})
+	}
+	return nil
 }
 
 type episodeShelfRow struct {
