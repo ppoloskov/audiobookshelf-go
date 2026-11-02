@@ -2,7 +2,7 @@
 
 Upstream TypeScript is a **behavioral contract**, not an architecture. This
 document describes the Go structure that new and migrated code follows.
-`ARCHITECTURE-REVIEW-2026-10-29.md` is dated evidence of the earlier state;
+[`archive/reviews/ARCHITECTURE-REVIEW-2026-10-29.md`](archive/reviews/ARCHITECTURE-REVIEW-2026-10-29.md) is dated evidence of the earlier state;
 where its "anti-recommendations" conflict with this file, this file wins.
 
 Tags: **[enforced]** a tool fails the build; **[planned]** a roadmap phase adds

@@ -30,14 +30,18 @@ status from memory of an older document.
 | 1 | Builds, vets, unit tests pass | `cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...` | exists |
 | 2 | Differential passes, **with at least one case executed** and no fewer cases than before | `make parity` | exists |
 | 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | exists |
-| 4 | New or changed behavior has a differential case or a golden test | n/a | review |
-| 5 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
+| 4 | Product-facing packets (anything a client can observe): the replacement trial passes, with no fewer steps than before and rollback ok | `make parity-replacement` | exists (branch `replacement-trial`) |
+| 5 | New or changed behavior has a differential case or a golden test | n/a | review |
+| 6 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
 
 Rules for the table:
 
 - A differential run that executes 0 cases is a **failure**, not a pass.
-- Until `make parity` exists, run the steps in "Commands" by hand and paste the
-  case counts into the commit message.
+- Paste the executed and passed counts of the runs you did into the commit
+  message; do not copy them into any file.
+- Check 4 is the end-to-end proof for the North Star (swap the Go server into
+  an existing installation, with clients, books and progress). Packets that
+  only touch internals, tests or docs may skip it and say so.
 - Refactor packets must **lower** at least one ratchet metric and raise none.
   Parity-fix packets may not raise any.
 - Never claim parity for a route or variant you did not exercise. Say what you
@@ -94,14 +98,19 @@ make parity-full
 # Prove report repeatability using two independent fresh fixtures:
 make parity-equivalence
 
+# Replacement trial: realistic install, swap, mobile/web journey, rollback:
+make parity-replacement
+
 # Harness self-test (binds two temporary loopback HTTP servers):
-mise exec node@22 -- node --test go-backend/tools/parity/test-differential-selftest.cjs
+node --test go-backend/tools/parity/test-differential-selftest.cjs
 ```
 
 Guardrail targets: `make ratchet`, `make ratchet-update`, `make status`.
 Dependency-rule negative witnesses: `node go-backend/tools/test-dependency-boundaries.cjs`
 (requires golangci-lint 2.15.0). Report/status witnesses:
-`mise exec node@22 -- node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs`.
+`node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs`.
+Node 22.x is required. The Makefile defaults to `mise exec node@22 -- node`; without
+`mise`, override it: `make PARITY_NODE=node parity` (see `handover.md`).
 
 Environment notes:
 
@@ -111,10 +120,6 @@ Environment notes:
 - The fixture path rewriter must handle JSON-valued settings columns.
 
 ## When blocked
-
-For the independently reproduced phase-review findings and their verification,
-see [PHASES-0-2-REVIEW-2026-10-31.md](PHASES-0-2-REVIEW-2026-10-31.md).
-Re-run its negative witnesses before treating the affected guardrails as enforced.
 
 Stop. Report the exact command, its output, and the smallest repair you would
 propose. Do not work around a failing check by changing expected values,

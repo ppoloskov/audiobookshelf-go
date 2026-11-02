@@ -1,3 +1,5 @@
+> Archived, dated snapshot. Not current. Current status is generated `../STATUS.md`; current gotchas are in `../handover.md`.
+
 # Validation record
 
 Baseline: Audiobookshelf v2.37.2, `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.

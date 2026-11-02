@@ -1,3 +1,5 @@
+> Archived, dated snapshot. Not current. Current status is generated `../STATUS.md`; current gotchas are in `../handover.md`.
+
 # Audiobookshelf Go backend — handoff snapshot
 
 Prepared 2026-10-29. Target upstream v2.37.2, commit `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
