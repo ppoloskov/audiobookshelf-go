@@ -63,6 +63,17 @@ type seriesMetadata struct {
 	Name     string `json:"name"`
 	Sequence string `json:"sequence"`
 }
+
+// authorAddedEvent is a freshly created Author's toOldJSON(): asin,
+// description and imagePath are undefined and so absent (Author.js:177-188).
+type authorAddedEvent struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	LibraryID string `json:"libraryId"`
+	AddedAt   int64  `json:"addedAt"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
 type imported struct {
 	id             string
 	added, updated bool
@@ -214,7 +225,8 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		mediaID = uuid.NewString()
 	}
 	relatedFiles := append(append([]file(nil), g.files...), g.companions...)
-	var storedFiles, oldAudio []map[string]any
+	var storedFiles []libraryFile
+	var oldAudio []map[string]any
 	var scannedNew []string
 	if !added {
 		storedFiles = parseStoredLibraryFiles(oldFiles)
@@ -372,7 +384,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		return imported{}, txerr
 	}
 	defer tx.Rollback()
-	var addedAuthors []map[string]any
+	var addedAuthors []authorAddedEvent
 	var affectedAuthors []string
 	tally := &imported{}
 	if l.mediaType == "podcast" {
@@ -438,7 +450,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 					// Sequelize toOldJSON() of a freshly created author leaves
 					// asin, description and imagePath undefined, so they are
 					// absent from the event (Author.js:177-188, BookScanner.js:604).
-					addedAuthors = append(addedAuthors, map[string]any{"id": aid, "name": authorName, "libraryId": l.id, "addedAt": authorCreated, "updatedAt": authorCreated})
+					addedAuthors = append(addedAuthors, authorAddedEvent{ID: aid, Name: authorName, LibraryID: l.id, AddedAt: authorCreated, UpdatedAt: authorCreated})
 				} else if err != nil {
 					return imported{}, err
 				} else {
@@ -596,12 +608,11 @@ func sameDBTime(stored, fresh string) bool {
 // a removed cover file clears the cover, a renamed/moved one follows the file,
 // and an unset cover takes the folder image named "cover" or the first image
 // (BookScanner.js:106-161).
-func nextCoverPath(current string, files []map[string]any, diff libraryFileDiff) (string, bool) {
+func nextCoverPath(current string, files []libraryFile, diff libraryFileDiff) (string, bool) {
 	cover := current
 	if cover != "" {
 		for _, removed := range diff.removed {
-			meta, _ := removed["metadata"].(map[string]any)
-			if meta["path"] == cover && removed["fileType"] == "image" {
+			if removed.Metadata.Path == cover && removed.FileType == "image" {
 				if _, err := os.Stat(cover); err != nil {
 					cover = ""
 				}
@@ -627,7 +638,7 @@ func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []map[str
 	if mediaID == "" || s.db.QueryRowContext(ctx, `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {
 		return nil
 	}
-	return parseStoredLibraryFiles(raw)
+	return parseStoredObjects(raw)
 }
 
 // findStoredAudio matches a scanned file to a stored audio entry by path, then

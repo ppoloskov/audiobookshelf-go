@@ -1039,13 +1039,12 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 				removed = true
 			}
 		case "authors_num_books_updated":
-			p, _ := e.payload.(map[string]any)
-			if p["libraryId"] != "lib-1" {
+			p, _ := e.payload.(authorsNumBooksUpdated)
+			if p.LibraryID != "lib-1" {
 				continue
 			}
-			authors, _ := p["authors"].([]map[string]any)
-			for _, a := range authors {
-				if a["id"] == healthyID && a["numBooks"] == 1 {
+			for _, a := range p.Authors {
+				if a.ID == healthyID && a.NumBooks == 1 {
 					newAuthorCountUpdate = true
 				}
 			}

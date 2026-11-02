@@ -371,17 +371,17 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 	if (*events)[0].event != "task_started" || (*events)[len(*events)-1].event != "task_finished" {
 		t.Fatalf("scan task lifecycle events = %v ... %v", (*events)[0].event, (*events)[len(*events)-1].event)
 	}
-	finished, ok := (*events)[len(*events)-1].payload.(map[string]any)
-	if !ok || finished["isFinished"] != true || finished["isFailed"] != false {
+	finished, ok := (*events)[len(*events)-1].payload.(watcherTask)
+	if !ok || !finished.IsFinished || finished.IsFailed {
 		t.Fatalf("finished task payload = %v", (*events)[len(*events)-1].payload)
 	}
-	if finished["description"] != nil || finished["descriptionKey"] != nil {
+	if finished.Description != nil || finished.DescriptionKey != nil {
 		t.Fatalf("successful task description should be cleared: %v", finished)
 	}
-	if _, ok := finished["finishedAt"].(int64); !ok {
+	if finished.FinishedAt == nil {
 		t.Fatalf("finished task timestamp missing: %v", finished)
 	}
-	if _, ok := finished["data"].(map[string]any)["scanResults"]; !ok {
+	if finished.Data.ScanResults == nil {
 		t.Fatalf("scan result missing from task: %v", finished)
 	}
 
@@ -405,23 +405,22 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 	if len(countEvent) < 1 {
 		t.Fatalf("existing author count events = %+v, want count change", countEvent)
 	}
-	var payload map[string]any
+	var payload *authorsNumBooksUpdated
 	for _, event := range countEvent {
-		p, _ := event.payload.(map[string]any)
-		for _, author := range payloadItems(t, p["authors"]) {
-			if author["numBooks"] == 2 {
-				payload = p
+		p, _ := event.payload.(authorsNumBooksUpdated)
+		for _, author := range p.Authors {
+			if author.NumBooks == 2 {
+				payload = &p
 			}
 		}
 	}
 	if payload == nil {
 		t.Fatalf("count events lack changed count: %+v", countEvent)
 	}
-	if payload["libraryId"] != "lib-1" {
+	if payload.LibraryID != "lib-1" {
 		t.Fatalf("numBooks payload = %v", payload)
 	}
-	authors := payloadItems(t, payload["authors"])
-	if len(authors) != 1 || authors[0]["numBooks"] != 2 {
-		t.Fatalf("numBooks authors = %v", payload["authors"])
+	if len(payload.Authors) != 1 || payload.Authors[0].NumBooks != 2 {
+		t.Fatalf("numBooks authors = %v", payload.Authors)
 	}
 }

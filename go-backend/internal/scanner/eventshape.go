@@ -45,27 +45,33 @@ func (s *Scanner) rescanItemJSON(ctx context.Context, itemID string, scannedPath
 }
 
 func instanceShape(raw json.RawMessage, scanned map[string]bool) json.RawMessage {
-	var entries []map[string]any
+	var entries []map[string]json.RawMessage
 	if json.Unmarshal(raw, &entries) != nil {
 		return raw
 	}
+	null := json.RawMessage("null")
 	for _, entry := range entries {
-		meta, _ := entry["metadata"].(map[string]any)
-		if path, _ := meta["path"].(string); !scanned[path] {
+		var meta map[string]json.RawMessage
+		_ = json.Unmarshal(entry["metadata"], &meta)
+		var path string
+		_ = json.Unmarshal(meta["path"], &path)
+		if !scanned[path] {
 			continue
 		}
-		meta["wasModified"] = false
+		meta["wasModified"] = json.RawMessage("false")
+		entry["metadata"], _ = json.Marshal(meta)
 		delete(entry, "mimeType")
-		tags, _ := entry["metaTags"].(map[string]any)
+		var tags map[string]json.RawMessage
+		_ = json.Unmarshal(entry["metaTags"], &tags)
 		if tags == nil {
-			tags = map[string]any{}
-			entry["metaTags"] = tags
+			tags = map[string]json.RawMessage{}
 		}
 		for _, key := range audioMetaTagKeys {
 			if _, ok := tags[key]; !ok {
-				tags[key] = nil
+				tags[key] = null
 			}
 		}
+		entry["metaTags"], _ = json.Marshal(tags)
 	}
 	out, err := json.Marshal(entries)
 	if err != nil {

@@ -32,6 +32,13 @@
 //    scan duration is wall clock.
 //  - JWTs and the work directory prefix. Reason: per-run tokens and tmp dir.
 //  - discover shelf order. Reason: ORDER BY RANDOM() upstream.
+//  - library stats authorsWithCount: ties are ordered by name. Reason: the
+//    order among authors with equal counts is whatever SQLite's GROUP BY plan
+//    yields after the server's boot-time ANALYZE; it differed between fresh
+//    upstream seeds and is not specified.
+//  - the seeded listener progress is created in ascending media id order.
+//    Reason: user.mediaProgress order also follows that plan; creation order
+//    equal to index order makes both agree (a fixture choice, not a rewrite).
 //
 // The library watcher is disabled for the explicit-scan steps (so the watcher
 // cannot scan mid-step at an arbitrary moment) and enabled again for the final
@@ -143,13 +150,23 @@ async function seed(work, booksRoot) {
     const lt = listener.accessToken
     ids.listener = listener.id
 
-    const s = await must(call(`/api/items/${ids.saga1}/play`, { method: 'POST', token: lt, body: {
-      deviceInfo: ANDROID_DEVICE, mediaPlayer: 'exo-player', forceDirectPlay: true, forceTranscode: false, supportedMimeTypes: MOBILE_MIME } }), 'seed play')
-    await must(call(`/api/session/${s.id}/sync`, { method: 'POST', token: lt, body: { currentTime: 12, timeListened: 12, duration: s.duration } }), 'seed sync')
-    await must(call(`/api/session/${s.id}/close`, { method: 'POST', token: lt, body: { currentTime: 27.5, timeListened: 15.5, duration: s.duration } }), 'seed close')
-    // Progress on the book that step c renames, and a finished flag on the one step d deletes.
-    await must(call(`/api/me/progress/${ids.saga2}`, { method: 'PATCH', token: lt, body: { currentTime: 14, duration: 30, progress: 14 / 30 } }), 'saga2 progress')
-    await must(call(`/api/me/progress/${ids.novel}`, { method: 'PATCH', token: lt, body: { isFinished: true } }), 'finish novel')
+    // user.mediaProgress is listed in an order that depends on SQLite's plan
+    // for the pinned build (the server runs ANALYZE at boot), which differs from
+    // Go's engine for some row shapes. Progress rows are therefore created in
+    // ascending media id order, where row-insertion order and index order agree.
+    const mediaId = Object.fromEntries(items.map(i => [i.id, i.media.id]))
+    const seedProgress = {
+      [ids.saga1]: async () => {
+        const s = await must(call(`/api/items/${ids.saga1}/play`, { method: 'POST', token: lt, body: {
+          deviceInfo: ANDROID_DEVICE, mediaPlayer: 'exo-player', forceDirectPlay: true, forceTranscode: false, supportedMimeTypes: MOBILE_MIME } }), 'seed play')
+        await must(call(`/api/session/${s.id}/sync`, { method: 'POST', token: lt, body: { currentTime: 12, timeListened: 12, duration: s.duration } }), 'seed sync')
+        await must(call(`/api/session/${s.id}/close`, { method: 'POST', token: lt, body: { currentTime: 27.5, timeListened: 15.5, duration: s.duration } }), 'seed close')
+      },
+      // Progress on the book that step c renames.
+      [ids.saga2]: () => must(call(`/api/me/progress/${ids.saga2}`, { method: 'PATCH', token: lt, body: { currentTime: 14, duration: 30, progress: 14 / 30 } }), 'saga2 progress'),
+      [ids.novel]: () => must(call(`/api/me/progress/${ids.novel}`, { method: 'PATCH', token: lt, body: { isFinished: true } }), 'finish novel')
+    }
+    for (const itemId of Object.keys(seedProgress).sort((x, y) => mediaId[x].localeCompare(mediaId[y]))) await seedProgress[itemId]()
     return { dirs, ids }
   } finally {
     await stop(server)
@@ -261,6 +278,9 @@ async function runScenario(server, ids, work, paths) {
         if (binary === 'meta') body = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
         if (Array.isArray(body) && route.includes('/personalized')) {
           for (const shelf of body) if (shelf?.id === 'discover' && Array.isArray(shelf.entities)) shelf.entities.sort((a, b) => String(a.id).localeCompare(String(b.id)))
+        }
+        if (Array.isArray(body?.authorsWithCount)) {
+          body.authorsWithCount.sort((a, b) => b.count - a.count || String(a.name).localeCompare(String(b.name)))
         }
         res[label] = { status: r.status, body }
         return r

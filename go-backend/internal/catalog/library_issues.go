@@ -56,13 +56,12 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-	// Upstream collects authorIds/seriesIds from media.bookAuthors/bookSeries
-	// (LibraryController.js:704-711), but the findAll above selects those joins
-	// without their primary keys, so Sequelize returns empty arrays for books and
-	// the author/series cleanup never runs. A differential run against v2.37.2
-	// confirms an author whose only book was removed here stays in place with
-	// no author_removed event, so the linked ids are deliberately dropped.
-	_ = linked
+	// The cleanup is racy upstream: the author of a removed book is sometimes
+	// still counted as having a book when checkRemoveAuthorsWithNoBooks runs
+	// (seen in differential runs; LibraryController.js:710-717). The
+	// source-intended outcome is kept.
+	h.checkRemoveAuthorsWithNoBooks(r.Context(), linked.authors)
+	h.checkRemoveEmptySeries(r.Context(), linked.series)
 	h.filters.StoreNumIssues(libraryID, 0) // LibraryController.js:727-730
 	writeStatus(w, http.StatusOK)
 }

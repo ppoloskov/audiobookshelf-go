@@ -267,52 +267,34 @@ func (s *Scanner) resetIssuesFilterData(ctx context.Context, libraryID string) {
 	}
 }
 
-func (s *Scanner) startScanTask(ctx context.Context, libraryID string) map[string]any {
+func (s *Scanner) startScanTask(ctx context.Context, libraryID string) *watcherTask {
 	name := libraryID
 	mediaType := ""
 	var libraryName string
 	if s.db.QueryRowContext(ctx, `SELECT name,mediaType FROM libraries WHERE id=?`, libraryID).Scan(&libraryName, &mediaType) == nil && libraryName != "" {
 		name = libraryName
 	}
-	now := time.Now().UnixMilli()
-	task := map[string]any{"id": uuid.NewString(), "action": "library-scan", "data": map[string]any{"libraryId": libraryID, "libraryName": name, "libraryMediaType": mediaType}, "title": fmt.Sprintf("Scanning %q library", name), "titleKey": "MessageTaskScanningLibrary", "titleSubs": []string{name}, "description": nil, "descriptionKey": nil, "descriptionSubs": nil, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": now, "finishedAt": nil}
-	if s.emit != nil {
-		startSnapshot := make(map[string]any, len(task))
-		for key, value := range task {
-			startSnapshot[key] = value
-		}
-		// finishScanTask adds scanResults to the nested data map.
-		startData := make(map[string]any)
-		for key, value := range task["data"].(map[string]any) {
-			startData[key] = value
-		}
-		startSnapshot["data"] = startData
-		s.emit("*", "task_started", startSnapshot)
+	task := &watcherTask{
+		ID: uuid.NewString(), Action: "library-scan", Data: watcherTaskData{LibraryID: libraryID, LibraryName: name, LibraryMediaType: mediaType},
+		Title: fmt.Sprintf("Scanning %q library", name), TitleKey: "MessageTaskScanningLibrary", TitleSubs: []string{name},
+		ShowSuccess: true, StartedAt: time.Now().UnixMilli(),
 	}
+	s.emitTask("task_started", task)
 	return task
 }
 
-func (s *Scanner) finishScanTask(task map[string]any, result Result, err error) {
-	task["isFinished"] = true
-	task["finishedAt"] = time.Now().UnixMilli()
-	started, _ := task["startedAt"].(int64)
-	elapsed := time.Now().UnixMilli() - started
-	task["data"].(map[string]any)["scanResults"] = map[string]any{"added": result.Added, "updated": result.Updated, "missing": result.Missing, "elapsed": elapsed, "text": scanResultsText(result, elapsed)}
+func (s *Scanner) finishScanTask(task *watcherTask, result Result, err error) {
+	finishTask(task)
+	elapsed := time.Now().UnixMilli() - task.StartedAt
+	task.Data.ScanResults = &scanResults{Added: result.Added, Updated: result.Updated, Missing: &result.Missing, Elapsed: elapsed, Text: scanResultsText(result, elapsed)}
 	if err != nil {
-		task["isFailed"] = true
-		task["error"] = "Failed"
-		task["errorKey"] = "MessageTaskFailed"
+		failed, key := "Failed", "MessageTaskFailed"
+		task.IsFailed, task.Error, task.ErrorKey = true, &failed, &key
 	} else if result.Canceled {
-		task["description"] = "Task canceled by user"
-		task["descriptionKey"] = "MessageTaskCanceledByUser"
-	} else {
-		task["description"] = nil
-		task["descriptionKey"] = nil
-		task["descriptionSubs"] = nil
+		description, key := "Task canceled by user", "MessageTaskCanceledByUser"
+		task.Description, task.DescriptionKey = &description, &key
 	}
-	if s.emit != nil {
-		s.emit("*", "task_finished", task)
-	}
+	s.emitTask("task_finished", task)
 }
 
 // scanResultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).
@@ -1045,6 +1027,18 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	return result, nil
 }
 
+// authorBookCount and authorsNumBooksUpdated are the authors_num_books_updated
+// payload (BookScanner.js:926-930).
+type authorBookCount struct {
+	ID       string `json:"id"`
+	NumBooks int    `json:"numBooks"`
+}
+
+type authorsNumBooksUpdated struct {
+	LibraryID string            `json:"libraryId"`
+	Authors   []authorBookCount `json:"authors"`
+}
+
 // scanTally collects what the per-item imports changed so the scan can emit
 // one authors_num_books_updated and remove emptied authors/series at the end.
 type scanTally struct {
@@ -1102,8 +1096,7 @@ func groupInodes(g *group) []string {
 // matchGroupByInode finds the unclaimed scanned group a stored item moved to
 // (LibraryScanner.js:171-178).
 func matchGroupByInode(ex existingItem, groups []*group, consumed map[*group]bool) *group {
-	var stored []map[string]any
-	_ = json.Unmarshal(ex.files, &stored)
+	stored := parseStoredLibraryFiles(ex.files)
 	for _, g := range groups {
 		if consumed[g] {
 			continue
@@ -1113,7 +1106,7 @@ func matchGroupByInode(ex existingItem, groups []*group, consumed map[*group]boo
 			return g
 		}
 		for _, lf := range stored {
-			if lfIno, ok := lf["ino"].(string); ok && lfIno != "" && containsString(inos, lfIno) {
+			if lf.Ino != "" && containsString(inos, lf.Ino) {
 				return g
 			}
 		}
@@ -1135,21 +1128,20 @@ func (s *Scanner) finalizeScan(ctx context.Context, libraryID string, t *scanTal
 		if err != nil {
 			return err
 		}
-		var authors []map[string]any
+		var authors []authorBookCount
 		for rows.Next() {
-			var id string
-			var n int
-			if err := rows.Scan(&id, &n); err != nil {
+			var count authorBookCount
+			if err := rows.Scan(&count.ID, &count.NumBooks); err != nil {
 				rows.Close()
 				return err
 			}
-			authors = append(authors, map[string]any{"id": id, "numBooks": n})
+			authors = append(authors, count)
 		}
 		if err := rows.Close(); err != nil {
 			return err
 		}
 		if len(authors) > 0 && s.emit != nil {
-			s.emit("*", "authors_num_books_updated", map[string]any{"libraryId": libraryID, "authors": authors})
+			s.emit("*", "authors_num_books_updated", authorsNumBooksUpdated{LibraryID: libraryID, Authors: authors})
 		}
 	}
 	for _, id := range uniqueStrings(t.authorsRemoved) {

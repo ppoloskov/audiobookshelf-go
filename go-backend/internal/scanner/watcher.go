@@ -44,7 +44,7 @@ type fsWatcher struct {
 	pending   []fileUpdate
 	being     map[string]bool
 	timer     *time.Timer
-	task      map[string]any
+	task      *watcherTask
 
 	scanMu   sync.Mutex
 	scanning bool
@@ -53,7 +53,7 @@ type fsWatcher struct {
 
 type queuedUpdates struct {
 	updates []fileUpdate
-	task    map[string]any
+	task    *watcherTask
 }
 
 func newFSWatcher(ctx context.Context, s *Scanner) *fsWatcher {
@@ -152,13 +152,50 @@ func (w *fsWatcher) addUpdate(libraryID, p, kind string) bool {
 	return true
 }
 
-func newWatcherTask(lib *libraryWatch) map[string]any {
-	return map[string]any{
-		"id": uuid.NewString(), "action": "watcher-scan",
-		"data":  map[string]any{"libraryId": lib.id, "libraryName": lib.name},
-		"title": fmt.Sprintf("Scanning file changes in %q", lib.name), "titleKey": "MessageTaskScanningFileChanges", "titleSubs": []string{lib.name},
-		"description": nil, "descriptionKey": nil, "descriptionSubs": nil, "error": nil, "errorKey": nil, "errorSubs": nil,
-		"showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": time.Now().UnixMilli(), "finishedAt": nil,
+// watcherTask is Task.toJSON() for the scan tasks (Task.js:53-71).
+type watcherTask struct {
+	ID              string          `json:"id"`
+	Action          string          `json:"action"`
+	Data            watcherTaskData `json:"data"`
+	Title           string          `json:"title"`
+	TitleKey        string          `json:"titleKey"`
+	TitleSubs       []string        `json:"titleSubs"`
+	Description     *string         `json:"description"`
+	DescriptionKey  *string         `json:"descriptionKey"`
+	DescriptionSubs []string        `json:"descriptionSubs"`
+	Error           *string         `json:"error"`
+	ErrorKey        *string         `json:"errorKey"`
+	ErrorSubs       []string        `json:"errorSubs"`
+	ShowSuccess     bool            `json:"showSuccess"`
+	IsFailed        bool            `json:"isFailed"`
+	IsFinished      bool            `json:"isFinished"`
+	StartedAt       int64           `json:"startedAt"`
+	FinishedAt      *int64          `json:"finishedAt"`
+}
+
+type watcherTaskData struct {
+	LibraryID        string       `json:"libraryId"`
+	LibraryName      string       `json:"libraryName"`
+	LibraryMediaType string       `json:"libraryMediaType,omitempty"`
+	ScanResults      *scanResults `json:"scanResults,omitempty"`
+}
+
+// scanResults is the task's scanResults: library scans report "missing",
+// watcher scans report "removed" (LibraryScan.js:70-77, LibraryScanner.js:439).
+type scanResults struct {
+	Added   int    `json:"added"`
+	Updated int    `json:"updated"`
+	Missing *int   `json:"missing,omitempty"`
+	Removed *int   `json:"removed,omitempty"`
+	Text    string `json:"text"`
+	Elapsed int64  `json:"elapsed"`
+}
+
+func newWatcherTask(lib *libraryWatch) *watcherTask {
+	return &watcherTask{
+		ID: uuid.NewString(), Action: "watcher-scan", Data: watcherTaskData{LibraryID: lib.id, LibraryName: lib.name},
+		Title: fmt.Sprintf("Scanning file changes in %q", lib.name), TitleKey: "MessageTaskScanningFileChanges", TitleSubs: []string{lib.name},
+		ShowSuccess: true, StartedAt: time.Now().UnixMilli(),
 	}
 }
 
@@ -185,7 +222,8 @@ func (w *fsWatcher) fire() {
 	w.mu.Unlock()
 	if len(updates) == 0 {
 		if task != nil {
-			task["description"], task["descriptionKey"] = "No files to scan", "MessageTaskNoFilesToScan"
+			description, key := "No files to scan", "MessageTaskNoFilesToScan"
+			task.Description, task.DescriptionKey = &description, &key
 			finishTask(task)
 			w.s.emitTask("task_finished", task)
 		}
@@ -194,32 +232,28 @@ func (w *fsWatcher) fire() {
 	w.s.scanFilesChanged(w.ctx, updates, task, w)
 }
 
-func finishTask(task map[string]any) {
-	task["isFinished"] = true
-	task["finishedAt"] = time.Now().UnixMilli()
+func finishTask(task *watcherTask) {
+	finished := time.Now().UnixMilli()
+	task.IsFinished, task.FinishedAt = true, &finished
 }
 
-func (s *Scanner) emitTask(event string, task map[string]any) {
+// emitTask sends a snapshot so later mutations of the task do not reach
+// listeners that hold the payload.
+func (s *Scanner) emitTask(event string, task *watcherTask) {
 	if s.emit == nil {
 		return
 	}
-	snapshot := make(map[string]any, len(task))
-	for k, v := range task {
-		snapshot[k] = v
-	}
-	if data, ok := task["data"].(map[string]any); ok {
-		copied := make(map[string]any, len(data))
-		for k, v := range data {
-			copied[k] = v
-		}
-		snapshot["data"] = copied
+	snapshot := *task
+	if task.Data.ScanResults != nil {
+		results := *task.Data.ScanResults
+		snapshot.Data.ScanResults = &results
 	}
 	s.emit("*", event, snapshot)
 }
 
 // scanFilesChanged is LibraryScanner.scanFilesChanged (LibraryScanner.js:
 // 372-452): one watcher batch at a time, later batches queue.
-func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, task map[string]any, w *fsWatcher) {
+func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, task *watcherTask, w *fsWatcher) {
 	w.scanMu.Lock()
 	if w.scanning {
 		w.queue = append(w.queue, queuedUpdates{updates, task})
@@ -269,9 +303,7 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 	if len(parts) > 0 {
 		text = strings.Join(parts, ", ")
 	}
-	started, _ := task["startedAt"].(int64)
-	task["data"].(map[string]any)["scanResults"] = map[string]any{"added": added, "updated": updated, "removed": removed, "text": text, "elapsed": time.Now().UnixMilli() - started}
-	task["description"], task["descriptionKey"], task["descriptionSubs"] = nil, nil, nil
+	task.Data.ScanResults = &scanResults{Added: added, Updated: updated, Removed: &removed, Text: text, Elapsed: time.Now().UnixMilli() - task.StartedAt}
 	finishTask(task)
 	s.emitTask("task_finished", task)
 
