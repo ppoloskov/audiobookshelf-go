@@ -78,3 +78,11 @@ python3 go-backend/tools/parity/build_route_coverage.py --check
 ```
 
 All inventory routes begin with `compatibilityStatus: "unverified"`. A handler candidate status records only the Go code location and whether the main dispatcher imports that package; it never means differential parity passed. Only a passing entry with a real executable case may be marked verified after review.
+
+## Replacement trial
+
+`make parity-replacement` (or `node go-backend/tools/parity/replacement-trial.cjs [--work DIR] [--go-bin PATH] [--reuse 1]`) answers the product question directly: can the Go binary take over an existing upstream installation in place? It generates a realistic media tree (multi-file mp3 book with ID3 tags and `cover.jpg`, an m4b with chapters and an embedded cover, a flac book with `desc.txt`/`reader.txt`, an epub-only book), lets pinned upstream create and scan the installation, and records history through client calls: Android play/sync/close, iOS offline `local-all`, finished and ebook progress, bookmarks, a collection, a playlist, and a second user who finished book 1 of a series.
+
+Config and metadata are snapshotted while media stays untouched, so paths and inodes are identical for both servers. The same scripted mobile/web journey (login, authorize, libraries, personalized shelves, filters, collapsed series, search, item detail with progress, covers, ebook, direct and HLS playback, byte ranges, sync/close, offline sessions, batch progress, bookmarks, listening stats and sessions, admin views, token refresh) runs against upstream, then against Go after restoring the snapshot to the same paths. It also checks a Socket.IO `user_updated` progress event, then boots upstream on the Go-written state and compares progress and bookmarks (rollback).
+
+Normalization covers only UUIDs created during the journey (pre-existing ones must match exactly), JWTs, the work directory prefix, recent timestamps, and the order of the `discover` shelf, which is `ORDER BY RANDOM()` upstream. Media responses compare SHA-256 and `Content-Range`; covers compare content type only. `--reuse 1` skips seeding when DIR already holds a seeded snapshot.
