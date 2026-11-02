@@ -74,6 +74,12 @@ The former Python capability-ledger generator, classifier, and regression test a
 
 Without `--fixture` it creates a fresh one with `create-fixture.cjs` (needs the built `dist-server/`). Output goes to `BROWSER_CHECK_OUT`, default a fresh `os.tmpdir()` directory; `browser-report.json` there is the result. Upstream runs under the Node that runs the script (`process.execPath`), or `ABS_PARITY_NODE` when set; use Node 22.x. The checked-in `contracts/parity/browser-playback-differential-*.json` files are rewritten only by the `full` variant with `--write-contract`. Browser timing values (the first-loaded `readyState`, the post-play/pause `currentTime`) are compared as loaded/advanced booleans; seek positions stay exact.
 
+## Large-library benchmark
+
+`make bench` (or `node go-backend/tools/parity/bench.cjs [--work DIR] [--go-bin PATH] [--books 2000] [--runs 20] [--reuse 1] [--only upstream|go]`) compares upstream and Go on a generated library of 2000 books (about 300 authors, 200 series, 15% multi-file; tiny mp3 files with per-book ID3v2.3 tags written by the script, so only three ffmpeg calls). Upstream creates and scans the library (the scan time is recorded) and records five users' history through the client API: about 500 sessions (half play/sync/close, half offline `local-all`) over about 100 items, plus finished flags. Config and metadata are snapshotted with media untouched, then each server runs on the snapshot restored to the same paths (as in the replacement trial).
+
+Per server it records the time from process start to the first successful `/ping`, RSS after start, after one warmup pass and after the load, and p50/p95 over N runs (default 20, interleaved round-robin) of: login, `/api/me`, libraries, filterdata, personalized, items pages (limit 50) with several sorts and filters including `collapseseries`, series, authors, narrators, search, expanded item, play start plus close, listening stats and sessions, and admin `/api/sessions`. It writes `bench-report.json` and `bench-report.md` to the work dir. Response bodies are not compared (the replacement trial does that); the run fails when Go answers non-2xx where upstream answers 2xx. A call is marked SLOW when Go p95 exceeds twice the upstream p95 or 500 ms. Numbers depend on the host; run both servers on the same machine and compare ratios, not absolute values. The work dir with 2000 books is about 100 MB; delete it afterwards.
+
 ## Route inventory ledger
 
 Regenerate the source-inspected ledger with:
