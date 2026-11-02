@@ -7,7 +7,8 @@ fixture rules are unchanged: pinned upstream v2.37.2, independent disposable
 copies per server, no Node fallback.
 
 Status is generated into `STATUS.md`. This file defines order and exit
-criteria, not current numbers.
+criteria, not current numbers. Dated reviews are in `archive/reviews/` and are
+evidence, not current state.
 
 ## Why the plan changed
 
@@ -184,22 +185,59 @@ upstream differs. Resolve B6 (any-tag vs every-tag) explicitly.
 
 ## Product track (parallel; owned by the project owner)
 
-"Done" means the target clients work, not that every long-tail variant is
-ledger-verified.
+North Star: produce a Go server build that can replace the TypeScript server
+in an existing installation, with clients, books and progress. "Done" means
+the target clients work against a swapped-in install, not that every
+long-tail variant is ledger-verified.
 
-1. **Define the client scope.** Which clients: stock web, Android, iOS, a
-   customer's custom client? Record the answer in this file.
-2. **Capture real traffic** from the TypeScript server for those clients:
-   routes, methods, Socket.IO events.
-3. **Tier the routes** by observed use: Tier 1 (clients hit them), Tier 2
-   (rare), Tier 3 (never observed). Defer Tier 3 explicitly instead of
-   ledger-verifying it.
-4. **Replay harness** runs captured traffic against Node and Go on fresh
-   fixtures and diffs responses, persisted state, and emitted events.
-5. **Acceptance:** Tier 1 replay is clean; web and mobile acceptance pass;
-   upgrade and rollback trial passes (pinned upstream reopens a Go-written
-   database copy); realistic library load is measured; `CGO_ENABLED=0` amd64
-   and arm64 builds work.
+**Client scope (decided).** The stock web client (`client/`, driven in
+Chromium) plus the Android and iOS apps' API usage. The apps themselves are not
+driven; their call pattern is replayed. A customer-specific client is out of
+scope until named.
+
+**Tiers.** Tier 1: routes and Socket.IO events those clients hit. Tier 2: rare.
+Tier 3: never observed; deferred explicitly rather than ledger-verified.
+
+**Replay harness.** `tools/parity/replacement-trial.cjs` (`make
+parity-replacement`, details in `tools/parity/README.md`) is the Tier 1 replay
+harness. Upstream creates a realistic install (multi-file mp3 book with cover,
+m4b with chapters, flac with desc/reader sidecars, epub-only item; Android, iOS
+and web history; a second user), the install is snapshotted, the same
+mobile/web journey runs against upstream and against Go in place, a Socket.IO
+`user_updated` probe runs, and rollback reopens the Go-written database with
+upstream. It is a required check for product-facing packets (`AGENTS.md`).
+Its latest result is recorded by its own report, not here.
+
+**Acceptance for the product track:** Tier 1 replay is clean (including the
+workstreams below); web and mobile acceptance pass; upgrade and rollback trial
+passes; realistic library load is measured; `CGO_ENABLED=0` amd64 and arm64
+builds work.
+
+### Next workstreams, in order
+
+1. **Podcasts in the trial.** Add a podcast library (RSS-backed episodes,
+   downloaded episodes, episode progress, `play` for an episode) to the
+   install and the journey.
+   Exit: the journey includes podcast steps that match upstream, rollback still
+   ok.
+2. **Known gaps.** `collapseseries` combined with a series filter returns 501;
+   playlist sort is byte order, upstream uses `localeCompare`; the `rssfeed`
+   include is missing on personalized book items; non-UTC ICU zone link
+   canonicalization.
+   Exit: each gap has a differential case or trial step that fails before and
+   passes after; no remaining 501 on a Tier 1 route.
+3. **New content after the swap.** Add and scan new items, edit metadata and
+   covers, and let watchers run after Go takes over the install.
+   Exit: a trial phase that adds content on the Go side matches upstream doing
+   the same, and upstream still reopens the resulting database.
+4. **Operational.** Load measurement on a large library, `CGO_ENABLED=0`
+   builds for amd64 and arm64, and browser-check portability.
+   Exit: documented numbers for a large library; both builds produced and
+   smoke-tested; `browser-check.cjs` runs on Linux without hand-set paths or a
+   `mise` shim.
+
+Not yet covered anywhere: real Android and iOS apps (only their API call
+pattern is replayed).
 
 ## How parity work and refactors coexist
 

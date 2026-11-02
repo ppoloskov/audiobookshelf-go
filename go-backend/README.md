@@ -1,34 +1,38 @@
-# Audiobookshelf Go backend rewrite
+# Audiobookshelf Go backend
 
-This experimental Go backend targets drop-in compatibility with pinned Audiobookshelf v2.37.2. The TypeScript server remains the behavior oracle; the active engineering sequence and acceptance gates are in [ROADMAP.md](ROADMAP.md), and generated status belongs in `STATUS.md` and is produced by `make status` after a core parity run. The original frontend is retained. See [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [handover.md](handover.md) for working rules, target structure, and gotchas.
+An experimental Go rewrite of the Audiobookshelf server. North Star: a Go
+server build that can replace the TypeScript server in an existing
+installation, with clients, books and progress.
 
-## Target
+- Behavior oracle: upstream `advplyr/audiobookshelf` v2.37.2, commit
+  `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`, source under `server/`. It is
+  never modified and never the architecture template.
+- Same HTTP, Socket.IO, SQLite and metadata layout as upstream; the original
+  web client in `client/` is served unchanged.
+- Runtime is Go built with `CGO_ENABLED=0`. No Node process at runtime. FFmpeg
+  and ffprobe run as subprocesses.
+- Fork license is upstream's GPL-3.0. Do not push this work to the upstream
+  repository.
 
-The [independent phases 0–2 review](PHASES-0-2-REVIEW-2026-10-31.md) and its [independent follow-up](PHASES-0-2-INDEPENDENT-REVIEW-2026-10-31.md) record reproduced correctness, guardrail and architecture gaps and the recommended repair order. They are dated evidence, not current generated status.
+## Where things live
 
-The active sequence and exit criteria are in [ROADMAP.md](ROADMAP.md). It supersedes conflicting sequencing in the historical finalization queue. [STATUS.md](STATUS.md) is generated from recorded harness output by `make status`; it distinguishes stale source inputs from current sampled results. Full parity and client acceptance remain separate roadmap gates. The [phase-review remediation task](../docs/agent-work/tasks/TASK-20261031-phase-review-remediation.md) records repairs and their verification.
+| Concern | File |
+|---------|------|
+| Agent rules and the required checks per packet | [AGENTS.md](AGENTS.md) |
+| Target code structure | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Order of work, exit criteria, product track | [ROADMAP.md](ROADMAP.md) |
+| Current verification status (generated, never hand-edited) | [STATUS.md](STATUS.md) |
+| Current gotchas for whoever works here next | [handover.md](handover.md) |
+| Harness usage (fixtures, differential, suites, replacement trial) | [tools/parity/README.md](tools/parity/README.md) |
+| Source inventory and parity contracts | [contracts/README.md](contracts/README.md) |
+| Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
 
-- Upstream: `advplyr/audiobookshelf`, release `v2.37.2`.
-- Baseline commit: `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`.
-- Preserve existing web and mobile clients, API behavior, SQLite database and metadata layout.
-- Backend runtime implemented in Go, built with `CGO_ENABLED=0`. Go dependencies are allowed. FFmpeg and ffprobe may run as external processes.
-- Keep the existing frontend. Its build toolchain is separate from the backend runtime requirement.
-- Keep upstream license and attribution in this fork; the upstream license is GPL-3.0.
+## Run
 
-## Included now
-
-1. `tools/source_inventory.py`: reproducible source evidence for route registrations, Socket.IO candidates and model files, with source hashes and locations.
-2. `contracts/source-inventory.json`: the generated baseline. This is a source index, not a complete compatibility contract.
-3. `cmd/abs-compat`: a standard-library Go HTTP differential harness. It compares explicitly selected GET/HEAD requests against two isolated servers. It does not test write flows, authentication lifecycles, realtime protocols or database equivalence yet.
-4. `ROADMAP.md`: authoritative implementation sequence and acceptance gates. Older queues and reports are historical evidence.
-5. `cmd/audiobookshelf-go`: a Go HTTP server with fresh-database initialization from the source-executed baseline schema, local authentication, token lifecycle, library/item browsing, progress/bookmarks, playback/HLS, and Socket.IO.
-6. Domain packages for catalog/user changes, scanning/watchers, media tools, backups, settings and OIDC are being implemented and tested. Individual handlers and sampled scenarios do not establish complete route parity.
-7. `tools/parity`: starts the actual upstream and Go executables on independent source-created fixtures and compares HTTP, media bytes, mutations and Socket.IO. Sanitized reports and source provenance are in `contracts/parity`.
-8. Book item serialization uses separate `internal/wire` envelopes for full, minified, and expanded shapes. `tools/book-item-oracle.cjs` and `contracts/parity/book-item-golden.json` pin source-generated outputs; nested book objects remain opaque until a later DTO phase.
-
-## Run the experimental server
-
-Use a consistent, disposable snapshot of an initialized v2.37.2 installation. For a live SQLite database, use SQLite's backup API or stop upstream before copying so WAL contents are included correctly. Do not copy only the main database file while upstream is writing.
+Use a consistent, disposable snapshot of an initialized v2.37.2 installation.
+For a live SQLite database use SQLite's backup API, or stop upstream before
+copying, so WAL contents are included. Never run Node and Go against the same
+writable tree.
 
 ```sh
 cd go-backend
@@ -39,39 +43,40 @@ HOST=127.0.0.1 PORT=23378 \
 ./audiobookshelf-go
 ```
 
-The default runtime reads and writes the database and metadata. Use disposable copies while compatibility work is incomplete. A new database is created only when the configured file is absent; existing databases must match the pinned migration version and are never silently recreated or migrated.
+A new database is created only when the configured file is absent. An existing
+database must match the pinned migration version; it is never recreated or
+migrated implicitly. Build the web client with `npm ci && npm run generate` in
+`client/` and set `ABS_GO_CLIENT_PATH` to its `dist` if the default lookup
+fails. `ABS_GO_READ_ONLY=1` is a development option for a restricted read-only
+surface, not a full read-only mode.
 
-Build the original frontend with `npm ci` and `npm run generate` in `client/`, then set `ABS_GO_CLIENT_PATH` to its `dist` directory if the default path cannot locate it. No Node process is used by the Go runtime; Node is used for building frontend assets and running the reference tests.
+## Verify
 
-`ABS_GO_READ_ONLY=1` is a development option for the restricted read-only surface. It does not provide a full read-only equivalent of every source endpoint. Unimplemented routes and variants remain explicit failures. Existing mobile/web workflows, all filters, background tasks, providers and mutations have not been exhaustively verified.
-
-## Development
-
-From the upstream repository root:
-
-```sh
-make parity             # fresh-fixture core plus report equivalence
-make parity-equivalence # two independent fresh fixtures, also used in CI
-make status             # regenerate status from the latest recorded core run
-python3 -m unittest -v go-backend/tools/test_source_inventory.py
-python3 go-backend/tools/source_inventory.py --output go-backend/contracts/source-inventory.json
-cd go-backend
-CGO_ENABLED=0 go test ./...
-CGO_ENABLED=0 go build ./cmd/abs-compat
-node tools/test-library-oracle.cjs
-```
-
-Example comparison, using two disposable servers with equivalent fixture data:
+From the repository root (Node 22.x; upstream built once with `npm ci && npm
+run build:server`):
 
 ```sh
-go run ./cmd/abs-compat \
-  -left http://127.0.0.1:13378 \
-  -right http://127.0.0.1:23378 \
-  -cases contracts/smoke-cases.json
+cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...
+make parity               # core differential, Node vs Go on fresh fixtures
+make parity-full          # all named API, persistence, rollback and operational suites
+make parity-equivalence   # two independent fixtures must agree
+make parity-replacement   # product check: swap Go into a realistic install, replay the mobile/web journey, roll back
+make ratchet              # architecture guardrails
+make status               # regenerate STATUS.md from the latest recorded run
 ```
 
-Tokens, if needed, come from `ABS_COMPAT_LEFT_TOKEN` and `ABS_COMPAT_RIGHT_TOKEN`. Case paths include the complete deployment prefix (for example `/audiobookshelf/api/libraries`). Select cases deliberately: upstream includes GET routes that trigger work, so GET alone does not guarantee absence of side effects. Use disposable, isolated fixture copies.
+Counts and verdicts are in [STATUS.md](STATUS.md) and in the reports the
+harness writes; do not copy them elsewhere. Without `mise`, pass
+`PARITY_NODE=node` to `make`.
 
-## Fork setup
+`cmd/abs-compat` is a small standard-library differential client for ad-hoc
+GET/HEAD comparison of two running servers (`-left`, `-right`, `-cases`; tokens
+from `ABS_COMPAT_LEFT_TOKEN` and `ABS_COMPAT_RIGHT_TOKEN`). It can trigger work
+on upstream, so use disposable copies. Source inventory tooling:
+`python3 go-backend/tools/source_inventory.py` (see
+[contracts/README.md](contracts/README.md)).
 
-The fork is `https://github.com/ppoloskov/audiobookshelf-go`. The local implementation branch is `go-backend`; `origin` points to that fork and `upstream` to `advplyr/audiobookshelf`. Remote publishing depends on GitHub write access. Do not push this branch to the upstream repository.
+## Known limits
+
+The remaining gaps and the next workstreams are listed in the product track of
+[ROADMAP.md](ROADMAP.md). No overall parity claim is made here.

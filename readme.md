@@ -16,14 +16,11 @@
 
 # About
 
-## Go backend rewrite status
+## Go backend rewrite
 
-The experimental Go backend targets drop-in compatibility with Audiobookshelf
-v2.37.2. Its working status is generated in
-[go-backend/STATUS.md](go-backend/STATUS.md); the current phase and required
-checks are in [go-backend/ROADMAP.md](go-backend/ROADMAP.md). For setup,
-architecture, and known gotchas, see [go-backend/README.md](go-backend/README.md)
-and [go-backend/handover.md](go-backend/handover.md).
+This checkout also contains an experimental Go rewrite of the server, targeting
+drop-in replacement of pinned v2.37.2. See [go-backend/README.md](go-backend/README.md);
+agents start at [agents.md](agents.md).
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 
@@ -201,7 +198,3 @@ If you are using VSCode, this project includes a couple of pre-defined targets t
 - `Debug server`—Run the server.
 - `Debug client (nuxt)`—Run the client with live reload.
 - `Debug server and client (nuxt)`—Runs both the preceding two debug targets.
-
-## Go compatibility rewrite
-
-This checkout includes an ongoing Go compatibility rewrite targeting pinned upstream v2.37.2. Current phase, generated verification status, and remaining gates are maintained in [go-backend/ROADMAP.md](go-backend/ROADMAP.md), [go-backend/STATUS.md](go-backend/STATUS.md), and [go-backend/handover.md](go-backend/handover.md). No overall parity claim is made here. Read [agents.md](agents.md) before continuing.

@@ -1,3 +1,5 @@
+> Superseded: sequencing is owned by [go-backend/ROADMAP.md](../../../go-backend/ROADMAP.md). This queue and its task ledgers (now in `docs/agent-work/archive/tasks/`) are historical evidence.
+
 # Parity finalization work queue
 
 Prepared 2026-10-30. Planning only: no implementation or capability promotion is authorized by this document alone.
