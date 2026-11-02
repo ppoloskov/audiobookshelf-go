@@ -100,6 +100,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
+      # The harness verifies the oracle source matches the pinned upstream
+      # commit (tools/parity/lib/oracle.cjs: git diff --quiet <sha>); a
+      # depth-1 checkout does not contain it.
+      - name: Fetch pinned upstream commit
+        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
+
       - name: Install pinned upstream dependencies
         run: npm ci
 
