@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -92,9 +93,10 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	updated := len(columns) > 0
+	var sync mediaSync
 	if scope.mediaType == "book" {
 		if raw, ok := metadata["authors"]; ok {
-			changed, e := h.syncBookAuthors(r.Context(), tx, scope.mediaID, scope.libraryID, raw)
+			changed, e := h.syncBookAuthors(r.Context(), tx, scope.mediaID, scope.libraryID, raw, &sync)
 			if e != nil {
 				writeError(w, http.StatusInternalServerError, "database write failed")
 				return
@@ -102,7 +104,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 			updated = updated || changed
 		}
 		if raw, ok := metadata["series"]; ok {
-			changed, e := h.syncBookSeries(r.Context(), tx, scope.mediaID, scope.libraryID, raw, prefixes)
+			changed, e := h.syncBookSeries(r.Context(), tx, scope.mediaID, scope.libraryID, raw, prefixes, &sync)
 			if e != nil {
 				writeError(w, http.StatusInternalServerError, "database write failed")
 				return
@@ -137,6 +139,22 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
+	// LibraryItemController.updateMedia order: series cleanup, then the
+	// author events from updateAuthorsFromRequest, then the empty-author check
+	// (LibraryItemController.js:233-262).
+	h.checkRemoveEmptySeries(r.Context(), sync.seriesRemoved)
+	for _, se := range sync.seriesAdded { // LibraryItemController.js:240-245
+		h.filters.AddSeries(scope.libraryID, se.Name, se.ID)
+	}
+	if h.emit != nil {
+		for _, event := range sync.events {
+			h.emit("*", event.name, event.payload)
+		}
+	}
+	h.checkRemoveAuthorsWithNoBooks(r.Context(), sync.authorsRemoved)
+	for _, au := range sync.authorsAdded { // LibraryItemController.js:261-265
+		h.filters.AddAuthor(scope.libraryID, au.Name, au.ID)
+	}
 	if updated && h.itemChanged != nil {
 		if err := h.itemChanged(r.Context(), itemID); err != nil {
 			writeError(w, http.StatusInternalServerError, "metadata file write failed")
@@ -166,6 +184,29 @@ func (h *Handler) deleteItem(w http.ResponseWriter, r *http.Request, user store.
 }
 
 func (h *Handler) deleteLibraryItem(ctx context.Context, user store.User, itemID string, hard bool) (int, string) {
+	var linked itemLinks
+	status, message := h.removeLibraryItem(ctx, &user, itemID, hard, &linked)
+	if status != http.StatusOK {
+		return status, message
+	}
+	// LibraryItemController.delete (LibraryItemController.js:139-148).
+	h.checkRemoveAuthorsWithNoBooks(ctx, linked.authors)
+	h.checkRemoveEmptySeries(ctx, linked.series)
+	h.resetIssues(ctx, linked.libraryID)
+	return http.StatusOK, ""
+}
+
+// itemLinks are the authors and series a removed book was linked to.
+type itemLinks struct {
+	authors, series []string
+	libraryID       string
+}
+
+// removeLibraryItem is ApiRouter.handleDeleteLibraryItem plus the optional file
+// removal. The caller drops the linked authors and series left empty. A nil
+// user skips the permission checks (admin-only maintenance routes authorize
+// before calling).
+func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemID string, hard bool, linked *itemLinks) (int, string) {
 	var scope itemScope
 	var itemPath string
 	err := h.db.QueryRowContext(ctx, `SELECT libraryId,mediaId,mediaType,path FROM libraryItems WHERE id=?`, itemID).Scan(&scope.libraryID, &scope.mediaID, &scope.mediaType, &itemPath)
@@ -175,13 +216,15 @@ func (h *Handler) deleteLibraryItem(ctx context.Context, user store.User, itemID
 	if err != nil {
 		return http.StatusInternalServerError, "database read failed"
 	}
-	if !userCanAccessLibrary(user, scope.libraryID) {
-		return http.StatusForbidden, ""
-	}
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	if !user.IsActive || permissions["delete"] != true {
-		return http.StatusForbidden, ""
+	if user != nil {
+		if !userCanAccessLibrary(*user, scope.libraryID) {
+			return http.StatusForbidden, ""
+		}
+		var permissions map[string]any
+		_ = json.Unmarshal(user.Permissions, &permissions)
+		if !user.IsActive || permissions["delete"] != true {
+			return http.StatusForbidden, ""
+		}
 	}
 	mediaIDs := []string{scope.mediaID}
 	authorIDs := []string{}
@@ -290,18 +333,13 @@ func (h *Handler) deleteLibraryItem(ctx context.Context, user store.User, itemID
 	if _, err := tx.ExecContext(ctx, `DELETE FROM libraryItems WHERE id=?`, itemID); err != nil {
 		return http.StatusInternalServerError, "database write failed"
 	}
-	for _, id := range authorIDs {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM authors WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookAuthors WHERE authorId=?)`, id, id); err != nil {
-			return http.StatusInternalServerError, "database write failed"
-		}
-	}
-	for _, id := range seriesIDs {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM series WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookSeries WHERE seriesId=?)`, id, id); err != nil {
-			return http.StatusInternalServerError, "database write failed"
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return http.StatusInternalServerError, "database write failed"
+	}
+	if linked != nil {
+		linked.libraryID = scope.libraryID
+		linked.authors = append(linked.authors, authorIDs...)
+		linked.series = append(linked.series, seriesIDs...)
 	}
 	if h.cfg.MetadataPath != "" {
 		_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", itemID))
@@ -386,7 +424,53 @@ func makeUUID() string {
 	return raw[:8] + "-" + raw[8:12] + "-" + raw[12:16] + "-" + raw[16:20] + "-" + raw[20:]
 }
 
-func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libraryID string, raw json.RawMessage) (bool, error) {
+// mediaSync records what a PATCH /api/items/:id/media changed beyond the book
+// row: events Book.updateAuthorsFromRequest emits while it works, and the
+// authors/series that lost a book so the controller can drop the empty ones.
+type mediaSync struct {
+	events         []syncEvent
+	authorsRemoved []string
+	seriesRemoved  []string
+	authorsAdded   []filterdata.Named
+	seriesAdded    []filterdata.Named
+}
+
+type syncEvent struct {
+	name    string
+	payload any
+}
+
+// authorPayload is Author.toOldJSON (+numBooks for toOldJSONExpanded). A
+// freshly created author has no asin/description/imagePath attributes loaded,
+// so those keys are absent from its payload (Author.js:177-199).
+func authorPayload(ctx context.Context, tx *sql.Tx, id string, created bool, numBooks int) (map[string]any, error) {
+	var name, libraryID, createdAt, updatedAt string
+	var asin, description, imagePath sql.NullString
+	err := tx.QueryRowContext(ctx, `SELECT name,asin,description,imagePath,libraryId,createdAt,updatedAt FROM authors WHERE id=?`, id).Scan(&name, &asin, &description, &imagePath, &libraryID, &createdAt, &updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	msOf := func(value string) int64 {
+		if t, ok := dbtime.Parse(value); ok {
+			return t.UnixMilli()
+		}
+		return 0
+	}
+	payload := map[string]any{"id": id, "name": name, "libraryId": libraryID, "addedAt": msOf(createdAt), "updatedAt": msOf(updatedAt)}
+	if !created {
+		payload["asin"], payload["description"], payload["imagePath"] = nullString(asin), nullString(description), nullString(imagePath)
+		payload["numBooks"] = numBooks
+	}
+	return payload, nil
+}
+
+func authorBookCount(ctx context.Context, tx *sql.Tx, authorID string) int {
+	var n int
+	_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM bookAuthors WHERE authorId=?`, authorID).Scan(&n)
+	return n
+}
+
+func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libraryID string, raw json.RawMessage, out *mediaSync) (bool, error) {
 	var incoming []map[string]any
 	if json.Unmarshal(raw, &incoming) != nil {
 		return false, nil
@@ -400,18 +484,21 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 			}
 		}
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=?`, bookID)
+	rows, err := tx.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt,ba.rowid`, bookID)
 	if err != nil {
 		return false, err
 	}
-	current := map[string]string{}
+	type linkedAuthor struct{ key, id string }
+	var current []linkedAuthor
+	known := map[string]bool{}
 	for rows.Next() {
 		var id, name string
 		if err := rows.Scan(&id, &name); err != nil {
 			rows.Close()
 			return false, err
 		}
-		current[strings.ToLower(name)] = id
+		current = append(current, linkedAuthor{strings.ToLower(name), id})
+		known[strings.ToLower(name)] = true
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
@@ -419,18 +506,39 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 	}
 	rows.Close()
 	changed := false
-	keep := map[string]bool{}
+	wanted := map[string]bool{}
+	for _, name := range names {
+		wanted[strings.ToLower(name)] = true
+	}
+	// Book.updateAuthorsFromRequest removes first, then adds
+	// (Book.js:434-466).
+	for _, link := range current {
+		if wanted[link.key] {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=? AND authorId=?`, bookID, link.id); err != nil {
+			return false, err
+		}
+		if n := authorBookCount(ctx, tx, link.id); n > 0 {
+			payload, err := authorPayload(ctx, tx, link.id, false, n)
+			if err != nil {
+				return false, err
+			}
+			out.events = append(out.events, syncEvent{"author_updated", payload})
+		}
+		out.authorsRemoved = append(out.authorsRemoved, link.id)
+		changed = true
+	}
 	now := dbNow()
+	added := map[string]bool{}
 	for _, name := range names {
 		key := strings.ToLower(name)
-		if keep[key] {
+		if known[key] || added[key] {
 			continue
 		}
-		keep[key] = true
-		if _, ok := current[key]; ok {
-			continue
-		}
+		added[key] = true
 		var id string
+		created := false
 		err := tx.QueryRowContext(ctx, `SELECT id FROM authors WHERE libraryId=? AND name=? COLLATE NOCASE LIMIT 1`, libraryID, name).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			id = makeUUID()
@@ -440,6 +548,7 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 			if _, err = tx.ExecContext(ctx, `INSERT INTO authors(id,name,lastFirst,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, name, lastFirst(name), libraryID, now, now); err != nil {
 				return false, err
 			}
+			created = true
 		} else if err != nil {
 			return false, err
 		}
@@ -450,24 +559,22 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 		if _, err := tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, id, now); err != nil {
 			return false, err
 		}
-		changed = true
-	}
-	for key, id := range current {
-		if keep[key] {
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=? AND authorId=?`, bookID, id); err != nil {
+		payload, err := authorPayload(ctx, tx, id, created, authorBookCount(ctx, tx, id))
+		if err != nil {
 			return false, err
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM authors WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookAuthors WHERE authorId=?)`, id, id); err != nil {
-			return false, err
+		out.authorsAdded = append(out.authorsAdded, filterdata.Named{ID: id, Name: name})
+		if created {
+			out.events = append(out.events, syncEvent{"author_added", payload})
+		} else {
+			out.events = append(out.events, syncEvent{"author_updated", payload})
 		}
 		changed = true
 	}
 	return changed, nil
 }
 
-func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, libraryID string, raw json.RawMessage, prefixes []string) (bool, error) {
+func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, libraryID string, raw json.RawMessage, prefixes []string, out *mediaSync) (bool, error) {
 	var incoming []map[string]any
 	if json.Unmarshal(raw, &incoming) != nil {
 		return false, nil
@@ -556,6 +663,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 		if _, err := tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, linkID, bookID, id, seq, now); err != nil {
 			return false, err
 		}
+		out.seriesAdded = append(out.seriesAdded, filterdata.Named{ID: id, Name: name})
 		changed = true
 	}
 	for key, row := range current {
@@ -565,9 +673,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 		if _, err := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=? AND seriesId=?`, bookID, row.id); err != nil {
 			return false, err
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM series WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookSeries WHERE seriesId=?)`, row.id, row.id); err != nil {
-			return false, err
-		}
+		out.seriesRemoved = append(out.seriesRemoved, row.id)
 		changed = true
 	}
 	return changed, nil

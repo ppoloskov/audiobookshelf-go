@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"github.com/fsnotify/fsnotify"
@@ -46,6 +47,10 @@ type Scanner struct {
 	watchCancel        context.CancelFunc
 	podcastFeedFetcher func(context.Context, string) ([]map[string]any, error)
 	items              items.Reader
+	// filters is the shared library filter data cache the scanner patches
+	// (nil when the item reader has none).
+	filters      *filterdata.Cache
+	filterLoader filterdata.Provider
 }
 
 func New(db *sql.DB, cfg config.Config, emit EmitFunc, itemReader items.Reader) (*Scanner, error) {
@@ -55,7 +60,11 @@ func New(db *sql.DB, cfg config.Config, emit EmitFunc, itemReader items.Reader) 
 	if itemReader == nil {
 		return nil, errors.New("scanner: item reader is nil")
 	}
-	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), items: itemReader}, nil
+	s := &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), items: itemReader}
+	if provider, ok := itemReader.(filterdata.Provider); ok {
+		s.filterLoader, s.filters = provider, provider.FilterCache()
+	}
+	return s, nil
 }
 
 func (s *Scanner) Scan(ctx context.Context, libraryID string) (Result, error) {
@@ -148,12 +157,14 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	if n.updated {
 		result.Updated = 1
 		if s.emit != nil {
-			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil {
+			if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil {
 				s.emit("*", "item_updated", item)
 			}
 		}
 	}
-	if err := s.cleanupAssociations(ctx, libraryID); err != nil {
+	tally := &scanTally{}
+	tally.merge(n)
+	if err := s.finalizeScan(ctx, libraryID, tally); err != nil {
 		return result, err
 	}
 	result.Canceled = ctx.Err() != nil
@@ -233,7 +244,27 @@ func (s *Scanner) scan(ctx context.Context, libraryID string, force bool) (Resul
 		result.Canceled = true
 	}
 	s.finishScanTask(task, result, err)
+	s.resetIssuesFilterData(ctx, libraryID) // LibraryController.js:1272
 	return result, err
+}
+
+// ensureFilterData loads the library's filter data when not cached, as every
+// upstream scan does before it reads authors and series.
+func (s *Scanner) ensureFilterData(ctx context.Context, libraryID, mediaType string) {
+	if s.filterLoader != nil {
+		_ = s.filterLoader.EnsureFilterData(ctx, libraryID, mediaType)
+	}
+}
+
+// resetIssuesFilterData is Database.resetLibraryIssuesFilterData.
+func (s *Scanner) resetIssuesFilterData(ctx context.Context, libraryID string) {
+	if s.filters == nil || !s.filters.Has(libraryID) {
+		return
+	}
+	var n int
+	if s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID).Scan(&n) == nil {
+		s.filters.SetNumIssues(libraryID, n)
+	}
 }
 
 func (s *Scanner) startScanTask(ctx context.Context, libraryID string) map[string]any {
@@ -250,6 +281,12 @@ func (s *Scanner) startScanTask(ctx context.Context, libraryID string) map[strin
 		for key, value := range task {
 			startSnapshot[key] = value
 		}
+		// finishScanTask adds scanResults to the nested data map.
+		startData := make(map[string]any)
+		for key, value := range task["data"].(map[string]any) {
+			startData[key] = value
+		}
+		startSnapshot["data"] = startData
 		s.emit("*", "task_started", startSnapshot)
 	}
 	return task
@@ -258,7 +295,9 @@ func (s *Scanner) startScanTask(ctx context.Context, libraryID string) map[strin
 func (s *Scanner) finishScanTask(task map[string]any, result Result, err error) {
 	task["isFinished"] = true
 	task["finishedAt"] = time.Now().UnixMilli()
-	task["data"].(map[string]any)["scanResults"] = map[string]any{"added": result.Added, "updated": result.Updated, "missing": result.Missing}
+	started, _ := task["startedAt"].(int64)
+	elapsed := time.Now().UnixMilli() - started
+	task["data"].(map[string]any)["scanResults"] = map[string]any{"added": result.Added, "updated": result.Updated, "missing": result.Missing, "elapsed": elapsed, "text": scanResultsText(result, elapsed)}
 	if err != nil {
 		task["isFailed"] = true
 		task["error"] = "Failed"
@@ -274,6 +313,54 @@ func (s *Scanner) finishScanTask(task map[string]any, result Result, err error) 
 	if s.emit != nil {
 		s.emit("*", "task_finished", task)
 	}
+}
+
+// scanResultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).
+func scanResultsText(r Result, elapsedMs int64) string {
+	var parts []string
+	if r.Added > 0 {
+		parts = append(parts, fmt.Sprintf("%d added", r.Added))
+	}
+	if r.Updated > 0 {
+		parts = append(parts, fmt.Sprintf("%d updated", r.Updated))
+	}
+	if r.Missing > 0 {
+		parts = append(parts, fmt.Sprintf("%d missing", r.Missing))
+	}
+	changes := "No changes needed"
+	if len(parts) > 0 {
+		changes = strings.Join(parts, ", ")
+	}
+	return fmt.Sprintf("%s (%s)", changes, elapsedPretty(float64(elapsedMs)/1000))
+}
+
+// elapsedPretty is server/utils/index.js:92-120 for the ranges a scan reaches.
+func elapsedPretty(seconds float64) string {
+	if seconds > 0 && seconds < 1 {
+		return fmt.Sprintf("%d ms", int(seconds*1000))
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("%d sec", int(seconds))
+	}
+	minutes := int(seconds / 60)
+	if minutes < 70 {
+		return fmt.Sprintf("%d min", minutes)
+	}
+	hours := minutes / 60
+	minutes -= hours * 60
+	days := hours / 24
+	hours -= days * 24
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%d d", days))
+	}
+	if hours > 0 || (days > 0 && minutes > 0) {
+		parts = append(parts, fmt.Sprintf("%d hr", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%d min", minutes))
+	}
+	return strings.Join(parts, " ")
 }
 
 func (s *Scanner) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
@@ -416,33 +503,40 @@ func (s *Scanner) Start(ctx context.Context) error {
 		reset()
 		return err
 	}
-	rootToID := make(map[string]string)
+	fw := newFSWatcher(watchCtx, s)
+	type rootRef struct{ libraryID string }
+	rootToLibrary := make(map[string]rootRef)
+	addDirs := func(root, from string) error {
+		return filepath.WalkDir(from, func(p string, d os.DirEntry, e error) error {
+			if e != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if p != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
+					return filepath.SkipDir
+				}
+				if addErr := watcher.Add(p); addErr != nil && !errors.Is(addErr, os.ErrNotExist) {
+					return addErr
+				}
+			}
+			return nil
+		})
+	}
 	for _, lib := range libraries {
-		for _, root := range lib.roots {
-			root = filepath.Clean(root)
-			rootToID[root] = lib.id
-			if !lib.disabled {
-				walkErr := filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
-					if e != nil {
-						return nil
-					}
-					if d.IsDir() {
-						if p != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
-							return filepath.SkipDir
-						}
-						if addErr := watcher.Add(p); addErr != nil && !errors.Is(addErr, os.ErrNotExist) {
-							return addErr
-						}
-					}
-					return nil
-				})
-				if walkErr != nil {
+		if !lib.disabled {
+			watch := &libraryWatch{id: lib.id, name: lib.name}
+			for _, f := range lib.folders {
+				root := filepath.Clean(f.path)
+				watch.folders = append(watch.folders, watchedFolder{id: f.id, path: filepath.ToSlash(root)})
+				rootToLibrary[root] = rootRef{lib.id}
+				if walkErr := addDirs(root, root); walkErr != nil {
 					_ = watcher.Close()
 					cronJobs.Stop()
 					reset()
 					return fmt.Errorf("scanner: watch %q: %w", root, walkErr)
 				}
 			}
+			fw.libraries[lib.id] = watch
 		}
 		if strings.TrimSpace(lib.cron) != "" {
 			id := lib.id
@@ -455,49 +549,57 @@ func (s *Scanner) Start(ctx context.Context) error {
 		}
 	}
 	cronJobs.Start()
+	libraryOf := func(p string) (string, string) {
+		for root, ref := range rootToLibrary {
+			if p == root || strings.HasPrefix(p, root+string(os.PathSeparator)) {
+				return ref.libraryID, root
+			}
+		}
+		return "", ""
+	}
 	go func() {
 		defer watcher.Close()
 		defer cronJobs.Stop()
-		timers := map[string]*time.Timer{}
+		defer fw.stop()
 		for {
 			select {
 			case <-watchCtx.Done():
-				for _, timer := range timers {
-					timer.Stop()
-				}
 				return
 			case ev, ok := <-watcher.Events:
 				if !ok {
 					return
 				}
-				if ev.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Remove|fsnotify.Rename) == 0 {
+				libraryID, root := libraryOf(ev.Name)
+				if libraryID == "" {
 					continue
 				}
-				if ev.Op&fsnotify.Create != 0 {
+				posix := filepath.ToSlash(ev.Name)
+				switch {
+				case ev.Op&fsnotify.Create != 0:
+					// Files already inside a directory that appeared before its
+					// watch was registered produce no events of their own.
 					if st, statErr := os.Stat(ev.Name); statErr == nil && st.IsDir() {
+						_ = addDirs(root, ev.Name)
 						_ = filepath.WalkDir(ev.Name, func(p string, d os.DirEntry, e error) error {
 							if e != nil {
 								return nil
 							}
 							if d.IsDir() {
-								if strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir" {
+								if p != ev.Name && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
 									return filepath.SkipDir
 								}
-								_ = watcher.Add(p)
+								return nil
 							}
+							fw.onFile(libraryID, filepath.ToSlash(p), "added")
 							return nil
 						})
+					} else {
+						fw.onFile(libraryID, posix, "added")
 					}
-				}
-				dir := filepath.Dir(ev.Name)
-				for root, id := range rootToID {
-					if dir == root || strings.HasPrefix(dir, root+string(os.PathSeparator)) || ev.Name == root {
-						if timer := timers[id]; timer != nil {
-							timer.Stop()
-						}
-						timers[id] = time.AfterFunc(750*time.Millisecond, func() { _, _ = s.Scan(watchCtx, id) })
-						break
-					}
+				case ev.Op&(fsnotify.Remove|fsnotify.Rename) != 0:
+					// "change" (Write/Chmod) events are ignored, as upstream does
+					// (Watcher.js:64-66).
+					fw.onFile(libraryID, posix, "deleted")
 				}
 			case _, ok := <-watcher.Errors:
 				if !ok {
@@ -533,13 +635,13 @@ func (s *Scanner) Refresh(ctx context.Context) error {
 }
 
 type watchedLibrary struct {
-	id, cron string
-	disabled bool
-	roots    []string
+	id, name, cron string
+	disabled       bool
+	folders        []folder
 }
 
 func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,settings FROM libraries`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,settings FROM libraries`)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +649,7 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 	for rows.Next() {
 		var l watchedLibrary
 		var raw []byte
-		if err := rows.Scan(&l.id, &raw); err != nil {
+		if err := rows.Scan(&l.id, &l.name, &raw); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -571,9 +673,7 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range fs {
-			out[i].roots = append(out[i].roots, f.path)
-		}
+		out[i].folders = fs
 	}
 	return out, nil
 }
@@ -677,6 +777,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	if len(folders) == 0 {
 		return result, errors.New("scanner: library has no folders")
 	}
+	s.ensureFilterData(ctx, libraryID, l.mediaType)
 	groups := map[string]*group{}
 	for _, f := range folders {
 		root, err := filepath.Abs(filepath.Clean(f.path))
@@ -816,88 +917,104 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 			}
 		}
 	}
-	seen := map[string]bool{}
-	var addedItems, updatedItems []map[string]any
-	for _, g := range sortedGroups(groups) {
-		if err := ctx.Err(); err != nil {
+	existing, err := s.loadExistingItems(ctx, libraryID)
+	if err != nil {
+		return result, err
+	}
+	ordered := sortedGroups(groups)
+	byPath := make(map[string]*group, len(ordered))
+	for _, g := range ordered {
+		byPath[g.path] = g
+	}
+	consumed := map[*group]bool{}
+	tally := &scanTally{}
+	var updatedItems []map[string]any
+	emitUpdated := func() {
+		if len(updatedItems) > 0 && s.emit != nil {
+			s.emit("*", "items_updated", updatedItems)
+		}
+		updatedItems = nil
+	}
+	// Existing items first, in stored order, as LibraryScanner.scanLibrary does
+	// (LibraryScanner.js:156-224).
+	for _, ex := range existing {
+		if ctx.Err() != nil {
 			break
 		}
+		g := byPath[ex.path]
+		if g != nil && consumed[g] {
+			g = nil
+		}
+		if g == nil {
+			g = matchGroupByInode(ex, ordered, consumed)
+		}
+		if g == nil {
+			if l.mediaType == "podcast" {
+				if _, statErr := os.Stat(ex.path); statErr == nil {
+					continue
+				}
+			}
+			result.Missing++
+			if !ex.missing {
+				now := nowDB()
+				if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=?,lastScan=?,lastScanVersion=? WHERE id=?`, now, now, "2.37.2", ex.id); e != nil {
+					return result, e
+				}
+				if item, e := s.items.ItemJSON(ctx, ex.id, true); e == nil {
+					updatedItems = append(updatedItems, item)
+				}
+			}
+		} else {
+			consumed[g] = true
+			g.existingID = ex.id
+			n, e := s.importGroup(ctx, l, g, force)
+			if e != nil {
+				return result, e
+			}
+			tally.merge(n)
+			if n.updated {
+				result.Updated++
+				if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil {
+					updatedItems = append(updatedItems, item)
+				}
+			}
+		}
+		if len(updatedItems) == 10 {
+			emitUpdated()
+		}
+	}
+	emitUpdated()
+
+	// Then new items.
+	var addedItems []map[string]any
+	for _, g := range ordered {
+		if consumed[g] {
+			continue
+		}
+		if ctx.Err() != nil {
+			break
+		}
+		g.brandNew = true
 		n, e := s.importGroup(ctx, l, g, force)
 		if e != nil {
 			return result, e
 		}
-		seen[n.id] = true
+		tally.merge(n)
 		if n.added {
 			result.Added++
 			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil {
 				addedItems = append(addedItems, item)
 			}
-		} else if n.updated {
-			result.Updated++
-			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil {
-				updatedItems = append(updatedItems, item)
-			}
+		}
+		if len(addedItems) == 10 && s.emit != nil {
+			s.emit("*", "items_added", addedItems)
+			addedItems = nil
 		}
 	}
-	if s.emit != nil {
-		emitChunks := func(event string, items []map[string]any) {
-			for len(items) > 0 {
-				n := 10
-				if len(items) < n {
-					n = len(items)
-				}
-				s.emit("*", event, items[:n])
-				items = items[n:]
-			}
-		}
-		emitChunks("items_added", addedItems)
-		emitChunks("items_updated", updatedItems)
+	if len(addedItems) > 0 && s.emit != nil {
+		s.emit("*", "items_added", addedItems)
 	}
 	if ctx.Err() == nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id,path FROM libraryItems WHERE libraryId=? AND isFile=0`, libraryID)
-		if err != nil {
-			return result, err
-		}
-		type old struct{ id, path string }
-		var olds []old
-		for rows.Next() {
-			var o old
-			if e := rows.Scan(&o.id, &o.path); e != nil {
-				rows.Close()
-				return result, e
-			}
-			olds = append(olds, o)
-		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return result, err
-		}
-		rows.Close()
-		for _, o := range olds {
-			if seen[o.id] {
-				continue
-			}
-			if l.mediaType == "podcast" {
-				var exists bool
-				if _, statErr := os.Stat(o.path); statErr == nil {
-					exists = true
-				}
-				if exists {
-					continue
-				}
-			}
-			result.Missing++
-			var missing int
-			if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(isMissing,0) FROM libraryItems WHERE id=?`, o.id).Scan(&missing); err != nil {
-				return result, err
-			}
-			if missing == 0 {
-				now := nowDB()
-				if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=?,lastScan=?,lastScanVersion=? WHERE id=?`, now, now, "2.37.2", o.id); e != nil {
-					return result, e
-				}
-			}
-		}
 		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, nowDB(), "2.37.2", libraryID)
 		if err != nil {
 			return result, err
@@ -921,71 +1038,161 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 				return result, err
 			}
 		}
-		if err := s.cleanupAssociations(ctx, libraryID); err != nil {
+		if err := s.finalizeScan(ctx, libraryID, tally); err != nil {
 			return result, err
 		}
 	}
 	return result, nil
 }
 
-func (s *Scanner) cleanupAssociations(ctx context.Context, libraryID string) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id FROM authors WHERE libraryId=? AND COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.authorId=authors.id)`, libraryID)
+// scanTally collects what the per-item imports changed so the scan can emit
+// one authors_num_books_updated and remove emptied authors/series at the end.
+type scanTally struct {
+	authorsChanged, authorsRemoved, seriesRemoved []string
+}
+
+func (t *scanTally) merge(n imported) {
+	t.authorsChanged = append(t.authorsChanged, n.authorsChanged...)
+	t.authorsRemoved = append(t.authorsRemoved, n.authorsRemoved...)
+	t.seriesRemoved = append(t.seriesRemoved, n.seriesRemoved...)
+}
+
+type existingItem struct {
+	id, path, ino string
+	missing       bool
+	files         []byte
+}
+
+// loadExistingItems returns the library's stored items in rowid order. The
+// upstream query has no ORDER BY, so its order is whatever index SQLite picks;
+// on the pinned stack that is insertion order.
+func (s *Scanner) loadExistingItems(ctx context.Context, libraryID string) ([]existingItem, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,path,COALESCE(ino,''),COALESCE(isMissing,0),libraryFiles FROM libraryItems WHERE libraryId=? ORDER BY rowid`, libraryID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var authors []string
+	defer rows.Close()
+	var out []existingItem
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
+		var e existingItem
+		var missing int
+		if err := rows.Scan(&e.id, &e.path, &e.ino, &missing, &e.files); err != nil {
+			return nil, err
+		}
+		e.missing = missing != 0
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func groupInodes(g *group) []string {
+	var inos []string
+	if info, err := os.Stat(g.path); err == nil {
+		inos = append(inos, inode(info))
+	}
+	for _, f := range g.files {
+		inos = append(inos, inode(f.info))
+	}
+	for _, f := range g.companions {
+		inos = append(inos, inode(f.info))
+	}
+	return inos
+}
+
+// matchGroupByInode finds the unclaimed scanned group a stored item moved to
+// (LibraryScanner.js:171-178).
+func matchGroupByInode(ex existingItem, groups []*group, consumed map[*group]bool) *group {
+	var stored []map[string]any
+	_ = json.Unmarshal(ex.files, &stored)
+	for _, g := range groups {
+		if consumed[g] {
+			continue
+		}
+		inos := groupInodes(g)
+		if ex.ino != "" && containsString(inos, ex.ino) {
+			return g
+		}
+		for _, lf := range stored {
+			if lfIno, ok := lf["ino"].(string); ok && lfIno != "" && containsString(inos, lfIno) {
+				return g
+			}
+		}
+	}
+	return nil
+}
+
+// finalizeScan emits author book-count changes, then removes authors and
+// series that lost their last book during this scan
+// (LibraryItemScanner.js:84-93, BookScanner.js:908-1010).
+func (s *Scanner) finalizeScan(ctx context.Context, libraryID string, t *scanTally) error {
+	if ids := uniqueStrings(t.authorsChanged); len(ids) > 0 {
+		marks := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+		args := make([]any, len(ids))
+		for i, id := range ids {
+			args[i] = id
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT authorId,COUNT(id) FROM bookAuthors WHERE authorId IN (`+marks+`) GROUP BY authorId ORDER BY authorId`, args...)
+		if err != nil {
 			return err
 		}
-		authors = append(authors, id)
+		var authors []map[string]any
+		for rows.Next() {
+			var id string
+			var n int
+			if err := rows.Scan(&id, &n); err != nil {
+				rows.Close()
+				return err
+			}
+			authors = append(authors, map[string]any{"id": id, "numBooks": n})
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if len(authors) > 0 && s.emit != nil {
+			s.emit("*", "authors_num_books_updated", map[string]any{"libraryId": libraryID, "authors": authors})
+		}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	for _, id := range authors {
+	for _, id := range uniqueStrings(t.authorsRemoved) {
+		var n int
+		_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM authors WHERE id=? AND COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.authorId=authors.id)`, id).Scan(&n)
+		if n == 0 {
+			continue
+		}
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, id); err != nil {
 			return err
 		}
+		s.filters.RemoveAuthor(libraryID, id)
 		if s.emit != nil {
 			s.emit("*", "author_removed", map[string]any{"id": id, "libraryId": libraryID})
 		}
 	}
-	rows, err = s.db.QueryContext(ctx, `SELECT id FROM series WHERE libraryId=? AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.seriesId=series.id)`, libraryID)
-	if err != nil {
-		return err
-	}
-	var series []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
+	for _, id := range uniqueStrings(t.seriesRemoved) {
+		var n int
+		_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM series WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.seriesId=series.id)`, id).Scan(&n)
+		if n == 0 {
+			continue
 		}
-		series = append(series, id)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	for _, id := range series {
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM series WHERE id=?`, id); err != nil {
 			return err
 		}
+		s.filters.RemoveSeries(libraryID, id)
 		if s.emit != nil {
 			s.emit("*", "series_removed", map[string]any{"id": id, "libraryId": libraryID})
 		}
 	}
 	return nil
+}
+
+func uniqueStrings(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range in {
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func mustRel(root, p string) string { r, _ := filepath.Rel(root, p); return r }

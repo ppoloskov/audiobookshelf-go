@@ -167,10 +167,11 @@ func TestScanEmitsChunkedExpandedItems(t *testing.T) {
 	}
 }
 
-// BookScanner.js:911-1009 and LibraryScanner.js:283-285: empty authors (no
-// books, no asin/description/imagePath) and empty series are removed after
-// import, emitting author_removed/series_removed with {id, libraryId}.
-func TestScanCleansOrphanedAuthorsAndSeries(t *testing.T) {
+// BookScanner.js:942-1010: only authors and series a rescan unlinked from a
+// book are removed (when empty and without asin/description/image), emitting
+// author_removed/series_removed with {id, libraryId}. Rows that were already
+// empty before the scan are left alone.
+func TestScanRemovesOnlyAuthorsUnlinkedByRescan(t *testing.T) {
 	root := t.TempDir()
 	itemDir := filepath.Join(root, "Book")
 	if err := os.MkdirAll(itemDir, 0o755); err != nil {
@@ -180,7 +181,8 @@ func TestScanCleansOrphanedAuthorsAndSeries(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(itemDir, "track.mp3"), []byte("audio"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(itemDir, "metadata.json"), []byte(`{"title":"Real Title","authors":["Author A","Author B"]}`), 0o644); err != nil {
+	sidecar := filepath.Join(itemDir, "metadata.json")
+	if err := os.WriteFile(sidecar, []byte(`{"title":"Real Title","authors":["Author A","Author B"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
@@ -190,10 +192,6 @@ func TestScanCleansOrphanedAuthorsAndSeries(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Close)
-	// Seed orphans BEFORE the scan: cleanup removes authors/series this scan
-	// does not associate. A rescan of the same disk state legitimately
-	// re-adds the sidecar authors (upstream association handling is additive),
-	// so a join deleted after a scan is NOT an orphan-removal vector.
 	if _, err := db.Exec(`INSERT INTO authors(id,name,libraryId,createdAt,updatedAt) VALUES('orphan-author','Orphan Author','lib-1','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`); err != nil {
 		t.Fatal(err)
 	}
@@ -204,32 +202,33 @@ func TestScanCleansOrphanedAuthorsAndSeries(t *testing.T) {
 		t.Fatal(err)
 	}
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE name='Orphan Author'`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE name='Orphan Author'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("pre-existing empty author count=%d err=%v, want it kept", count, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM series WHERE id='empty-series'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("pre-existing empty series count=%d err=%v, want it kept", count, err)
+	}
+	if got := eventsNamed(events, "author_removed"); len(got) != 0 {
+		t.Fatalf("author_removed after first scan = %+v", got)
+	}
+
+	// Dropping Author B from the sidecar and rescanning unlinks and removes it.
+	if err := os.WriteFile(sidecar, []byte(`{"title":"Real Title","authors":["Author A"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if count != 0 {
-		t.Fatal("orphaned author was not removed by cleanup")
+	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+		t.Fatal(err)
 	}
-	var removed []capturedEvent
-	for _, e := range *events {
-		if e.event == "author_removed" {
-			removed = append(removed, e)
-		}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE name='Author B'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("unlinked author count=%d err=%v, want removed", count, err)
 	}
+	removed := eventsNamed(events, "author_removed")
 	if len(removed) != 1 {
 		t.Fatalf("author_removed events = %+v, want 1", removed)
 	}
 	payload, _ := removed[0].payload.(map[string]any)
 	if id, _ := payload["id"].(string); id == "" || payload["libraryId"] != "lib-1" {
 		t.Fatalf("author_removed payload = %v", payload)
-	}
-	seriesRemoved := eventsNamed(events, "series_removed")
-	if len(seriesRemoved) != 1 {
-		t.Fatalf("series_removed events = %+v, want 1", seriesRemoved)
-	}
-	seriesPayload, _ := seriesRemoved[0].payload.(map[string]any)
-	if seriesPayload["id"] != "empty-series" || seriesPayload["libraryId"] != "lib-1" {
-		t.Fatalf("series_removed payload = %v", seriesRemoved[0].payload)
 	}
 }
 

@@ -56,6 +56,9 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 }
 
 func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user store.User, libraryID, encodedID string, remove bool) {
+	// Narrator renames and removals patch the filter data upstream
+	// (LibraryController.js:1170,1214); reloading it keeps the same content.
+	defer h.filters.Invalidate(libraryID)
 	if !userCanAccessLibrary(user, libraryID) {
 		writeError(w, http.StatusForbidden, "")
 		return

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/filterdata"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -865,12 +866,36 @@ type Handler struct {
 	emit           emitFunc
 	libraryChanged func(libraryID string)
 	itemChanged    func(context.Context, string) error
+	filters        *filterdata.Cache
 }
 
 // New constructs a catalog handler. The emit callback is used for events from
 // catalog write routes.
 func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
-	return &Handler{db: db, cfg: cfg, emit: emit}
+	return &Handler{db: db, cfg: cfg, emit: emit, filters: filterdata.NewCache()}
+}
+
+// FilterCache exposes the library filter data cache to the scanner, which
+// patches it the way upstream's scanner does.
+func (h *Handler) FilterCache() *filterdata.Cache { return h.filters }
+
+// EnsureFilterData loads a library's filter data when none is cached, as
+// libraryFilters.getFilterData does at the start of every scan.
+func (h *Handler) EnsureFilterData(ctx context.Context, libraryID, mediaType string) error {
+	_, err := h.filterData(ctx, libraryID, mediaType)
+	return err
+}
+
+// resetIssues is Database.resetLibraryIssuesFilterData: it recounts missing or
+// invalid items into an existing cache entry and does nothing otherwise.
+func (h *Handler) resetIssues(ctx context.Context, libraryID string) {
+	if !h.filters.Has(libraryID) {
+		return
+	}
+	var n int
+	if h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID).Scan(&n) == nil {
+		h.filters.SetNumIssues(libraryID, n)
+	}
 }
 
 // SetLibraryChanged installs the scanner watcher refresh callback. It runs
@@ -906,10 +931,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		if len(parts) == 1 && parts[0] != "" {
 			if r.Method == http.MethodPatch {
 				h.updateLibrary(w, r, user, parts[0])
+				h.resetIssues(r.Context(), parts[0]) // LibraryController.js:513
 				return true
 			}
 			if r.Method == http.MethodDelete {
 				h.deleteLibrary(w, r, user, parts[0])
+				h.filters.Invalidate(parts[0]) // LibraryController.js:591
 				return true
 			}
 			if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -920,6 +947,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		}
 		if len(parts) == 2 && parts[0] != "" && parts[1] == "items" {
 			h.libraryItems(w, r, user, parts[0])
+			return true
+		}
+		if len(parts) == 2 && parts[0] != "" && parts[1] == "issues" && r.Method == http.MethodDelete {
+			h.removeLibraryItemsWithIssues(w, r, user, parts[0])
 			return true
 		}
 		if len(parts) == 2 && parts[0] != "" && parts[1] == "stats" {
@@ -1417,7 +1448,23 @@ func (h *Handler) largestItems(ctx context.Context, id, table string) ([]map[str
 	return out, rows.Err()
 }
 
+// filterData serves the cached entry while it is fresh and otherwise reloads
+// it (libraryFilters.js:449-466).
 func (h *Handler) filterData(ctx context.Context, libraryID, mediaType string) (map[string]any, error) {
+	if cached, ok := h.filters.Fresh(libraryID); ok {
+		return cached.Map()
+	}
+	built, err := h.buildFilterData(ctx, libraryID, mediaType)
+	if err != nil {
+		return nil, err
+	}
+	if data, e := filterdata.FromMap(built); e == nil {
+		h.filters.Store(libraryID, data)
+	}
+	return built, nil
+}
+
+func (h *Handler) buildFilterData(ctx context.Context, libraryID, mediaType string) (map[string]any, error) {
 	sets := map[string]map[string]struct{}{"genres": {}, "tags": {}, "narrators": {}, "languages": {}, "publishers": {}, "publishedDecades": {}}
 	data := map[string]any{"authors": []any{}, "genres": []string{}, "tags": []string{}, "series": []any{}, "narrators": []string{}, "languages": []string{}, "publishers": []string{}, "publishedDecades": []string{}, "bookCount": 0, "authorCount": 0, "seriesCount": 0, "podcastCount": 0, "numIssues": 0, "loadedAt": time.Now().UnixMilli()}
 	if mediaType == "book" {

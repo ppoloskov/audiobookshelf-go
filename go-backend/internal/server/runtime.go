@@ -332,6 +332,11 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rt.adminops.Handle(w, withPath(r, path), user) {
+		if !isGet(r) {
+			// Tag, genre and author edits patch upstream's filter data cache in
+			// place; reloading it on the next read yields the same content.
+			rt.catalog.FilterCache().Invalidate("")
+		}
 		return
 	}
 	if rt.notifications.Handle(w, withPath(r, path), user) {

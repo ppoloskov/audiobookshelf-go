@@ -601,12 +601,13 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	}
 	// First-scan authors are announced by author_added; BookScanner.js:225-245
 	// does not add them to the count-changed set.
-	if len(events) != 5 || events[0].name != "task_started" || events[1].scope != "*" || events[1].name != "author_added" || events[2].scope != "*" || events[2].name != "series_added" || events[3].name != "items_added" || events[3].scope != "*" || events[4].name != "task_finished" {
+	// No series_added: BookScanner creates series silently (only the old Scanner.js:316 path emits it).
+	if len(events) != 4 || events[0].name != "task_started" || events[1].scope != "*" || events[1].name != "author_added" || events[2].name != "items_added" || events[2].scope != "*" || events[3].name != "task_finished" {
 		t.Fatalf("source-scoped metadata events = %+v", events)
 	}
-	addedItems, ok := events[3].payload.([]map[string]any)
+	addedItems, ok := events[2].payload.([]map[string]any)
 	if !ok || len(addedItems) != 1 || addedItems[0]["id"] == nil || addedItems[0]["path"] == nil || addedItems[0]["mediaType"] != "book" {
-		t.Fatalf("expanded items_added payload = %#v", events[3].payload)
+		t.Fatalf("expanded items_added payload = %#v", events[2].payload)
 	}
 	mediaRaw, _ := json.Marshal(addedItems[0]["media"])
 	var media map[string]any
@@ -1018,10 +1019,10 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 		t.Fatal(err)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE id='orphan'`).Scan(&n); err != nil || n != 0 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE id='orphan'`).Scan(&n); err != nil || n != 1 {
 		t.Fatalf("orphan count=%d err=%v", n, err)
 	}
-	if err := db.QueryRow(`SELECT COUNT(*) FROM series WHERE id='empty-series'`).Scan(&n); err != nil || n != 0 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM series WHERE id='empty-series'`).Scan(&n); err != nil || n != 1 {
 		t.Fatalf("empty series count=%d err=%v", n, err)
 	}
 	var healthyID string
@@ -1050,8 +1051,10 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 			}
 		}
 	}
-	if !removed {
-		t.Fatal("author_removed with orphan id/libraryId not emitted")
+	// Only authors a rescan unlinked are removed (BookScanner.js:942-1010); an
+	// author that was already empty before the scan is left alone.
+	if removed {
+		t.Fatal("pre-existing empty author must not be removed by a scan")
 	}
 	if newAuthorCountUpdate {
 		// The only author is created during this initial scan; upstream emits
@@ -1639,6 +1642,9 @@ func TestWatcherDiscoversNewNestedFoldersAndCloseStopsIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	delay, poll := watcherPendingDelay, watcherFilePoll
+	watcherPendingDelay, watcherFilePoll = 300*time.Millisecond, 100*time.Millisecond
+	defer func() { watcherPendingDelay, watcherFilePoll = delay, poll }()
 	if err := s.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}

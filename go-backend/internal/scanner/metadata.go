@@ -340,7 +340,7 @@ func recordStoredSidecar(ctx context.Context, db *sql.DB, itemID, itemPath, meta
 	if err != nil {
 		return err
 	}
-	mtime, ctime, birthtime := statTimes(dirInfo)
+	mtime, ctime, birthtime := statTimes(itemPath, dirInfo)
 	_, err = db.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,size=?,mtime=?,ctime=?,birthtime=?,updatedAt=? WHERE id=?`, string(raw), size, timeString(mtime), timeString(ctime), timeString(birthtime), now, itemID)
 	return err
 }

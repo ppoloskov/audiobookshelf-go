@@ -41,6 +41,11 @@ type group struct {
 	files      []file
 	companions []file
 	isFile     bool
+	// existingID is set by the library scan once it matched this group to a
+	// stored item (path, then inode); empty means look it up.
+	existingID string
+	// brandNew marks groups the library scan found no stored item for.
+	brandNew bool
 }
 
 // bookMetadata mirrors the metadata keys supported by the v2.37.2 metadata.json
@@ -61,6 +66,11 @@ type seriesMetadata struct {
 type imported struct {
 	id             string
 	added, updated bool
+	// Per-scan bookkeeping the library scan finalizes once at the end
+	// (LibraryItemScanner.finalizeAuthorsAndSeriesFromScan).
+	authorsChanged, authorsRemoved, seriesRemoved []string
+	// scannedAudio are audio files appended to an existing book by this scan.
+	scannedAudio []string
 }
 
 func groupKey(root, p, mediaType string) string {
@@ -115,23 +125,35 @@ func sortedGroups(m map[string]*group) []*group {
 func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bool) (imported, error) {
 	var oldID, oldMediaID, oldPath, oldRel, oldIno, oldMediaType string
 	var oldFiles []byte
-	err := s.db.QueryRowContext(ctx, `SELECT id,COALESCE(mediaId,''),path,relPath,COALESCE(ino,''),COALESCE(mediaType,''),libraryFiles FROM libraryItems WHERE libraryId=? AND path=?`, l.id, g.path).Scan(&oldID, &oldMediaID, &oldPath, &oldRel, &oldIno, &oldMediaType, &oldFiles)
+	var oldMtime, oldCtime, oldBirthtime string
+	var oldMissing int
+	const existingColumns = `id,COALESCE(mediaId,''),path,relPath,COALESCE(ino,''),COALESCE(mediaType,''),libraryFiles,COALESCE(mtime,''),COALESCE(ctime,''),COALESCE(birthtime,''),COALESCE(isMissing,0)`
+	var err error
+	if g.brandNew {
+		err = sql.ErrNoRows
+	} else if g.existingID != "" {
+		err = s.db.QueryRowContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE id=?`, g.existingID).Scan(&oldID, &oldMediaID, &oldPath, &oldRel, &oldIno, &oldMediaType, &oldFiles, &oldMtime, &oldCtime, &oldBirthtime, &oldMissing)
+	} else {
+		err = s.db.QueryRowContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE libraryId=? AND path=?`, l.id, g.path).Scan(&oldID, &oldMediaID, &oldPath, &oldRel, &oldIno, &oldMediaType, &oldFiles, &oldMtime, &oldCtime, &oldBirthtime, &oldMissing)
+	}
 	// Upstream prefers exact path, then item inode, then item inode against its
 	// own library-file inodes. The reciprocal file-to-item-inode fallback only
 	// applies to single-file items; this grouped scanner deliberately omits it.
-	if err == sql.ErrNoRows {
-		rows, queryErr := s.db.QueryContext(ctx, `SELECT id,COALESCE(mediaId,''),path,relPath,COALESCE(ino,''),COALESCE(mediaType,''),libraryFiles FROM libraryItems WHERE libraryId=?`, l.id)
+	if err == sql.ErrNoRows && !g.brandNew {
+		rows, queryErr := s.db.QueryContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE libraryId=? ORDER BY rowid`, l.id)
 		if queryErr != nil {
 			return imported{}, queryErr
 		}
 		type candidate struct {
 			id, mediaID, path, rel, ino, mediaType string
 			files                                  []byte
+			mtime, ctime, birthtime                string
+			missing                                int
 		}
 		var candidates []candidate
 		for rows.Next() {
 			var c candidate
-			if queryErr = rows.Scan(&c.id, &c.mediaID, &c.path, &c.rel, &c.ino, &c.mediaType, &c.files); queryErr != nil {
+			if queryErr = rows.Scan(&c.id, &c.mediaID, &c.path, &c.rel, &c.ino, &c.mediaType, &c.files, &c.mtime, &c.ctime, &c.birthtime, &c.missing); queryErr != nil {
 				rows.Close()
 				return imported{}, queryErr
 			}
@@ -171,6 +193,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 			}
 			if match {
 				oldID, oldMediaID, oldPath, oldRel, oldIno, oldMediaType, oldFiles = c.id, c.mediaID, c.path, c.rel, c.ino, c.mediaType, c.files
+				oldMtime, oldCtime, oldBirthtime, oldMissing = c.mtime, c.ctime, c.birthtime, c.missing
 				err = nil
 				break
 			}
@@ -191,16 +214,22 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		mediaID = uuid.NewString()
 	}
 	relatedFiles := append(append([]file(nil), g.files...), g.companions...)
-	filesMeta := make([]map[string]any, 0, len(relatedFiles))
+	var storedFiles, oldAudio []map[string]any
+	var scannedNew []string
+	if !added {
+		storedFiles = parseStoredLibraryFiles(oldFiles)
+		oldAudio = s.loadStoredAudio(ctx, oldMediaID)
+	}
+	fileDiff := mergeLibraryFiles(storedFiles, relatedFiles, g.path, nowMillis())
+	filesMeta := fileDiff.files
+	touchedFiles := fileDiff.touchedPaths()
 	audio := make([]map[string]any, 0, len(g.files))
 	chapters := []map[string]any{}
 	duration := 0.0
-	size := int64(0)
+	size := libraryFileSize(filesMeta)
 	var itemIno string
 	newest := time.Time{}
 	for _, f := range relatedFiles {
-		filesMeta = append(filesMeta, makeFileMeta(g.path, f))
-		size += f.info.Size()
 		if f.info.ModTime().After(newest) {
 			newest = f.info.ModTime()
 		}
@@ -235,6 +264,15 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		if itemIno == "" {
 			itemIno = inode(f.info)
 		}
+		if !added && !touchedFiles[f.path] {
+			// Unchanged audio files keep their stored entry untouched, as
+			// BookScanner.rescanExistingBookLibraryItem only rescans added or
+			// modified files (BookScanner.js:68-96).
+			if prior := findStoredAudio(oldAudio, f.path, inode(f.info)); prior != nil {
+				audio = append(audio, prior)
+				continue
+			}
+		}
 		fileMeta := makeFileMeta(g.path, f)
 		flat, _ := fileMeta["metadata"].(map[string]any)
 		ino, _ := fileMeta["ino"].(string)
@@ -247,21 +285,17 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		if err != nil || af == nil {
 			continue
 		}
+		now := nowMillis()
+		af["addedAt"], af["updatedAt"] = now, now
 		if !added {
-			if prior, unchanged := s.priorAudioEntry(oldMediaID, f.path, inode(f.info), ms(f.info.ModTime())); prior != nil {
-				af["addedAt"] = prior["addedAt"]
-				if unchanged {
-					af["updatedAt"] = prior["updatedAt"]
-				}
-				// AudioFile.updateFromScan retains the established entry identity
+			if prior := findStoredAudio(oldAudio, f.path, inode(f.info)); prior != nil {
+				// AudioFile.updateFromScan keeps the established entry identity
 				// (AudioFile.js:171-196); scanned data replaces probe fields.
+				// addedAt, updatedAt and manuallyVerified are ignored keys there.
+				af["addedAt"], af["updatedAt"], af["manuallyVerified"] = prior["addedAt"], prior["updatedAt"], prior["manuallyVerified"]
 			} else {
-				af["addedAt"] = ms(f.info.ModTime())
-				af["updatedAt"] = ms(f.info.ModTime())
+				scannedNew = append(scannedNew, f.path)
 			}
-		} else {
-			af["addedAt"] = ms(f.info.ModTime())
-			af["updatedAt"] = ms(f.info.ModTime())
 		}
 		audio = append(audio, af)
 	}
@@ -287,7 +321,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 	now := nowDB()
 	mtime, ctime, birthtime := timeString(newest), timeString(newest), timeString(newest)
 	if itemStatErr == nil {
-		mt, ct, bt := statTimes(itemInfo)
+		mt, ct, bt := statTimes(g.path, itemInfo)
 		mtime, ctime, birthtime = timeString(mt), timeString(ct), timeString(bt)
 	}
 	if mtime == "" {
@@ -309,14 +343,38 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		series = ""
 	}
 	fj, _ := json.Marshal(filesMeta)
+	pathChanged := !added && (oldPath != g.path || oldRel != rel)
+	// Upstream rescans media only for forced scans, library file changes or a
+	// path change (LibraryScanner.js:200).
+	rescanMedia := added || force || fileDiff.changed() || pathChanged
+	statChanged := !added && !(sameDBTime(oldMtime, mtime) && sameDBTime(oldCtime, ctime) && sameDBTime(oldBirthtime, birthtime))
+	itemChanged := !added && (fileDiff.changed() || statChanged || pathChanged || oldIno != itemIno || oldMediaType != l.mediaType || oldMissing != 0)
+
+	coverPath, coverChanged := "", false
+	hasEbook := false
+	if l.mediaType != "podcast" {
+		var oldCover sql.NullString
+		var ebookRaw sql.NullString
+		if !added {
+			_ = s.db.QueryRowContext(ctx, `SELECT coverPath,ebookFile FROM books WHERE id=?`, mediaID).Scan(&oldCover, &ebookRaw)
+			hasEbook = ebookRaw.Valid && ebookRaw.String != "" && ebookRaw.String != "null"
+		}
+		coverPath, coverChanged = nextCoverPath(oldCover.String, filesMeta, fileDiff)
+	}
+	// A book with neither audio nor an ebook file is missing (BookScanner.js:405-417).
+	missing := !added && l.mediaType != "podcast" && len(audio) == 0 && !hasEbook
+	if missing && oldMissing == 0 {
+		itemChanged = true
+	}
+
 	var tx, txerr = s.db.BeginTx(ctx, nil)
 	if txerr != nil {
 		return imported{}, txerr
 	}
 	defer tx.Rollback()
-	var addedAuthors, addedSeries []map[string]any
+	var addedAuthors []map[string]any
 	var affectedAuthors []string
-	var existingAffectedAuthors []string
+	tally := &imported{}
 	if l.mediaType == "podcast" {
 		if added {
 			if _, err = tx.ExecContext(ctx, `INSERT INTO podcasts(id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,createdAt,updatedAt) VALUES(?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'episodic',0,0,'0 * * * *',?,0,3,NULL,'[]','[]',?,?)`, mediaID, title, now, now, now); err != nil {
@@ -352,66 +410,126 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		}
 	} else {
 		if added {
-			if _, err = tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,NULL,?,?,?,NULL,?,?,?, ?,?)`, mediaID, title, scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), duration, mustJSON(metadata.Narrators), mustJSON(audio), mustJSON(chapters), mustJSON(metadata.Tags), mustJSON(metadata.Genres), now, now); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?,NULL,?,?,?, ?,?)`, mediaID, title, scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), nullableString(coverPath), duration, mustJSON(metadata.Narrators), mustJSON(audio), mustJSON(chapters), mustJSON(metadata.Tags), mustJSON(metadata.Genres), now, now); err != nil {
 				return imported{}, err
 			}
-		} else if force || !sameBytes(oldFiles, fj) {
-			if _, err = tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, nullableString(metadata.Title), scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), duration, mustJSON(audio), mustJSON(chapters), mustJSON(metadata.Tags), mustJSON(metadata.Tags), mustJSON(metadata.Genres), mustJSON(metadata.Genres), mustJSON(metadata.Narrators), mustJSON(metadata.Narrators), now, mediaID); err != nil {
+		} else if rescanMedia {
+			if _, err = tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,coverPath=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, nullableString(metadata.Title), scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), duration, mustJSON(audio), mustJSON(chapters), nullableString(coverPath), mustJSON(metadata.Tags), mustJSON(metadata.Tags), mustJSON(metadata.Genres), mustJSON(metadata.Genres), mustJSON(metadata.Narrators), mustJSON(metadata.Narrators), now, mediaID); err != nil {
 				return imported{}, err
 			}
 		}
-		// BookScanner update reconciliation only adds scanned associations; it
-		// does not delete joins absent from metadata (BookScanner.js:85-147).
-		for _, authorName := range authors {
-			authorName = strings.TrimSpace(authorName)
-			if authorName == "" {
-				continue
-			}
-			var aid string
-			if err = tx.QueryRowContext(ctx, `SELECT id FROM authors WHERE name=? AND libraryId=? LIMIT 1`, authorName, l.id).Scan(&aid); err == sql.ErrNoRows {
-				aid = uuid.NewString()
-				authorCreated := time.Now().UTC().UnixMilli() + int64(len(affectedAuthors))
-				authorTime := dbtime.Format(time.UnixMilli(authorCreated))
-				if _, err = tx.ExecContext(ctx, `INSERT INTO authors(id,name,lastFirst,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, aid, authorName, lastFirst(authorName), l.id, authorTime, authorTime); err != nil {
-					return imported{}, err
+		if added || rescanMedia {
+			// Authors: add the scanned ones; on rescans drop links no longer in
+			// the scanned metadata (BookScanner.js:114-143).
+			for _, authorName := range authors {
+				authorName = strings.TrimSpace(authorName)
+				if authorName == "" {
+					continue
 				}
-				addedAuthors = append(addedAuthors, map[string]any{"id": aid, "asin": nil, "name": authorName, "description": nil, "imagePath": nil, "libraryId": l.id, "addedAt": time.Now().UnixMilli(), "updatedAt": time.Now().UnixMilli()})
-			} else if err != nil {
-				return imported{}, err
+				var aid string
+				authorExisted := false
+				if err = tx.QueryRowContext(ctx, `SELECT id FROM authors WHERE name=? AND libraryId=? LIMIT 1`, authorName, l.id).Scan(&aid); err == sql.ErrNoRows {
+					aid = uuid.NewString()
+					authorCreated := time.Now().UTC().UnixMilli() + int64(len(affectedAuthors))
+					authorTime := dbtime.Format(time.UnixMilli(authorCreated))
+					if _, err = tx.ExecContext(ctx, `INSERT INTO authors(id,name,lastFirst,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, aid, authorName, lastFirst(authorName), l.id, authorTime, authorTime); err != nil {
+						return imported{}, err
+					}
+					// Sequelize toOldJSON() of a freshly created author leaves
+					// asin, description and imagePath undefined, so they are
+					// absent from the event (Author.js:177-188, BookScanner.js:604).
+					addedAuthors = append(addedAuthors, map[string]any{"id": aid, "name": authorName, "libraryId": l.id, "addedAt": authorCreated, "updatedAt": authorCreated})
+				} else if err != nil {
+					return imported{}, err
+				} else {
+					authorExisted = true
+				}
+				affectedAuthors = append(affectedAuthors, aid)
+				linkResult, linkErr := tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookAuthors WHERE bookId=? AND authorId=?)`, uuid.NewString(), mediaID, aid, now, mediaID, aid)
+				if linkErr != nil {
+					return imported{}, linkErr
+				}
+				if added || !authorExisted {
+					s.filters.AddAuthor(l.id, authorName, aid) // BookScanner.js:241,602
+				}
+				// Only a link added to an existing author changes its book count
+				// (BookScanner.js:75, 211-219).
+				if linked, _ := linkResult.RowsAffected(); linked > 0 && authorExisted {
+					tally.authorsChanged = append(tally.authorsChanged, aid)
+				}
 			}
-			affectedAuthors = append(affectedAuthors, aid)
-			linkResult, linkErr := tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookAuthors WHERE bookId=? AND authorId=?)`, uuid.NewString(), mediaID, aid, now, mediaID, aid)
-			if linkErr != nil {
-				return imported{}, linkErr
-			}
-			if rows, rowsErr := linkResult.RowsAffected(); rowsErr == nil && rows > 0 {
-				// Only an association change on an existing book updates an
-				// existing author's count; new authors use author_added instead.
-				var wasCreated bool
-				for _, payload := range addedAuthors {
-					if payload["id"] == aid {
-						wasCreated = true
-						break
+			if !added && len(authors) > 0 {
+				rows, qerr := tx.QueryContext(ctx, `SELECT ba.authorId,a.name FROM bookAuthors ba JOIN authors a ON a.id=ba.authorId WHERE ba.bookId=?`, mediaID)
+				if qerr != nil {
+					return imported{}, qerr
+				}
+				var drop []string
+				for rows.Next() {
+					var aid, name string
+					if e := rows.Scan(&aid, &name); e != nil {
+						rows.Close()
+						return imported{}, e
+					}
+					if !containsString(authors, name) {
+						drop = append(drop, aid)
 					}
 				}
-				if !wasCreated {
-					existingAffectedAuthors = append(existingAffectedAuthors, aid)
+				rows.Close()
+				for _, aid := range drop {
+					if _, e := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=? AND authorId=?`, mediaID, aid); e != nil {
+						return imported{}, e
+					}
+					tally.authorsChanged = append(tally.authorsChanged, aid)
+					tally.authorsRemoved = append(tally.authorsRemoved, aid)
 				}
 			}
-		}
-		if series != "" {
-			var sid string
-			if err = tx.QueryRowContext(ctx, `SELECT id FROM series WHERE name=? AND libraryId=? LIMIT 1`, series, l.id).Scan(&sid); err == sql.ErrNoRows {
-				sid = uuid.NewString()
-				if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, sid, series, scannerTitleSortKey(series, l.sortingPrefixes), l.id, now, now); err != nil {
+			if series != "" {
+				var sid string
+				seriesCreated := false
+				if err = tx.QueryRowContext(ctx, `SELECT id FROM series WHERE name=? AND libraryId=? LIMIT 1`, series, l.id).Scan(&sid); err == sql.ErrNoRows {
+					seriesCreated = true
+					sid = uuid.NewString()
+					if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, sid, series, scannerTitleSortKey(series, l.sortingPrefixes), l.id, now, now); err != nil {
+						return imported{}, err
+					}
+				} else if err != nil {
 					return imported{}, err
 				}
-				addedSeries = append(addedSeries, map[string]any{"id": sid, "name": series, "nameIgnorePrefix": series, "description": nil, "addedAt": time.Now().UnixMilli(), "updatedAt": time.Now().UnixMilli(), "libraryId": l.id})
-			} else if err != nil {
-				return imported{}, err
+				if _, err = tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) SELECT ?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookSeries WHERE bookId=? AND seriesId=?)`, uuid.NewString(), mediaID, sid, seq, now, mediaID, sid); err != nil {
+					return imported{}, err
+				}
+				if added || seriesCreated {
+					s.filters.AddSeries(l.id, series, sid) // BookScanner.js:279,595
+				}
+				if !added && seq != "" {
+					if _, err = tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=? AND COALESCE(sequence,'')<>?`, seq, mediaID, sid, seq); err != nil {
+						return imported{}, err
+					}
+				}
 			}
-			if _, err = tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) SELECT ?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookSeries WHERE bookId=? AND seriesId=?)`, uuid.NewString(), mediaID, sid, seq, now, mediaID, sid); err != nil {
-				return imported{}, err
+			if !added && series != "" {
+				rows, qerr := tx.QueryContext(ctx, `SELECT bs.seriesId,s.name FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId=?`, mediaID)
+				if qerr != nil {
+					return imported{}, qerr
+				}
+				var drop []string
+				for rows.Next() {
+					var sid, name string
+					if e := rows.Scan(&sid, &name); e != nil {
+						rows.Close()
+						return imported{}, e
+					}
+					if name != series {
+						drop = append(drop, sid)
+					}
+				}
+				rows.Close()
+				for _, sid := range drop {
+					if _, e := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=? AND seriesId=?`, mediaID, sid); e != nil {
+						return imported{}, e
+					}
+					tally.seriesRemoved = append(tally.seriesRemoved, sid)
+				}
 			}
 		}
 	}
@@ -421,8 +539,8 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		if err != nil {
 			return imported{}, err
 		}
-	} else if force || oldPath != g.path || oldRel != rel || oldIno != itemIno || oldMediaType != l.mediaType || !sameBytes(oldFiles, fj) {
-		_, err = tx.ExecContext(ctx, `UPDATE libraryItems SET path=?,ino=?,libraryFolderId=?,relPath=?,isFile=?,mtime=?,ctime=?,birthtime=?,updatedAt=?,lastScan=?,lastScanVersion=?,isMissing=0,size=?,libraryFiles=?,title=?,titleIgnorePrefix=?,authorNamesFirstLast=?,authorNamesLastFirst=? WHERE id=?`, g.path, itemIno, g.folder.id, rel, boolInt(g.isFile), mtime, ctime, birthtime, now, now, "2.37.2", size, string(fj), title, scannerTitleSortKey(title, l.sortingPrefixes), author, lastFirst(author), itemID)
+	} else if itemChanged || force {
+		_, err = tx.ExecContext(ctx, `UPDATE libraryItems SET path=?,ino=?,libraryFolderId=?,relPath=?,isFile=?,mtime=?,ctime=?,birthtime=?,updatedAt=?,lastScan=?,lastScanVersion=?,isMissing=?,size=?,libraryFiles=?,title=?,titleIgnorePrefix=?,authorNamesFirstLast=?,authorNamesLastFirst=? WHERE id=?`, g.path, itemIno, g.folder.id, rel, boolInt(g.isFile), mtime, ctime, birthtime, now, now, "2.37.2", boolInt(missing), size, string(fj), title, scannerTitleSortKey(title, l.sortingPrefixes), author, lastFirst(author), itemID)
 		if err != nil {
 			return imported{}, err
 		}
@@ -432,7 +550,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 	if err = tx.Commit(); err != nil {
 		return imported{}, err
 	}
-	if l.mediaType == "book" && (added || force || !sameBytes(oldFiles, fj)) {
+	if l.mediaType == "book" && (added || (rescanMedia && (fileDiff.changed() || coverChanged))) {
 		var settings map[string]any
 		settings = map[string]any{"storeMetadataWithItem": false, "metadataFileFormat": "json"}
 		var settingsRaw []byte
@@ -443,65 +561,89 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 			_ = WriteItemMetadata(ctx, s.db, s.cfg, itemID, item, settings)
 		}
 	}
+	if added && l.mediaType == "book" {
+		s.filters.AddNarrators(l.id, metadata.Narrators)
+		s.filters.AddGenres(l.id, metadata.Genres)
+		s.filters.AddTags(l.id, metadata.Tags)
+		s.filters.AddPublisher(l.id, metadata.Publisher)
+		s.filters.AddLanguage(l.id, metadata.Language)
+		if year, e := strconv.Atoi(metadata.PublishedYear); e == nil && year != 0 {
+			s.filters.AddPublishedDecade(l.id, strconv.Itoa(year/10*10))
+		}
+	}
 	if s.emit != nil {
 		for _, payload := range addedAuthors {
 			s.emit("*", "author_added", payload)
 		}
-		for _, payload := range addedSeries {
-			s.emit("*", "series_added", payload)
-		}
-		if len(existingAffectedAuthors) > 0 {
-			counts := make([]map[string]any, 0, len(existingAffectedAuthors))
-			for _, aid := range existingAffectedAuthors {
-				var n int
-				if s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bookAuthors WHERE authorId=?`, aid).Scan(&n) == nil && n > 0 {
-					counts = append(counts, map[string]any{"id": aid, "numBooks": n})
+	}
+	tally.scannedAudio = scannedNew
+	tally.id, tally.added, tally.updated = itemID, added, itemChanged || (!added && coverChanged)
+	return *tally, nil
+}
+
+// sameDBTime reports whether a stored SQLite DATETIME and a freshly formatted
+// one denote the same millisecond.
+func sameDBTime(stored, fresh string) bool {
+	if stored == fresh {
+		return true
+	}
+	a, okA := dbtime.Parse(stored)
+	b, okB := dbtime.Parse(fresh)
+	return okA && okB && a.UnixMilli() == b.UnixMilli()
+}
+
+// nextCoverPath applies BookScanner's cover rules for a new or rescanned book:
+// a removed cover file clears the cover, a renamed/moved one follows the file,
+// and an unset cover takes the folder image named "cover" or the first image
+// (BookScanner.js:106-161).
+func nextCoverPath(current string, files []map[string]any, diff libraryFileDiff) (string, bool) {
+	cover := current
+	if cover != "" {
+		for _, removed := range diff.removed {
+			meta, _ := removed["metadata"].(map[string]any)
+			if meta["path"] == cover && removed["fileType"] == "image" {
+				if _, err := os.Stat(cover); err != nil {
+					cover = ""
 				}
 			}
-			if len(counts) > 0 {
-				s.emit("*", "authors_num_books_updated", map[string]any{"libraryId": l.id, "authors": counts})
+		}
+	}
+	if cover != "" {
+		for newPath, oldPath := range diff.oldPathOf {
+			if oldPath == cover && newPath != cover && libraryFileHasPath(files, newPath) && fileTypeForExtension(filepath.Ext(newPath)) == "image" {
+				cover = newPath
 			}
 		}
 	}
-	_ = s.cleanupAssociations(ctx, l.id)
-	return imported{id: itemID, added: added, updated: !added && (!sameBytes(oldFiles, fj) || oldPath != g.path || oldRel != rel || oldIno != itemIno || oldMediaType != l.mediaType)}, nil
+	if cover == "" {
+		cover = pickCoverPath(files)
+	}
+	return cover, cover != current
 }
 
-func (s *Scanner) priorAudioEntry(mediaID, currentPath, currentIno string, mtime int64) (map[string]any, bool) {
+// loadStoredAudio reads the book's persisted audioFiles.
+func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []map[string]any {
 	var raw []byte
-	if s.db.QueryRow(`SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {
-		return nil, false
+	if mediaID == "" || s.db.QueryRowContext(ctx, `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {
+		return nil
 	}
-	var entries []map[string]any
-	if json.Unmarshal(raw, &entries) != nil {
-		return nil, false
-	}
-	// BookScanner.js:97-101 matches a changed file by path, then inode.
+	return parseStoredLibraryFiles(raw)
+}
+
+// findStoredAudio matches a scanned file to a stored audio entry by path, then
+// inode (BookScanner.js:97-101).
+func findStoredAudio(entries []map[string]any, currentPath, currentIno string) map[string]any {
 	for _, entry := range entries {
 		if meta, ok := entry["metadata"].(map[string]any); ok && meta["path"] == currentPath {
-			return entry, audioEntryMtime(entry) == mtime
+			return entry
 		}
 	}
 	for _, entry := range entries {
-		if entry["ino"] == currentIno {
-			return entry, audioEntryMtime(entry) == mtime
+		if currentIno != "" && entry["ino"] == currentIno {
+			return entry
 		}
 	}
-	return nil, false
-}
-
-func audioEntryMtime(entry map[string]any) int64 {
-	meta, _ := entry["metadata"].(map[string]any)
-	m, _ := meta["metadata"].(map[string]any)
-	switch value := m["mtimeMs"].(type) {
-	case float64:
-		return int64(value)
-	case int64:
-		return value
-	case int:
-		return int64(value)
-	}
-	return -1
+	return nil
 }
 
 // titleIgnorePrefix mirrors server/utils/index.js:182-202; prefixes are
@@ -1003,27 +1145,30 @@ func makeFileMeta(root string, f file) map[string]any {
 		rel, _ = filepath.Rel(root, f.path)
 	}
 	ext := strings.ToLower(filepath.Ext(f.path))
-	mtime, ctime, birthtime := statTimes(f.info)
+	mtime, ctime, birthtime := statTimes(f.path, f.info)
 	return map[string]any{"ino": inode(f.info), "metadata": map[string]any{"filename": filepath.Base(f.path), "ext": ext, "path": f.path, "relPath": filepath.ToSlash(rel), "size": f.info.Size(), "mtimeMs": ms(mtime), "ctimeMs": ms(ctime), "birthtimeMs": ms(birthtime)}, "isSupplementary": nil, "addedAt": ms(mtime), "updatedAt": ms(mtime), "fileType": fileTypeForExtension(ext)}
 }
 
-func statTimes(info os.FileInfo) (mtime, ctime, birthtime time.Time) {
+func statTimes(path string, info os.FileInfo) (mtime, ctime, birthtime time.Time) {
 	mtime = info.ModTime()
 	ctime = statChangeTime(info)
-	birthtime = ctime
+	birthtime = statBirthTime(path, info)
 	return
 }
+
+// fileTypeForExtension mirrors LibraryFile.fileType over the extension lists in
+// server/utils/globals.js:2-6.
 func fileTypeForExtension(ext string) string {
 	switch strings.ToLower(ext) {
 	case ".mp3", ".m4b", ".m4a", ".flac", ".opus", ".ogg", ".oga", ".mp4", ".aac", ".wma", ".aiff", ".aif", ".wav", ".webm", ".webma", ".mka", ".awb", ".caf", ".mpg", ".mpeg":
 		return "audio"
-	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff":
+	case ".jpg", ".jpeg", ".png", ".webp":
 		return "image"
-	case ".epub", ".pdf", ".mobi", ".azw", ".azw3", ".cbz", ".cbr":
+	case ".epub", ".pdf", ".mobi", ".azw3", ".cbz", ".cbr":
 		return "ebook"
-	case ".json", ".opf", ".nfo", ".abs":
+	case ".opf", ".abs", ".xml", ".json":
 		return "metadata"
-	case ".txt":
+	case ".txt", ".nfo":
 		return "text"
 	default:
 		return "unknown"
@@ -1111,16 +1256,17 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 	}
 	var audio *probeStream
 	var embedded any
+	defaultAudio := false
 	for i := range res.Streams {
 		s := &res.Streams[i]
-		if s.Type == "video" && s.Disposition.AttachedPic == 1 {
+		// MediaProbeData.js:46 takes the first video stream's codec as the
+		// embedded cover, attached picture or not (prober.js:253).
+		if s.Type == "video" && embedded == nil {
 			embedded = s.Codec
 		}
-		if s.Type == "audio" && (audio == nil || s.Disposition.Default == 1) {
+		if s.Type == "audio" && (audio == nil || (s.Disposition.Default == 1 && !defaultAudio)) {
 			audio = s
-			if s.Disposition.Default == 1 {
-				break
-			}
+			defaultAudio = defaultAudio || s.Disposition.Default == 1
 		}
 	}
 	if audio == nil {
@@ -1554,7 +1700,16 @@ func parseSeriesValue(s string) (string, string) {
 	}
 	return s, ""
 }
-func mustJSON(v any) string      { b, _ := json.Marshal(v); return string(b) }
+
+// mustJSON encodes a value for a JSON column; a nil slice is an empty list, not
+// the JSON null that json.Marshal would produce.
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	if string(b) == "null" {
+		return "[]"
+	}
+	return string(b)
+}
 func sameBytes(a, b []byte) bool { return string(a) == string(b) }
 func lastFirst(s string) string {
 	p := strings.Fields(s)

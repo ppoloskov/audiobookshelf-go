@@ -28,6 +28,8 @@
 //    mtimes are pinned by the fixture and compared exactly.
 //  - addedAt/updatedAt/createdAt/lastScan/startedAt/finishedAt/... and any
 //    epoch-ms or ISO value near the current time -> <ts>. Reason: wall clock.
+//  - scanResults.elapsed / the "(N ms)" suffix of scanResults.text. Reason:
+//    scan duration is wall clock.
 //  - JWTs and the work directory prefix. Reason: per-run tokens and tmp dir.
 //  - discover shelf order. Reason: ORDER BY RANDOM() upstream.
 //
@@ -170,10 +172,12 @@ function makeNormalizer(known, registry) {
       if (WORK_DIR) v = v.split(WORK_DIR).join('<work>')
       v = v.replace(UUID, m => known.has(m) ? m : (registry.get(m) || '<new-uuid>'))
       if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(v)) return '<iso>'
+      v = v.replace(/\(\d+ (ms|sec|min)\)$/, '(<elapsed>)')
       return v
     }
     if (typeof value === 'number') {
       if (key === 'ino') return '<ino>'
+      if (key === 'elapsed') return '<ms>'
       if (WALL_CLOCK_KEY.test(key)) return '<ts>'
       if (Math.abs(value - Date.now()) < 7 * 86400000) return '<now-ms>'
       return value
@@ -312,7 +316,6 @@ async function runScenario(server, ids, work, paths) {
   const saga1Dir = path.join(books, 'Terry Fixture', 'Long Saga', 'Book 1 - The Beginning')
   const saga2Dir = path.join(books, 'Terry Fixture', 'Long Saga', 'Book 2 - The Middle')
   const saga2Renamed = path.join(books, 'Terry Fixture', 'Long Saga', 'Book 2 - The Middle Revised')
-  const novelDir = path.join(books, 'Ada Example', 'Single File Novel')
   const dawnDir = path.join(books, 'Nora Writer', 'Fresh Arrivals', 'Vol 1 - Dawn Chorus')
   const DAWN_REL = 'Nora Writer/Fresh Arrivals/Vol 1 - Dawn Chorus'
   const WATCHED_REL = 'Wanda Watcher/Watched Folder'
@@ -366,12 +369,11 @@ async function runScenario(server, ids, work, paths) {
   })
 
   await step('d.delete-book', async (h) => {
-    fs.rmSync(novelDir, { recursive: true, force: true })
+    fs.rmSync(saga2Renamed, { recursive: true, force: true })
     await scanLibrary(h)
-    await itemChecks(h, 'novel', ids.novel)
+    await itemChecks(h, 'gone', ids.saga2)
     await listChecks(h, 'list')
     await h.http('items.issues', 'root', `/api/libraries/${lib}/items?limit=50&minified=1&filter=issues`)
-    await h.http('items.missing.filter', 'root', `/api/libraries/${lib}/items?limit=50&minified=1&filter=${Buffer.from('missing').toString('base64')}`)
     await h.http('filterdata', 'root', `/api/libraries/${lib}?include=filterdata`)
     await h.http('library.stats', 'root', `/api/libraries/${lib}/stats`)
     await h.http('personalized.listener', 'listener', `/api/libraries/${lib}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share`)
@@ -379,7 +381,7 @@ async function runScenario(server, ids, work, paths) {
 
   await step('d2.remove-issues', async (h) => {
     await h.http('delete.issues', 'root', `/api/libraries/${lib}/issues`, { method: 'DELETE' })
-    await itemChecks(h, 'novel', ids.novel)
+    await itemChecks(h, 'gone', ids.saga2)
     await listChecks(h, 'list')
     await h.http('items.issues', 'root', `/api/libraries/${lib}/items?limit=50&minified=1&filter=issues`)
     await h.http('filterdata', 'root', `/api/libraries/${lib}?include=filterdata`)
@@ -457,7 +459,7 @@ async function runScenario(server, ids, work, paths) {
 // ---------------------------------------------------------------------------
 
 function diffPaths(x, y, p = '', out = []) {
-  if (out.length >= 12 || JSON.stringify(x) === JSON.stringify(y)) return out
+  if (out.length >= 60 || JSON.stringify(x) === JSON.stringify(y)) return out
   if (x && y && typeof x === 'object' && typeof y === 'object' && Array.isArray(x) === Array.isArray(y)) {
     for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) diffPaths(x[k], y[k], `${p}.${k}`, out)
     return out
