@@ -234,10 +234,12 @@ func (h *Handler) hideSingleBookSeries(ctx context.Context, libraryID string) (b
 }
 
 // subseriesBooks loads Series.findByPk(seriesId) with its books, their
-// library items and all of their series (libraryHelpers.js:119-143). Books
-// come in bookSeries(seriesId, bookId) index order and each book's series in
-// bookSeries(bookId, seriesId) order, the orders SQLite returns for
-// Sequelize's join without an ORDER BY.
+// library items and all of their series (libraryHelpers.js:119-143).
+// Sequelize's single join has no ORDER BY; SQLite's plan for it materializes a
+// scan of bookSeries for the books and another for each book's series (checked
+// with EXPLAIN QUERY PLAN and QUERY_LOGGING=log on a trial installation), so
+// both come out in bookSeries rowid order, i.e. the order the links were
+// created. That input order decides every tie in the later stable sort.
 func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subseriesBook, bool, error) {
 	var exists int
 	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM series WHERE id=?`, seriesID).Scan(&exists); err != nil {
@@ -248,7 +250,7 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 	}
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id, li.libraryId, li.size, li.authorNamesFirstLast, li.authorNamesLastFirst, b.id, b.title, b.titleIgnorePrefix, b.duration
 		FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book'
-		WHERE bs.seriesId=? ORDER BY bs.bookId`, seriesID)
+		WHERE bs.seriesId=? ORDER BY bs.rowid`, seriesID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -277,7 +279,7 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 			return nil, false, err
 		}
 		b.access = itemapi.MediaAccess{ID: media.ID, Explicit: media.Metadata.Explicit, Tags: media.Tags}
-		seriesRows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId=? ORDER BY bs.seriesId`, bookIDs[i])
+		seriesRows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId=? ORDER BY bs.rowid`, bookIDs[i])
 		if err != nil {
 			return nil, false, err
 		}

@@ -95,7 +95,7 @@ func subseriesFixture(t *testing.T) (*Handler, store.User) {
 		exec(`INSERT INTO books(id,title,titleIgnorePrefix,explicit,abridged,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,0,0,?,'[]','[]','null','[]','[]','[]',?,?)`, b.id, b.title, b.title, float64(100-i*10)+0.5, now, now)
 		exec(`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,size,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId,libraryFolderId) VALUES(?,?,?,?,?, 'book',0,0,0,'[]','{}',?,?,?,'','',?,?,'lib1','f1')`, "li"+b.id, "ino"+b.id, "/books/"+b.id, b.id, b.id, 10*(i+1), b.title, b.title, now, now)
 	}
-	exec(`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('m1','1','A','mega',?),('m2','2','B','mega',?),('m3','3','C','mega',?),('m4',NULL,'D','mega',?),('s1','1','A','sub',?),('s2','2','B','sub',?)`, now, now, now, now, now, now)
+	exec(`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('m1','1','A','mega',?),('m2','2','B','mega',?),('m4',NULL,'D','mega',?),('m3','3','C','mega',?),('s1','1','A','sub',?),('s2','2','B','sub',?)`, now, now, now, now, now, now)
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	return New(db, config.Config{}, nil), user
 }
@@ -176,6 +176,12 @@ func TestCollapseSubseriesFilteredPage(t *testing.T) {
 	// Non-title sorts put collapsed series after plain books, alphabetically.
 	if got, _, _ := order("&sort=media.duration&desc=1"); got != "liC,liD,liA" {
 		t.Errorf("duration desc = %s", got)
+	}
+	// A sort that cannot tell items apart keeps upstream's input order, the
+	// bookSeries rowid order of Sequelize's unordered join (D was linked
+	// before C although C sorts first by book id).
+	if got, _, _ := order("&sort=addedAt"); got != "liD,liC,liA" {
+		t.Errorf("addedAt (ties) = %s", got)
 	}
 	if got, _, sortBy := order("&sort=bogus"); got != "liA,liC,liD" || sortBy != nil {
 		t.Errorf("invalid sort = %s sortBy=%v", got, sortBy)
