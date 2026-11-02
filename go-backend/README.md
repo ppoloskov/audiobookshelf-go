@@ -76,6 +76,38 @@ on upstream, so use disposable copies. Source inventory tooling:
 `python3 go-backend/tools/source_inventory.py` (see
 [contracts/README.md](contracts/README.md)).
 
+## Docker image
+
+`Dockerfile.go` (repo root) builds the stock web client and the Go server into
+an alpine image with ffmpeg, tzdata and tini. The runtime contract matches the
+upstream image: `PORT=80`, `CONFIG_PATH=/config`, `METADATA_PATH=/metadata`,
+`SOURCE=docker`; the client lives in `/app/client/dist` (`ABS_GO_CLIENT_PATH`).
+The image has a `HEALTHCHECK` on `/healthcheck`. CI
+(`.github/workflows/docker-go.yml`) runs the Go checks and the upstream parity
+suites, then publishes `ghcr.io/<owner>/audiobookshelf-go` for `linux/amd64`
+and `linux/arm64` (`latest` from `master`, `sha-<short>`, version tags; pull
+requests build without pushing). Build locally with
+`docker build -f Dockerfile.go -t audiobookshelf-go .`.
+
+To switch an existing docker-compose install, back up `/config` (and ideally
+`/metadata`) first, stop the old container, then change only the image:
+
+```yaml
+services:
+  audiobookshelf:
+    image: ghcr.io/<owner>/audiobookshelf-go:latest   # was ghcr.io/advplyr/audiobookshelf
+    # ports and volumes unchanged: 13378:80, /config, /metadata, media folders
+```
+
+The existing database must already be at the pinned v2.37.2 migration level
+(run the TypeScript v2.37.2 image once first); the Go server refuses to start
+otherwise and never migrates it. To roll back,
+stop the container and set the image back to the TypeScript one, keeping the
+same volumes (restore the backup if you wrote data you want to discard).
+`ROUTER_BASE_PATH` defaults to `/audiobookshelf`, as upstream does; the root
+paths such as `/ping` and `/healthcheck` keep working, and the variable can be
+set or emptied exactly as for the TypeScript image.
+
 ## Known limits
 
 The remaining gaps and the next workstreams are listed in the product track of

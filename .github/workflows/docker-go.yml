@@ -1,0 +1,173 @@
+name: Build and Push Go Docker Image
+
+# Builds ghcr.io/<owner>/audiobookshelf-go: the stock web client served by the
+# Go server in go-backend/ (see Dockerfile.go). Pull requests build the image
+# but never push it.
+
+on:
+  push:
+    branches: [master]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CGO_ENABLED: '0'
+
+jobs:
+  verify:
+    name: Verify Go backend
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go-backend/go.mod
+          cache-dependency-path: go-backend/go.sum
+
+      - name: Build
+        working-directory: go-backend
+        run: go build ./...
+
+      - name: Vet
+        working-directory: go-backend
+        run: go vet ./...
+
+      - name: Test
+        working-directory: go-backend
+        run: go test ./...
+
+      - name: Architecture ratchet
+        working-directory: go-backend
+        run: go run ./tools/ratchet
+
+      - name: Enforce dependency boundaries
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.5.0
+          working-directory: go-backend
+          args: --config=../.golangci.yml --timeout=5m ./...
+
+      - name: Cross-compile linux/arm64
+        working-directory: go-backend
+        env:
+          GOOS: linux
+          GOARCH: arm64
+        run: go build -trimpath -ldflags "-s -w" -o /tmp/audiobookshelf-go-arm64 ./cmd/audiobookshelf-go
+
+  parity:
+    name: Upstream parity
+    needs: verify
+    runs-on: ubuntu-24.04
+    env:
+      SSRF_REQUEST_FILTER_WHITELIST: 127.0.0.1
+      ABS_PARITY_REQUIRE_SOCKETIO: '1'
+      NODE_PATH: /tmp/abs-parity-node-deps/node_modules
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go-backend/go.mod
+          cache-dependency-path: go-backend/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install pinned upstream dependencies
+        run: npm ci
+
+      - name: Build upstream Node server (behavior oracle)
+        run: npm run build:server
+
+      - name: Install JavaScript Socket.IO v4 probe client
+        run: npm install --prefix /tmp/abs-parity-node-deps --no-save socket.io-client@4.8.1
+
+      - name: Core differential (Node vs Go on fresh fixtures)
+        env:
+          TMPDIR: ${{ runner.temp }}/abs-parity-work
+        run: |
+          mkdir -p "$TMPDIR"
+          node go-backend/tools/parity/suite-runner.cjs core
+
+      - name: In-place replacement trial
+        run: node go-backend/tools/parity/replacement-trial.cjs --work "$RUNNER_TEMP/abs-replacement-work"
+
+      - name: Upload parity work directories and reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-work
+          path: |
+            ${{ runner.temp }}/abs-parity-work
+            ${{ runner.temp }}/abs-replacement-work
+          if-no-files-found: warn
+          retention-days: 7
+
+  image:
+    name: Build and push image
+    needs: [verify, parity]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/audiobookshelf-go
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=semver,pattern={{version}}
+            type=ref,event=pr
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ghcr
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.go
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
