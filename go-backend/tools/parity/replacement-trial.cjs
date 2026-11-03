@@ -26,6 +26,9 @@
 // Usage: node replacement-trial.cjs [--work DIR] [--go-bin PATH] [--reuse 1]
 // --reuse 1 skips media generation and seeding when DIR already holds a seeded
 // snapshot (faster iteration on Go fixes).
+// --rollback-only runs only step 4: seeds a fresh installation, has Go write
+// (login, progress, bookmark, offline session sync), and checks the rollback.
+// It is the CI rollback job; --reuse does not apply to it.
 // Exit non-zero when any journey step differs or the rollback check fails.
 
 const fs = require('node:fs')
@@ -1301,8 +1304,77 @@ async function seedInstallation(work) {
   return { dirs, ids }
 }
 
+// Rollback check: upstream boots on the Go-written installation in dirs and
+// must read back the progress and bookmarks Go wrote. goMe is Go's GET /api/me
+// taken after the Go writes; the result is compared with upstream's.
+async function checkRollback(dirs, work, goMe) {
+  let up = null
+  try {
+    up = await startUpstream(dirs, await freePort(), path.join(work, 'rollback-upstream.log'))
+    const lt = (await loginAs(api(up), LISTENER)).accessToken
+    const me = await requestJSON(up.baseUrl, '/api/me', { token: lt })
+    const sessions = await requestJSON(up.baseUrl, '/api/me/listening-sessions?itemsPerPage=50&page=0', { token: lt })
+    const pick = (u) => (u?.mediaProgress || []).map(p => ({ id: p.libraryItemId, ep: p.episodeId || '', t: p.currentTime, f: p.isFinished, e: p.ebookLocation, h: p.hideFromContinueListening })).sort((a, b) => (a.id + a.ep).localeCompare(b.id + b.ep))
+    const goView = pick(goMe.value)
+    const upView = pick(me.value)
+    return {
+      booted: true,
+      progressMatches: JSON.stringify(goView) === JSON.stringify(upView),
+      bookmarksMatch: JSON.stringify(goMe.value?.bookmarks?.map(b => [b.libraryItemId, b.time, b.title])) === JSON.stringify(me.value?.bookmarks?.map(b => [b.libraryItemId, b.time, b.title])),
+      sessionCount: sessions.value?.total, goView, upView
+    }
+  } catch (e) {
+    return { booted: false, error: e.message }
+  } finally {
+    if (up) await stop(up)
+  }
+}
+
+// --rollback-only: seed a fresh installation, let Go make the writes the
+// rollback has to read back (login, progress update, bookmark, offline session
+// sync), then boot upstream on the Go-written database. Runs no journey.
+async function rollbackOnly(goBin, work) {
+  const { dirs, ids } = await seedInstallation(work)
+  copyTree(path.join(work, 'snapshot'), path.join(work, 'install'))
+  const go = await startGo(goBin, dirs, await freePort(), path.join(work, 'rollback-go.log'))
+  let goMe, goSessions
+  try {
+    const call = api(go)
+    const token = (await loginAs(call, LISTENER)).accessToken
+    const now = Date.now()
+    const writes = [
+      ['progress', await call(`/api/me/progress/${ids.saga2}`, { method: 'PATCH', token, body: { currentTime: 15, duration: 30 } })],
+      ['bookmark', await call(`/api/me/item/${ids.saga1}/bookmark`, { method: 'POST', token, body: { time: 12, title: 'Rollback write' } })],
+      ['session', await call('/api/session/local', { method: 'POST', token, body: {
+        id: 'play_local_rollback0001', userId: ids.listener, libraryId: ids.library, libraryItemId: ids.saga1,
+        mediaType: 'book', mediaMetadata: {}, chapters: [], displayTitle: 'The Beginning', displayAuthor: 'Terry Fixture',
+        coverPath: null, duration: 60, playMethod: 3, mediaPlayer: 'exo-player', deviceInfo: ANDROID_DEVICE,
+        serverVersion: '2.37.2', date: '2026-01-05', dayOfWeek: 'Monday', timeListening: 10, startTime: 0,
+        currentTime: 10, startedAt: now - 10000, updatedAt: now
+      } })]
+    ]
+    for (const [name, res] of writes) if (res.status !== 200) throw new Error(`Go ${name} write: status ${res.status}: ${JSON.stringify(res.value)}`)
+    goMe = await call('/api/me', { token })
+    goSessions = await call('/api/me/listening-sessions?itemsPerPage=50&page=0', { token })
+  } finally {
+    await stop(go)
+  }
+  const rollback = await checkRollback(dirs, work, goMe)
+  const goSessionTotal = goSessions.value?.total
+  const sessionsMatch = rollback.booted && rollback.sessionCount === goSessionTotal
+  const ok = rollback.booted && rollback.progressMatches && rollback.bookmarksMatch && sessionsMatch
+  const report = { rollback, goSessionTotal, sessionsMatch }
+  fs.writeFileSync(path.join(work, 'rollback-report.json'), JSON.stringify(report, null, 2))
+  console.log(JSON.stringify(report, null, 2))
+  const verdict = (passed) => passed ? 'ok' : 'FAILED'
+  console.log(`\nrollback-only: upstream ${rollback.booted ? 'booted' : 'did not boot'}; progress ${verdict(rollback.progressMatches)}; bookmarks ${verdict(rollback.bookmarksMatch)}; sessions ${verdict(sessionsMatch)} (${goSessionTotal} rows); rollback ${verdict(ok)}`)
+  if (!ok) process.exitCode = 1
+}
+
 async function main() {
-  const args = parseArgs()
+  const rollbackOnlyMode = process.argv.includes('--rollback-only')
+  // parseArgs reads the word after each --flag as its value, so the boolean flag is removed first.
+  const args = parseArgs(process.argv.filter(a => a !== '--rollback-only'))
   const work = path.resolve(args.work || fs.mkdtempSync(path.join(os.tmpdir(), 'abs-replacement-')))
   const goBin = path.resolve(args['go-bin'] || path.join(ROOT, 'go-backend', 'audiobookshelf-go'))
   fs.mkdirSync(work, { recursive: true })
@@ -1310,6 +1382,10 @@ async function main() {
   if (!args['go-bin']) sh('go', ['build', '-o', goBin, './cmd/audiobookshelf-go'], { cwd: path.join(ROOT, 'go-backend'), env: { ...process.env, CGO_ENABLED: '0' } })
 
   WORK_DIR = work
+  if (rollbackOnlyMode) {
+    await rollbackOnly(goBin, work)
+    return
+  }
   const snapshot = path.join(work, 'snapshot')
   let dirs, ids
   if (args.reuse && fs.existsSync(path.join(work, 'ids.json'))) {
@@ -1352,26 +1428,7 @@ async function main() {
   Object.assign(goResults, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Rollback: upstream reopens the Go-written installation.
-  let rollback
-  try {
-    up = await startUpstream(dirs, await freePort(), path.join(work, 'rollback-upstream.log'))
-    const lt = (await loginAs(api(up), LISTENER)).accessToken
-    const me = await requestJSON(up.baseUrl, '/api/me', { token: lt })
-    const sessions = await requestJSON(up.baseUrl, '/api/me/listening-sessions?itemsPerPage=50&page=0', { token: lt })
-    const pick = (u) => (u?.mediaProgress || []).map(p => ({ id: p.libraryItemId, ep: p.episodeId || '', t: p.currentTime, f: p.isFinished, e: p.ebookLocation, h: p.hideFromContinueListening })).sort((a, b) => (a.id + a.ep).localeCompare(b.id + b.ep))
-    const goView = pick(goProgress.value)
-    const upView = pick(me.value)
-    rollback = {
-      booted: true,
-      progressMatches: JSON.stringify(goView) === JSON.stringify(upView),
-      bookmarksMatch: JSON.stringify(goProgress.value?.bookmarks?.map(b => [b.libraryItemId, b.time, b.title])) === JSON.stringify(me.value?.bookmarks?.map(b => [b.libraryItemId, b.time, b.title])),
-      sessionCount: sessions.value?.total, goView, upView
-    }
-  } catch (e) {
-    rollback = { booted: false, error: e.message }
-  } finally {
-    await stop(up)
-  }
+  const rollback = await checkRollback(dirs, work, goProgress)
 
   const unresolved = Object.entries(upstream).filter(([, v]) => v?.error).map(([k, v]) => `${k}: ${v.error}`)
   if (unresolved.length) throw new Error(`upstream journey steps could not run:\n${unresolved.join('\n')}`)
