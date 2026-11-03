@@ -208,7 +208,8 @@ metric rises. When a metric falls, lower the baseline in the same commit.
 Primary (simplification):
 
 - Handwritten Go lines, non-test, excluding generated files (`// Code
-  generated`). Baseline 44,326 at `768f131`.
+  generated`). Baseline at `4250b79`: 44,326 handwritten lines, complexity
+  total 10,961, 186 functions above 15.
 - Total and per-function cyclomatic complexity; functions above 15.
 - `map[string]any` and `[]any` uses in non-test code (1,003 and 313).
 
