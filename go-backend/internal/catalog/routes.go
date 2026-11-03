@@ -26,4 +26,8 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	mux.HandleFunc("GET /api/authors/{id}/image", h.authorImage)
 	mux.HandleFunc("POST /api/authors/{id}/image", h.authorUploadImage)
 	mux.HandleFunc("DELETE /api/authors/{id}/image", h.authorDeleteImage)
+
+	// server/routers/ApiRouter.js:228-229.
+	mux.HandleFunc("GET /api/series/{id}", h.seriesFindOne)
+	mux.HandleFunc("PATCH /api/series/{id}", h.seriesUpdate)
 }

@@ -905,6 +905,17 @@ func (h *Handler) titlePrefix(ctx context.Context, title string) string {
 	}
 	return catalogTitlePrefixAtEnd(title, prefixes)
 }
+
+// seriesPrefixFreeName is the nameIgnorePrefix of Series.toOldJSON
+// (Series.js:172): getTitlePrefixAtEnd of the name, not the stored column,
+// which a rename (PATCH /api/series/:id) leaves unchanged.
+func (h *Handler) seriesPrefixFreeName(ctx context.Context, name sql.NullString) any {
+	if !name.Valid {
+		return nil
+	}
+	return h.titlePrefix(ctx, name.String)
+}
+
 func catalogTitlePrefixAtEnd(title string, prefixes []string) string {
 	for _, prefix := range prefixes {
 		if len(title) > len(prefix) && strings.EqualFold(title[:len(prefix)], prefix) && title[len(prefix)] == ' ' {
@@ -2135,7 +2146,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		entry := map[string]any{"id": s.id, "name": nullString(s.name), "nameIgnorePrefix": nullString(s.nameIgnore), "description": nullString(s.description), "addedAt": deref(created), "updatedAt": deref(updated), "libraryId": s.libraryID}
+		entry := map[string]any{"id": s.id, "name": nullString(s.name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), s.name), "description": nullString(s.description), "addedAt": deref(created), "updatedAt": deref(updated), "libraryId": s.libraryID}
 		if sortBy == "totalDuration" && s.duration != 0 {
 			entry["totalDuration"] = s.duration
 		}
@@ -2252,7 +2263,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	payload := map[string]any{"id": seriesID, "name": nullString(name), "nameIgnorePrefix": nullString(nameIgnore), "description": nullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
+	payload := map[string]any{"id": seriesID, "name": nullString(name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), name), "description": nullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
 	if includeHas(r, "rssfeed") {
 		if feed, ok, e := h.feedMinified(r.Context(), "series", seriesID); e != nil {
 			logging.RequestError(r, "database read failed", e)

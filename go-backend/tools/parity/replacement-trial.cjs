@@ -799,6 +799,30 @@ function journeySteps(ids) {
   add('author.image.after.delete', null, AUTH(TERRY, '/image?width=200&format=jpeg'), { binary: 'bytes' })
   add('author.image.after.delete.raw', null, AUTH(TERRY, '/image?raw=1'), { binary: 'bytes' })
   add('author.final.list', R, `/api/libraries/${ids.library}/authors`)
+
+  // ---- Series: SeriesController.js findOne and update (the series page of the
+  // mobile apps). seriesList and the open series feed come from the sub-series
+  // and feed lifecycle steps above.
+  const SER = (name, suffix = '') => ctx => `/api/series/${seriesId(ctx, name)}${suffix}`
+  add('series.get.long', R, SER('Long Saga'))
+  add('series.get.long.progress', R, SER('Long Saga', '?include=progress'))
+  add('series.get.mega.progress.rss', R, SER('Mega Cycle', '?include=progress,rssfeed'))
+  add('series.get.mega.spaced', R, SER('Mega Cycle', '?include=%20progress%20,%20rssfeed%20,,'))
+  add('series.get.long.rss', R, SER('Long Saga', '?include=rssfeed'))
+  add('series.get.mega.listener', L, SER('Mega Cycle', '?include=progress'))
+  add('series.get.mega.finisher', 'finisher', SER('Mega Cycle', '?include=progress'))
+  add('series.get.anon', null, SER('Long Saga'))
+  add('series.get.missing', R, `/api/series/${ZERO_ID}`)
+  add('series.get.badid', R, '/api/series/not-a-uuid')
+  add('series.update.listener', L, SER('Long Saga'), { method: 'PATCH', body: { name: 'x' } })
+  add('series.update.empty', R, SER('Long Saga'), { method: 'PATCH', body: {} })
+  add('series.update.invalid', R, SER('Long Saga'), { method: 'PATCH', body: { name: 5, description: null, other: 'x' } })
+  add('series.update.missing', R, `/api/series/${ZERO_ID}`, { method: 'PATCH', body: { name: 'x' } })
+  add('series.update.rename', R, SER('Long Saga'), { method: 'PATCH', body: { name: 'The Long Saga Renamed', description: 'A saga in two parts.' }, events: 1 })
+  add('series.update.nochange', R, SER('Long Saga'), { method: 'PATCH', body: { name: 'The Long Saga Renamed', description: 'A saga in two parts.' } })
+  add('series.update.description', R, SER('Long Saga'), { method: 'PATCH', body: { description: '' }, events: 1 })
+  add('series.after.get', R, SER('Long Saga', '?include=progress,rssfeed'))
+  add('series.after.list', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
   return s
 }
 
@@ -1066,6 +1090,7 @@ function dumpRows(dbPath, ids) {
   }
   const out = {
     'db.authors': rows('SELECT * FROM authors ORDER BY name, createdAt'),
+    'db.series': rows('SELECT * FROM series ORDER BY name, createdAt'),
     'db.bookAuthors': rows('SELECT li.title AS title, a.name AS author FROM bookAuthors ba JOIN authors a ON a.id = ba.authorId JOIN libraryItems li ON li.mediaId = ba.bookId ORDER BY li.title, ba.createdAt, a.name'),
     'db.libraryItems.authorNames': rows('SELECT title, authorNamesFirstLast, authorNamesLastFirst FROM libraryItems ORDER BY title'),
     'fs.metadata.authors': listDir(path.join(metadataDir, 'authors')),
