@@ -133,6 +133,7 @@ func Boot(t testing.TB) *Install {
 			t.Errorf("contracttest: open database for the blob check: %v", err)
 			return
 		}
+		db.SetMaxOpenConns(1) // production uses one connection (tools/dbnest)
 		defer func() { _ = db.Close() }()
 		assertNoBlobText(t, db)
 	})
