@@ -407,12 +407,9 @@ func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
 }
 func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) {
+	// A missing asin is the same answer as an invalid one: TS findChapters turns the
+	// required-parameter ValidationError into the Invalid ASIN body with status 200.
 	asin := strings.ToUpper(r.URL.Query().Get("asin"))
-	if _, exists := r.URL.Query()["asin"]; !exists {
-		logging.RequestDebug(r, "responding 500: query parameter asin is missing")
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
-		return
-	}
 	if !validASIN(asin) {
 		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"}, httputil.Streamed())
 		return
