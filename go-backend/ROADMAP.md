@@ -184,7 +184,7 @@ L2, JWT issuing -> L1).
   - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
     shows the limit trips and resets.
 
-- [ ] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
+- [x] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
   - Files: `internal/auth/sanitize.go` (`SanitizeHTML`),
     `internal/catalog/handler.go` (`stripHTML`),
     `internal/providers/builtin_search.go` (`stripHTML`),

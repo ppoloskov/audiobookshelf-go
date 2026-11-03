@@ -33,6 +33,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
 	"github.com/robfig/cron/v3"
@@ -333,7 +334,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 		if v, exists := body[key]; exists {
 			if s, ok := v.(string); ok {
 				if (key == "description" || key == "subtitle") && s != "" {
-					s, _ = sanitizeHTML(s)
+					s = textclean.Sanitize(s)
 				}
 				old := store.NullString(episodeStringField(ep, key))
 				if old != s {
@@ -782,7 +783,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 		}
 	}
 	if desc, ok := vals["description"].(string); ok {
-		sanitized, _ := sanitizeHTML(desc)
+		sanitized := textclean.Sanitize(desc)
 		vals["description"] = sanitized
 	}
 	genres := stringArray(media["metadata"].(map[string]any)["genres"])

@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"html"
 	"io"
-	"net/url"
 	"strings"
 	"time"
 
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 
 	"golang.org/x/net/html/charset"
 )
@@ -120,7 +119,8 @@ func parseFeed(raw []byte, feedURL string) (map[string]any, error) {
 	if meta["image"] == "" {
 		meta["image"] = attr(child(channel, "image", "itunes"), "href")
 	}
-	meta["description"], meta["descriptionPlain"] = sanitizeHTML(firstChildText(channel, "description", ""))
+	channelDesc := firstChildText(channel, "description", "")
+	meta["description"], meta["descriptionPlain"] = textclean.Sanitize(channelDesc), textclean.Strip(channelDesc)
 	if atom := child(channel, "link", "http://www.w3.org/2005/Atom"); atom != nil && meta["feedUrl"] == "" {
 		meta["feedUrl"] = attr(atom, "href")
 	}
@@ -183,7 +183,8 @@ func parseEpisode(n *xmlNode) map[string]any {
 	if rawDesc == "" {
 		rawDesc = firstChildText(n, "description", "")
 	}
-	desc, plain := sanitizeHTML(strings.TrimSpace(rawDesc))
+	rawDesc = strings.TrimSpace(rawDesc)
+	desc, plain := textclean.Sanitize(rawDesc), textclean.Strip(rawDesc)
 	pubDate := firstChildText(n, "pubDate", "")
 	published := int64(0)
 	for _, layout := range []string{time.RFC1123Z, time.RFC1123, time.RFC822Z, time.RFC822, time.RFC3339, "Mon, 2 Jan 2006 15:04:05 MST"} {
@@ -249,139 +250,6 @@ func pscChapters(n *xmlNode, duration int) []map[string]any {
 		out = append(out, map[string]any{"id": len(out), "title": title, "start": start, "end": end})
 	}
 	return out
-}
-
-func sanitizeHTML(input string) (string, string) {
-	if input == "" {
-		return "", ""
-	}
-	root, err := parseHTML(input)
-	if err != nil {
-		return html.EscapeString(input), html.EscapeString(input)
-	}
-	var safe, plain strings.Builder
-	allowed := map[string]bool{"p": true, "ol": true, "ul": true, "li": true, "a": true, "strong": true, "em": true, "del": true, "br": true, "b": true, "i": true}
-	var walk func(*htmlNode, bool)
-	walk = func(n *htmlNode, skip bool) {
-		if n.tag == "script" || n.tag == "style" {
-			skip = true
-		}
-		if n.text != "" && !skip {
-			escaped := html.EscapeString(n.text)
-			safe.WriteString(escaped)
-			plain.WriteString(n.text)
-		}
-		if allowed[n.tag] && !skip {
-			safe.WriteString("<" + n.tag)
-			if n.tag == "a" {
-				for k, v := range n.attrs {
-					if k == "href" || k == "name" || k == "target" {
-						u, e := url.Parse(v)
-						if k != "href" || (e == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "mailto")) {
-							safe.WriteString(" " + k + `="` + html.EscapeString(v) + `"`)
-						}
-					}
-				}
-			}
-			safe.WriteString(">")
-		}
-		for _, c := range n.children {
-			walk(c, skip)
-		}
-		if allowed[n.tag] && n.tag != "br" && !skip {
-			safe.WriteString("</" + n.tag + ">")
-		}
-	}
-	for _, n := range root {
-		walk(n, false)
-	}
-	return safe.String(), strings.TrimSpace(plain.String())
-}
-
-type htmlNode struct {
-	tag, text string
-	attrs     map[string]string
-	children  []*htmlNode
-}
-
-func parseHTML(s string) ([]*htmlNode, error) {
-	// A small token parser keeps RSS text inert and preserves only the upstream
-	// sanitizer's safe inline/list tags.
-	type token struct {
-		tag, text string
-		attrs     map[string]string
-		end       bool
-	}
-	tokens := []token{}
-	for i := 0; i < len(s); {
-		if s[i] != '<' {
-			j := strings.IndexByte(s[i:], '<')
-			if j < 0 {
-				j = len(s) - i
-			}
-			tokens = append(tokens, token{text: html.UnescapeString(s[i : i+j])})
-			i += j
-			continue
-		}
-		j := strings.IndexByte(s[i:], '>')
-		if j < 0 {
-			tokens = append(tokens, token{text: "<"})
-			i++
-			continue
-		}
-		raw := strings.TrimSpace(s[i+1 : i+j])
-		i += j + 1
-		if strings.HasPrefix(raw, "!") || strings.HasPrefix(raw, "?") {
-			continue
-		}
-		end := strings.HasPrefix(raw, "/")
-		raw = strings.TrimPrefix(raw, "/")
-		parts := strings.Fields(raw)
-		if len(parts) == 0 {
-			continue
-		}
-		name := strings.ToLower(strings.TrimSuffix(parts[0], "/"))
-		attrs := map[string]string{}
-		for _, part := range parts[1:] {
-			kv := strings.SplitN(part, "=", 2)
-			if len(kv) == 2 {
-				attrs[strings.ToLower(kv[0])] = strings.Trim(strings.Trim(kv[1], "\""), "'")
-			}
-		}
-		tokens = append(tokens, token{tag: name, attrs: attrs, end: end})
-	}
-	root := []*htmlNode{}
-	stack := []*htmlNode{}
-	for _, t := range tokens {
-		if t.tag == "" {
-			n := &htmlNode{text: t.text}
-			if len(stack) > 0 {
-				stack[len(stack)-1].children = append(stack[len(stack)-1].children, n)
-			} else {
-				root = append(root, n)
-			}
-			continue
-		}
-		if t.end {
-			for i := len(stack) - 1; i >= 0; i-- {
-				if stack[i].tag == t.tag {
-					stack = stack[:i]
-					break
-				}
-			}
-			continue
-		}
-		n := &htmlNode{tag: t.tag, attrs: t.attrs}
-		if len(stack) > 0 {
-			stack[len(stack)-1].children = append(stack[len(stack)-1].children, n)
-		} else {
-			root = append(root, n)
-		}
-		if t.tag != "br" && t.tag != "img" && t.tag != "hr" {
-			stack = append(stack, n)
-		}
-	}
-	return root, nil
 }
 
 func parseOPML(raw string) []map[string]string {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
 )
 
@@ -51,8 +50,8 @@ func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, book := range results {
 		if description, ok := book["description"].(string); ok && description != "" {
-			book["description"] = auth.SanitizeHTML(description)
-			book["descriptionPlain"] = stripHTML(book["description"].(string))
+			book["description"] = textclean.Sanitize(description)
+			book["descriptionPlain"] = textclean.Strip(book["description"].(string))
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
@@ -317,7 +316,7 @@ func (h *Handler) itunesPodcasts(ctx context.Context, term, country string) ([]a
 	out := make([]any, 0, len(response.Results))
 	for _, item := range response.Results {
 		description := stringField(item, "description")
-		out = append(out, map[string]any{"id": item["collectionId"], "artistId": nullAny(item["artistId"]), "title": item["collectionName"], "artistName": item["artistName"], "description": auth.SanitizeHTML(description), "descriptionPlain": stripHTML(description), "releaseDate": item["releaseDate"], "genres": valueArray(item["genres"]), "cover": itunesArtwork(item), "trackCount": item["trackCount"], "feedUrl": item["feedUrl"], "pageUrl": item["collectionViewUrl"], "explicit": stringField(item, "trackExplicitness") == "explicit"})
+		out = append(out, map[string]any{"id": item["collectionId"], "artistId": nullAny(item["artistId"]), "title": item["collectionName"], "artistName": item["artistName"], "description": textclean.Sanitize(description), "descriptionPlain": textclean.Strip(description), "releaseDate": item["releaseDate"], "genres": valueArray(item["genres"]), "cover": itunesArtwork(item), "trackCount": item["trackCount"], "feedUrl": item["feedUrl"], "pageUrl": item["collectionViewUrl"], "explicit": stringField(item, "trackExplicitness") == "explicit"})
 	}
 	return out, true
 }
@@ -838,22 +837,4 @@ func validASIN(value string) bool {
 		}
 	}
 	return true
-}
-func stripHTML(value string) string {
-	var out strings.Builder
-	inside := false
-	for _, r := range value {
-		switch r {
-		case '<':
-			inside = true
-			continue
-		case '>':
-			inside = false
-			continue
-		}
-		if !inside {
-			out.WriteRune(r)
-		}
-	}
-	return strings.TrimSpace(html.UnescapeString(out.String()))
 }

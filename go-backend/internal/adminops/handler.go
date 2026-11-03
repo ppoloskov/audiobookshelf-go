@@ -20,10 +20,10 @@ import (
 	"strconv"
 	"strings"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 )
 
 type Handler struct {
@@ -260,7 +260,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 			}
 			if k == "authLoginCustomMessage" {
 				if value, ok := v.(string); ok && value != "" {
-					v = auth.SanitizeHTML(value)
+					v = textclean.Sanitize(value)
 				}
 			}
 			if !equalJSON(m[k], v) {

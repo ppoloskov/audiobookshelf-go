@@ -18,6 +18,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	_ "modernc.org/sqlite"
 )
 
@@ -332,7 +333,7 @@ func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (m
 	}
 	metadata["seriesName"] = strings.Join(seriesNames, ", ")
 	if description := stringValue(metadata["description"]); description != "" {
-		metadata["descriptionPlain"] = stripHTML(description)
+		metadata["descriptionPlain"] = textclean.Strip(description)
 	} else {
 		metadata["descriptionPlain"] = nil
 	}
@@ -400,7 +401,7 @@ func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded 
 	book := map[string]any{"id": row.id.String, "metadata": metadata, "coverPath": store.NullString(row.coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
 	if expanded {
 		if row.description.Valid && row.description.String != "" {
-			minMetadata["descriptionPlain"] = stripHTML(row.description.String)
+			minMetadata["descriptionPlain"] = textclean.Strip(row.description.String)
 		} else {
 			minMetadata["descriptionPlain"] = nil
 		}

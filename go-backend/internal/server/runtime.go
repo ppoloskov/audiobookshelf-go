@@ -16,7 +16,6 @@ import (
 
 	"audiobookshelf-compat/internal/adminops"
 	"audiobookshelf-compat/internal/audiotools"
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/backup"
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
@@ -32,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/scanner"
 	"audiobookshelf-compat/internal/sharing"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/userapi"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -464,7 +464,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		language = "en-us"
 	}
 	message, _ := settings["authLoginCustomMessage"].(string)
-	form := map[string]any{"authLoginCustomMessage": auth.SanitizeHTML(message)}
+	form := map[string]any{"authLoginCustomMessage": textclean.Sanitize(message)}
 	for _, m := range methods {
 		if m == "openid" {
 			button := settings["authOpenIDButtonText"]

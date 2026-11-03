@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/textclean"
 )
 
 func (h *Handler) searchCustom(ctx context.Context, slug, mediaType, title, author, isbn string, timeout time.Duration) ([]map[string]any, error) {
@@ -97,7 +97,7 @@ func normalizeCustomMatch(match map[string]any) map[string]any {
 		switch key {
 		case "description":
 			if text, ok := raw.(string); ok {
-				out[key] = auth.SanitizeHTML(text)
+				out[key] = textclean.Sanitize(text)
 			}
 		case "genres", "tags":
 			if cleaned, ok := normalizeTags(raw); ok {

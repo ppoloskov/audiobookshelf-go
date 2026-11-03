@@ -35,6 +35,7 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -737,7 +738,7 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 		delete(serverSettings, key)
 	}
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
-		serverSettings["authLoginCustomMessage"] = auth.SanitizeHTML(message)
+		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}
 	emailSettings, _ := h.loadSettings(ctx, "email-settings")
 	devices := filterDevices(emailSettings, user)

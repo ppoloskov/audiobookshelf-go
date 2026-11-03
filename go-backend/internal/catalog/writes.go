@@ -20,10 +20,10 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 )
 
 type itemScope struct{ itemID, libraryID, mediaID, mediaType string }
@@ -879,7 +879,7 @@ func bookUpdateColumns(metadata, payload map[string]json.RawMessage, current sto
 	for _, key := range []string{"title", "subtitle", "publishedYear", "publishedDate", "publisher", "description", "isbn", "asin", "language"} {
 		if value, ok := requestString(metadata, key); ok && stringChanged(current.get(key), value) {
 			if key == "description" && value != nil {
-				value = auth.SanitizeHTML(fmt.Sprint(value))
+				value = textclean.Sanitize(fmt.Sprint(value))
 			}
 			if value == "" {
 				value = nil
@@ -911,7 +911,7 @@ func podcastUpdateColumns(metadata, payload map[string]json.RawMessage, current 
 	for key, col := range mapKeys {
 		if value, ok := requestString(metadata, key); ok && stringChanged(current.get(col), value) {
 			if key == "description" && value != nil {
-				value = auth.SanitizeHTML(fmt.Sprint(value))
+				value = textclean.Sanitize(fmt.Sprint(value))
 			}
 			if value == "" {
 				value = nil

@@ -11,11 +11,11 @@ import (
 	"time"
 	"unicode"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
 
+	"audiobookshelf-compat/internal/textclean"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -135,9 +135,9 @@ func (h *Handler) runBookSearch(ctx context.Context, title, author, provider, as
 	for i := range books {
 		var description string
 		if json.Unmarshal(books[i].Description, &description) == nil && description != "" {
-			sanitized := auth.SanitizeHTML(description)
+			sanitized := textclean.Sanitize(description)
 			books[i].Description, _ = json.Marshal(sanitized)
-			books[i].DescriptionPlain, _ = json.Marshal(stripHTML(sanitized))
+			books[i].DescriptionPlain, _ = json.Marshal(textclean.Strip(sanitized))
 		}
 	}
 	return books
