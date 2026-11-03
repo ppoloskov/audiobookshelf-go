@@ -132,6 +132,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	rt.routes = http.NewServeMux()
 	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
+	rt.audiotools.Routes(rt.routes)
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -348,23 +349,10 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.scanner.Handle(w, withPath(r, path), user) {
 		return
 	}
-	if rt.audiotools.Handle(w, withPath(r, path), user) {
-		return
-	}
 	if rt.podcasts.Handle(w, withPath(r, path), user) {
 		return
 	}
 	if rt.providers.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if path == "/api/tasks" && isGet(r) {
-		payload, err := rt.audiotools.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
-		if err != nil {
-			logging.RequestError(r, "error", err)
-			httputil.WriteJSON(w, 500, map[string]string{"error": "failed to load tasks"})
-			return
-		}
-		httputil.WriteJSON(w, 200, payload)
 		return
 	}
 	if rt.backup != nil {
