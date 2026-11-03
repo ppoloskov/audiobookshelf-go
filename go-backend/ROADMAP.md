@@ -313,6 +313,19 @@ L2, JWT issuing -> L1).
     new `.m4b` file exists and plays (ffprobe duration > 0).
   - Done when: the step passes on Go and on the TS recording.
 
+- [ ] C25: Intermittent Socket.IO connect/auth failure
+  - Evidence: CI run 41652302211 (core differential: "notification socket probe
+    timed out"); the F9 work saw about 1 in 4 test connects never reach the
+    server's connection handler until `auth` was re-sent; production logs show
+    "Cannot validate socket - token expired" followed by ping timeouts.
+  - Files: `internal/realtime/hub.go`, `internal/server/runtime.go` (Engine.IO
+    path matching), the engine.io/socket.io v2 setup
+  - Change: Reproduce with a loop of 200 connects (websocket transport, both
+    the legacy and `/audiobookshelf` paths), find why some never get an
+    `init`, fix it.
+  - Done when: 1,000 consecutive connect+auth cycles succeed in a test, and
+    the F9 auth re-send workaround is removed.
+
 ## Phase R: routes clients need (needs F3)
 
 - [ ] R1: Mark every handler client-required, admin-UI, or unused
