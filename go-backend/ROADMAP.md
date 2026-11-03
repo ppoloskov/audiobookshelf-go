@@ -235,7 +235,7 @@ L2, JWT issuing -> L1).
     (One exception: the sorted, filtered session list in `playback` keeps its
     handwritten query and scan, because its ORDER BY is a whitelisted variable.)
 
-- [ ] L7: sqlc for collections, playlists, shares and feeds
+- [x] L7: sqlc for collections, playlists, shares and feeds
   - Files: `internal/db/queries/lists.sql`, `internal/catalog/` (collections),
     `internal/userapi/playlist.go`, `internal/sharing/`
   - Done when: no hand-written scans remain for those tables.

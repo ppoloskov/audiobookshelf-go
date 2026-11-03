@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -930,6 +931,10 @@ func fileType(ext any) string {
 type emitFunc func(userID, event string, payload any)
 
 // Handler reads library and media catalog data from an existing database.
+// queries returns the generated query set on the handler's pool; sqlc.New only
+// stores the handle.
+func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
+
 type Handler struct {
 	db             *sql.DB
 	cfg            config.Config
@@ -1383,8 +1388,8 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		var playlists int64
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playlists WHERE userId=? AND libraryId=?`, user.ID, id).Scan(&playlists); err != nil {
+		playlists, err := h.queries().CountUserLibraryPlaylists(r.Context(), sqlc.CountUserLibraryPlaylistsParams{UserID: user.ID, LibraryID: id})
+		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return

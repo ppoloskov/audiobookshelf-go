@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
@@ -533,7 +534,7 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item podcastItem, justA
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId=?`, candidate.id); err != nil {
+	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(ctx, candidate.id); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, candidate.id); err != nil {

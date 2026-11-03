@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -405,7 +406,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			return http.StatusInternalServerError, "database write failed"
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds WHERE entityType='libraryItem' AND entityId=?`, itemID); err != nil {
+	if err := sqlc.New(tx).DeleteLibraryItemFeeds(ctx, itemID); err != nil {
 		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database write failed"
 	}
@@ -418,7 +419,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE mediaItemType='book' AND mediaItemId=?`, scope.mediaID); err != nil {
+		if err := sqlc.New(tx).DeleteBookShares(ctx, scope.mediaID); err != nil {
 			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
@@ -428,12 +429,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		}
 	} else if scope.mediaType == "podcast" {
 		if len(mediaIDs) > 0 {
-			marks := strings.TrimRight(strings.Repeat("?,", len(mediaIDs)), ",")
-			args := make([]any, len(mediaIDs))
-			for i, id := range mediaIDs {
-				args[i] = id
-			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE mediaItemType='podcastEpisode' AND mediaItemId IN (`+marks+`)`, args...); err != nil {
+			if err := sqlc.New(tx).DeletePodcastEpisodeSharesByMediaIDs(ctx, store.Texts(mediaIDs)); err != nil {
 				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 				return http.StatusInternalServerError, "database write failed"
 			}
@@ -491,52 +487,29 @@ type ctxTx struct {
 }
 
 func deletePlaylistMedia(db ctxTx, mediaIDs []string) error {
+	q := sqlc.New(db.tx)
 	for _, id := range mediaIDs {
-		if _, err := db.tx.ExecContext(db.ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId=?`, id); err != nil {
+		if err := q.DeletePlaylistMediaItemsByMediaID(db.ctx, id); err != nil {
 			return err
 		}
 	}
-	rows, err := db.tx.QueryContext(db.ctx, `SELECT id FROM playlists`)
+	playlistIDs, err := q.ListAllPlaylistIDs(db.ctx)
 	if err != nil {
 		return err
 	}
-	playlistIDs := []string{}
-	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil {
-			playlistIDs = append(playlistIDs, id)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	rows.Close()
 	for _, playlistID := range playlistIDs {
-		items, e := db.tx.QueryContext(db.ctx, `SELECT id FROM playlistMediaItems WHERE playlistId=? ORDER BY "order"`, playlistID)
+		entryIDs, e := q.ListPlaylistMediaItemIDs(db.ctx, playlistID)
 		if e != nil {
 			return e
 		}
-		ids := []string{}
-		for items.Next() {
-			var id string
-			if items.Scan(&id) == nil {
-				ids = append(ids, id)
-			}
-		}
-		if e = items.Err(); e != nil {
-			items.Close()
-			return e
-		}
-		items.Close()
-		if len(ids) == 0 {
-			if _, e = db.tx.ExecContext(db.ctx, `DELETE FROM playlists WHERE id=?`, playlistID); e != nil {
+		if len(entryIDs) == 0 {
+			if e = q.DeletePlaylist(db.ctx, playlistID); e != nil {
 				return e
 			}
 			continue
 		}
-		for order, id := range ids {
-			if _, e = db.tx.ExecContext(db.ctx, `UPDATE playlistMediaItems SET "order"=? WHERE id=?`, order+1, id); e != nil {
+		for order, id := range entryIDs {
+			if e = q.UpdatePlaylistMediaItemOrder(db.ctx, sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(order + 1), ID: id}); e != nil {
 				return e
 			}
 		}
@@ -1271,7 +1244,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 			httputil.WriteError(w, 500, "database read failed")
 			return
 		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlistMediaItems WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {
+		if err := sqlc.New(tx).DeletePodcastEpisodePlaylistEntries(r.Context(), episodeID); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			httputil.WriteError(w, 500, "database write failed")
 			return

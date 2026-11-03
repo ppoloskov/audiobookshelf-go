@@ -346,6 +346,15 @@ func NullIfBlank(s string) any {
 	return s
 }
 
+// Texts is Text for each element, for sqlc.slice parameters over nullable columns.
+func Texts(values []string) []sql.NullString {
+	out := make([]sql.NullString, len(values))
+	for i, v := range values {
+		out[i] = Text(v)
+	}
+	return out
+}
+
 // NullIfEmpty is a text value that is stored or serialized as NULL when empty.
 func NullIfEmpty(s string) any {
 	if s == "" {

@@ -11,16 +11,16 @@
     "go-backend/internal/adminops/handler.go": "f17df769c5b1e7a8952715eb85f1817280c98a3f9be3f580379eacb5acfed0b2",
     "go-backend/internal/audiotools/tools.go": "259f1af4819d4200a8d0213e42efb83cb144cde34fdcea68e683b32887824371",
     "go-backend/internal/backup/backup.go": "04fcbca5ffd0918e8e7e1e9e4348a840d820abf1a84473368d0178dc4ee69768",
-    "go-backend/internal/catalog/handler.go": "e8c52e54f4694ce23304c419e906ff3eef97a877882dcbccf79af105b318d7d5",
+    "go-backend/internal/catalog/handler.go": "6a114460e333a2b00464720840fad431d936269beba48ade3a44e1e5e5f5bbdb",
     "go-backend/internal/emailapi/handler.go": "978466f4792a994a8f64473726d226986ca21fa56325ec2525ea9f4d4f784828",
     "go-backend/internal/identity/identity.go": "f8f74cc5884b2a73f96f244679dc63e14b7e24cd1c0c4dff81474578705997b9",
     "go-backend/internal/notifications/handler.go": "b721fa8bcb7e279ccf5c75acabdc828cab4ce8fe3d5e29974ecc7d37cb90c3db",
-    "go-backend/internal/podcasts/podcasts.go": "5158e4b08d125727ab9164d433bd6a10fd8d559d0379bee93f82f361d6da9143",
+    "go-backend/internal/podcasts/podcasts.go": "df9ba08d6c4ea611f8196964b3f74702b37bce7773ebd5cc6388cad729b0e04b",
     "go-backend/internal/providers/handler.go": "08a4304c3f192d3c1394ae0b446d09873ffe5363cc9f9e8dfbb7167b57e00662",
-    "go-backend/internal/userapi/userapi.go": "2646685799dfc16fa509c43f7168f762489af48c21d7f000efe71ddb28f4105a",
+    "go-backend/internal/userapi/userapi.go": "337a9c40416f7c05a7d39189886d0d02b0d3bdae0e37a0b1720365631e56020f",
     "go-backend/internal/playback/playback.go": "3ab6ae9d2f23d14fb185937761d3656d0aad0892331c62e21e93aad96ad5bbbf",
     "go-backend/internal/scanner/scanner.go": "e13db47445f099a620353bbabe9d52f1ee24b37697b7fff5aa10c1263cf7c03c",
-    "go-backend/internal/sharing/handler.go": "e27a4f3105484cd1f9e209c1d89958543cb1e02a8a2379fc4b1986ec69a0e2ff"
+    "go-backend/internal/sharing/handler.go": "ed7eb5dadae404d99128bb23af14a47c2c5c162e904a2f1b95db748e9fce0a96"
   },
   "limitations": [
     "All 226 entries are source-syntax candidates, not resolved Express routes; mount paths and middleware behavior are not resolved.",

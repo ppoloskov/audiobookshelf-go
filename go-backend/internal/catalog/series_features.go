@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -30,25 +31,16 @@ func includeHas(r *http.Request, value string) bool {
 }
 
 func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string) (map[string]any, bool, error) {
-	var id, kind, entity, feedURL sql.NullString
-	var title, description, ownerName, ownerEmail sql.NullString
-	var prevent sql.NullInt64
 	// An empty entityType matches upstream RssFeedManager.findFeedForEntityId
 	// (server/managers/RssFeedManager.js:59), which filters on entityId only.
-	query := `SELECT id,entityType,entityId,feedURL,title,description,preventIndexing,ownerName,ownerEmail FROM feeds WHERE entityType=? AND entityId=? LIMIT 1`
-	args := []any{entityType, entityID}
-	if entityType == "" {
-		query = `SELECT id,entityType,entityId,feedURL,title,description,preventIndexing,ownerName,ownerEmail FROM feeds WHERE entityId=? LIMIT 1`
-		args = []any{entityID}
-	}
-	err := h.db.QueryRowContext(ctx, query, args...).Scan(&id, &kind, &entity, &feedURL, &title, &description, &prevent, &ownerName, &ownerEmail)
+	feed, err := h.queries().GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
 	if err == sql.ErrNoRows {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	return map[string]any{"id": id.String, "entityType": store.NullString(kind), "entityId": store.NullString(entity), "feedUrl": store.NullString(feedURL), "meta": map[string]any{"title": store.NullString(title), "description": store.NullString(description), "preventIndexing": prevent.Valid && prevent.Int64 != 0, "ownerName": store.NullString(ownerName), "ownerEmail": store.NullString(ownerEmail)}}, true, nil
+	return map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}}, true, nil
 }
 
 func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {

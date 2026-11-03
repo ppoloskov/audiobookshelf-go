@@ -194,10 +194,10 @@ func TestEmptyCollectionNameUsesExpressSend(t *testing.T) {
 }
 
 func TestCollectionDescriptionDBValueMatchesLegacyNullCoercion(t *testing.T) {
-	if got := collectionDescriptionForDB(""); got != nil {
-		t.Fatalf("empty description binding=%#v, want nil", got)
+	if got := store.TextOrNull(""); got.Valid {
+		t.Fatalf("empty description binding=%#v, want NULL", got)
 	}
-	if got := collectionDescriptionForDB("notes"); got != "notes" {
+	if got := store.TextOrNull("notes"); got != (sql.NullString{String: "notes", Valid: true}) {
 		t.Fatalf("non-empty description binding=%#v", got)
 	}
 }

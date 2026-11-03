@@ -101,7 +101,8 @@ func (h *Handler) closeFeeds(ctx context.Context, entityID string) {
 		if err != nil || !found {
 			return
 		}
-		if _, err := h.db.ExecContext(ctx, `DELETE FROM feeds WHERE id=?`, feed["id"]); err != nil {
+		feedID, _ := feed["id"].(string)
+		if err := h.queries().DeleteFeed(ctx, feedID); err != nil {
 			return
 		}
 		if h.emit != nil {

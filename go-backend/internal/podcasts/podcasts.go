@@ -27,6 +27,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/cronspec"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -477,7 +478,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 		return
 	}
 	now := dbtime.Now()
-	if _, err = tx.ExecContext(r.Context(), `DELETE FROM playlistMediaItems WHERE mediaItemId=?`, episodeID); err == nil {
+	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(r.Context(), episodeID); err == nil {
 		_, err = tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID)
 	}
 	if err == nil {

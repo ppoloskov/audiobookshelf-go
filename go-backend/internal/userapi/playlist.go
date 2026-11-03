@@ -11,6 +11,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -24,25 +25,7 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 	if tail == "" || tail == "/" {
 		switch r.Method {
 		case http.MethodGet:
-			rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM playlists WHERE userId=?`, user.ID)
-			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			ids := make([]string, 0)
-			for rows.Next() {
-				var id string
-				if err := rows.Scan(&id); err != nil {
-					rows.Close()
-					logging.RequestError(r, "database read failed", err)
-					http.Error(w, "database read failed", 500)
-					return true
-				}
-				ids = append(ids, id)
-			}
-			err = rows.Err()
-			rows.Close()
+			ids, err := h.queries().ListUserPlaylistIDs(r.Context(), user.ID)
 			if err != nil {
 				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
@@ -136,13 +119,14 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (map[string]any, string, int, error) {
-	var ownerID, libraryID string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT userId,libraryId FROM playlists WHERE id=?`, id).Scan(&ownerID, &libraryID); errors.Is(err, sql.ErrNoRows) {
+	playlist, err := h.queries().GetPlaylist(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", http.StatusNotFound, nil
 	} else if err != nil {
 		return nil, "", 0, err
 	}
-	if ownerID != user.ID {
+	libraryID := playlist.Libraryid.String
+	if playlist.Userid.String != user.ID {
 		return nil, "", http.StatusForbidden, nil
 	}
 	if !canAccessLibrary(permissions(user), libraryID) {
@@ -153,31 +137,18 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 }
 
 func (h *Handler) playlistJSON(r *http.Request, id string, user store.User) (map[string]any, string, error) {
-	var name string
-	var description sql.NullString
-	var libraryID, ownerID string
-	var created, updated any
-	if err := h.db.QueryRowContext(r.Context(), `SELECT name,description,libraryId,userId,createdAt,updatedAt FROM playlists WHERE id=?`, id).Scan(&name, &description, &libraryID, &ownerID, &created, &updated); err != nil {
+	playlist, err := h.queries().GetPlaylist(r.Context(), id)
+	if err != nil {
 		return nil, "", err
 	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT mediaItemId,mediaItemType FROM playlistMediaItems WHERE playlistId=? ORDER BY "order" ASC`, id)
+	entries, err := h.queries().ListPlaylistMediaItems(r.Context(), id)
 	if err != nil {
 		return nil, "", err
 	}
 	type mediaRef struct{ id, typ string }
-	refs := make([]mediaRef, 0)
-	for rows.Next() {
-		var ref mediaRef
-		if err := rows.Scan(&ref.id, &ref.typ); err != nil {
-			rows.Close()
-			return nil, "", err
-		}
-		refs = append(refs, ref)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, "", err
+	refs := make([]mediaRef, 0, len(entries))
+	for _, e := range entries {
+		refs = append(refs, mediaRef{id: e.Mediaitemid.String, typ: e.Mediaitemtype.String})
 	}
 	items := make([]any, 0, len(refs))
 	for _, ref := range refs {
@@ -223,7 +194,7 @@ func (h *Handler) playlistJSON(r *http.Request, id string, user store.User) (map
 			items = append(items, map[string]any{"libraryItemId": libraryItemID, "libraryItem": li})
 		}
 	}
-	return map[string]any{"id": id, "name": name, "libraryId": libraryID, "userId": ownerID, "description": store.NullString(description), "lastUpdate": dbtime.Millis(updated), "createdAt": dbtime.Millis(created), "items": items}, libraryID, nil
+	return map[string]any{"id": id, "name": playlist.Name.String, "libraryId": playlist.Libraryid.String, "userId": playlist.Userid.String, "description": store.NullString(playlist.Description), "lastUpdate": dbtime.Millis(playlist.Updatedat), "createdAt": dbtime.Millis(playlist.Createdat), "items": items}, playlist.Libraryid.String, nil
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -315,7 +286,8 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, store.NullIfEmpty(description), libraryID, user.ID, now, now); err != nil {
+	q := sqlc.New(tx)
+	if err := q.InsertPlaylist(r.Context(), sqlc.InsertPlaylistParams{ID: id, Name: name, Description: store.TextOrNull(description), LibraryID: libraryID, UserID: user.ID, Createdat: now, Updatedat: now}); err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
 		http.Error(w, "Failed to create playlist", 500)
 		return
@@ -327,7 +299,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 			http.Error(w, "Failed to create playlist", 500)
 			return
 		}
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, ref.mediaID, ref.mediaType, i+1, id, now); err != nil {
+		if err := q.InsertPlaylistMediaItem(r.Context(), sqlc.InsertPlaylistMediaItemParams{ID: entryID, MediaID: ref.mediaID, MediaType: ref.mediaType, Position: int64(i + 1), PlaylistID: id, Createdat: now}); err != nil {
 			logging.RequestError(r, "Failed to create playlist", err)
 			http.Error(w, "Failed to create playlist", 500)
 			return
@@ -410,31 +382,28 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 			}
 		}
 	}
-	var oldName string
-	var oldDescription sql.NullString
-	if err := h.db.QueryRowContext(r.Context(), `SELECT name,description FROM playlists WHERE id=?`, id).Scan(&oldName, &oldDescription); err != nil {
+	old, err := h.queries().GetPlaylist(r.Context(), id)
+	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
+	oldName, oldDescription := old.Name.String, old.Description
 	newName := oldName
 	if raw, exists := body["name"]; exists {
 		if s, _ := raw.(string); cleanName(s) != "" {
 			newName = cleanName(s)
 		}
 	}
-	var newDescription any
-	if oldDescription.Valid {
-		newDescription = oldDescription.String
-	}
+	newDescription := oldDescription
 	if raw, exists := body["description"]; exists {
 		if s, ok := raw.(string); ok && s != "" {
-			newDescription = s
+			newDescription = store.Text(s)
 		}
 	}
 	changed := newName != oldName || (body["description"] != nil && stringValue(body["description"]) != oldDescription.String)
 	if changed {
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE playlists SET name=?,description=?,updatedAt=? WHERE id=?`, newName, newDescription, dbtime.Now(), id); err != nil {
+		if err := h.queries().UpdatePlaylist(r.Context(), sqlc.UpdatePlaylistParams{Name: newName, Description: newDescription, Updatedat: dbtime.Now(), ID: id}); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -456,7 +425,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 			}
 			refs = append(refs, mediaID)
 		}
-		rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaItemId,"order" FROM playlistMediaItems WHERE playlistId=? ORDER BY "order" ASC`, id)
+		entries, err := h.queries().ListPlaylistMediaItems(r.Context(), id)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
@@ -466,23 +435,9 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 			id, mediaID string
 			order       int
 		}
-		existingItems := make([]existing, 0)
-		for rows.Next() {
-			var entry existing
-			if err := rows.Scan(&entry.id, &entry.mediaID, &entry.order); err != nil {
-				rows.Close()
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return
-			}
-			existingItems = append(existingItems, entry)
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+		existingItems := make([]existing, 0, len(entries))
+		for _, e := range entries {
+			existingItems = append(existingItems, existing{id: e.ID, mediaID: e.Mediaitemid.String, order: int(e.Order.Int64)})
 		}
 		if len(existingItems) != len(requestItems) {
 			http.Error(w, "Invalid playlist items. Length mismatch", 400)
@@ -502,7 +457,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 		for i, entry := range existingItems {
 			want := i + 1
 			if entry.order != want {
-				if _, err := h.db.ExecContext(r.Context(), `UPDATE playlistMediaItems SET "order"=? WHERE id=?`, want, entry.id); err != nil {
+				if err := h.queries().UpdatePlaylistMediaItemOrder(r.Context(), sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(want), ID: entry.id}); err != nil {
 					logging.RequestError(r, "database write failed", err)
 					http.Error(w, "database write failed", 500)
 					return
@@ -541,12 +496,13 @@ func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlistMediaItems WHERE playlistId=?`, id); err != nil {
+	q := sqlc.New(tx)
+	if err := q.DeletePlaylistMediaItems(r.Context(), id); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlists WHERE id=?`, id); err != nil {
+	if err := q.DeletePlaylist(r.Context(), id); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
@@ -607,17 +563,19 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		}
 		refs = append(refs, ref{stringValue(body["libraryItemId"]), stringValue(body["episodeId"])})
 	}
-	var libraryID string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM playlists WHERE id=?`, id).Scan(&libraryID); err != nil {
+	playlist, err := h.queries().GetPlaylist(r.Context(), id)
+	if err != nil {
 		sendEntityNotFound(w, "Playlist not found")
 		return
 	}
-	var count int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playlistMediaItems WHERE playlistId=?`, id).Scan(&count); err != nil {
+	libraryID := playlist.Libraryid.String
+	entryCount, err := h.queries().CountPlaylistMediaItems(r.Context(), id)
+	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
+	count := int(entryCount)
 	changed := false
 	for _, ref := range refs {
 		var mediaID, typ, lib string
@@ -645,8 +603,8 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 			http.Error(w, "Invalid item to add for this library type", 400)
 			return
 		}
-		var exists int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playlistMediaItems WHERE playlistId=? AND mediaItemId=?`, id, mediaID).Scan(&exists); err != nil {
+		exists, err := h.queries().CountPlaylistMediaItem(r.Context(), sqlc.CountPlaylistMediaItemParams{PlaylistID: id, MediaID: mediaID})
+		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
@@ -664,7 +622,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 			http.Error(w, "database write failed", 500)
 			return
 		}
-		if _, err := h.db.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, mediaID, mediaType, count+1, id, dbtime.Now()); err != nil {
+		if err := h.queries().InsertPlaylistMediaItem(r.Context(), sqlc.InsertPlaylistMediaItemParams{ID: entryID, MediaID: mediaID, MediaType: mediaType, Position: int64(count + 1), PlaylistID: id, Createdat: dbtime.Now()}); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -755,8 +713,7 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request, id 
 			return
 		}
 	}
-	var exists int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playlistMediaItems WHERE playlistId=? AND mediaItemId=?`, id, mediaID).Scan(&exists); err != nil || exists == 0 {
+	if exists, err := h.queries().CountPlaylistMediaItem(r.Context(), sqlc.CountPlaylistMediaItemParams{PlaylistID: id, MediaID: mediaID}); err != nil || exists == 0 {
 		http.Error(w, "Media item not found in playlist", 404)
 		return
 	}
@@ -795,35 +752,22 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(r.Context(), `SELECT id,mediaItemId FROM playlistMediaItems WHERE playlistId=? ORDER BY "order" ASC`, id)
+	q := sqlc.New(tx)
+	rows, err := q.ListPlaylistMediaItems(r.Context(), id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
 	type entry struct{ id, mediaID string }
-	entries := make([]entry, 0)
-	for rows.Next() {
-		var e entry
-		if err := rows.Scan(&e.id, &e.mediaID); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		entries = append(entries, e)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+	entries := make([]entry, 0, len(rows))
+	for _, row := range rows {
+		entries = append(entries, entry{id: row.ID, mediaID: row.Mediaitemid.String})
 	}
 	order, changed := 1, false
 	for _, e := range entries {
 		if remove[e.mediaID] {
-			if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlistMediaItems WHERE id=?`, e.id); err != nil {
+			if err := q.DeletePlaylistMediaItem(r.Context(), e.id); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return
@@ -831,7 +775,7 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 			changed = true
 			continue
 		}
-		if _, err := tx.ExecContext(r.Context(), `UPDATE playlistMediaItems SET "order"=? WHERE id=?`, order, e.id); err != nil {
+		if err := q.UpdatePlaylistMediaItemOrder(r.Context(), sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(order), ID: e.id}); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -839,7 +783,7 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 		order++
 	}
 	if changed && order == 1 {
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlists WHERE id=?`, id); err != nil {
+		if err := q.DeletePlaylist(r.Context(), id); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -892,7 +836,8 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		return
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, store.NullIfEmpty(desc), libraryID, user.ID, now, now); err != nil {
+	q := sqlc.New(tx)
+	if err = q.InsertPlaylist(r.Context(), sqlc.InsertPlaylistParams{ID: id, Name: name, Description: store.TextOrNull(desc), LibraryID: libraryID, UserID: user.ID, Createdat: now, Updatedat: now}); err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
 		http.Error(w, "Failed to create playlist", 500)
 		return
@@ -915,7 +860,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 			http.Error(w, "Failed to create playlist", 500)
 			return
 		}
-		if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, mediaID, "book", i+1, id, now); err != nil {
+		if err = q.InsertPlaylistMediaItem(r.Context(), sqlc.InsertPlaylistMediaItemParams{ID: entryID, MediaID: mediaID, MediaType: "book", Position: int64(i + 1), PlaylistID: id, Createdat: now}); err != nil {
 			logging.RequestError(r, "Failed to create playlist", err)
 			http.Error(w, "Failed to create playlist", 500)
 			return

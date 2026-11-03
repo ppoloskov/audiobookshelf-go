@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 )
 
@@ -357,46 +358,95 @@ func (h *Handler) loadPodcastSource(ctx context.Context, podcastID string, src *
 	return nil
 }
 
-// loadAggregateSource reads a collection or series and its books
-// (Feed.getFeedObjForCollection / getFeedObjForSeries).
-func (h *Handler) loadAggregateSource(ctx context.Context, entityType, id string) (*feedSource, error) {
-	var name, desc sql.NullString
-	var entityUpdated any
-	table, join, order := "collections", `collectionBooks cb JOIN books b ON b.id=cb.bookId`, `ORDER BY cb."order" ASC`
-	where := `cb.collectionId=?`
-	if entityType == "series" {
-		table, join, order = "series", `bookSeries bs JOIN books b ON b.id=bs.bookId`, `ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, bs.rowid ASC`
-		where = `bs.seriesId=?`
+// aggregateEntity is a collection or series with its books: the entity row and
+// the books its join yields, in the entity's order.
+type aggregateEntity struct {
+	name, desc sql.NullString
+	updated    any
+	books      []bookData
+}
+
+// loadCollectionEntity reads a collection and its books in collection order.
+func (h *Handler) loadCollectionEntity(ctx context.Context, id string) (aggregateEntity, error) {
+	c, err := h.queries().GetCollection(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return aggregateEntity{}, errFeedEntityMissing
 	}
-	if err := h.db.QueryRowContext(ctx, `SELECT name,description,updatedAt FROM `+table+` WHERE id=?`, id).Scan(&name, &desc, &entityUpdated); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errFeedEntityMissing
-		}
-		return nil, err
-	}
-	rows, err := h.db.QueryContext(ctx, `SELECT b.id,b.title,b.description,b.coverPath,b.language,b.explicit,b.chapters,b.audioFiles,b.updatedAt,li.id,li.libraryId,li.createdAt,li.updatedAt FROM `+join+` JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE `+where+` `+order, id)
 	if err != nil {
-		return nil, err
+		return aggregateEntity{}, err
 	}
-	var books []bookData
+	rows, err := h.queries().ListCollectionBookSources(ctx, id)
+	if err != nil {
+		return aggregateEntity{}, err
+	}
+	agg := aggregateEntity{name: c.Name, desc: c.Description, updated: c.Updatedat}
+	for _, r := range rows {
+		agg.books = append(agg.books, bookFromCollectionRow(r))
+	}
+	return agg, nil
+}
+
+// bookFromCollectionRow maps a collection book row from the generated query.
+// The JSON columns decode as the series scan decodes them.
+func bookFromCollectionRow(r sqlc.ListCollectionBookSourcesRow) bookData {
+	s := bookRowScan{
+		explicit: r.Explicit, files: []byte(r.Audiofiles.String), chapters: []byte(r.Chapters.String),
+		updated: r.Updatedat, itemCreated: r.ItemCreatedAt, itemUpdated: r.ItemUpdatedAt,
+	}
+	s.ID, s.Title, s.Description, s.CoverPath, s.Language = r.ID, r.Title.String, r.Description, r.Coverpath, r.Language
+	s.ItemID, s.LibraryID = r.ItemID, r.LibraryID.String
+	s.finish()
+	return s.bookData
+}
+
+// loadSeriesEntity reads a series and its books in sequence order. Series are
+// not in the sqlc set yet (ROADMAP L8), so this stays a handwritten scan.
+func (h *Handler) loadSeriesEntity(ctx context.Context, id string) (aggregateEntity, error) {
+	var agg aggregateEntity
+	err := h.db.QueryRowContext(ctx, `SELECT name,description,updatedAt FROM series WHERE id=?`, id).Scan(&agg.name, &agg.desc, &agg.updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return agg, errFeedEntityMissing
+	}
+	if err != nil {
+		return agg, err
+	}
+	rows, err := h.db.QueryContext(ctx, `SELECT b.id,b.title,b.description,b.coverPath,b.language,b.explicit,b.chapters,b.audioFiles,b.updatedAt,li.id,li.libraryId,li.createdAt,li.updatedAt FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=? ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, bs.rowid ASC`, id)
+	if err != nil {
+		return agg, err
+	}
+	defer rows.Close()
 	for rows.Next() {
 		var s bookRowScan
 		var title, itemID, libraryID sql.NullString
 		if err := rows.Scan(&s.ID, &title, &s.Description, &s.CoverPath, &s.Language, &s.explicit, &s.chapters, &s.files, &s.updated, &itemID, &libraryID, &s.itemCreated, &s.itemUpdated); err != nil {
-			_ = rows.Close()
-			return nil, err
+			return aggregateEntity{}, err
 		}
 		s.Title, s.ItemID, s.LibraryID = title.String, itemID.String, libraryID.String
 		s.finish()
-		books = append(books, s.bookData)
+		agg.books = append(agg.books, s.bookData)
 	}
 	if err := rows.Err(); err != nil {
-		_ = rows.Close()
+		return aggregateEntity{}, err
+	}
+	return agg, nil
+}
+
+// loadAggregateSource reads a collection or series and its books
+// (Feed.getFeedObjForCollection / getFeedObjForSeries).
+func (h *Handler) loadAggregateSource(ctx context.Context, entityType, id string) (*feedSource, error) {
+	var agg aggregateEntity
+	var err error
+	if entityType == "series" {
+		agg, err = h.loadSeriesEntity(ctx, id)
+	} else {
+		agg, err = h.loadCollectionEntity(ctx, id)
+	}
+	if err != nil {
 		return nil, err
 	}
-	_ = rows.Close()
-	src := &feedSource{PodcastType: "serial", Title: name.String, Description: sql.NullString{String: desc.String, Valid: true}}
-	src.EntityUpdatedAt = asTime(entityUpdated)
+	books := agg.books
+	src := &feedSource{PodcastType: "serial", Title: agg.name.String, Description: sql.NullString{String: agg.desc.String, Valid: true}}
+	src.EntityUpdatedAt = asTime(agg.updated)
 	src.OwnUpdatedAt = src.EntityUpdatedAt
 	var withTracks []bookData
 	for i := range books {
