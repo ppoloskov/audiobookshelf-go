@@ -148,7 +148,7 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User)
 
 func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
 	if !isAdmin(user) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	users, sessions := []map[string]any{}, []map[string]any{}
@@ -163,7 +163,7 @@ func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
 
 func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user store.User) {
 	if user.Type == "guest" {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	body, err := decodeBody(r)
@@ -212,7 +212,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 	if refreshToken != "" && h.setRefreshCookie != nil {
 		h.setRefreshCookie(w, r, refreshToken)
 	}
-	sendStatus(w, 200)
+	httputil.SendStatus(w, 200)
 }
 
 func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -238,11 +238,11 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	if !access.exists {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	if !access.allowed {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	filtered := make([]any, 0)
@@ -265,7 +265,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		}
 		n, _ := res.RowsAffected()
 		if n == 0 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		h.emitUserUpdate(r.Context(), user)
@@ -281,7 +281,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 	switch r.Method {
 	case http.MethodGet:
 		if len(parts) < 1 || len(parts) > 2 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		episodeID := ""
@@ -295,13 +295,13 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			return
 		}
 		if p == nil {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		httputil.WriteJSON(w, 200, p)
 	case http.MethodDelete:
 		if len(parts) != 1 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		res, err := h.db.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE id = ? AND userId = ?`, parts[0], user.ID)
@@ -312,10 +312,10 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		}
 		n, _ := res.RowsAffected()
 		if n == 0 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200)
 	case http.MethodPatch:
 		if len(parts) == 2 && parts[0] == "batch" && parts[1] == "update" {
 			var batch []progressdto.Payload
@@ -333,11 +333,11 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			if updated {
 				h.emitUserUpdate(r.Context(), user)
 			}
-			sendStatus(w, 200)
+			httputil.SendStatus(w, 200)
 			return
 		}
 		if len(parts) < 1 || len(parts) > 2 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		// MeController.createUpdateMediaProgress (MeController.js:277): the
@@ -358,9 +358,9 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			return
 		}
 		h.emitUserUpdate(r.Context(), user)
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200)
 	default:
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 	}
 }
 
@@ -392,7 +392,7 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
 	parts := strings.Split(tail, "/")
 	if len(parts) < 2 || parts[1] != "bookmark" {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	itemID := parts[0]
@@ -403,18 +403,18 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if !access.exists {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	if !access.allowed {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	bookmarks := jsonArray(user.Bookmarks)
 	switch r.Method {
 	case http.MethodPost, http.MethodPatch:
 		if len(parts) != 2 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		body, err := decodeBody(r)
@@ -434,7 +434,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		}
 		index := bookmarkIndex(bookmarks, itemID, timeValue)
 		if r.Method == http.MethodPatch && index < 0 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		var entry map[string]any
@@ -455,7 +455,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		httputil.WriteJSON(w, 200, entry)
 	case http.MethodDelete:
 		if len(parts) != 3 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		timeValue, err := strconv.ParseFloat(parts[2], 64)
@@ -465,7 +465,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		}
 		index := bookmarkIndex(bookmarks, itemID, timeValue)
 		if index < 0 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		bookmarks = append(bookmarks[:index], bookmarks[index+1:]...)
@@ -476,9 +476,9 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		}
 		user.Bookmarks, _ = json.Marshal(bookmarks)
 		h.emitUserUpdate(r.Context(), user)
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200)
 	default:
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 	}
 }
 
@@ -493,7 +493,7 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current store.User) {
 	if !isAdmin(current) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt FROM users`)
@@ -524,7 +524,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) {
 	if !isAdmin(current) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	body, err := decodeBody(r)
@@ -633,11 +633,11 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	if len(parts) == 2 && (parts[1] == "listening-sessions" || parts[1] == "listening-stats") && r.Method == http.MethodGet {
 		if !isAdmin(current) && current.ID != id {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		if _, err := h.userByID(r.Context(), id); errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		} else if err != nil {
 			logging.RequestError(r, "database read failed", err)
@@ -653,12 +653,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	if len(parts) == 2 && parts[1] == "openid-unlink" && r.Method == http.MethodPatch {
 		if !isAdmin(current) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		u, err := h.userByID(r.Context(), id)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		if err != nil {
@@ -667,13 +667,13 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if u.Type == "root" && current.Type != "root" {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		var extra map[string]any
 		_ = json.Unmarshal(u.ExtraData, &extra)
 		if extra == nil || extra["authOpenIDSub"] == nil {
-			sendStatus(w, 200)
+			httputil.SendStatus(w, 200)
 			return
 		}
 		extra["authOpenIDSub"] = nil
@@ -693,7 +693,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if h.emit != nil {
 			h.emit(current.ID, "user_updated", serialized)
 		}
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200)
 		return
 	}
 	if len(parts) != 1 {
@@ -701,12 +701,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	if r.Method == http.MethodGet {
 		if !isAdmin(current) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		u, err := h.userByID(r.Context(), id)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		if err != nil {
@@ -736,12 +736,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	if r.Method == http.MethodDelete {
 		if !isAdmin(current) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		u, err := h.userByID(r.Context(), id)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		if err != nil {
@@ -751,12 +751,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		if current.ID == id {
 			logging.Errorf("[UserController] User %s is attempting to delete self", current.Username) // UserController.js:367
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		if u.Type == "root" {
 			logging.Errorf("[UserController] Admin user %q attempted to delete root user", current.Username) // UserController.js:371
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		tx, err := h.db.BeginTx(r.Context(), nil)
@@ -798,12 +798,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	if r.Method == http.MethodPatch {
 		if !isAdmin(current) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		u, err := h.userByID(r.Context(), id)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		if err != nil {
@@ -812,7 +812,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if u.Type == "root" && current.Type != "root" {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		body, err := decodeBody(r)
@@ -968,7 +968,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 
 func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current store.User, tail string) {
 	if !isAdmin(current) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	id := strings.TrimPrefix(tail, "/")
@@ -985,18 +985,18 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 	if id == "" && r.Method == http.MethodPost {
 		body, err := decodeBody(r)
 		if err != nil {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		name, _ := body["name"].(string)
 		userID, _ := body["userId"].(string)
 		if name == "" || userID == "" {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		target, err := h.userByID(r.Context(), userID)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		if err != nil {
@@ -1005,12 +1005,12 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			return
 		}
 		if target.Type == "root" && current.Type != "root" {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		expiresIn := number(body["expiresIn"], 0)
 		if body["expiresIn"] != nil && (expiresIn <= 0) {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		keyID := newUUID()
@@ -1054,7 +1054,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		return
 	}
 	if id == "" {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	if r.Method == http.MethodDelete {
@@ -1066,17 +1066,17 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		}
 		n, _ := res.RowsAffected()
 		if n == 0 {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200)
 		return
 	}
 	if r.Method == http.MethodPatch {
 		var ownerID, ownerType string
 		err := h.db.QueryRowContext(r.Context(), `SELECT u.id,u.type FROM apiKeys a JOIN users u ON u.id=a.userId WHERE a.id=?`, id).Scan(&ownerID, &ownerType)
 		if errors.Is(err, sql.ErrNoRows) {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404)
 			return
 		}
 		if err != nil {
@@ -1085,12 +1085,12 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			return
 		}
 		if ownerType == "root" && current.Type != "root" {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403)
 			return
 		}
 		body, err := decodeBody(r)
 		if err != nil {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400)
 			return
 		}
 		var newOwner any = ownerID
@@ -1099,16 +1099,16 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		if val, ok := body["userId"]; ok {
 			newID, ok := val.(string)
 			if !ok {
-				sendStatus(w, 400)
+				httputil.SendStatus(w, 400)
 				return
 			}
 			target, e := h.userByID(r.Context(), newID)
 			if e != nil {
-				sendStatus(w, 400)
+				httputil.SendStatus(w, 400)
 				return
 			}
 			if target.Type == "root" && current.Type != "root" {
-				sendStatus(w, 403)
+				httputil.SendStatus(w, 403)
 				return
 			}
 			newOwner = newID
@@ -1116,7 +1116,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		if val, ok := body["isActive"]; ok {
 			b, ok := val.(bool)
 			if !ok {
-				sendStatus(w, 400)
+				httputil.SendStatus(w, 400)
 				return
 			}
 			active = b
@@ -1146,7 +1146,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		httputil.WriteJSON(w, 200, map[string]any{"apiKey": key})
 		return
 	}
-	sendStatus(w, 404)
+	httputil.SendStatus(w, 404)
 }
 
 var stripMarkup = regexp.MustCompile(`<[^>]*>`)
@@ -1288,7 +1288,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 				return true
 			}
 			if !boolValue(permissions(user)["delete"]) {
-				sendStatus(w, 403)
+				httputil.SendStatus(w, 403)
 				return true
 			}
 			dto, _, _, _ := h.collectionDTO(r.Context(), id, user)
@@ -1300,7 +1300,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 			if h.emit != nil {
 				h.emit("*", "collection_removed", dto)
 			}
-			sendStatus(w, 200)
+			httputil.SendStatus(w, 200)
 			return true
 		}
 	}
@@ -1323,7 +1323,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 
 func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user store.User) {
 	if !boolValue(permissions(user)["update"]) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	body, err := decodeBody(r)
@@ -1347,7 +1347,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	// string therefore round-trips as JSON null, not as an empty string.
 	storedDescription := collectionDescriptionForDB(description)
 	if !canAccessLibrary(permissions(user), libraryID) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	bookIDs := stringSlice(body["books"])
@@ -1463,7 +1463,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	var libraryID, name string
 	var desc sql.NullString
 	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,name,description FROM collections WHERE id=?`, id).Scan(&libraryID, &name, &desc); errors.Is(err, sql.ErrNoRows) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return true
 	} else if err != nil {
 		logging.RequestError(r, "database read failed", err)
@@ -1471,11 +1471,11 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		return true
 	}
 	if !canAccessLibrary(permissions(user), libraryID) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return true
 	}
 	if !boolValue(permissions(user)["update"]) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return true
 	}
 	oldName, oldDesc := name, desc
@@ -1592,7 +1592,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	if !boolValue(permissions(user)["update"]) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return true
 	}
 	body, err := decodeBody(r)
@@ -1824,12 +1824,12 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 		return true
 	}
 	if !boolValue(permissions(user)["update"]) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return true
 	}
 	body, err := decodeBody(r)
 	if err != nil {
-		sendStatus(w, 400)
+		httputil.SendStatus(w, 400)
 		return true
 	}
 	itemID, _ := body["id"].(string)
@@ -1890,13 +1890,13 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	if !boolValue(permissions(user)["update"]) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return true
 	}
 	var mediaID string
 	err = h.db.QueryRowContext(r.Context(), `SELECT mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return true
 	}
 	if err != nil {
@@ -2510,15 +2510,6 @@ func writeError(w http.ResponseWriter, err error) {
 	http.Error(w, "database write failed", 500)
 }
 
-func sendStatus(w http.ResponseWriter, status int) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	body := http.StatusText(status)
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", userExpressETag([]byte(body)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
-
 // sendEntityNotFound mirrors the upstream collection/playlist middleware 404:
 // Express res.status(404).send('…') sends the message with Content-Type
 // text/html; charset=utf-8 (CollectionController/PlaylistController middleware).
@@ -2544,7 +2535,7 @@ func respondPlaylistError(w http.ResponseWriter, code int) {
 		sendEntityNotFound(w, "Playlist not found")
 		return
 	}
-	sendStatus(w, code)
+	httputil.SendStatus(w, code)
 }
 
 // sendText mirrors Express res.send(string): an HTML-typed plain-text body

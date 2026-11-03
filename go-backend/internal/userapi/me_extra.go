@@ -22,7 +22,7 @@ import (
 func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
 	parts := strings.Split(tail, "/")
 	if len(parts) == 0 || len(parts) > 2 || parts[0] == "" {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	access, err := h.canAccessItem(r.Context(), user, parts[0])
@@ -32,12 +32,12 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if !access.exists {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	var mediaID, mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType FROM libraryItems WHERE id=?`, parts[0]).Scan(&mediaID, &mediaType); err != nil {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	// MeController.getItemListeningSessions (MeController.js:185): the episode
@@ -54,11 +54,11 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 		episodeFound = exists > 0
 	}
 	if mediaType == "podcast" && !episodeFound {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	if !access.allowed {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	if episodeFound {
@@ -70,7 +70,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
 	parts := strings.Split(tail, "/")
 	if len(parts) != 2 || parts[0] == "" || (parts[1] != "remove-from-continue-listening" && parts[1] != "readd-to-continue-listening") {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	var exists int
@@ -80,7 +80,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 		return
 	}
 	if exists == 0 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
 	var extra map[string]any

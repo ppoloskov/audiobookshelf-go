@@ -28,6 +28,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -87,7 +88,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if p == "/podcasts/feed" && r.Method == http.MethodPost {
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		var body struct {
@@ -107,7 +108,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if p == "/podcasts" && r.Method == http.MethodPost {
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.createPodcast(w, r)
@@ -115,14 +116,14 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if p == "/podcasts/opml/parse" && r.Method == http.MethodPost {
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		var body struct {
 			OPMLText string `json:"opmlText"`
 		}
 		if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil || body.OPMLText == "" {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		jsonResponse(w, 200, map[string]any{"feeds": parseOPML(body.OPMLText)})
@@ -130,7 +131,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if p == "/podcasts/opml/create" && r.Method == http.MethodPost {
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.createFromOPML(w, r)
@@ -142,7 +143,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	id, err := url.PathUnescape(parts[0])
 	if err != nil || id == "" {
-		sendStatus(w, 400)
+		httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	}
 	// PodcastController.middleware (server/controllers/PodcastController.js:
@@ -155,9 +156,9 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 			// PodcastController.middleware answers a bare 500 for a non-podcast
 			// item (PodcastController.js:565); upstream logs nothing.
 			logging.RequestDebug(r, "responding 500: library item "+id+" is a "+other+" item, not a podcast")
-			sendStatus(w, 500)
+			httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
 		} else {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
 		}
 		return true
 	}
@@ -167,15 +168,15 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	}
 	if !canAccessPodcast(user, item) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	}
 	if r.Method == http.MethodDelete && !canDeletePodcast(user) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	}
 	if (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !canUpdatePodcast(user) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	}
 	switch {
@@ -184,23 +185,23 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	case len(parts) == 2 && parts[1] == "clear-queue" && r.Method == http.MethodGet:
 		h.clearQueue(id)
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	case len(parts) == 2 && parts[1] == "download-episodes" && r.Method == http.MethodPost:
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		var episodes []map[string]any
 		if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&episodes) != nil || len(episodes) == 0 {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		if err := h.enqueue(item, episodes, false); err != nil {
 			text(w, 400, err.Error())
 			return true
 		}
-		sendStatus(w, 200)
+		httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	case len(parts) == 2 && parts[1] == "search-episode" && r.Method == http.MethodGet:
 		if !item.FeedURL.Valid || item.FeedURL.String == "" {
@@ -210,7 +211,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		title := r.URL.Query().Get("title")
 		if title == "" {
 			logging.RequestDebug(r, "responding 500: query parameter title is empty")
-			sendStatus(w, 500)
+			httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		feed, e := h.getFeed(r.Context(), item.FeedURL.String, false)
@@ -222,7 +223,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	case len(parts) == 2 && parts[1] == "match-episodes" && r.Method == http.MethodPost:
 		if !canUpdatePodcast(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.queueMu.Lock()
@@ -247,7 +248,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	case len(parts) == 2 && parts[1] == "checknew" && r.Method == http.MethodGet:
 		if !admin(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		if !item.FeedURL.Valid || item.FeedURL.String == "" {
@@ -259,36 +260,36 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodGet:
 		episodeID, decodeErr := url.PathUnescape(parts[2])
 		if decodeErr != nil {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		ep, ok := item.episode(episodeID)
 		if !ok {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		jsonResponse(w, 200, ep.oldJSON(item.ID))
 		return true
 	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodPatch:
 		if !canUpdatePodcast(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		episodeID, decodeErr := url.PathUnescape(parts[2])
 		if decodeErr != nil {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.updateEpisode(w, r, item, episodeID)
 		return true
 	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodDelete:
 		if !canDeletePodcast(user) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		episodeID, decodeErr := url.PathUnescape(parts[2])
 		if decodeErr != nil {
-			sendStatus(w, 400)
+			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.removeEpisode(w, r, item, episodeID)
@@ -443,7 +444,7 @@ func episodeStringField(e podcastEpisode, key string) sql.NullString {
 func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item podcastItem, episodeID string) {
 	ep, ok := item.episode(episodeID)
 	if !ok {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return
 	}
 	if r.URL.Query().Get("hard") == "1" {
@@ -877,7 +878,7 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) {
 	started := time.Now().UnixMilli()
 	task := map[string]any{"id": id, "action": "opml-import", "data": map[string]any{}, "title": "OPML import", "titleKey": "MessageTaskOpmlImport", "titleSubs": nil, "description": fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "descriptionKey": "MessageTaskOpmlImportDescription", "descriptionSubs": []any{len(body.Feeds)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": started, "finishedAt": nil}
 	h.emit("*", "task_started", task)
-	sendStatus(w, 200)
+	httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
 	go h.runOPMLImport(body.Feeds, body.LibraryID, body.FolderID, folderPath, body.AutoDownloadEpisodes, task)
 }
 
@@ -1270,17 +1271,6 @@ func validFeedURL(raw string) string {
 	return u.String()
 }
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
-
-// sendStatus is Express res.sendStatus: the status text as a text/plain body.
-func sendStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	if status == http.StatusOK {
-		body = "OK"
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = io.WriteString(w, body)
-}
 
 func text(w http.ResponseWriter, status int, s string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

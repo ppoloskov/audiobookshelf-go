@@ -24,7 +24,7 @@ import (
 // error response.
 func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) (limit, page int, ok bool) {
 	if !canAccessLibrary(permissions(user), libraryID) {
-		sendStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return 0, 0, false
 	}
 	var exists int

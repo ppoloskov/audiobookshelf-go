@@ -242,7 +242,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 	}
 	b, ok := h.find(parts[0])
 	if !ok {
-		sendStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return true
 	}
 	if len(parts) == 2 && parts[1] == "download" && r.Method == http.MethodGet {
@@ -808,17 +808,6 @@ func extractEntry(f *zip.File, dest string) error {
 }
 
 func (h *Handler) emit(user, event string, payload any) { h.emitFunc(user, event, payload) }
-
-// sendStatus mirrors Express res.sendStatus: status text, text/plain, no newline.
-func sendStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	sum := sha1.Sum([]byte(body))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")))
-	w.WriteHeader(status)
-	_, _ = io.WriteString(w, body)
-}
 
 // sendBody mirrors Express res.send for a text response, including its ETag.
 func sendBody(w http.ResponseWriter, status int, body string) {

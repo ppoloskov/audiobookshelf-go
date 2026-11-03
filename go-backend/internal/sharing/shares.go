@@ -11,19 +11,11 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
-
-// sendStatus is Express res.sendStatus: the status text as a text/plain body.
-func sendStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
 
 // sendText is Express res.status(n).send("text"): text/html, no trailing newline.
 func sendText(w http.ResponseWriter, status int, body string) {
@@ -88,7 +80,7 @@ type createShareRequest struct {
 // emits share_open.
 func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
 	var req createShareRequest
@@ -177,7 +169,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 // ShareManager.removeMediaItemShare.
 func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
 	id := routeID(r.URL.Path, "")
@@ -200,7 +192,7 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 	if h.emit != nil {
 		h.emit("@admins", "share_closed", share.wire())
 	}
-	sendStatus(w, 204)
+	httputil.SendStatus(w, 204, httputil.WithoutETag())
 }
 
 func (h *Handler) dropShareSessions(shareID string) {

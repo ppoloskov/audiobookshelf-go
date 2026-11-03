@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -35,7 +36,7 @@ func (h *Handler) handleLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	// LibraryController.middleware (server/controllers/LibraryController.js:1475).
 	if !canAccessLibrary(user, libraryID) {
-		sendStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return true
 	}
 	var mediaType string
@@ -60,7 +61,7 @@ func (h *Handler) handleLibrary(w http.ResponseWriter, r *http.Request, user sto
 	case "recent-episodes":
 		// LibraryController.getRecentEpisodes (LibraryController.js:1280).
 		if mediaType != "podcast" {
-			sendStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		episodes, err := h.recentEpisodes(r.Context(), user, libraryID, limit, limit*page)

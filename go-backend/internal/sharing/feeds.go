@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -159,13 +160,13 @@ func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 
 func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT `+feedColumns+` FROM feeds`)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
 	var feeds []feedRow
@@ -174,7 +175,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 		if err != nil {
 			_ = rows.Close()
 			logging.RequestError(r, "internal error", err)
-			sendStatus(w, 500)
+			httputil.SendStatus(w, 500, httputil.WithoutETag())
 			return
 		}
 		feeds = append(feeds, f)
@@ -183,7 +184,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	_ = rows.Close()
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
 	out := wire.FeedList{Feeds: make([]wire.Feed, 0, len(feeds)), Minified: make([]wire.FeedMinified, 0, len(feeds))}
@@ -191,7 +192,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
 		if err != nil {
 			logging.RequestError(r, "internal error", err)
-			sendStatus(w, 500)
+			httputil.SendStatus(w, 500, httputil.WithoutETag())
 			return
 		}
 		out.Feeds = append(out.Feeds, f.old(eps))
@@ -257,7 +258,7 @@ func (req openFeedRequest) valid() (serverAddress, slug string, ok bool) {
 // collection and series routes.
 func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User, entityType string) {
 	if !admin(u) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
 	ctx := r.Context()
@@ -274,7 +275,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 			return
 		}
 		if !libraryAccess(u, src.LibraryID) {
-			sendStatus(w, 403)
+			httputil.SendStatus(w, 403, httputil.WithoutETag())
 			return
 		}
 	case "collection":
@@ -331,11 +332,11 @@ func feedURLText(f wire.FeedMinified) string {
 
 func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
 	if errors.Is(err, errFeedEntityMissing) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	logging.Errorf("[sharing] RSS feed entity lookup failed: %v", err)
-	sendStatus(w, 500)
+	httputil.SendStatus(w, 500, httputil.WithoutETag())
 }
 
 // slugInUse answers 400 and reports true when a feed already has the slug.
@@ -343,7 +344,7 @@ func (h *Handler) slugInUse(ctx context.Context, w http.ResponseWriter, slug str
 	var count int
 	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM feeds WHERE slug=?`, slug).Scan(&count); err != nil {
 		logging.Errorf("[sharing] slugInUse: internal error: %v", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return true
 	}
 	if count > 0 {
@@ -446,30 +447,30 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 // closeFeed is RSSFeedController.closeRSSFeed and RssFeedManager.handleCloseFeed.
 func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
 	id := routeID(r.URL.Path, "close")
 	feed, err := scanFeedRow(h.db.QueryRowContext(r.Context(), `SELECT `+feedColumns+` FROM feeds WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
 	if _, err = h.db.ExecContext(r.Context(), `DELETE FROM feeds WHERE id=?`, id); err != nil {
 		logging.RequestError(r, "internal error", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
 	logging.Infof("[RssFeedManager] Closed RSS feed %q", feedURLText(feed.minified())) // RssFeedManager.js:359
 	if h.emit != nil {
 		h.emit("*", "rss_feed_closed", feed.minified())
 	}
-	sendStatus(w, 200)
+	httputil.SendStatus(w, 200, httputil.WithoutETag())
 }
 
 // publicFeed is GET /feed/:slug, /feed/:slug/item/:episodeId/* and
@@ -477,7 +478,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 2 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	slug := parts[1]
@@ -490,13 +491,13 @@ func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parts) != 2 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	ctx := r.Context()
 	feed, err := h.feedBySlug(ctx, slug)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	var eps []feedEpisodeRow
@@ -508,7 +509,7 @@ func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		sendStatus(w, 500)
+		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
 	w.Header().Set("Content-Type", "text/xml; charset=utf-8")
@@ -609,7 +610,7 @@ func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episode
 	var path sql.NullString
 	err := h.db.QueryRowContext(r.Context(), `SELECT fe.filePath FROM feedEpisodes fe JOIN feeds f ON f.id=fe.feedId WHERE f.slug=? AND fe.id=?`, slug, episodeID).Scan(&path)
 	if err != nil || path.String == "" {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	serveMedia(w, r, path.String)
@@ -620,12 +621,12 @@ func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episode
 func (h *Handler) feedCover(w http.ResponseWriter, r *http.Request, slug string) {
 	var path sql.NullString
 	if err := h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM feeds WHERE slug=?`, slug).Scan(&path); err != nil || path.String == "" {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	f, err := os.Open(path.String)
 	if err != nil {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	defer f.Close()

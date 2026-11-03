@@ -235,7 +235,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	if errors.Is(err, sql.ErrNoRows) {
 		// LibraryItemController.middleware / startEpisodePlaybackSession
 		// (LibraryItemController.js:460-470): res.sendStatus(404).
-		sendStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutETag())
 		return
 	}
 	if err != nil {
@@ -243,7 +243,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if !canAccess(user, item) {
-		sendStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutETag())
 		return
 	}
 	if len(item.Files) == 0 {
@@ -2163,15 +2163,6 @@ func segmentNumber(name string) (int, bool) {
 }
 func methodNotAllowed(w http.ResponseWriter) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-}
-
-// sendStatus is Express res.sendStatus: the status text as a text/plain body.
-func sendStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
 }
 
 func sendOK(w http.ResponseWriter) {

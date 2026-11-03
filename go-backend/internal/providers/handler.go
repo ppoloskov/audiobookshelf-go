@@ -84,7 +84,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if p == "/api/custom-metadata-providers" {
 		if !isAdmin(user) {
-			sendStatus(w, http.StatusForbidden)
+			httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		switch r.Method {
@@ -99,12 +99,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	if strings.HasPrefix(p, "/api/custom-metadata-providers/") && r.Method == http.MethodDelete {
 		if !isAdmin(user) {
-			sendStatus(w, http.StatusForbidden)
+			httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		id, err := url.PathUnescape(strings.TrimPrefix(p, "/api/custom-metadata-providers/"))
 		if err != nil || id == "" || strings.Contains(id, "/") {
-			sendStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
 			return true
 		}
 		h.deleteCustomProvider(w, r, id)
@@ -231,7 +231,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	var extra []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders WHERE id=?`, id).Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
 		return
 	}
 	if err != nil {
@@ -272,7 +272,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	if h.emit != nil {
 		h.emit("*", "custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
 	}
-	sendStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK, httputil.WithoutContentLength(), httputil.WithoutETag())
 }
 
 var bookProviderNames = map[string]string{"all": "All", "best": "Best", "google": "Google Books", "itunes": "iTunes", "openlibrary": "Open Library", "fantlab": "FantLab.ru", "audiobookcovers": "AudiobookCovers.com", "audible": "Audible.com", "audible.ca": "Audible.ca", "audible.uk": "Audible.co.uk", "audible.au": "Audible.com.au", "audible.fr": "Audible.fr", "audible.de": "Audible.de", "audible.jp": "Audible.co.jp", "audible.it": "Audible.it", "audible.in": "Audible.in", "audible.es": "Audible.es", "audnexus": "Audnexus"}
@@ -352,13 +352,6 @@ func isoDate(value string) string {
 	return value
 }
 func dbNow() string { return dbtime.Now() }
-func sendStatus(w http.ResponseWriter, status int) {
-	if status == http.StatusOK {
-		sendText(w, status, "OK")
-		return
-	}
-	sendText(w, status, http.StatusText(status))
-}
 func sendText(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)

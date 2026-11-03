@@ -244,7 +244,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if !canAccessLibrary(permissions(user), libraryID) {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	items, ok := body["items"].([]any)
@@ -553,7 +553,7 @@ func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request, id stri
 	if h.emit != nil {
 		h.emit(user.ID, "playlist_removed", item)
 	}
-	sendStatus(w, 200)
+	httputil.SendStatus(w, 200)
 }
 
 func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id string, user store.User, batch bool) {

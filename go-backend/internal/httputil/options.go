@@ -15,6 +15,7 @@ type Option func(*options)
 
 type options struct {
 	noContentLength bool
+	noETag          bool
 	streamed        bool
 	request         *http.Request
 	keys            []string
@@ -30,6 +31,9 @@ func apply(opts []Option) options {
 
 // WithoutContentLength omits the explicit Content-Length header.
 func WithoutContentLength() Option { return func(o *options) { o.noContentLength = true } }
+
+// WithoutETag omits the weak ETag header on text responses.
+func WithoutETag() Option { return func(o *options) { o.noETag = true } }
 
 // Streamed writes JSON through json.NewEncoder directly onto the response:
 // the body ends in a newline and no Content-Length is set explicitly.

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -86,7 +87,7 @@ func validUUIDv4(s string) bool {
 func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 3 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	slug := parts[2]
@@ -97,7 +98,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	start := 0.0
@@ -239,7 +240,7 @@ func (h *Handler) shareSessionFor(w http.ResponseWriter, r *http.Request, slug s
 	}
 	share, err := h.findShare(r.Context(), slug)
 	if err != nil {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return shareRow{}, shareSession{}, false
 	}
 	h.mu.Lock()
@@ -273,7 +274,7 @@ func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) {
 	}
 	share, err := h.findShare(r.Context(), slug)
 	if err != nil {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	h.mu.Lock()
@@ -286,14 +287,14 @@ func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) {
 	s.Current = math.Min(*p.CurrentTime, s.Duration)
 	s.Updated = time.Now().UnixMilli()
 	h.mu.Unlock()
-	sendStatus(w, 204)
+	httputil.SendStatus(w, 204, httputil.WithoutETag())
 }
 
 // publicShareFile serves /public/share/:slug/{track/:index,cover,download}.
 func (h *Handler) publicShareFile(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 4 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}
 	slug := parts[2]
@@ -334,7 +335,7 @@ func (h *Handler) publicShareFile(w http.ResponseWriter, r *http.Request) {
 		}
 		share, err := h.findShare(r.Context(), slug)
 		if err != nil {
-			sendStatus(w, 404)
+			httputil.SendStatus(w, 404, httputil.WithoutETag())
 			return
 		}
 		if !share.IsDownloadable.Bool {
@@ -363,6 +364,6 @@ func (h *Handler) publicShareFile(w http.ResponseWriter, r *http.Request) {
 			sendText(w, 500, "Failed to download the item")
 		}
 	default:
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404, httputil.WithoutETag())
 	}
 }

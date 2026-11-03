@@ -247,7 +247,7 @@ creates them.
     option, not a separate function name that contains `writeJSON`.
   - Done when: ratchet `writeJSON-style copies` goes from 5 to <= 1.
 
-- [ ] K5: Move `sendStatus` into `httputil`
+- [x] K5: Move `sendStatus` into `httputil`
   - Files: `go-backend/internal/providers/handler.go` (line 354),
     `internal/playback/playback.go` (line 2180),
     `internal/podcasts/podcasts.go` (line 1275), `internal/userapi/userapi.go`

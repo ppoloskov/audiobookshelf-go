@@ -75,11 +75,11 @@ func refreshTokenFromRequest(r *http.Request) string {
 
 func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user store.User, id string) {
 	if user.Type == "guest" {
-		sendStatus(w, 403)
+		httputil.SendStatus(w, 403)
 		return
 	}
 	if !uuidPattern.MatchString(id) {
-		sendStatus(w, 400)
+		httputil.SendStatus(w, 400)
 		return
 	}
 	res, err := h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id=? AND userId=?`, id, user.ID)
@@ -90,10 +90,10 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		sendStatus(w, 404)
+		httputil.SendStatus(w, 404)
 		return
 	}
-	sendStatus(w, 200)
+	httputil.SendStatus(w, 200)
 }
 
 func parseUA(agent string) map[string]any {
