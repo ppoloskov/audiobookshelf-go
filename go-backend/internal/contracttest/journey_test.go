@@ -215,7 +215,10 @@ func checkJourneyStep(t *testing.T, rec recordedStep, got journeyResult) {
 	if got.status != rec.Status {
 		t.Fatalf("status %d, recorded %d: %s", got.status, rec.Status, snippet(got.raw))
 	}
-	if got.media != rec.ContentType {
+	// Content type is contract only for successful responses with a body:
+	// clients decode those. Error and empty responses are "free" framing
+	// (ARCHITECTURE.md), e.g. TS sends no type on a bare 401 or 204.
+	if rec.Status < 300 && rec.Status != http.StatusNoContent && got.media != rec.ContentType {
 		t.Errorf("content type %q, recorded %q", got.media, rec.ContentType)
 	}
 	if rec.Shape == nil {
