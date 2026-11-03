@@ -1,0 +1,1565 @@
+{
+  "source": {
+    "upstreamCommit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "generator": "go test ./internal/contracttest -run TestJourneyLibrary -record"
+  },
+  "steps": {
+    "genres.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "numItemsUpdated": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "genres.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "genres.list": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "genres": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          }
+        }
+      }
+    },
+    "genres.list.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "genres.rename": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "genreMerged": {
+            "kind": "bool"
+          },
+          "numItemsUpdated": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "genres.rename.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "createdAt": {
+            "kind": "number"
+          },
+          "displayOrder": {
+            "kind": "number"
+          },
+          "folders": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "libraryId": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "icon": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "lastScan": {
+            "kind": "null"
+          },
+          "lastUpdate": {
+            "kind": "number"
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "name": {
+            "kind": "string"
+          },
+          "provider": {
+            "kind": "string"
+          },
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "audiobooksOnly": {
+                "kind": "bool"
+              },
+              "autoScanCronExpression": {
+                "kind": "null"
+              },
+              "coverAspectRatio": {
+                "kind": "number"
+              },
+              "disableWatcher": {
+                "kind": "bool"
+              },
+              "epubsAllowScriptedContent": {
+                "kind": "bool"
+              },
+              "hideSingleBookSeries": {
+                "kind": "bool"
+              },
+              "markAsFinishedPercentComplete": {
+                "kind": "null"
+              },
+              "markAsFinishedTimeRemaining": {
+                "kind": "number"
+              },
+              "metadataPrecedence": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "onlyShowLaterBooksInContinueSeries": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithAsin": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithIsbn": {
+                "kind": "bool"
+              }
+            }
+          }
+        }
+      }
+    },
+    "library.create.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "createdAt": {
+            "kind": "number"
+          },
+          "displayOrder": {
+            "kind": "number"
+          },
+          "folders": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "libraryId": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "icon": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "lastScan": {
+            "kind": "null"
+          },
+          "lastScanVersion": {
+            "kind": "null"
+          },
+          "lastUpdate": {
+            "kind": "number"
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "name": {
+            "kind": "string"
+          },
+          "provider": {
+            "kind": "string"
+          },
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "audiobooksOnly": {
+                "kind": "bool"
+              },
+              "autoScanCronExpression": {
+                "kind": "null"
+              },
+              "coverAspectRatio": {
+                "kind": "number"
+              },
+              "disableWatcher": {
+                "kind": "bool"
+              },
+              "epubsAllowScriptedContent": {
+                "kind": "bool"
+              },
+              "hideSingleBookSeries": {
+                "kind": "bool"
+              },
+              "markAsFinishedPercentComplete": {
+                "kind": "null"
+              },
+              "markAsFinishedTimeRemaining": {
+                "kind": "number"
+              },
+              "metadataPrecedence": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "onlyShowLaterBooksInContinueSeries": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithAsin": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithIsbn": {
+                "kind": "bool"
+              }
+            }
+          }
+        }
+      }
+    },
+    "library.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.filterdata": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "authorCount": {
+            "kind": "number"
+          },
+          "authors": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "id": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "bookCount": {
+            "kind": "number"
+          },
+          "genres": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "languages": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "loadedAt": {
+            "kind": "number"
+          },
+          "narrators": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "numIssues": {
+            "kind": "number"
+          },
+          "podcastCount": {
+            "kind": "number"
+          },
+          "publishedDecades": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "publishers": {
+            "kind": "array"
+          },
+          "series": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "id": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "seriesCount": {
+            "kind": "number"
+          },
+          "tags": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          }
+        }
+      }
+    },
+    "library.issues": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "library.issues.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.list": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "libraries": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "createdAt": {
+                  "kind": "number"
+                },
+                "displayOrder": {
+                  "kind": "number"
+                },
+                "folders": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "object",
+                    "keys": {
+                      "addedAt": {
+                        "kind": "number"
+                      },
+                      "fullPath": {
+                        "kind": "string"
+                      },
+                      "id": {
+                        "kind": "string"
+                      },
+                      "libraryId": {
+                        "kind": "string"
+                      }
+                    }
+                  }
+                },
+                "icon": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "lastScan": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "lastScanVersion": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "lastUpdate": {
+                  "kind": "number"
+                },
+                "mediaType": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "provider": {
+                  "kind": "string"
+                },
+                "settings": {
+                  "kind": "object",
+                  "keys": {
+                    "audiobooksOnly": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "autoScanCronExpression": {
+                      "kind": "null"
+                    },
+                    "coverAspectRatio": {
+                      "kind": "number"
+                    },
+                    "disableWatcher": {
+                      "kind": "bool"
+                    },
+                    "epubsAllowScriptedContent": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "hideSingleBookSeries": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "markAsFinishedPercentComplete": {
+                      "kind": "null"
+                    },
+                    "markAsFinishedTimeRemaining": {
+                      "kind": "number"
+                    },
+                    "metadataPrecedence": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "onlyShowLaterBooksInContinueSeries": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "podcastSearchRegion": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "skipMatchingMediaWithAsin": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "skipMatchingMediaWithIsbn": {
+                      "kind": "bool",
+                      "optional": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "library.narrator.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "updated": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "library.narrator.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.narrator.rename": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "updated": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "library.narrator.rename.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.order": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "libraries": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "createdAt": {
+                  "kind": "number"
+                },
+                "displayOrder": {
+                  "kind": "number"
+                },
+                "folders": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "object",
+                    "keys": {
+                      "addedAt": {
+                        "kind": "number"
+                      },
+                      "fullPath": {
+                        "kind": "string"
+                      },
+                      "id": {
+                        "kind": "string"
+                      },
+                      "libraryId": {
+                        "kind": "string"
+                      }
+                    }
+                  }
+                },
+                "icon": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "lastScan": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "lastScanVersion": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "lastUpdate": {
+                  "kind": "number"
+                },
+                "mediaType": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "provider": {
+                  "kind": "string"
+                },
+                "settings": {
+                  "kind": "object",
+                  "keys": {
+                    "audiobooksOnly": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "autoScanCronExpression": {
+                      "kind": "null"
+                    },
+                    "coverAspectRatio": {
+                      "kind": "number"
+                    },
+                    "disableWatcher": {
+                      "kind": "bool"
+                    },
+                    "epubsAllowScriptedContent": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "hideSingleBookSeries": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "markAsFinishedPercentComplete": {
+                      "kind": "null"
+                    },
+                    "markAsFinishedTimeRemaining": {
+                      "kind": "number"
+                    },
+                    "metadataPrecedence": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "onlyShowLaterBooksInContinueSeries": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "podcastSearchRegion": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "skipMatchingMediaWithAsin": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "skipMatchingMediaWithIsbn": {
+                      "kind": "bool",
+                      "optional": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "library.order.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.scan": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "library.scan.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "library.seed": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "success": {
+            "kind": "bool"
+          },
+          "updates": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "library.series.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "description": {
+            "kind": "null"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "name": {
+            "kind": "string"
+          },
+          "nameIgnorePrefix": {
+            "kind": "string"
+          },
+          "progress": {
+            "kind": "object",
+            "keys": {
+              "isFinished": {
+                "kind": "bool"
+              },
+              "libraryItemIds": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "libraryItemIdsFinished": {
+                "kind": "array"
+              }
+            }
+          },
+          "rssFeed": {
+            "kind": "null"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "library.series.list": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "include": {
+            "kind": "string"
+          },
+          "limit": {
+            "kind": "number"
+          },
+          "minified": {
+            "kind": "bool"
+          },
+          "page": {
+            "kind": "number"
+          },
+          "results": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "books": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "object",
+                    "keys": {
+                      "addedAt": {
+                        "kind": "number"
+                      },
+                      "birthtimeMs": {
+                        "kind": "number"
+                      },
+                      "ctimeMs": {
+                        "kind": "number"
+                      },
+                      "folderId": {
+                        "kind": "string"
+                      },
+                      "id": {
+                        "kind": "string"
+                      },
+                      "ino": {
+                        "kind": "string"
+                      },
+                      "isFile": {
+                        "kind": "bool"
+                      },
+                      "isInvalid": {
+                        "kind": "bool"
+                      },
+                      "isMissing": {
+                        "kind": "bool"
+                      },
+                      "libraryId": {
+                        "kind": "string"
+                      },
+                      "media": {
+                        "kind": "object",
+                        "keys": {
+                          "coverPath": {
+                            "kind": "string",
+                            "nullable": true
+                          },
+                          "duration": {
+                            "kind": "number"
+                          },
+                          "id": {
+                            "kind": "string"
+                          },
+                          "metadata": {
+                            "kind": "object",
+                            "keys": {
+                              "abridged": {
+                                "kind": "bool"
+                              },
+                              "asin": {
+                                "kind": "null"
+                              },
+                              "authorName": {
+                                "kind": "string"
+                              },
+                              "authorNameLF": {
+                                "kind": "string"
+                              },
+                              "description": {
+                                "kind": "string",
+                                "nullable": true
+                              },
+                              "explicit": {
+                                "kind": "bool"
+                              },
+                              "genres": {
+                                "kind": "array"
+                              },
+                              "isbn": {
+                                "kind": "null"
+                              },
+                              "language": {
+                                "kind": "null"
+                              },
+                              "narratorName": {
+                                "kind": "string"
+                              },
+                              "publishedDate": {
+                                "kind": "null"
+                              },
+                              "publishedYear": {
+                                "kind": "null"
+                              },
+                              "publisher": {
+                                "kind": "null"
+                              },
+                              "seriesName": {
+                                "kind": "string"
+                              },
+                              "subtitle": {
+                                "kind": "null"
+                              },
+                              "title": {
+                                "kind": "string"
+                              },
+                              "titleIgnorePrefix": {
+                                "kind": "string"
+                              }
+                            }
+                          },
+                          "numAudioFiles": {
+                            "kind": "number"
+                          },
+                          "numChapters": {
+                            "kind": "number"
+                          },
+                          "numTracks": {
+                            "kind": "number"
+                          },
+                          "size": {
+                            "kind": "number"
+                          },
+                          "tags": {
+                            "kind": "array"
+                          }
+                        }
+                      },
+                      "mediaType": {
+                        "kind": "string"
+                      },
+                      "mtimeMs": {
+                        "kind": "number"
+                      },
+                      "numFiles": {
+                        "kind": "number"
+                      },
+                      "oldLibraryItemId": {
+                        "kind": "null"
+                      },
+                      "path": {
+                        "kind": "string"
+                      },
+                      "relPath": {
+                        "kind": "string"
+                      },
+                      "size": {
+                        "kind": "number"
+                      },
+                      "updatedAt": {
+                        "kind": "number"
+                      }
+                    }
+                  }
+                },
+                "description": {
+                  "kind": "null"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "libraryId": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "nameIgnorePrefix": {
+                  "kind": "string"
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "sortBy": {
+            "kind": "string"
+          },
+          "sortDesc": {
+            "kind": "bool"
+          },
+          "total": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "login.listener": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "createdAt": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "time": {
+                      "kind": "number"
+                    },
+                    "title": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "currentTime": {
+                      "kind": "number"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "ebookLocation": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "ebookProgress": {
+                      "kind": "number"
+                    },
+                    "episodeId": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "finishedAt": {
+                      "kind": "number",
+                      "nullable": true
+                    },
+                    "hideFromContinueListening": {
+                      "kind": "bool"
+                    },
+                    "id": {
+                      "kind": "string"
+                    },
+                    "isFinished": {
+                      "kind": "bool"
+                    },
+                    "lastUpdate": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemType": {
+                      "kind": "string"
+                    },
+                    "progress": {
+                      "kind": "number"
+                    },
+                    "startedAt": {
+                      "kind": "number"
+                    },
+                    "userId": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "login.root": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "tags.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "numItemsUpdated": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "tags.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "tags.list": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "tags": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          }
+        }
+      }
+    },
+    "tags.list.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "tags.rename": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "numItemsUpdated": {
+            "kind": "number"
+          },
+          "tagMerged": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "tags.rename.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    }
+  }
+}
