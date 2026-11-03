@@ -80,9 +80,9 @@ From the repository root unless noted.
 ```sh
 cd go-backend && go build ./... && go vet ./... && go test ./...
 make ratchet                 # metrics and dbnest
-make parity-replacement      # until V1; needs Node 22 and `npm ci && npm run build:server`
-make parity-scan             # until V1
-make route-probe             # until V1; run last, it mutates its work dir
+make parity-replacement      # advisory (V1); needs Node 22 and `npm ci && npm run build:server`
+make parity-scan             # advisory (V1)
+make route-probe             # advisory (V1); run last, it mutates its work dir
 make bench                   # performance snapshot
 ```
 
