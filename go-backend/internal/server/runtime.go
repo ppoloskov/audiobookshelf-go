@@ -109,7 +109,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
-	userapiHandler, err := userapi.New(db, cfg, hub.Emit, catalogHandler)
+	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit, catalogHandler)
 	if err != nil {
 		podcastsHandler.Close()
 		sc.Close()

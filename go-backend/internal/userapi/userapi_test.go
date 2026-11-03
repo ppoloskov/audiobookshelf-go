@@ -21,7 +21,7 @@ import (
 )
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
-	h, err := New(db, cfg, emit, catalog.New(db, cfg, nil))
+	h, err := New(db, []byte("userapi-test-secret"), emit, catalog.New(db, cfg, nil))
 	if err != nil {
 		panic(err)
 	}

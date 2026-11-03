@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -203,7 +204,7 @@ func TestAPIKeyAuthenticationAndInitOneTime(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO apiKeys (id, isActive, expiresAt, lastUsedAt, userId, updatedAt) VALUES (?, 1, ?, NULL, ?, ?)`, "key-1", now.Add(time.Hour).Format(time.RFC3339Nano), "user-1", now.Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
-	keyToken, err := handler.sign(map[string]any{"keyId": "key-1", "name": "test", "type": "api"})
+	keyToken, err := auth.Sign(handler.secret, map[string]any{"keyId": "key-1", "name": "test", "type": "api"})
 	if err != nil {
 		t.Fatal(err)
 	}

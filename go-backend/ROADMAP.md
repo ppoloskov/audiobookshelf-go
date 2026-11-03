@@ -169,7 +169,7 @@ L2, JWT issuing -> L1).
 
 ## Phase L: approved libraries
 
-- [ ] L1: JWT with `golang-jwt/jwt/v5`
+- [x] L1: JWT with `golang-jwt/jwt/v5`
   - Files: `internal/auth/token.go`, `internal/identity/identity.go` (`sign`),
     `internal/userapi/userapi.go` (`signToken`, dead `tokenSecret` branch)
   - Change: `auth` issues and verifies all tokens through the library with the

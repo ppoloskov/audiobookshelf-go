@@ -175,6 +175,9 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 	return h, nil
 }
 
+// TokenSecret returns the key that signs and verifies this server's JWTs.
+func (h *Handler) TokenSecret() []byte { return h.secret }
+
 // Handle consumes the local identity endpoints and /api/authorize. Paths may
 // be passed with or without the configured router prefix.
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) bool {
@@ -656,23 +659,11 @@ func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duratio
 	}
 	now := time.Now().Unix()
 	payload := map[string]any{"userId": user.ID, "username": user.Username, "jti": jti, "type": tokenType, "iat": now, "exp": now + int64(ttl.Seconds())}
-	return h.sign(payload)
+	return auth.Sign(h.secret, payload)
 }
 
 func (h *Handler) issueLegacyToken(id, username string) (string, error) {
-	return h.sign(map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
-}
-
-func (h *Handler) sign(payload any) (string, error) {
-	header, _ := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	input := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(body)
-	mac := hmac.New(sha256.New, h.secret)
-	_, _ = mac.Write([]byte(input))
-	return input + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)), nil
+	return auth.Sign(h.secret, map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
 }
 
 func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string]any, error) {

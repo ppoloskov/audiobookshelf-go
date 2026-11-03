@@ -56,7 +56,7 @@ func TestCreatePlaylistFromCollectionPersistsExpandedBookItems(t *testing.T) {
 	}
 	var eventUser, eventName string
 	var eventPayload map[string]any
-	h, err := New(db, config.Config{}, func(userID, event string, payload any) {
+	h, err := New(db, []byte("userapi-test-secret"), func(userID, event string, payload any) {
 		eventUser, eventName = userID, event
 		eventPayload, _ = payload.(map[string]any)
 	}, catalog.New(db, config.Config{}, nil))
