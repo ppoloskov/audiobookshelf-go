@@ -94,7 +94,7 @@ func clampCoverDimension(raw string, max int) *int {
 func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath string) {
 	info, err := os.Stat(coverPath)
 	if err != nil {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	// node_modules/send/index.js:862: the Cache-Control default is only
@@ -129,7 +129,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 		}
 	}
 	if format != "webp" && format != "jpeg" && format != "png" {
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
 	width := 400
@@ -156,21 +156,21 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 	var coverPath sql.NullString
 	err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(b.coverPath, p.coverPath) FROM libraryItems li LEFT JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book' LEFT JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast' WHERE li.id = ?`, itemID).Scan(&coverPath)
 	if err != nil || !coverPath.Valid || coverPath.String == "" {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if _, statErr := os.Stat(coverPath.String); statErr != nil {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err := os.MkdirAll(h.coverCachePath(), 0o755); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 		return
 	}
 	if err := resizeImage(r.Context(), coverPath.String, cachePath, width, height); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 		return
 	}
 	streamCoverCache(w, r, cachePath)

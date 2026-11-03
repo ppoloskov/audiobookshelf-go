@@ -744,16 +744,6 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	_, _ = sendExpressText(w, status, message)
 }
 
-// writeStatus mirrors Express res.sendStatus: plain-text status text with ETag.
-func writeStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressETag([]byte(body)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
-
 // sendExpressText writes an Express 'send' text body: no trailing newline and
 // a W/"<len hex>-<sha1 base64>" ETag header.
 func sendExpressText(w http.ResponseWriter, status int, message string) (bool, error) {
@@ -2520,7 +2510,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
 	item, err := h.ItemJSON(r.Context(), itemID, r.URL.Query().Get("expanded") == "1")
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -2529,11 +2519,11 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, 
 		return
 	}
 	if !userCanAccessLibrary(user, item["libraryId"].(string)) {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	if !userCanAccessItem(user, item) {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	if r.URL.Query().Get("expanded") == "1" {
@@ -2736,7 +2726,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -2745,7 +2735,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 		return
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	var target string
@@ -2758,14 +2748,14 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 		}
 	}
 	if target == "" {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if download {
 		var permissions map[string]any
 		_ = json.Unmarshal(user.Permissions, &permissions)
 		if !user.IsActive || permissions["download"] != true {
-			writeStatus(w, http.StatusForbidden)
+			httputil.SendStatus(w, http.StatusForbidden)
 			return
 		}
 		if mimeType := audioMIMEType(filepath.Ext(target)); mimeType != "" {
@@ -2784,7 +2774,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 				return
 			}
 		}
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if download {
@@ -2845,7 +2835,7 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request, itemID string) {
 	var libraryID, mediaType, mediaID string
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -2866,11 +2856,11 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request, itemID string) {
 			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM podcasts WHERE id=?`, mediaID).Scan(&target)
 		}
 		if err != nil || target == "" {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 			return
 		}
 		if !h.pathAllowed(r.Context(), target, libraryID, true) {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 			return
 		}
 		h.coverRaw(w, r, target)

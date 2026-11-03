@@ -3,18 +3,16 @@ package notifications
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"crypto/rand"
-	"crypto/sha1"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,7 +32,7 @@ func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	p := r.URL.Path
 	if (strings.HasPrefix(p, "/api/notifications") || p == "/api/notificationdata") && !admin(user.Type) {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return true
 	}
 	switch {
@@ -87,25 +85,6 @@ func (h *Handler) save(ctx context.Context, v map[string]any) error {
 	return e
 }
 func admin(t string) bool { return t == "admin" || t == "root" }
-func writeStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	sum := sha1.Sum([]byte(body))
-	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
-func writeExpressSend(w http.ResponseWriter, status int, body string) {
-	sum := sha1.Sum([]byte(body))
-	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) {
 	s, e := h.load(r.Context())
 	if e != nil {
@@ -127,7 +106,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
-		writeStatus(w, http.StatusOK)
+		httputil.SendStatus(w, http.StatusOK)
 		return
 	}
 	s, e := h.load(r.Context())
@@ -176,7 +155,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 func strictEqual(a, b any) bool {
 	switch x := a.(type) {
@@ -283,7 +262,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		out = append(out, raw)
 	}
 	if !removed {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	s["notifications"] = out
@@ -302,7 +281,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.find(s, lastID(r.URL.Path)) == nil {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	var payload any
@@ -359,7 +338,7 @@ func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	data := events[len(events)-1].(map[string]any)
 	_, _ = h.deliverActive(r.Context(), s, "onTest", data["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 // TriggerEvent is the runtime hook for source lifecycle notifications (backup
@@ -389,25 +368,25 @@ func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 	}
 	n := h.find(s, lastID(strings.TrimSuffix(r.URL.Path, "/test")))
 	if n == nil {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	endpoint, _ := s["appriseApiUrl"].(string)
 	if endpoint == "" {
-		writeExpressSend(w, http.StatusBadRequest, "Apprise is not configured")
+		httputil.SendText(w, http.StatusBadRequest, "Apprise is not configured")
 		return
 	}
 	event := eventData(n["eventName"].(string))
 	if event == nil {
 		logging.RequestDebug(r, "responding 500: unknown notification event "+fmt.Sprint(n["eventName"]))
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 		return
 	}
 	if deliverErr := h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))); deliverErr == nil {
-		writeStatus(w, http.StatusOK)
+		httputil.SendStatus(w, http.StatusOK)
 	} else {
 		logging.RequestError(r, "Apprise test notification failed", deliverErr)
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 	}
 }
 func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event string, data map[string]any, fail bool) (bool, error) {

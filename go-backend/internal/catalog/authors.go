@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
@@ -153,7 +154,7 @@ func userAllows(user store.User, key string) bool {
 func (h *Handler) authorRequest(w http.ResponseWriter, r *http.Request, user store.User) (authorRecord, bool) {
 	a, err := h.loadAuthor(r.Context(), r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return a, false
 	}
 	if err != nil {
@@ -162,17 +163,17 @@ func (h *Handler) authorRequest(w http.ResponseWriter, r *http.Request, user sto
 		return a, false
 	}
 	if !userCanAccessLibrary(user, a.libraryID) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return a, false
 	}
 	switch {
 	case r.Method == http.MethodDelete && !userAllows(user, "delete"):
 		logging.Warnf(`[AuthorController] User "%s" attempted to delete without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return a, false
 	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !userAllows(user, "update"):
 		logging.Warnf(`[AuthorController] User "%s" attempted to update without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return a, false
 	}
 	return a, true
@@ -765,7 +766,7 @@ func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) {
 		h.emit("*", "author_removed", oldAuthor)
 	}
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID)
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 // authorImagePath is the file AuthorFinder.saveAuthorImage writes
@@ -879,7 +880,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if !userAllows(user, "upload") {
 		logging.Warnf(`User "%s" attempted to upload an image without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	ctx := r.Context()
@@ -1100,7 +1101,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 		a, err := h.loadAuthor(r.Context(), authorID)
 		if errors.Is(err, sql.ErrNoRows) {
 			logging.Warnf(`[AuthorController] Author "%s" not found`, authorID)
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 			return
 		}
 		if err != nil {
@@ -1109,12 +1110,12 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 		}
 		if !a.imagePath.Valid || a.imagePath.String == "" {
 			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 			return
 		}
 		if _, err := os.Stat(a.imagePath.String); err != nil {
 			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 			return
 		}
 		h.coverRaw(w, r, a.imagePath.String)
@@ -1131,7 +1132,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 	widthValue := clampCoverDimension(query.Get("width"), 4096)
 	heightValue := clampCoverDimension(query.Get("height"), 4096)
 	if format != "webp" && format != "jpeg" && format != "png" || !isUUID(authorID) {
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
 	width, height := 400, -1
@@ -1157,21 +1158,21 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil || !a.imagePath.Valid || a.imagePath.String == "" {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if _, err := os.Stat(a.imagePath.String); err != nil {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err := os.MkdirAll(h.imageCachePath(), 0o755); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 		return
 	}
 	if err := resizeImage(r.Context(), a.imagePath.String, cachePath, width, height); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeStatus(w, http.StatusInternalServerError)
+		httputil.SendStatus(w, http.StatusInternalServerError)
 		return
 	}
 	streamCoverCache(w, r, cachePath)

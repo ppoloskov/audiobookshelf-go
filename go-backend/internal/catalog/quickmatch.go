@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/wire"
@@ -756,7 +757,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) {
 	var libraryID, mediaType, mediaID string
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, id).Scan(&libraryID, &mediaType, &mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -771,12 +772,12 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	if !userAllows(user, "update") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to update without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	options := matchOptionsFromBody(jsonBodyObject(r), "provider", "title", "author", "isbn", "asin")
@@ -796,14 +797,14 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
 	user := requestUser(r)
 	if !adminUser(user) {
 		logging.Warnf(`Non-admin user "%s" other than admin attempted to batch quick match library items`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	body := jsonBodyObject(r)
 	var ids []string
 	var rawIDs []json.RawMessage
 	if json.Unmarshal(body["libraryItemIds"], &rawIDs) != nil || len(rawIDs) == 0 {
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
 	for _, raw := range rawIDs {
@@ -819,10 +820,10 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(items) == 0 {
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 	var optionBody map[string]json.RawMessage
 	_ = json.Unmarshal(body["options"], &optionBody)
 	options := matchOptionsFromBody(optionBody, "provider")
@@ -857,11 +858,11 @@ func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request) {
 	}
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	h.background(func(ctx context.Context) { h.matchLibraryItems(ctx, library) })
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 func (h *Handler) matchLibraryItems(ctx context.Context, library libraryRecord) {

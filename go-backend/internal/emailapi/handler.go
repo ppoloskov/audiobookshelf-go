@@ -3,9 +3,9 @@ package emailapi
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"crypto/tls"
 	"database/sql"
 	"encoding/base64"
@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -42,25 +41,25 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 	switch {
 	case r.URL.Path == "/api/emails/settings" && r.Method == http.MethodGet:
 		if !admin(u) {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 		} else {
 			h.settings(w, r, false)
 		}
 	case r.URL.Path == "/api/emails/settings" && r.Method == http.MethodPatch:
 		if !admin(u) {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 		} else {
 			h.settings(w, r, true)
 		}
 	case r.URL.Path == "/api/emails/test" && r.Method == http.MethodPost:
 		if !admin(u) {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 		} else {
 			h.sendTest(w, r)
 		}
 	case r.URL.Path == "/api/emails/ereader-devices" && r.Method == http.MethodPost:
 		if !admin(u) {
-			writeStatus(w, http.StatusNotFound)
+			httputil.SendStatus(w, http.StatusNotFound)
 		} else {
 			h.ereaderDevices(w, r)
 		}
@@ -72,25 +71,6 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 	return true
 }
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
-func writeStatus(w http.ResponseWriter, status int) {
-	body := http.StatusText(status)
-	sum := sha1.Sum([]byte(body))
-	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
-func writeExpressText(w http.ResponseWriter, status int, body string) {
-	sum := sha1.Sum([]byte(body))
-	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), hash))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
-}
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
 	e := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
@@ -229,7 +209,7 @@ func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		writeExpressText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
+		httputil.SendText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 		return
 	}
 	to, _ := m["testAddress"].(string)
@@ -241,10 +221,10 @@ func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 		if message == "" {
 			message = "Failed to send test email"
 		}
-		writeExpressText(w, http.StatusBadRequest, message)
+		httputil.SendText(w, http.StatusBadRequest, message)
 		return
 	}
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User) {
 	var p struct {
@@ -314,7 +294,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		writeExpressText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
+		httputil.SendText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 		return
 	}
 	from, _ := m["fromAddress"].(string)
@@ -323,11 +303,11 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 		if message == "" {
 			message = "Failed to send ebook to device"
 		}
-		writeExpressText(w, http.StatusBadRequest, message)
+		httputil.SendText(w, http.StatusBadRequest, message)
 		return
 	}
 	_ = from
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 type attachment struct {

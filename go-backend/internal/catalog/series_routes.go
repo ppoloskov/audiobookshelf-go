@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -79,7 +80,7 @@ func (h *Handler) seriesItems(ctx context.Context, user store.User, s seriesReco
 func (h *Handler) seriesRequest(w http.ResponseWriter, r *http.Request, user store.User) (seriesRecord, []seriesItem, bool) {
 	s, err := h.loadSeries(r.Context(), r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return s, nil, false
 	}
 	if err != nil {
@@ -95,17 +96,17 @@ func (h *Handler) seriesRequest(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if len(items) == 0 {
 		logging.Warnf(`[SeriesController] User "%s" attempted to access series "%s" with no accessible books`, user.Username, s.id)
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return s, nil, false
 	}
 	switch {
 	case r.Method == http.MethodDelete && !userAllows(user, "delete"):
 		logging.Warnf(`[SeriesController] User "%s" attempted to delete without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return s, nil, false
 	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !userAllows(user, "update"):
 		logging.Warnf(`[SeriesController] User "%s" attempted to update without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return s, nil, false
 	}
 	return s, items, true

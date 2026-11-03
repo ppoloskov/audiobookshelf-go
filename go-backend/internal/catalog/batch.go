@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -131,7 +132,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 	user := requestUser(r)
 	if !userAllows(user, "delete") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to delete without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	ctx := r.Context()
@@ -148,7 +149,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(items) == 0 {
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	allowed, err := h.userCanAccessItems(ctx, user, items)
@@ -158,7 +159,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	libraryID := items[0].libraryID
@@ -173,7 +174,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 		h.checkRemoveAuthorsWithNoBooks(ctx, linked.authors)
 	}
 	h.resetIssues(ctx, libraryID) // Database.resetLibraryIssuesFilterData
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 // batchUpdate is LibraryItemController.batchUpdate (LibraryItemController.js:
@@ -184,14 +185,14 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	user := requestUser(r)
 	if !userAllows(user, "update") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to batch update without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	ctx := r.Context()
 	updates, ok := jsonBodyArray(r)
 	if !ok || len(updates) == 0 {
 		logging.Errorf("[LibraryItemController] Batch update failed. Invalid payload")
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
 	type update struct {
@@ -220,7 +221,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(ids) == 0 || len(ids) != len(updates) {
 		logging.Errorf("[LibraryItemController] Batch update failed. Each update payload must have a unique library item id")
-		writeStatus(w, http.StatusBadRequest)
+		httputil.SendStatus(w, http.StatusBadRequest)
 		return
 	}
 	items, err := h.itemsExpandedWhere(ctx, ids)
@@ -231,7 +232,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(items) != len(updates) {
 		logging.Errorf("[LibraryItemController] Batch update failed. Not all library items found")
-		writeStatus(w, http.StatusNotFound)
+		httputil.SendStatus(w, http.StatusNotFound)
 		return
 	}
 	allowed, err := h.userCanAccessItems(ctx, user, items)
@@ -241,7 +242,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	byID := make(map[string]batchItem, len(items))

@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -70,13 +71,13 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if !user.IsActive || permissions["download"] != true {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	if isFile != 0 {

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -35,7 +36,7 @@ func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user st
 	id := r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
 		logging.Warnf("[LibraryController] Library %s not accessible to user %s", id, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return libraryRecord{}, false
 	}
 	var library libraryRecord
@@ -160,7 +161,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	}
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-admin user "%s" attempted to remove all metadata files`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	ext := "json"
@@ -243,7 +244,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	if !userAllows(user, "download") {
 		logging.Warnf(`User "%s" attempted to download without permission`, user.Username)
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	idsParam, present := r.URL.Query()["ids"]
@@ -272,7 +273,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		writeStatus(w, http.StatusForbidden)
+		httputil.SendStatus(w, http.StatusForbidden)
 		return
 	}
 	if len(items) < len(itemIDs) {

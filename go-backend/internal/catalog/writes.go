@@ -1042,7 +1042,7 @@ func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request, user store
 			}
 		}
 	}
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {

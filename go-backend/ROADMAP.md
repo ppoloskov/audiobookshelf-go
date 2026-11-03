@@ -266,7 +266,7 @@ creates them.
   - Done when: `grep -rln '^func sendText' go-backend/internal --include=*.go`
     is empty.
 
-- [ ] K7: Move `writeStatus` into `httputil`
+- [x] K7: Move `writeStatus` into `httputil`
   - Files: `go-backend/internal/catalog/handler.go` (line 756),
     `internal/emailapi/handler.go`, `internal/notifications/handler.go`
   - Change: Replace the three copies with `httputil`.

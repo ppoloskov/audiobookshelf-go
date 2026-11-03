@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -71,7 +72,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 	h.checkRemoveAuthorsWithNoBooks(r.Context(), linked.authors)
 	h.checkRemoveEmptySeries(r.Context(), linked.series)
 	h.filters.StoreNumIssues(libraryID, 0) // LibraryController.js:727-730
-	writeStatus(w, http.StatusOK)
+	httputil.SendStatus(w, http.StatusOK)
 }
 
 // checkRemoveAuthorsWithNoBooks removes the given authors that have no books
