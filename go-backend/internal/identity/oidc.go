@@ -450,8 +450,15 @@ func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {
 	}
 	cfg.mobileRedirectURIs = stringSlice(settings["authOpenIDMobileRedirectURIs"])
 	cfg.autoRegister, _ = settings["authOpenIDAutoRegister"].(bool)
-	if cfg.subfolder == "" {
-		cfg.subfolder = h.cfg.RouterBasePath
+	// The redirect URLs use authOpenIDSubfolderForRedirectURLs verbatim
+	// (OidcAuthStrategy.js:330-332): "" means the site root, and an unset key
+	// interpolates as "undefined" in the template literal. It is never the
+	// router base path.
+	switch v, present := settings["authOpenIDSubfolderForRedirectURLs"]; {
+	case !present:
+		cfg.subfolder = "undefined"
+	case v == nil:
+		cfg.subfolder = "null"
 	}
 	for name, value := range map[string]string{"issuer": cfg.issuer, "authorization URL": cfg.authorizationURL, "token URL": cfg.tokenURL, "userinfo URL": cfg.userinfoURL, "JWKS URL": cfg.jwksURL, "client ID": cfg.clientID, "client secret": cfg.clientSecret} {
 		if value == "" {

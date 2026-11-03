@@ -1230,7 +1230,7 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	episodeID, _ := obj["episodeId"].(string)
 	displayTitle, _ := obj["displayTitle"].(string)
 	localID, _ := obj["id"].(string)
-	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %v)", displayTitle, localID, obj["updatedAt"]) // PlaybackSessionManager.js:110
+	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %s)", displayTitle, localID, jsTemplateValue(obj["updatedAt"])) // PlaybackSessionManager.js:110
 	item, err := h.loadItem(ctx, itemID, episodeID)
 	if err != nil {
 		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Media item not found for session %q (%s): %v", displayTitle, localID, err) // PlaybackSessionManager.js:132
@@ -2200,4 +2200,21 @@ func ffmpegExecutable() string {
 func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	logging.RequestError(r, "Internal Server Error", err)
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+}
+
+// jsTemplateValue renders a decoded JSON value as a JS template literal would
+// for the log lines that interpolate request fields (numbers without
+// exponent notation, null/undefined spelled out).
+func jsTemplateValue(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return "null"
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	case string:
+		return x
+	case bool:
+		return strconv.FormatBool(x)
+	}
+	return fmt.Sprint(v)
 }

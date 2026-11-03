@@ -3,6 +3,10 @@
 package podcasts
 
 import (
+	"bufio"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -1169,8 +1173,16 @@ func (h *Handler) getFeed(ctx context.Context, rawURL string, excludeEpisodes bo
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("feed returned %s", resp.Status)
 	}
+	// Setting Accept-Encoding by hand turns off net/http's transparent gzip
+	// handling, so decode here like axios does (feeds served gzip-compressed
+	// otherwise reach the XML parser as binary).
+	body, err := decodedBody(resp)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
 	limit := int64(32 << 20)
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	raw, err := io.ReadAll(io.LimitReader(body, limit+1))
 	if err != nil {
 		return nil, err
 	}
@@ -1290,3 +1302,19 @@ func jsonResponse(w http.ResponseWriter, status int, v any) {
 // SetHTTPClientForTests allows a local fixture server to exercise feed parsing
 // without weakening the production private-address checks.
 func (h *Handler) SetHTTPClientForTests(c *http.Client) { h.client = c; h.allowPrivateNetwork = true }
+
+// decodedBody unwraps a gzip or deflate Content-Encoding.
+func decodedBody(resp *http.Response) (io.ReadCloser, error) {
+	switch strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding"))) {
+	case "gzip", "x-gzip":
+		return gzip.NewReader(resp.Body)
+	case "deflate":
+		// RFC 9110 deflate is zlib-wrapped; some servers send raw deflate.
+		br := bufio.NewReader(resp.Body)
+		if head, err := br.Peek(2); err == nil && head[0]&0x0f == 8 && (uint16(head[0])<<8|uint16(head[1]))%31 == 0 {
+			return zlib.NewReader(br)
+		}
+		return flate.NewReader(br), nil
+	}
+	return io.NopCloser(resp.Body), nil
+}

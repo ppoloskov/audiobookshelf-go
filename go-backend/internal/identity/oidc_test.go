@@ -628,3 +628,47 @@ func rsaJWK(key *rsa.PublicKey, kid string) map[string]string {
 	e := big.NewInt(int64(key.E)).Bytes()
 	return map[string]string{"kty": "RSA", "kid": kid, "use": "sig", "alg": "RS256", "n": base64.RawURLEncoding.EncodeToString(key.N.Bytes()), "e": base64.RawURLEncoding.EncodeToString(e)}
 }
+
+// The provider redirect_uri uses authOpenIDSubfolderForRedirectURLs verbatim
+// (OidcAuthStrategy.js:330): "" is the site root, not the router base path,
+// and an unset key interpolates as "undefined".
+func TestOIDCRedirectURIUsesSubfolderSettingVerbatim(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		subfolder any
+		unset     bool
+		want      string
+	}{
+		{name: "root", subfolder: "", want: "http://example.com/auth/openid/mobile-redirect"},
+		{name: "subfolder", subfolder: "/audiobookshelf", want: "http://example.com/audiobookshelf/auth/openid/mobile-redirect"},
+		{name: "null", subfolder: nil, want: "http://example.com/null/auth/openid/mobile-redirect"},
+		{name: "unset", unset: true, want: "http://example.com/undefined/auth/openid/mobile-redirect"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, handler := identityFixture(t)
+			defer db.Close()
+			configureOIDC(t, db, "https://idp.example", map[string]any{
+				"authOpenIDSubfolderForRedirectURLs": tc.subfolder,
+				"authOpenIDMobileRedirectURIs":       []any{"audiobookshelf://oauth"},
+			})
+			if tc.unset {
+				if _, err := db.Exec(`UPDATE settings SET value = json_remove(value, '$.authOpenIDSubfolderForRedirectURLs') WHERE key = 'server-settings'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			r := httptest.NewRequest(http.MethodGet, "/auth/openid?response_type=code&redirect_uri=audiobookshelf://oauth&state=s1&code_challenge=abc&code_challenge_method=S256", nil)
+			w := httptest.NewRecorder()
+			handler.Handle(w, r)
+			if w.Code != http.StatusFound {
+				t.Fatalf("status %d: %s", w.Code, w.Body.String())
+			}
+			location, err := url.Parse(w.Header().Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := location.Query().Get("redirect_uri"); got != tc.want {
+				t.Fatalf("redirect_uri = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
