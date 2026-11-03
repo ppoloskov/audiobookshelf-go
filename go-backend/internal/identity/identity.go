@@ -772,6 +772,11 @@ func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, er
 	for key, value := range stored {
 		settings[key] = value
 	}
+	// TS ServerSettings keeps an unset authOpenIDTokenURL as null (`settings.x || null`),
+	// and the fresh default row does not store the key. The login response sends it.
+	if _, ok := settings["authOpenIDTokenURL"]; !ok {
+		settings["authOpenIDTokenURL"] = nil
+	}
 	if value := os.Getenv("BACKUP_PATH"); value != "" {
 		settings["backupPath"] = value
 	}
