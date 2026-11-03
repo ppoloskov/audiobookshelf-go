@@ -20,8 +20,18 @@ import (
 	"audiobookshelf-compat/internal/contracttest/shape"
 )
 
-// journeyShapesFile holds the status, content type and shape each journey step
-// got from TS v2.37.2 (tools/shapes).
+// The journey's recorded responses (contracts/shapes/journey.json) come from TS
+// v2.37.2 run on a copy of the fixture. To regenerate them:
+//
+//	node go-backend/tools/contractfixture/serve-upstream.cjs   # prints ROOT and READY
+//	cd go-backend && go test ./internal/contracttest -run TestJourney -record \
+//	    -upstream=<READY URL> -upstream-root=<ROOT>
+//
+// then stop the serve script. Record mode is in journey_record_test.go. A plain
+// `go test ./internal/contracttest` checks Go against the file.
+
+// journeyShapesFile holds the status, media type and shape each journey step got
+// from TS v2.37.2 (see the note above).
 const journeyShapesFile = "../../contracts/shapes/journey.json"
 
 // journeyStep mirrors one entry of journeySteps in tools/parity/replacement-trial.cjs.
@@ -52,58 +62,75 @@ type journeyStep struct {
 	// once transcoding starts).
 	retry int
 	// events is how many Socket.IO events the trial waited for after the
-	// request. They are not checked here (see the skip in runJourneyStep).
+	// request. They are not checked here (see the skip in TestJourney).
 	events int
 	// skip is why the step does not run here.
 	skip string
-	// shapeSkip is why the recorded shape is not checked here. The status and
-	// media type still are.
-	shapeSkip string
 	// settle marks a step whose handler answers before its work is done (the
 	// trial waited for its events). The runner waits for the database to stop
 	// changing before the next step.
 	settle bool
 }
 
-// recordedStep is one entry of journey.json.
+// recordedStep is one entry of journey.json: the status, media type and, for a
+// JSON body, the shape of what TS v2.37.2 answered.
 type recordedStep struct {
 	Status      int             `json:"status"`
 	ContentType string          `json:"contentType"`
-	Shape       *shape.Skeleton `json:"shape"`
+	Shape       *shape.Skeleton `json:"shape,omitempty"`
+}
+
+// journeyResult is what one request of the journey got back.
+type journeyResult struct {
+	status int
+	media  string // media type of the Content-Type header, without parameters
+	raw    []byte
 }
 
 // TestJourney runs the replacement trial's client journey against one booted
 // fixture, in order: the steps mutate state that later steps read. Each step
-// is a subtest. A step checks its recorded status and, for JSON, the recorded
-// shape. A binary step checks its media type. Socket.IO events are not checked.
+// is a subtest. A step checks its recorded status, media type and, for JSON,
+// the recorded shape. Socket.IO events are not checked. With -record the same
+// steps run against a TS server instead, and journey.json is written from them
+// (journey_record_test.go).
 func TestJourney(t *testing.T) {
 	// The image source is on 127.0.0.1, which the SSRF filter refuses unless
 	// whitelisted. The trial needs the same setting (AGENTS.md).
 	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1")
-	in := Boot(t)
-	recorded := readJSON[struct {
-		Steps map[string]recordedStep `json:"steps"`
-	}](t, journeyShapesFile).Steps
+	in := journeyInstall(t)
 	c := &journeyCtx{
 		vals:       map[string]any{},
 		tokens:     map[string]string{},
 		fixtureURL: startJourneyImageSource(t),
 		deadURL:    closedURL(t),
 	}
-	for _, st := range journeySteps(in.IDs) {
+	steps := journeySteps(in.IDs)
+	if *record {
+		recordJourney(t, in, c, steps)
+		return
+	}
+	recorded := readJSON[struct {
+		Steps map[string]recordedStep `json:"steps"`
+	}](t, journeyShapesFile).Steps
+	for _, st := range steps {
 		t.Run(st.id, func(t *testing.T) {
-			runJourneyStep(t, in, c, st, recorded)
+			rec, ok := recorded[st.id]
+			if !ok {
+				t.Fatalf("no recorded shape for step %s in %s", st.id, journeyShapesFile)
+			}
+			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st))
+			if st.events > 0 {
+				t.Skip(fmt.Sprintf("%d Socket.IO event(s) not checked: no Socket.IO client in the module", st.events))
+			}
 		})
 	}
 	checkJourneyDumps(t, in, recorded)
 }
 
-func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, recorded map[string]recordedStep) {
+// runJourneyStep sends one step's request and keeps what its response captures.
+// It does not check the response; checkJourneyStep does.
+func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) journeyResult {
 	t.Helper()
-	rec, ok := recorded[st.id]
-	if !ok {
-		t.Fatalf("no recorded shape for step %s in %s", st.id, journeyShapesFile)
-	}
 	if st.skip != "" {
 		t.Skip(st.skip)
 	}
@@ -170,9 +197,6 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, re
 		waitForBackgroundWork(t, in.DB, before)
 	}
 
-	if resp.StatusCode != rec.Status {
-		t.Fatalf("status %d, recorded %d: %s", resp.StatusCode, rec.Status, snippet(raw))
-	}
 	if ok2xx(resp.StatusCode) {
 		if st.loginAs != "" {
 			captureLogin(t, c, st.loginAs, raw)
@@ -181,36 +205,30 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, re
 			c.vals[st.capture] = decodeAny(raw)
 		}
 	}
+	return journeyResult{status: resp.StatusCode, media: mediaType(resp.Header.Get("Content-Type")), raw: raw}
+}
 
-	switch {
-	case st.binary != "":
-		if got := mediaType(resp.Header.Get("Content-Type")); got != rec.ContentType {
-			t.Errorf("content type %q, recorded %q", got, rec.ContentType)
-		}
-	case st.shapeSkip != "":
-		t.Logf("shape not checked: %s", st.shapeSkip)
-	case rec.Shape != nil:
-		var v any
-		if len(bytes.TrimSpace(raw)) > 0 {
-			if err := json.Unmarshal(raw, &v); err != nil {
-				t.Fatalf("body is not JSON: %v: %s", err, snippet(raw))
-			}
-		}
-		artifacts := 0
-		for _, problem := range shape.Conforms(rec.Shape, v) {
-			if recordingArtifact(problem) {
-				artifacts++
-				continue
-			}
-			t.Error(problem)
-		}
-		if artifacts > 0 {
-			t.Logf("%d timestamp(s) recorded as \"<ts>\" strings: upstream sends numbers", artifacts)
+// checkJourneyStep checks a response against its recorded status, media type
+// and, for a JSON body, its recorded shape.
+func checkJourneyStep(t *testing.T, rec recordedStep, got journeyResult) {
+	t.Helper()
+	if got.status != rec.Status {
+		t.Fatalf("status %d, recorded %d: %s", got.status, rec.Status, snippet(got.raw))
+	}
+	if got.media != rec.ContentType {
+		t.Errorf("content type %q, recorded %q", got.media, rec.ContentType)
+	}
+	if rec.Shape == nil {
+		return
+	}
+	var v any
+	if len(bytes.TrimSpace(got.raw)) > 0 {
+		if err := json.Unmarshal(got.raw, &v); err != nil {
+			t.Fatalf("body is not JSON: %v: %s", err, snippet(got.raw))
 		}
 	}
-
-	if st.events > 0 {
-		t.Skip(fmt.Sprintf("%d Socket.IO event(s) not checked: no Socket.IO client in the module", st.events))
+	for _, problem := range shape.Conforms(rec.Shape, v) {
+		t.Error(problem)
 	}
 }
 
@@ -239,27 +257,6 @@ var (
 	tokenParam      = regexp.MustCompile(`[?&]token=`)
 	providerNothing = regexp.MustCompile(`(?i)nothing`)
 )
-
-// timestampKey matches the clock-valued keys (suffixes such as At, Update, Ms).
-// The trial's normalizer (normalize in tools/parity/replacement-trial.cjs)
-// replaced a number under such a key, or any number within a week of the
-// recording, with a string placeholder. journey.json was inferred from those
-// normalized values, so its shapes say string for them.
-var timestampKey = regexp.MustCompile(`(At|Time|Update|Seen|Scan|Ms)$`)
-
-// recordingArtifact reports whether a shape problem is that placeholder: a
-// number where the recorded shape says string, under a timestamp key. Upstream
-// sends these as numbers (Date.now() and file stat times), so the Go number is
-// right. Nothing else is excused: a string where a number is recorded still fails.
-func recordingArtifact(problem string) bool {
-	const want = ": want string, got number"
-	at := strings.LastIndex(problem, want)
-	if at < 0 || at+len(want) != len(problem) {
-		return false
-	}
-	path := problem[:at]
-	return timestampKey.MatchString(path[strings.LastIndex(path, ".")+1:])
-}
 
 func ok2xx(status int) bool { return status >= 200 && status < 300 }
 

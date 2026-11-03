@@ -256,6 +256,130 @@ func TestConformsNumberKinds(t *testing.T) {
 	}
 }
 
+const (
+	uuidA = "11111111-2222-4333-8444-555555555555"
+	uuidB = "66666666-7777-4888-9999-aaaaaaaaaaaa"
+)
+
+func TestInferKindMapForUUIDKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		samples []string
+		want    Kind
+	}{
+		{"all keys are uuids", []string{`{"` + uuidA + `":{"a":1}}`}, KindMap},
+		{"uuids across samples", []string{`{"` + uuidA + `":1}`, `{"` + uuidB + `":2}`}, KindMap},
+		{"empty object next to a map", []string{`{"` + uuidA + `":1}`, `{}`}, KindMap},
+		{"empty object alone", []string{`{}`}, KindObject},
+		{"one key is not a uuid", []string{`{"` + uuidA + `":1,"name":2}`}, KindObject},
+		{"fixed keys next to a map", []string{`{"` + uuidA + `":1}`, `{"name":2}`}, KindAny},
+		{"map next to an array", []string{`{"` + uuidA + `":1}`, `[]`}, KindAny},
+		{"map next to null", []string{`{"` + uuidA + `":1}`, `null`}, KindAny},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := inferJSON(t, tc.samples...).Kind; got != tc.want {
+				t.Fatalf("kind = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestInferMapValueSkeletonMergesAllValues(t *testing.T) {
+	s := inferJSON(t,
+		`{"`+uuidA+`":{"id":"x","title":"t"}}`,
+		`{"`+uuidB+`":{"id":"y"}}`,
+	)
+	if s.Kind != KindMap || s.Elem == nil || s.Elem.Kind != KindObject {
+		t.Fatalf("got %+v, want map of objects", s)
+	}
+	if id := s.Elem.Keys["id"]; id == nil || id.Optional {
+		t.Fatalf("id = %+v, want required", id)
+	}
+	if title := s.Elem.Keys["title"]; title == nil || !title.Optional {
+		t.Fatalf("title = %+v, want optional", title)
+	}
+}
+
+func TestInferMapInsideObjectFollowsSamples(t *testing.T) {
+	s := inferJSON(t,
+		`{"items":{"`+uuidA+`":{"n":1}}}`,
+		`{"items":{}}`,
+	)
+	items := s.Keys["items"]
+	if items == nil || items.Kind != KindMap || items.Elem == nil || items.Elem.Keys["n"] == nil {
+		t.Fatalf("items = %+v, want map with elem keys n", items)
+	}
+}
+
+func TestConformsMap(t *testing.T) {
+	skel := inferJSON(t,
+		`{"`+uuidA+`":{"id":"a","size":1,"name":null}}`,
+		`{"`+uuidA+`":{"id":"b","size":2,"name":"x"}}`,
+	)
+	tests := []struct {
+		name string
+		json string
+		want []string
+	}{
+		{
+			name: "any uuid keys with conforming values",
+			json: `{"` + uuidB + `":{"id":"b","size":2,"name":"n"}}`,
+		},
+		{
+			name: "empty map",
+			json: `{}`,
+		},
+		{
+			name: "keys are not checked",
+			json: `{"not-a-uuid":{"id":"z","size":3,"name":null}}`,
+		},
+		{
+			name: "value missing a required key",
+			json: `{"` + uuidB + `":{"size":2,"name":null}}`,
+			want: []string{"$." + uuidB + ".id: missing required key"},
+		},
+		{
+			name: "value of the wrong type",
+			json: `{"` + uuidB + `":{"id":"b","size":"2","name":null}}`,
+			want: []string{"$." + uuidB + ".size: want number, got string"},
+		},
+		{
+			name: "map given an array",
+			json: `[]`,
+			want: []string{"$: want map, got array"},
+		},
+		{
+			name: "map given null",
+			json: `null`,
+			want: []string{"$: want map, got null"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Conforms(skel, decode(t, tc.json))
+			if !equalStrings(got, tc.want) {
+				t.Fatalf("problems = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMapSkeletonRoundTripsJSON(t *testing.T) {
+	s := inferJSON(t, `{"`+uuidA+`":[1]}`, `{}`)
+	raw, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Skeleton
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(&back, s) || back.Kind != KindMap || back.Elem == nil || back.Elem.Kind != KindArray {
+		t.Fatalf("round trip = %s", raw)
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true
