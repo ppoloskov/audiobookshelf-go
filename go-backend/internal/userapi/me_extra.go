@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 
@@ -133,7 +134,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	if limit == 0 {
 		limit = 25
 	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaItemId,mediaItemType,extraData,updatedAt FROM mediaProgresses WHERE userId=? AND isFinished=0 AND (currentTime>0 OR ebookProgress>0) ORDER BY updatedAt DESC`, user.ID)
+	rows, err := sqlc.New(h.db).ListItemsInProgress(r.Context(), store.Text(user.ID))
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -143,28 +144,13 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		id, itemID, typ, mediaID string
 		updated                  any
 	}
-	items := make([]progress, 0)
-	for rows.Next() {
-		var p progress
-		var extra []byte
-		if err := rows.Scan(&p.id, &p.mediaID, &p.typ, &extra, &p.updated); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
+	items := make([]progress, 0, len(rows))
+	for _, row := range rows {
 		var data map[string]any
-		_ = json.Unmarshal(extra, &data)
-		p.itemID, _ = data["libraryItemId"].(string)
-		items = append(items, p)
+		_ = json.Unmarshal([]byte(row.Extradata.String), &data)
+		itemID, _ := data["libraryItemId"].(string)
+		items = append(items, progress{id: row.ID, itemID: itemID, typ: row.Mediaitemtype.String, mediaID: row.Mediaitemid.String, updated: row.Updatedat})
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
-	}
-	rows.Close()
 	result := make([]map[string]any, 0)
 	seen := map[string]bool{}
 	for _, p := range items {
@@ -334,7 +320,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	// || 0`) and Math.rounds only the totals (server/utils/queries/userStats.js:114-190).
 	var sessions int
 	var total, bookTime, podcastTime float64
-	rows, err := h.db.QueryContext(r.Context(), `SELECT mediaItemType,timeListening,displayTitle,mediaMetadata,createdAt FROM playbackSessions WHERE userId=? AND createdAt>=? AND createdAt<?`, user.ID, start, end)
+	sessionRows, err := sqlc.New(h.db).ListPlaybackSessionsCreatedBetween(r.Context(), sqlc.ListPlaybackSessionsCreatedBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -345,18 +331,10 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	authors := map[string]float64{}
 	genres := map[string]float64{}
 	narrators := map[string]float64{}
-	for rows.Next() {
-		var typ, title sql.NullString
-		var listened sql.NullFloat64
-		var metaRaw []byte
-		var created any
-		if err := rows.Scan(&typ, &listened, &title, &metaRaw, &created); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		secs := listened.Float64
+	for _, row := range sessionRows {
+		typ, title := row.Mediaitemtype, row.Displaytitle
+		metaRaw, created := []byte(row.Mediametadata.String), row.Createdat
+		secs := row.Timelistening.Float64
 		sessions++
 		total += secs
 		// userStats.getStatsForYear (server/utils/queries/userStats.js:108-150):
@@ -392,14 +370,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 			}
 		}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
-	}
-	rows.Close()
-	finishedRows, err := h.db.QueryContext(r.Context(), `SELECT mp.mediaItemId,b.title,mp.duration,mp.finishedAt,li.id,b.coverPath FROM mediaProgresses mp JOIN books b ON b.id=mp.mediaItemId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE mp.userId=? AND mp.mediaItemType='book' AND mp.finishedAt>=? AND mp.finishedAt<?`, user.ID, start, end)
+	finishedRows, err := sqlc.New(h.db).ListFinishedBookProgressBetween(r.Context(), sqlc.ListFinishedBookProgressBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -409,34 +380,18 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	finishedCovers := make([]any, 0, 5)
 	longest := map[string]any(nil)
 	longestDuration := float64(0)
-	for finishedRows.Next() {
-		var mediaID, title, itemID string
-		var duration sql.NullFloat64
-		var finishedAt, cover sql.NullString
-		if err := finishedRows.Scan(&mediaID, &title, &duration, &finishedAt, &itemID, &cover); err != nil {
-			finishedRows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
+	for _, row := range finishedRows {
 		finished++
-		if duration.Valid && duration.Float64 > longestDuration {
-			longestDuration = duration.Float64
-			longest = map[string]any{"id": mediaID, "title": title, "duration": int(math.Round(duration.Float64)), "finishedAt": dbtime.Millis(finishedAt.String)}
+		if row.Duration.Valid && row.Duration.Float64 > longestDuration {
+			longestDuration = row.Duration.Float64
+			longest = map[string]any{"id": row.Mediaitemid.String, "title": row.Title.String, "duration": int(math.Round(row.Duration.Float64)), "finishedAt": dbtime.Millis(row.Finishedat)}
 		}
-		if cover.Valid && len(finishedCovers) < 5 {
-			if _, err := os.Stat(cover.String); err == nil {
-				finishedCovers = append(finishedCovers, itemID)
+		if row.Coverpath.Valid && len(finishedCovers) < 5 {
+			if _, err := os.Stat(row.Coverpath.String); err == nil {
+				finishedCovers = append(finishedCovers, row.Libraryitemid)
 			}
 		}
 	}
-	if err := finishedRows.Err(); err != nil {
-		finishedRows.Close()
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
-	}
-	finishedRows.Close()
 	finishedSet := map[string]bool{}
 	for _, v := range finishedCovers {
 		finishedSet[v.(string)] = true

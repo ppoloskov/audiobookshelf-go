@@ -43,3 +43,13 @@ sql:
             go_type: "database/sql.NullInt64"
           - db_type: "TINYINT(1)"
             go_type: "int64"
+          # playbackSessions.playMethod and timeListening are INTEGER columns that
+          # can hold fractional seconds (REAL under INTEGER affinity), so the store
+          # reads them as float64, not int64.
+          # sqlc matches column overrides on the lowercased catalog names.
+          - column: "playbacksessions.playmethod"
+            nullable: true
+            go_type: "database/sql.NullFloat64"
+          - column: "playbacksessions.timelistening"
+            nullable: true
+            go_type: "database/sql.NullFloat64"

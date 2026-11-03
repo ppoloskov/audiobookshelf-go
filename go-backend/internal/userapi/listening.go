@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -45,9 +46,8 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		if includeUser {
-			var username string
-			if err := h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, session.UserID.String).Scan(&username); err == nil {
-				row["user"] = map[string]any{"id": session.UserID.String, "username": username}
+			if u, err := sqlc.New(h.db).GetUserByID(r.Context(), session.UserID.String); err == nil && u.Username.Valid {
+				row["user"] = map[string]any{"id": session.UserID.String, "username": u.Username.String}
 				wire.AddPlaybackSessionSpreadFields(row)
 			}
 		}
@@ -123,27 +123,15 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 }
 
 func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]store.PlaybackSessionRow, error) {
-	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions WHERE userId=?`
-	args := []any{userID}
-	if mediaID != "" {
-		query += ` AND mediaItemId=?`
-		args = append(args, mediaID)
-	}
-	query += ` ORDER BY updatedAt DESC`
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
+	rows, err := sqlc.New(h.db).ListPlaybackSessionsForUser(r.Context(), sqlc.ListPlaybackSessionsForUserParams{UserID: store.Text(userID), MediaItemID: store.TextOrNull(mediaID)})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := make([]store.PlaybackSessionRow, 0)
-	for rows.Next() {
-		s, err := store.ScanPlaybackSession(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, s)
+	result := make([]store.PlaybackSessionRow, 0, len(rows))
+	for _, s := range rows {
+		result = append(result, store.PlaybackSessionFromRow(s))
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func (h *Handler) listeningSessionJSON(r *http.Request, s store.PlaybackSessionRow) (map[string]any, error) {
