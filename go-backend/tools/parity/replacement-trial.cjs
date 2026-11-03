@@ -980,6 +980,18 @@ function copyTree(from, to) {
   fs.cpSync(from, to, { recursive: true, preserveTimestamps: true })
 }
 
+// Generates the media tree, lets pinned upstream create and scan the
+// installation, then snapshots it (work/snapshot) and records the ids
+// (work/ids.json). Shared with route-probe.cjs.
+async function seedInstallation(work) {
+  const media = generateMedia(path.join(work, 'media'))
+  const { dirs, ids } = await seed(work, media)
+  addLegacySessions(path.join(dirs.config, 'absdatabase.sqlite'), ids)
+  copyTree(path.join(work, 'install'), path.join(work, 'snapshot'))
+  fs.writeFileSync(path.join(work, 'ids.json'), JSON.stringify(ids, null, 2))
+  return { dirs, ids }
+}
+
 async function main() {
   const args = parseArgs()
   const work = path.resolve(args.work || fs.mkdtempSync(path.join(os.tmpdir(), 'abs-replacement-')))
@@ -996,11 +1008,7 @@ async function main() {
     dirs = { config: path.join(work, 'install', 'config'), metadata: path.join(work, 'install', 'metadata') }
     copyTree(snapshot, path.join(work, 'install'))
   } else {
-    const media = generateMedia(path.join(work, 'media'))
-    ;({ dirs, ids } = await seed(work, media))
-    addLegacySessions(path.join(dirs.config, 'absdatabase.sqlite'), ids)
-    copyTree(path.join(work, 'install'), snapshot)
-    fs.writeFileSync(path.join(work, 'ids.json'), JSON.stringify(ids, null, 2))
+    ;({ dirs, ids } = await seedInstallation(work))
   }
   SNAPSHOT_DB = path.join(snapshot, 'config', 'absdatabase.sqlite')
 
@@ -1063,4 +1071,6 @@ async function main() {
   if (!ok) process.exitCode = 1
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1 })
+module.exports = { ROOT_USER, startGo, api, loginAs, seedInstallation, copyTree, sh }
+
+if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1 })

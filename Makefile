@@ -2,7 +2,7 @@
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan browser-check bench ratchet ratchet-update status
+.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench ratchet ratchet-update status
 
 parity:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/suite-runner.cjs core
@@ -20,6 +20,12 @@ parity-replacement:
 # New content and library maintenance (scan, rename, delete, metadata edit, watcher) trial.
 parity-scan:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/scan-trial.cjs
+
+# Every route pinned upstream registers must be handled by Go (no 501
+# "not implemented" fallback). ROUTE_PROBE_ARGS="--work DIR" reuses a seeded
+# replacement-trial work dir instead of seeding a fresh installation.
+route-probe:
+	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/route-probe.cjs $(ROUTE_PROBE_ARGS)
 
 # Chromium acceptance of the unchanged web client (Playwright), Node vs Go.
 # Creates a fresh fixture; does not rewrite the checked-in contract report.
