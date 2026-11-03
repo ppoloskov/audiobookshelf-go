@@ -6,7 +6,7 @@
     },
     "replacementTrial": {
       "path": "go-backend/tools/parity/replacement-trial.cjs",
-      "sha256": "57d10416d0a1545e454dd4f31618aa4fbab632272f7dcfd1b3bcde1aabd918ac"
+      "sha256": "eb09df8774a3b405038e75724928a7bd7bc58cb70d12db36dee41a8cf5a5b8c6"
     },
     "clientRoots": [
       "client/components",
@@ -847,11 +847,11 @@
       ],
       "callers": [
         "client/components/modals/item/tabs/Cover.vue:191",
-        "go-backend/tools/parity/replacement-trial.cjs:384",
-        "go-backend/tools/parity/replacement-trial.cjs:385",
-        "go-backend/tools/parity/replacement-trial.cjs:485",
-        "go-backend/tools/parity/replacement-trial.cjs:486",
-        "go-backend/tools/parity/replacement-trial.cjs:487"
+        "go-backend/tools/parity/replacement-trial.cjs:387",
+        "go-backend/tools/parity/replacement-trial.cjs:388",
+        "go-backend/tools/parity/replacement-trial.cjs:488",
+        "go-backend/tools/parity/replacement-trial.cjs:489",
+        "go-backend/tools/parity/replacement-trial.cjs:490"
       ],
       "goHandler": "go-backend/internal/catalog/handler.go",
       "upstream": "server/routers/ApiRouter.js:124"
@@ -918,7 +918,7 @@
       ],
       "callers": [
         "client/players/PlayerHandler.js:196",
-        "go-backend/tools/parity/replacement-trial.cjs:382"
+        "go-backend/tools/parity/replacement-trial.cjs:385"
       ],
       "goHandler": "go-backend/internal/playback/playback.go",
       "upstream": "server/routers/ApiRouter.js:117"
@@ -932,8 +932,8 @@
       ],
       "callers": [
         "client/players/PlayerHandler.js:196",
-        "go-backend/tools/parity/replacement-trial.cjs:483",
-        "go-backend/tools/parity/replacement-trial.cjs:501"
+        "go-backend/tools/parity/replacement-trial.cjs:486",
+        "go-backend/tools/parity/replacement-trial.cjs:504"
       ],
       "goHandler": "go-backend/internal/playback/playback.go",
       "upstream": "server/routers/ApiRouter.js:118"
@@ -1402,7 +1402,7 @@
         "mobile-trial"
       ],
       "callers": [
-        "go-backend/tools/parity/replacement-trial.cjs:419"
+        "go-backend/tools/parity/replacement-trial.cjs:422"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:173"
@@ -1430,7 +1430,7 @@
       ],
       "callers": [
         "client/components/modals/bookmarks/BookmarkItem.vue:91",
-        "go-backend/tools/parity/replacement-trial.cjs:415"
+        "go-backend/tools/parity/replacement-trial.cjs:418"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:188"
@@ -1444,7 +1444,7 @@
       ],
       "callers": [
         "client/components/modals/BookmarksModal.vue:118",
-        "go-backend/tools/parity/replacement-trial.cjs:414"
+        "go-backend/tools/parity/replacement-trial.cjs:417"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:187"
@@ -1458,7 +1458,7 @@
       ],
       "callers": [
         "client/components/modals/BookmarksModal.vue:96",
-        "go-backend/tools/parity/replacement-trial.cjs:416"
+        "go-backend/tools/parity/replacement-trial.cjs:419"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:189"
@@ -1480,7 +1480,7 @@
         "mobile-trial"
       ],
       "callers": [
-        "go-backend/tools/parity/replacement-trial.cjs:420"
+        "go-backend/tools/parity/replacement-trial.cjs:423"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:191"
@@ -1492,7 +1492,7 @@
         "mobile-trial"
       ],
       "callers": [
-        "go-backend/tools/parity/replacement-trial.cjs:421"
+        "go-backend/tools/parity/replacement-trial.cjs:424"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:179"
@@ -1546,9 +1546,9 @@
       "callers": [
         "client/components/cards/LazyBookCard.vue:744",
         "client/components/tables/playlist/ItemTableRow.vue:193",
-        "go-backend/tools/parity/replacement-trial.cjs:387",
         "go-backend/tools/parity/replacement-trial.cjs:390",
-        "go-backend/tools/parity/replacement-trial.cjs:413"
+        "go-backend/tools/parity/replacement-trial.cjs:393",
+        "go-backend/tools/parity/replacement-trial.cjs:416"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:183"
@@ -1563,7 +1563,7 @@
       ],
       "callers": [
         "client/components/cards/LazyBookCard.vue:852",
-        "go-backend/tools/parity/replacement-trial.cjs:418"
+        "go-backend/tools/parity/replacement-trial.cjs:421"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:182"
@@ -1583,7 +1583,7 @@
         "client/components/tables/podcast/LazyEpisodeRow.vue:209",
         "client/pages/item/_id/index.vue:523",
         "client/pages/library/_library/podcast/latest.vue:177",
-        "go-backend/tools/parity/replacement-trial.cjs:417"
+        "go-backend/tools/parity/replacement-trial.cjs:420"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:185"
@@ -1599,7 +1599,7 @@
         "client/components/app/Appbar.vue:320",
         "client/components/app/BookShelfToolbar.vue:551",
         "client/components/tables/podcast/LazyEpisodesTable.vue:353",
-        "go-backend/tools/parity/replacement-trial.cjs:410"
+        "go-backend/tools/parity/replacement-trial.cjs:413"
       ],
       "goHandler": "go-backend/internal/userapi/userapi.go",
       "upstream": "server/routers/ApiRouter.js:184"
@@ -2084,8 +2084,8 @@
       "callers": [
         "client/components/modals/ListeningSessionModal.vue:210",
         "client/players/PlayerHandler.js:303",
-        "go-backend/tools/parity/replacement-trial.cjs:389",
-        "go-backend/tools/parity/replacement-trial.cjs:490"
+        "go-backend/tools/parity/replacement-trial.cjs:392",
+        "go-backend/tools/parity/replacement-trial.cjs:493"
       ],
       "goHandler": "go-backend/internal/playback/playback.go",
       "upstream": "server/routers/ApiRouter.js:243"
@@ -2099,9 +2099,9 @@
       ],
       "callers": [
         "client/players/PlayerHandler.js:321",
-        "go-backend/tools/parity/replacement-trial.cjs:386",
-        "go-backend/tools/parity/replacement-trial.cjs:388",
-        "go-backend/tools/parity/replacement-trial.cjs:488"
+        "go-backend/tools/parity/replacement-trial.cjs:389",
+        "go-backend/tools/parity/replacement-trial.cjs:391",
+        "go-backend/tools/parity/replacement-trial.cjs:491"
       ],
       "goHandler": "go-backend/internal/playback/playback.go",
       "upstream": "server/routers/ApiRouter.js:242"
@@ -2114,8 +2114,8 @@
         "mobile-trial"
       ],
       "callers": [
-        "go-backend/tools/parity/replacement-trial.cjs:404",
-        "go-backend/tools/parity/replacement-trial.cjs:506"
+        "go-backend/tools/parity/replacement-trial.cjs:407",
+        "go-backend/tools/parity/replacement-trial.cjs:509"
       ],
       "goHandler": "go-backend/internal/playback/playback.go",
       "upstream": "server/routers/ApiRouter.js:238"
@@ -2538,7 +2538,7 @@
       ],
       "callers": [
         "client/pages/login.vue:212",
-        "go-backend/tools/parity/replacement-trial.cjs:344"
+        "go-backend/tools/parity/replacement-trial.cjs:347"
       ],
       "goHandler": "go-backend/internal/identity/identity.go",
       "upstream": "server/Auth.js:322"

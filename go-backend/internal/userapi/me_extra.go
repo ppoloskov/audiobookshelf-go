@@ -111,7 +111,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	if changed {
 		extra["seriesHideFromContinueListening"] = filtered
 		raw, _ := json.Marshal(extra)
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, raw, dbtime.Now(), user.ID); err != nil {
+		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(raw), dbtime.Now(), user.ID); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -288,7 +288,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	}
 	settings["ereaderDevices"] = combined
 	encoded, _ := json.Marshal(settings)
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE settings SET value=?,updatedAt=? WHERE key='email-settings'`, encoded, dbtime.Now()); err != nil {
+	if _, err := h.db.ExecContext(r.Context(), `UPDATE settings SET value=?,updatedAt=? WHERE key='email-settings'`, string(encoded), dbtime.Now()); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return

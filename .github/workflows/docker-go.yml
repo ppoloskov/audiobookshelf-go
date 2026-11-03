@@ -150,9 +150,60 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # The only job that still starts Node after V1 (ROADMAP F7b): TS v2.37.2 must
+  # reopen a database the Go server wrote. Runs the rollback part of the
+  # replacement trial alone (login, progress, bookmark, offline session sync on
+  # Go, then upstream boots on that database).
+  rollback:
+    name: Rollback (TS reopens Go's database)
+    needs: verify
+    runs-on: ubuntu-24.04
+    env:
+      SSRF_REQUEST_FILTER_WHITELIST: 127.0.0.1
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go-backend/go.mod
+          cache-dependency-path: go-backend/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Fetch pinned upstream commit
+        run: git fetch --no-tags --depth=1 origin edb1f7efc92ecacdef51aafb4d9d5054ce10604f
+
+      - name: Install pinned upstream dependencies
+        run: npm ci
+
+      - name: Build upstream Node server (rollback target)
+        run: npm run build:server
+
+      - name: Rollback check (TS reopens the Go-written database)
+        run: node go-backend/tools/parity/replacement-trial.cjs --rollback-only --work "$RUNNER_TEMP/abs-rollback-work"
+
+      - name: Upload rollback work directory and report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-work
+          path: ${{ runner.temp }}/abs-rollback-work
+          if-no-files-found: warn
+          retention-days: 7
+
   image:
     name: Build and push image
-    needs: [verify, parity]
+    needs: [verify, parity, rollback]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

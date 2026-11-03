@@ -485,7 +485,7 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 	if err != nil {
 		return err
 	}
-	_, err = h.db.ExecContext(ctx, `UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?`, encoded, dbtime.Now(), userID)
+	_, err = h.db.ExecContext(ctx, `UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?`, string(encoded), dbtime.Now(), userID)
 	return err
 }
 
@@ -605,7 +605,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		http.Error(w, "Failed to save new user", 500)
 		return
 	}
-	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, encodedPerms, `[]`, `{"seriesHideFromContinueListening":[]}`, now, now); err != nil {
+	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, string(encodedPerms), `[]`, `{"seriesHideFromContinueListening":[]}`, now, now); err != nil {
 		logging.RequestError(r, "Failed to save new user", err)
 		http.Error(w, "Failed to save new user", 500)
 		return
@@ -681,7 +681,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		extra["authOpenIDSub"] = nil
 		encoded, _ := json.Marshal(extra)
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, encoded, dbtime.Now(), id); err != nil {
+		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), id); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -933,9 +933,9 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		// touch it: an absent-email row would otherwise flip SQL NULL to '':
 		// Sequelize update() only writes mutated attributes.
 		if emailChanged {
-			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Email, u.Password, u.Token, u.Type, u.IsActive, encoded, now, u.ID)
+			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Email, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
 		} else {
-			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, encoded, now, u.ID)
+			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
 		}
 		if writeErr != nil {
 			logging.RequestError(r, "database write failed", writeErr)
