@@ -123,9 +123,19 @@ func Boot(t testing.TB) *Install {
 	// LIFO: the HTTP server stops before the manager closes the database.
 	t.Cleanup(manager.Close)
 	t.Cleanup(func() { _ = httpServer.Close() })
-	// Runs first (LIFO), while the database is still open: TS stores every
-	// text and JSON column as TEXT, so a BLOB anywhere is a Go write bug.
-	t.Cleanup(func() { assertNoBlobText(t, st.DB()) })
+	// Runs first (LIFO), while the server still runs: TS stores every text and
+	// JSON column as TEXT, so a BLOB anywhere is a Go write bug. It opens the
+	// file afresh: a backup apply reopens the database, which closes st.DB().
+	dbPath := filepath.Join(dir, dbRelPath)
+	t.Cleanup(func() {
+		db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
+		if err != nil {
+			t.Errorf("contracttest: open database for the blob check: %v", err)
+			return
+		}
+		defer func() { _ = db.Close() }()
+		assertNoBlobText(t, db)
+	})
 
 	return &Install{
 		BaseURL: fmt.Sprintf("http://127.0.0.1:%d", cfg.Port),
