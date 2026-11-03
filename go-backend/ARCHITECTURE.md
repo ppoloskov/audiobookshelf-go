@@ -191,8 +191,7 @@ it with what it replaces (lines, risk) and its maintenance status.
 | `golang.org/x/net/html` (tokenizer) | clean text and sanitize metadata HTML | `auth/sanitize.go`, three `stripHTML`/`sanitizeHTML` copies |
 | `github.com/mmcdole/gofeed` | podcast RSS/Atom parsing | `podcasts/rss.go` XML mapping |
 | `github.com/coreos/go-oidc/v3` | OIDC | (in use) |
-| `github.com/zishang520/socket.io/v2` | Socket.IO v4 server | (in use) |
-| `github.com/zishang520/socket.io/clients/socket/v3` (tests only) | Socket.IO client for event checks in the Go journey | skipped event checks (ROADMAP F9) |
+| `golang.org/x/net/websocket` | WebSocket framing for the in-repo Socket.IO v4 server: `internal/realtime`, websocket transport only (no polling; clients use `transports: ['websocket']`) | the zishang520 Socket.IO library (ROADMAP C25) |
 | `github.com/fsnotify/fsnotify` | library watcher | (in use) |
 | `github.com/robfig/cron/v3` | schedules | (in use) |
 | `github.com/google/uuid` | UUIDv4 | (in use) |

@@ -315,7 +315,7 @@ L2, JWT issuing -> L1).
     new `.m4b` file exists and plays (ffprobe duration > 0).
   - Done when: the step passes on Go and on the TS recording.
 
-- [ ] C25: Intermittent Socket.IO connect/auth failure
+- [x] C25: Intermittent Socket.IO connect/auth failure
   - Evidence: CI run 41652302211 (core differential: "notification socket probe
     timed out"); the F9 work saw about 1 in 4 test connects never reach the
     server's connection handler until `auth` was re-sent; production logs show
@@ -327,6 +327,11 @@ L2, JWT issuing -> L1).
     `init`, fix it.
   - Done when: 1,000 consecutive connect+auth cycles succeed in a test, and
     the F9 auth re-send workaround is removed.
+  - Done (owner option C): cause was zishang520/socket.io v2.3.8 writing the
+    CONNECT ack before registering the socket and our handlers. Replaced by an
+    in-repo Socket.IO v4 server (`internal/realtime/eio.go`, `sio.go`,
+    websocket transport only) that registers the socket first. Regression test:
+    `internal/server/socket_connect_test.go`.
 
 ## Phase R: routes clients need (needs F3)
 

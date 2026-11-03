@@ -1,8 +1,12 @@
 # Realtime adapter
 
-`Hub` implements the Socket.IO v4 / Engine.IO transport through
-`github.com/zishang520/socket.io/v2` and reproduces the pinned
-`server/SocketAuthority.js` connection boundary. It serves `/socket.io` and,
+`Hub` implements a minimal Socket.IO v4 / Engine.IO v4 server (`eio.go`,
+`sio.go`; websocket transport and the default namespace only, built on
+`golang.org/x/net/websocket`) and reproduces the pinned
+`server/SocketAuthority.js` connection boundary. A connection is registered
+and its event handlers attached before the CONNECT acknowledgement is sent,
+so an event sent right after the acknowledgement always finds its handler.
+Polling requests get Engine.IO's 400 "Transport unknown" answer. It serves `/socket.io` and,
 when `config.Config.RouterBasePath` is set, the additional prefixed path.
 Clients authenticate after connection by sending the existing access token in
 the `auth` event. `New` delegates token validation and active-user lookup to
@@ -35,7 +39,7 @@ payload through `SetSessionLookup`. That field is `null` when the user has no
 open session.
 
 The Node integration test skips when `socket.io-client` is absent. To exercise
-polling, WebSocket upgrade, auth, acknowledgements, recipient permissions, and
+WebSocket connect, auth, acknowledgements, recipient permissions, and
 the prefixed mount, install Socket.IO client 4.x and set `NODE_PATH`:
 
 ```sh

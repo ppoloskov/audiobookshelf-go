@@ -65,7 +65,7 @@ func TestSetLogListenerDeliversLogEvents(t *testing.T) {
 
 	const probe = `
 const { io } = require('socket.io-client');
-const socket = io(process.env.ABS_URL, { path: '/socket.io', transports: ['polling'], upgrade: false });
+const socket = io(process.env.ABS_URL, { path: '/socket.io', transports: ['websocket'] });
 const timer = setTimeout(() => { console.error('timeout'); process.exit(1) }, 8000);
 socket.on('connect', () => socket.emit('auth', process.env.ABS_TOKEN));
 socket.on('init', () => { socket.emit('set_log_listener', 2); console.log('listening') });
