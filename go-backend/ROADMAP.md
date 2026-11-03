@@ -207,10 +207,11 @@ Conventions:
     stays `CGO_ENABLED=0`. Install a C compiler on the runner if needed.
   - Done when: the step is green on master.
 
-- [ ] C20: Fix the SQLITE_BUSY flake in `TestCreatePodcastValidatesFolderAndPersistsSourceShape`
+- [x] C20: Fix the SQLITE_BUSY flake in `TestCreatePodcastValidatesFolderAndPersistsSourceShape`
   - Files: `go-backend/internal/podcasts/*_test.go`
   - Change: Find the competing writer under a parallel `go test ./...` run and serialize it, or give the test its own database.
   - Done when: `go test -count=20 ./internal/podcasts` passes inside a full parallel `go test ./...` run.
+  - Result: no code change needed. The fixture (`rss_test.go`) opened a pool of several connections on a file database, so a second pooled connection could take SQLITE_BUSY against the writer (the only competing writer inside this test); commit 4616244 gave it `SetMaxOpenConns(1)` like production, which removes the competing connection. Proved with `go test -count=20 ./...` (all packages in parallel, podcasts included, 20 of 20) and `go test -count=20 ./internal/podcasts` alone.
 
 - [x] C21: Make the server log-level tests independent of run order
   - Files: `go-backend/internal/server/recover_test.go`
