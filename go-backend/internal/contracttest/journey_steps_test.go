@@ -7,5 +7,6 @@ func journeySteps(ids map[string]string) []journeyStep {
 	var steps []journeyStep
 	steps = append(steps, journeyStepsPlayback(ids)...)
 	steps = append(steps, journeyStepsPodcastAndAccounts(ids)...)
+	steps = append(steps, journeyStepsFeeds(ids)...)
 	return steps
 }
