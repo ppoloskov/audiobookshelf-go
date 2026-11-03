@@ -246,16 +246,24 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 			return
 		}
 	}
+	// A database without an email-settings row starts from the defaults TS
+	// EmailSettings (objects/settings/EmailSettings.js) and emailapi's load use,
+	// and the write below creates the row, as TS's updateSetting does.
+	settings := map[string]any{"id": "email-settings", "host": nil, "port": 465, "secure": true,
+		"rejectUnauthorized": true, "user": nil, "pass": nil, "testAddress": nil, "fromAddress": nil}
 	var raw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw); err != nil {
+	err = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
+	if err != nil && err != sql.ErrNoRows {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	var settings map[string]any
-	_ = json.Unmarshal(raw, &settings)
-	if settings == nil {
-		settings = map[string]any{}
+	if err == nil {
+		var stored map[string]any
+		_ = json.Unmarshal(raw, &stored)
+		if stored != nil {
+			settings = stored
+		}
 	}
 	all, _ := settings["ereaderDevices"].([]any)
 	kept := make([]any, 0)
@@ -288,7 +296,8 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	}
 	settings["ereaderDevices"] = combined
 	encoded, _ := json.Marshal(settings)
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE settings SET value=?,updatedAt=? WHERE key='email-settings'`, string(encoded), dbtime.Now()); err != nil {
+	now := dbtime.Now()
+	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(encoded), now, now); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
