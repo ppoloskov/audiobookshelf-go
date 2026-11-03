@@ -515,7 +515,7 @@ The ratchet counts `map[string]any` (1020 today; its count equals
 (313 today); task T0 adds that metric. A pass-through object that is genuinely
 opaque stays `json.RawMessage` and is documented as opaque.
 
-- [ ] T0: Make the ratchet count `[]any` as well
+- [x] T0: Make the ratchet count `[]any` as well
   - Files: `go-backend/tools/ratchet/main.go`, `go-backend/ratchet-baseline.json`
   - Change: Add a `[]any` metric next to `map[string]any`, and update the
     baseline in the same commit.

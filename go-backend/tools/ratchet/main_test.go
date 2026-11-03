@@ -61,6 +61,15 @@ func TestDynamicMapMetricCountsEquivalentMapSpellings(t *testing.T) {
 	}
 }
 
+func TestAnySliceMetricCountsSliceSpellings(t *testing.T) {
+	files := fixtureFiles(t, map[string]string{
+		"internal/items/items.go": "package items\ntype Any = any\nvar First []any\nvar Second []interface{}\nvar Third []Any\nvar Fourth [4]any\nvar Fifth []string\nvar Sixth []map[string]any\n",
+	})
+	if _, got := countDynamicTypes("audiobookshelf-compat", files); got != 3 {
+		t.Fatalf("[]any count = %d, want 3", got)
+	}
+}
+
 func TestCompareCountsRequiresEqualityAndHintsAtLowerBaseline(t *testing.T) {
 	baseline := metrics{"equal": 5, "lower": 5, "higher": 5}
 	if problems := compareCounts(metrics{"equal": 5}, metrics{"equal": 5}); len(problems) != 0 {

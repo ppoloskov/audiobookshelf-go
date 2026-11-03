@@ -1,6 +1,7 @@
 {
   "EmitFunc-style declarations": 7,
   "Set* injector methods": 18,
+  "[]any": 313,
   "catalog.New call sites": 1,
   "freePort helper definitions": 1,
   "hand-rolled Handle bool routers": 13,

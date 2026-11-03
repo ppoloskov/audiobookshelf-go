@@ -141,7 +141,7 @@ func measure(root string) (metrics, error) {
 		goCounts[key] = value
 	}
 	for _, key := range []string{
-		"map[string]any and aliases", "hand-rolled Handle bool routers", "writeJSON-style copies",
+		"map[string]any and aliases", "[]any", "hand-rolled Handle bool routers", "writeJSON-style copies",
 		"EmitFunc-style declarations", "Set* injector methods", "catalog.New call sites",
 		"httptest imports in non-test files", "inline comparePair calls", "freePort helper definitions",
 		"login helper definitions", "request helper definitions", "waitReady helper definitions",
@@ -179,7 +179,7 @@ func measureGo(root string) (metrics, error) {
 	if err != nil {
 		return nil, err
 	}
-	counts["map[string]any and aliases"] = countDynamicMapTypes("audiobookshelf-compat", files)
+	counts["map[string]any and aliases"], counts["[]any"] = countDynamicTypes("audiobookshelf-compat", files)
 	for _, file := range files {
 		isTest := strings.HasSuffix(file.path, "_test.go")
 		ast.Inspect(file.file, func(node ast.Node) bool {
@@ -226,6 +226,14 @@ type sourceFile struct {
 }
 
 func countDynamicMapTypes(module string, files []sourceFile) int {
+	maps, _ := countDynamicTypes(module, files)
+	return maps
+}
+
+// countDynamicTypes returns the dynamic-map count described above and the
+// number of []any slice types (including slices of aliases of any), counted at
+// every syntactic position like the direct maps.
+func countDynamicTypes(module string, files []sourceFile) (int, int) {
 	packagePath := func(file sourceFile) string {
 		dir := filepath.ToSlash(filepath.Dir(file.path))
 		if dir == "." {
@@ -299,7 +307,7 @@ func countDynamicMapTypes(module string, files []sourceFile) int {
 			}
 		}
 	}
-	count := 0
+	count, slices := 0, 0
 	for _, file := range files {
 		pkg, imports := packagePath(file), importsByFile[file.path]
 		// Preserve the historical direct-map count across every syntactic
@@ -307,6 +315,9 @@ func countDynamicMapTypes(module string, files []sourceFile) int {
 		ast.Inspect(file.file, func(node ast.Node) bool {
 			if mt, ok := node.(*ast.MapType); ok && isDirectDynamicMap(mt, pkg, imports, anyAliases) {
 				count++
+			}
+			if at, ok := node.(*ast.ArrayType); ok && at.Len == nil && isAnyType(at.Elt, pkg, imports, anyAliases) {
+				slices++
 			}
 			switch n := node.(type) {
 			case *ast.GenDecl:
@@ -336,7 +347,7 @@ func countDynamicMapTypes(module string, files []sourceFile) int {
 			return true
 		})
 	}
-	return count
+	return count, slices
 }
 
 func isAnyType(expr ast.Expr, pkg string, imports map[string]string, aliases map[string]bool) bool {
