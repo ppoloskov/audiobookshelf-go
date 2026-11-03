@@ -5,6 +5,7 @@ package bootstrap
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -58,10 +59,15 @@ func Ensure(cfg config.Config) error {
 	readOnly := strings.TrimSpace(os.Getenv("ABS_GO_READ_ONLY")) == "1"
 	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
 	if _, err := os.Stat(dbPath); err == nil {
-		return verifyRacedExisting(dbPath)
+		if err := verifyRacedExisting(dbPath); err != nil {
+			return err
+		}
+		logging.Infof("[Database] Existing database at %q matches the pinned migration state", dbPath)
+		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("bootstrap: inspect database: %w", err)
 	}
+	logging.Infof("[Database] absdatabase.sqlite not found at %s", dbPath) // Database.js:166
 	if readOnly {
 		return ErrReadOnlyDatabaseMissing
 	}
@@ -90,6 +96,7 @@ func Ensure(cfg config.Config) error {
 		_ = os.Remove(dbPath)
 		return err
 	}
+	logging.Infof("[Database] Created new database at %s with the pinned schema and default settings", dbPath)
 	return nil
 }
 

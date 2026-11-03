@@ -151,7 +151,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if scope.mediaType != "book" {
-		logging.RequestError(r, "internal error", nil)
+		logging.RequestDebug(r, "responding 500: the library item is not a book")
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
@@ -163,7 +163,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if missing != 0 || audioCount == 0 {
-		logging.RequestError(r, "internal error", nil)
+		logging.RequestDebug(r, fmt.Sprintf("responding 500: library item has %d missing and %d audio files", missing, audioCount))
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
@@ -285,7 +285,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 	}
 	media, ok := item["media"].(wire.BookFull)
 	if !ok {
-		logging.RequestError(r, "database read failed", nil)
+		logging.RequestError(r, "database read failed", fmt.Errorf("media of the item is %T, not a book", item["media"]))
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}

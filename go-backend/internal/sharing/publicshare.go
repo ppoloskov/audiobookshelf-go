@@ -208,6 +208,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	h.sessions[sid] = s
 	payload := publicShareResponse{MediaItemShare: share.wire(), PlaybackSession: s.json()}
 	h.mu.Unlock()
+	logging.Infof("[ShareManager] Adding new open share playback session %q", s.Title) // ShareManager.js:31
 	http.SetCookie(w, &http.Cookie{Name: "share_session_id", Value: sid, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
 	write(w, payload)
 }

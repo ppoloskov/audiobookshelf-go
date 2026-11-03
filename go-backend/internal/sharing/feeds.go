@@ -315,10 +315,18 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 		return
 	}
 	minified := feed.minified()
+	logging.Infof("[RssFeedManager] Opened RSS feed %q", feedURLText(minified)) // RssFeedManager.js:301
 	if h.emit != nil {
 		h.emit("*", "rss_feed_open", minified)
 	}
 	write(w, wire.FeedOpened{Feed: minified})
+}
+
+func feedURLText(f wire.FeedMinified) string {
+	if f.FeedURL == nil {
+		return ""
+	}
+	return *f.FeedURL
 }
 
 func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
@@ -457,6 +465,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		sendStatus(w, 500)
 		return
 	}
+	logging.Infof("[RssFeedManager] Closed RSS feed %q", feedURLText(feed.minified())) // RssFeedManager.js:359
 	if h.emit != nil {
 		h.emit("*", "rss_feed_closed", feed.minified())
 	}

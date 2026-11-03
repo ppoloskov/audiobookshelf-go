@@ -50,6 +50,9 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		itemIDs = append(itemIDs, id)
 	}
 	if err := rows.Close(); err != nil || rows.Err() != nil {
+		if err == nil {
+			err = rows.Err()
+		}
 		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return

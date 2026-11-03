@@ -8,6 +8,24 @@ import (
 	"testing"
 )
 
+// A deliberate bare 500 that upstream does not log is DEBUG, never ERROR.
+func TestRequestDebugIsNotAnError(t *testing.T) {
+	l, _, errBuf, _ := newTestLogger(t)
+	old := defaultLogger
+	defaultLogger = l
+	t.Cleanup(func() { defaultLogger = old })
+	l.ChangeLevel(LevelDebug)
+	RequestDebug(httptest.NewRequest(http.MethodGet, "/api/podcasts/x/downloads?token=s", nil), "responding 500: library item x is a book item, not a podcast")
+	got := l.Recent()
+	last := got[len(got)-1]
+	if last.LevelName != "DEBUG" || last.Message != "[HTTP] GET /api/podcasts/x/downloads: responding 500: library item x is a book item, not a podcast" {
+		t.Fatalf("entry = %+v", last)
+	}
+	if errBuf.Len() != 0 {
+		t.Fatalf("wrote to stderr: %q", errBuf.String())
+	}
+}
+
 func TestRequestErrorLogsRouteWithoutQueryString(t *testing.T) {
 	var logged []string
 	l, _, errBuf, _ := newTestLogger(t)

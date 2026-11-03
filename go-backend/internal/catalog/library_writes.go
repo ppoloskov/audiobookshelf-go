@@ -148,7 +148,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	id := makeUUID()
 	if id == "" {
-		logging.RequestError(r, "failed to create library", nil)
+		logging.RequestError(r, "failed to create library", errors.New("could not generate a library id"))
 		writeError(w, 500, "failed to create library")
 		return
 	}
@@ -169,7 +169,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	for _, folderPath := range paths {
 		folderID := makeUUID()
 		if folderID == "" {
-			logging.RequestError(r, "database write failed", nil)
+			logging.RequestError(r, "database write failed", errors.New("could not generate a library folder id"))
 			writeError(w, 500, "database write failed")
 			return
 		}
@@ -567,6 +567,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		eps.Close()
 	}
+	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result["name"]) // LibraryController.js:557
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
@@ -646,10 +647,12 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		writeError(w, 500, "database write failed")
 		return
 	}
-	if _, err := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET libraryId=NULL WHERE libraryId=?`, id); err != nil {
+	if res, err := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET libraryId=NULL WHERE libraryId=?`, id); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
+	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
+		logging.Infof("[LibraryController] Updated %d playback sessions to remove library id", n) // LibraryController.js:580
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE libraryId=?`, id); err != nil {
 		logging.RequestError(r, "database write failed", err)

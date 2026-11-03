@@ -56,8 +56,8 @@ helpers, not package boundaries.
 `tools/test-dependency-boundaries.cjs`]:
 
 - `wire` imports nothing from `internal/`.
-- Leaf packages (`httputil`, `dbtime`, `events`, `ids`, `media`, `authz`) import
-  only the standard library and `wire`.
+- Leaf packages (`httputil`, `dbtime`, `events`, `ids`, `media`, `authz`,
+  `logging`) import only the standard library and `wire`.
 - Feature packages may import leaf packages, `items`, `store`, `auth`, `config`.
 - Feature packages must not import each other. Shared read-side serialization
   moves to a shared package (see DECISION D1).
@@ -174,6 +174,28 @@ introduce it speculatively.
 - Upstream HTTP failures from providers are not silently converted to empty
   results; callers can tell "no results" from "provider down" (unless upstream
   does exactly that, in which case cite it).
+
+## Logging
+
+- `internal/logging` ports upstream's `Logger` and `LogManager`: console lines
+  `[YYYY-MM-DD HH:mm:ss.SSS] LEVEL: message`, daily JSON-line files under
+  `METADATA_PATH/logs/daily`, `logs/crash_logs.txt` for FATAL, the in-memory tail
+  behind `GET /api/logger-data`, and the Socket.IO `log` event for
+  `set_log_listener`. One path, no second ring.
+- Feature packages call the package-level functions (`logging.Infof`,
+  `logging.Errorf`, `logging.RequestError`), which write to `logging.Default()`.
+  This is deliberate and mirrors Node's singleton `Logger`: nearly every
+  constructor is `New(db, cfg, emit)` without a deps struct, and threading a
+  logger through all of them would add a parameter without adding isolation.
+  Composition roots configure the one instance (`cmd`, `server.Runtime`); tests
+  that need isolation build a private `logging.New`.
+- Before a handler writes a 5xx it logs the cause with `logging.RequestError`
+  (route without query string, because the query can carry an API token). The
+  response bytes stay exactly upstream's.
+- Message wording and levels follow the upstream call site; cite its
+  `file:line` in a comment. Never call the logger while holding a lock that the
+  socket emitter also takes (`realtime.Hub.mu`): listeners are emitted
+  synchronously.
 
 ## Shared utilities: single owners
 

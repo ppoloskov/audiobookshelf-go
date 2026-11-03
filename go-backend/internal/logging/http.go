@@ -28,6 +28,21 @@ func RequestError(r *http.Request, what string, err error) {
 	defaultLogger.write(LevelError, "", fmt.Sprintf("[HTTP] %s %s: %s", method, path, what), 2)
 }
 
+// RequestDebug records, at DEBUG, why a handler answers 500 when upstream does
+// so deliberately and without logging (a bare `res.sendStatus(500)` for a
+// request it cannot serve), for example a podcast route given a book. No
+// failure happened, so it is not an ERROR.
+func RequestDebug(r *http.Request, why string) {
+	method, path := "?", "?"
+	if r != nil {
+		method = r.Method
+		if r.URL != nil {
+			path = r.URL.Path
+		}
+	}
+	defaultLogger.write(LevelDebug, "", fmt.Sprintf("[HTTP] %s %s: %s", method, path, why), 2)
+}
+
 // RecoverRequest logs a handler panic (the value from recover()) and its
 // stack at ERROR. The caller answers the request.
 func RecoverRequest(r *http.Request, recovered any) {

@@ -381,6 +381,7 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.U
 }
 func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
+		logging.Errorf("[MiscController] Non-admin user %q attempted to get logger data", u.Username) // MiscController.js:779
 		w.WriteHeader(403)
 		return
 	}
@@ -395,6 +396,11 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.Use
 	root := filepath.Join(h.cfg.MetadataPath, "cache")
 	if itemsOnly {
 		root = filepath.Join(root, "items")
+	}
+	if itemsOnly {
+		logging.Infof("[CacheManager] Purging items cache at %q", root) // CacheManager.js:139
+	} else {
+		logging.Infof("[CacheManager] Purging all cache at %q", root) // CacheManager.js:129
 	}
 	if err := os.RemoveAll(root); err != nil {
 		logging.RequestError(r, "Failed to purge cache", err)

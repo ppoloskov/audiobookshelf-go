@@ -193,9 +193,11 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if err := h.changePassword(r.Context(), user.ID, oldPassword, newPassword); err != nil {
+		logging.Errorf("[LocalAuth] User %q failed to change password: %v", user.Username, err) // LocalAuthStrategy.js:178
 		http.Error(w, err.Error(), 400)
 		return
 	}
+	logging.Infof("[LocalAuth] User %q changed password", user.Username) // LocalAuthStrategy.js:173
 	accessToken, refreshToken, err := h.invalidateSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
@@ -747,10 +749,12 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if current.ID == id {
+			logging.Errorf("[UserController] User %s is attempting to delete self", current.Username) // UserController.js:367
 			sendStatus(w, 400)
 			return
 		}
 		if u.Type == "root" {
+			logging.Errorf("[UserController] Admin user %q attempted to delete root user", current.Username) // UserController.js:371
 			sendStatus(w, 403)
 			return
 		}
@@ -766,10 +770,13 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			http.Error(w, "database write failed", 500)
 			return
 		}
-		if _, err = tx.ExecContext(r.Context(), `UPDATE playbackSessions SET userId = NULL WHERE userId = ?`, id); err != nil {
-			logging.RequestError(r, "database write failed", err)
+		sessionsUpdated := int64(0)
+		if res, execErr := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET userId = NULL WHERE userId = ?`, id); execErr != nil {
+			logging.RequestError(r, "database write failed", execErr)
 			http.Error(w, "database write failed", 500)
 			return
+		} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
+			sessionsUpdated = n
 		}
 		if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
 			logging.RequestError(r, "database write failed", err)
@@ -781,6 +788,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			http.Error(w, "database write failed", 500)
 			return
 		}
+		logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
 		if h.emit != nil {
 			h.emit("admin", "user_removed", browserUser(u, []any{}, jsonArray(u.Bookmarks)))
 		}
@@ -1479,7 +1487,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		if s, ok := val.(string); ok {
 			desc = sql.NullString{String: s, Valid: true}
 		} else {
-			logging.RequestError(r, "database write failed", nil)
+			logging.RequestDebug(r, "responding 500: description is not a string")
 			http.Error(w, "database write failed", 500)
 			return true
 		}
@@ -1591,7 +1599,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		if add {
 			sendText(w, 400, "Invalid request body")
 		} else {
-			logging.RequestError(r, "Invalid request body", nil)
+			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
 			http.Error(w, "Invalid request body", 500)
 		}
 		return true
@@ -1601,7 +1609,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		if add {
 			sendText(w, 400, "Invalid request body")
 		} else {
-			logging.RequestError(r, "Invalid request body", nil)
+			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
 			http.Error(w, "Invalid request body", 500)
 		}
 		return true

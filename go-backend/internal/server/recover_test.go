@@ -70,3 +70,31 @@ func TestGuardPanicsPassesThroughNormalResponses(t *testing.T) {
 		t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
 	}
 }
+
+func TestAccessLineIsDebugOnly(t *testing.T) {
+	l := logging.Default()
+	before := l.Level()
+	t.Cleanup(func() { l.ChangeLevel(before) })
+	count := func() int {
+		n := 0
+		for _, e := range l.Recent() {
+			if strings.HasPrefix(e.Message, "[HTTP] GET /access-line-probe 204 ") {
+				n++
+			}
+		}
+		return n
+	}
+	serve := func() {
+		guardPanics(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/access-line-probe?token=x", nil), func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
+	}
+	l.ChangeLevel(logging.LevelInfo)
+	serve()
+	if count() != 0 {
+		t.Fatal("access line logged at INFO")
+	}
+	l.ChangeLevel(logging.LevelDebug)
+	serve()
+	if count() != 1 {
+		t.Fatalf("access lines at DEBUG = %d, want 1", count())
+	}
+}

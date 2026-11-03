@@ -250,6 +250,11 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			return http.StatusForbidden, ""
 		}
 	}
+	deleteKind := "Soft"
+	if hard {
+		deleteKind = "Hard"
+	}
+	logging.Infof("[LibraryItemController] (%s) deleting Library Item at %q with id %q", deleteKind, itemPath, itemID) // LibraryItemController.js:587
 	mediaIDs := []string{scope.mediaID}
 	authorIDs := []string{}
 	seriesIDs := []string{}
@@ -386,7 +391,10 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", itemID))
 	}
 	if hard && itemPath != "" && h.pathAllowed(ctx, itemPath, scope.libraryID, false) {
-		_ = os.RemoveAll(itemPath)
+		logging.Infof("[LibraryItemController] Deleting library item from file system at %q", itemPath) // LibraryItemController.js:604
+		if err := os.RemoveAll(itemPath); err != nil {
+			logging.Errorf("[LibraryItemController] Failed to delete library item from file system at %q: %v", itemPath, err)
+		}
 	}
 	if h.emit != nil {
 		h.emit("*", "item_removed", map[string]any{"id": itemID, "libraryId": scope.libraryID})
@@ -904,7 +912,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if strings.HasPrefix(body.Cover, "http:") || strings.HasPrefix(body.Cover, "https:") {
-		logging.RequestError(r, "Invalid cover path", nil)
+		logging.RequestDebug(r, "responding 500: cover path is a URL, a local file is required")
 		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
@@ -924,7 +932,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		}
 	}
 	if !valid {
-		logging.RequestError(r, "Invalid cover path", nil)
+		logging.RequestDebug(r, "responding 500: cover path is not one of the library item files")
 		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
@@ -952,13 +960,13 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if !info.Mode().IsRegular() {
-		logging.RequestError(r, "Cover path is not a file", nil)
+		logging.RequestDebug(r, "responding 500: cover path is not a regular file")
 		sendTextStatus(w, 500, "Cover path is not a file")
 		return
 	}
 	ext, validationError := validateCoverImage(body.Cover)
 	if validationError != "" {
-		logging.RequestError(r, validationError, nil)
+		logging.RequestDebug(r, "responding 500: "+validationError)
 		sendTextStatus(w, 500, validationError)
 		return
 	}

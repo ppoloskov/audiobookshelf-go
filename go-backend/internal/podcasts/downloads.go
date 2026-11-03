@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -174,6 +175,7 @@ func (h *Handler) runDownload(d *downloadTask) {
 		err = h.registerEpisode(d, path)
 	}
 	if err != nil {
+		logging.Errorf("[PodcastManager] Podcast Episode download failed %q: %v", episodeTitle(d), err) // PodcastManager.js:180
 		if path != "" {
 			_ = os.Remove(path)
 		}
@@ -183,6 +185,7 @@ func (h *Handler) runDownload(d *downloadTask) {
 		d.finishedAt = time.Now().UnixMilli()
 		h.queueMu.Unlock()
 	} else {
+		logging.Infof("[PodcastManager] Successfully downloaded podcast episode %q", episodeTitle(d)) // PodcastManager.js:163
 		h.queueMu.Lock()
 		d.finished = true
 		d.finishedAt = time.Now().UnixMilli()
