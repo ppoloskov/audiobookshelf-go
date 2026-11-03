@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"audiobookshelf-compat/internal/config"
@@ -1612,6 +1613,15 @@ func (t *transcode) start(concat string, duration float64) error {
 		t.cmd = nil
 		t.mu.Unlock()
 		if err != nil && !errors.Is(err, context.Canceled) {
+			// Stream.js:318-321: a SIGKILL is the intentional stop on
+			// session close or seek, logged at INFO, not as a failure.
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() && status.Signal() == syscall.SIGKILL {
+					logging.Infof("[FFMPEG] Transcode Killed")
+					return
+				}
+			}
 			// Upstream runs ffmpeg with -loglevel error in production
 			// (Stream.js:268) and logs its failure.
 			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v: %s", t.root, err, stderrTail.String())
