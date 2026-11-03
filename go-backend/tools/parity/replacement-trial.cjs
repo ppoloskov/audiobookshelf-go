@@ -120,6 +120,15 @@ function generateMedia(mediaRoot) {
   sh('zip', ['-X0q', epub, 'mimetype'], { cwd: epubSrc })
   sh('zip', ['-Xr9Dq', epub, 'META-INF', 'OEBPS'], { cwd: epubSrc })
 
+  // 5a. A disposable book: the batch delete with hard=1 removes its folder
+  // from the media tree, so the harness restores it between the two journeys
+  // (see restoreDisposable). It is the only media the journey deletes.
+  const disposable = path.join(books, 'Zed Disposable', 'Hard Delete Me')
+  fs.mkdirSync(disposable, { recursive: true })
+  ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=500:duration=3', '-ac', '1', '-ar', '22050', '-b:a', '32k',
+    '-metadata', 'title=Hard Delete Me', '-metadata', 'artist=Zed Disposable', '-metadata', 'album=Hard Delete Me',
+    '-id3v2_version', '3', path.join(disposable, 'Hard Delete Me.mp3')])
+
   // 5. A podcast folder with three locally generated episodes (no RSS, no
   // network). Upstream discovers episodes from the audio files in the folder
   // (PodcastScanner.scanNewPodcastLibraryItem, server/scanner/PodcastScanner.js)
@@ -206,18 +215,19 @@ async function seed(work, media) {
     }), 'create library')
     await must(call(`/api/libraries/${library.id}/scan`, { method: 'POST', token: rt, body: {} }), 'scan')
     let items = []
-    for (let i = 0; i < 120 && items.length < 4; i++) {
+    for (let i = 0; i < 120 && items.length < 5; i++) {
       await delay(500)
       items = (await must(call(`/api/libraries/${library.id}/items?limit=50`, { token: rt }), 'items')).results
     }
-    if (items.length !== 4) throw new Error(`upstream scan produced ${items.length} items, expected 4`)
+    if (items.length !== 5) throw new Error(`upstream scan produced ${items.length} items, expected 5`)
     const byTitle = Object.fromEntries(items.map(i => [i.media.metadata.title, i.id]))
     const ids = {
       library: library.id,
       saga1: byTitle['The Beginning'] || byTitle['Book 1 - The Beginning'],
       saga2: byTitle['The Middle'] || byTitle['Book 2 - The Middle'],
       novel: byTitle['Single File Novel'],
-      ebook: byTitle['Ebook Only']
+      ebook: byTitle['Ebook Only'],
+      disposable: byTitle['Hard Delete Me']
     }
     for (const [k, v] of Object.entries(ids)) if (!v) throw new Error(`seed: no item for ${k}; titles=${Object.keys(byTitle)}`)
 
@@ -823,6 +833,50 @@ function journeySteps(ids) {
   add('series.update.description', R, SER('Long Saga'), { method: 'PATCH', body: { description: '' }, events: 1 })
   add('series.after.get', R, SER('Long Saga', '?include=progress,rssfeed'))
   add('series.after.list', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
+
+  // ---- Batch update and delete: LibraryItemController.batchUpdate and
+  // batchDelete (the web client's multi-select edit and delete). The hard
+  // delete removes the disposable book's folder; the harness puts it back
+  // between the two journeys.
+  const BU = '/api/items/batch/update'
+  const BD = '/api/items/batch/delete'
+  const bu = (id, who, body, opts = {}) => add(id, who, BU, { method: 'POST', body, ...opts })
+  bu('batch.update.listener', L, [{ id: ids.saga1, mediaPayload: { metadata: { title: 'x' } } }])
+  bu('batch.update.notarray', R, { id: ids.saga1 })
+  bu('batch.update.empty', R, [])
+  bu('batch.update.noid', R, [{ mediaPayload: {} }])
+  bu('batch.update.dupid', R, [{ id: ids.saga1, mediaPayload: {} }, { id: ids.saga1, mediaPayload: {} }])
+  bu('batch.update.unknown', R, [{ id: ids.saga1, mediaPayload: {} }, { id: ZERO_ID, mediaPayload: {} }])
+  bu('batch.update.nochange', R, [{ id: ids.saga1, mediaPayload: { metadata: {} } }, { id: ids.saga2, mediaPayload: { tags: [] } }])
+  bu('batch.update.apply', R, [
+    { id: ids.saga1, mediaPayload: { metadata: { title: 'Batch Title One', subtitle: 'Batch Sub', genres: ['Batch'], explicit: true, series: [{ name: 'Batch Series', sequence: '7' }] }, tags: ['batch-tag'] } },
+    { id: ids.saga2, mediaPayload: { metadata: { authors: [{ name: 'Batch Author' }], narrators: ['Batch Narrator'], publishedYear: 1999, description: '<script>x</script><b>bold</b>' } } }], { events: 8 })
+  add('batch.update.after.saga1', R, `/api/items/${ids.saga1}?expanded=1`)
+  add('batch.update.after.saga2', R, `/api/items/${ids.saga2}?expanded=1`)
+  add('batch.update.after.authors', R, `/api/libraries/${ids.library}/authors`)
+  add('batch.update.after.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
+  add('batch.update.after.filterdata', R, `/api/libraries/${ids.library}?include=filterdata`)
+  bu('batch.update.revert', R, [
+    { id: ids.saga1, mediaPayload: { metadata: { series: [{ name: 'The Long Saga Renamed', sequence: '1' }, { name: 'Mega Cycle', sequence: '1' }] } } },
+    { id: ids.saga2, mediaPayload: { metadata: { authors: [{ name: 'Terry Fixture' }] } } }], { events: 8 })
+  add('batch.update.after.authors2', R, `/api/libraries/${ids.library}/authors`)
+  add('batch.update.after.series2', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
+  bu('batch.update.podcast.badcron', R, [{ id: ids.podcast, mediaPayload: { autoDownloadSchedule: 'nope', metadata: { title: 'Must Not Apply' } } }])
+  bu('batch.update.podcast.ok', R, [{ id: ids.podcast, mediaPayload: { metadata: { title: 'Fixture Cast Batch', author: 'Batch Host' }, tags: ['batch'], autoDownloadSchedule: '0 3 * * *' } }], { events: 3 })
+  add('batch.update.after.podcast', R, `/api/items/${ids.podcast}?expanded=1`)
+  add('batch.delete.listener', L, BD, { method: 'POST', body: { libraryItemIds: [ids.ebook] } })
+  add('batch.delete.noids', R, BD, { method: 'POST', body: {} })
+  add('batch.delete.notarray', R, BD, { method: 'POST', body: { libraryItemIds: 'abc' } })
+  add('batch.delete.empty', R, BD, { method: 'POST', body: { libraryItemIds: [] } })
+  add('batch.delete.unknown', R, BD, { method: 'POST', body: { libraryItemIds: [ZERO_ID] } })
+  add('batch.delete.soft', R, BD, { method: 'POST', body: { libraryItemIds: [ids.ebook, ZERO_ID] }, events: 4 })
+  add('batch.delete.soft.again', R, BD, { method: 'POST', body: { libraryItemIds: [ids.ebook] } })
+  add('batch.delete.after.items', R, `/api/libraries/${ids.library}/items?limit=20&page=0&minified=1&sort=media.metadata.title`)
+  add('batch.delete.after.item', R, `/api/items/${ids.ebook}`)
+  add('batch.delete.after.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
+  add('batch.delete.hard', R, `${BD}?hard=1`, { method: 'POST', body: { libraryItemIds: [ids.disposable] }, events: 4 })
+  add('batch.delete.after.authors', R, `/api/libraries/${ids.library}/authors`)
+  add('batch.delete.after.items2', R, `/api/libraries/${ids.library}/items?limit=20&page=0&minified=1&sort=media.metadata.title`)
   return s
 }
 
@@ -1090,6 +1144,7 @@ function dumpRows(dbPath, ids) {
   }
   const out = {
     'db.authors': rows('SELECT * FROM authors ORDER BY name, createdAt'),
+    'db.books.titles': rows('SELECT li.title AS itemTitle, li.titleIgnorePrefix AS itemIgnore, b.title AS bookTitle, b.titleIgnorePrefix AS bookIgnore, b.subtitle, b.narrators, b.genres, b.tags, b.explicit, b.publishedYear, b.description FROM libraryItems li JOIN books b ON b.id = li.mediaId ORDER BY li.createdAt, li.title'),
     'db.series': rows('SELECT * FROM series ORDER BY name, createdAt'),
     'db.bookAuthors': rows('SELECT li.title AS title, a.name AS author FROM bookAuthors ba JOIN authors a ON a.id = ba.authorId JOIN libraryItems li ON li.mediaId = ba.bookId ORDER BY li.title, ba.createdAt, a.name'),
     'db.libraryItems.authorNames': rows('SELECT title, authorNamesFirstLast, authorNamesLastFirst FROM libraryItems ORDER BY title'),
@@ -1168,12 +1223,22 @@ async function main() {
   }
   SNAPSHOT_DB = path.join(snapshot, 'config', 'absdatabase.sqlite')
 
+  // The hard batch delete removes this folder; keep a copy to put back.
+  const disposableDir = path.join(work, 'media', 'audiobooks', 'Zed Disposable')
+  const disposableBackup = path.join(work, 'disposable-backup')
+  if (fs.existsSync(disposableDir)) copyTree(disposableDir, disposableBackup)
+  const restoreDisposable = () => { if (fs.existsSync(disposableBackup)) copyTree(disposableBackup, disposableDir) }
+  // What is left of the disposable folder after a journey (a hard delete removes it).
+  const disposableState = () => ({ status: 200, body: fs.existsSync(disposableDir) ? fs.readdirSync(disposableDir, { recursive: true }).sort() : null })
+
   // Upstream journey (reference), in place.
   let up = await startUpstream(dirs, await freePort(), path.join(work, 'journey-upstream.log'))
   const upstream = await runJourney(up, ids, work)
   const upLogin = await loginAs(api(up), LISTENER)
   const upSocket = await socketProgressProbe(up, ids, upLogin.accessToken)
   await stop(up)
+  upstream['fs.media.disposable'] = disposableState()
+  restoreDisposable()
   Object.assign(upstream, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Swap: restore the pre-journey installation to the same paths, boot Go.
@@ -1184,6 +1249,8 @@ async function main() {
   try { goSocket = await socketProgressProbe(go, ids, (await loginAs(api(go), LISTENER)).accessToken) } catch (e) { goSocket = { status: 'error', error: e.message } }
   const goProgress = await requestJSON(go.baseUrl, '/api/me', { token: (await loginAs(api(go), LISTENER)).accessToken })
   await stop(go)
+  goResults['fs.media.disposable'] = disposableState()
+  restoreDisposable()
   Object.assign(goResults, dumpRows(path.join(dirs.config, 'absdatabase.sqlite'), ids))
 
   // Rollback: upstream reopens the Go-written installation.

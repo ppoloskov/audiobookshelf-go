@@ -30,4 +30,8 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	// server/routers/ApiRouter.js:228-229.
 	mux.HandleFunc("GET /api/series/{id}", h.seriesFindOne)
 	mux.HandleFunc("PATCH /api/series/{id}", h.seriesUpdate)
+
+	// server/routers/ApiRouter.js:102-103.
+	mux.HandleFunc("POST /api/items/batch/delete", h.batchDelete)
+	mux.HandleFunc("POST /api/items/batch/update", h.batchUpdate)
 }

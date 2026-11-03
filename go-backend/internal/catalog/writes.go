@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/filterdata"
@@ -24,10 +25,10 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type itemScope struct{ libraryID, mediaID, mediaType string }
+type itemScope struct{ itemID, libraryID, mediaID, mediaType string }
 
 func (h *Handler) writableItem(ctx context.Context, id string, user store.User) (itemScope, bool, error) {
-	var scope itemScope
+	scope := itemScope{itemID: id}
 	err := h.db.QueryRowContext(ctx, `SELECT libraryId,mediaId,mediaType FROM libraryItems WHERE id=?`, id).Scan(&scope.libraryID, &scope.mediaID, &scope.mediaType)
 	if err != nil {
 		return scope, false, err
@@ -68,98 +69,27 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 			return
 		}
 	}
-	prefixes := []string{"the", "a"}
-	var settingsRaw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
-		if values, ok := decodeObject(settingsRaw)["sortingPrefixes"].([]any); ok {
-			prefixes = make([]string, 0, len(values))
-			for _, value := range values {
-				if s, ok := value.(string); ok {
-					prefixes = append(prefixes, s)
-				}
+	if scope.mediaType == "podcast" {
+		// LibraryItemController.updateMedia (LibraryItemController.js:225).
+		if raw, ok := payload["autoDownloadSchedule"]; ok {
+			var schedule string
+			if json.Unmarshal(raw, &schedule) == nil && schedule != "" && !validCron(schedule) {
+				writeError(w, http.StatusBadRequest, "Invalid auto download schedule cron expression")
+				return
 			}
 		}
 	}
-	tx, err := h.db.BeginTx(r.Context(), nil)
+	result, err := h.applyMedia(r.Context(), scope, payload, metadata)
+	if errors.Is(err, errUnsupportedMedia) {
+		writeError(w, http.StatusBadRequest, "")
+		return
+	}
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
-	defer tx.Rollback()
-	columns := map[string]any{}
-	if scope.mediaType == "podcast" {
-		// LibraryItemController.updateMedia (LibraryItemController.js:225).
-		if raw, ok := payload["autoDownloadSchedule"]; ok {
-			var schedule string
-			if json.Unmarshal(raw, &schedule) == nil && schedule != "" {
-				if _, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule); err != nil {
-					writeError(w, http.StatusBadRequest, "Invalid auto download schedule cron expression")
-					return
-				}
-			}
-		}
-	}
-	if scope.mediaType == "book" {
-		columns = bookUpdateColumns(metadata, payload)
-	} else if scope.mediaType == "podcast" {
-		columns = podcastUpdateColumns(metadata, payload)
-	} else {
-		writeError(w, http.StatusBadRequest, "")
-		return
-	}
-	updated := len(columns) > 0
-	var sync mediaSync
-	if scope.mediaType == "book" {
-		if raw, ok := metadata["authors"]; ok {
-			changed, e := h.syncBookAuthors(r.Context(), tx, scope.mediaID, scope.libraryID, raw, &sync)
-			if e != nil {
-				logging.RequestError(r, "database write failed", e)
-				writeError(w, http.StatusInternalServerError, "database write failed")
-				return
-			}
-			updated = updated || changed
-		}
-		if raw, ok := metadata["series"]; ok {
-			changed, e := h.syncBookSeries(r.Context(), tx, scope.mediaID, scope.libraryID, raw, prefixes, &sync)
-			if e != nil {
-				logging.RequestError(r, "database write failed", e)
-				writeError(w, http.StatusInternalServerError, "database write failed")
-				return
-			}
-			updated = updated || changed
-		}
-	}
-	if updated {
-		sets := make([]string, 0, len(columns))
-		args := make([]any, 0, len(columns)+2)
-		for col, value := range columns {
-			sets = append(sets, `"`+col+`"=?`)
-			args = append(args, value)
-		}
-		sets = append(sets, `"updatedAt"=?`)
-		args = append(args, dbNow())
-		args = append(args, scope.mediaID)
-		table := "books"
-		if scope.mediaType == "podcast" {
-			table = "podcasts"
-		}
-		if _, err := tx.ExecContext(r.Context(), `UPDATE `+table+` SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			writeError(w, http.StatusInternalServerError, "database write failed")
-			return
-		}
-		if _, err := tx.ExecContext(r.Context(), `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), itemID); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			writeError(w, http.StatusInternalServerError, "database write failed")
-			return
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		writeError(w, http.StatusInternalServerError, "database write failed")
-		return
-	}
+	updated, sync := result.updated, result.sync
 	// LibraryItemController.updateMedia order: series cleanup, then the
 	// author events from updateAuthorsFromRequest, then the empty-author check
 	// (LibraryItemController.js:233-262).
@@ -195,6 +125,163 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 			h.emit("*", "item_updated", expanded)
 		}
 	}
+}
+
+var errUnsupportedMedia = errors.New("unsupported media type")
+
+// validCron is cron.validate for the auto download schedule.
+func validCron(schedule string) bool {
+	_, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule)
+	return err == nil
+}
+
+// sortingPrefixes is the server setting the series prefix form is built from.
+func (h *Handler) sortingPrefixes(ctx context.Context) []string {
+	prefixes := []string{"the", "a"}
+	var settingsRaw []byte
+	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
+		if values, ok := decodeObject(settingsRaw)["sortingPrefixes"].([]any); ok {
+			prefixes = make([]string, 0, len(values))
+			for _, value := range values {
+				if s, ok := value.(string); ok {
+					prefixes = append(prefixes, s)
+				}
+			}
+		}
+	}
+	return prefixes
+}
+
+// titleIgnorePrefix is utils.getTitleIgnorePrefix (utils/index.js:176-202):
+// the title without a leading sorting prefix, "" for an empty title.
+func titleIgnorePrefix(title string, prefixes []string) string {
+	lower := strings.ToLower(title)
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(lower, prefix+" ") {
+			return title[len(prefix)+1:]
+		}
+	}
+	return title
+}
+
+// storedRow is one row of a table as read from the database.
+type storedRow struct {
+	names  []string
+	values []any
+}
+
+// get is the stored value of a column (nil for NULL or an unknown column).
+func (r storedRow) get(column string) any {
+	for i, name := range r.names {
+		if name == column {
+			return r.values[i]
+		}
+	}
+	return nil
+}
+
+// rowColumns reads one row of table.
+func rowColumns(ctx context.Context, tx *sql.Tx, table, id string) (storedRow, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT * FROM `+table+` WHERE id=?`, id)
+	if err != nil {
+		return storedRow{}, err
+	}
+	defer rows.Close()
+	names, err := rows.Columns()
+	if err != nil {
+		return storedRow{}, err
+	}
+	if !rows.Next() {
+		return storedRow{}, sql.ErrNoRows
+	}
+	values := make([]any, len(names))
+	targets := make([]any, len(names))
+	for i := range values {
+		targets[i] = &values[i]
+	}
+	if err := rows.Scan(targets...); err != nil {
+		return storedRow{}, err
+	}
+	return storedRow{names: names, values: values}, rows.Err()
+}
+
+// mediaUpdateResult is what applying a media payload to an item changed.
+type mediaUpdateResult struct {
+	updated bool
+	sync    mediaSync
+}
+
+// applyMedia is the database part of LibraryItemController.updateMedia
+// (LibraryItemController.js:208-291) and of each entry of batchUpdate
+// (LibraryItemController.js:630-735): media.updateFromRequest, then for books
+// updateSeriesFromRequest and updateAuthorsFromRequest, saved in one
+// transaction. The caller runs the follow-ups (empty series and author
+// cleanup, filter data, events, the metadata file).
+func (h *Handler) applyMedia(ctx context.Context, scope itemScope, payload, metadata map[string]json.RawMessage) (mediaUpdateResult, error) {
+	var result mediaUpdateResult
+	prefixes := h.sortingPrefixes(ctx)
+	tx, err := h.db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback()
+	table := "books"
+	if scope.mediaType == "podcast" {
+		table = "podcasts"
+	} else if scope.mediaType != "book" {
+		return result, errUnsupportedMedia
+	}
+	current, err := rowColumns(ctx, tx, table, scope.mediaID)
+	if err != nil {
+		return result, err
+	}
+	var columns map[string]any
+	if scope.mediaType == "book" {
+		columns = bookUpdateColumns(metadata, payload, current)
+	} else {
+		columns = podcastUpdateColumns(metadata, payload, current)
+	}
+	// A new title carries its sort form (Book.js:394-396, Podcast.js:243-245);
+	// the libraryItems copy follows through the database trigger.
+	if title, ok := columns["title"]; ok {
+		text, _ := title.(string)
+		columns["titleIgnorePrefix"] = titleIgnorePrefix(text, prefixes)
+	}
+	result.updated = len(columns) > 0
+	if scope.mediaType == "book" {
+		if raw, ok := metadata["authors"]; ok {
+			changed, e := h.syncBookAuthors(ctx, tx, scope.mediaID, scope.libraryID, raw, &result.sync)
+			if e != nil {
+				return result, e
+			}
+			result.updated = result.updated || changed
+		}
+		if raw, ok := metadata["series"]; ok {
+			changed, e := h.syncBookSeries(ctx, tx, scope.mediaID, scope.libraryID, raw, prefixes, &result.sync)
+			if e != nil {
+				return result, e
+			}
+			result.updated = result.updated || changed
+		}
+	}
+	if result.updated {
+		sets := make([]string, 0, len(columns))
+		args := make([]any, 0, len(columns)+2)
+		for col, value := range columns {
+			sets = append(sets, `"`+col+`"=?`)
+			args = append(args, value)
+		}
+		sets = append(sets, `"updatedAt"=?`)
+		args = append(args, dbNow())
+		args = append(args, scope.mediaID)
+		if _, err := tx.ExecContext(ctx, `UPDATE `+table+` SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
+			return result, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), scope.itemID); err != nil {
+			return result, err
+		}
+	}
+	return result, tx.Commit()
 }
 
 func (h *Handler) deleteItem(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
@@ -578,7 +665,7 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 		out.authorsRemoved = append(out.authorsRemoved, link.id)
 		changed = true
 	}
-	now := dbNow()
+	var clock insertClock
 	added := map[string]bool{}
 	for _, name := range names {
 		key := strings.ToLower(name)
@@ -586,6 +673,7 @@ func (h *Handler) syncBookAuthors(ctx context.Context, tx *sql.Tx, bookID, libra
 			continue
 		}
 		added[key] = true
+		now := clock.now()
 		var id string
 		created := false
 		err := tx.QueryRowContext(ctx, `SELECT id FROM authors WHERE libraryId=? AND name=? COLLATE NOCASE LIMIT 1`, libraryID, name).Scan(&id)
@@ -633,7 +721,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 			return false, nil
 		}
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=?`, bookID)
+	rows, err := tx.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt, bs.rowid`, bookID)
 	if err != nil {
 		return false, err
 	}
@@ -642,6 +730,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 		sequence sql.NullString
 	}
 	current := map[string]currentSeries{}
+	var currentOrder []string
 	for rows.Next() {
 		var id, name string
 		var seq sql.NullString
@@ -650,6 +739,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 			return false, err
 		}
 		current[strings.ToLower(name)] = currentSeries{id: id, sequence: seq}
+		currentOrder = append(currentOrder, strings.ToLower(name))
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
@@ -658,7 +748,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 	rows.Close()
 	changed := false
 	keep := map[string]bool{}
-	now := dbNow()
+	var clock insertClock
 	for _, s := range incoming {
 		name := strings.TrimSpace(s["name"].(string))
 		key := strings.ToLower(name)
@@ -689,6 +779,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 			continue
 		}
 		var id string
+		now := clock.now()
 		err := tx.QueryRowContext(ctx, `SELECT id FROM series WHERE libraryId=? AND name=? COLLATE NOCASE LIMIT 1`, libraryID, name).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			id = makeUUID()
@@ -715,7 +806,8 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 		out.seriesAdded = append(out.seriesAdded, filterdata.Named{ID: id, Name: name})
 		changed = true
 	}
-	for key, row := range current {
+	for _, key := range currentOrder {
+		row := current[key]
 		if keep[key] {
 			continue
 		}
@@ -728,10 +820,69 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 	return changed, nil
 }
 
-func bookUpdateColumns(metadata, payload map[string]json.RawMessage) map[string]any {
+// insertClock stamps rows inserted one after another within a request. Sequelize
+// stamps every create separately, so books keep their authors and series in
+// insertion order when read back by createdAt; a stamp shared by several rows
+// would leave that order to the database, so each stamp is a millisecond
+// later than the one before.
+type insertClock struct{ last time.Time }
+
+func (c *insertClock) now() string {
+	t := time.Now().UTC().Truncate(time.Millisecond)
+	if !t.After(c.last) {
+		t = c.last.Add(time.Millisecond)
+	}
+	c.last = t
+	return dbtime.Format(t)
+}
+
+// storedString is a TEXT column value as read into an interface.
+func storedString(v any) any {
+	switch x := v.(type) {
+	case []byte:
+		return string(x)
+	default:
+		return v
+	}
+}
+
+// storedBool is a BOOLEAN column value.
+func storedBool(v any) bool {
+	switch x := v.(type) {
+	case int64:
+		return x != 0
+	case bool:
+		return x
+	case float64:
+		return x != 0
+	}
+	return false
+}
+
+// storedJSONText is JSON.stringify of a JSON column's parsed value.
+func storedJSONText(v any) string {
+	text, ok := storedString(v).(string)
+	if !ok {
+		return "null"
+	}
+	var compact bytes.Buffer
+	if json.Compact(&compact, []byte(text)) != nil {
+		return text
+	}
+	return compact.String()
+}
+
+// stringChanged is `payload !== this[key]` of Book.updateFromRequest
+// (Book.js:382): the raw request value against the stored one, before
+// sanitizing or turning "" into null.
+func stringChanged(current, requested any) bool { return storedString(current) != requested }
+
+// bookUpdateColumns are the columns Book.updateFromRequest (Book.js:370-431)
+// would change given the stored row `current`.
+func bookUpdateColumns(metadata, payload map[string]json.RawMessage, current storedRow) map[string]any {
 	columns := map[string]any{}
 	for _, key := range []string{"title", "subtitle", "publishedYear", "publishedDate", "publisher", "description", "isbn", "asin", "language"} {
-		if value, ok := requestString(metadata, key); ok {
+		if value, ok := requestString(metadata, key); ok && stringChanged(current.get(key), value) {
 			if key == "description" && value != nil {
 				value = auth.SanitizeHTML(fmt.Sprint(value))
 			}
@@ -742,26 +893,28 @@ func bookUpdateColumns(metadata, payload map[string]json.RawMessage) map[string]
 		}
 	}
 	for _, key := range []string{"explicit", "abridged"} {
-		if value, ok := requestBool(metadata, key); ok {
+		if value, ok := requestBool(metadata, key); ok && storedBool(current.get(key)) != value {
 			columns[key] = value
 		}
 	}
 	for _, key := range []string{"narrators", "genres"} {
-		if value, ok := requestStringArray(metadata, key); ok {
+		if value, ok := requestStringArray(metadata, key); ok && storedJSONText(current.get(key)) != jsonValue(value) {
 			columns[key] = jsonValue(value)
 		}
 	}
-	if value, ok := requestStringArray(payload, "tags"); ok {
+	if value, ok := requestStringArray(payload, "tags"); ok && storedJSONText(current.get("tags")) != jsonValue(value) {
 		columns["tags"] = jsonValue(value)
 	}
 	return columns
 }
 
-func podcastUpdateColumns(metadata, payload map[string]json.RawMessage) map[string]any {
+// podcastUpdateColumns are the columns Podcast.updateFromRequest
+// (Podcast.js:210-292) would change given the stored row `current`.
+func podcastUpdateColumns(metadata, payload map[string]json.RawMessage, current storedRow) map[string]any {
 	columns := map[string]any{}
 	mapKeys := map[string]string{"title": "title", "author": "author", "releaseDate": "releaseDate", "feedUrl": "feedURL", "imageUrl": "imageURL", "description": "description", "itunesPageUrl": "itunesPageURL", "itunesId": "itunesId", "itunesArtistId": "itunesArtistId", "language": "language", "type": "podcastType"}
 	for key, col := range mapKeys {
-		if value, ok := requestString(metadata, key); ok {
+		if value, ok := requestString(metadata, key); ok && stringChanged(current.get(col), value) {
 			if key == "description" && value != nil {
 				value = auth.SanitizeHTML(fmt.Sprint(value))
 			}
@@ -771,21 +924,21 @@ func podcastUpdateColumns(metadata, payload map[string]json.RawMessage) map[stri
 			columns[col] = value
 		}
 	}
-	if value, ok := requestBool(metadata, "explicit"); ok {
+	if value, ok := requestBool(metadata, "explicit"); ok && storedBool(current.get("explicit")) != value {
 		columns["explicit"] = value
 	}
-	if value, ok := requestStringArray(metadata, "genres"); ok {
+	if value, ok := requestStringArray(metadata, "genres"); ok && storedJSONText(current.get("genres")) != jsonValue(value) {
 		columns["genres"] = jsonValue(value)
 	}
-	if value, ok := requestStringArray(payload, "tags"); ok {
+	if value, ok := requestStringArray(payload, "tags"); ok && storedJSONText(current.get("tags")) != jsonValue(value) {
 		columns["tags"] = jsonValue(value)
 	}
-	if value, ok := requestBool(payload, "autoDownloadEpisodes"); ok {
+	if value, ok := requestBool(payload, "autoDownloadEpisodes"); ok && storedBool(current.get("autoDownloadEpisodes")) != value {
 		columns["autoDownloadEpisodes"] = value
 	}
 	if raw, ok := payload["autoDownloadSchedule"]; ok {
 		var value string
-		if json.Unmarshal(raw, &value) == nil && strings.TrimSpace(value) != "" {
+		if json.Unmarshal(raw, &value) == nil && strings.TrimSpace(value) != "" && stringChanged(current.get("autoDownloadSchedule"), value) {
 			columns["autoDownloadSchedule"] = value
 		}
 	}
@@ -794,7 +947,9 @@ func podcastUpdateColumns(metadata, payload map[string]json.RawMessage) map[stri
 			var v json.Number
 			if json.Unmarshal(raw, &v) == nil {
 				if n, e := strconv.ParseInt(v.String(), 10, 64); e == nil {
-					columns[key] = n
+					if stored, isInt := current.get(key).(int64); !isInt || stored != n {
+						columns[key] = n
+					}
 				}
 			}
 		}
