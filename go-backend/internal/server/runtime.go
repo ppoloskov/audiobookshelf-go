@@ -131,6 +131,9 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	}
 	rt.routes = http.NewServeMux()
 	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
+	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
+	rt.audiotools.Routes(rt.routes)
+	rt.providers.Routes(rt.routes)
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -226,6 +229,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			return nil, err
 		}
 		rt.backup.SetNotificationHandler(rt.notifications.TriggerEvent)
+		rt.backup.Routes(rt.routes)
 	}
 	return rt, nil
 }
@@ -338,14 +342,6 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.playback.Handle(w, withPath(r, path), user) {
 		return
 	}
-	if rt.adminops.Handle(w, withPath(r, path), user) {
-		if !isGet(r) {
-			// Tag, genre and author edits patch upstream's filter data cache in
-			// place; reloading it on the next read yields the same content.
-			rt.catalog.FilterCache().Invalidate("")
-		}
-		return
-	}
 	if rt.notifications.Handle(w, withPath(r, path), user) {
 		return
 	}
@@ -355,29 +351,8 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.scanner.Handle(w, withPath(r, path), user) {
 		return
 	}
-	if rt.audiotools.Handle(w, withPath(r, path), user) {
-		return
-	}
 	if rt.podcasts.Handle(w, withPath(r, path), user) {
 		return
-	}
-	if rt.providers.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if path == "/api/tasks" && isGet(r) {
-		payload, err := rt.audiotools.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
-		if err != nil {
-			logging.RequestError(r, "error", err)
-			httputil.WriteJSON(w, 500, map[string]string{"error": "failed to load tasks"})
-			return
-		}
-		httputil.WriteJSON(w, 200, payload)
-		return
-	}
-	if rt.backup != nil {
-		if rt.backup.Handle(w, withPath(r, path), user) {
-			return
-		}
 	}
 	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
 }

@@ -103,7 +103,7 @@ func TestSearchPodcastRoute(t *testing.T) {
 	h.SetEndpoint("itunes", server.URL)
 	call := func(target string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		if !h.Handle(w, httptest.NewRequest("GET", target, nil), store.User{}) {
+		if !serve(h, w, httptest.NewRequest("GET", target, nil), store.User{}) {
 			t.Fatalf("not routed: %s", target)
 		}
 		return w
@@ -125,7 +125,7 @@ func TestSearchPodcastRoute(t *testing.T) {
 		t.Fatalf("quick match podcast: %+v", match)
 	}
 	// The old plural path is not an upstream route.
-	if h.Handle(httptest.NewRecorder(), httptest.NewRequest("GET", "/api/search/podcasts?term=a", nil), store.User{}) {
+	if serve(h, httptest.NewRecorder(), httptest.NewRequest("GET", "/api/search/podcasts?term=a", nil), store.User{}) {
 		t.Fatal("/api/search/podcasts must not be routed")
 	}
 }

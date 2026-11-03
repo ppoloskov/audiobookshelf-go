@@ -17,6 +17,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// serve dispatches r through Routes the way the server does: the user travels
+// in the request context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, u store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux, RouteDeps{})
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), u)))
+}
+
 func adminopsDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, e := sql.Open("sqlite", "file:adminops-test-"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared")
@@ -49,7 +57,8 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 	h := New(db, config.Config{MetadataPath: metadata}, nil)
 	admin := store.User{Type: "admin"}
 	stats := httptest.NewRecorder()
-	if !h.Handle(stats, httptest.NewRequest(http.MethodGet, "/api/stats/server", nil), admin) || stats.Code != 200 {
+	serve(h, stats, httptest.NewRequest(http.MethodGet, "/api/stats/server", nil), admin)
+	if stats.Code != 200 {
 		t.Fatalf("stats status=%d %s", stats.Code, stats.Body.String())
 	}
 	var body map[string]any
@@ -57,7 +66,7 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 		t.Fatalf("stats body %s", stats.Body.String())
 	}
 	purge := httptest.NewRecorder()
-	h.Handle(purge, httptest.NewRequest(http.MethodPost, "/api/cache/items/purge", nil), admin)
+	serve(h, purge, httptest.NewRequest(http.MethodPost, "/api/cache/items/purge", nil), admin)
 	if purge.Code != 200 {
 		t.Fatalf("purge status=%d", purge.Code)
 	}
@@ -73,7 +82,7 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 		return nil
 	})
 	watch := httptest.NewRecorder()
-	h.Handle(watch, httptest.NewRequest(http.MethodPost, "/api/watcher/update", strings.NewReader(`{"libraryId":"lib","path":"/new","type":"rename","oldPath":"/old"}`)), admin)
+	serve(h, watch, httptest.NewRequest(http.MethodPost, "/api/watcher/update", strings.NewReader(`{"libraryId":"lib","path":"/new","type":"rename","oldPath":"/old"}`)), admin)
 	if watch.Code != 200 || !called {
 		t.Fatalf("watch status=%d called=%v", watch.Code, called)
 	}
@@ -84,7 +93,7 @@ func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 	u := store.User{Type: "admin"}
 	req := httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"language":"fr","tokenSecret":"attacker","unlisted":true}`))
 	w := httptest.NewRecorder()
-	h.Handle(w, req, u)
+	serve(h, w, req, u)
 	if w.Code != 200 {
 		t.Fatalf("status %d", w.Code)
 	}
@@ -113,17 +122,17 @@ func TestAuthSettingsAdminOnlyAndCronValidation(t *testing.T) {
 	db := adminopsDB(t)
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	handled := h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/auth-settings", nil), store.User{Type: "user"})
-	if !handled || w.Code != 403 {
-		t.Fatalf("handled=%v status=%d", handled, w.Code)
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/auth-settings", nil), store.User{Type: "user"})
+	if w.Code != 403 {
+		t.Fatalf("status=%d", w.Code)
 	}
 	ok := httptest.NewRecorder()
-	h.Handle(ok, httptest.NewRequest(http.MethodPost, "/api/validate-cron", strings.NewReader(`{"expression":"0 * * * *"}`)), store.User{Type: "user"})
+	serve(h, ok, httptest.NewRequest(http.MethodPost, "/api/validate-cron", strings.NewReader(`{"expression":"0 * * * *"}`)), store.User{Type: "user"})
 	if ok.Code != 200 {
 		t.Fatalf("valid cron status %d", ok.Code)
 	}
 	bad := httptest.NewRecorder()
-	h.Handle(bad, httptest.NewRequest(http.MethodPost, "/api/validate-cron", strings.NewReader(`{"expression":"never"}`)), store.User{Type: "user"})
+	serve(h, bad, httptest.NewRequest(http.MethodPost, "/api/validate-cron", strings.NewReader(`{"expression":"never"}`)), store.User{Type: "user"})
 	if bad.Code != 400 {
 		t.Fatalf("invalid cron status %d", bad.Code)
 	}
@@ -137,7 +146,7 @@ func TestPathExistsInvalidBodyIsJSON(t *testing.T) {
 	u := store.User{Type: "admin", IsActive: true, Permissions: json.RawMessage(`{"upload":true}`)}
 	for _, body := range []string{`{}`, `{"directory":"a"}`, `{"folderPath":"/x"}`, `not json`} {
 		w := httptest.NewRecorder()
-		h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/filesystem/pathexists", strings.NewReader(body)), u)
+		serve(h, w, httptest.NewRequest(http.MethodPost, "/api/filesystem/pathexists", strings.NewReader(body)), u)
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("%s: status %d, want 400", body, w.Code)
 		}
@@ -168,7 +177,7 @@ INSERT INTO series VALUES('s1','Der Ring','Der Ring')`)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPatch, "/api/sorting-prefixes", strings.NewReader(`{"sortingPrefixes":["der"]}`)).WithContext(ctx)
 	w := httptest.NewRecorder()
-	h.Handle(w, req, store.User{Type: "admin"})
+	serve(h, w, req, store.User{Type: "admin"})
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}

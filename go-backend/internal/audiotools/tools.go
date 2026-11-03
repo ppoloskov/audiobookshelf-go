@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +22,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -87,64 +87,67 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 	return &Handler{db: db, cfg: cfg, emit: events.Emitter(emit), tasks: map[string]*task{}}
 }
 
-// Handle handles tool routes relative to /api.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	p := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api"), "/")
-	if p == "" {
-		p = "/"
-	}
-	if p == "/tasks" && r.Method == http.MethodGet {
-		return false
-	} // shared runtime calls Tasks
-	if p == "/tools/batch/embed-metadata" && r.Method == http.MethodPost {
-		h.batch(w, r, user)
-		return true
-	}
-	if !strings.HasPrefix(p, "/tools/item/") {
-		return false
-	}
-	tail := strings.TrimPrefix(p, "/tools/item/")
-	parts := strings.Split(tail, "/")
-	if len(parts) != 2 || parts[0] == "" {
-		return false
-	}
-	id, err := urlPathUnescape(parts[0])
-	if err != nil {
-		status(w, 400)
-		return true
-	}
-	if user.Type != "admin" && user.Type != "root" {
-		status(w, 403)
-		return true
-	}
-	if parts[1] == "encode-m4b" && r.Method == http.MethodDelete {
-		h.cancelEncode(w, id)
-		return true
-	}
-	it, err := h.loadItem(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			status(w, 404)
-		} else {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
+// Routes registers the task and tool routes on mux. The server attaches the
+// user to the request context before dispatch (store.ContextWithUser).
+func (h *Handler) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/tasks", h.tasksRoute)
+	mux.HandleFunc("POST /api/tools/batch/embed-metadata", func(w http.ResponseWriter, r *http.Request) {
+		h.batch(w, r, requestUser(r))
+	})
+	mux.HandleFunc("DELETE /api/tools/item/{id}/encode-m4b", func(w http.ResponseWriter, r *http.Request) {
+		if !isAdmin(requestUser(r)) {
+			status(w, 403)
+			return
 		}
-		return true
-	}
-	if !canAccess(user, it.library) {
-		status(w, 403)
-		return true
-	}
-	switch {
-	case parts[1] == "encode-m4b" && r.Method == http.MethodPost:
-		h.encode(w, r, user, it)
-	case parts[1] == "embed-metadata" && r.Method == http.MethodPost:
-		h.embed(w, r, user, it)
-	default:
-		return false
-	}
-	return true
+		h.cancelEncode(w, r.PathValue("id"))
+	})
+	mux.HandleFunc("POST /api/tools/item/{id}/encode-m4b", h.itemRoute(h.encode))
+	mux.HandleFunc("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
 }
+
+// itemRoute answers a tool on one library item: admins only, then the item must
+// exist and the user must be able to reach its library.
+func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, store.User, item)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := requestUser(r)
+		if !isAdmin(user) {
+			status(w, 403)
+			return
+		}
+		it, err := h.loadItem(r.Context(), r.PathValue("id"))
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				status(w, 404)
+			} else {
+				logging.RequestError(r, "database read failed", err)
+				http.Error(w, "database read failed", 500)
+			}
+			return
+		}
+		if !canAccess(user, it.library) {
+			status(w, 403)
+			return
+		}
+		action(w, r, user, it)
+	}
+}
+
+func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) {
+	payload, err := h.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
+	if err != nil {
+		logging.RequestError(r, "error", err)
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load tasks"})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, payload)
+}
+
+func requestUser(r *http.Request) store.User {
+	user, _ := store.UserFromContext(r.Context())
+	return user
+}
+
+func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
 
 func (h *Handler) Tasks(ctx context.Context, includeQueue bool) (any, error) {
 	h.mu.Lock()
@@ -318,7 +321,7 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 }
 
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) {
-	if u.Type != "admin" && u.Type != "root" {
+	if !isAdmin(u) {
 		status(w, 403)
 		return
 	}
@@ -705,8 +708,7 @@ func num(v any) float64 {
 	}
 	return 0
 }
-func urlPathUnescape(s string) (string, error) { return url.PathUnescape(s) }
-func status(w http.ResponseWriter, n int)      { w.WriteHeader(n) }
+func status(w http.ResponseWriter, n int) { w.WriteHeader(n) }
 func text(w http.ResponseWriter, n int, s string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(n)

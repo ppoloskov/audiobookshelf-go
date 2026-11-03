@@ -200,64 +200,56 @@ func (h *Handler) Reload() error {
 	return nil
 }
 
-// Handle handles /api/backups routes and returns whether it owned the route.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) bool {
-	p := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api"), "/")
-	if p == "" {
-		p = "/"
-	}
-	if p != "/backups" && !strings.HasPrefix(p, "/backups/") {
-		return false
-	}
-	if u.Type != "admin" && u.Type != "root" {
-		w.WriteHeader(http.StatusForbidden)
-		return true
-	}
-	if p == "/backups" && r.Method == http.MethodGet {
-		opt := h.options()
-		httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet}, httputil.WithoutContentLength())
-		return true
-	}
-	if p == "/backups" && r.Method == http.MethodPost {
-		if _, err := h.Create(r.Context()); err != nil {
-			logging.RequestError(r, "backup failed", err)
-			http.Error(w, "backup failed", 500)
-			return true
+// Routes registers the backup routes on mux. The server attaches the user to
+// the request context before dispatch (store.ContextWithUser). Every route
+// answers 403 to a user who is not an admin, before it looks at the backup.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	admin := func(fn http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if u, _ := store.UserFromContext(r.Context()); u.Type != "admin" && u.Type != "root" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			fn(w, r)
 		}
-		httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
-		return true
 	}
-	if p == "/backups/upload" && r.Method == http.MethodPost {
-		h.upload(w, r)
-		return true
+	// onBackup resolves {id} first; an unknown backup answers 404.
+	onBackup := func(fn func(http.ResponseWriter, *http.Request, Backup)) http.HandlerFunc {
+		return admin(func(w http.ResponseWriter, r *http.Request) {
+			b, ok := h.find(r.PathValue("id"))
+			if !ok {
+				httputil.SendStatus(w, http.StatusNotFound)
+				return
+			}
+			fn(w, r, b)
+		})
 	}
-	if p == "/backups/path" && r.Method == http.MethodPatch {
-		h.updatePath(w, r)
-		return true
-	}
-	parts := strings.Split(strings.TrimPrefix(p, "/backups/"), "/")
-	if len(parts) < 1 || parts[0] == "" {
-		return false
-	}
-	b, ok := h.find(parts[0])
-	if !ok {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return true
-	}
-	if len(parts) == 2 && parts[1] == "download" && r.Method == http.MethodGet {
+	mux.HandleFunc("GET /api/backups", admin(h.listRoute))
+	mux.HandleFunc("POST /api/backups", admin(h.createRoute))
+	mux.HandleFunc("POST /api/backups/upload", admin(h.upload))
+	mux.HandleFunc("PATCH /api/backups/path", admin(h.updatePath))
+	mux.HandleFunc("GET /api/backups/{id}/download", onBackup(func(w http.ResponseWriter, r *http.Request, b Backup) {
 		w.Header().Set("Content-Disposition", "attachment; filename="+b.Filename)
 		http.ServeFile(w, r, b.FullPath)
-		return true
-	}
-	if len(parts) == 2 && parts[1] == "apply" && r.Method == http.MethodGet {
-		h.apply(w, r, b)
-		return true
-	}
-	if len(parts) == 1 && r.Method == http.MethodDelete {
+	}))
+	mux.HandleFunc("GET /api/backups/{id}/apply", onBackup(h.apply))
+	mux.HandleFunc("DELETE /api/backups/{id}", onBackup(func(w http.ResponseWriter, _ *http.Request, b Backup) {
 		h.delete(w, b)
-		return true
+	}))
+}
+
+func (h *Handler) listRoute(w http.ResponseWriter, _ *http.Request) {
+	opt := h.options()
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet}, httputil.WithoutContentLength())
+}
+
+func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) {
+	if _, err := h.Create(r.Context()); err != nil {
+		logging.RequestError(r, "backup failed", err)
+		http.Error(w, "backup failed", 500)
+		return
 	}
-	return false
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
 }
 
 func (h *Handler) Create(ctx context.Context) (Backup, error) {
