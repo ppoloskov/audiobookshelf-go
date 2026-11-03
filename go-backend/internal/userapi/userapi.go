@@ -890,8 +890,8 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			u.Email = email
 			emailChanged = true
 		} else if email, exists := body["email"]; exists && (email == nil || email == "") {
-			// Upstream PATCH with null/empty email updates the column; both
-			// serialize as null in the browser DTO.
+			// Upstream PATCH with null/empty email sets the column to SQL NULL
+			// (models/User.js); the browser DTO then serializes null.
 			u.Email = ""
 			emailChanged = true
 		}
@@ -2040,7 +2040,7 @@ func (h *Handler) apiKey(ctx context.Context, id string) (map[string]any, error)
 			creator = map[string]any{"id": u.ID, "username": u.Username, "type": u.Type}
 		}
 	}
-	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "user": user, "createdByUser": creator}, nil
+	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": sequelizeISOString(created), "updatedAt": sequelizeISOString(updated), "user": user, "createdByUser": creator}, nil
 }
 
 // sequelizeISOString mirrors Sequelize model serialization of DATE attributes
