@@ -303,6 +303,14 @@ L2, JWT issuing -> L1).
   - Change: A reaper started by `Start`, stopped by `Close`.
   - Done when: a test shows expired sessions are deleted without a request.
 
+- [ ] C24: Encode to M4B succeeds with a cover
+  - Files: `internal/audiotools/tools.go` (merge argv near line 556: `-f mp4`
+    before the cover input, the bug class fixed for embed in 03982a4)
+  - Change: Put every input before output options; add a journey step that
+    runs `POST /api/tools/item/:id/encode-m4b` to completion and checks the
+    new `.m4b` file exists and plays (ffprobe duration > 0).
+  - Done when: the step passes on Go and on the TS recording.
+
 ## Phase R: routes clients need (needs F3)
 
 - [ ] R1: Mark every handler client-required, admin-UI, or unused
