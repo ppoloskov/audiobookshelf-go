@@ -11,14 +11,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -844,12 +842,6 @@ func catalogTitlePrefixAtEnd(title string, prefixes []string) string {
 		}
 	}
 	return title
-}
-
-var htmlTags = regexp.MustCompile(`<[^>]*>`)
-
-func stripHTML(s string) string {
-	return strings.TrimSpace(html.UnescapeString(htmlTags.ReplaceAllString(s, "")))
 }
 
 // lastFirst is Author.getLastFirst for a non-empty name

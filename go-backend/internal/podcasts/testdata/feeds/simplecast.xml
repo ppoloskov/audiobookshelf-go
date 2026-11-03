@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>Night Shift Stories</title>
+    <link>https://nightshift.example</link>
+    <language>en</language>
+    <pubDate>Mon, 08 Jan 2024 06:00:00 +0000</pubDate>
+    <description>&lt;p&gt;Late-night stories, read slowly &amp;amp; warmly.&lt;/p&gt;</description>
+    <itunes:author>Night Shift</itunes:author>
+    <itunes:explicit>false</itunes:explicit>
+    <image>
+      <url>https://nightshift.example/rss-art.png</url>
+      <title>Night Shift Stories</title>
+      <link>https://nightshift.example</link>
+    </image>
+    <itunes:image href="https://nightshift.example/art.png"/>
+    <itunes:new-feed-url>https://feeds.nightshift.example/new.xml</itunes:new-feed-url>
+    <itunes:type>serial</itunes:type>
+    <itunes:category text="Arts">
+      <itunes:category text="Performing Arts"/>
+    </itunes:category>
+    <atom:link href="https://feeds.nightshift.example/old.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>  Chapter Seven  </title>
+      <description>&lt;p&gt;Escaped &lt;a href="https://example.org/x"&gt;markup&lt;/a&gt; and &lt;script&gt;bad()&lt;/script&gt;.&lt;/p&gt;</description>
+      <itunes:subtitle>The long road</itunes:subtitle>
+      <itunes:duration>45:30</itunes:duration>
+      <itunes:episodeType>bonus</itunes:episodeType>
+      <itunes:season>
+        2
+      </itunes:season>
+      <itunes:episode>
+        7
+      </itunes:episode>
+      <pubDate>Wed, 10 Jan 2024 06:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://nightshift.example/ep/7</guid>
+      <enclosure url="https://cdn.nightshift.example/ep7.m4a" length="52000000" type="audio/x-m4a"/>
+    </item>
+    <item>
+      <title>Chapter Six</title>
+      <description>Six, with a trailing newline.
+</description>
+      <itunes:duration>3600</itunes:duration>
+      <pubDate>Wed, 03 Jan 2024 06:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://nightshift.example/ep/6</guid>
+      <enclosure url="https://cdn.nightshift.example/ep6.m4a" length="0" type="audio/x-m4a"/>
+    </item>
+    <item>
+      <title>Teaser with no audio</title>
+      <description>This item has no enclosure and is not an episode.</description>
+      <pubDate>Tue, 02 Jan 2024 06:00:00 +0000</pubDate>
+      <guid>teaser</guid>
+    </item>
+  </channel>
+</rss>

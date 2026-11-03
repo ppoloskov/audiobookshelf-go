@@ -1,0 +1,184 @@
+package textclean
+
+// The golden tables were captured from the implementations this package
+// replaced (auth.SanitizeHTML, catalog/providers stripHTML) on the contract
+// fixture descriptions, the RSS test fixtures and tricky inputs. The only
+// agreed difference is that an apostrophe stays a plain apostrophe (the old
+// escaper wrote &#39;). Inputs whose output deliberately changed are in the
+// *Differences tables, with the old and new values.
+
+import "testing"
+
+var sanitizeGolden = []struct{ in, want string }{
+	{"The second book of the saga, narrated slowly.", "The second book of the saga, narrated slowly."},
+	{"The first episode of the fixture cast.", "The first episode of the fixture cast."},
+	{"A <b>second</b> episode.", "A <b>second</b> episode."},
+	{"Episode three closes the season.", "Episode three closes the season."},
+	{"Useful <script>alert(1)</script><strong>news</strong>", "Useful <strong>news</strong>"},
+	{"<p>Useful <script>alert(1)</script><strong>news</strong></p>", "<p>Useful <strong>news</strong></p>"},
+	{"Plain description", "Plain description"},
+	{"<p>Episode <a href=\"javascript:alert(1)\">link</a></p>", "<p>Episode <a>link</a></p>"},
+	{"Trial feed", "Trial feed"},
+	{"Feed fixture description with <em>emphasis</em> and &amp; entity", "Feed fixture description with <em>emphasis</em> and &amp; entity"},
+	{"hello <script>alert(1)</script>world", "hello world"},
+	{"<p onclick=\"x\">Hi <strong>there</strong></p>", "<p>Hi <strong>there</strong></p>"},
+	{"<a href=\"javascript:alert(1)\" target=\"_blank\" rel=\"x\">bad</a>", "<a target=\"_blank\">bad</a>"},
+	{"<a href=\"//evil.example\">bad</a><a href=\"https://ok.example\" name=\"hi\">ok</a>", "<a>bad</a><a href=\"https://ok.example\" name=\"hi\">ok</a>"},
+	{"<iframe>hello <b>world</b></iframe>", "hello <b>world</b>"},
+	{"one<br>two", "one<br />two"},
+	{"<a href=\"mailto:reader@example.org\">email</a>", "<a href=\"mailto:reader@example.org\">email</a>"},
+	{"<p><strong><em>deep</em> text</strong></p>", "<p><strong><em>deep</em> text</strong></p>"},
+	{"Tom &amp; Jerry &lt;3 &quot;quoted&quot; &#39;apos&#39; &nbsp;x &copy; &#x2603;", "Tom &amp; Jerry &lt;3 &#34;quoted&#34; 'apos'  x © ☃"},
+	{"It's the reader's \"pick\" - don't miss it", "It's the reader's &#34;pick&#34; - don't miss it"},
+	{"<p>open <b>bold", "<p>open <b>bold</b></p>"},
+	{"<p>a<p>b", "<p>a</p><p>b</p>"},
+	{"a</b>b", "ab"},
+	{"<style>p{color:red}</style>x", "x"},
+	{"<script>var a = \"<b>x</b>\";</script>after", "after"},
+	{"<option>o</option>kept <textarea>t</textarea>end", "kept end"},
+	{"<a href=\" javascript:alert(1)\">sp</a>", "<a>sp</a>"},
+	{"<a href=\"java&#x09;script:alert(1)\">tab</a>", "<a>tab</a>"},
+	{"<a href=\"<!-- x -->javascript:alert(1)\">c</a>", "<a>c</a>"},
+	{"<a href='https://single.example'>q</a>", "<a href=\"https://single.example\">q</a>"},
+	{"<a HREF=\"https://upper.example\" TARGET=\"_blank\">u</a>", "<a href=\"https://upper.example\" target=\"_blank\">u</a>"},
+	{"<a name>empty</a>", "<a name>empty</a>"},
+	{"<a href=\"https://x.example\" href=\"javascript:bad\">dup</a>", "<a href=\"https://x.example\">dup</a>"},
+	{"<img src=x onerror=alert(1)>after", "after"},
+	{"<!-- comment -->visible", "visible"},
+	{"<!DOCTYPE html>text", "text"},
+	{"a < b and c > d", "a &lt; b and c &gt; d"},
+	{"1<2 and 3>2", "1&lt;2 and 3&gt;2"},
+	{"<br/>and<BR>and<br />", "<br />and<br />and<br />"},
+	{"line1\nline2\r\nline3", "line1\nline2\nline3"},
+	{"<ul><li>one</li><li>two</li></ul>", "<ul><li>one</li><li>two</li></ul>"},
+	{"<p>  padded  </p>  ", "<p>  padded  </p>  "},
+	{"<a href=\"https://a.example\"><b>x</b></a>", "<a href=\"https://a.example\"><b>x</b></a>"},
+	{"<a href=\"/relative\">rel</a>", "<a href=\"/relative\">rel</a>"},
+	{"<a href=\"https://a.example?x=1&amp;y=2\">amp</a>", "<a href=\"https://a.example?x=1&amp;y=2\">amp</a>"},
+	{"<a href=\"https://a.example/?q=it's\">apos href</a>", "<a href=\"https://a.example/?q=it's\">apos href</a>"},
+	{"<del>gone</del><ins>new</ins>", "<del>gone</del>new"},
+	{"<P>UPPER</P>", "<p>UPPER</p>"},
+	{"<h1>heading</h1>text", "headingtext"},
+	{"<div><p>in div</p></div>", "<p>in div</p>"},
+	{"<p>unicode é ☃</p>", "<p>unicode é ☃</p>"},
+	{"<p>&lt;script&gt;x&lt;/script&gt;</p>", "<p>&lt;script&gt;x&lt;/script&gt;</p>"},
+	{"<title>T</title>x", "Tx"},
+	{"<p>x</p>\n\n<p>y</p>", "<p>x</p>\n\n<p>y</p>"},
+	{"<a href=\"https://a.example\">one</a> and <a href=\"https://b.example\">two</a>", "<a href=\"https://a.example\">one</a> and <a href=\"https://b.example\">two</a>"},
+	{"<strong>a</strong>&nbsp;<em>b</em>", "<strong>a</strong> <em>b</em>"},
+	{"   ", "   "},
+	{"<em></em>", "<em></em>"},
+	{"<p>it's ok</p><p>don&#39;t</p>", "<p>it's ok</p><p>don't</p>"},
+}
+
+var stripGolden = []struct{ in, want string }{
+	{"The second book of the saga, narrated slowly.", "The second book of the saga, narrated slowly."},
+	{"The first episode of the fixture cast.", "The first episode of the fixture cast."},
+	{"A <b>second</b> episode.", "A second episode."},
+	{"Episode three closes the season.", "Episode three closes the season."},
+	{"Plain description", "Plain description"},
+	{"<p>Episode <a href=\"javascript:alert(1)\">link</a></p>", "Episode link"},
+	{"Trial feed", "Trial feed"},
+	{"Feed fixture description with <em>emphasis</em> and &amp; entity", "Feed fixture description with emphasis and & entity"},
+	{"<p onclick=\"x\">Hi <strong>there</strong></p>", "Hi there"},
+	{"<a href=\"javascript:alert(1)\" target=\"_blank\" rel=\"x\">bad</a>", "bad"},
+	{"<a href=\"//evil.example\">bad</a><a href=\"https://ok.example\" name=\"hi\">ok</a>", "badok"},
+	{"<iframe>hello <b>world</b></iframe>", "hello world"},
+	{"one<br>two", "onetwo"},
+	{"<a href=\"mailto:reader@example.org\">email</a>", "email"},
+	{"<p><strong><em>deep</em> text</strong></p>", "deep text"},
+	{"Tom &amp; Jerry &lt;3 &quot;quoted&quot; &#39;apos&#39; &nbsp;x &copy; &#x2603;", "Tom & Jerry <3 \"quoted\" 'apos'  x © ☃"},
+	{"It's the reader's \"pick\" - don't miss it", "It's the reader's \"pick\" - don't miss it"},
+	{"<p>open <b>bold", "open bold"},
+	{"<p>a<p>b", "ab"},
+	{"<b>x<i>y</b>z</i>", "xyz"},
+	{"a</b>b", "ab"},
+	{"<a href=\" javascript:alert(1)\">sp</a>", "sp"},
+	{"<a href=\"java&#x09;script:alert(1)\">tab</a>", "tab"},
+	{"<a href='https://single.example'>q</a>", "q"},
+	{"<a HREF=\"https://upper.example\" TARGET=\"_blank\">u</a>", "u"},
+	{"<a name>empty</a>", "empty"},
+	{"<a href=\"https://x.example\" href=\"javascript:bad\">dup</a>", "dup"},
+	{"<img src=x onerror=alert(1)>after", "after"},
+	{"<!-- comment -->visible", "visible"},
+	{"<!DOCTYPE html>text", "text"},
+	{"<br/>and<BR>and<br />", "andand"},
+	{"<ul><li>one</li><li>two</li></ul>", "onetwo"},
+	{"<p>  padded  </p>  ", "padded"},
+	{"<a href=\"https://a.example\"><b>x</b></a>", "x"},
+	{"<a href=\"/relative\">rel</a>", "rel"},
+	{"<a href=\"https://a.example?x=1&amp;y=2\">amp</a>", "amp"},
+	{"<a href=\"https://a.example/?q=it's\">apos href</a>", "apos href"},
+	{"<del>gone</del><ins>new</ins>", "gonenew"},
+	{"<P>UPPER</P>", "UPPER"},
+	{"<h1>heading</h1>text", "headingtext"},
+	{"<div><p>in div</p></div>", "in div"},
+	{"<p>unicode é ☃</p>", "unicode é ☃"},
+	{"<p>&lt;script&gt;x&lt;/script&gt;</p>", "<script>x</script>"},
+	{"<title>T</title>x", "Tx"},
+	{"<noscript><b>n</b></noscript>", "n"},
+	{"</p>stray", "stray"},
+	{"<p>x</p>\n\n<p>y</p>", "x\n\ny"},
+	{"<a href=\"https://a.example\">one</a> and <a href=\"https://b.example\">two</a>", "one and two"},
+	{"<strong>a</strong>&nbsp;<em>b</em>", "a b"},
+	{"   ", ""},
+	{"<em></em>", ""},
+	{"<p>it's ok</p><p>don&#39;t</p>", "it's okdon't"},
+}
+
+func TestSanitizeGolden(t *testing.T) {
+	for _, tc := range sanitizeGolden {
+		if got := Sanitize(tc.in); got != tc.want {
+			t.Errorf("Sanitize(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestStripGolden(t *testing.T) {
+	for _, tc := range stripGolden {
+		if got := Strip(tc.in); got != tc.want {
+			t.Errorf("Strip(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// sanitizeDifferences: the old HTML parser repaired these inputs; the tokenizer
+// does not, and the new output matches upstream sanitize-html (htmlparser2).
+var sanitizeDifferences = []struct{ in, old, want string }{
+	{"<b>x<i>y</b>z</i>", "<b>x<i>y</i></b><i>z</i>", "<b>x<i>y</i></b>z"},
+	{"<noscript><b>n</b></noscript>", "&lt;b&gt;n&lt;/b&gt;", "<b>n</b>"},
+	{"</p>stray", "<p></p>stray", "stray"},
+}
+
+// stripDifferences: the old regex stripping kept script, style, textarea and option
+// text, treated "<2" as a tag, leaked a malformed href, and kept CRLF. The new
+// output follows upstream stripAllTags (nonTextTags, htmlparser2 text rules)
+// and the HTML newline rules.
+var stripDifferences = []struct{ in, old, want string }{
+	{"Useful <script>alert(1)</script><strong>news</strong>", "Useful alert(1)news", "Useful news"},
+	{"<p>Useful <script>alert(1)</script><strong>news</strong></p>", "Useful alert(1)news", "Useful news"},
+	{"hello <script>alert(1)</script>world", "hello alert(1)world", "hello world"},
+	{"<style>p{color:red}</style>x", "p{color:red}x", "x"},
+	{"<script>var a = \"<b>x</b>\";</script>after", "var a = \"x\";after", "after"},
+	{"<option>o</option>kept <textarea>t</textarea>end", "okept tend", "kept end"},
+	{"<a href=\"<!-- x -->javascript:alert(1)\">c</a>", "javascript:alert(1)\">c", "c"},
+	{"a < b and c > d", "a  d", "a < b and c > d"},
+	{"1<2 and 3>2", "12", "1<2 and 3>2"},
+	{"line1\nline2\r\nline3", "line1\nline2\r\nline3", "line1\nline2\nline3"},
+}
+
+func TestSanitizeDifferences(t *testing.T) {
+	for _, tc := range sanitizeDifferences {
+		if got := Sanitize(tc.in); got != tc.want {
+			t.Errorf("Sanitize(%q) = %q, want %q (old %q)", tc.in, got, tc.want, tc.old)
+		}
+	}
+}
+
+func TestStripDifferences(t *testing.T) {
+	for _, tc := range stripDifferences {
+		if got := Strip(tc.in); got != tc.want {
+			t.Errorf("Strip(%q) = %q, want %q (old %q)", tc.in, got, tc.want, tc.old)
+		}
+	}
+}

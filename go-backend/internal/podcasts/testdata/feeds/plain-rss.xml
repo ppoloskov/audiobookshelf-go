@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Plain Feed</title>
+    <description>No iTunes namespace at all.</description>
+    <category>Hobbies</category>
+    <item>
+      <title>Only enclosure</title>
+      <enclosure url="https://plain.example/e1.mp3" type="audio/mpeg" length="1024"/>
+      <pubDate>Fri, 05 Jan 2024 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Second with guid</title>
+      <guid>plain-2</guid>
+      <enclosure url="https://plain.example/e2.mp3"/>
+    </item>
+  </channel>
+</rss>

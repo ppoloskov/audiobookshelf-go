@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -265,7 +266,7 @@ func descriptionPlain(value sql.NullString) *string {
 	if !value.Valid || value.String == "" {
 		return nil
 	}
-	plain := stripHTML(value.String)
+	plain := textclean.Strip(value.String)
 	return &plain
 }
 

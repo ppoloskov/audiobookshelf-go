@@ -185,7 +185,7 @@ L2, JWT issuing -> L1).
   - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
     shows the limit trips and resets.
 
-- [ ] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
+- [x] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
   - Files: `internal/auth/sanitize.go` (`SanitizeHTML`),
     `internal/catalog/handler.go` (`stripHTML`),
     `internal/providers/builtin_search.go` (`stripHTML`),
@@ -195,7 +195,7 @@ L2, JWT issuing -> L1).
   - Done when: the four functions are gone, table tests cover descriptions from
     the fixtures and real feeds.
 
-- [ ] L4: Parse podcast feeds with `gofeed`
+- [x] L4: Parse podcast feeds with `gofeed`
   - Files: `internal/podcasts/rss.go` (`parseFeed`, `encoding/xml` mapping)
   - Change: Parse with `gofeed` (including the iTunes extension) and map to the
     podcast/episode fields Go stores and returns. Keep the gzip handling.
@@ -328,6 +328,15 @@ L2, JWT issuing -> L1).
     `init`, fix it.
   - Done when: 1,000 consecutive connect+auth cycles succeed in a test, and
     the F9 auth re-send workaround is removed.
+
+- [ ] C26: TestJourneyLibrary flaked once under full-suite load
+  - Evidence: failed once in `go test ./...` while merging L3+L4 (2026-11-03),
+    passed alone 3x and on the next full run. Likely the library-scan wait.
+  - Files: `internal/contracttest/journey_library_test.go`
+  - Change: Wait on the scan's completion event (the F9 socket client) instead
+    of polling `GET /api/tasks`; log the failing step on timeout.
+  - Done when: `go test -count=10 -run TestJourneyLibrary ./internal/contracttest`
+    passes while `go test ./...` runs in parallel.
 
 ## Phase R: routes clients need (needs F3)
 

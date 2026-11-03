@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Field Notes &amp; Quiet Rooms</title>
+    <link>https://megaphone.example/fieldnotes</link>
+    <language>en-us</language>
+    <copyright>2026 Field Notes</copyright>
+    <description><![CDATA[<p>Stories from <b>quiet</b> places.</p><p>New episodes Tuesdays.</p>]]></description>
+    <itunes:author>Field Notes Team</itunes:author>
+    <itunes:subtitle>Stories from quiet places</itunes:subtitle>
+    <itunes:summary>Stories from quiet places.</itunes:summary>
+    <itunes:type>episodic</itunes:type>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="https://megaphone.example/cover.jpg"/>
+    <itunes:category text="Society &amp; Culture">
+      <itunes:category text="Philosophy"/>
+    </itunes:category>
+    <itunes:category text="Arts"/>
+    <itunes:owner>
+      <itunes:name>Field Notes</itunes:name>
+      <itunes:email>hi@megaphone.example</itunes:email>
+    </itunes:owner>
+    <atom:link href="https://megaphone.example/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Episode 12: The Lighthouse</title>
+      <description><![CDATA[<p>A visit to the <a href="https://lighthouse.example/about">old lighthouse</a>.</p><p>It's windy.</p>]]></description>
+      <content:encoded><![CDATA[<p>Full notes: <strong>wind</strong>, salt, &amp; gulls.</p><p><img src="https://x.example/p.jpg"/></p><script>track()</script>]]></content:encoded>
+      <itunes:subtitle>Salt air and gulls</itunes:subtitle>
+      <itunes:summary>Salt air</itunes:summary>
+      <itunes:author>Ada Quill</itunes:author>
+      <itunes:duration>1:02:03</itunes:duration>
+      <itunes:explicit>yes</itunes:explicit>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:season>3</itunes:season>
+      <itunes:episode>12</itunes:episode>
+      <pubDate>Tue, 02 Jan 2024 09:30:00 GMT</pubDate>
+      <guid isPermaLink="false">megaphone-ep-12</guid>
+      <enclosure url="https://traffic.megaphone.example/ep12.mp3?updated=1" length="48123456" type="audio/mpeg"/>
+    </item>
+    <item>
+      <title>Episode 11: Tide Tables</title>
+      <description>Plain text description with an &amp; and a &quot;quote&quot;.</description>
+      <itunes:duration>3600</itunes:duration>
+      <itunes:explicit>clean</itunes:explicit>
+      <pubDate>Tue, 26 Dec 2023 09:30:00 GMT</pubDate>
+      <guid>megaphone-ep-11</guid>
+      <enclosure url="https://traffic.megaphone.example/ep11.mp3" length="21000000" type="audio/mpeg"/>
+    </item>
+  </channel>
+</rss>
