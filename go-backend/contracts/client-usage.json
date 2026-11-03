@@ -6,7 +6,7 @@
     },
     "replacementTrial": {
       "path": "go-backend/tools/parity/replacement-trial.cjs",
-      "sha256": "e096adf5ee6d8203a35ab3054a1aa524d576181dc7ce5e4692d6927ff62f04fe"
+      "sha256": "57d10416d0a1545e454dd4f31618aa4fbab632272f7dcfd1b3bcde1aabd918ac"
     },
     "clientRoots": [
       "client/components",
