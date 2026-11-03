@@ -17,8 +17,8 @@
     "go-backend/internal/notifications/handler.go": "b721fa8bcb7e279ccf5c75acabdc828cab4ce8fe3d5e29974ecc7d37cb90c3db",
     "go-backend/internal/podcasts/podcasts.go": "5158e4b08d125727ab9164d433bd6a10fd8d559d0379bee93f82f361d6da9143",
     "go-backend/internal/providers/handler.go": "c36c3c4cfc37472bd1df12a4e23dee88e5ace60142a90e349ba5f9271a9b5bcb",
-    "go-backend/internal/userapi/userapi.go": "72a0a4a954b230835be14ee2a58aba49b44f55a6d06f1a441ea38e22ae4510d8",
-    "go-backend/internal/playback/playback.go": "50a7f6353a2bfa7557e046759e8988bf3fcb3d3aaca7fa1c33c4853601e4521b",
+    "go-backend/internal/userapi/userapi.go": "2646685799dfc16fa509c43f7168f762489af48c21d7f000efe71ddb28f4105a",
+    "go-backend/internal/playback/playback.go": "3ab6ae9d2f23d14fb185937761d3656d0aad0892331c62e21e93aad96ad5bbbf",
     "go-backend/internal/scanner/scanner.go": "e13db47445f099a620353bbabe9d52f1ee24b37697b7fff5aa10c1263cf7c03c",
     "go-backend/internal/sharing/handler.go": "e27a4f3105484cd1f9e209c1d89958543cb1e02a8a2379fc4b1986ec69a0e2ff"
   },
