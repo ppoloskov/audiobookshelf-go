@@ -204,7 +204,7 @@ L2, JWT issuing -> L1).
     (megaphone, simplecast, audioboom samples), and handwritten lines in
     `rss.go` drop.
 
-- [ ] L5: sqlc setup and pilot on users and sessions
+- [x] L5: sqlc setup and pilot on users and sessions
   - Files: new `internal/db/` (`sqlc.yaml`, `schema.sql` dumped from the
     pinned fresh-init DB, `queries/users.sql`, generated `sqlc/`), callers in
     `internal/identity/`

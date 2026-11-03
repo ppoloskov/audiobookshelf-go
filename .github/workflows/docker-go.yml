@@ -42,6 +42,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
+      # Build-time only: sqlc generates internal/db/sqlc and is never imported
+      # by production code. Pinned to the owner-approved v1.31.1 release.
+      - name: Install sqlc v1.31.1
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          curl -sSfL -o "$dir/sqlc.tar.gz" https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz
+          echo "497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354  $dir/sqlc.tar.gz" | sha256sum -c -
+          tar -xzf "$dir/sqlc.tar.gz" -C "$dir" sqlc
+          sudo install -m 0755 "$dir/sqlc" /usr/local/bin/sqlc
+          sqlc version
+
+      # Fails when the committed generated code is stale: a changed tracked
+      # file, or a generated file that is not committed.
+      - name: Generated code is current (sqlc)
+        run: |
+          make sqlc SQLC=sqlc
+          git diff --exit-code go-backend/internal/db/sqlc
+          test -z "$(git ls-files --others --exclude-standard go-backend/internal/db/sqlc)"
+
       - name: Build
         working-directory: go-backend
         run: go build ./...

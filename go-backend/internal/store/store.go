@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 
 	_ "modernc.org/sqlite"
@@ -96,7 +97,14 @@ func (s *Store) Close() error { return s.db.Close() }
 func (s *Store) DB() *sql.DB { return s.db }
 
 func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
-	return s.user(ctx, "id", id)
+	row, err := sqlc.New(s.db).GetUserByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("store: read user: %w", err)
+	}
+	return UserFromRow(row)
 }
 
 func (s *Store) validateSchema(ctx context.Context) error {
@@ -151,83 +159,47 @@ func (s *Store) UserByIDOrOldID(ctx context.Context, id string) (User, error) {
 	if err == nil || !errors.Is(err, ErrNotFound) {
 		return u, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, extraData FROM users`)
-	if err != nil {
-		return User{}, fmt.Errorf("store: search legacy user id: %w", err)
-	}
-	type candidate struct{ id string }
-	var candidates []candidate
-	for rows.Next() {
-		var userID string
-		var raw []byte
-		if err := rows.Scan(&userID, &raw); err != nil {
-			rows.Close()
-			return User{}, err
-		}
-		var extra struct {
-			OldUserID string `json:"oldUserId"`
-		}
-		if len(raw) != 0 && json.Unmarshal(raw, &extra) == nil && extra.OldUserID == id {
-			candidates = append(candidates, candidate{id: userID})
-		}
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return User{}, err
-	}
-	if err := rows.Close(); err != nil {
-		return User{}, err
-	}
-	if len(candidates) == 0 {
-		return User{}, ErrNotFound
-	}
-	return s.UserByID(ctx, candidates[0].id)
-}
-
-func (s *Store) user(ctx context.Context, col, value string) (User, error) {
-	if col != "id" && col != "username" {
-		return User{}, fmt.Errorf("store: invalid user lookup")
-	}
-	selectCol := func(name string) string { return `"` + name + `"` }
-	var u User
-	var email, pash, typ, token sql.NullString
-	var lastSeen, created, updated any
-	var active, locked int64
-	var permissions, bookmarks, extra []byte
-	query := `SELECT ` + selectCol("id") + `, ` + selectCol("username") + `, ` + selectCol("email") + `, ` + selectCol("pash") + `, ` + selectCol("type") + `, ` + selectCol("token") + `, ` + selectCol("isActive") + `, ` + selectCol("isLocked") + `, ` +
-		selectCol("lastSeen") + `, ` + selectCol("permissions") + `, ` + selectCol("bookmarks") + `, ` + selectCol("extraData") + `, ` + selectCol("createdAt") + `, ` + selectCol("updatedAt") + ` FROM users WHERE ` + col + ` = ? LIMIT 1`
-	err := s.db.QueryRowContext(ctx, query, value).Scan(&u.ID, &u.Username, &email, &pash, &typ, &token, &active, &locked,
-		&lastSeen, &permissions, &bookmarks, &extra, &created, &updated)
+	matched, err := sqlc.New(s.db).GetUserIDByOldUserID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
 	if err != nil {
-		return User{}, fmt.Errorf("store: read user: %w", err)
+		return User{}, fmt.Errorf("store: search legacy user id: %w", err)
 	}
-	u.Email, u.Password, u.Type, u.Token = email.String, pash.String, typ.String, token.String
-	u.IsActive, u.IsLocked = active != 0, locked != 0
-	u.LastSeen, err = dbtime.OptionalMillis(lastSeen)
-	if err != nil {
+	return s.UserByID(ctx, matched)
+}
+
+// UserFromRow maps a users row from the generated queries to User. It is the
+// only place that converts user columns: NULL text becomes "", NULL flags
+// become false, DATETIME values go through dbtime, and JSON text is kept raw.
+func UserFromRow(r sqlc.User) (User, error) {
+	u := User{
+		ID:       r.ID,
+		Username: r.Username.String,
+		Email:    r.Email.String,
+		Password: r.Pash.String,
+		Type:     r.Type.String,
+		Token:    r.Token.String,
+		IsActive: r.Isactive.Int64 != 0,
+		IsLocked: r.Islocked.Int64 != 0,
+	}
+	var err error
+	if u.LastSeen, err = dbtime.OptionalMillis(r.Lastseen); err != nil {
 		return User{}, fmt.Errorf("store: user lastSeen: %w", err)
 	}
-	u.CreatedAt, err = dbtime.OptionalMillis(created)
-	if err != nil {
+	if u.CreatedAt, err = dbtime.OptionalMillis(r.Createdat); err != nil {
 		return User{}, fmt.Errorf("store: user createdAt: %w", err)
 	}
-	u.UpdatedAt, err = dbtime.OptionalMillis(updated)
-	if err != nil {
+	if u.UpdatedAt, err = dbtime.OptionalMillis(r.Updatedat); err != nil {
 		return User{}, fmt.Errorf("store: user updatedAt: %w", err)
 	}
-	u.Permissions, err = rawJSON(permissions)
-	if err != nil {
+	if u.Permissions, err = rawJSON([]byte(r.Permissions.String)); err != nil {
 		return User{}, fmt.Errorf("store: user permissions: %w", err)
 	}
-	u.Bookmarks, err = rawJSON(bookmarks)
-	if err != nil {
+	if u.Bookmarks, err = rawJSON([]byte(r.Bookmarks.String)); err != nil {
 		return User{}, fmt.Errorf("store: user bookmarks: %w", err)
 	}
-	u.ExtraData, err = rawJSON(extra)
-	if err != nil {
+	if u.ExtraData, err = rawJSON([]byte(r.Extradata.String)); err != nil {
 		return User{}, fmt.Errorf("store: user extraData: %w", err)
 	}
 	return u, nil

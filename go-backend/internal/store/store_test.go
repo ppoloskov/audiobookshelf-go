@@ -93,7 +93,7 @@ func TestReadOnlyReadsUpstreamModels(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	u, err := s.user(ctx, "username", "alice")
+	u, err := s.UserByID(ctx, "u1")
 	if err != nil {
 		t.Fatal(err)
 	}

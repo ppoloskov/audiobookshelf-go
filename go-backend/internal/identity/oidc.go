@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
@@ -592,7 +593,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			if err != nil {
 				return store.User{}, err
 			}
-			if _, err := h.db.ExecContext(ctx, `UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?`, string(encoded), sqlDate(time.Now()), user.ID); err != nil {
+			if err := h.queries().UpdateUserExtraData(ctx, sqlc.UpdateUserExtraDataParams{Extradata: text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID}); err != nil {
 				return store.User{}, err
 			}
 			user.ExtraData = encoded
@@ -618,7 +619,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 	if cfg.groupClaim != "" {
 		if err := h.applyOIDCGroups(ctx, cfg, user, info); err != nil {
 			if created {
-				_, _ = h.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, user.ID)
+				_ = h.queries().DeleteUser(ctx, user.ID)
 			}
 			return store.User{}, err
 		}
@@ -627,7 +628,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 	if cfg.advancedPermsClaim != "" && user.Type != "admin" && user.Type != "root" {
 		if err := h.applyOIDCPermissions(ctx, cfg, user, info); err != nil {
 			if created {
-				_, _ = h.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, user.ID)
+				_ = h.queries().DeleteUser(ctx, user.ID)
 			}
 			return store.User{}, err
 		}
@@ -742,20 +743,11 @@ func (h *Handler) matchOIDCUser(ctx context.Context, cfg oidcConfig, info map[st
 }
 
 func (h *Handler) userByOIDCSub(ctx context.Context, sub string) (store.User, error) {
-	// userIDByExtra closes its cursor before userByID runs: the pool has one
-	// connection, so a nested query would wait for the cursor forever.
-	matched, err := h.userIDByExtra(ctx, "authOpenIDSub", sub)
-	if err != nil {
-		return store.User{}, err
-	}
-	if matched == "" {
-		return store.User{}, sql.ErrNoRows
-	}
-	return h.userByID(ctx, matched)
+	return userResult(h.queries().GetUserByOIDCSub(ctx, sub))
 }
 
 func (h *Handler) userByEmail(ctx context.Context, email string) (store.User, error) {
-	return h.userQuery(ctx, `SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE lower(email) = ? LIMIT 1`, strings.ToLower(email))
+	return userResult(h.queries().GetUserByEmail(ctx, text(strings.ToLower(email))))
 }
 
 func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (store.User, error) {
@@ -770,9 +762,10 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	if username == "" {
 		return store.User{}, errors.New("OIDC username is missing")
 	}
-	var email any
+	var email sql.NullString // NULL unless the email is verified, as before
 	if verified, _ := info["email_verified"].(bool); verified {
-		email, _ = info["email"].(string)
+		address, _ := info["email"].(string)
+		email = text(address)
 	}
 	id, err := ids.New()
 	if err != nil {
@@ -785,7 +778,10 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	permissions := map[string]any{"download": true, "update": false, "delete": false, "upload": false, "createEreader": false, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": false, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
 	extra := map[string]any{"authOpenIDSub": sub, "seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
-	_, err = h.db.ExecContext(ctx, `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,NULL,'user',?,1,0,NULL,?,'[]',?,?,?)`, id, username, email, token, mustJSON(permissions), mustJSON(extra), now, now)
+	err = h.queries().InsertOIDCUser(ctx, sqlc.InsertOIDCUserParams{
+		ID: id, Username: text(username), Email: email, Token: text(token),
+		Permissions: text(mustJSON(permissions)), Extradata: text(mustJSON(extra)), Createdat: now, Updatedat: now,
+	})
 	if err != nil {
 		return store.User{}, err
 	}
@@ -822,8 +818,7 @@ func (h *Handler) applyOIDCGroups(ctx context.Context, cfg oidcConfig, user stor
 		return nil
 	}
 	if user.Type != role {
-		_, err := h.db.ExecContext(ctx, `UPDATE users SET type = ?, updatedAt = ? WHERE id = ?`, role, sqlDate(time.Now()), user.ID)
-		return err
+		return h.queries().UpdateUserType(ctx, sqlc.UpdateUserTypeParams{Type: text(role), Updatedat: sqlDate(time.Now()), ID: user.ID})
 	}
 	return nil
 }
@@ -867,8 +862,7 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 	if err != nil {
 		return err
 	}
-	_, err = h.db.ExecContext(ctx, `UPDATE users SET permissions = ?, updatedAt = ? WHERE id = ?`, string(encoded), sqlDate(time.Now()), user.ID)
-	return err
+	return h.queries().UpdateUserPermissions(ctx, sqlc.UpdateUserPermissionsParams{Permissions: text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID})
 }
 
 func (h *Handler) pruneOIDCState(now time.Time) {

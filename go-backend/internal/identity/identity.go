@@ -30,6 +30,7 @@ import (
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -409,7 +410,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, auth.ErrExpired) {
 			logging.Info("[TokenManager] Refresh token expired, cleaning up session") // TokenManager.js:429
-			_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refreshToken)
+			_ = h.queries().DeleteSessionByRefreshToken(r.Context(), refreshToken)
 			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		} else {
 			logging.Errorf("[TokenManager] Invalid refresh token format: %v", err) // TokenManager.js:445
@@ -436,7 +437,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if !s.expiresAt.After(time.Now()) {
 		logging.Info("[TokenManager] Session expired in database, cleaning up") // TokenManager.js:391
-		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id = ?`, s.id)
+		_ = h.queries().DeleteSessionByID(r.Context(), s.id)
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		return
 	}
@@ -495,13 +496,12 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 		logging.Info("[Auth] logout: No refresh token on request") // Auth.js:501
 	}
 	if r.URL.Query().Get("allDevices") == "1" && refresh != "" {
-		var userID string
-		err := h.db.QueryRowContext(r.Context(), `SELECT userId FROM sessions WHERE refreshToken = ? OR lastRefreshToken = ? LIMIT 1`, refresh, refresh).Scan(&userID)
+		userID, err := h.queries().GetSessionUserIDByToken(r.Context(), refresh)
 		if err == nil {
-			_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE userId = ?`, userID)
+			_ = h.queries().DeleteSessionsByUserID(r.Context(), userID)
 		}
 	} else if refresh != "" {
-		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refresh)
+		_ = h.queries().DeleteSessionByRefreshToken(r.Context(), refresh)
 	}
 	// Upstream passport+express-session regenerate the session on logout
 	// (sessionManager.logOut destroys and creates a new sessionID), so every
@@ -522,8 +522,8 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	var count int
-	if err := tx.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE type = 'root'`).Scan(&count); err != nil || count > 0 {
+	count, err := sqlc.New(tx).CountRootUsers(r.Context())
+	if err != nil || count > 0 {
 		if err == nil {
 			logging.Error("[Server] attempt to init server when server already has a root user") // Server.js:493
 		} else {
@@ -574,7 +574,10 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	permissions := map[string]any{"download": true, "update": true, "delete": true, "upload": true, "createEreader": true, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
-	_, err = tx.ExecContext(r.Context(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES (?, ?, NULL, ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)`, id, username, passwordHash, legacyToken, mustJSON(permissions), mustJSON(extra), now, now)
+	err = sqlc.New(tx).InsertRootUser(r.Context(), sqlc.InsertRootUserParams{
+		ID: id, Username: text(username), Pash: text(passwordHash), Token: text(legacyToken),
+		Permissions: text(mustJSON(permissions)), Extradata: text(mustJSON(extra)), Createdat: now, Updatedat: now,
+	})
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -600,7 +603,10 @@ func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Re
 		return "", "", err
 	}
 	now := time.Now().UTC()
-	_, err = h.db.ExecContext(ctx, `INSERT INTO sessions (id, ipAddress, userAgent, refreshToken, expiresAt, createdAt, updatedAt, userId, lastRefreshToken, lastRefreshTokenExpiresAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`, id, clientIP(r), r.UserAgent(), refresh, sqlDate(now.Add(h.refreshTTL)), sqlDate(now), sqlDate(now), user.ID)
+	err = h.queries().InsertSession(ctx, sqlc.InsertSessionParams{
+		ID: id, Ipaddress: text(clientIP(r)), Useragent: text(r.UserAgent()), Refreshtoken: refresh,
+		Expiresat: sqlDate(now.Add(h.refreshTTL)), Createdat: sqlDate(now), Updatedat: sqlDate(now), Userid: user.ID,
+	})
 	if err != nil {
 		return "", "", err
 	}
@@ -621,14 +627,17 @@ func (h *Handler) rotateSession(ctx context.Context, s session) (string, string,
 		return "", "", err
 	}
 	now := time.Now().UTC()
-	result, err := h.db.ExecContext(ctx, `UPDATE sessions SET refreshToken = ?, expiresAt = ?, lastRefreshToken = ?, lastRefreshTokenExpiresAt = ?, updatedAt = ? WHERE id = ? AND refreshToken = ?`, newRefresh, sqlDate(now.Add(h.refreshTTL)), s.refreshToken, sqlDate(now.Add(h.refreshGrace)), sqlDate(now), s.id, s.refreshToken)
+	result, err := h.queries().RotateSession(ctx, sqlc.RotateSessionParams{
+		NewRefreshToken: newRefresh, ExpiresAt: sqlDate(now.Add(h.refreshTTL)), LastRefreshToken: text(s.refreshToken),
+		LastRefreshTokenExpiresAt: sqlDate(now.Add(h.refreshGrace)), UpdatedAt: sqlDate(now), ID: s.id, CurrentRefreshToken: s.refreshToken,
+	})
 	if err != nil {
 		return "", "", err
 	}
 	updated, _ := result.RowsAffected()
 	if updated == 0 {
-		var current string
-		if err := h.db.QueryRowContext(ctx, `SELECT refreshToken FROM sessions WHERE id = ?`, s.id).Scan(&current); err != nil {
+		current, err := h.queries().GetSessionRefreshToken(ctx, s.id)
+		if err != nil {
 			return "", "", err
 		}
 		newRefresh = current
@@ -637,18 +646,24 @@ func (h *Handler) rotateSession(ctx context.Context, s session) (string, string,
 }
 
 func (h *Handler) sessionByToken(ctx context.Context, token string) (session, error) {
-	var s session
-	var exp, grace nullableDate
-	err := h.db.QueryRowContext(ctx, `SELECT id, userId, refreshToken, expiresAt, lastRefreshToken, lastRefreshTokenExpiresAt FROM sessions WHERE refreshToken = ? OR lastRefreshToken = ? LIMIT 1`, token, token).Scan(&s.id, &s.userID, &s.refreshToken, &exp, &s.lastRefreshToken, &grace)
+	row, err := h.queries().GetSessionByToken(ctx, token)
 	if err != nil {
+		return session{}, err
+	}
+	var exp, grace nullableDate
+	if err := exp.Scan(row.Expiresat); err != nil {
+		return session{}, err
+	}
+	if err := grace.Scan(row.Lastrefreshtokenexpiresat); err != nil {
 		return session{}, err
 	}
 	if !exp.Valid {
 		return session{}, errors.New("identity: session has no expiry")
 	}
-	s.expiresAt = exp.Time
-	s.lastRefreshTokenExpires = grace
-	return s, nil
+	return session{
+		id: row.ID, userID: row.Userid, refreshToken: row.Refreshtoken, expiresAt: exp.Time,
+		lastRefreshToken: row.Lastrefreshtoken, lastRefreshTokenExpires: grace,
+	}, nil
 }
 
 func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duration) (string, error) {
@@ -690,8 +705,8 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	}
 	userDTO := UserBrowser(user, false, false)
 	userDTO["mediaProgress"] = progress
-	var email sql.NullString
-	if err := h.db.QueryRowContext(ctx, `SELECT email FROM users WHERE id = ?`, user.ID).Scan(&email); err != nil {
+	email, err := h.queries().GetUserEmail(ctx, user.ID)
+	if err != nil {
 		return nil, fmt.Errorf("identity: load user email: %w", err)
 	}
 	if email.Valid {
@@ -847,11 +862,11 @@ func (h *Handler) loadSettings(ctx context.Context, key string) (map[string]any,
 }
 
 func (h *Handler) userByUsername(ctx context.Context, username string) (store.User, error) {
-	return h.userQuery(ctx, `SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE lower(username) = ? LIMIT 1`, username)
+	return userResult(h.queries().GetUserByUsername(ctx, text(username)))
 }
 
 func (h *Handler) userByID(ctx context.Context, id string) (store.User, error) {
-	return h.userQuery(ctx, `SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE id = ? LIMIT 1`, id)
+	return userResult(h.queries().GetUserByID(ctx, id))
 }
 
 func (h *Handler) userByIDOrOldID(ctx context.Context, id string) (store.User, error) {
@@ -859,60 +874,29 @@ func (h *Handler) userByIDOrOldID(ctx context.Context, id string) (store.User, e
 	if err == nil || !errors.Is(err, sql.ErrNoRows) {
 		return user, err
 	}
-	// The pool has one connection: close the cursor before userByID, or the
-	// second query waits for the first forever (until the request is
-	// cancelled). Every authenticated request with a pre-migration token hit
-	// this.
-	matched, err := h.userIDByExtra(ctx, "oldUserId", id)
+	matched, err := h.queries().GetUserIDByOldUserID(ctx, id)
 	if err != nil {
 		return store.User{}, err
-	}
-	if matched == "" {
-		return store.User{}, sql.ErrNoRows
 	}
 	return h.userByID(ctx, matched)
 }
 
-// userIDByExtra returns the id of the first user (table order) whose extraData
-// field equals value, or "" when none does. The cursor is closed on return.
-func (h *Handler) userIDByExtra(ctx context.Context, field string, value string) (string, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id, extraData FROM users`)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		var raw []byte
-		if err := rows.Scan(&id, &raw); err != nil {
-			return "", err
-		}
-		var extra map[string]any
-		if json.Unmarshal(raw, &extra) == nil && extra[field] == value {
-			return id, nil
-		}
-	}
-	return "", rows.Err()
-}
+// queries returns the generated query set on the handler's pool. It is cheap:
+// sqlc.New only stores the handle.
+func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
 
-func (h *Handler) userQuery(ctx context.Context, query string, args ...any) (store.User, error) {
-	var u store.User
-	var lastSeen, created, updated nullableDate
-	var active, locked int64
-	var email, pash, typ, token sql.NullString
-	var permissions, bookmarks, extra []byte
-	err := h.db.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Username, &email, &pash, &typ, &token, &active, &locked, &lastSeen, &permissions, &bookmarks, &extra, &created, &updated)
+// userResult maps a generated users row to store.User; sql.ErrNoRows passes
+// through unchanged for callers that branch on it.
+func userResult(row sqlc.User, err error) (store.User, error) {
 	if err != nil {
 		return store.User{}, err
 	}
-	u.Email, u.Password, u.Type, u.Token = email.String, pash.String, typ.String, token.String
-	u.IsActive, u.IsLocked = active != 0, locked != 0
-	u.LastSeen = timeMillis(lastSeen)
-	u.CreatedAt = timeMillis(created)
-	u.UpdatedAt = timeMillis(updated)
-	u.Permissions, u.Bookmarks, u.ExtraData = jsonRaw(permissions), jsonRaw(bookmarks), jsonRaw(extra)
-	return u, nil
+	return store.UserFromRow(row)
 }
+
+// text is a non-NULL TEXT parameter. An empty string is stored as empty text,
+// as TS writes it, so Valid is always true.
+func text(s string) sql.NullString { return sql.NullString{String: s, Valid: true} }
 
 func requireColumns(db *sql.DB, table string, required []string) error {
 	rows, err := db.Query(`PRAGMA table_info("` + table + `")`)
@@ -1106,21 +1090,6 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	return false
 }
 
-func timeMillis(v nullableDate) *int64 {
-	if !v.Valid {
-		return nil
-	}
-	n := v.Time.UnixMilli()
-	return &n
-}
-
-func jsonRaw(raw []byte) json.RawMessage {
-	if len(raw) == 0 || !json.Valid(raw) {
-		return json.RawMessage("null")
-	}
-	return append(json.RawMessage(nil), raw...)
-}
-
 func decodeMap(raw json.RawMessage) map[string]any {
 	var result map[string]any
 	_ = json.Unmarshal(raw, &result)
@@ -1224,13 +1193,13 @@ func (h *Handler) InvalidateUserSessions(ctx context.Context, userID, currentRef
 			if err != nil {
 				return "", "", err
 			}
-			if _, err = h.db.ExecContext(ctx, `DELETE FROM sessions WHERE userId = ? AND id <> ?`, userID, s.id); err != nil {
+			if err = h.queries().DeleteOtherSessionsByUserID(ctx, sqlc.DeleteOtherSessionsByUserIDParams{Userid: userID, ID: s.id}); err != nil {
 				return "", "", err
 			}
 			return accessToken, refreshToken, nil
 		}
 	}
-	_, err = h.db.ExecContext(ctx, `DELETE FROM sessions WHERE userId = ?`, userID)
+	err = h.queries().DeleteSessionsByUserID(ctx, userID)
 	return "", "", err
 }
 
@@ -1271,8 +1240,7 @@ func (h *Handler) ChangePassword(ctx context.Context, userID, password, newPassw
 		}
 		encoded = string(hash)
 	}
-	_, err = h.db.ExecContext(ctx, `UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?`, encoded, sqlDate(time.Now()), userID)
-	return err
+	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: text(encoded), Updatedat: sqlDate(time.Now()), ID: userID})
 }
 
 // SetRefreshTokenCookie writes the standard refresh cookie used by login,
