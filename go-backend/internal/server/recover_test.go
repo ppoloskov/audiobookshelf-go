@@ -98,3 +98,39 @@ func TestAccessLineIsDebugOnly(t *testing.T) {
 		t.Fatalf("access lines at DEBUG = %d, want 1", count())
 	}
 }
+
+func TestLivenessProbesAreTraceOnly(t *testing.T) {
+	l := logging.Default()
+	before := l.Level()
+	t.Cleanup(func() { l.ChangeLevel(before) })
+	count := func(path string) int {
+		n := 0
+		for _, e := range l.Recent() {
+			if strings.HasPrefix(e.Message, "[HTTP] GET "+path+" 200 ") {
+				n++
+			}
+		}
+		return n
+	}
+	serve := func(path string) {
+		guardPanics(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil), func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) })
+	}
+	l.ChangeLevel(logging.LevelDebug)
+	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
+		serve(path)
+		if count(path) != 0 {
+			t.Fatalf("%s logged at DEBUG", path)
+		}
+	}
+	serve("/other/request")
+	if count("/other/request") != 1 {
+		t.Fatalf("other requests stay at DEBUG: %d", count("/other/request"))
+	}
+	l.ChangeLevel(logging.LevelTrace)
+	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
+		serve(path)
+		if count(path) != 1 {
+			t.Fatalf("%s not logged at TRACE", path)
+		}
+	}
+}

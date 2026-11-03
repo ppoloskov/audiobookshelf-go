@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"audiobookshelf-compat/internal/logging"
@@ -20,13 +22,23 @@ func guardPanics(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) 
 	begin := time.Now()
 	defer func() {
 		// Upstream logs requests only in development; here the access line is
-		// DEBUG, so the default output has no per-request lines.
-		if guard.started && logging.Default().Level() <= logging.LevelDebug {
+		// DEBUG, so the default output has no per-request lines. The liveness
+		// probes (/healthcheck, /ping) fire every few seconds and are TRACE.
+		level := logging.LevelDebug
+		if isLivenessProbe(r.URL.Path) {
+			level = logging.LevelTrace
+		}
+		if guard.started && logging.Default().Level() <= level {
 			status := guard.status
 			if status == 0 {
 				status = http.StatusOK
 			}
-			logging.Debugf("[HTTP] %s %s %d %dms", r.Method, r.URL.Path, status, time.Since(begin).Milliseconds())
+			line := fmt.Sprintf("[HTTP] %s %s %d %dms", r.Method, r.URL.Path, status, time.Since(begin).Milliseconds())
+			if level == logging.LevelTrace {
+				logging.Trace(line)
+			} else {
+				logging.Debug(line)
+			}
 		}
 	}()
 	defer func() {
@@ -96,3 +108,12 @@ func (g *panicGuard) Flush() {
 }
 
 func (g *panicGuard) Unwrap() http.ResponseWriter { return g.ResponseWriter }
+
+// isLivenessProbe reports the Docker/Kubernetes health probe paths, with or
+// without the router base prefix.
+func isLivenessProbe(urlPath string) bool {
+	if strings.HasPrefix(urlPath, "/api/") {
+		return false
+	}
+	return urlPath == "/healthcheck" || urlPath == "/ping" || strings.HasSuffix(urlPath, "/healthcheck") || strings.HasSuffix(urlPath, "/ping")
+}
