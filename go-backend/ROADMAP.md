@@ -128,7 +128,7 @@ L2, JWT issuing -> L1).
     body; error and empty responses are free framing (six TS/Go differences
     on 401/403/204 were headers only).
 
-- [ ] F8: Journey steps for client routes the journey misses (112, listed in F6)
+- [x] F8: Journey steps for client routes the journey misses (112, listed in F6)
   - Prerequisite: F5b (new steps are recorded against TS by the Go recorder).
   - Layout: each domain is its own test (`TestJourneyAdmin`, ...) in its own
     file, on its own fresh fixture, recorded into its own
@@ -149,7 +149,8 @@ L2, JWT issuing -> L1).
   - F8c done (37 steps). Bug found and fixed: `PATCH /api/items/:id/ebook/:fileid/status` left `ebookFile.ebookFormat` and `media.ebookFormat` null (TS: the extension without its dot). Not changed: `PATCH /api/items/:id/tracks` returns the expanded item where TS returns `toOldJSON()`; the client ignores the body and extra keys are allowed.
   - F8d done (58 steps). Bugs found and fixed: `POST /api/me/ereader-devices` answered 500 when the `email-settings` row was missing (TS creates it on write); `GET /api/sessions/open` omitted the `PlaybackSession.toJSON` fields (`mediaMetadata`, `chapters`, `deviceInfo`, `duration`, `date`, ...).
   - F8e done (72 steps: misc 66, init 6). Bugs found and fixed: `GET /api/search/books` with an unknown `id` answered 200 (TS 404); `GET /api/search/authors` without `q` answered 500 (TS 400); `GET /api/search/chapters` without `asin` answered 500 (TS 200 Invalid ASIN); podcast feeds ignored `SSRF_REQUEST_FILTER_WHITELIST`, so `POST /api/podcasts/:id/match-episodes` answered 500 for a whitelisted local feed (TS 200); the login `serverSettings` omitted `authOpenIDTokenURL` on a fresh install (TS: null); `POST /init` stored the root email as `''` (TS: NULL). Not verified: audible results ordered by the item's duration (needs the internet); the same missing `authOpenIDTokenURL` on `PATCH /api/settings` of a fresh install (adminops reads the same row).
-  - F8 coverage after F8e: 199 of 201 client-used routes are reached. Not reached: `POST /api/emails/send-ebook-to-device` (an F8a email route the journey never sends) and `GET /api/items/:id/ebook/:fileid` (the readers send a file id; the journey sends `GET /api/items/:id/ebook` only). F8 stays open until both are reached.
+  - F8 coverage after F8e: 199 of 201 client-used routes are reached. Not reached: `POST /api/emails/send-ebook-to-device` (an F8a email route the journey never sends) and `GET /api/items/:id/ebook/:fileid` (the readers send a file id; the journey sends `GET /api/items/:id/ebook` only).
+  - F8 closed (+5 steps: admin 4 (admin 70), items 1 (items 38)). The send step runs against a local SMTP server the test starts; it checks one message to the device with the ebook as attachment. The item step reads the ebook by its library file's inode, as the readers do. No bugs: Go matched TS on both. Route coverage: 201 of 201 client-used routes are reached. The ebook step checks status and content type only, not the body.
 
 - [x] F9: Socket.IO event checks in the Go journey
   - Prerequisite: F5b.

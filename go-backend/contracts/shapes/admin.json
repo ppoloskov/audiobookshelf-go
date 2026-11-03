@@ -674,6 +674,35 @@
         }
       }
     },
+    "emails.ereader.add.send": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "ereaderDevices": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "availabilityOption": {
+                  "kind": "string"
+                },
+                "email": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "users": {
+                  "kind": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "emails.ereader.remove": {
       "status": 200,
       "contentType": "application/json",
@@ -685,6 +714,22 @@
           }
         }
       }
+    },
+    "emails.ereader.remove.after-send": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "ereaderDevices": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "emails.send-ebook": {
+      "status": 200,
+      "contentType": "text/plain"
     },
     "emails.settings.get": {
       "status": 200,
@@ -747,6 +792,50 @@
               },
               "host": {
                 "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "pass": {
+                "kind": "null"
+              },
+              "port": {
+                "kind": "number"
+              },
+              "rejectUnauthorized": {
+                "kind": "bool"
+              },
+              "secure": {
+                "kind": "bool"
+              },
+              "testAddress": {
+                "kind": "null"
+              },
+              "user": {
+                "kind": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    "emails.settings.smtp": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "ereaderDevices": {
+                "kind": "array"
+              },
+              "fromAddress": {
+                "kind": "string"
+              },
+              "host": {
+                "kind": "string"
               },
               "id": {
                 "kind": "string"

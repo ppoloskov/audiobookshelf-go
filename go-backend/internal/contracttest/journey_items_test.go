@@ -221,6 +221,10 @@ func itemSteps(t *testing.T, in *Install) []itemStep {
 		plain(journeyStep{id: "item.ebook.status", who: "root", method: http.MethodPatch, routeFn: ebookStatus}),
 		plain(journeyStep{id: "item.ebook.status.restore", who: "root", method: http.MethodPatch, routeFn: ebookStatus}),
 		plain(journeyStep{id: "item.get.ebook.after", who: "root", route: "/api/items/" + ebook + "?expanded=1"}),
+		// The readers open an ebook by the inode of its library file (the
+		// store's ereaderFileId), not the item's primary ebook route.
+		plain(journeyStep{id: "item.ebook.file", who: "root", binary: "bytes",
+			routeFn: func(c *journeyCtx) string { return "/api/items/" + ebook + "/ebook/" + ebookFile(c) }}),
 
 		// Batch scan: the scan adds a file to the folder, and the step waits
 		// until the item lists it.

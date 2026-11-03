@@ -104,6 +104,10 @@
       "status": 200,
       "contentType": "application/zip"
     },
+    "item.ebook.file": {
+      "status": 200,
+      "contentType": "application/epub+zip"
+    },
     "item.ebook.status": {
       "status": 200,
       "contentType": "text/plain"

@@ -1,13 +1,19 @@
 package contracttest
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -26,13 +32,20 @@ import (
 const adminShapesFile = "../../contracts/shapes/admin.json"
 
 func TestJourneyAdmin(t *testing.T) {
-	runJourney(t, adminShapesFile, nil, journeyAdminSteps)
+	smtp := startAdminSMTPServer(t)
+	runJourney(t, adminShapesFile, nil, func(t *testing.T, in *Install, c *journeyCtx) []journeyStep {
+		return journeyAdminSteps(t, in, c, smtp)
+	})
+	// The send step must have delivered the ebook, whether TS or Go answered
+	// it: the local server records a message before it acknowledges DATA.
+	smtp.checkEbookDelivered(t, "trial-kindle@example.com", filepath.Join(fixtureDir, "media", "audiobooks", "Ada Example", "Ebook Only", "Ebook Only.epub"))
 }
 
 // journeyAdminSteps is the admin journey, in order. Steps create what later
 // steps change or delete, so the order must not change. Admin-only routes get
 // a 403 step as the listener. The bodies are the ones the web client sends.
-func journeyAdminSteps(t *testing.T, in *Install, c *journeyCtx) []journeyStep {
+// smtp is the local SMTP server the send-ebook steps deliver to.
+func journeyAdminSteps(t *testing.T, in *Install, c *journeyCtx, smtp *adminSMTP) []journeyStep {
 	ids := in.IDs
 	// The notification and image URLs are local servers; the steps never reach
 	// the network (AGENTS.md: SSRF whitelist for 127.0.0.1).
@@ -124,6 +137,20 @@ func journeyAdminSteps(t *testing.T, in *Install, c *journeyCtx) []journeyStep {
 			map[string]any{"name": "trial-kindle", "email": "trial-kindle@example.com", "availabilityOption": "adminAndUp", "users": []any{}},
 		}}},
 		{id: "emails.ereader.remove", who: "root", method: "POST", route: "/api/emails/ereader-devices", body: map[string]any{"ereaderDevices": []any{}}},
+
+		// Send the ebook item's ebook to a device: the SMTP settings point at
+		// the local server, the device is added again, and the send delivers
+		// one message to it. The device is removed after.
+		{id: "emails.settings.smtp", who: "root", method: "PATCH", route: "/api/emails/settings", body: map[string]any{
+			"host": "127.0.0.1", "port": smtp.port, "secure": false, "rejectUnauthorized": true, "fromAddress": "abs@example.test",
+		}},
+		{id: "emails.ereader.add.send", who: "root", method: "POST", route: "/api/emails/ereader-devices", body: map[string]any{"ereaderDevices": []any{
+			map[string]any{"name": "trial-kindle", "email": "trial-kindle@example.com", "availabilityOption": "adminOrUp", "users": []any{}},
+		}}},
+		{id: "emails.send-ebook", who: "root", method: "POST", route: "/api/emails/send-ebook-to-device", body: map[string]any{
+			"libraryItemId": ids["ebook"], "deviceName": "trial-kindle",
+		}},
+		{id: "emails.ereader.remove.after-send", who: "root", method: "POST", route: "/api/emails/ereader-devices", body: map[string]any{"ereaderDevices": []any{}}},
 
 		// Notifications: the Apprise URL and queue limits, one notification
 		// created, enabled and updated, then tested (against the local server)
@@ -246,6 +273,133 @@ func pickCaptured(c *journeyCtx, name, key string, fields ...string) map[string]
 		out[f] = c.v(name, key, f)
 	}
 	return out
+}
+
+// adminSMTP is a local SMTP server for the send-ebook steps. It takes any
+// number of sessions, speaks plain SMTP (no STARTTLS, no AUTH) and records each
+// message it receives after DATA. A session that only verifies the connection
+// (EHLO, QUIT) records nothing.
+type adminSMTP struct {
+	port     int
+	mu       sync.Mutex
+	messages []adminSMTPMessage
+}
+
+// adminSMTPMessage is one delivered message: its envelope and raw data.
+type adminSMTPMessage struct {
+	from, to, data string
+}
+
+// startAdminSMTPServer listens on 127.0.0.1 until the test ends.
+func startAdminSMTPServer(t testing.TB) *adminSMTP {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for SMTP: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	s := &adminSMTP{port: ln.Addr().(*net.TCPAddr).Port}
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go s.serve(conn)
+		}
+	}()
+	return s
+}
+
+// serve answers one SMTP session. A message is recorded before its DATA is
+// acknowledged, so the client's success means the record exists.
+func (s *adminSMTP) serve(conn net.Conn) {
+	defer conn.Close()
+	r := bufio.NewReader(conn)
+	fmt.Fprint(conn, "220 localhost ESMTP\r\n")
+	var cur adminSMTPMessage
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			return
+		}
+		cmd := strings.TrimRight(line, "\r\n")
+		upper := strings.ToUpper(cmd)
+		switch {
+		case strings.HasPrefix(upper, "EHLO"), strings.HasPrefix(upper, "HELO"):
+			fmt.Fprint(conn, "250 localhost\r\n")
+		case strings.HasPrefix(upper, "MAIL FROM:"):
+			cur = adminSMTPMessage{from: smtpAddress(cmd)}
+			fmt.Fprint(conn, "250 OK\r\n")
+		case strings.HasPrefix(upper, "RCPT TO:"):
+			cur.to = smtpAddress(cmd)
+			fmt.Fprint(conn, "250 OK\r\n")
+		case upper == "DATA":
+			fmt.Fprint(conn, "354 End data with <CR><LF>.<CR><LF>\r\n")
+			var data strings.Builder
+			for {
+				l, err := r.ReadString('\n')
+				if err != nil {
+					return
+				}
+				if strings.TrimRight(l, "\r\n") == "." {
+					break
+				}
+				data.WriteString(strings.TrimPrefix(l, "."))
+			}
+			cur.data = data.String()
+			s.mu.Lock()
+			s.messages = append(s.messages, cur)
+			s.mu.Unlock()
+			cur = adminSMTPMessage{}
+			fmt.Fprint(conn, "250 OK queued\r\n")
+		case upper == "RSET":
+			cur = adminSMTPMessage{}
+			fmt.Fprint(conn, "250 OK\r\n")
+		case upper == "NOOP":
+			fmt.Fprint(conn, "250 OK\r\n")
+		case upper == "QUIT":
+			fmt.Fprint(conn, "221 Bye\r\n")
+			return
+		default:
+			fmt.Fprint(conn, "502 Command not implemented\r\n")
+		}
+	}
+}
+
+// smtpAddress returns the address in an envelope command such as
+// "RCPT TO:<a@example.com>".
+func smtpAddress(cmd string) string {
+	if i := strings.Index(cmd, "<"); i >= 0 {
+		if j := strings.Index(cmd[i:], ">"); j >= 0 {
+			return cmd[i+1 : i+j]
+		}
+	}
+	return strings.TrimSpace(cmd[strings.Index(cmd, ":")+1:])
+}
+
+// checkEbookDelivered fails unless exactly one message went to the address and
+// it carries the file's bytes as an attachment. The data is compared without
+// its line breaks, so the check holds for any base64 encoder.
+func (s *adminSMTP) checkEbookDelivered(t *testing.T, to, ebookPath string) {
+	t.Helper()
+	ebook, err := os.ReadFile(ebookPath)
+	if err != nil {
+		t.Fatalf("read ebook sample: %v", err)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.messages) != 1 {
+		t.Fatalf("SMTP server received %d messages, want 1", len(s.messages))
+	}
+	m := s.messages[0]
+	if m.to != to {
+		t.Errorf("message to %q, want %q", m.to, to)
+	}
+	flat := strings.NewReplacer("\r", "", "\n", "").Replace(m.data)
+	if !strings.Contains(flat, base64.StdEncoding.EncodeToString(ebook)) {
+		t.Errorf("message from %q does not carry the ebook as its attachment", m.from)
+	}
 }
 
 // startAdminAppriseServer answers every request 200: the Apprise API the
