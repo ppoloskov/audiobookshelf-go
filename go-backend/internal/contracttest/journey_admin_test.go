@@ -179,8 +179,10 @@ func journeyAdminSteps(t *testing.T, in *Install, c *journeyCtx) []journeyStep {
 		// Tools: embed metadata (quick and batch) and an m4b merge, cancelled
 		// while it runs. The embed steps wait for their task to finish; the
 		// merge waits for its task to start.
-		{id: "embed.quick", who: "root", method: "POST", route: "/api/tools/item/" + saga2 + "/embed-metadata", taskFinished: "embed-metadata"},
-		{id: "embed.batch", who: "root", method: "POST", route: "/api/tools/batch/embed-metadata", body: map[string]any{"libraryItemIds": []any{novel}}, taskFinished: "embed-metadata"},
+		{id: "embed.quick", who: "root", method: "POST", route: "/api/tools/item/" + saga2 + "/embed-metadata", taskFinished: "embed-metadata",
+			touches: "media/audiobooks/Terry Fixture/Long Saga/Book 2 - The Middle/The Middle.flac"},
+		{id: "embed.batch", who: "root", method: "POST", route: "/api/tools/batch/embed-metadata", body: map[string]any{"libraryItemIds": []any{novel}}, taskFinished: "embed-metadata",
+			touches: "media/audiobooks/Ada Example/Single File Novel/Single File Novel.m4b"},
 		{id: "encode.start", who: "root", method: "POST", route: "/api/tools/item/" + saga1 + "/encode-m4b?codec=aac&bitrate=128k&channels=2", taskStarted: "encode-m4b"},
 		{id: "encode.cancel", who: "root", method: "DELETE", route: "/api/tools/item/" + saga1 + "/encode-m4b", retry: 20},
 		{id: "tasks.get", who: "root", route: "/api/tasks?include=queue"},

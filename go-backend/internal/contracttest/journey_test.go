@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -76,6 +78,10 @@ type journeyStep struct {
 	// taskFinished names a task action: after its request the step waits until
 	// the tasks of that action have finished (see awaitTaskFinished).
 	taskFinished string
+	// touches is a file, relative to the install directory, that the task
+	// rewrites when it succeeds. With taskFinished, the step fails if the file's
+	// modification time did not change: a failed task leaves it alone.
+	touches string
 }
 
 // recordedStep is one entry of journey.json: the status, media type and, for a
@@ -201,6 +207,12 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 	if st.settle {
 		before = databaseFingerprint(t, in.DB)
 	}
+	touched := ""
+	var touchedBefore time.Time
+	if st.touches != "" {
+		touched = filepath.Join(in.Dir, st.touches)
+		touchedBefore = modTime(t, touched)
+	}
 	var resp *http.Response
 	var raw []byte
 	for attempt := 0; ; attempt++ {
@@ -218,6 +230,9 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 	}
 	if st.taskFinished != "" {
 		awaitTaskFinished(t, in, token, st.taskFinished)
+	}
+	if touched != "" && !modTime(t, touched).After(touchedBefore) {
+		t.Fatalf("%s was not rewritten by the %s task: it failed", st.touches, st.taskFinished)
 	}
 
 	if ok2xx(resp.StatusCode) {
@@ -443,14 +458,17 @@ const (
 	taskPoll       = 50 * time.Millisecond
 )
 
-// listedTask is the part of a GET /api/tasks entry the waits read.
+// listedTask is the part of a GET /api/tasks entry the waits read. The server
+// drops a task from the list when it finishes (TS TaskManager.taskFinished and
+// Go's task table alike), so a finished task's outcome is not listed.
 type listedTask struct {
 	Action     string `json:"action"`
 	IsFinished bool   `json:"isFinished"`
 }
 
-// taskUnfinished reports whether GET /api/tasks lists an unfinished task of action.
-func taskUnfinished(t testing.TB, in *Install, token, action string) bool {
+// listTasks returns GET /api/tasks in the order the server lists them (oldest
+// first).
+func listTasks(t testing.TB, in *Install, token string) []listedTask {
 	t.Helper()
 	resp, raw := in.Do(t, http.MethodGet, "/api/tasks", token, nil)
 	if resp.StatusCode != http.StatusOK {
@@ -462,12 +480,29 @@ func taskUnfinished(t testing.TB, in *Install, token, action string) bool {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatalf("tasks: %v: %s", err, snippet(raw))
 	}
-	for _, task := range out.Tasks {
+	return out.Tasks
+}
+
+// taskUnfinished reports whether GET /api/tasks lists an unfinished task of action.
+func taskUnfinished(t testing.TB, in *Install, token, action string) bool {
+	t.Helper()
+	for _, task := range listTasks(t, in, token) {
 		if task.Action == action && !task.IsFinished {
 			return true
 		}
 	}
 	return false
+}
+
+
+// modTime is the modification time of a file the journey's tasks rewrite.
+func modTime(t testing.TB, path string) time.Time {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	return info.ModTime()
 }
 
 // awaitTaskStarted waits until an unfinished task of action is listed.
