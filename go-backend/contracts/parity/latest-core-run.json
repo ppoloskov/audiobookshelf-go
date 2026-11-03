@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "suite": "core",
   "baseline": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
-  "generatedAt": "2026-11-03T00:21:28.081Z",
-  "sourceReport": "/tmp/abs-parity-JT98by/core-fixture/core-report.json",
+  "generatedAt": "2026-11-03T00:33:22.172Z",
+  "sourceReport": "/tmp/abs-parity-oOWlaP/core-fixture/core-report.json",
   "inputDigest": "9b62a6a3bd110919395a4abf7713ce8e650e21665f9ebdbbc7b80002606492b0",
   "summary": {
     "total": 193,
