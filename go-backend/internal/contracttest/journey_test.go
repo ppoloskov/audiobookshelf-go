@@ -494,7 +494,6 @@ func taskUnfinished(t testing.TB, in *Install, token, action string) bool {
 	return false
 }
 
-
 // modTime is the modification time of a file the journey's tasks rewrite.
 func modTime(t testing.TB, path string) time.Time {
 	t.Helper()
