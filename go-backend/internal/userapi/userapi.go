@@ -933,7 +933,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		// touch it: an absent-email row would otherwise flip SQL NULL to '':
 		// Sequelize update() only writes mutated attributes.
 		if emailChanged {
-			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Email, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
+			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, store.NullIfEmpty(u.Email), u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
 		} else {
 			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
 		}
