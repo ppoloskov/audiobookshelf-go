@@ -561,7 +561,7 @@ func TestJourneyInit(t *testing.T) {
 			if !ok {
 				t.Fatalf("no recorded shape for step %s in %s", st.id, initShapesFile)
 			}
-			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st))
+			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st, nil))
 		})
 	}
 }
