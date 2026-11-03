@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -82,6 +84,10 @@ type journeyStep struct {
 	// rewrites when it succeeds. With taskFinished, the step fails if the file's
 	// modification time did not change: a failed task leaves it alone.
 	touches string
+	// produces is a file, relative to the install directory, that the step's
+	// task writes. The step fails unless the file exists and ffprobe reads a
+	// duration above zero from it (checkProduced).
+	produces string
 }
 
 // recordedStep is one entry of journey.json: the status, media type and, for a
@@ -269,6 +275,9 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, ex
 	}
 	if touched != "" && !modTime(t, touched).After(touchedBefore) {
 		t.Fatalf("%s was not rewritten by the %s task: it failed", st.touches, st.taskFinished)
+	}
+	if st.produces != "" {
+		checkProduced(t, filepath.Join(in.Dir, st.produces))
 	}
 
 	if ok2xx(resp.StatusCode) {
@@ -575,6 +584,23 @@ func awaitTaskFinished(t testing.TB, in *Install, token, action string) {
 			t.Fatalf("%s tasks still unfinished after %s", action, taskWait)
 		}
 		time.Sleep(taskPoll)
+	}
+}
+
+// checkProduced fails unless path is a media file that ffprobe reads a duration
+// above zero from: a step whose task writes a file checks what it wrote, not
+// only that the request succeeded.
+func checkProduced(t testing.TB, path string) {
+	t.Helper()
+	out, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1", path).Output()
+	if err != nil {
+		t.Fatalf("ffprobe %s: %v", path, err)
+	}
+	text := strings.TrimSpace(string(out))
+	duration, err := strconv.ParseFloat(text, 64)
+	if err != nil || duration <= 0 {
+		t.Fatalf("ffprobe %s: duration %q, want above 0", path, text)
 	}
 }
 

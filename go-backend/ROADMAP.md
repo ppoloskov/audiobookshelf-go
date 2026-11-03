@@ -308,7 +308,7 @@ L2, JWT issuing -> L1).
   - Change: A reaper started by `Start`, stopped by `Close`.
   - Done when: a test shows expired sessions are deleted without a request.
 
-- [ ] C24: Encode to M4B succeeds with a cover
+- [x] C24: Encode to M4B succeeds with a cover
   - Files: `internal/audiotools/tools.go` (merge argv near line 556: `-f mp4`
     before the cover input, the bug class fixed for embed in 03982a4)
   - Change: Put every input before output options; add a journey step that

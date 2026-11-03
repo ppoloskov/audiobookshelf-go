@@ -45,7 +45,8 @@ func TestMergeCreatesM4BAndKeepsSourceBackup(t *testing.T) {
 	if err := h.merge(task, lib, map[string][]string{}); err != nil {
 		t.Fatal(err)
 	}
-	out := filepath.Join(root, "Merged Book.m4b")
+	// A folder item gets its m4b inside the folder (TS AbMergeManager).
+	out := filepath.Join(libDir, "Merged Book.m4b")
 	if st, err := os.Stat(out); err != nil || st.Size() == 0 {
 		t.Fatalf("missing m4b output: %v", err)
 	}
