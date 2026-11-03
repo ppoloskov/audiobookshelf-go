@@ -376,7 +376,7 @@ L2, JWT issuing -> L1).
   - Done when: ratchet `Handle` routers drops from 13 to <= 10 and the
     contract tests for those routes pass.
 
-- [ ] S2: Routes on `ServeMux` for `adminops`, `audiotools`, `backup`, `providers`
+- [x] S2: Routes on `ServeMux` for `adminops`, `audiotools`, `backup`, `providers`
   - Done when: `Handle` routers <= 6.
 
 - [ ] S3: Routes on `ServeMux` for `podcasts`, `playback`, `scanner`

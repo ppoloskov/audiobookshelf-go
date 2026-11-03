@@ -15,6 +15,18 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// serve dispatches r through Routes the way the server does and reports whether
+// a route matched. The user travels in the request context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, u store.User) bool {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	if _, pattern := mux.Handler(r); pattern == "" {
+		return false
+	}
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), u)))
+	return true
+}
+
 func providersTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "providers.sqlite"))
@@ -41,7 +53,7 @@ func TestCustomProviderCRUDPermissionsAndFallback(t *testing.T) {
 	request := func(method, path, body string, user store.User) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
-		handled := h.Handle(w, r, user)
+		handled := serve(h, w, r, user)
 		if !handled {
 			t.Fatalf("route not handled: %s %s", method, path)
 		}
@@ -124,7 +136,7 @@ func TestProviderCatalogAndCustomSearchHTTPTransform(t *testing.T) {
 	}
 	admin := store.User{Type: "admin"}
 	catalog := httptest.NewRecorder()
-	if !h.Handle(catalog, httptest.NewRequest(http.MethodGet, "/api/search/providers", nil), store.User{Type: "user"}) {
+	if !serve(h, catalog, httptest.NewRequest(http.MethodGet, "/api/search/providers", nil), store.User{Type: "user"}) {
 		t.Fatal("provider catalog not handled")
 	}
 	if catalog.Code != 200 {
@@ -141,7 +153,7 @@ func TestProviderCatalogAndCustomSearchHTTPTransform(t *testing.T) {
 	}
 	search := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/search/books?provider=custom-custom-1&title=The+Book&author=A+Writer&isbn=123", nil)
-	if !h.Handle(search, request, admin) {
+	if !serve(h, search, request, admin) {
 		t.Fatal("custom book search not handled")
 	}
 	if search.Code != 200 {

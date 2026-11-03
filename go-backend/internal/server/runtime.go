@@ -133,6 +133,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.audiotools.Routes(rt.routes)
+	rt.providers.Routes(rt.routes)
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -351,9 +352,6 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rt.podcasts.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.providers.Handle(w, withPath(r, path), user) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})

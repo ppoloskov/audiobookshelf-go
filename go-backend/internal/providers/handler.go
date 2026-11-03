@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -52,64 +51,40 @@ func (h *Handler) endpoint(name string) string {
 	return h.endpoints[name]
 }
 
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	if !strings.HasPrefix(path.Clean(r.URL.Path), "/api/") {
-		return false
-	}
-	p := path.Clean(r.URL.Path)
-	if p == "/api/search/providers" && r.Method == http.MethodGet {
-		h.getProviders(w, r)
-		return true
-	}
-	if p == "/api/search/books" && r.Method == http.MethodGet {
-		h.searchBooks(w, r)
-		return true
-	}
-	if p == "/api/search/covers" && r.Method == http.MethodGet {
-		h.searchCovers(w, r)
-		return true
-	}
-	if p == "/api/search/podcast" && r.Method == http.MethodGet {
-		h.searchPodcasts(w, r)
-		return true
-	}
-	if p == "/api/search/authors" && r.Method == http.MethodGet {
-		h.searchAuthor(w, r)
-		return true
-	}
-	if p == "/api/search/chapters" && r.Method == http.MethodGet {
-		h.searchChapters(w, r)
-		return true
-	}
-	if p == "/api/custom-metadata-providers" {
-		if !isAdmin(user) {
-			httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
+// Routes registers the search and custom-provider routes on mux. The server
+// attaches the user to the request context before dispatch
+// (store.ContextWithUser). The custom-provider routes answer 403 to a user who
+// is not an admin.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	admin := func(fn http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if user, _ := store.UserFromContext(r.Context()); !isAdmin(user) {
+				httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
+				return
+			}
+			fn(w, r)
 		}
-		switch r.Method {
-		case http.MethodGet:
-			h.getCustomProviders(w, r)
-		case http.MethodPost:
-			h.createCustomProvider(w, r)
-		default:
-			return false
-		}
-		return true
 	}
-	if strings.HasPrefix(p, "/api/custom-metadata-providers/") && r.Method == http.MethodDelete {
-		if !isAdmin(user) {
-			httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		id, err := url.PathUnescape(strings.TrimPrefix(p, "/api/custom-metadata-providers/"))
-		if err != nil || id == "" || strings.Contains(id, "/") {
-			httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.deleteCustomProvider(w, r, id)
-		return true
+	mux.HandleFunc("GET /api/search/providers", h.getProviders)
+	mux.HandleFunc("GET /api/search/books", h.searchBooks)
+	mux.HandleFunc("GET /api/search/covers", h.searchCovers)
+	mux.HandleFunc("GET /api/search/podcast", h.searchPodcasts)
+	mux.HandleFunc("GET /api/search/authors", h.searchAuthor)
+	mux.HandleFunc("GET /api/search/chapters", h.searchChapters)
+	mux.HandleFunc("GET /api/custom-metadata-providers", admin(h.getCustomProviders))
+	mux.HandleFunc("POST /api/custom-metadata-providers", admin(h.createCustomProvider))
+	mux.HandleFunc("DELETE /api/custom-metadata-providers/{id}", admin(h.deleteCustomProviderRoute))
+}
+
+// deleteCustomProviderRoute answers 404 to an id with a slash (an escaped %2F):
+// the server never issues such an id.
+func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if strings.Contains(id, "/") {
+		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
+		return
 	}
-	return false
+	h.deleteCustomProvider(w, r, id)
 }
 
 func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
