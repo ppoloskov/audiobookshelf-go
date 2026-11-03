@@ -45,6 +45,10 @@ Earlier handover and status documents are in [archive/](archive/).
   differs in paths and inodes by construction.
 - Historical full-suite runs saw a rollback Socket.IO timeout once; a fresh run
   passed. Re-run before treating it as real.
+- `make route-probe` mutates its work dir (`install` and `media`), including
+  deletes of the seeded entities. Run it last, on a work dir that is not reused
+  for a trial. CI runs it last for that reason. A failure names each route that
+  reached the 501 fallback.
 
 ## Code gotchas
 
@@ -55,7 +59,11 @@ Earlier handover and status documents are in [archive/](archive/).
 - Source book serializer outputs come from `tools/book-item-oracle.cjs`; check
   with `node tools/test-book-item-oracle.cjs`. Do not regenerate the golden to
   make Go pass; only when the pinned source fixture changes.
-- `internal/items.Reader` is the shared item-serialization boundary; `server`
-  injects one `catalog.Handler` into `scanner` and `userapi`.
+- `internal/items.Reader` is the shared item-serialization interface. `server`
+  builds one `catalog.Handler` and passes it to `scanner`, `userapi` and
+  `playback` as that interface.
+- Socket.IO `search_covers` and `cancel_cover_search` have no dispatcher case
+  yet (`internal/server/runtime.go`), so a socket cover search returns nothing,
+  without an error. The HTTP `/api/search/covers` works. ROADMAP C5.
 - `tools/parity/create-fixture.cjs` canonicalizes macOS `/private` fixture
   paths; keep that when editing it.

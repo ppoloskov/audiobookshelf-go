@@ -20,7 +20,7 @@ installation, with clients, books and progress.
 |---------|------|
 | Agent rules and the required checks per packet | [AGENTS.md](AGENTS.md) |
 | Target code structure | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Order of work, exit criteria, product track | [ROADMAP.md](ROADMAP.md) |
+| Ordered list of atomic tasks, with done checks | [ROADMAP.md](ROADMAP.md) |
 | Current verification status (generated, never hand-edited) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
 | Harness usage (fixtures, differential, suites, replacement trial) | [tools/parity/README.md](tools/parity/README.md) |
@@ -61,9 +61,17 @@ make parity               # core differential, Node vs Go on fresh fixtures
 make parity-full          # all named API, persistence, rollback and operational suites
 make parity-equivalence   # two independent fixtures must agree
 make parity-replacement   # product check: swap Go into a realistic install, replay the mobile/web journey, roll back
+make parity-scan          # new content and library maintenance after the swap
+make route-probe          # every upstream API, public and HLS route must be handled by Go
 make ratchet              # architecture guardrails
 make status               # regenerate STATUS.md from the latest recorded run
 ```
+
+Every route upstream registers (209 across `ApiRouter.js`, `PublicRouter.js`
+and `HlsRouter.js`) is handled by Go. `route-probe` sends each one and fails if
+any reaches the `501 "not implemented"` fallback; its `ALLOWLIST` is empty and
+must stay empty. Other statuses pass the probe: differential and trial cases
+check behavior.
 
 Counts and verdicts are in [STATUS.md](STATUS.md) and in the reports the
 harness writes; do not copy them elsewhere. Without `mise`, pass
@@ -83,11 +91,25 @@ an alpine image with ffmpeg, tzdata and tini. The runtime contract matches the
 upstream image: `PORT=80`, `CONFIG_PATH=/config`, `METADATA_PATH=/metadata`,
 `SOURCE=docker`; the client lives in `/app/client/dist` (`ABS_GO_CLIENT_PATH`).
 The image has a `HEALTHCHECK` on `/healthcheck`. CI
-(`.github/workflows/docker-go.yml`) runs the Go checks and the upstream parity
-suites, then publishes `ghcr.io/<owner>/audiobookshelf-go` for `linux/amd64`
-and `linux/arm64` (`latest` from `master`, `sha-<short>`, version tags; pull
-requests build without pushing). Build locally with
-`docker build -f Dockerfile.go -t audiobookshelf-go .`.
+(`.github/workflows/docker-go.yml`) runs three jobs in order:
+
+1. `verify`: build, vet, test, the ratchet, dependency boundaries, and an arm64 build.
+2. `parity`: the core differential, the replacement trial, the scan trial, and the route probe, all against upstream v2.37.2.
+3. `image`: publishes `ghcr.io/<owner>/audiobookshelf-go` for `linux/amd64` and
+   `linux/arm64`, tagged `latest` (from `master`), `sha-<short>` and version
+   tags. Pull requests build the image but do not push it.
+
+Build locally with `docker build -f Dockerfile.go -t audiobookshelf-go .`.
+
+## Logs
+
+Log lines use upstream's console format, `[YYYY-MM-DD HH:mm:ss.SSS] LEVEL:
+message`, and the daily log files and crash log follow upstream's layout under
+`METADATA_PATH/logs`. The level comes from the `logLevel` server setting, as
+upstream reads it (the default is 2, INFO). The access line for each request is
+logged at DEBUG, so the default output has no per-request lines.
+`/healthcheck` and `/ping` are logged at TRACE because liveness probes call
+them often.
 
 To switch an existing docker-compose install, back up `/config` (and ideally
 `/metadata`) first, stop the old container, then change only the image:
@@ -116,5 +138,7 @@ and Kubernetes' default `imagePullPolicy: IfNotPresent`, a node keeps the
 
 ## Known limits
 
-The remaining gaps and the next workstreams are listed in the product track of
-[ROADMAP.md](ROADMAP.md). No overall parity claim is made here.
+Known gaps are the correctness tasks (C-prefixed) in [ROADMAP.md](ROADMAP.md),
+for example lazy share expiry, the podcast cron not rescheduled after a
+`PATCH`, and a Socket.IO cover search that returns nothing. No overall parity
+claim is made here.

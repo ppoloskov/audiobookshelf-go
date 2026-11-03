@@ -54,6 +54,7 @@ node go-backend/tools/parity/differential.cjs \
   --out /tmp/abs-parity-fixture/report.json
 ```
 
+The core suite has 193 cases (see `STATUS.md` for the latest recorded run).
 `go-backend/tools/parity/cases/core.json` is the core case catalog: executable request descriptors and the former registry's coverage metadata share one record per case. The older `go-backend/contracts/parity/differential-cases.json` remains as a historical contract artifact, but the runner no longer treats it as a second case source. Stateful ordered flows are named in `go-backend/tools/parity/cases/steps.json` and implemented in `go-backend/tools/parity/cases/steps/`. The differential engine rejects unknown selected IDs, reports zero executions as failure, writes its report before returning failure, and compares status, selected headers and normalized bodies without relaxing case contracts.
 
 The OIDC suite keeps its specialized provider and persistence checks in `oidc-differential.cjs`. Its stateful flow order is data-indexed in `cases/oidc-steps.json`, with named modules in `cases/steps/`; the compared result paths and case IDs are in `cases/oidc.json`. The full-suite runner enables the expiry pair so the committed OIDC golden's case set is exercised.
@@ -91,6 +92,10 @@ python3 go-backend/tools/parity/build_route_coverage.py --check
 
 All inventory routes begin with `compatibilityStatus: "unverified"`. A handler candidate status records only the Go code location and whether the main dispatcher imports that package; it never means differential parity passed. Only a passing entry with a real executable case may be marked verified after review.
 
+## Route probe
+
+`make route-probe` (or `node go-backend/tools/parity/route-probe.cjs [--work DIR] [--go-bin PATH]`) checks that Go handles every route upstream registers. It reads `server/routers/ApiRouter.js` (mounted at `/api`), `PublicRouter.js` (`/public`) and `HlsRouter.js` (`/hls`), which give 209 routes, substitutes real IDs into the parameters, and sends each one to Go as root. It fails if a response is Go's `501 "not implemented in the experimental Go backend"` fallback and prints `NOT IMPLEMENTED: <route>` for each. Other statuses pass: behavior is checked by the differential and the trials. `ALLOWLIST` is empty; an entry passes only while its route is missing, and a stale entry fails the probe. It reuses the seeded replacement-trial installation (`--work DIR`), restores the snapshot first, and CI runs it last because it deletes the seeded entities.
+
 ## Replacement trial
 
 `make parity-replacement` (or `node go-backend/tools/parity/replacement-trial.cjs [--work DIR] [--go-bin PATH] [--reuse 1]`) answers the product question directly: can the Go binary take over an existing upstream installation in place? It generates a realistic media tree (multi-file mp3 book with ID3 tags and `cover.jpg`, an m4b with chapters and an embedded cover, a flac book with `desc.txt`/`reader.txt`, an epub-only book), lets pinned upstream create and scan the installation, and records history through client calls: Android play/sync/close, iOS offline `local-all`, finished and ebook progress, bookmarks, a collection, a playlist, and a second user who finished book 1 of a series.
@@ -99,10 +104,14 @@ The installation also has a podcast library: a local folder with three generated
 
 Config and metadata are snapshotted while media stays untouched, so paths and inodes are identical for both servers. The same scripted mobile/web journey (login, authorize, libraries, personalized shelves, filters, collapsed series, search, item detail with progress, covers, ebook, direct and HLS playback, byte ranges, sync/close, offline sessions, batch progress, bookmarks, listening stats and sessions, admin views, token refresh) runs against upstream, then against Go after restoring the snapshot to the same paths. It also checks a Socket.IO `user_updated` progress event, then boots upstream on the Go-written state and compares progress and bookmarks (rollback).
 
+The journey is about 506 steps. The last recorded run matched all of them with rollback ok (commit messages record the counts).
+
 Normalization covers only UUIDs created during the journey (pre-existing ones must match exactly), JWTs, the work directory prefix, recent timestamps, and the order of the `discover` shelf, which is `ORDER BY RANDOM()` upstream. Media responses compare SHA-256 and `Content-Range`; covers compare content type only. `--reuse 1` skips seeding when DIR already holds a seeded snapshot.
 
 ## Scan trial
 
 `make parity-scan` (or `node go-backend/tools/parity/scan-trial.cjs [--work DIR] [--go-bin PATH] [--reuse 1]`) proves that new content and library maintenance behave like upstream after an in-place swap. Pinned upstream seeds a three-book library with a root user and a listener who has progress; config+metadata and a pristine copy of the media tree are snapshotted. One scenario then runs against upstream, and again against Go after the snapshot and the media tree are restored to the same paths with pinned mtimes: add a multi-file mp3 book (ID3 tags, `cover.jpg`) and scan, add a track and `desc.txt` to an existing book, rename a book folder (listener progress must still apply), delete a folder (missing items, `DELETE /api/libraries/:id/issues`), single-item rescans, `PATCH /api/items/:id/media` plus a cover upload, and finally the library watcher (a folder added and removed with no scan request, bounded wait, final state compared). A connected root Socket.IO client records every realtime event; each step diffs the responses and the events (names, payloads, order).
+
+The scan trial has 12 steps, and the last recorded run matched all of them.
 
 Normalization is limited to ids created at runtime (replaced by a role label such as the item path or author name), `ino` values and `/file/<ino>` URLs (the media tree is restored with new inodes), `birthtimeMs`/`ctimeMs`, wall-clock timestamps, scan durations, JWTs, the work directory prefix and the `discover` shelf order; the full list with reasons is in the header of the script. The library watcher is switched off for the explicit-scan steps so it cannot scan at an arbitrary moment, and switched on for the last two steps. Known upstream non-determinism is avoided rather than normalized: `DELETE /issues` removes an emptied author only some of the time, so the scenario deletes a book whose author keeps other books.

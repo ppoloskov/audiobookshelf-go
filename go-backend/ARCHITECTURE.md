@@ -48,6 +48,11 @@ internal/
                   each exposes Routes(mux, deps)
 ```
 
+Not created yet: `httputil`, `events`, `ids`, `media`, `authz` (their depguard
+rules already exist in `.golangci.yml`). `dbtime`, `items`, `logging`, `wire`,
+`nameparse`, `textsort`, `progressdto`, `filterdata` and `realtime` exist.
+`auth` verifies tokens; issuing is still in `identity` and `userapi` (ROADMAP K24).
+
 Feature packages keep their 1:1 mapping to upstream controllers. That mapping
 is navigable and lets code cite upstream source lines. The problem was copied
 helpers, not package boundaries.
@@ -63,11 +68,10 @@ helpers, not package boundaries.
   moves to a shared package (see DECISION D1).
 - Nothing outside `*_test.go` imports `net/http/httptest`.
 
-**DECISION D1** (default: extract): today `scanner` and `userapi` each construct
-a hidden `catalog.Handler` just to call `ItemJSON`/`ItemMinifiedJSON`. Extract
-that read side into `internal/items` (`items.Reader`), used by `catalog`,
-`userapi`, `scanner`, and the emit hook. Until extracted, exactly one
-`catalog.Handler` exists and is shared by injection.
+**DECISION D1** (default: extract; partly done): the read side is the
+`items.Reader` interface (`ItemJSON`, `ItemMinifiedJSON`). `scanner`, `userapi`,
+and `playback` take it. `server/runtime.go` still builds one `catalog.Handler`
+and passes it in as that reader; no package builds its own.
 
 ## Request flow
 
@@ -83,7 +87,8 @@ net/http -> Runtime.ServeHTTP
 
 Rules:
 
-- **Routing** [planned, Phase 5]: Go 1.22+ `ServeMux` patterns
+- **Routing** [in progress: `catalog` registers through `Routes`; the other 13
+  packages still use `Handle` chains, ROADMAP K31-K35]: Go 1.22+ `ServeMux` patterns
   (`mux.HandleFunc("GET /api/libraries/{id}", h.library)`), registered by each
   package's `Routes(mux, deps)`. Strip the router base exactly once, in
   `Runtime`. Packages never strip prefixes themselves.
@@ -92,8 +97,8 @@ Rules:
   repeat access checks as per-route boilerplate.
 - **404/405 are upstream's, not `ServeMux`'s.** Register explicit fallbacks
   that reproduce Express behavior, and give them smoke cases.
-- **Migration is a strangler.** During Phase 5 a catch-all `/` pattern delegates
-  to the legacy `Handle` chain. Each package moves to `Routes` only when its
+- **Migration is a strangler.** While `Handle` chains remain, a catch-all `/`
+  pattern delegates to them. Each package moves to `Routes` only when its
   routes have smoke cases (happy path, 401, 403, 404, wrong method).
 
 ## Wire DTOs
@@ -149,7 +154,7 @@ introduce it speculatively.
   framework and no DI container.
 - Transactions are owned by the calling handler or service, explicitly.
 - All DATETIME columns are written through `dbtime` in one format and parsed
-  through one `dbtime.Parse` [planned: Phase 3; needs a DB-content differential
+  through one `dbtime.Parse` [planned: ROADMAP K11-K13; needs a DB-content differential
   first because the stored format is visible to upstream].
 - Existing N+1 query patterns are allowed during the parity phases. Do not
   change query behavior in a structure-only packet. Record the hot spots for
@@ -234,17 +239,17 @@ introduce it speculatively.
 `ratchet-baseline.json`. Counts may not rise. After a drop, the
 baseline must be lowered in the same commit.
 
-| Metric | Baseline (Phase 1 snapshot) | Phase target |
+| Metric | Baseline (`ratchet-baseline.json`) | Target (ROADMAP task) |
 |--------|-------------------------------|--------------|
-| `map[string]any` and aliases of it | 1136 | set after pilot |
-| Hand-rolled `Handle(w, r, ...) bool` routers | 13 | 0 (Phase 5) |
-| `writeJSON`-style copies | 12 | 1 in `httputil` (Phase 3) |
-| `EmitFunc`-style type declarations | 7 | 0 (Phase 3) |
-| `Set*` injector methods | 20 | 0 (Phase 4) |
-| `catalog.New` call sites | 1 | 0 or 1 shared by injection (Phase 4) |
-| `httptest` imports in non-test files | 0 | 0 (Phase 4) |
-| Inline `comparePair(...)` calls in `tools/parity/differential.cjs` | 0 | 0 (Phase 0b) |
-| Duplicated harness helper definitions (`freePort`, `login`, `request`, `waitReady`, `parseArgs`) across `tools/parity/**/*.cjs` | 1 each | 1 each (Phase 0b) |
+| `map[string]any` and aliases of it | 1020 | falls with T2-T14 |
+| Hand-rolled `Handle(w, r, ...) bool` routers | 13 | 0 (K31-K35) |
+| `writeJSON`-style copies | 12 | 1 in `httputil` (K1-K4) |
+| `EmitFunc`-style type declarations | 7 | 0 (K17-K18) |
+| `Set*` injector methods | 18 | 0 (K19-K22) |
+| `catalog.New` call sites | 1 | 0 or 1 shared by injection (no task yet) |
+| `httptest` imports in non-test files | 0 | 0 (met) |
+| Inline `comparePair(...)` calls in `tools/parity/differential.cjs` | 0 | 0 (met) |
+| Duplicated harness helper definitions (`freePort`, `login`, `request`, `waitReady`, `parseArgs`) across `tools/parity/**/*.cjs` | 1 each | 1 each (met) |
 
 The Go metrics use `go/ast`; the harness metrics use regex counters over
 `tools/parity/`. The active snapshot is in `ratchet-baseline.json`; test files
@@ -258,8 +263,8 @@ The ratchet is a floor, not proof of quality; review still checks intent.
 
 | ID | Question | Default |
 |----|----------|---------|
-| D1 | Extract `internal/items` read side, or share one `catalog.Handler` | Extract |
+| D1 | Extract `internal/items` read side, or share one `catalog.Handler` | Extract (interface done; one handler still built) |
 | D2 | `*T` pointers vs `wire.Optional[T]` for null-and-absent | Pointers |
 | D3 | `net/http.ServeMux` vs a router library | Stdlib `ServeMux` |
-| D4 | Keep the Node-based differential harness or port it to Go | Keep; consolidate into one runner first |
+| D4 | Keep the Node-based differential harness or port it to Go | Keep (the shared `tools/parity/lib` and `suite-runner.cjs` are in place) |
 | D5 | Type inner objects (`AudioFile`, `Chapter`) in the pilot or later | Later |

@@ -14,22 +14,25 @@ library, tag, and explicit-content permissions when the payload contains those
 fields. Arrays of item-shaped payloads are reduced per recipient. Events with
 no identifying metadata remain global.
 
-`SetDispatcher` lets scanning, cover search, and log management own their
-domain work without giving the transport package permission to invent those
-services. The dispatcher receives authenticated action events, an optional
-Socket.IO acknowledgement callback, and a streaming `Reply` callback. The
-transport enforces admin checks for `cancel_scan`, `set_log_listener`, and
+`SetDispatcher` lets scanning and log management own their domain work without
+giving the transport package permission to invent those services. The
+dispatcher receives authenticated action events, an optional Socket.IO
+acknowledgement callback, and a streaming `Reply` callback. The transport
+enforces admin checks for `cancel_scan`, `set_log_listener`, and
 `message_all_users`; it checks authentication for cover search and cancellation.
-Unwired dispatch actions return no result (cover search reports an explicit
-unavailable error). A full replacement must install the real domain dispatcher.
+The runtime's dispatcher handles `cancel_scan`, `set_log_listener`,
+`remove_log_listener` and `disconnect`; other actions return no result. With no
+dispatcher installed, cover search reports `cover_search_error`. Cover search is
+not wired in the runtime yet (ROADMAP C5), so a socket search currently returns
+nothing.
 
 On successful auth the adapter updates `users.lastSeen` and `users.updatedAt`
 using Sequelize-compatible SQLite date text before emitting `init`. The
 integration test uses `identity.Handler.Authenticate`, then reopens the file
 through the read-only store to verify those timestamps remain readable.
-Playback-session details in the public online-user payload are currently
-`null`; playback-session serialization and socket-scoped logger/search cleanup
-need service integrations before parity is complete.
+The runtime supplies each user's open playback session to the online-user
+payload through `SetSessionLookup`. That field is `null` when the user has no
+open session.
 
 The Node integration test skips when `socket.io-client` is absent. To exercise
 polling, WebSocket upgrade, auth, acknowledgements, recipient permissions, and

@@ -17,7 +17,8 @@ architecture template. Do not edit it.
 
 1. This file.
 2. `ARCHITECTURE.md`: the target structure and the rules new code follows.
-3. `ROADMAP.md`: the current phase. Your packet comes from there.
+3. `ROADMAP.md`: an unchecked task. Your packet is one task, and its
+   "Done when" line is its acceptance check.
 
 Status lives in `STATUS.md`. It is generated from harness output. Never edit
 it by hand, never copy status numbers into other files, and do not report
@@ -32,6 +33,7 @@ status from memory of an older document.
 | 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | exists |
 | 4 | Product-facing packets (anything a client can observe): the replacement trial passes (and the scan trial, `make parity-scan`, for scanner/watcher/metadata-edit changes), with no fewer steps than before and rollback ok | `make parity-replacement` | exists |
 | 4b | Route inventory is current after adding or changing a route | `python3 go-backend/tools/parity/build_route_coverage.py --check` (regenerate without `--check`) | exists |
+| 4c | No upstream route falls to the 501 fallback (its `ALLOWLIST` stays empty) | `make route-probe` | exists |
 | 5 | New or changed behavior has a differential case or a golden test | n/a | review |
 | 6 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
 
@@ -55,7 +57,9 @@ Rules for the table:
 - Fix only differences you can reproduce against upstream and trace to source.
 - Express quirks are contract, not bugs: weak ETags, text bodies without a
   trailing newline, English `sendStatus` texts, passwordless root, `null` vs
-  empty vs absent. Do not "fix" them. They live in `internal/httputil` only.
+  empty vs absent. Do not "fix" them. They belong in `internal/httputil` once it
+  exists (ROADMAP K1); until then, keep them in the existing writer for that
+  package and do not add another copy.
 - Never run Node and Go against the same writable database, config, metadata,
   or media tree. Mutating cases consume their fixture; create a fresh fixture
   for each clean run.
@@ -101,6 +105,12 @@ make parity-equivalence
 
 # Replacement trial: realistic install, swap, mobile/web journey, rollback:
 make parity-replacement
+
+# Scan trial (new content and library maintenance after the swap) and the
+# route probe (no upstream route answered by the 501 fallback; run last, it
+# mutates its work dir):
+make parity-scan
+make route-probe
 
 # Harness self-test (binds two temporary loopback HTTP servers):
 node --test go-backend/tools/parity/test-differential-selftest.cjs
