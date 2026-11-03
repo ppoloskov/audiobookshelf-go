@@ -207,6 +207,11 @@ Conventions:
     stays `CGO_ENABLED=0`. Install a C compiler on the runner if needed.
   - Done when: the step is green on master.
 
+- [ ] C20: Fix the SQLITE_BUSY flake in `TestCreatePodcastValidatesFolderAndPersistsSourceShape`
+  - Files: `go-backend/internal/podcasts/*_test.go`
+  - Change: Find the competing writer under a parallel `go test ./...` run and serialize it, or give the test its own database.
+  - Done when: `go test -count=20 ./internal/podcasts` passes inside a full parallel `go test ./...` run.
+
 ## Code consolidation (copy/paste removal)
 
 Helper families are listed with file and line. Each task removes one family
