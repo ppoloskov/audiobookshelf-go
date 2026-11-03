@@ -17,7 +17,7 @@
     "go-backend/internal/notifications/handler.go": "b721fa8bcb7e279ccf5c75acabdc828cab4ce8fe3d5e29974ecc7d37cb90c3db",
     "go-backend/internal/podcasts/podcasts.go": "2299b427698c53dd786e6b608b0a1ff1827b11568703df092e54eae0e33c2b4c",
     "go-backend/internal/providers/handler.go": "1c619400136c2ee75d626fba7fa0094a9f9b2e7a38cd45cb9e6dcf584643e700",
-    "go-backend/internal/userapi/userapi.go": "d1273be5a205443b3c8564c138678f2cc83a2ec6a7218a092e9a8e3bd383b8b5",
+    "go-backend/internal/userapi/userapi.go": "8291ea07335cb1509d958a42f038d7966e43c93d541ca6de87a0677e6c6199f7",
     "go-backend/internal/playback/playback.go": "6630b713ed2eb6217c2aef81f4a1ed0ca109c867e402e7c4ab58ab9fad639a45",
     "go-backend/internal/scanner/scanner.go": "e13db47445f099a620353bbabe9d52f1ee24b37697b7fff5aa10c1263cf7c03c",
     "go-backend/internal/sharing/handler.go": "e27a4f3105484cd1f9e209c1d89958543cb1e02a8a2379fc4b1986ec69a0e2ff"

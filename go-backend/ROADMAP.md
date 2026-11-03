@@ -317,7 +317,7 @@ creates them.
   - Done when: `grep -rn '^func \(parseTime\|millis\|dateMillis\|parseDate\)(' go-backend/internal --include=*.go | grep -v internal/dbtime`
     is empty.
 
-- [ ] K12: Route DATETIME `time.Parse` calls through `dbtime.Parse` in `userapi` and `progressdto`
+- [x] K12: Route DATETIME `time.Parse` calls through `dbtime.Parse` in `userapi` and `progressdto`
   - Files: `go-backend/internal/userapi/userapi.go` (4 sites),
     `internal/userapi/me_extra.go` (2), `internal/progressdto/apply.go` (4),
     `internal/progressdto/progress.go` (1)

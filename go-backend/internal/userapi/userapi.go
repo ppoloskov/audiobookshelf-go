@@ -2077,12 +2077,12 @@ func parseDateBytes(raw []byte) time.Time {
 }
 
 func parseDateString(value string) time.Time {
-	for _, layout := range []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05Z", "2006-01-02 15:04:05.000 -07:00", "2006-01-02 15:04:05 -07:00", "2006-01-02T15:04:05.999999999"} {
-		if t, err := time.Parse(layout, value); err == nil {
-			return t
-		}
+	if t, ok := dbtime.Parse(value); ok {
+		return t
 	}
-	return time.Time{}
+	// A zone-less ISO spelling dbtime does not know.
+	t, _ := time.Parse("2006-01-02T15:04:05.999999999", value)
+	return t
 }
 
 func (h *Handler) signToken(payload map[string]any) (string, error) {
