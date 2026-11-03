@@ -82,7 +82,7 @@ L2, JWT issuing -> L1).
   - Done when: a test boots the fixture and `GET /api/libraries` as the
     listener returns the seeded library, with no Node process.
 
-- [ ] F5: Response shapes recorded from TS v2.37.2
+- [x] F5: Response shapes recorded from TS v2.37.2
   - Files: new `tools/shapes/` (Go generator), `contracts/shapes/journey.json`
   - Change: Run the replacement trial once; read `journey-upstream.json`
     (TS responses per journey step). For each step write status, content type
