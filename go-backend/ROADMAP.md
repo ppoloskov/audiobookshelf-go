@@ -147,7 +147,7 @@ L2, JWT issuing -> L1).
     payload shapes (recorded like HTTP shapes).
   - Done when: no journey step skips its event check.
 
-- [ ] F7: Persistence in both directions
+- [x] F7: Persistence in both directions
   - Files: `internal/contracttest/persistence_test.go`, the CI rollback job
   - Change: (a) Go reads the TS-created fixture's users, progress, sessions,
     bookmarks and items with the values TS wrote (asserted from the fixture's

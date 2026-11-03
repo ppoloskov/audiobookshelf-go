@@ -123,6 +123,9 @@ func Boot(t testing.TB) *Install {
 	// LIFO: the HTTP server stops before the manager closes the database.
 	t.Cleanup(manager.Close)
 	t.Cleanup(func() { _ = httpServer.Close() })
+	// Runs first (LIFO), while the database is still open: TS stores every
+	// text and JSON column as TEXT, so a BLOB anywhere is a Go write bug.
+	t.Cleanup(func() { assertNoBlobText(t, st.DB()) })
 
 	return &Install{
 		BaseURL: fmt.Sprintf("http://127.0.0.1:%d", cfg.Port),
@@ -342,4 +345,54 @@ func copyTree(src, dst string) error {
 		}
 		return os.WriteFile(target, raw, 0o644)
 	})
+}
+
+// assertNoBlobText fails the test when any TEXT-affinity column holds a BLOB
+// value. database/sql binds []byte as BLOB, so json.Marshal output must be
+// written as string.
+func assertNoBlobText(t testing.TB, db *sql.DB) {
+	t.Helper()
+	tables, err := db.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
+	if err != nil {
+		t.Errorf("list tables: %v", err)
+		return
+	}
+	var names []string
+	for tables.Next() {
+		var n string
+		if tables.Scan(&n) == nil {
+			names = append(names, n)
+		}
+	}
+	_ = tables.Close()
+	for _, table := range names {
+		cols, err := db.Query(`SELECT name, type FROM pragma_table_info(?)`, table)
+		if err != nil {
+			t.Errorf("columns of %s: %v", table, err)
+			continue
+		}
+		var text []string
+		for cols.Next() {
+			var name, typ string
+			if cols.Scan(&name, &typ) != nil {
+				continue
+			}
+			u := strings.ToUpper(typ)
+			if u == "" || strings.Contains(u, "TEXT") || strings.Contains(u, "CHAR") || strings.Contains(u, "CLOB") || strings.Contains(u, "JSON") || strings.Contains(u, "DATE") || strings.Contains(u, "UUID") {
+				text = append(text, name)
+			}
+		}
+		_ = cols.Close()
+		for _, col := range text {
+			var n int
+			q := fmt.Sprintf(`SELECT count(*) FROM %q WHERE typeof(%q) = 'blob'`, table, col)
+			if err := db.QueryRow(q).Scan(&n); err != nil {
+				t.Errorf("%s.%s: %v", table, col, err)
+				continue
+			}
+			if n > 0 {
+				t.Errorf("%s.%s holds %d BLOB value(s); TS stores TEXT", table, col, n)
+			}
+		}
+	}
 }

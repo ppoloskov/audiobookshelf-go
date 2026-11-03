@@ -203,7 +203,7 @@ jobs:
 
   image:
     name: Build and push image
-    needs: [verify, parity]
+    needs: [verify, parity, rollback]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
