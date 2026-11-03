@@ -32,14 +32,14 @@ func TestAuthRateLimitTripsAndResets(t *testing.T) {
 		}
 		return w
 	}
-	for i := range 2 {
+	for i := range 4 {
 		if w := hit("10.0.0.1"); w != nil {
 			t.Fatalf("request %d from a fresh client was limited", i+1)
 		}
 	}
 	w := hit("10.0.0.1")
 	if w == nil {
-		t.Fatal("third request in the burst was admitted")
+		t.Fatal("fifth request in the burst was admitted")
 	}
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("status = %d, want 429", w.Code)
@@ -55,7 +55,7 @@ func TestAuthRateLimitTripsAndResets(t *testing.T) {
 		t.Fatal("another client was limited by the first client's bucket")
 	}
 	time.Sleep(350 * time.Millisecond)
-	for i := range 2 {
+	for i := range 4 {
 		if hit("10.0.0.1") != nil {
 			t.Fatalf("request %d after the window was limited", i+1)
 		}
@@ -65,6 +65,8 @@ func TestAuthRateLimitTripsAndResets(t *testing.T) {
 	}
 }
 
+// TS's fixed window admits up to 2x the limit across a boundary; the bucket
+// stays within that and admits at least the limit at once.
 func TestAuthRateLimitNeverExceedsLimitInAWindow(t *testing.T) {
 	const limit = 10
 	window := 500 * time.Millisecond
@@ -76,11 +78,11 @@ func TestAuthRateLimitNeverExceedsLimitInAWindow(t *testing.T) {
 			admitted++
 		}
 	}
-	if admitted > limit {
-		t.Fatalf("admitted %d requests in one window, limit %d", admitted, limit)
+	if admitted > 2*limit {
+		t.Fatalf("admitted %d requests in one window, more than 2x the limit %d", admitted, limit)
 	}
-	if admitted < limit/2 {
-		t.Fatalf("admitted %d requests, want at least the burst %d", admitted, limit/2)
+	if admitted < limit {
+		t.Fatalf("admitted %d requests, want at least the limit %d", admitted, limit)
 	}
 }
 

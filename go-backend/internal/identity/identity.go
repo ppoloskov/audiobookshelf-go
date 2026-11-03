@@ -1075,8 +1075,9 @@ func envString(name, fallback string) string {
 	return fallback
 }
 
-// allowAuthRequest spends a token from the client's bucket. A burst of rateMax/2
-// plus a refill of the rest over rateWindow admits at most rateMax per window.
+// allowAuthRequest spends a token from the client's bucket: a burst of rateMax
+// refilled at rateMax per rateWindow, the practical limit of TS's fixed window
+// (express-rate-limit), which also admits up to 2x across a window boundary.
 func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool {
 	if h.rateMax <= 0 || h.rateWindow <= 0 {
 		return true
@@ -1090,8 +1091,7 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	}
 	lim := h.rateLimiters[key]
 	if lim == nil {
-		burst := max(1, h.rateMax/2)
-		lim = rate.NewLimiter(rate.Limit(float64(max(h.rateMax-burst, 1))/h.rateWindow.Seconds()), burst)
+		lim = rate.NewLimiter(rate.Limit(float64(h.rateMax)/h.rateWindow.Seconds()), h.rateMax)
 		h.rateLimiters[key] = lim
 	}
 	allowed, tokens := lim.Allow(), lim.Tokens()
