@@ -238,10 +238,11 @@ func checkJourneyStep(t *testing.T, rec recordedStep, got journeyResult) {
 	if got.status != rec.Status {
 		t.Fatalf("status %d, recorded %d: %s", got.status, rec.Status, snippet(got.raw))
 	}
-	// Content type is contract only for successful responses with a body:
-	// clients decode those. Error and empty responses are "free" framing
-	// (ARCHITECTURE.md), e.g. TS sends no type on a bare 401 or 204.
-	if rec.Status < 300 && rec.Status != http.StatusNoContent && got.media != rec.ContentType {
+	// Content type is contract only where a client decodes the body: a JSON
+	// response, or an image, audio or video the client plays or shows. Text
+	// bodies (TS "OK", HTML errors), download containers (zip vs octet-stream)
+	// and error or empty responses are free framing (ARCHITECTURE.md).
+	if rec.Status < 300 && typedMedia(rec.ContentType) && got.media != rec.ContentType {
 		t.Errorf("content type %q, recorded %q", got.media, rec.ContentType)
 	}
 	if rec.Shape == nil {
@@ -285,6 +286,13 @@ var (
 )
 
 func ok2xx(status int) bool { return status >= 200 && status < 300 }
+
+// typedMedia reports whether a recorded media type is contract for a successful
+// response: JSON, or image, audio and video.
+func typedMedia(media string) bool {
+	return media == "application/json" || strings.HasPrefix(media, "image/") ||
+		strings.HasPrefix(media, "audio/") || strings.HasPrefix(media, "video/")
+}
 
 func decodeAny(raw []byte) any {
 	var v any
