@@ -495,13 +495,21 @@ func (h *Handler) runEmbed(t *task) error {
 		}
 		out := f.path + ".abs-tmp"
 		_ = os.Remove(out)
-		args := []string{"-y", "-i", f.path, "-i", metaPath, "-map", "0:a", "-map_metadata", "1", "-map_metadata", "0", "-map_chapters", "1", "-c", "copy"}
+		// Every input comes before the output options: an option that follows
+		// "-i cover" and precedes it is read as the cover input's option.
+		args := []string{"-y", "-i", f.path, "-i", metaPath}
+		hasCover := false
 		if it.cover != "" {
 			if _, statErr := os.Stat(it.cover); statErr == nil {
-				args = append(args, "-i", it.cover, "-map", "2:v?", "-disposition:v", "attached_pic")
+				hasCover = true
+				args = append(args, "-i", it.cover)
 			}
 		}
-		args = append(args, "-f", muxer(f.path), out)
+		args = append(args, "-map", "0:a", "-map_metadata", "1", "-map_metadata", "0", "-map_chapters", "1")
+		if hasCover {
+			args = append(args, "-map", "2:v?", "-disposition:v", "attached_pic")
+		}
+		args = append(args, "-c", "copy", "-f", muxer(f.path), out)
 		cmd := exec.CommandContext(t.ctx, ffmpegPath(), args...)
 		t.cmd = cmd
 		if e = cmd.Run(); e != nil {
