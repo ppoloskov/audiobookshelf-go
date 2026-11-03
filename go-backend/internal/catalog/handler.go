@@ -2184,6 +2184,9 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 	}
 	payload := map[string]any{"id": seriesID, "name": store.NullString(name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), name), "description": store.NullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
 	if includeHas(r, "rssfeed") {
+		// The web client reads rssFeed (BookShelfToolbar.vue); TS sends null
+		// when no feed is open.
+		payload["rssFeed"] = nil
 		if feed, ok, e := h.feedMinified(r.Context(), "series", seriesID); e != nil {
 			logging.RequestError(r, "database read failed", e)
 			httputil.WriteError(w, 500, "database read failed")
