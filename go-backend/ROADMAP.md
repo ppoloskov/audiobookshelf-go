@@ -18,6 +18,19 @@ Baseline at `768f131`: 44,326 handwritten non-test Go lines; `map[string]any`
 1,003; `[]any` 313; `Handle` routers 13; `Set*` injectors 18; ~590 raw
 `Query/Exec` call sites.
 
+## Priority and target (owner, 2026-11-03)
+
+Order work by handwritten lines removed per task. Target: **-30% handwritten
+Go lines by the end of Phase S (44,326 at the start of Phase F -> about
+31,000)**, reported in every status update.
+
+1. L6, L7, then L8 (catalog on sqlc), with S1-S4 (routers on ServeMux) in
+   parallel where packages do not overlap.
+2. V2 (approved): once L6-L8 are merged, delete the Node byte-parity harness,
+   keeping only the rollback check.
+3. S9 (drop Express emulation), then S10-S16 (domains, typed items).
+4. Remaining C tasks in parallel; P after S.
+
 ## Done so far
 
 - Every upstream API, public and HLS route answers (route probe, empty
