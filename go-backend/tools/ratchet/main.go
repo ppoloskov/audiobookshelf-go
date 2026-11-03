@@ -201,7 +201,7 @@ func measureSimplification(root string) (metrics, []funcStat, error) {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			if d.IsDir() || !strings.HasSuffix(path, ".go") || testOnly(path) {
 				return nil
 			}
 			src, err := os.ReadFile(path)
@@ -357,7 +357,7 @@ func measureGo(root string) (metrics, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || testOnly(path) {
 			return nil
 		}
 		file, err := parser.ParseFile(fset, path, nil, parser.AllErrors)
@@ -690,4 +690,12 @@ func fatalIf(err error) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+}
+
+// testOnly reports test code: _test.go files and internal/contracttest, the
+// test-only harness package (fixture, response shapes). Neither counts as
+// production code in any metric.
+func testOnly(path string) bool {
+	return strings.HasSuffix(path, "_test.go") ||
+		strings.Contains(filepath.ToSlash(path), "internal/contracttest/")
 }
