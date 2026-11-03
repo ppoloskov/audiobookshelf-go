@@ -8,6 +8,9 @@
 //   cd go-backend && go test ./internal/contracttest -run TestJourney -record \
 //       -upstream=<baseURL> -upstream-root=<root>
 //
+// With --empty the server starts on empty config and metadata directories: an
+// uninitialized install with no root user (the TestJourneyInit recording).
+//
 // The copy lives in a temp directory. Its seed paths in the database are
 // rewritten to the copy, with the same rule as fixture.go (rewriteSeedPaths):
 // every text-like column, longest seed path first. Prints
@@ -84,16 +87,22 @@ async function rewriteSeedPaths(file, pairs) {
   }
 }
 
+const EMPTY = process.argv.includes('--empty')
+
 async function main() {
-  const meta = JSON.parse(fs.readFileSync(path.join(FIXTURE, 'fixture.json'), 'utf8'))
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'abs-contract-upstream-'))
   const dirs = { config: path.join(root, 'config'), metadata: path.join(root, 'metadata'), media: path.join(root, 'media') }
-  fs.cpSync(FIXTURE, root, { recursive: true })
-  await rewriteSeedPaths(path.join(dirs.config, 'absdatabase.sqlite'), [
-    { from: meta.seedRoots.media, to: dirs.media },
-    { from: meta.seedRoots.metadata, to: dirs.metadata },
-    { from: meta.seedRoots.config, to: dirs.config }
-  ])
+  if (EMPTY) {
+    for (const dir of Object.values(dirs)) fs.mkdirSync(dir)
+  } else {
+    const meta = JSON.parse(fs.readFileSync(path.join(FIXTURE, 'fixture.json'), 'utf8'))
+    fs.cpSync(FIXTURE, root, { recursive: true })
+    await rewriteSeedPaths(path.join(dirs.config, 'absdatabase.sqlite'), [
+      { from: meta.seedRoots.media, to: dirs.media },
+      { from: meta.seedRoots.metadata, to: dirs.metadata },
+      { from: meta.seedRoots.config, to: dirs.config }
+    ])
+  }
   console.log(`ROOT ${root}`)
 
   const port = await freePort()
