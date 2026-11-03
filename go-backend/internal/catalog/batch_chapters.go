@@ -535,10 +535,8 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 				primaryFile[key] = value
 			}
 		}
-		metadata, _ := primaryFile["metadata"].(map[string]any)
-		if metadata != nil {
-			primaryFile["ebookFormat"] = metadata["format"]
-		}
+		// TS FileMetadata.format: the extension without its dot, lower-cased; "" without an extension.
+		primaryFile["ebookFormat"] = strings.ToLower(strings.TrimPrefix(stringValue(fileMetadataExt(primaryFile)), "."))
 		primary = primaryFile
 	}
 	primaryIno := ""
