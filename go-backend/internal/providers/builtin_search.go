@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 )
 
@@ -39,7 +40,7 @@ func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
 			book["descriptionPlain"] = stripHTML(book["description"].(string))
 		}
 	}
-	writeJSON(w, http.StatusOK, results)
+	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
 }
 
 func (h *Handler) searchBuiltinBooks(ctx context.Context, provider, title, author, asin, region string) ([]map[string]any, error) {
@@ -264,25 +265,25 @@ func (h *Handler) searchPodcasts(w http.ResponseWriter, r *http.Request) {
 	term, err := queryParamAsString(r, "term", "", true)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()}, httputil.Streamed())
 		return
 	}
 	country, err := queryParamAsString(r, "country", "us", false)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()}, httputil.Streamed())
 		return
 	}
 	if term == "" {
-		writeJSON(w, http.StatusOK, nil)
+		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
 		return
 	}
 	results, ok := h.itunesPodcasts(r.Context(), term, country)
 	if !ok {
-		writeJSON(w, http.StatusOK, []any{})
+		httputil.WriteJSON(w, http.StatusOK, []any{}, httputil.Streamed())
 		return
 	}
-	writeJSON(w, http.StatusOK, results)
+	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
 }
 
 // itunesPodcasts is iTunes.searchPodcasts (server/providers/iTunes.js:164-168):
@@ -309,11 +310,11 @@ func (h *Handler) itunesPodcasts(ctx context.Context, term, country string) ([]a
 func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Query().Get("title")
 	if _, exists := r.URL.Query()["title"]; !exists {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: title"})
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: title"}, httputil.Streamed())
 		return
 	}
 	if title == "" {
-		writeJSON(w, http.StatusOK, map[string]any{"results": nil})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": nil}, httputil.Streamed())
 		return
 	}
 	if r.URL.Query().Get("podcast") == "1" {
@@ -331,7 +332,7 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"results": covers})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": covers}, httputil.Streamed())
 		return
 	}
 	provider := queryValue(r, "provider", "google")
@@ -369,46 +370,46 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"results": covers})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": covers}, httputil.Streamed())
 }
 
 func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
 		logging.RequestDebug(r, "responding 500: query parameter q is missing")
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
 		return
 	}
 	if name == "" {
-		writeJSON(w, http.StatusOK, nil)
+		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
 		return
 	}
 	results, err := h.findAuthorByName(r.Context(), name, queryValue(r, "region", ""))
 	if err != nil {
-		writeJSON(w, http.StatusOK, nil)
+		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
 		return
 	}
-	writeJSON(w, http.StatusOK, results)
+	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
 }
 func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) {
 	asin := strings.ToUpper(r.URL.Query().Get("asin"))
 	if _, exists := r.URL.Query()["asin"]; !exists {
 		logging.RequestDebug(r, "responding 500: query parameter asin is missing")
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
 		return
 	}
 	if !validASIN(asin) {
-		writeJSON(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"})
+		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"}, httputil.Streamed())
 		return
 	}
 	query := url.Values{"region": {strings.ToLower(queryValue(r, "region", "us"))}}
 	endpoint := strings.TrimRight(h.endpoint("audnexus"), "/") + "/books/" + url.PathEscape(asin) + "/chapters?" + query.Encode()
 	var result any
 	if err := h.getJSON(r.Context(), endpoint, &result); err != nil || result == nil {
-		writeJSON(w, http.StatusOK, map[string]string{"error": "Chapters not found", "stringKey": "MessageChaptersNotFound"})
+		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Chapters not found", "stringKey": "MessageChaptersNotFound"}, httputil.Streamed())
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	httputil.WriteJSON(w, http.StatusOK, result, httputil.Streamed())
 }
 
 func (h *Handler) getJSON(ctx context.Context, endpoint string, target any) error {

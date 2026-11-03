@@ -4,6 +4,7 @@ package providers
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -158,7 +159,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"providers": providers})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"providers": providers}, httputil.Streamed())
 }
 
 func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +222,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 		customProvider
 		ExtraData json.RawMessage `json:"extraData,omitempty"`
 	}{customProvider: p, ExtraData: p.ExtraData}
-	writeJSON(w, http.StatusOK, map[string]any{"provider": created})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"provider": created}, httputil.Streamed())
 }
 
 func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, id string) {
@@ -308,7 +309,7 @@ func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) {
 	covers = append(covers, providerObject("all"))
 	podcasts := []map[string]string{providerObject("itunes")}
 	podcasts = append(podcasts, podcastCustom...)
-	writeJSON(w, http.StatusOK, map[string]any{"providers": map[string]any{"books": books, "booksCovers": covers, "podcasts": podcasts}})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"providers": map[string]any{"books": books, "booksCovers": covers, "podcasts": podcasts}}, httputil.Streamed())
 }
 
 func providerObject(value string) map[string]string {
@@ -363,13 +364,8 @@ func sendText(w http.ResponseWriter, status int, body string) {
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, body)
 }
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
 func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, map[string]string{"error": err.Error()})
+	httputil.WriteJSON(w, status, map[string]string{"error": err.Error()}, httputil.Streamed())
 }
 
 func queryValue(r *http.Request, key, fallback string) string {

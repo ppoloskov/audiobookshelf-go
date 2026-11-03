@@ -26,6 +26,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
@@ -329,7 +330,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		s.AudioTracks = makeDirectTracks(s, item)
 	} else {
 		if _, err := exec.LookPath(ffmpegExecutable()); err != nil {
-			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
+			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 			return
 		}
 		t, err := h.startTranscode(s, item, start)
@@ -349,7 +350,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
 	h.emit("@admins", "user_stream_update", h.publicUser(user, s))
-	writeJSON(w, http.StatusOK, s.clientJSON())
+	httputil.WriteJSON(w, http.StatusOK, s.clientJSON())
 }
 
 func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData, error) {
@@ -725,7 +726,7 @@ func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request, user 
 	if s == nil {
 		return
 	}
-	writeJSON(w, 200, s.clientJSON())
+	httputil.WriteJSON(w, 200, s.clientJSON())
 }
 
 func (h *Handler) openSession(w http.ResponseWriter, r *http.Request, user store.User, id string) *session {
@@ -1055,7 +1056,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 	if userFilter != "" {
 		payload["userId"] = userFilter
 	}
-	writeJSON(w, 200, payload)
+	httputil.WriteJSON(w, 200, payload)
 }
 
 func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -1067,7 +1068,7 @@ func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request, use
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
+	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
 }
 
 // OpenSessions returns the current in-memory playback sessions in the same
@@ -1222,7 +1223,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 			results = append(results, result)
 		}
 	}
-	writeJSON(w, 200, map[string]any{"results": results})
+	httputil.WriteJSON(w, 200, map[string]any{"results": results})
 }
 
 func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[string]any, deviceDBID string, device map[string]any) (map[string]any, string) {
@@ -2162,18 +2163,6 @@ func segmentNumber(name string) (int, bool) {
 }
 func methodNotAllowed(w http.ResponseWriter) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-}
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	b, err := json.Marshal(value)
-	if err != nil {
-		logging.Errorf("[playback] writeJSON: Internal Server Error: %v", err)
-		http.Error(w, "Internal Server Error", 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(b)))
-	w.WriteHeader(status)
-	_, _ = w.Write(b)
 }
 
 // sendStatus is Express res.sendStatus: the status text as a text/plain body.

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/robfig/cron/v3"
@@ -215,7 +216,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 	}
 	if p == "/backups" && r.Method == http.MethodGet {
 		opt := h.options()
-		writeJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet})
+		httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet}, httputil.WithoutContentLength())
 		return true
 	}
 	if p == "/backups" && r.Method == http.MethodPost {
@@ -224,7 +225,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 			http.Error(w, "backup failed", 500)
 			return true
 		}
-		writeJSON(w, 200, map[string]any{"backups": h.list()})
+		httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
 		return true
 	}
 	if p == "/backups/upload" && r.Method == http.MethodPost {
@@ -423,7 +424,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 		h.backups = append(h.backups, b)
 	}
 	h.mu.Unlock()
-	writeJSON(w, 200, map[string]any{"backups": h.list()})
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
 }
 
 func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
@@ -467,7 +468,7 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to reload backup path", 500)
 		return
 	}
-	writeJSON(w, 200, "OK")
+	httputil.WriteJSON(w, 200, "OK", httputil.WithoutContentLength())
 }
 
 func (h *Handler) delete(w http.ResponseWriter, b Backup) {
@@ -481,7 +482,7 @@ func (h *Handler) delete(w http.ResponseWriter, b Backup) {
 	}
 	h.backups = next
 	h.mu.Unlock()
-	writeJSON(w, 200, map[string]any{"backups": h.list()})
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
 }
 
 func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
@@ -807,17 +808,6 @@ func extractEntry(f *zip.File, dest string) error {
 }
 
 func (h *Handler) emit(user, event string, payload any) { h.emitFunc(user, event, payload) }
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		logging.Errorf("[backup] writeJSON: internal server error: %v", err)
-		http.Error(w, "internal server error", 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write(b)
-}
 
 // sendStatus mirrors Express res.sendStatus: status text, text/plain, no newline.
 func sendStatus(w http.ResponseWriter, status int) {

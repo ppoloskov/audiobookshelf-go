@@ -232,7 +232,7 @@ creates them.
   - Change: Delete both copies and call `httputil`.
   - Done when: ratchet `writeJSON-style copies` goes from 10 to <= 8.
 
-- [ ] K3: Move the `writeJSON` copies in `providers`, `playback` and `backup` to `httputil`
+- [x] K3: Move the `writeJSON` copies in `providers`, `playback` and `backup` to `httputil`
   - Files: `go-backend/internal/providers/handler.go` (line 366);
     `go-backend/internal/playback/playback.go` (line 2166);
     `go-backend/internal/backup/backup.go` (line 810)
