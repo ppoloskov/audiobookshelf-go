@@ -391,8 +391,8 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
-		logging.RequestDebug(r, "responding 500: query parameter q is missing")
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
+		// TS SearchController.findAuthor: a missing required parameter is a ValidationError, 400.
+		httputil.ErrorJSON(w, http.StatusBadRequest, `Query parameter "q" is required`, httputil.Streamed())
 		return
 	}
 	if name == "" {
