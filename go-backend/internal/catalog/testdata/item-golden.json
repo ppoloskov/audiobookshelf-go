@@ -1,0 +1,964 @@
+{
+  "i1": {
+    "itemJSON": {
+      "addedAt": 1704067200000,
+      "birthtimeMs": 1704067200000,
+      "ctimeMs": 1704067200000,
+      "folderId": "f1",
+      "id": "i1",
+      "ino": "ino-1",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "libraryFiles": [],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [
+          {
+            "duration": 12.5,
+            "exclude": false,
+            "ino": "audio-1",
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".mp3",
+              "filename": "01.mp3",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/01.mp3",
+              "relPath": "01.mp3",
+              "size": 100
+            },
+            "mimeType": "audio/mpeg"
+          }
+        ],
+        "chapters": [
+          {
+            "end": 12.5,
+            "id": 0,
+            "start": 0,
+            "title": "Chapter 1"
+          }
+        ],
+        "coverPath": "/metadata/covers/b1.jpg",
+        "ebookFile": null,
+        "id": "b1",
+        "libraryItemId": "i1",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "a1",
+              "name": "Ada Author"
+            }
+          ],
+          "description": "\u003cp\u003eA story\u003c/p\u003e",
+          "explicit": false,
+          "genres": [
+            "fiction"
+          ],
+          "isbn": null,
+          "language": "en",
+          "narrators": [
+            "Reader"
+          ],
+          "publishedDate": null,
+          "publishedYear": "2024",
+          "publisher": null,
+          "series": [
+            {
+              "id": "s1",
+              "name": "First Series",
+              "sequence": "1"
+            },
+            {
+              "id": "s2",
+              "name": "Second Series",
+              "sequence": null
+            }
+          ],
+          "subtitle": null,
+          "title": "The Book"
+        },
+        "tags": [
+          "tag"
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704067200000,
+      "oldLibraryItemId": null,
+      "path": "/media/books/The Book",
+      "relPath": "The Book",
+      "scanVersion": null,
+      "updatedAt": 1704153600000
+    },
+    "itemJSONExpanded": {
+      "addedAt": 1704067200000,
+      "birthtimeMs": 1704067200000,
+      "ctimeMs": 1704067200000,
+      "folderId": "f1",
+      "id": "i1",
+      "ino": "ino-1",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "lastScan": null,
+      "libraryFiles": [],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [
+          {
+            "duration": 12.5,
+            "exclude": false,
+            "ino": "audio-1",
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".mp3",
+              "filename": "01.mp3",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/01.mp3",
+              "relPath": "01.mp3",
+              "size": 100
+            },
+            "mimeType": "audio/mpeg"
+          }
+        ],
+        "chapters": [
+          {
+            "end": 12.5,
+            "id": 0,
+            "start": 0,
+            "title": "Chapter 1"
+          }
+        ],
+        "coverPath": "/metadata/covers/b1.jpg",
+        "duration": 12.5,
+        "ebookFile": null,
+        "id": "b1",
+        "libraryItemId": "i1",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authorName": "Ada Author",
+          "authorNameLF": "Author, Ada",
+          "authors": [
+            {
+              "id": "a1",
+              "name": "Ada Author"
+            }
+          ],
+          "description": "\u003cp\u003eA story\u003c/p\u003e",
+          "descriptionPlain": "A story",
+          "explicit": false,
+          "genres": [
+            "fiction"
+          ],
+          "isbn": null,
+          "language": "en",
+          "narratorName": "Reader",
+          "narrators": [
+            "Reader"
+          ],
+          "publishedDate": null,
+          "publishedYear": "2024",
+          "publisher": null,
+          "series": [
+            {
+              "id": "s1",
+              "name": "First Series",
+              "sequence": "1"
+            },
+            {
+              "id": "s2",
+              "name": "Second Series",
+              "sequence": null
+            }
+          ],
+          "seriesName": "First Series #1, Second Series",
+          "subtitle": null,
+          "title": "The Book",
+          "titleIgnorePrefix": "Book, The"
+        },
+        "numAudioFiles": 1,
+        "numChapters": 1,
+        "numTracks": 1,
+        "size": 100,
+        "tags": [
+          "tag"
+        ],
+        "tracks": [
+          {
+            "contentUrl": "/api/items/i1/file/audio-1",
+            "duration": 12.5,
+            "exclude": false,
+            "ino": "audio-1",
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".mp3",
+              "filename": "01.mp3",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/01.mp3",
+              "relPath": "01.mp3",
+              "size": 100
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "01.mp3"
+          }
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704067200000,
+      "numFiles": 0,
+      "oldLibraryItemId": null,
+      "path": "/media/books/The Book",
+      "relPath": "The Book",
+      "scanVersion": null,
+      "size": 100,
+      "updatedAt": 1704153600000
+    },
+    "itemMinifiedJSON": {
+      "addedAt": 1704067200000,
+      "birthtimeMs": 1704067200000,
+      "ctimeMs": 1704067200000,
+      "folderId": "f1",
+      "id": "i1",
+      "ino": "ino-1",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "libraryId": "l1",
+      "media": {
+        "coverPath": "/metadata/covers/b1.jpg",
+        "duration": 12.5,
+        "id": "b1",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authorName": "Ada Author",
+          "authorNameLF": "Author, Ada",
+          "description": "\u003cp\u003eA story\u003c/p\u003e",
+          "explicit": false,
+          "genres": [
+            "fiction"
+          ],
+          "isbn": null,
+          "language": "en",
+          "narratorName": "Reader",
+          "publishedDate": null,
+          "publishedYear": "2024",
+          "publisher": null,
+          "seriesName": "First Series #1, Second Series",
+          "subtitle": null,
+          "title": "The Book",
+          "titleIgnorePrefix": "Book, The"
+        },
+        "numAudioFiles": 1,
+        "numChapters": 1,
+        "numTracks": 1,
+        "size": 100,
+        "tags": [
+          "tag"
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704067200000,
+      "numFiles": 0,
+      "oldLibraryItemId": null,
+      "path": "/media/books/The Book",
+      "relPath": "The Book",
+      "size": 100,
+      "updatedAt": 1704153600000
+    }
+  },
+  "i2": {
+    "itemJSON": {
+      "addedAt": 1704240000000,
+      "birthtimeMs": 1704240000000,
+      "ctimeMs": 1704240000000,
+      "folderId": "f1",
+      "id": "i2",
+      "ino": "ino-2",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "libraryFiles": [],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 100.25,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 1,
+            "ino": "audio-2a",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {
+              "tagTitle": "An Edge Case"
+            },
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "01.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/01.m4b",
+              "relPath": "01.m4b",
+              "size": 200
+            },
+            "mimeType": "audio/mp4",
+            "timeBase": "1/44100",
+            "trackNumFromFilename": 1,
+            "trackNumFromMeta": 1,
+            "updatedAt": 1704067200000
+          },
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 50.5,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 2,
+            "ino": "audio-2b",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {},
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "02.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/02.m4b",
+              "relPath": "02.m4b",
+              "size": 300
+            },
+            "mimeType": "audio/mp4",
+            "timeBase": "1/44100",
+            "trackNumFromFilename": 2,
+            "trackNumFromMeta": 2,
+            "updatedAt": 1704067200000
+          }
+        ],
+        "chapters": [
+          {
+            "end": 100.25,
+            "id": 0,
+            "start": 0,
+            "title": "One"
+          },
+          {
+            "end": 150.75,
+            "id": 1,
+            "start": 100.25,
+            "title": "Two"
+          }
+        ],
+        "coverPath": null,
+        "ebookFile": null,
+        "id": "b2",
+        "libraryItemId": "i2",
+        "metadata": {
+          "abridged": true,
+          "asin": "B000000002",
+          "authors": [
+            {
+              "id": "a1",
+              "name": "Ada Author"
+            },
+            {
+              "id": "a2",
+              "name": "Bo Second"
+            }
+          ],
+          "description": null,
+          "explicit": true,
+          "genres": [
+            "Fantasy",
+            "Sci-Fi \u0026 Fantasy"
+          ],
+          "isbn": "9780000000002",
+          "language": null,
+          "narrators": [
+            "Reader One",
+            "Reader Two"
+          ],
+          "publishedDate": "2020-02-29",
+          "publishedYear": null,
+          "publisher": "Pub House",
+          "series": [
+            {
+              "id": "s1",
+              "name": "First Series",
+              "sequence": ""
+            },
+            {
+              "id": "s2",
+              "name": "Second Series",
+              "sequence": "2.5"
+            }
+          ],
+          "subtitle": "A subtitle",
+          "title": "An Edge Case"
+        },
+        "tags": [
+          "tag-a",
+          "tag-b"
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704240000000,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Edge",
+      "relPath": "Edge",
+      "scanVersion": null,
+      "updatedAt": 1704326400000
+    },
+    "itemJSONExpanded": {
+      "addedAt": 1704240000000,
+      "birthtimeMs": 1704240000000,
+      "ctimeMs": 1704240000000,
+      "folderId": "f1",
+      "id": "i2",
+      "ino": "ino-2",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "lastScan": null,
+      "libraryFiles": [],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 100.25,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 1,
+            "ino": "audio-2a",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {
+              "tagTitle": "An Edge Case"
+            },
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "01.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/01.m4b",
+              "relPath": "01.m4b",
+              "size": 200
+            },
+            "mimeType": "audio/mp4",
+            "timeBase": "1/44100",
+            "trackNumFromFilename": 1,
+            "trackNumFromMeta": 1,
+            "updatedAt": 1704067200000
+          },
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 50.5,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 2,
+            "ino": "audio-2b",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {},
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "02.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/02.m4b",
+              "relPath": "02.m4b",
+              "size": 300
+            },
+            "mimeType": "audio/mp4",
+            "timeBase": "1/44100",
+            "trackNumFromFilename": 2,
+            "trackNumFromMeta": 2,
+            "updatedAt": 1704067200000
+          }
+        ],
+        "chapters": [
+          {
+            "end": 100.25,
+            "id": 0,
+            "start": 0,
+            "title": "One"
+          },
+          {
+            "end": 150.75,
+            "id": 1,
+            "start": 100.25,
+            "title": "Two"
+          }
+        ],
+        "coverPath": null,
+        "duration": 0,
+        "ebookFile": null,
+        "id": "b2",
+        "libraryItemId": "i2",
+        "metadata": {
+          "abridged": true,
+          "asin": "B000000002",
+          "authorName": "Ada Author, Bo Second",
+          "authorNameLF": "Author, Ada, Second, Bo",
+          "authors": [
+            {
+              "id": "a1",
+              "name": "Ada Author"
+            },
+            {
+              "id": "a2",
+              "name": "Bo Second"
+            }
+          ],
+          "description": null,
+          "descriptionPlain": null,
+          "explicit": true,
+          "genres": [
+            "Fantasy",
+            "Sci-Fi \u0026 Fantasy"
+          ],
+          "isbn": "9780000000002",
+          "language": null,
+          "narratorName": "Reader One, Reader Two",
+          "narrators": [
+            "Reader One",
+            "Reader Two"
+          ],
+          "publishedDate": "2020-02-29",
+          "publishedYear": null,
+          "publisher": "Pub House",
+          "series": [
+            {
+              "id": "s1",
+              "name": "First Series",
+              "sequence": ""
+            },
+            {
+              "id": "s2",
+              "name": "Second Series",
+              "sequence": "2.5"
+            }
+          ],
+          "seriesName": "First Series, Second Series #2.5",
+          "subtitle": "A subtitle",
+          "title": "An Edge Case",
+          "titleIgnorePrefix": "An Edge Case"
+        },
+        "numAudioFiles": 2,
+        "numChapters": 2,
+        "numTracks": 2,
+        "size": 500,
+        "tags": [
+          "tag-a",
+          "tag-b"
+        ],
+        "tracks": [
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "contentUrl": "/api/items/i2/file/audio-2a",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 100.25,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 1,
+            "ino": "audio-2a",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {
+              "tagTitle": "An Edge Case"
+            },
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "01.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/01.m4b",
+              "relPath": "01.m4b",
+              "size": 200
+            },
+            "mimeType": "audio/mp4",
+            "startOffset": 0,
+            "timeBase": "1/44100",
+            "title": "01.m4b",
+            "trackNumFromFilename": 1,
+            "trackNumFromMeta": 1,
+            "updatedAt": 1704067200000
+          },
+          {
+            "addedAt": 1704067200000,
+            "bitRate": 64000,
+            "channelLayout": "stereo",
+            "channels": 2,
+            "chapters": [],
+            "codec": "aac",
+            "contentUrl": "/api/items/i2/file/audio-2b",
+            "discNumFromFilename": null,
+            "discNumFromMeta": null,
+            "duration": 50.5,
+            "embeddedCoverArt": null,
+            "format": "MPEG-4",
+            "index": 2,
+            "ino": "audio-2b",
+            "language": null,
+            "manuallyVerified": false,
+            "metaTags": {},
+            "metadata": {
+              "birthtimeMs": 1704067200000,
+              "ctimeMs": 1704067200000,
+              "ext": ".m4b",
+              "filename": "02.m4b",
+              "mtimeMs": 1704067200000,
+              "path": "/media/books/Edge/02.m4b",
+              "relPath": "02.m4b",
+              "size": 300
+            },
+            "mimeType": "audio/mp4",
+            "startOffset": 100.25,
+            "timeBase": "1/44100",
+            "title": "02.m4b",
+            "trackNumFromFilename": 2,
+            "trackNumFromMeta": 2,
+            "updatedAt": 1704067200000
+          }
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704240000000,
+      "numFiles": 0,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Edge",
+      "relPath": "Edge",
+      "scanVersion": null,
+      "size": 500,
+      "updatedAt": 1704326400000
+    },
+    "itemMinifiedJSON": {
+      "addedAt": 1704240000000,
+      "birthtimeMs": 1704240000000,
+      "ctimeMs": 1704240000000,
+      "folderId": "f1",
+      "id": "i2",
+      "ino": "ino-2",
+      "isFile": false,
+      "isInvalid": false,
+      "isMissing": false,
+      "libraryId": "l1",
+      "media": {
+        "coverPath": null,
+        "duration": 0,
+        "id": "b2",
+        "metadata": {
+          "abridged": true,
+          "asin": "B000000002",
+          "authorName": "Ada Author, Bo Second",
+          "authorNameLF": "Author, Ada, Second, Bo",
+          "description": null,
+          "explicit": true,
+          "genres": [
+            "Fantasy",
+            "Sci-Fi \u0026 Fantasy"
+          ],
+          "isbn": "9780000000002",
+          "language": null,
+          "narratorName": "Reader One, Reader Two",
+          "publishedDate": "2020-02-29",
+          "publishedYear": null,
+          "publisher": "Pub House",
+          "seriesName": "First Series, Second Series #2.5",
+          "subtitle": "A subtitle",
+          "title": "An Edge Case",
+          "titleIgnorePrefix": "An Edge Case"
+        },
+        "numAudioFiles": 2,
+        "numChapters": 2,
+        "numTracks": 2,
+        "size": 500,
+        "tags": [
+          "tag-a",
+          "tag-b"
+        ]
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704240000000,
+      "numFiles": 0,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Edge",
+      "relPath": "Edge",
+      "size": 500,
+      "updatedAt": 1704326400000
+    }
+  },
+  "i3": {
+    "itemJSON": {
+      "addedAt": 1704412800000,
+      "birthtimeMs": 1704412800000,
+      "ctimeMs": 1704412800000,
+      "folderId": "f1",
+      "id": "i3",
+      "ino": "ino-3",
+      "isFile": false,
+      "isInvalid": true,
+      "isMissing": true,
+      "lastScan": 1704499200000,
+      "libraryFiles": [
+        {
+          "addedAt": 1704067200000,
+          "fileType": "ebook",
+          "ino": "ebook-3",
+          "isSupplementary": false,
+          "metadata": {
+            "birthtimeMs": 1704067200000,
+            "ctimeMs": 1704067200000,
+            "ext": ".epub",
+            "filename": "b.epub",
+            "mtimeMs": 1704067200000,
+            "path": "/media/books/Ebook/b.epub",
+            "relPath": "b.epub",
+            "size": 50
+          },
+          "updatedAt": 1704067200000
+        }
+      ],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [],
+        "chapters": [],
+        "coverPath": null,
+        "ebookFile": {
+          "addedAt": 1704067200000,
+          "ebookFormat": "epub",
+          "ino": "ebook-3",
+          "metadata": {
+            "birthtimeMs": 1704067200000,
+            "ctimeMs": 1704067200000,
+            "ext": ".epub",
+            "filename": "b.epub",
+            "mtimeMs": 1704067200000,
+            "path": "/media/books/Ebook/b.epub",
+            "relPath": "b.epub",
+            "size": 50
+          },
+          "updatedAt": 1704067200000
+        },
+        "id": "b3",
+        "libraryItemId": "i3",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [],
+          "description": "Plain text",
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": "de",
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Ebook Only"
+        },
+        "tags": []
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704412800000,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Ebook",
+      "relPath": "Ebook",
+      "scanVersion": "2.3.0",
+      "updatedAt": 1704499200000
+    },
+    "itemJSONExpanded": {
+      "addedAt": 1704412800000,
+      "birthtimeMs": 1704412800000,
+      "ctimeMs": 1704412800000,
+      "folderId": "f1",
+      "id": "i3",
+      "ino": "ino-3",
+      "isFile": false,
+      "isInvalid": true,
+      "isMissing": true,
+      "lastScan": 1704499200000,
+      "libraryFiles": [
+        {
+          "addedAt": 1704067200000,
+          "fileType": "ebook",
+          "ino": "ebook-3",
+          "isSupplementary": false,
+          "metadata": {
+            "birthtimeMs": 1704067200000,
+            "ctimeMs": 1704067200000,
+            "ext": ".epub",
+            "filename": "b.epub",
+            "mtimeMs": 1704067200000,
+            "path": "/media/books/Ebook/b.epub",
+            "relPath": "b.epub",
+            "size": 50
+          },
+          "updatedAt": 1704067200000
+        }
+      ],
+      "libraryId": "l1",
+      "media": {
+        "audioFiles": [],
+        "chapters": [],
+        "coverPath": null,
+        "duration": null,
+        "ebookFile": {
+          "addedAt": 1704067200000,
+          "ebookFormat": "epub",
+          "ino": "ebook-3",
+          "metadata": {
+            "birthtimeMs": 1704067200000,
+            "ctimeMs": 1704067200000,
+            "ext": ".epub",
+            "filename": "b.epub",
+            "mtimeMs": 1704067200000,
+            "path": "/media/books/Ebook/b.epub",
+            "relPath": "b.epub",
+            "size": 50
+          },
+          "updatedAt": 1704067200000
+        },
+        "ebookFormat": "epub",
+        "id": "b3",
+        "libraryItemId": "i3",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authorName": "",
+          "authorNameLF": "",
+          "authors": [],
+          "description": "Plain text",
+          "descriptionPlain": "Plain text",
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": "de",
+          "narratorName": "",
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "seriesName": "",
+          "subtitle": null,
+          "title": "Ebook Only",
+          "titleIgnorePrefix": "Ebook Only"
+        },
+        "numAudioFiles": 0,
+        "numChapters": 0,
+        "numTracks": 0,
+        "size": 50,
+        "tags": [],
+        "tracks": []
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704412800000,
+      "numFiles": 1,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Ebook",
+      "relPath": "Ebook",
+      "scanVersion": "2.3.0",
+      "size": 50,
+      "updatedAt": 1704499200000
+    },
+    "itemMinifiedJSON": {
+      "addedAt": 1704412800000,
+      "birthtimeMs": 1704412800000,
+      "ctimeMs": 1704412800000,
+      "folderId": "f1",
+      "id": "i3",
+      "ino": "ino-3",
+      "isFile": false,
+      "isInvalid": true,
+      "isMissing": true,
+      "libraryId": "l1",
+      "media": {
+        "coverPath": null,
+        "duration": null,
+        "ebookFormat": "epub",
+        "id": "b3",
+        "metadata": {
+          "abridged": false,
+          "asin": null,
+          "authorName": "",
+          "authorNameLF": "",
+          "description": "Plain text",
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": "de",
+          "narratorName": "",
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "seriesName": "",
+          "subtitle": null,
+          "title": "Ebook Only",
+          "titleIgnorePrefix": "Ebook Only"
+        },
+        "numAudioFiles": 0,
+        "numChapters": 0,
+        "numTracks": 0,
+        "size": 50,
+        "tags": []
+      },
+      "mediaType": "book",
+      "mtimeMs": 1704412800000,
+      "numFiles": 1,
+      "oldLibraryItemId": null,
+      "path": "/media/books/Ebook",
+      "relPath": "Ebook",
+      "size": 50,
+      "updatedAt": 1704499200000
+    }
+  }
+}

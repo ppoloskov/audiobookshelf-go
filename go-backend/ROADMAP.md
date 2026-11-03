@@ -522,7 +522,7 @@ opaque stays `json.RawMessage` and is documented as opaque.
   - Done when: `cd go-backend && go run ./tools/ratchet` prints a `[]any` line
     and the baseline has the new key.
 
-- [ ] T1: Capture golden outputs for `ItemJSON` and `ItemMinifiedJSON` for every fixture item
+- [x] T1: Capture golden outputs for `ItemJSON` and `ItemMinifiedJSON` for every fixture item
   - Files: `go-backend/internal/catalog/handler.go` (`ItemJSON` line 2662,
     `ItemMinifiedJSON` line 2697); new `go-backend/internal/catalog/item_golden_test.go`
     and a `testdata/` golden
