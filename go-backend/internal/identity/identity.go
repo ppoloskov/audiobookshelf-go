@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -36,6 +37,7 @@ import (
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -56,7 +58,8 @@ type Handler struct {
 	rateWindow       time.Duration
 	rateMessage      string
 	rateMu           sync.Mutex
-	rateBuckets      map[string]rateBucket
+	rateLimiters     map[string]*rate.Limiter
+	rateSwept        time.Time
 	oidcMu           sync.Mutex
 	oidcFlows        map[string]oidcFlow
 	mobileFlows      map[string]mobileFlow
@@ -66,11 +69,6 @@ type Handler struct {
 // Runtime composition supplies the shared Socket.IO hub before serving requests.
 func (h *Handler) SetUserAddedEmitter(emit func(map[string]any)) {
 	h.userAddedEmitter = emit
-}
-
-type rateBucket struct {
-	started time.Time
-	count   int
 }
 
 type session struct {
@@ -137,7 +135,7 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 		rateMax:      intFromEnv("RATE_LIMIT_AUTH_MAX", 40, true),
 		rateWindow:   time.Duration(intFromEnv("RATE_LIMIT_AUTH_WINDOW", 10*60*1000, false)) * time.Millisecond,
 		rateMessage:  envString("RATE_LIMIT_AUTH_MESSAGE", "Too many authentication requests"),
-		rateBuckets:  make(map[string]rateBucket),
+		rateLimiters: make(map[string]*rate.Limiter),
 		oidcFlows:    make(map[string]oidcFlow),
 		mobileFlows:  make(map[string]mobileFlow),
 	}
@@ -174,6 +172,9 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 	}
 	return h, nil
 }
+
+// TokenSecret returns the key that signs and verifies this server's JWTs.
+func (h *Handler) TokenSecret() []byte { return h.secret }
 
 // Handle consumes the local identity endpoints and /api/authorize. Paths may
 // be passed with or without the configured router prefix.
@@ -656,23 +657,11 @@ func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duratio
 	}
 	now := time.Now().Unix()
 	payload := map[string]any{"userId": user.ID, "username": user.Username, "jti": jti, "type": tokenType, "iat": now, "exp": now + int64(ttl.Seconds())}
-	return h.sign(payload)
+	return auth.Sign(h.secret, payload)
 }
 
 func (h *Handler) issueLegacyToken(id, username string) (string, error) {
-	return h.sign(map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
-}
-
-func (h *Handler) sign(payload any) (string, error) {
-	header, _ := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	input := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(body)
-	mac := hmac.New(sha256.New, h.secret)
-	_, _ = mac.Write([]byte(input))
-	return input + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)), nil
+	return auth.Sign(h.secret, map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
 }
 
 func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string]any, error) {
@@ -1086,29 +1075,30 @@ func envString(name, fallback string) string {
 	return fallback
 }
 
+// allowAuthRequest spends a token from the client's bucket: a burst of rateMax
+// refilled at rateMax per rateWindow, the practical limit of TS's fixed window
+// (express-rate-limit), which also admits up to 2x across a window boundary.
 func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool {
-	if h.rateMax == 0 || h.rateMax < 0 || h.rateWindow <= 0 {
+	if h.rateMax <= 0 || h.rateWindow <= 0 {
 		return true
 	}
-	now := time.Now()
 	key := clientIP(r)
 	h.rateMu.Lock()
-	bucket := h.rateBuckets[key]
-	if bucket.started.IsZero() || now.Sub(bucket.started) >= h.rateWindow {
-		bucket = rateBucket{started: now}
+	if time.Since(h.rateSwept) >= h.rateWindow {
+		h.rateSwept = time.Now()
+		// A full bucket is what a new client gets, so forgetting it changes nothing.
+		maps.DeleteFunc(h.rateLimiters, func(_ string, l *rate.Limiter) bool { return l.Tokens() >= float64(l.Burst()) })
 	}
-	bucket.count++
-	h.rateBuckets[key] = bucket
-	count := bucket.count
-	reset := int(math.Ceil(math.Max(0, h.rateWindow.Seconds()-now.Sub(bucket.started).Seconds())))
+	lim := h.rateLimiters[key]
+	if lim == nil {
+		lim = rate.NewLimiter(rate.Limit(float64(h.rateMax)/h.rateWindow.Seconds()), h.rateMax)
+		h.rateLimiters[key] = lim
+	}
+	allowed, tokens := lim.Allow(), lim.Tokens()
 	h.rateMu.Unlock()
-	remaining := h.rateMax - count
-	if remaining < 0 {
-		remaining = 0
-	}
 	w.Header().Set("RateLimit-Policy", fmt.Sprintf("%d;w=%d", h.rateMax, int(h.rateWindow.Seconds())))
-	w.Header().Set("RateLimit", fmt.Sprintf("limit=%d, remaining=%d, reset=%d", h.rateMax, remaining, reset))
-	if count <= h.rateMax {
+	w.Header().Set("RateLimit", fmt.Sprintf("limit=%d, remaining=%d, reset=%d", h.rateMax, int(tokens), int(math.Ceil((float64(lim.Burst())-tokens)/float64(lim.Limit())))))
+	if allowed {
 		return true
 	}
 	httputil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})

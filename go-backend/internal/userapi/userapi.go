@@ -4,10 +4,7 @@ package userapi
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"html"
@@ -19,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -34,7 +31,7 @@ import (
 
 type Handler struct {
 	db                 *sql.DB
-	cfg                config.Config
+	tokenSecret        []byte
 	emit               events.Emitter
 	items              items.Reader
 	invalidateSessions func(context.Context, string, string) (string, string, error)
@@ -44,14 +41,16 @@ type Handler struct {
 	openSessions       func() []map[string]any
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any), itemReader items.Reader) (*Handler, error) {
+// New takes the token secret identity resolved at startup, so both packages
+// sign with the same key.
+func New(db *sql.DB, tokenSecret []byte, emit func(userID, event string, payload any), itemReader items.Reader) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
 	}
 	if itemReader == nil {
 		return nil, errors.New("userapi: item reader is nil")
 	}
-	return &Handler{db: db, cfg: cfg, emit: events.Emitter(emit), items: itemReader}, nil
+	return &Handler{db: db, tokenSecret: tokenSecret, emit: events.Emitter(emit), items: itemReader}, nil
 }
 
 func (h *Handler) SetCredentialHooks(invalidate func(context.Context, string, string) (string, string, error), changePassword func(context.Context, string, string, string) error, setCookie func(http.ResponseWriter, *http.Request, string)) {
@@ -2088,36 +2087,7 @@ func parseDateString(value string) time.Time {
 func (h *Handler) signToken(payload map[string]any) (string, error) {
 	// jsonwebtoken's default iat is the current Unix time in seconds.
 	payload["iat"] = time.Now().Unix()
-	secret := []byte(h.cfg.JWTSecret)
-	if len(secret) == 0 {
-		var raw []byte
-		if err := h.db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-			return "", err
-		}
-		var settings map[string]any
-		if err := json.Unmarshal(raw, &settings); err != nil {
-			return "", err
-		}
-		secret, _ = settings["tokenSecret"].([]byte)
-		if secret == nil {
-			if s, ok := settings["tokenSecret"].(string); ok {
-				secret = []byte(s)
-			}
-		}
-	}
-	if len(secret) == 0 {
-		return "", errors.New("missing token secret")
-	}
-	enc := base64.RawURLEncoding.EncodeToString
-	header, _ := json.Marshal(map[string]string{"alg": "HS256", "typ": "JWT"})
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	unsigned := enc(header) + "." + enc(body)
-	mac := hmac.New(sha256.New, secret)
-	_, _ = mac.Write([]byte(unsigned))
-	return unsigned + "." + enc(mac.Sum(nil)), nil
+	return auth.Sign(h.tokenSecret, payload)
 }
 
 type itemAccess struct{ exists, allowed bool }

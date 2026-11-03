@@ -1,23 +1,17 @@
-// Package auth contains read-only JWT validation primitives for the Go server.
+// Package auth issues and verifies the JWTs that the TS server also accepts:
+// HS256 over one shared secret, with upstream's claim names. It is the only
+// package that signs or verifies tokens.
 //
-// This package validates bearer token structure, HMAC signatures, and standard
-// time claims. It does not issue tokens, authenticate logins, look up users or
-// API keys, or authorize database access; callers must perform those checks.
+// It does not authenticate logins, look up users or API keys, or authorize
+// database access; callers must perform those checks.
 package auth
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
-	"io"
-	"math"
-	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
@@ -25,6 +19,10 @@ var (
 	ErrExpired      = errors.New("token expired")
 	ErrNotYetValid  = errors.New("token not yet valid")
 )
+
+// signingAlgorithm is the only algorithm upstream issues and the only one this
+// package accepts.
+const signingAlgorithm = "HS256"
 
 // Claims contains the commonly used Audiobookshelf token fields. Raw retains
 // all decoded payload claims, with JSON numbers represented as json.Number.
@@ -42,10 +40,18 @@ type Claims struct {
 	Raw       map[string]any
 }
 
-// ValidateBearer checks a compact JWT signed using one of jsonwebtoken's
-// default symmetric algorithms (HS256, HS384, or HS512). It rejects refresh
-// credentials because they cannot authenticate bearer requests in upstream.
-// API-key token types are returned for the caller to resolve and authorize.
+// Sign issues an HS256 token over payload with secret. The caller sets iat,
+// exp and the other claims; Sign adds none.
+func Sign(secret []byte, payload map[string]any) (string, error) {
+	if len(secret) == 0 {
+		return "", errors.New("auth: empty signing secret")
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(payload)).SignedString(secret)
+}
+
+// ValidateBearer checks a compact HS256 JWT. It rejects refresh credentials
+// because they cannot authenticate bearer requests in upstream. API-key token
+// types are returned for the caller to resolve and authorize.
 func ValidateBearer(token string, secret []byte, now time.Time) (Claims, error) {
 	claims, err := ValidateToken(token, secret, now)
 	if err != nil {
@@ -76,45 +82,18 @@ func validateToken(token string, secret []byte, now time.Time, enforceExpiration
 	if token == "" || len(secret) == 0 {
 		return empty, ErrInvalidToken
 	}
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return empty, ErrInvalidToken
+	options := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{signingAlgorithm}),
+		jwt.WithJSONNumber(),
+		jwt.WithTimeFunc(func() time.Time { return now }),
 	}
-
-	headerBytes, err := decodeSegment(parts[0])
-	if err != nil {
-		return empty, ErrInvalidToken
+	if !enforceExpiration {
+		options = append(options, jwt.WithoutClaimsValidation())
 	}
-	var header map[string]any
-	if err := decodeJSONObject(headerBytes, &header); err != nil {
-		return empty, ErrInvalidToken
-	}
-	alg, ok := header["alg"].(string)
-	if !ok {
-		return empty, ErrInvalidToken
-	}
-	newHash, err := hashForAlgorithm(alg)
-	if err != nil {
-		return empty, err
-	}
-
-	signature, err := decodeSegment(parts[2])
-	if err != nil {
-		return empty, ErrInvalidToken
-	}
-	mac := hmac.New(newHash, secret)
-	_, _ = mac.Write([]byte(parts[0] + "." + parts[1]))
-	if !hmac.Equal(signature, mac.Sum(nil)) {
-		return empty, ErrInvalidToken
-	}
-
-	payloadBytes, err := decodeSegment(parts[1])
-	if err != nil {
-		return empty, ErrInvalidToken
-	}
-	var payload map[string]any
-	if err := decodeJSONObject(payloadBytes, &payload); err != nil {
-		return empty, ErrInvalidToken
+	payload := jwt.MapClaims{}
+	keyFunc := func(*jwt.Token) (any, error) { return secret, nil }
+	if _, err := jwt.NewParser(options...).ParseWithClaims(token, payload, keyFunc); err != nil {
+		return empty, parseError(err)
 	}
 
 	username, ok := optionalString(payload, "username")
@@ -142,95 +121,45 @@ func validateToken(token string, secret []byte, now time.Time, enforceExpiration
 	}
 
 	claims := Claims{UserID: userID, Username: username, Type: tokenType, JTI: jti, KeyID: keyID, Raw: payload}
-	for _, dateClaim := range []struct {
-		name string
+	for _, date := range []struct {
+		get  func() (*jwt.NumericDate, error)
 		dest **time.Time
-	}{{"exp", &claims.ExpiresAt}, {"nbf", &claims.NotBefore}, {"iat", &claims.IssuedAt}} {
-		seconds, present, err := numericDate(payload, dateClaim.name)
+	}{{payload.GetExpirationTime, &claims.ExpiresAt}, {payload.GetNotBefore, &claims.NotBefore}, {payload.GetIssuedAt, &claims.IssuedAt}} {
+		d, err := date.get()
 		if err != nil {
-			return empty, err
+			return empty, fmt.Errorf("%w: invalid date claim: %v", ErrInvalidToken, err)
 		}
-		if present {
-			t := time.Unix(int64(math.Floor(seconds)), fractionalNanos(seconds)).UTC()
-			*dateClaim.dest = &t
+		if d != nil {
+			t := d.Time
+			*date.dest = &t
 		}
-		if enforceExpiration && dateClaim.name == "exp" && present && nowUnixSeconds(now) >= seconds {
-			return empty, ErrExpired
-		}
-		if dateClaim.name == "nbf" && present && seconds > nowUnixSeconds(now) {
-			return empty, ErrNotYetValid
-		}
+	}
+	// The library's claim validation covers nbf and exp; when exp is left to the
+	// caller it is skipped, so nbf is checked here.
+	if !enforceExpiration && claims.NotBefore != nil && now.Before(*claims.NotBefore) {
+		return empty, ErrNotYetValid
 	}
 	return claims, nil
 }
 
-func optionalString(payload map[string]any, key string) (string, bool) {
+// parseError maps the library's errors onto this package's sentinels. Every
+// other failure is an invalid token.
+func parseError(err error) error {
+	switch {
+	case errors.Is(err, jwt.ErrTokenExpired):
+		return ErrExpired
+	case errors.Is(err, jwt.ErrTokenNotValidYet):
+		return ErrNotYetValid
+	default:
+		return fmt.Errorf("%w: %v", ErrInvalidToken, err)
+	}
+}
+
+func optionalString(payload jwt.MapClaims, key string) (string, bool) {
 	v, exists := payload[key]
 	if !exists {
 		return "", true
 	}
 	s, ok := v.(string)
 	return s, ok
-}
-
-func numericDate(payload map[string]any, key string) (float64, bool, error) {
-	v, present := payload[key]
-	if !present {
-		return 0, false, nil
-	}
-	n, ok := v.(json.Number)
-	if !ok {
-		return 0, true, fmt.Errorf("%w: invalid %s value", ErrInvalidToken, key)
-	}
-	seconds, err := n.Float64()
-	if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || math.Abs(seconds) >= float64(math.MaxInt64) {
-		return 0, true, fmt.Errorf("%w: invalid %s value", ErrInvalidToken, key)
-	}
-	return seconds, true, nil
-}
-
-func nowUnixSeconds(now time.Time) float64 {
-	return float64(now.Unix()) + float64(now.Nanosecond())/1e9
-}
-
-func fractionalNanos(seconds float64) int64 {
-	fraction := seconds - math.Floor(seconds)
-	return int64(math.Round(fraction * 1e9))
-}
-
-func decodeSegment(segment string) ([]byte, error) {
-	if segment == "" || strings.Contains(segment, "=") {
-		return nil, ErrInvalidToken
-	}
-	b, err := base64.RawURLEncoding.DecodeString(segment)
-	if err != nil || base64.RawURLEncoding.EncodeToString(b) != segment {
-		return nil, ErrInvalidToken
-	}
-	return b, nil
-}
-
-func decodeJSONObject(data []byte, dest *map[string]any) error {
-	decoder := json.NewDecoder(strings.NewReader(string(data)))
-	decoder.UseNumber()
-	if err := decoder.Decode(dest); err != nil || *dest == nil {
-		return ErrInvalidToken
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		return ErrInvalidToken
-	}
-	return nil
-}
-
-func hashForAlgorithm(alg string) (func() hash.Hash, error) {
-	switch alg {
-	case "HS256":
-		return sha256.New, nil
-	case "HS384":
-		return sha512.New384, nil
-	case "HS512":
-		return sha512.New, nil
-	default:
-		return nil, fmt.Errorf("%w: unsupported signing algorithm", ErrInvalidToken)
-	}
 }

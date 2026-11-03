@@ -55,6 +55,7 @@ linters:
           allow:
             - $gostd
             - golang.org/x/net/html
+            - github.com/golang-jwt/jwt/v5
         production-httptest:
           list-mode: lax
           files:

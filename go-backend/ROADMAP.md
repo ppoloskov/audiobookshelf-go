@@ -170,7 +170,7 @@ L2, JWT issuing -> L1).
 
 ## Phase L: approved libraries
 
-- [ ] L1: JWT with `golang-jwt/jwt/v5`
+- [x] L1: JWT with `golang-jwt/jwt/v5`
   - Files: `internal/auth/token.go`, `internal/identity/identity.go` (`sign`),
     `internal/userapi/userapi.go` (`signToken`, dead `tokenSecret` branch)
   - Change: `auth` issues and verifies all tokens through the library with the
@@ -179,7 +179,7 @@ L2, JWT issuing -> L1).
     lists nothing in auth paths; tokens issued by the TS server still verify
     (test with a fixture token).
 
-- [ ] L2: Rate limiting with `golang.org/x/time/rate`
+- [x] L2: Rate limiting with `golang.org/x/time/rate`
   - Files: `internal/identity/identity.go` (`rateBuckets` and their updates)
   - Change: Per-IP `rate.Limiter` with idle-entry pruning; same limits as today.
   - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
