@@ -211,8 +211,12 @@ func journeyAdminSteps(t *testing.T, in *Install, c *journeyCtx, smtp *adminSMTP
 		{id: "embed.batch", who: "root", method: "POST", route: "/api/tools/batch/embed-metadata", body: map[string]any{"libraryItemIds": []any{novel}}, taskFinished: "embed-metadata",
 			touches: "media/audiobooks/Ada Example/Single File Novel/Single File Novel.m4b"},
 		{id: "encode.start", who: "root", method: "POST", route: "/api/tools/item/" + saga1 + "/encode-m4b?codec=aac&bitrate=128k&channels=2", taskStarted: "encode-m4b"},
-		{id: "encode.cancel", who: "root", method: "DELETE", route: "/api/tools/item/" + saga1 + "/encode-m4b", retry: 20},
+		// The queue still holds the running merge here.
 		{id: "tasks.get", who: "root", route: "/api/tasks?include=queue"},
+		{id: "encode.cancel", who: "root", method: "DELETE", route: "/api/tools/item/" + saga1 + "/encode-m4b", retry: 20, taskFinished: "encode-m4b"},
+		// The merge runs to completion with the cover: the m4b it writes plays.
+		{id: "encode.run", who: "root", method: "POST", route: "/api/tools/item/" + saga1 + "/encode-m4b?codec=aac&bitrate=128k&channels=2", taskFinished: "encode-m4b",
+			produces: "media/audiobooks/Terry Fixture/Long Saga/Book 1 - The Beginning/Book 1 - The Beginning.m4b"},
 
 		// Backups: create, list, download, delete the original, upload the
 		// downloaded file back under its own name (the backup id comes from the

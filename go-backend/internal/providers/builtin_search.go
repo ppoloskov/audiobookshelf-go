@@ -331,54 +331,16 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": nil}, httputil.Streamed())
 		return
 	}
-	if r.URL.Query().Get("podcast") == "1" {
-		query := url.Values{"term": {title}, "entity": {"podcast"}, "media": {"podcast"}}
-		var response struct {
-			Results []map[string]any `json:"results"`
-		}
-		covers := []string{}
-		if h.getJSON(r.Context(), h.endpoint("itunes")+"?"+query.Encode(), &response) == nil {
-			seen := map[string]bool{}
-			for _, item := range response.Results {
-				if cover, ok := itunesArtwork(item).(string); ok && cover != "" && !seen[cover] {
-					seen[cover] = true
-					covers = append(covers, cover)
-				}
-			}
-		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": covers}, httputil.Streamed())
-		return
-	}
-	provider := queryValue(r, "provider", "google")
-	providers := []string{provider}
-	if provider == "all" {
-		providers = []string{"google", "itunes", "openlibrary", "fantlab", "audiobookcovers", "audible", "audible.ca", "audible.uk", "audible.au", "audible.fr", "audible.de", "audible.jp", "audible.it", "audible.in", "audible.es"}
-	} else if provider == "best" {
-		providers = []string{"google", "fantlab", "audible"}
-	}
+	req := CoverRequest{Title: title, Author: r.URL.Query().Get("author"), Provider: queryValue(r, "provider", "google"), Podcast: r.URL.Query().Get("podcast") == "1"}
 	seen := map[string]bool{}
 	covers := []string{}
-	for _, p := range providers {
-		var results []map[string]any
-		var err error
-		if strings.HasPrefix(p, "custom-") {
-			results, err = h.searchCustom(r.Context(), p, "book", title, r.URL.Query().Get("author"), "", 10*time.Second)
-		} else {
-			results, err = h.searchBuiltinBooks(r.Context(), p, title, r.URL.Query().Get("author"), "", "")
-		}
+	for _, provider := range coverProviders(req) {
+		list, err := h.providerCovers(r.Context(), provider, req)
 		if err != nil {
 			continue
 		}
-		for _, result := range results {
-			if list, ok := result["covers"].([]string); ok {
-				for _, cover := range list {
-					if cover != "" && !seen[cover] {
-						seen[cover] = true
-						covers = append(covers, cover)
-					}
-				}
-			}
-			if cover, ok := result["cover"].(string); ok && cover != "" && !seen[cover] {
+		for _, cover := range list {
+			if !seen[cover] {
 				seen[cover] = true
 				covers = append(covers, cover)
 			}

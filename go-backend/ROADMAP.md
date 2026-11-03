@@ -270,7 +270,7 @@ L2, JWT issuing -> L1).
   - Files: `internal/catalog/quickmatch.go`, `internal/scanner/scanner.go`
   - Done when: `TestMatchAllStopsOnCancel` passes.
 
-- [ ] C5: Socket.IO `search_covers` and `cancel_cover_search`
+- [x] C5: Socket.IO `search_covers` and `cancel_cover_search`
   - Files: `internal/server/runtime.go` (dispatcher has no case),
     `internal/realtime/hub.go`, `internal/providers/handler.go`
   - Change: The web client's cover tab uses this (`client/components/modals/item/tabs/Cover.vue`).
@@ -323,7 +323,7 @@ L2, JWT issuing -> L1).
   - Change: A reaper started by `Start`, stopped by `Close`.
   - Done when: a test shows expired sessions are deleted without a request.
 
-- [ ] C24: Encode to M4B succeeds with a cover
+- [x] C24: Encode to M4B succeeds with a cover
   - Files: `internal/audiotools/tools.go` (merge argv near line 556: `-f mp4`
     before the cover input, the bug class fixed for embed in 03982a4)
   - Change: Put every input before output options; add a journey step that
@@ -349,7 +349,7 @@ L2, JWT issuing -> L1).
     websocket transport only) that registers the socket first. Regression test:
     `internal/server/socket_connect_test.go`.
 
-- [ ] C26: TestJourneyLibrary flaked once under full-suite load
+- [x] C26: TestJourneyLibrary flaked once under full-suite load
   - Evidence: failed once in `go test ./...` while merging L3+L4 (2026-11-03),
     passed alone 3x and on the next full run. Likely the library-scan wait.
   - Files: `internal/contracttest/journey_library_test.go`

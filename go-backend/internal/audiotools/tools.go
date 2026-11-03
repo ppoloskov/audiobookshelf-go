@@ -46,8 +46,8 @@ type task struct {
 	Description     string         `json:"description"`
 	DescriptionKey  string         `json:"descriptionKey"`
 	DescriptionSubs []string       `json:"descriptionSubs"`
-	Error           string         `json:"error"`
-	ErrorKey        string         `json:"errorKey"`
+	Error           *string        `json:"error"`
+	ErrorKey        *string        `json:"errorKey"`
 	ErrorSubs       []string       `json:"errorSubs"`
 	ShowSuccess     bool           `json:"showSuccess"`
 	IsFailed        bool           `json:"isFailed"`
@@ -69,6 +69,7 @@ type item struct {
 	files                                                           []audio
 	chapters                                                        []chapter
 	duration                                                        float64
+	isFile                                                          bool
 }
 type audio struct {
 	ino, path string
@@ -185,6 +186,7 @@ func (h *Handler) Close() {
 }
 
 func snapshotTask(t *task) *task {
+	// Error and errorKey stay null until the task fails (TS Task.js).
 	return &task{ID: t.ID, Action: t.Action, Data: cloneData(t.Data), Title: t.Title, TitleKey: t.TitleKey,
 		TitleSubs: append([]string(nil), t.TitleSubs...), Description: t.Description, DescriptionKey: t.DescriptionKey,
 		DescriptionSubs: append([]string(nil), t.DescriptionSubs...), Error: t.Error, ErrorKey: t.ErrorKey,
@@ -223,10 +225,12 @@ func chapterDTOs(chapters []chapter) []map[string]any {
 func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 	var x item
 	var mediaType, rawAudio, rawChapters, cover, subtitle, author, year, publisher, description, rawGenres, rawNarrators sql.NullString
-	err := h.db.QueryRowContext(ctx, `SELECT li.id,li.libraryId,li.mediaId,li.mediaType,li.path,b.title,b.subtitle,b.coverPath,b.duration,b.audioFiles,b.chapters,li.authorNamesFirstLast,b.publishedYear,b.publisher,b.description,b.genres,b.narrators FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId WHERE li.id=?`, id).Scan(&x.id, &x.library, &x.mediaID, &mediaType, &x.path, &x.title, &subtitle, &cover, &x.duration, &rawAudio, &rawChapters, &author, &year, &publisher, &description, &rawGenres, &rawNarrators)
+	var isFile sql.NullBool
+	err := h.db.QueryRowContext(ctx, `SELECT li.id,li.libraryId,li.mediaId,li.mediaType,li.path,b.title,b.subtitle,b.coverPath,b.duration,b.audioFiles,b.chapters,li.authorNamesFirstLast,b.publishedYear,b.publisher,b.description,b.genres,b.narrators,li.isFile FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId WHERE li.id=?`, id).Scan(&x.id, &x.library, &x.mediaID, &mediaType, &x.path, &x.title, &subtitle, &cover, &x.duration, &rawAudio, &rawChapters, &author, &year, &publisher, &description, &rawGenres, &rawNarrators, &isFile)
 	if err != nil {
 		return x, err
 	}
+	x.isFile = isFile.Bool
 	x.typ = mediaType.String
 	x.subtitle = subtitle.String
 	x.cover = cover.String
@@ -433,9 +437,9 @@ func (h *Handler) finish(t *task, err error) {
 	n := time.Now().UnixMilli()
 	t.FinishedAt = &n
 	if err != nil {
+		msg, key := err.Error(), "MessageTaskCanceledByUser"
 		t.IsFailed = true
-		t.Error = err.Error()
-		t.ErrorKey = "MessageTaskCanceledByUser"
+		t.Error, t.ErrorKey = &msg, &key
 		if err.Error() != "Task canceled by user" {
 			logging.Errorf("[AbMergeManager] Task %q (%s) failed: %v", t.Action, t.ID, err)
 		}
@@ -544,8 +548,13 @@ func (h *Handler) merge(t *task, it item, q map[string][]string) error {
 	if e := os.MkdirAll(t.cache, 0755); e != nil {
 		return e
 	}
-	base := strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path))
-	target := filepath.Join(filepath.Dir(it.path), base+".m4b")
+	// The merged file is named after the item and goes beside a single-file
+	// item, or inside a folder item (TS AbMergeManager.startAudiobookMerge).
+	base, dir := filepath.Base(it.path), it.path
+	if it.isFile {
+		base, dir = strings.TrimSuffix(base, filepath.Ext(base)), filepath.Dir(it.path)
+	}
+	target := filepath.Join(dir, base+".m4b")
 	temp := filepath.Join(t.cache, base+".tmp.m4b")
 	_ = os.Remove(temp)
 	args := []string{"-y"}
@@ -571,12 +580,18 @@ func (h *Handler) merge(t *task, it item, q map[string][]string) error {
 		return e
 	}
 	defer os.Remove(metaPath)
-	args = append(args, "-i", metaPath, "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1", "-acodec", qvalue(q, "codec", "aac"), "-ac", qvalue(q, "channels", "2"), "-b:a", qvalue(q, "bitrate", "128k"), "-f", "mp4", temp)
-	if it.cover != "" {
-		if _, e := os.Stat(it.cover); e == nil {
-			args = append(args[:len(args)-1], "-i", it.cover, "-map", "2:v?", "-disposition:v", "attached_pic", args[len(args)-1])
-		}
+	// Every input comes before the output options: an option that follows
+	// "-i cover" and precedes it is read as the cover input's option. The cover
+	// is a still image, so it is encoded as mjpeg (the mp4 muxer takes it).
+	args = append(args, "-i", metaPath)
+	var cover []string
+	if _, e := os.Stat(it.cover); it.cover != "" && e == nil {
+		args = append(args, "-i", it.cover)
+		cover = []string{"-map", "2:v?", "-c:v", "mjpeg", "-disposition:v", "attached_pic"}
 	}
+	args = append(args, "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1")
+	args = append(args, cover...)
+	args = append(args, "-acodec", qvalue(q, "codec", "aac"), "-ac", qvalue(q, "channels", "2"), "-b:a", qvalue(q, "bitrate", "128k"), "-f", "mp4", temp)
 	cmd := exec.CommandContext(t.ctx, ffmpegPath(), args...)
 	t.cmd = cmd
 	cmd.Stdout = io.Discard
