@@ -841,6 +841,6 @@ func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, e
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{"id": id, "name": nullString(name), "folders": folderList, "displayOrder": order.Int64, "icon": nullString(icon), "mediaType": nullString(mediaType), "provider": nullString(provider), "settings": decodeObject(settingsRaw), "lastScan": deref(scanMs), "lastScanVersion": nullString(lastVersion), "createdAt": deref(createdMs), "lastUpdate": deref(updatedMs)}
+	result := map[string]any{"id": id, "name": store.NullString(name), "folders": folderList, "displayOrder": order.Int64, "icon": store.NullString(icon), "mediaType": store.NullString(mediaType), "provider": store.NullString(provider), "settings": decodeObject(settingsRaw), "lastScan": deref(scanMs), "lastScanVersion": store.NullString(lastVersion), "createdAt": deref(createdMs), "lastUpdate": deref(updatedMs)}
 	return result, nil
 }

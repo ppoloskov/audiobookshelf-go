@@ -385,19 +385,19 @@ func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded 
 		seriesNames = append(seriesNames, name)
 	}
 	metadata := map[string]any{
-		"title": nullString(row.title), "subtitle": nullString(row.subtitle), "authors": authors, "narrators": narrators, "series": series,
-		"genres": genres, "publishedYear": nullString(row.year), "publishedDate": nullString(row.publishedDate), "publisher": nullString(row.publisher),
-		"description": nullString(row.description), "isbn": nullString(row.isbn), "asin": nullString(row.asin), "language": nullString(row.language),
+		"title": store.NullString(row.title), "subtitle": store.NullString(row.subtitle), "authors": authors, "narrators": narrators, "series": series,
+		"genres": genres, "publishedYear": store.NullString(row.year), "publishedDate": store.NullString(row.publishedDate), "publisher": store.NullString(row.publisher),
+		"description": store.NullString(row.description), "isbn": store.NullString(row.isbn), "asin": store.NullString(row.asin), "language": store.NullString(row.language),
 		"explicit": row.explicit != 0, "abridged": row.abridged != 0,
 	}
 	minMetadata := map[string]any{
-		"title": nullString(row.title), "titleIgnorePrefix": h.titlePrefix(ctx, row.title.String), "subtitle": nullString(row.subtitle),
+		"title": store.NullString(row.title), "titleIgnorePrefix": h.titlePrefix(ctx, row.title.String), "subtitle": store.NullString(row.subtitle),
 		"authorName": strings.Join(authorNames, ", "), "authorNameLF": strings.Join(authorNamesLF, ", "), "narratorName": strings.Join(narrators, ", "),
-		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": nullString(row.year), "publishedDate": nullString(row.publishedDate),
-		"publisher": nullString(row.publisher), "description": nullString(row.description), "isbn": nullString(row.isbn), "asin": nullString(row.asin),
-		"language": nullString(row.language), "explicit": row.explicit != 0, "abridged": row.abridged != 0,
+		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": store.NullString(row.year), "publishedDate": store.NullString(row.publishedDate),
+		"publisher": store.NullString(row.publisher), "description": store.NullString(row.description), "isbn": store.NullString(row.isbn), "asin": store.NullString(row.asin),
+		"language": store.NullString(row.language), "explicit": row.explicit != 0, "abridged": row.abridged != 0,
 	}
-	book := map[string]any{"id": row.id.String, "metadata": metadata, "coverPath": nullString(row.coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
+	book := map[string]any{"id": row.id.String, "metadata": metadata, "coverPath": store.NullString(row.coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
 	if expanded {
 		if row.description.Valid && row.description.String != "" {
 			minMetadata["descriptionPlain"] = stripHTML(row.description.String)

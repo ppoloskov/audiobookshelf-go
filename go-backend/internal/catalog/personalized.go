@@ -273,7 +273,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			}
 			enclosure := any(nil)
 			if enclosureURL.Valid {
-				enclosure = map[string]any{"url": enclosureURL.String, "type": nullString(enclosureType), "length": func() any {
+				enclosure = map[string]any{"url": enclosureURL.String, "type": store.NullString(enclosureType), "length": func() any {
 					if enclosureSize.Valid {
 						return strconv.FormatInt(enclosureSize.Int64, 10)
 					}
@@ -282,7 +282,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			}
 			audio := decodeObject(audioRaw)
 			extra := decodeObject(extraRaw)
-			episodeJSON := map[string]any{"libraryItemId": itemID, "podcastId": stringValue(audio["podcastId"]), "id": episodeID, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(index), "season": nullString(season), "episode": nullString(episode), "episodeType": nullString(episodeType), "title": nullString(title), "subtitle": nullString(subtitle), "description": nullString(description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": nullString(pubDate), "chapters": decodeArray(chaptersRaw), "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs)}
+			episodeJSON := map[string]any{"libraryItemId": itemID, "podcastId": stringValue(audio["podcastId"]), "id": episodeID, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(index), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "title": store.NullString(title), "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(pubDate), "chapters": decodeArray(chaptersRaw), "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs)}
 			records = append(records, episodeShelfRow{itemID, episodeJSON})
 		}
 		if err := rows.Err(); err != nil {

@@ -48,7 +48,7 @@ func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string)
 	if err != nil {
 		return nil, false, err
 	}
-	return map[string]any{"id": id.String, "entityType": nullString(kind), "entityId": nullString(entity), "feedUrl": nullString(feedURL), "meta": map[string]any{"title": nullString(title), "description": nullString(description), "preventIndexing": prevent.Valid && prevent.Int64 != 0, "ownerName": nullString(ownerName), "ownerEmail": nullString(ownerEmail)}}, true, nil
+	return map[string]any{"id": id.String, "entityType": store.NullString(kind), "entityId": store.NullString(entity), "feedUrl": store.NullString(feedURL), "meta": map[string]any{"title": store.NullString(title), "description": store.NullString(description), "preventIndexing": prevent.Valid && prevent.Int64 != 0, "ownerName": store.NullString(ownerName), "ownerEmail": store.NullString(ownerEmail)}}, true, nil
 }
 
 func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {

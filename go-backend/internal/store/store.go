@@ -300,7 +300,7 @@ func (s *Store) Libraries(ctx context.Context) ([]map[string]any, error) {
 			}
 		}
 		item := map[string]any{"id": id.String, "name": name.String, "folders": []any{}, "displayOrder": order.Int64,
-			"icon": nullString(icon), "mediaType": nullString(mediaType), "provider": nullString(provider), "settings": settingsObject,
+			"icon": NullString(icon), "mediaType": NullString(mediaType), "provider": NullString(provider), "settings": settingsObject,
 			"lastScan": last, "lastScanVersion": version.String, "createdAt": createdMs, "lastUpdate": updatedMs}
 		if !version.Valid {
 			item["lastScanVersion"] = nil
@@ -328,11 +328,20 @@ func (s *Store) Libraries(ctx context.Context) ([]map[string]any, error) {
 	return result, nil
 }
 
-func nullString(s sql.NullString) any {
+// NullString is a nullable text column as a JSON value: NULL becomes nil.
+func NullString(s sql.NullString) any {
 	if !s.Valid {
 		return nil
 	}
 	return s.String
+}
+
+// NullIfEmpty is a text value that is stored or serialized as NULL when empty.
+func NullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func (s *Store) libraryFolders(ctx context.Context, libraryID string) ([]any, error) {

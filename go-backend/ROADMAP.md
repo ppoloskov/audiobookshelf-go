@@ -282,7 +282,7 @@ creates them.
   - Done when: `grep -rln '^func writeError(' go-backend/internal --include=*.go`
     is empty.
 
-- [ ] K9: Keep one `nullString` helper, in `store`
+- [x] K9: Keep one `nullString` helper, in `store`
   - Files: `go-backend/internal/catalog/handler.go` (line 874),
     `internal/providers/builtin_search.go` (line 779),
     `internal/store/store.go` (line 331, the one to keep),

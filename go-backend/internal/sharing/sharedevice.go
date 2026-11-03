@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/store"
 )
 
 const serverVersion = "2.37.2"
@@ -45,10 +46,10 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 	case err == nil:
 		id = existing
 		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`,
-			clientName, serverVersion, ip, nullString(deviceName), nullString(browserVersion), string(extraRaw), now, id)
+			clientName, serverVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, id)
 	case errors.Is(err, sql.ErrNoRows):
 		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,NULL,?,?)`,
-			id, shareSessionID, clientName, serverVersion, ip, nullString(deviceName), nullString(browserVersion), string(extraRaw), now, now)
+			id, shareSessionID, clientName, serverVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, now)
 	}
 	if err != nil {
 		return nil, err
@@ -60,13 +61,6 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 		}
 	}
 	return info, nil
-}
-
-func nullString(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 
 // clientIP approximates request-ip's getClientIp: the first X-Forwarded-For

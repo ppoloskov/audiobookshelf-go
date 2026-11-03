@@ -49,8 +49,8 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 	extraData := decodeObject(extra)
 	oldID, _ := extraData["oldLibraryItemId"].(string)
 	item := map[string]any{
-		"id": id.String, "ino": nullString(ino), "oldLibraryItemId": valueOrNull(oldID),
-		"libraryId": libraryID.String, "folderId": nullString(folderID), "path": itemPath.String, "relPath": relPath.String,
+		"id": id.String, "ino": store.NullString(ino), "oldLibraryItemId": valueOrNull(oldID),
+		"libraryId": libraryID.String, "folderId": store.NullString(folderID), "path": itemPath.String, "relPath": relPath.String,
 		"isFile": isFile != 0, "addedAt": nil, "updatedAt": nil, "isMissing": missing != 0, "isInvalid": invalid != 0,
 		"mediaType": mediaType.String,
 	}
@@ -70,7 +70,7 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 	if last != nil {
 		item["lastScan"] = *last
 	}
-	item["scanVersion"] = nullString(scanVersion)
+	item["scanVersion"] = store.NullString(scanVersion)
 	files := decodeArray(libraryFiles)
 	for _, f := range files {
 		if meta, ok := f["metadata"].(map[string]any); ok {
@@ -120,7 +120,7 @@ func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[strin
 			sRows.Close()
 			return nil, nil, err
 		}
-		series = append(series, map[string]any{"id": id, "name": name, "sequence": nullString(sequence)})
+		series = append(series, map[string]any{"id": id, "name": name, "sequence": store.NullString(sequence)})
 	}
 	if err := sRows.Err(); err != nil {
 		sRows.Close()
@@ -153,8 +153,8 @@ func (h *Handler) podcastBase(ctx context.Context, podcastID string) (map[string
 	if check != nil && *check == 0 {
 		check = nil
 	}
-	metadata := map[string]any{"title": nullString(title), "author": nullString(author), "description": nullString(description), "releaseDate": nullString(releaseDate), "genres": decodeStrings(genresRaw), "feedUrl": nullString(feedURL), "imageUrl": nullString(imageURL), "itunesPageUrl": nullString(itunesPageURL), "itunesId": nullString(itunesID), "itunesArtistId": nullString(itunesArtistID), "language": nullString(language), "explicit": explicit != 0, "type": nullString(podcastType)}
-	return map[string]any{"id": id.String, "metadata": metadata, "coverPath": nullString(coverPath), "tags": decodeStrings(tagsRaw), "autoDownloadEpisodes": autoDownload != 0, "autoDownloadSchedule": nullString(autoSchedule), "lastEpisodeCheck": deref(check), "maxEpisodesToKeep": maxKeep.Int64, "maxNewEpisodesToDownload": maxNew.Int64}, nil
+	metadata := map[string]any{"title": store.NullString(title), "author": store.NullString(author), "description": store.NullString(description), "releaseDate": store.NullString(releaseDate), "genres": decodeStrings(genresRaw), "feedUrl": store.NullString(feedURL), "imageUrl": store.NullString(imageURL), "itunesPageUrl": store.NullString(itunesPageURL), "itunesId": store.NullString(itunesID), "itunesArtistId": store.NullString(itunesArtistID), "language": store.NullString(language), "explicit": explicit != 0, "type": store.NullString(podcastType)}
+	return map[string]any{"id": id.String, "metadata": metadata, "coverPath": store.NullString(coverPath), "tags": decodeStrings(tagsRaw), "autoDownloadEpisodes": autoDownload != 0, "autoDownloadSchedule": store.NullString(autoSchedule), "lastEpisodeCheck": deref(check), "maxEpisodesToKeep": maxKeep.Int64, "maxNewEpisodesToDownload": maxNew.Int64}, nil
 }
 
 // podcastOldJSON is Podcast.toOldJSON (server/models/Podcast.js:431), served
@@ -281,11 +281,11 @@ func (h *Handler) podcastEpisodes(ctx context.Context, podcastID, itemID string,
 			if e.enclosureSize.Valid {
 				length = strconv.FormatInt(e.enclosureSize.Int64, 10)
 			}
-			enclosure = map[string]any{"url": e.enclosureURL.String, "type": nullString(e.enclosureType), "length": length}
+			enclosure = map[string]any{"url": e.enclosureURL.String, "type": store.NullString(e.enclosureType), "length": length}
 		}
 		audio := decodeObject(e.audio)
 		chapters := decodeArray(e.chapters)
-		ep := map[string]any{"libraryItemId": itemID, "podcastId": podcastID, "id": e.id, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(e.index), "season": nullString(e.season), "episode": nullString(e.episode), "episodeType": nullString(e.episodeType), "title": nullString(e.title), "subtitle": nullString(e.subtitle), "description": nullString(e.description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": nullString(e.pubDate), "chapters": chapters, "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(created), "updatedAt": deref(updated)}
+		ep := map[string]any{"libraryItemId": itemID, "podcastId": podcastID, "id": e.id, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(e.index), "season": store.NullString(e.season), "episode": store.NullString(e.episode), "episodeType": store.NullString(e.episodeType), "title": store.NullString(e.title), "subtitle": store.NullString(e.subtitle), "description": store.NullString(e.description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(e.pubDate), "chapters": chapters, "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(created), "updatedAt": deref(updated)}
 		if expanded {
 			track := map[string]any{}
 			for k, v := range audio {
@@ -830,12 +830,6 @@ func parseTime(s string) (*int64, error) {
 	}
 	return nil, fmt.Errorf("invalid timestamp %q", s)
 }
-func nullString(s sql.NullString) any {
-	if !s.Valid {
-		return nil
-	}
-	return s.String
-}
 func deref(n *int64) any {
 	if n == nil {
 		return nil
@@ -1340,8 +1334,8 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 		}
 		lib := libraryJSON{
 			ID: row.id.String, Name: row.name.String, Folders: folders, DisplayOrder: row.order.Int64,
-			Icon: nullString(row.icon), MediaType: nullString(row.mediaType), Provider: nullString(row.provider),
-			Settings: decodeObject(row.settings), LastScan: last, LastScanVersion: nullString(row.version),
+			Icon: store.NullString(row.icon), MediaType: store.NullString(row.mediaType), Provider: store.NullString(row.provider),
+			Settings: decodeObject(row.settings), LastScan: last, LastScanVersion: store.NullString(row.version),
 			CreatedAt: deref(created), LastUpdate: deref(updated),
 		}
 		if includeStats {
@@ -1422,8 +1416,8 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 	}
 	payload := map[string]any{
 		"id": id, "name": name.String, "folders": folders, "displayOrder": order.Int64,
-		"icon": nullString(icon), "mediaType": nullString(mediaType), "provider": nullString(provider),
-		"settings": decodeObject(rawSettings), "lastScan": last, "lastScanVersion": nullString(version),
+		"icon": store.NullString(icon), "mediaType": store.NullString(mediaType), "provider": store.NullString(provider),
+		"settings": decodeObject(rawSettings), "lastScan": last, "lastScanVersion": store.NullString(version),
 		"createdAt": deref(created), "lastUpdate": deref(updated),
 	}
 	if strings.Contains(","+r.URL.Query().Get("include")+",", ",filterdata,") {
@@ -1586,7 +1580,7 @@ func (h *Handler) longestItems(ctx context.Context, id, table, expression string
 		if err := rows.Scan(&itemID, &title, &duration); err != nil {
 			return nil, err
 		}
-		out = append(out, map[string]any{"id": itemID, "title": nullString(title), "duration": duration})
+		out = append(out, map[string]any{"id": itemID, "title": store.NullString(title), "duration": duration})
 	}
 	return out, rows.Err()
 }
@@ -1608,7 +1602,7 @@ func (h *Handler) largestItems(ctx context.Context, id, table string) ([]map[str
 		if err := rows.Scan(&itemID, &title, &size); err != nil {
 			return nil, err
 		}
-		out = append(out, map[string]any{"id": itemID, "title": nullString(title), "size": size})
+		out = append(out, map[string]any{"id": itemID, "title": store.NullString(title), "size": size})
 	}
 	return out, rows.Err()
 }
@@ -1716,7 +1710,7 @@ func (h *Handler) buildFilterData(ctx context.Context, libraryID, mediaType stri
 				authors.Close()
 				return nil, err
 			}
-			authorValues = append(authorValues, map[string]any{"id": id, "name": nullString(name)})
+			authorValues = append(authorValues, map[string]any{"id": id, "name": store.NullString(name)})
 		}
 		if err := authors.Err(); err != nil {
 			authors.Close()
@@ -1908,7 +1902,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		authors = append(authors, map[string]any{"id": a.id, "asin": nullString(a.asin), "name": nullString(a.name), "description": nullString(a.description), "imagePath": nullString(a.imagePath), "libraryId": a.libraryID, "addedAt": deref(created), "updatedAt": deref(updated), "numBooks": a.numBooks, "lastFirst": nullString(a.lastFirst)})
+		authors = append(authors, map[string]any{"id": a.id, "asin": store.NullString(a.asin), "name": store.NullString(a.name), "description": store.NullString(a.description), "imagePath": store.NullString(a.imagePath), "libraryId": a.libraryID, "addedAt": deref(created), "updatedAt": deref(updated), "numBooks": a.numBooks, "lastFirst": store.NullString(a.lastFirst)})
 	}
 	if !paginated {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
@@ -2107,7 +2101,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		entry := map[string]any{"id": s.id, "name": nullString(s.name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), s.name), "description": nullString(s.description), "addedAt": deref(created), "updatedAt": deref(updated), "libraryId": s.libraryID}
+		entry := map[string]any{"id": s.id, "name": store.NullString(s.name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), s.name), "description": store.NullString(s.description), "addedAt": deref(created), "updatedAt": deref(updated), "libraryId": s.libraryID}
 		if sortBy == "totalDuration" && s.duration != 0 {
 			entry["totalDuration"] = s.duration
 		}
@@ -2224,7 +2218,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	payload := map[string]any{"id": seriesID, "name": nullString(name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), name), "description": nullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
+	payload := map[string]any{"id": seriesID, "name": store.NullString(name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), name), "description": store.NullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
 	if includeHas(r, "rssfeed") {
 		if feed, ok, e := h.feedMinified(r.Context(), "series", seriesID); e != nil {
 			logging.RequestError(r, "database read failed", e)
@@ -3201,7 +3195,7 @@ func (h *Handler) searchAuthors(ctx context.Context, libraryID, query string, li
 		if e != nil {
 			return nil, e
 		}
-		out = append(out, map[string]any{"id": id, "name": nullString(name), "asin": nullString(asin), "description": nullString(description), "imagePath": nullString(image), "libraryId": library, "addedAt": deref(added), "updatedAt": deref(updatedMs), "numBooks": count})
+		out = append(out, map[string]any{"id": id, "name": store.NullString(name), "asin": store.NullString(asin), "description": store.NullString(description), "imagePath": store.NullString(image), "libraryId": library, "addedAt": deref(added), "updatedAt": deref(updatedMs), "numBooks": count})
 	}
 	return out, rows.Err()
 }
@@ -3270,7 +3264,7 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		if m.name.Valid {
 			nameIgnore = h.titlePrefix(ctx, m.name.String)
 		}
-		out = append(out, map[string]any{"series": map[string]any{"id": m.id, "name": nullString(m.name), "nameIgnorePrefix": nameIgnore, "description": nullString(m.description), "addedAt": deref(m.added), "updatedAt": deref(m.updated), "libraryId": m.library}, "books": books})
+		out = append(out, map[string]any{"series": map[string]any{"id": m.id, "name": store.NullString(m.name), "nameIgnorePrefix": nameIgnore, "description": store.NullString(m.description), "addedAt": deref(m.added), "updatedAt": deref(m.updated), "libraryId": m.library}, "books": books})
 	}
 	return out, nil
 }

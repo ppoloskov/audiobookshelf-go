@@ -188,7 +188,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		result = append(result, map[string]any{"title": nullString(title), "itunesId": nullString(itunesID), "libraryItemId": itemID, "libraryId": libID})
+		result = append(result, map[string]any{"title": store.NullString(title), "itunesId": store.NullString(itunesID), "libraryItemId": itemID, "libraryId": libID})
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()

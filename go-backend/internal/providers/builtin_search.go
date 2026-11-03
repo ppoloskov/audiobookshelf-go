@@ -17,6 +17,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 )
 
 func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +121,7 @@ func (h *Handler) searchGoogleBooks(ctx context.Context, title, author string) (
 		if len(v.Categories) > 0 {
 			genres = v.Categories
 		}
-		out = append(out, map[string]any{"id": item.ID, "title": v.Title, "subtitle": nullString(v.Subtitle), "author": authorName, "publisher": nullString(v.Publisher), "publishedYear": year, "description": nullString(v.Description), "cover": cover, "genres": genres, "isbn": isbn})
+		out = append(out, map[string]any{"id": item.ID, "title": v.Title, "subtitle": store.NullIfEmpty(v.Subtitle), "author": authorName, "publisher": store.NullIfEmpty(v.Publisher), "publishedYear": year, "description": store.NullIfEmpty(v.Description), "cover": cover, "genres": genres, "isbn": isbn})
 	}
 	return out, nil
 }
@@ -205,7 +206,7 @@ func (h *Handler) searchOpenLibrary(ctx context.Context, title, author string) (
 		if obj, ok := description.(map[string]any); ok {
 			description = obj["value"]
 		}
-		out = append(out, map[string]any{"title": doc.Title, "author": author, "publishedYear": stringOrNull(year), "edition": nullString(doc.CoverEdition), "cover": cover, "id": pathTail(doc.Key), "key": doc.Key, "covers": covers, "first_publish_date": works.FirstPublishDate, "description": description})
+		out = append(out, map[string]any{"title": doc.Title, "author": author, "publishedYear": stringOrNull(year), "edition": store.NullIfEmpty(doc.CoverEdition), "cover": cover, "id": pathTail(doc.Key), "key": doc.Key, "covers": covers, "first_publish_date": works.FirstPublishDate, "description": description})
 	}
 	return out, nil
 }
@@ -691,7 +692,7 @@ func cleanAudibleBook(item map[string]any) map[string]any {
 	if rating == nil {
 		rating = item["region"]
 	}
-	return map[string]any{"title": item["title"], "subtitle": nullAny(item["subtitle"]), "author": joinNames(item["authors"]), "narrator": joinNames(item["narrators"]), "publisher": item["publisherName"], "publishedYear": year, "description": nullAny(item["summary"]), "cover": item["image"], "asin": item["asin"], "isbn": item["isbn"], "genres": nilIfEmpty(genres), "tags": nilIfEmpty(tags), "series": nilIfEmpty(series), "language": nullString(language), "duration": duration, "region": nullAny(item["region"]), "rating": rating, "abridged": stringField(item, "formatType") == "abridged", "explicit": item["isAdult"] == true}
+	return map[string]any{"title": item["title"], "subtitle": nullAny(item["subtitle"]), "author": joinNames(item["authors"]), "narrator": joinNames(item["narrators"]), "publisher": item["publisherName"], "publishedYear": year, "description": nullAny(item["summary"]), "cover": item["image"], "asin": item["asin"], "isbn": item["isbn"], "genres": nilIfEmpty(genres), "tags": nilIfEmpty(tags), "series": nilIfEmpty(series), "language": store.NullIfEmpty(language), "duration": duration, "region": nullAny(item["region"]), "rating": rating, "abridged": stringField(item, "formatType") == "abridged", "explicit": item["isAdult"] == true}
 }
 
 func cleanSequence(_ string, sequence string) string {
@@ -777,12 +778,6 @@ func itunesArtwork(item map[string]any) any {
 	return nil
 }
 func stringField(values map[string]any, key string) string { v, _ := values[key].(string); return v }
-func nullString(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
-}
 func nullAny(value any) any {
 	if value == nil || value == "" {
 		return nil
@@ -809,7 +804,7 @@ func firstYear(value any) any {
 func stringOrNull(value any) any {
 	switch v := value.(type) {
 	case string:
-		return nullString(v)
+		return store.NullIfEmpty(v)
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64)
 	case json.Number:

@@ -595,7 +595,7 @@ func authorPayload(ctx context.Context, tx *sql.Tx, id string, created bool, num
 	}
 	payload := map[string]any{"id": id, "name": name, "libraryId": libraryID, "addedAt": msOf(createdAt), "updatedAt": msOf(updatedAt)}
 	if !created {
-		payload["asin"], payload["description"], payload["imagePath"] = nullString(asin), nullString(description), nullString(imagePath)
+		payload["asin"], payload["description"], payload["imagePath"] = store.NullString(asin), store.NullString(description), store.NullString(imagePath)
 		payload["numBooks"] = numBooks
 	}
 	return payload, nil

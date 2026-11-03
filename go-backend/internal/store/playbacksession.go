@@ -65,7 +65,7 @@ func millisOf(v any) (int64, bool) {
 // or, when date is empty, both derived from updatedAt in the server's local
 // time zone ("Local playback sessions dont set this date field").
 func (s PlaybackSessionRow) LegacyDate() (date, dayOfWeek any) {
-	date, dayOfWeek = nullString(s.Date), nullString(s.DayOfWeek)
+	date, dayOfWeek = NullString(s.Date), NullString(s.DayOfWeek)
 	if s.Date.String == "" {
 		if ms, ok := millisOf(s.UpdatedAt); ok {
 			t := time.UnixMilli(ms).In(time.Local)
@@ -126,9 +126,9 @@ func (s PlaybackSessionRow) LegacyJSON(device *wire.DeviceInfo) map[string]any {
 	mediaType := "book"
 	if podcast {
 		mediaType = "podcast"
-		episodeID = withoutLegacyPrefix(nullString(s.MediaItemID), "ep_", "local_")
+		episodeID = withoutLegacyPrefix(NullString(s.MediaItemID), "ep_", "local_")
 	} else {
-		bookID = withoutLegacyPrefix(nullString(s.MediaItemID))
+		bookID = withoutLegacyPrefix(NullString(s.MediaItemID))
 	}
 	var deviceInfo any = map[string]any{}
 	if device != nil {
@@ -138,15 +138,15 @@ func (s PlaybackSessionRow) LegacyJSON(device *wire.DeviceInfo) map[string]any {
 	startedAt, _ := millisOf(s.CreatedAt)
 	updatedAt, _ := millisOf(s.UpdatedAt)
 	return map[string]any{
-		"id": s.ID, "userId": nullString(s.UserID),
-		"libraryId":     withoutLegacyPrefix(nullString(s.LibraryID), "lib_"),
+		"id": s.ID, "userId": NullString(s.UserID),
+		"libraryId":     withoutLegacyPrefix(NullString(s.LibraryID), "lib_"),
 		"libraryItemId": withoutLegacyPrefix(extra["libraryItemId"], "li_", "local_"),
 		"bookId":        bookID, "episodeId": episodeID, "mediaType": mediaType,
 		"mediaMetadata": metadata, "chapters": []any{},
 		"displayTitle": orEmpty(s.DisplayTitle), "displayAuthor": orEmpty(s.DisplayAuthor),
-		"coverPath": nullString(s.CoverPath), "duration": nullFloat(s.Duration), "playMethod": nullFloat(s.PlayMethod),
-		"mediaPlayer": withoutLegacyPrefix(nullString(s.MediaPlayer)), "deviceInfo": deviceInfo,
-		"serverVersion": nullString(s.ServerVersion), "date": date, "dayOfWeek": dayOfWeek,
+		"coverPath": NullString(s.CoverPath), "duration": nullFloat(s.Duration), "playMethod": nullFloat(s.PlayMethod),
+		"mediaPlayer": withoutLegacyPrefix(NullString(s.MediaPlayer)), "deviceInfo": deviceInfo,
+		"serverVersion": NullString(s.ServerVersion), "date": date, "dayOfWeek": dayOfWeek,
 		"timeListening": s.LegacyTimeListening(), "startTime": orZero(s.StartTime), "currentTime": orZero(s.CurrentTime),
 		"startedAt": startedAt, "updatedAt": updatedAt,
 	}
