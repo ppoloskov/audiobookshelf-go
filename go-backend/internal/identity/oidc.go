@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -783,7 +784,7 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	if verified, _ := info["email_verified"].(bool); verified {
 		email, _ = info["email"].(string)
 	}
-	id, err := randomUUID()
+	id, err := ids.New()
 	if err != nil {
 		return store.User{}, err
 	}

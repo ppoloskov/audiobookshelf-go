@@ -5,9 +5,7 @@ package playback
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
@@ -308,7 +307,12 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		h.serverError(w, r, err)
 		return
 	}
-	s := &session{ID: newUUID(), UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
+	sessionID, err := ids.New()
+	if err != nil {
+		h.serverError(w, r, err)
+		return
+	}
+	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if episodeID != "" {
 		s.EpisodeID = episodeID
 		for _, ep := range item.Episodes {
@@ -1246,13 +1250,24 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	if strings.HasPrefix(id, "play_local_") {
 		h.mu.Lock()
 		if h.localIDs[id] == "" {
-			h.localIDs[id] = newUUID()
+			generated, genErr := ids.New()
+			if genErr != nil {
+				h.mu.Unlock()
+				logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", displayTitle, localID, genErr)
+				return nil, "Failed to save session"
+			}
+			h.localIDs[id] = generated
 		}
 		id = h.localIDs[oldID]
 		h.mu.Unlock()
 	}
 	if id == "" {
-		id = newUUID()
+		generated, genErr := ids.New()
+		if genErr != nil {
+			logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", displayTitle, localID, genErr)
+			return nil, "Failed to save session"
+		}
+		id = generated
 	}
 	updated := timeFromPayload(obj["updatedAt"])
 	started := timeFromPayload(obj["startedAt"])
@@ -1828,13 +1843,16 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	if host, _, err := net.SplitHostPort(ip); err == nil {
 		ip = host
 	}
-	dbID := newUUID()
+	dbID, err := ids.New()
+	if err != nil {
+		return "", nil, err
+	}
 	deviceKey := get("deviceId")
 	if deviceKey == "" {
 		deviceKey = dbID
 	}
 	var existing string
-	err := h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? AND userId=? LIMIT 1`, deviceKey, user.ID).Scan(&existing)
+	err = h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? AND userId=? LIMIT 1`, deviceKey, user.ID).Scan(&existing)
 	if err == nil {
 		dbID = existing
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -2120,17 +2138,6 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
-}
-func newUUID() string {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		now := time.Now().UnixNano()
-		return fmt.Sprintf("%032x", now)
-	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	hexed := hex.EncodeToString(b[:])
-	return hexed[:8] + "-" + hexed[8:12] + "-" + hexed[12:16] + "-" + hexed[16:20] + "-" + hexed[20:]
 }
 func nowMS() int64 { return time.Now().UnixMilli() }
 func segmentNumber(name string) (int, bool) {

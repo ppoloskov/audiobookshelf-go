@@ -338,7 +338,7 @@ creates them.
   - Done when: `grep -rn 'time.Parse(' go-backend/internal --include=*.go | grep -v _test | grep -v internal/dbtime`
     reports only non-DATETIME uses, and `make parity` passes.
 
-- [ ] K14: Create `internal/ids` returning errors; replace the five UUID helpers
+- [x] K14: Create `internal/ids` returning errors; replace the five UUID helpers
   - Files: `newUUID` (`internal/playback/playback.go:2136`,
     `internal/podcasts/podcasts.go:1138`, `internal/userapi/userapi.go:2615`);
     `uuid` (`internal/sharing/handler.go:144`); `randomUUID`

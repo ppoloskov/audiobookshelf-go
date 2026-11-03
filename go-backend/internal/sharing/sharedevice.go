@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -36,7 +37,7 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 	}
 	extraRaw, _ := json.Marshal(extra)
 	now := dbtime.Now()
-	id, err := uuid()
+	id, err := ids.New()
 	if err != nil {
 		return nil, err
 	}

@@ -5,9 +5,7 @@ import (
 	"archive/zip"
 	"audiobookshelf-compat/internal/dbtime"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"mime"
@@ -140,16 +138,6 @@ func routeID(path, suffix string) string {
 		return p[len(p)-1]
 	}
 	return ""
-}
-func uuid() (string, error) {
-	b := make([]byte, 16)
-	if _, e := rand.Read(b); e != nil {
-		return "", e
-	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	s := hex.EncodeToString(b)
-	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:], nil
 }
 func libraryAccess(u store.User, id string) bool {
 	var p map[string]any

@@ -12,7 +12,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -567,7 +567,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		}
 		passwordHash = string(hash)
 	}
-	id, err := randomUUID()
+	id, err := ids.New()
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
@@ -603,7 +603,7 @@ func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Re
 	if err != nil {
 		return "", "", err
 	}
-	id, err := randomUUID()
+	id, err := ids.New()
 	if err != nil {
 		return "", "", err
 	}
@@ -660,7 +660,7 @@ func (h *Handler) sessionByToken(ctx context.Context, token string) (session, er
 }
 
 func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duration) (string, error) {
-	jti, err := randomUUID()
+	jti, err := ids.New()
 	if err != nil {
 		return "", err
 	}
@@ -1148,17 +1148,6 @@ func stringSlice(value any) []string {
 		}
 	}
 	return result
-}
-
-func randomUUID() (string, error) {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	encoded := hex.EncodeToString(b[:])
-	return encoded[:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:], nil
 }
 
 func mustJSON(value any) string {

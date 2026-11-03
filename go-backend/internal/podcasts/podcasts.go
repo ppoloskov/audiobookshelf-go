@@ -8,7 +8,6 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -31,6 +30,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textdist"
@@ -738,8 +738,17 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	}
 	now := time.Now().UTC()
 	timestamp := dbtime.Format(now)
-	id := newUUID()
-	mediaID := newUUID()
+	id, err := ids.New()
+	var mediaID string
+	if err == nil {
+		mediaID, err = ids.New()
+	}
+	if err != nil {
+		if createdPath {
+			_ = os.Remove(path)
+		}
+		return podcastItem{}, 500, "Failed to create podcast", err
+	}
 	ino := strconv.FormatUint(uint64(st.ModTime().UnixNano()), 10)
 	if raw := st.Sys(); raw != nil {
 		if info, ok := raw.(*syscall.Stat_t); ok {
@@ -855,7 +864,12 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) {
 		text(w, 404, "Folder not found")
 		return
 	}
-	id := newUUID()
+	id, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "could not create the OPML import task id", err)
+		httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
+		return
+	}
 	started := time.Now().UnixMilli()
 	task := map[string]any{"id": id, "action": "opml-import", "data": map[string]any{}, "title": "OPML import", "titleKey": "MessageTaskOpmlImport", "titleSubs": nil, "description": fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "descriptionKey": "MessageTaskOpmlImportDescription", "descriptionSubs": []any{len(body.Feeds)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": started, "finishedAt": nil}
 	h.emit("*", "task_started", task)
@@ -909,7 +923,12 @@ func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath 
 
 func (h *Handler) emitFailedOPMLFeed(title, descriptionText, descriptionKey, errorText, errorKey string) {
 	now := time.Now().UnixMilli()
-	task := map[string]any{"id": newUUID(), "action": "opml-import-feed", "data": map[string]any{}, "title": "OPML import feed", "titleKey": "MessageTaskOpmlImportFeed", "titleSubs": nil, "description": descriptionText, "descriptionKey": descriptionKey, "descriptionSubs": []string{title}, "error": errorText, "errorKey": errorKey, "errorSubs": nil, "showSuccess": false, "isFailed": true, "isFinished": true, "startedAt": now, "finishedAt": now}
+	taskID, err := ids.New()
+	if err != nil {
+		logging.Errorf("[PodcastManager] could not create an id for the OPML feed failure task: %v", err)
+		return
+	}
+	task := map[string]any{"id": taskID, "action": "opml-import-feed", "data": map[string]any{}, "title": "OPML import feed", "titleKey": "MessageTaskOpmlImportFeed", "titleSubs": nil, "description": descriptionText, "descriptionKey": descriptionKey, "descriptionSubs": []string{title}, "error": errorText, "errorKey": errorKey, "errorSubs": nil, "showSuccess": false, "isFailed": true, "isFinished": true, "startedAt": now, "finishedAt": now}
 	h.emit("*", "task_started", task)
 }
 
@@ -1105,14 +1124,6 @@ func stringArray(v any) []string {
 		out = append(out, s)
 	}
 	return out
-}
-func newUUID() string {
-	var b [16]byte
-	_, _ = rand.Read(b[:])
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	hex := fmt.Sprintf("%x", b)
-	return hex[:8] + "-" + hex[8:12] + "-" + hex[12:16] + "-" + hex[16:20] + "-" + hex[20:]
 }
 
 func (h *Handler) getFeed(ctx context.Context, rawURL string, excludeEpisodes bool) (map[string]any, error) {

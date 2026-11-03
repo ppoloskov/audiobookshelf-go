@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -78,7 +79,11 @@ func (h *Handler) enqueue(item podcastItem, episodes []map[string]any, auto bool
 		if strings.TrimSpace(title) == "" {
 			title = "Episode"
 		}
-		d := &downloadTask{id: newUUID(), item: item, episode: episode, url: target, filename: episodeFilename(title, target), auto: auto, createdAt: time.Now().UnixMilli()}
+		taskID, err := ids.New()
+		if err != nil {
+			return err
+		}
+		d := &downloadTask{id: taskID, item: item, episode: episode, url: target, filename: episodeFilename(title, target), auto: auto, createdAt: time.Now().UnixMilli()}
 		added = append(added, d)
 	}
 	h.queueMu.Lock()
@@ -373,7 +378,10 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	fileMeta := map[string]any{"filename": filename, "ext": ext, "path": filepath.ToSlash(path), "relPath": rel, "size": size, "mtimeMs": st.ModTime().UnixMilli(), "ctimeMs": st.ModTime().UnixMilli(), "birthtimeMs": st.ModTime().UnixMilli()}
 	audio := map[string]any{"index": 1, "ino": ino, "metadata": fileMeta, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": bitRate, "language": nil, "codec": stream.CodecName, "timeBase": stream.TimeBase, "channels": stream.Channels, "channelLayout": stream.ChannelLayout, "chapters": []any{}, "embeddedCoverArt": nil, "metaTags": map[string]any{}, "mimeType": mime}
 	libFile := map[string]any{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
-	episodeID := newUUID()
+	episodeID, err := ids.New()
+	if err != nil {
+		return err
+	}
 	extra := map[string]any{}
 	if guid, ok := d.episode["guid"].(string); ok && guid != "" {
 		extra["guid"] = guid

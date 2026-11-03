@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -182,7 +183,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	}
 	sid := sessionID
 	if sid == "" {
-		sid, _ = uuid()
+		sid, _ = ids.New()
 	}
 	chapters := []any{}
 	_ = json.Unmarshal(chaptersRaw, &chapters)

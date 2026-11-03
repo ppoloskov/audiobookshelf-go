@@ -9,6 +9,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -300,7 +301,13 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 			}
 		}
 	}
-	id, now := newUUID(), dbtime.Now()
+	id, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "Failed to create playlist", err)
+		http.Error(w, "Failed to create playlist", 500)
+		return
+	}
+	now := dbtime.Now()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
@@ -314,7 +321,13 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	for i, ref := range refs {
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, newUUID(), ref.mediaID, ref.mediaType, i+1, id, now); err != nil {
+		entryID, err := ids.New()
+		if err != nil {
+			logging.RequestError(r, "Failed to create playlist", err)
+			http.Error(w, "Failed to create playlist", 500)
+			return
+		}
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, ref.mediaID, ref.mediaType, i+1, id, now); err != nil {
 			logging.RequestError(r, "Failed to create playlist", err)
 			http.Error(w, "Failed to create playlist", 500)
 			return
@@ -645,7 +658,13 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 			}
 			continue
 		}
-		if _, err := h.db.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, newUUID(), mediaID, mediaType, count+1, id, dbtime.Now()); err != nil {
+		entryID, err := ids.New()
+		if err != nil {
+			logging.RequestError(r, "database write failed", err)
+			http.Error(w, "database write failed", 500)
+			return
+		}
+		if _, err := h.db.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, mediaID, mediaType, count+1, id, dbtime.Now()); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -859,7 +878,13 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	}
 	name, _ := dto["name"].(string)
 	desc, _ := dto["description"].(string)
-	id, now := newUUID(), dbtime.Now()
+	id, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "Failed to create playlist", err)
+		http.Error(w, "Failed to create playlist", 500)
+		return
+	}
+	now := dbtime.Now()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
@@ -884,7 +909,13 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		if mediaID == "" {
 			continue
 		}
-		if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, newUUID(), mediaID, "book", i+1, id, now); err != nil {
+		entryID, genErr := ids.New()
+		if genErr != nil {
+			logging.RequestError(r, "Failed to create playlist", genErr)
+			http.Error(w, "Failed to create playlist", 500)
+			return
+		}
+		if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlistMediaItems(id,mediaItemId,mediaItemType,"order",playlistId,createdAt) VALUES(?,?,?,?,?,?)`, entryID, mediaID, "book", i+1, id, now); err != nil {
 			logging.RequestError(r, "Failed to create playlist", err)
 			http.Error(w, "Failed to create playlist", 500)
 			return

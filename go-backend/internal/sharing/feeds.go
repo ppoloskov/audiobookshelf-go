@@ -15,6 +15,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -410,7 +411,7 @@ func (e feedEpisodeRow) args() []any {
 // createFeed is Feed.createFeedFor* (server/models/Feed.js:157): the feed row
 // and its episode rows in one transaction.
 func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID string, src *feedSource, serverAddress, slug string, opts feedOptions) (feedRow, error) {
-	id, err := uuid()
+	id, err := ids.New()
 	if err != nil {
 		return feedRow{}, err
 	}
@@ -425,7 +426,7 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 		return feedRow{}, err
 	}
 	for _, ep := range src.Episodes {
-		epID, err := uuid()
+		epID, err := ids.New()
 		if err != nil {
 			return feedRow{}, err
 		}
@@ -563,7 +564,7 @@ func (h *Handler) refreshFeedIfStale(ctx context.Context, feed feedRow, eps []fe
 	for _, ep := range src.Episodes {
 		epID := byPath[ep.FilePath.String]
 		if epID == "" {
-			if epID, err = uuid(); err != nil {
+			if epID, err = ids.New(); err != nil {
 				return feed, eps, err
 			}
 		}

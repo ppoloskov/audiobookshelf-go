@@ -13,14 +13,14 @@
     "go-backend/internal/backup/backup.go": "87975db082a4188769b991aca95168f9948469bc309fc653d5b5437e7a068ae3",
     "go-backend/internal/catalog/handler.go": "f5897b7e0c8a5c12bab4d99525dc9d0f4256a383e853135c4f087e99824352fc",
     "go-backend/internal/emailapi/handler.go": "978466f4792a994a8f64473726d226986ca21fa56325ec2525ea9f4d4f784828",
-    "go-backend/internal/identity/identity.go": "09495185a02163ee782a42f4834c42f939b6eb27ff58bdb5c62d0cf060247804",
+    "go-backend/internal/identity/identity.go": "f6d544fe007be77a867e6481fdbf16147b424ba70e198c815d2a79979210205d",
     "go-backend/internal/notifications/handler.go": "b721fa8bcb7e279ccf5c75acabdc828cab4ce8fe3d5e29974ecc7d37cb90c3db",
-    "go-backend/internal/podcasts/podcasts.go": "61efbc2b4253bc71034b9e5d45cec28d930a0e30729b5eb0cfa3b33272b6f088",
+    "go-backend/internal/podcasts/podcasts.go": "2299b427698c53dd786e6b608b0a1ff1827b11568703df092e54eae0e33c2b4c",
     "go-backend/internal/providers/handler.go": "1c619400136c2ee75d626fba7fa0094a9f9b2e7a38cd45cb9e6dcf584643e700",
-    "go-backend/internal/userapi/userapi.go": "1feec17aa92e3b9088a635f545cc8248b289db127a5478a830c610ded363bf2d",
-    "go-backend/internal/playback/playback.go": "a8ac6c3a1a979ae0f22b9b8ff80aa01bda73959c07517d5f4d2bbea6fd178055",
+    "go-backend/internal/userapi/userapi.go": "2ce82d1ca18936225e2bb7cac94c536f7c53e9094965e16cb834a4755a325d9f",
+    "go-backend/internal/playback/playback.go": "b955339bb65131cf80295275c5928945fa89cee6a0fb03cf3c57c1c11718e5a4",
     "go-backend/internal/scanner/scanner.go": "e13db47445f099a620353bbabe9d52f1ee24b37697b7fff5aa10c1263cf7c03c",
-    "go-backend/internal/sharing/handler.go": "b688230cfb302156f46ebfc1004493fe056176a760509776ce94e41f56c40fba"
+    "go-backend/internal/sharing/handler.go": "aba1928fb31f126679b9e0e9ed1f51dd1ce7f38004605b9972a01b5c857b562a"
   },
   "limitations": [
     "All 226 entries are source-syntax candidates, not resolved Express routes; mount paths and middleware behavior are not resolved.",

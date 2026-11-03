@@ -5,14 +5,11 @@ package userapi
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html"
 	"math"
 	"net/http"
@@ -26,6 +23,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
@@ -585,7 +583,12 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		http.Error(w, "Failed to save new user", 500)
 		return
 	}
-	userID := newUUID()
+	userID, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "Failed to save new user", err)
+		http.Error(w, "Failed to save new user", 500)
+		return
+	}
 	email, _ := body["email"].(string)
 	// Upstream user create via Sequelize omits undefined fields; an absent
 	// email is stored as SQL NULL (models/User.js), and the browser DTO then
@@ -1013,7 +1016,12 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			httputil.SendStatus(w, 400)
 			return
 		}
-		keyID := newUUID()
+		keyID, err := ids.New()
+		if err != nil {
+			logging.RequestError(r, "API key creation failed", err)
+			http.Error(w, "API key creation failed", 500)
+			return
+		}
 		now := time.Now().UTC()
 		var expires any
 		if expiresIn > 0 {
@@ -1365,7 +1373,12 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		}
 		mediaIDs[i] = mediaID
 	}
-	id := newUUID()
+	id, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "Failed to create collection", err)
+		http.Error(w, "Failed to create collection", 500)
+		return
+	}
 	now := dbtime.Now()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -1380,7 +1393,13 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	for i, bookID := range mediaIDs {
-		if _, err = tx.ExecContext(r.Context(), `INSERT INTO collectionBooks (id,collectionId,bookId,"order",createdAt) VALUES (?,?,?,?,?)`, newUUID(), id, bookID, i+1, now); err != nil {
+		entryID, genErr := ids.New()
+		if genErr != nil {
+			logging.RequestError(r, "Failed to create collection", genErr)
+			http.Error(w, "Failed to create collection", 500)
+			return
+		}
+		if _, err = tx.ExecContext(r.Context(), `INSERT INTO collectionBooks (id,collectionId,bookId,"order",createdAt) VALUES (?,?,?,?,?)`, entryID, id, bookID, i+1, now); err != nil {
 			logging.RequestError(r, "Failed to create collection", err)
 			http.Error(w, "Failed to create collection", 500)
 			return
@@ -1605,8 +1624,8 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		}
 		return true
 	}
-	ids := validCollectionBookIDs(body["books"])
-	if len(ids) == 0 {
+	itemIDs := validCollectionBookIDs(body["books"])
+	if len(itemIDs) == 0 {
 		if add {
 			httputil.SendText(w, 400, "Invalid request body")
 		} else {
@@ -1615,9 +1634,9 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		}
 		return true
 	}
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-	args := make([]any, 0, len(ids)+2)
-	for _, itemID := range ids {
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(itemIDs)), ",")
+	args := make([]any, 0, len(itemIDs)+2)
+	for _, itemID := range itemIDs {
 		args = append(args, itemID)
 	}
 	query := `SELECT id,mediaId FROM libraryItems WHERE id IN (` + placeholders + `) AND mediaType='book'`
@@ -1694,7 +1713,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		}
 		defer tx.Rollback()
 		changed := false
-		for _, itemID := range ids {
+		for _, itemID := range itemIDs {
 			mediaID := mediaByItem[itemID]
 			if mediaID == "" || existing[mediaID] {
 				continue
@@ -1702,7 +1721,13 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 			order++
 			changed = true
 			existing[mediaID] = true
-			if _, err := tx.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, newUUID(), id, mediaID, order, dbtime.Now()); err != nil {
+			entryID, err := ids.New()
+			if err != nil {
+				logging.RequestError(r, "database write failed", err)
+				http.Error(w, "database write failed", 500)
+				return true
+			}
+			if _, err := tx.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, entryID, id, mediaID, order, dbtime.Now()); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
@@ -1855,7 +1880,13 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 		return true
 	}
 	now := dbtime.Now()
-	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, newUUID(), id, mediaID, count+1, now); err != nil {
+	entryID, err := ids.New()
+	if err != nil {
+		logging.RequestError(r, "database write failed", err)
+		http.Error(w, "database write failed", 500)
+		return true
+	}
+	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, entryID, id, mediaID, count+1, now); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
@@ -2509,14 +2540,4 @@ func bookmarkIndex(bookmarks []any, item string, t float64) int {
 		}
 	}
 	return -1
-}
-func newUUID() string {
-	var id [16]byte
-	if _, err := rand.Read(id[:]); err != nil {
-		panic("crypto/rand unavailable: " + err.Error())
-	}
-	id[6] = (id[6] & 0x0f) | 0x40
-	id[8] = (id[8] & 0x3f) | 0x80
-	raw := hex.EncodeToString(id[:])
-	return fmt.Sprintf("%s-%s-%s-%s-%s", raw[:8], raw[8:12], raw[12:16], raw[16:20], raw[20:])
 }

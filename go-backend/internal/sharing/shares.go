@@ -11,6 +11,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -122,7 +123,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		httputil.SendText(w, 404, "Media item not found", httputil.WithoutETag())
 		return
 	}
-	id, err := uuid()
+	id, err := ids.New()
 	if err != nil {
 		logging.RequestError(r, "Internal server error", err)
 		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
