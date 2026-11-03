@@ -396,7 +396,7 @@ L2, JWT issuing -> L1).
   - Done when: an image publishes with the differential job allowed to fail.
 
 - [ ] V2: Retire the byte-parity harness
-  - Files: `tools/parity/` (keep only what F5b needs), `contracts/parity/`,
+  - Files: `tools/parity/` (keep only what F7b needs), `contracts/parity/`,
     `Makefile` parity targets, `STATUS.md` generator
   - Done when: `tools/parity` holds only the rollback check and its line count
     drops by most of its 11k lines.
@@ -411,6 +411,6 @@ L2, JWT issuing -> L1).
   record the result here.
 - [ ] O5: Approve or reject further libraries when a task proposes one.
 
-Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F5b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
+Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F7b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
 
 Model policy: expensive models plan, design and review; cheap models do mass edits and coding from a written spec.
