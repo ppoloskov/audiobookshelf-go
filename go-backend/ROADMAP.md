@@ -426,7 +426,7 @@ creates them.
   - Done when: `grep -rln 'SignedString' go-backend/internal --include=*.go` lists
     only `internal/auth`, and `go test ./internal/auth ./internal/identity ./internal/userapi` passes.
 
-- [ ] K25: Use one cron parser (six copies today)
+- [x] K25: Use one cron parser (six copies today)
   - Files: `go-backend/internal/catalog/writes.go` (line 134),
     `internal/podcasts/podcasts.go` (lines 961 and 1102), `internal/backup/backup.go`
     (lines 93 and 160), `internal/adminops/handler.go` (line 375)

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -709,7 +710,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 		return podcastItem{}, 400, "Podcast already exists", errPodcastExists
 	}
 	schedule, _ := body["autoDownloadSchedule"].(string)
-	if schedule != "" && !validCron(schedule) {
+	if schedule != "" && !cronspec.Valid(schedule) {
 		return podcastItem{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
 	}
 	settings := h.serverSettings(ctx)
@@ -939,7 +940,7 @@ func (h *Handler) startSchedules() {
 	if h.db == nil {
 		return
 	}
-	h.scheduler = cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)))
+	h.scheduler = cronspec.New()
 	rows, err := h.db.Query(`SELECT li.id FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.mediaType='podcast' AND p.autoDownloadEpisodes=1`)
 	if err != nil {
 		h.scheduler = nil
@@ -964,7 +965,7 @@ func (h *Handler) addSchedule(itemID string) {
 		return
 	}
 	item, err := h.loadItem(context.Background(), itemID)
-	if err != nil || !item.AutoDownload || !item.AutoSchedule.Valid || !validCron(item.AutoSchedule.String) {
+	if err != nil || !item.AutoDownload || !item.AutoSchedule.Valid || !cronspec.Valid(item.AutoSchedule.String) {
 		return
 	}
 	entry, err := h.scheduler.AddFunc(item.AutoSchedule.String, func() { h.runScheduled(itemID) })
@@ -1079,11 +1080,6 @@ func filterNew(all []map[string]any, item podcastItem, after int64, limit int) [
 	return found
 }
 
-func validCron(value string) bool {
-	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	_, err := parser.Parse(value)
-	return err == nil
-}
 func stringLike(v any) (string, bool) {
 	switch x := v.(type) {
 	case string:

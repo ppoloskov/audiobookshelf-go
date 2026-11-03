@@ -2,6 +2,7 @@
 package adminops
 
 import (
+	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"context"
@@ -23,7 +24,6 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"github.com/robfig/cron/v3"
 )
 
 type Handler struct {
@@ -373,8 +373,7 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.U
 		w.WriteHeader(400)
 		return
 	}
-	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	if _, e := parser.Parse(v.Expression); e != nil {
+	if e := cronspec.Validate(v.Expression); e != nil {
 		http.Error(w, "Invalid cron expression", 400)
 		return
 	}

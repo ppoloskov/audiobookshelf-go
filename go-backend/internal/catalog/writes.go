@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"bytes"
@@ -23,7 +24,6 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"github.com/robfig/cron/v3"
 )
 
 type itemScope struct{ itemID, libraryID, mediaID, mediaType string }
@@ -74,7 +74,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		// LibraryItemController.updateMedia (LibraryItemController.js:225).
 		if raw, ok := payload["autoDownloadSchedule"]; ok {
 			var schedule string
-			if json.Unmarshal(raw, &schedule) == nil && schedule != "" && !validCron(schedule) {
+			if json.Unmarshal(raw, &schedule) == nil && schedule != "" && !cronspec.Valid(schedule) {
 				httputil.WriteError(w, http.StatusBadRequest, "Invalid auto download schedule cron expression")
 				return
 			}
@@ -129,12 +129,6 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 }
 
 var errUnsupportedMedia = errors.New("unsupported media type")
-
-// validCron is cron.validate for the auto download schedule.
-func validCron(schedule string) bool {
-	_, err := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule)
-	return err == nil
-}
 
 // sortingPrefixes is the server setting the series prefix form is built from.
 func (h *Handler) sortingPrefixes(ctx context.Context) []string {

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
@@ -89,7 +90,7 @@ func New(db *sql.DB, cfg config.Config, opt Options, emit events.Emitter) (*Hand
 		return nil, err
 	}
 	if strings.TrimSpace(opt.BackupSchedule) != "" {
-		h.cron = cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)))
+		h.cron = cronspec.New()
 		if _, err := h.cron.AddFunc(opt.BackupSchedule, func() { _, _ = h.Create(context.Background()) }); err != nil {
 			return nil, fmt.Errorf("invalid backup schedule %q: %w", opt.BackupSchedule, err)
 		}
@@ -156,7 +157,7 @@ func (h *Handler) UpdateOptions(ctx context.Context, opt Options) error {
 	if strings.TrimSpace(opt.BackupSchedule) == "" {
 		return nil
 	}
-	c := cron.New(cron.WithParser(cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)))
+	c := cronspec.New()
 	if _, err := c.AddFunc(opt.BackupSchedule, func() { _, _ = h.Create(context.Background()) }); err != nil {
 		return fmt.Errorf("invalid backup schedule %q: %w", opt.BackupSchedule, err)
 	}

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -259,7 +260,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		if item.mediaType == "podcast" {
 			var schedule string
-			if raw, present := payload["autoDownloadSchedule"]; present && json.Unmarshal(raw, &schedule) == nil && schedule != "" && !validCron(schedule) {
+			if raw, present := payload["autoDownloadSchedule"]; present && json.Unmarshal(raw, &schedule) == nil && schedule != "" && !cronspec.Valid(schedule) {
 				logging.Warnf(`[LibraryItemController] Invalid auto download schedule cron expression "%s" for library item "%s" - skipping update`, schedule, item.id)
 				continue
 			}
