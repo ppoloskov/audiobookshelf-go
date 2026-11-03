@@ -395,3 +395,7 @@ L2, JWT issuing -> L1).
 - [ ] O4: Run the real iOS and Android apps against a swapped-in install and
   record the result here.
 - [ ] O5: Approve or reject further libraries when a task proposes one.
+
+Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F5b) stays; the differential stays blocking until F4-F6; mobile coverage comes from the owner testing with the real apps and sharing logs.
+
+Model policy: expensive models plan, design and review; cheap models do mass edits and coding from a written spec.

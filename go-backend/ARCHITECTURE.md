@@ -179,7 +179,7 @@ Rules:
 
 ## Libraries
 
-Approved by the owner. Adding a library requires owner approval first; propose
+Approved by the owner (2026-11-03; the libraries already in use are confirmed). Adding a library requires owner approval first; propose
 it with what it replaces (lines, risk) and its maintenance status.
 
 | Library | Use | Replaces |
