@@ -39,6 +39,8 @@ Rules:
 
 - Refactors must lower handwritten lines or complexity and raise no metric.
   Say the deltas in the commit message.
+- A bug fix may raise lines or complexity a little. `-update` refuses raises;
+  edit `ratchet-baseline.json` by hand in the same commit and give the reason.
 - A trial difference (check 6) that is only in a "free" area of
   `ARCHITECTURE.md` (bytes, key order, headers, error text no client parses)
   may be normalized in the harness, with the reason in the commit message.
