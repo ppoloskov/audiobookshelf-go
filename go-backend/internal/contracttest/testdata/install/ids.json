@@ -1,0 +1,17 @@
+{
+  "library": "51bf3bdf-f246-4f7d-b0a6-9059e4d0ed41",
+  "saga1": "b3c61dfc-dd4b-47ee-8998-0340c1228f52",
+  "saga2": "7baea19e-3334-416f-b862-0cb7499e5006",
+  "novel": "91bb63f7-97c9-4230-8fd0-1dfd994977ea",
+  "ebook": "bf4f5bac-080b-465e-adf0-1a3ea5018ac6",
+  "disposable": "da2e4ecd-d9cc-44be-bac7-6b30992d1c0e",
+  "listener": "f6af59cf-3988-45fe-b0ad-81420a953f9d",
+  "collection": "4cad23ef-a655-420e-8bf5-2ba0ecffffe5",
+  "playlist": "b0b574ab-0d9b-41a2-8439-7c7a14799cd4",
+  "podcastLibrary": "61d2b487-8714-4575-ad70-147fd4ee924b",
+  "podcast": "eeb6224f-1316-40c8-b8bf-00804cc90436",
+  "ep1": "c2b5b947-590f-4fe7-a9cd-ef18855a1ddb",
+  "ep2": "68794f9c-22d7-4591-baa0-8e0efd559a7e",
+  "ep3": "41f6b24e-d343-40c7-aa8d-249e73184cdd",
+  "podcastPlaylist": "69178ac8-f7e7-45aa-8b92-d3c0c0524971"
+}

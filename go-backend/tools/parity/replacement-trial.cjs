@@ -1392,6 +1392,6 @@ async function main() {
   if (!ok) process.exitCode = 1
 }
 
-module.exports = { ROOT_USER, startGo, api, loginAs, seedInstallation, copyTree, sh }
+module.exports = { ROOT_USER, LISTENER, FINISHER, startGo, api, loginAs, seedInstallation, copyTree, sh }
 
 if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1 })

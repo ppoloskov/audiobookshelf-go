@@ -1,0 +1,22 @@
+{
+  "upstreamCommit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "seedRoots": {
+    "config": "/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/config",
+    "metadata": "/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/metadata",
+    "media": "/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/media"
+  },
+  "users": {
+    "root": {
+      "username": "trial-root",
+      "password": "trial-root-password"
+    },
+    "listener": {
+      "username": "trial-listener",
+      "password": "trial-listener-password"
+    },
+    "finisher": {
+      "username": "trial-finisher",
+      "password": "trial-finisher-password"
+    }
+  }
+}

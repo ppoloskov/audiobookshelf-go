@@ -1,0 +1,42 @@
+{
+  "tags": [],
+  "chapters": [
+    {
+      "id": 0,
+      "start": 0,
+      "end": 20.062041,
+      "title": "Part 1"
+    },
+    {
+      "id": 1,
+      "start": 20.062041,
+      "end": 40.124082,
+      "title": "Part 2"
+    },
+    {
+      "id": 2,
+      "start": 40.124082,
+      "end": 60.186123,
+      "title": "Part 3"
+    }
+  ],
+  "title": "The Beginning",
+  "subtitle": null,
+  "authors": [
+    "Terry Fixture"
+  ],
+  "narrators": [],
+  "series": [
+    "Long Saga #1"
+  ],
+  "genres": [],
+  "publishedYear": null,
+  "publishedDate": null,
+  "publisher": null,
+  "description": null,
+  "isbn": null,
+  "asin": null,
+  "language": null,
+  "explicit": false,
+  "abridged": false
+}

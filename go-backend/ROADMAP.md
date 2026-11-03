@@ -68,7 +68,7 @@ L2, JWT issuing -> L1).
     the generator reproduces it; routes with no client caller are listed
     separately.
 
-- [ ] F4: Contract fixture: a TS-created install, booted in-process
+- [x] F4: Contract fixture: a TS-created install, booted in-process
   - Files: new `tools/contractfixture/build.cjs` (Node, run by hand once),
     new `internal/contracttest/` (`fixture.go`, `testdata/install/`)
   - Change: `build.cjs` reuses `seedInstallation` from

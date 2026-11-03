@@ -1,0 +1,26 @@
+{"id":"5b96c077-6e1f-4cc7-bc13-8b40ce5beff2","type":"scan","library":{"id":"61d2b487-8714-4575-ad70-147fd4ee924b","name":"Podcasts","displayOrder":2,"icon":"database","mediaType":"podcast","provider":"itunes","lastScan":"2026-11-03T12:46:27.770Z","lastScanVersion":"2.37.2","settings":{"coverAspectRatio":1,"disableWatcher":false,"autoScanCronExpression":null,"podcastSearchRegion":"us","markAsFinishedPercentComplete":null,"markAsFinishedTimeRemaining":10},"extraData":null,"createdAt":"2026-11-03T12:46:27.405Z","updatedAt":"2026-11-03T12:46:27.771Z","libraryFolders":[{"id":"707e28b2-414a-4996-be70-fbfcdb687727","path":"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/media/podcasts","createdAt":"2026-11-03T12:46:27.432Z","updatedAt":"2026-11-03T12:46:27.432Z","libraryId":"61d2b487-8714-4575-ad70-147fd4ee924b"}]},"startedAt":1793709987457,"finishedAt":1793709987770,"elapsed":313,"resultsAdded":1,"resultsUpdated":0,"resultsMissing":0}
+{"timestamp":"2026-11-03T12:46:27.464Z","message":"1 item data found in folder \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/media/podcasts\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagComment => description: The first episode of the fixture cast.","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagDate => pubDate: 2025-03-01","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagDisc => season: 1","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagTrack => episode: 1","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagTitle => title: Pilot Episode","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"New Podcast episode \"Pilot Episode\" found","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagComment => description: A <b>second</b> episode.","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagDate => pubDate: 2025-03-08","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagDisc => season: 1","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagTrack => episode: 2","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"Mapping metadata to key tagTitle => title: Second Outing","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.705Z","message":"New Podcast episode \"Second Outing\" found","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagComment => description: Episode three closes the season.","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagDate => pubDate: 2025-03-15","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagDisc => season: 1","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagTrack => episode: 3","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagTitle => title: Third Time","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"New Podcast episode \"Third Time\" found","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagAlbum => title: Fixture Cast","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagArtist => author: Fixture Host","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.706Z","message":"Mapping metadata to key tagGenre => genres: Technology","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.770Z","message":"Success saving abmetadata to \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/metadata/items/eeb6224f-1316-40c8-b8bf-00804cc90436/metadata.json\"","levelName":"DEBUG","level":1}
+{"timestamp":"2026-11-03T12:46:27.770Z","message":"Created new library item \"Fixture Cast\" with id \"eeb6224f-1316-40c8-b8bf-00804cc90436\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03T12:46:27.770Z","message":"Scan completed. 1 Added | 0 Updated | 0 Missing","levelName":"INFO","level":2}
