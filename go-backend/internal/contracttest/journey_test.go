@@ -72,6 +72,9 @@ type recordedStep struct {
 // is a subtest. A step checks its recorded status and, for JSON, the recorded
 // shape. A binary step checks its media type. Socket.IO events are not checked.
 func TestJourney(t *testing.T) {
+	// The image source is on 127.0.0.1, which the SSRF filter refuses unless
+	// whitelisted. The trial needs the same setting (AGENTS.md).
+	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1")
 	in := Boot(t)
 	recorded := readJSON[struct {
 		Steps map[string]recordedStep `json:"steps"`
