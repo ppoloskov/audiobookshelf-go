@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"audiobookshelf-compat/internal/httputil"
 )
 
 func TestSniffCoverTypeMatchesPinnedImageTypeHeaders(t *testing.T) {
@@ -78,7 +80,7 @@ func TestWriteExpressJSONSetsExpressHeaders(t *testing.T) {
 	if got := response.Header().Get("Content-Length"); got != strconv.Itoa(len(body)) {
 		t.Errorf("Content-Length = %q, want %d", got, len(body))
 	}
-	if got := response.Header().Get("ETag"); got != expressETag(body) {
-		t.Errorf("ETag = %q, want %q", got, expressETag(body))
+	if got := response.Header().Get("ETag"); got != httputil.ExpressETag(body) {
+		t.Errorf("ETag = %q, want %q", got, httputil.ExpressETag(body))
 	}
 }

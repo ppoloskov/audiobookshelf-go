@@ -130,7 +130,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders ORDER BY createdAt ASC`)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	defer rows.Close()
@@ -141,7 +141,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		var extra []byte
 		if err := rows.Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			logging.RequestError(r, "internal error", err)
-			writeError(w, http.StatusInternalServerError, err)
+			httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 			return
 		}
 		if authValue.Valid {
@@ -156,7 +156,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := rows.Err(); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"providers": providers}, httputil.Streamed())
@@ -202,7 +202,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO customMetadataProviders(id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)`, id, name, mediaType, normalized, authValue, extraValue, now, now); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	p := customProvider{ID: id, Name: name, MediaType: mediaType, URL: normalized, CreatedAt: isoDate(now), UpdatedAt: isoDate(now)}
@@ -236,7 +236,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	}
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	if authValue.Valid {
@@ -246,13 +246,13 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	defer tx.Rollback()
 	if _, err = tx.ExecContext(r.Context(), `DELETE FROM customMetadataProviders WHERE id=?`, id); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	fallback := "itunes"
@@ -261,12 +261,12 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	}
 	if _, err = tx.ExecContext(r.Context(), `UPDATE libraries SET provider=? WHERE provider=?`, fallback, "custom-"+id); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	if err = tx.Commit(); err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	if h.emit != nil {
@@ -282,7 +282,7 @@ func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) {
 	custom, err := h.customProviders(r.Context())
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, err)
+		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
 		return
 	}
 	bookCustom, podcastCustom := []map[string]string{}, []map[string]string{}
@@ -352,9 +352,6 @@ func isoDate(value string) string {
 	return value
 }
 func dbNow() string { return dbtime.Now() }
-func writeError(w http.ResponseWriter, status int, err error) {
-	httputil.WriteJSON(w, status, map[string]string{"error": err.Error()}, httputil.Streamed())
-}
 
 func queryValue(r *http.Request, key, fallback string) string {
 	if value, ok := r.URL.Query()[key]; ok && len(value) > 0 {

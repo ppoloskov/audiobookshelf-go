@@ -34,6 +34,21 @@ func SendText(w http.ResponseWriter, status int, body string, opts ...Option) {
 	writeText(w, status, contentType, body, o)
 }
 
+// WriteError is Express res.status(n).send(message), or res.sendStatus(n)'s
+// text when the message is empty. Handlers that answer 5xx log the cause with
+// logging.RequestError first; the body never carries it.
+func WriteError(w http.ResponseWriter, status int, message string, opts ...Option) {
+	if message == "" {
+		message = http.StatusText(status)
+	}
+	SendText(w, status, message, opts...)
+}
+
+// ErrorJSON writes {"error": message}.
+func ErrorJSON(w http.ResponseWriter, status int, message string, opts ...Option) {
+	WriteJSON(w, status, map[string]string{"error": message}, opts...)
+}
+
 func writeText(w http.ResponseWriter, status int, contentType, body string, o options) {
 	w.Header().Set("Content-Type", contentType)
 	if !o.noContentLength {

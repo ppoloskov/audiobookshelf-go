@@ -141,7 +141,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 	results, total, err := h.collapseSubseriesResults(r.Context(), user, libraryID, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	payload.Results, payload.Total = results, total

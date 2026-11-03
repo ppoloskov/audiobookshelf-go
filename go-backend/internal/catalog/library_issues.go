@@ -17,26 +17,26 @@ import (
 // items leave empty (LibraryController.js:650-722).
 func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	var found string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT id FROM libraries WHERE id=?`, libraryID).Scan(&found); errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusNotFound, "Library not found")
+		httputil.WriteError(w, http.StatusNotFound, "Library not found")
 		return
 	} else if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !adminUser(user) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	var itemIDs []string
@@ -45,7 +45,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		itemIDs = append(itemIDs, id)
@@ -55,13 +55,13 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 			err = rows.Err()
 		}
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	var linked itemLinks
 	for _, id := range itemIDs {
 		if status, message := h.removeLibraryItem(r.Context(), nil, id, false, &linked); status != http.StatusOK {
-			writeError(w, status, message)
+			httputil.WriteError(w, status, message)
 			return
 		}
 	}

@@ -15,13 +15,13 @@ import (
 
 func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	counts := map[string]int{}
@@ -30,7 +30,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 		if err := rows.Scan(&raw); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		seen := map[string]bool{}
@@ -44,7 +44,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	rows.Close()
@@ -65,16 +65,16 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	// (LibraryController.js:1170,1214); reloading it keeps the same content.
 	defer h.filters.Invalidate(libraryID)
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	if !canUpdateCatalog(user) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	decoded, err := url.QueryUnescape(encodedID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "")
+		httputil.WriteError(w, http.StatusBadRequest, "")
 		return
 	}
 	nameBytes, err := base64.StdEncoding.DecodeString(decoded)
@@ -82,7 +82,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 		nameBytes, err = base64.RawStdEncoding.DecodeString(decoded)
 	}
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "")
+		httputil.WriteError(w, http.StatusBadRequest, "")
 		return
 	}
 	oldName := string(nameBytes)
@@ -92,7 +92,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 			Name string `json:"name"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil || body.Name == "" {
-			writeError(w, http.StatusBadRequest, "Invalid request payload. Name not specified.")
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request payload. Name not specified.")
 			return
 		}
 		newName = body.Name
@@ -100,7 +100,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,b.id,b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND EXISTS(SELECT 1 FROM json_each(COALESCE(b.narrators,'[]')) WHERE json_each.value=?)`, libraryID, oldName)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	type bookRow struct {
@@ -114,7 +114,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 		if err := rows.Scan(&row.itemID, &row.bookID, &raw); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		row.narrators = decodeStrings(raw)
@@ -123,7 +123,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	rows.Close()
@@ -150,7 +150,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 		encoded, _ := json.Marshal(next)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), row.bookID); err != nil {
 			logging.RequestError(r, "database write failed", err)
-			writeError(w, http.StatusInternalServerError, "database write failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 		if item, err := h.ItemJSON(r.Context(), row.itemID, true); err == nil {
@@ -165,17 +165,17 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 
 func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	if user.Type != "root" && user.Type != "admin" {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	result := make([]map[string]any, 0)
@@ -185,7 +185,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 		if err := rows.Scan(&title, &itunesID, &itemID, &libID); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		result = append(result, map[string]any{"title": nullString(title), "itunesId": nullString(itunesID), "libraryItemId": itemID, "libraryId": libID})
@@ -193,7 +193,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	rows.Close()

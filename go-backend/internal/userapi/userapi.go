@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
@@ -354,7 +353,14 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			payload.EpisodeID = parts[1]
 		}
 		if _, err := h.updateProgress(r.Context(), user, payload); err != nil {
-			writeError(w, err)
+			var refused *progressdto.StatusError
+			if errors.As(err, &refused) {
+				// Express res.status(n).send(string): text/html, no trailing newline.
+				httputil.SendText(w, refused.Status, refused.Message)
+				return
+			}
+			logging.RequestError(r, "request failed", err)
+			http.Error(w, "database write failed", 500)
 			return
 		}
 		h.emitUserUpdate(r.Context(), user)
@@ -379,14 +385,9 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 		return wire.MediaProgress{}, err
 	}
 	if libraryID != "" && !canAccessLibrary(permissions(user), libraryID) {
-		return wire.MediaProgress{}, apiError{403, "Forbidden"}
+		return wire.MediaProgress{}, &progressdto.StatusError{Status: http.StatusForbidden, Message: "Forbidden"}
 	}
-	progress, err := progressdto.Apply(ctx, h.db, user.ID, p)
-	var refused *progressdto.StatusError
-	if errors.As(err, &refused) {
-		return wire.MediaProgress{}, apiError{refused.Status, refused.Message}
-	}
-	return progress, err
+	return progressdto.Apply(ctx, h.db, user.ID, p)
 }
 
 func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
@@ -2493,23 +2494,6 @@ func decodeBody(r *http.Request) (map[string]any, error) {
 	return out, nil
 }
 
-type apiError struct {
-	status  int
-	message string
-}
-
-func (e apiError) Error() string { return e.message }
-func writeError(w http.ResponseWriter, err error) {
-	var ae apiError
-	if errors.As(err, &ae) {
-		// Express res.status(n).send(string): text/html, no trailing newline.
-		sendEntityNotFoundStatus(w, ae.status, ae.message)
-		return
-	}
-	logging.Errorf("[userapi] request failed: %v", err)
-	http.Error(w, "database write failed", 500)
-}
-
 // sendEntityNotFound mirrors the upstream collection/playlist middleware 404:
 // Express res.status(404).send('…') sends the message with Content-Type
 // text/html; charset=utf-8 (CollectionController/PlaylistController middleware).
@@ -2522,7 +2506,7 @@ func sendEntityNotFound(w http.ResponseWriter, message string) {
 func sendEntityNotFoundStatus(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(message)))
-	w.Header().Set("ETag", userExpressETag([]byte(message)))
+	w.Header().Set("ETag", httputil.ExpressETag([]byte(message)))
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(message))
 }
@@ -2538,10 +2522,6 @@ func respondPlaylistError(w http.ResponseWriter, code int) {
 	httputil.SendStatus(w, code)
 }
 
-func userExpressETag(body []byte) string {
-	sum := sha1.Sum(body)
-	return fmt.Sprintf("W/\"%x-%s\"", len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "="))
-}
 func bookmarkIndex(bookmarks []any, item string, t float64) int {
 	for i, v := range bookmarks {
 		if bm, ok := v.(map[string]any); ok && bm["libraryItemId"] == item {

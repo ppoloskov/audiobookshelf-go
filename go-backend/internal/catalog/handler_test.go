@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -561,7 +562,7 @@ func TestMissingItemUsesSendStatusNotFound(t *testing.T) {
 			t.Fatalf("item %q route did not match", id)
 		}
 		const body = "Not Found"
-		if w.Code != http.StatusNotFound || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != expressETag([]byte(body)) {
+		if w.Code != http.StatusNotFound || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
 			t.Fatalf("item %q status=%d headers=%v body=%q", id, w.Code, w.Header(), w.Body.String())
 		}
 	}
@@ -580,7 +581,7 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 		t.Fatal("download route did not match")
 	}
 	const body = "Forbidden"
-	if w.Code != http.StatusForbidden || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != expressETag([]byte(body)) {
+	if w.Code != http.StatusForbidden || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
 }
@@ -1302,7 +1303,7 @@ func TestInvalidLibraryItemsPaginationUsesExpressSend(t *testing.T) {
 		t.Fatal("route did not match")
 	}
 	const body = "Invalid request. page must be a positive integer"
-	if w.Code != http.StatusBadRequest || w.Body.String() != body || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != expressETag([]byte(body)) {
+	if w.Code != http.StatusBadRequest || w.Body.String() != body || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
 }

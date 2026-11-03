@@ -9,9 +9,7 @@ package catalog
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,14 +36,6 @@ func (h *Handler) coverCachePath() string {
 	return filepath.Join(h.cfg.MetadataPath, "cache", "covers")
 }
 
-// expressETag computes the weak ETag of a buffered response body the way
-// express 'send' does (server/etag.js): W/"<len hex>-<sha1 base64 minus padding>".
-func expressETag(body []byte) string {
-	sum := sha1.Sum(body)
-	hash := strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")
-	return fmt.Sprintf("W/\"%x-%s\"", len(body), hash)
-}
-
 // writeExpressJSON mirrors Express res.json for small buffered JSON replies.
 func writeExpressJSON(w http.ResponseWriter, status int, value any) {
 	var buffer bytes.Buffer
@@ -53,13 +43,13 @@ func writeExpressJSON(w http.ResponseWriter, status int, value any) {
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
 		logging.Errorf("[catalog] writeExpressJSON: internal error: %v", err)
-		writeError(w, http.StatusInternalServerError, "")
+		httputil.WriteError(w, http.StatusInternalServerError, "")
 		return
 	}
 	body := bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'})
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressETag(body))
+	w.Header().Set("ETag", httputil.ExpressETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }
@@ -193,7 +183,7 @@ func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) 
 	file, err := os.Open(cachePath)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, "")
+		httputil.WriteError(w, http.StatusInternalServerError, "")
 		return
 	}
 	defer file.Close()
@@ -393,22 +383,22 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if !user.IsActive || permissions["upload"] != true {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	var libraryID, itemPath, mediaType, mediaID string
 	var isFile int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId, path, mediaType, mediaId, COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &itemPath, &mediaType, &mediaID, &isFile); err != nil {
 		if err == sql.ErrNoRows {
-			writeError(w, http.StatusNotFound, "")
+			httputil.WriteError(w, http.StatusNotFound, "")
 			return
 		}
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		writeError(w, http.StatusForbidden, "")
+		httputil.WriteError(w, http.StatusForbidden, "")
 		return
 	}
 	var fileHeader *multipart.FileHeader
@@ -523,7 +513,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 	}()
 	if writeErr != nil {
 		logging.RequestError(r, "database write failed", writeErr)
-		writeError(w, http.StatusInternalServerError, "database write failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
 	if item, itemErr := h.ItemJSON(r.Context(), itemID, true); itemErr == nil && h.emit != nil {
@@ -533,7 +523,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	body := []byte(`{"success":true,"cover":"` + escapeJSONString(coverFullPath) + `"}`)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressETag(body))
+	w.Header().Set("ETag", httputil.ExpressETag(body))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {

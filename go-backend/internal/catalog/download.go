@@ -63,11 +63,11 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 	err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryId, li.path, li.relPath, COALESCE(li.isFile,0), li.mediaType, COALESCE(b.title, p.title) FROM libraryItems li LEFT JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book' LEFT JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast' WHERE li.id = ?`, itemID).Scan(&libraryID, &itemPath, &relPath, &isFile, &mediaType, &title)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			writeError(w, http.StatusNotFound, "")
+			httputil.WriteError(w, http.StatusNotFound, "")
 			return
 		}
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !userCanAccessLibrary(user, libraryID) {
@@ -168,7 +168,7 @@ func sendDownloadText(w http.ResponseWriter, status int, message string) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressETag(body))
+	w.Header().Set("ETag", httputil.ExpressETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

@@ -43,12 +43,12 @@ func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user st
 	var settings sql.NullString
 	err := h.db.QueryRowContext(r.Context(), `SELECT id,name,mediaType,provider,settings FROM libraries WHERE id=?`, id).Scan(&library.id, &library.name, &library.mediaType, &library.provider, &settings)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusNotFound, "Library not found")
+		httputil.WriteError(w, http.StatusNotFound, "Library not found")
 		return library, false
 	}
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return library, false
 	}
 	library.settings = json.RawMessage(settings.String)
@@ -65,7 +65,7 @@ func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user st
 			}
 		}
 		if n != float64(int64(n)) || n < 0 {
-			writeError(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
+			httputil.WriteError(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
 			return library, false
 		}
 	}
@@ -126,7 +126,7 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	defer rows.Close()
@@ -135,7 +135,7 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) {
 		var p opmlPodcast
 		if err := rows.Scan(&p.title, &p.feedURL, &p.description, &p.language); err != nil {
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		podcasts = append(podcasts, p)
@@ -143,7 +143,7 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) {
 	body := []byte(generateOPML(podcasts))
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressETag(body))
+	w.Header().Set("ETag", httputil.ExpressETag(body))
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
@@ -172,7 +172,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	rows, err := h.db.QueryContext(r.Context(), `SELECT libraryFiles FROM libraryItems WHERE libraryId=? AND (SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = ?) >= 1 ORDER BY rowid`, library.id, filename)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	var paths []string
@@ -181,7 +181,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 		if err := rows.Scan(&raw); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		var files []struct {
@@ -202,7 +202,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	}
 	if err := rows.Close(); err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if len(paths) == 0 {
@@ -249,7 +249,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	idsParam, present := r.URL.Query()["ids"]
 	if !present || len(idsParam) != 1 || idsParam[0] == "" {
-		writeError(w, http.StatusBadRequest, "Invalid request. ids must be a string")
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid request. ids must be a string")
 		return
 	}
 	itemIDs := strings.Split(idsParam[0], ",")
@@ -257,7 +257,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	found, err := h.itemsExpandedWhere(ctx, itemIDs)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	var items []batchItem
@@ -269,7 +269,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !allowed {
@@ -283,7 +283,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("LibraryItems-%d.zip", time.Now().UnixMilli())
 	if len(items) == 0 {
 		logging.Warnf(`[LibraryController] No library items found for ids "%s"`, strings.Join(itemIDs, ","))
-		writeError(w, http.StatusNotFound, "Library items not found")
+		httputil.WriteError(w, http.StatusNotFound, "Library items not found")
 		return
 	}
 	isFile := map[string]bool{}

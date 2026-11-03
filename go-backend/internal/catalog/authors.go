@@ -159,7 +159,7 @@ func (h *Handler) authorRequest(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return a, false
 	}
 	if !userCanAccessLibrary(user, a.libraryID) {
@@ -181,7 +181,7 @@ func (h *Handler) authorRequest(w http.ResponseWriter, r *http.Request, user sto
 
 func (h *Handler) authorServerError(w http.ResponseWriter, r *http.Request, message string, err error) {
 	logging.RequestError(r, message, err)
-	writeError(w, http.StatusInternalServerError, message)
+	httputil.WriteError(w, http.StatusInternalServerError, message)
 }
 
 // authorItemIDs are the library item ids of an author's books in the order of
@@ -518,7 +518,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(payload) == 0 {
 		logging.Errorf("[AuthorController] Invalid request payload. No valid keys found")
-		writeError(w, http.StatusBadRequest, "Invalid request payload. No valid keys found")
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid request payload. No valid keys found")
 		return
 	}
 	newName, hasName := payload["name"]
@@ -898,7 +898,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if !present || !jsTruthy(generic) {
 		logging.Errorf("[AuthorController] Invalid request payload. 'url' not in request body")
-		writeError(w, http.StatusBadRequest, "Invalid request payload. 'url' not in request body")
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid request payload. 'url' not in request body")
 		return
 	}
 	if !isString || (!strings.HasPrefix(imageURL, "http:") && !strings.HasPrefix(imageURL, "https:")) {
@@ -907,13 +907,13 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 			shown = jsString(generic)
 		}
 		logging.Errorf(`[AuthorController] Invalid request payload. Invalid url "%s"`, shown)
-		writeError(w, http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
+		httputil.WriteError(w, http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
 		return
 	}
 	logging.Debugf(`[AuthorController] Requesting download author image from url "%s"`, imageURL)
 	imagePath, message := h.saveAuthorImage(ctx, a.id, imageURL)
 	if message != "" {
-		writeError(w, http.StatusBadRequest, message)
+		httputil.WriteError(w, http.StatusBadRequest, message)
 		return
 	}
 	if a.imagePath.Valid && a.imagePath.String != "" {
@@ -969,7 +969,7 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if !a.imagePath.Valid || a.imagePath.String == "" {
 		logging.Errorf(`[AuthorController] Author "%s" has no imagePath set`, a.imagePath.String)
-		writeError(w, http.StatusBadRequest, "Author has no image path set")
+		httputil.WriteError(w, http.StatusBadRequest, "Author has no image path set")
 		return
 	}
 	logging.Infof(`[AuthorController] Removing image for author "%s" at "%s"`, a.name.String, a.imagePath.String)
@@ -1026,7 +1026,7 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if data == nil {
-		writeError(w, http.StatusNotFound, "Author not found")
+		httputil.WriteError(w, http.StatusNotFound, "Author not found")
 		return
 	}
 	logging.Debugf(`[AuthorController] match author with "%s"`, firstNonEmpty(bodyString("q"), bodyString("asin")))

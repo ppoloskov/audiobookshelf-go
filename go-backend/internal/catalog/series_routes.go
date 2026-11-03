@@ -85,13 +85,13 @@ func (h *Handler) seriesRequest(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return s, nil, false
 	}
 	items, err := h.seriesItems(r.Context(), user, s)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return s, nil, false
 	}
 	if len(items) == 0 {
@@ -123,7 +123,7 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 	oldJSON, err := h.seriesOldJSON(ctx, s)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	detail := wire.SeriesDetail{Series: oldJSON}
@@ -142,7 +142,7 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 			err := h.db.QueryRowContext(ctx, `SELECT isFinished FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, user.ID, item.bookID).Scan(&finished)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				logging.RequestError(r, "database read failed", err)
-				writeError(w, http.StatusInternalServerError, "database read failed")
+				httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 				return
 			}
 			if finished.Valid && finished.Bool {
@@ -157,14 +157,14 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 		feed, found, err := h.feedMinified(ctx, "", s.id)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
-			writeError(w, http.StatusInternalServerError, "database read failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		raw := json.RawMessage("null")
 		if found {
 			if raw, err = json.Marshal(feed); err != nil {
 				logging.RequestError(r, "internal error", err)
-				writeError(w, http.StatusInternalServerError, "internal error")
+				httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
 		}
@@ -199,7 +199,7 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 		changes.set(key, current[key], &value)
 	}
 	if valid == 0 {
-		writeError(w, http.StatusBadRequest, "No valid fields to update")
+		httputil.WriteError(w, http.StatusBadRequest, "No valid fields to update")
 		return
 	}
 	if len(changes.columns) > 0 {
@@ -211,20 +211,20 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 		args := append(append([]any{}, changes.values...), dbNow(), s.id)
 		if _, err := h.db.ExecContext(ctx, `UPDATE series SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
 			logging.RequestError(r, "database write failed", err)
-			writeError(w, http.StatusInternalServerError, "database write failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 	}
 	saved, err := h.loadSeries(ctx, s.id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	oldJSON, err := h.seriesOldJSON(ctx, saved)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if len(changes.columns) > 0 && h.emit != nil {

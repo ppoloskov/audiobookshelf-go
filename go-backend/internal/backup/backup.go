@@ -5,9 +5,7 @@ package backup
 import (
 	"archive/zip"
 	"context"
-	"crypto/sha1"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -370,7 +368,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 	if filepath.Ext(header.Filename) != ".audiobookshelf" {
 		logging.RequestDebug(r, "responding 500: uploaded file "+header.Filename+" does not end in .audiobookshelf")
-		sendBody(w, 500, "Invalid backup file")
+		httputil.SendText(w, 500, "Invalid backup file")
 		return
 	}
 	name := filepath.Base(header.Filename)
@@ -808,13 +806,3 @@ func extractEntry(f *zip.File, dest string) error {
 }
 
 func (h *Handler) emit(user, event string, payload any) { h.emitFunc(user, event, payload) }
-
-// sendBody mirrors Express res.send for a text response, including its ETag.
-func sendBody(w http.ResponseWriter, status int, body string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	sum := sha1.Sum([]byte(body))
-	w.Header().Set("ETag", fmt.Sprintf("W/\"%x-%s\"", len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(sum[:]), "=")))
-	w.WriteHeader(status)
-	_, _ = io.WriteString(w, body)
-}

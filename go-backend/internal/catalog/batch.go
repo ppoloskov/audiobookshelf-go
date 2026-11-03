@@ -139,13 +139,13 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 	hard := looselyOne(r.URL.Query().Get("hard"))
 	ids, ok := bodyStringList(jsonBodyObject(r)["libraryItemIds"])
 	if !ok {
-		writeError(w, http.StatusBadRequest, "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	items, err := h.itemsExpandedWhere(ctx, ids)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if len(items) == 0 {
@@ -155,7 +155,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !allowed {
@@ -166,7 +166,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
 	for _, item := range items {
 		var linked itemLinks
 		if status, message := h.removeLibraryItem(ctx, nil, item.id, hard, &linked); status != http.StatusOK {
-			writeError(w, status, message)
+			httputil.WriteError(w, status, message)
 			return
 		}
 		// The series check runs before the authors check (js:610-615).
@@ -227,7 +227,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	items, err := h.itemsExpandedWhere(ctx, ids)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if len(items) != len(updates) {
@@ -238,7 +238,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !allowed {
@@ -272,7 +272,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 		result, err := h.applyMedia(ctx, scope, payload, metadata)
 		if err != nil {
 			logging.RequestError(r, "database write failed", err)
-			writeError(w, http.StatusInternalServerError, "database write failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 		for _, se := range result.sync.seriesAdded {
@@ -293,7 +293,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := h.saveMetadataFiles(ctx, []string{item.id}); err != nil {
 			logging.RequestError(r, "metadata file write failed", err)
-			writeError(w, http.StatusInternalServerError, "metadata file write failed")
+			httputil.WriteError(w, http.StatusInternalServerError, "metadata file write failed")
 			return
 		}
 		logging.Debugf("[LibraryItemController] Updated library item media %q", item.id)

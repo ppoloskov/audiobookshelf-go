@@ -762,13 +762,13 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	allowed, err := h.userCanAccessItems(r.Context(), user, []batchItem{{id: id, libraryID: libraryID, mediaType: mediaType, mediaID: mediaID}})
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if !allowed {
@@ -784,7 +784,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) {
 	result, err := h.quickMatchLibraryItem(r.Context(), id, options)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
+		httputil.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeExpressJSON(w, http.StatusOK, result)
@@ -816,7 +816,7 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
 	items, err := h.itemsExpandedWhere(r.Context(), ids)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
-		writeError(w, http.StatusInternalServerError, "database read failed")
+		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if len(items) == 0 {

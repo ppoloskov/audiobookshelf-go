@@ -273,7 +273,7 @@ creates them.
   - Done when: `grep -rln '^func writeStatus(' go-backend/internal --include=*.go`
     is empty.
 
-- [ ] K8: Move `writeError` into `httputil`, keeping the 5xx log line
+- [x] K8: Move `writeError` into `httputil`, keeping the 5xx log line
   - Files: `go-backend/internal/catalog/handler.go` (line 744),
     `internal/providers/handler.go` (line 371), `internal/userapi/userapi.go`
     (line 2501)
