@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -144,7 +145,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	payload.Results, payload.Total = results, total
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, libraryID, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -128,7 +129,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 		}
 		selected = append(selected, item)
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"libraryItems": selected})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraryItems": selected}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
@@ -235,7 +236,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 			}
 		}
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"success": true, "updated": updated})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true, "updated": updated}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
@@ -321,7 +322,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 			delete(values, key)
 		}
 	}
-	writeJSON(w, r, http.StatusOK, values)
+	httputil.WriteJSON(w, http.StatusOK, values, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user store.User, itemID, ino string) {
@@ -394,7 +395,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user store.Use
 		writeError(w, http.StatusInternalServerError, "ffprobe returned invalid data")
 		return
 	}
-	writeJSON(w, r, http.StatusOK, result)
+	httputil.WriteJSON(w, http.StatusOK, result, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
@@ -482,7 +483,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user stor
 	if h.emit != nil {
 		h.emit("*", "item_updated", item)
 	}
-	writeJSON(w, r, http.StatusOK, item)
+	httputil.WriteJSON(w, http.StatusOK, item, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user store.User, itemID, ino string) {

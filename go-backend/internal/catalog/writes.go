@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -119,7 +120,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"updated": updated, "libraryItem": item})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "libraryItem": item}, httputil.Streamed(), httputil.ForRequest(r))
 	if updated && h.emit != nil {
 		if expanded, e := h.ItemJSON(r.Context(), itemID, true); e == nil {
 			h.emit("*", "item_updated", expanded)

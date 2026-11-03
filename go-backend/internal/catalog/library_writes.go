@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -201,7 +202,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if h.emit != nil {
 		h.emit("*", "library_added", result)
 	}
-	writeJSON(w, r, 200, result)
+	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func readStringField(body map[string]json.RawMessage, key, fallback string) string {
@@ -426,7 +427,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 			writeError(w, 500, "database read failed")
 			return
 		}
-		writeJSON(w, r, 200, result)
+		httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
 		return
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -485,7 +486,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if h.emit != nil {
 		h.emit("*", "library_updated", result)
 	}
-	writeJSON(w, r, 200, result)
+	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user store.User, id string) {
@@ -710,7 +711,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 			_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", item.id))
 		}
 	}
-	writeJSON(w, r, 200, result)
+	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func sqlMarks(n int) string { return strings.TrimRight(strings.Repeat("?,", n), ",") }
@@ -793,7 +794,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user 
 		}
 		result = append(result, library)
 	}
-	writeJSON(w, r, 200, map[string]any{"libraries": result})
+	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, error) {

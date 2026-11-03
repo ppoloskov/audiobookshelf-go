@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -115,11 +116,11 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 			callback = query.Get("callback")
 		}
 		if callback == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "No callback parameter"})
+			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"message": "No callback parameter"})
 			return
 		}
 		if !h.validWebCallback(callback, r) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid callback URL - must be same-origin"})
+			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid callback URL - must be same-origin"})
 			return
 		}
 		redirectURI = callback
@@ -312,7 +313,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		userDTO["accessToken"] = access
 		userDTO["refreshToken"] = refresh
 		setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
-		writeJSON(w, http.StatusOK, payload)
+		httputil.WriteJSON(w, http.StatusOK, payload)
 		return
 	}
 	setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
@@ -379,7 +380,7 @@ func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) {
 			result[key] = value
 		}
 	}
-	writeJSON(w, http.StatusOK, result)
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) any {

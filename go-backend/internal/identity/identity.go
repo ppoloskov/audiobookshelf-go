@@ -31,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -372,13 +373,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to create session"})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to create session"})
 		return
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 		return
 	}
 	responseUser := payload["user"].(map[string]any)
@@ -1108,7 +1109,7 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	if count <= h.rateMax {
 		return true
 	}
-	writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})
+	httputil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})
 	return false
 }
 
@@ -1170,19 +1171,6 @@ func randomUUID() (string, error) {
 func mustJSON(value any) string {
 	data, _ := json.Marshal(value)
 	return string(data)
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		logging.Errorf("[identity] writeJSON: internal server error: %v", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-	w.WriteHeader(status)
-	_, _ = w.Write(data)
 }
 
 // writePassportDenied reproduces the default passport failure response

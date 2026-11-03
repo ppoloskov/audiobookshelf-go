@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -56,7 +57,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 	for _, name := range names {
 		result = append(result, map[string]any{"id": url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(name))), "name": name, "numBooks": counts[name]})
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"narrators": result})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"narrators": result}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user store.User, libraryID, encodedID string, remove bool) {
@@ -159,7 +160,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	if len(updatedItems) > 0 && h.emit != nil {
 		h.emit("*", "items_updated", updatedItems)
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"updated": len(books)})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": len(books)}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
@@ -196,5 +197,5 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 		return
 	}
 	rows.Close()
-	writeJSON(w, r, http.StatusOK, map[string]any{"podcasts": result})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcasts": result}, httputil.Streamed(), httputil.ForRequest(r))
 }

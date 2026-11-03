@@ -226,7 +226,7 @@ creates them.
     `httputil`. Callers in `server` use it.
   - Done when: ratchet `writeJSON-style copies` goes from 12 to <= 10.
 
-- [ ] K2: Move the `writeJSON` copies in `catalog` and `identity` to `httputil`
+- [x] K2: Move the `writeJSON` copies in `catalog` and `identity` to `httputil`
   - Files: `go-backend/internal/catalog/handler.go` (line 735, takes `r`);
     `go-backend/internal/identity/identity.go` (line 1175)
   - Change: Delete both copies and call `httputil`.

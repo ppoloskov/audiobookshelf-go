@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -140,7 +141,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 			return
 		}
 	}
-	writeJSON(w, r, http.StatusOK, shelves)
+	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) appendContinueSeries(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
@@ -385,7 +386,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	if listenAgain != nil {
 		shelves = append(shelves, listenAgain)
 	}
-	writeJSON(w, r, 200, shelves)
+	httputil.WriteJSON(w, 200, shelves, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func podcastPermissionClause(user store.User) (string, []any) {

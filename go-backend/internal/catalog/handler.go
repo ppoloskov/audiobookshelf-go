@@ -4,6 +4,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -732,15 +733,6 @@ func pagination(r *http.Request) (int, int, error) {
 	return page, limit, nil
 }
 
-func writeJSON(w http.ResponseWriter, r *http.Request, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if r.Method == http.MethodHead {
-		w.WriteHeader(status)
-		return
-	}
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
 func writeError(w http.ResponseWriter, status int, message string) {
 	// Upstream responses are Express res.sendStatus(status) (English status
 	// text) or res.status(..).send('message'); neither appends a trailing
@@ -1292,7 +1284,7 @@ func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, user
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	writeJSON(w, r, http.StatusOK, data)
+	httputil.WriteJSON(w, http.StatusOK, data, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -1480,10 +1472,10 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		writeJSON(w, r, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata["numIssues"], "numUserPlaylists": playlists, "library": payload})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata["numIssues"], "numUserPlaylists": playlists, "library": payload}, httputil.Streamed(), httputil.ForRequest(r))
 		return
 	}
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, user store.User, id string) {
@@ -1508,7 +1500,7 @@ func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, user stor
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	writeJSON(w, r, http.StatusOK, stats)
+	httputil.WriteJSON(w, http.StatusOK, stats, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (map[string]any, error) {
@@ -1952,7 +1944,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 		authors = append(authors, map[string]any{"id": a.id, "asin": nullString(a.asin), "name": nullString(a.name), "description": nullString(a.description), "imagePath": nullString(a.imagePath), "libraryId": a.libraryID, "addedAt": deref(created), "updatedAt": deref(updated), "numBooks": a.numBooks, "lastFirst": nullString(a.lastFirst)})
 	}
 	if !paginated {
-		writeJSON(w, r, http.StatusOK, map[string]any{"authors": authors})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
 		return
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}
@@ -1965,7 +1957,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 	if v := r.URL.Query().Get("include"); v != "" {
 		payload["include"] = v
 	}
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func authorPagination(r *http.Request) (int, int, bool) {
@@ -2177,7 +2169,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 	if sortBy != "" {
 		payload["sortBy"] = sortBy
 	}
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]map[string]any, error) {
@@ -2299,7 +2291,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		}
 		payload["progress"] = map[string]any{"libraryItemIds": ids, "libraryItemIdsFinished": finished, "isFinished": len(finished) >= len(ids)}
 	}
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func dateSortKey(v any) int64 {
@@ -2522,7 +2514,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	if v := r.URL.Query().Get("filter"); v != "" {
 		payload["filterBy"] = v
 	}
-	writeJSON(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
@@ -2551,7 +2543,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, 
 			return
 		}
 	}
-	writeJSON(w, r, http.StatusOK, item)
+	httputil.WriteJSON(w, http.StatusOK, item, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 // expandedItemIncludes applies the include= entities of upstream
@@ -3118,7 +3110,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		writeJSON(w, r, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes}, httputil.Streamed(), httputil.ForRequest(r))
 		return
 	}
 	narrators, err := h.searchJSONValues(r.Context(), libraryID, table, "narrators", query, limit)
@@ -3139,7 +3131,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
 }
 
 // searchEpisodes is the episode half of libraryItemsPodcastFilters.search
