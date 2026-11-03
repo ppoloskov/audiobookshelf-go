@@ -192,6 +192,7 @@ it with what it replaces (lines, risk) and its maintenance status.
 | `github.com/mmcdole/gofeed` | podcast RSS/Atom parsing | `podcasts/rss.go` XML mapping |
 | `github.com/coreos/go-oidc/v3` | OIDC | (in use) |
 | `github.com/zishang520/socket.io/v2` | Socket.IO v4 server | (in use) |
+| `github.com/zishang520/socket.io/clients/socket/v3` (tests only) | Socket.IO client for event checks in the Go journey | skipped event checks (ROADMAP F9) |
 | `github.com/fsnotify/fsnotify` | library watcher | (in use) |
 | `github.com/robfig/cron/v3` | schedules | (in use) |
 | `github.com/google/uuid` | UUIDv4 | (in use) |

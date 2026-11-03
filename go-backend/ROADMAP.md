@@ -140,9 +140,8 @@ L2, JWT issuing -> L1).
     reached by a journey step (OIDC through a test provider).
 
 - [ ] F9: Socket.IO event checks in the Go journey
-  - Prerequisite: owner approval of a Go Socket.IO client for tests
-    (proposed: `github.com/zishang520/socket.io/clients/socket/v3`, same
-    author as the server library in use, test-only).
+  - Prerequisite: F5b. Client approved 2026-11-03:
+    `github.com/zishang520/socket.io/clients/socket/v3` (tests only).
   - Change: The 37 steps that expect events assert event names, recipients and
     payload shapes (recorded like HTTP shapes).
   - Done when: no journey step skips its event check.
@@ -454,7 +453,7 @@ L2, JWT issuing -> L1).
 - [ ] O4: Run the real iOS and Android apps against a swapped-in install and
   record the result here.
 - [ ] O5: Approve or reject further libraries when a task proposes one.
-  Pending: a Go Socket.IO client for tests (F9).
+  Approved 2026-11-03: `github.com/zishang520/socket.io/clients/socket/v3` for tests (F9).
 
 Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F7b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
 
