@@ -2,7 +2,7 @@
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench ratchet ratchet-update status
+.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage ratchet ratchet-update status
 
 parity:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/suite-runner.cjs core
@@ -43,6 +43,10 @@ ratchet:
 
 ratchet-update:
 	cd go-backend && go run ./tools/ratchet -update
+
+# Client routes and Socket.IO events, mapped to Go handlers (contracts/client-usage.json).
+client-usage:
+	cd go-backend && go run ./tools/clientusage
 
 status:
 	$(PARITY_NODE) go-backend/tools/parity/status.cjs

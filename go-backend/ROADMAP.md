@@ -57,7 +57,7 @@ L2, JWT issuing -> L1).
   - Done when: `go run ./tools/ratchet` prints the three metrics and fails when
     any of them rises.
 
-- [ ] F3: Inventory the routes and events clients use
+- [x] F3: Inventory the routes and events clients use
   - Files: new `contracts/client-usage.json`, a generator under `tools/`
   - Change: Extract every API path, method and Socket.IO event used by the web
     client (`client/`: `$axios` calls, `$socket` emits/listeners), add the
