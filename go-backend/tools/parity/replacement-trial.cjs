@@ -877,6 +877,41 @@ function journeySteps(ids) {
   add('batch.delete.hard', R, `${BD}?hard=1`, { method: 'POST', body: { libraryItemIds: [ids.disposable] }, events: 4 })
   add('batch.delete.after.authors', R, `/api/libraries/${ids.library}/authors`)
   add('batch.delete.after.items2', R, `/api/libraries/${ids.library}/items?limit=20&page=0&minified=1&sort=media.metadata.title`)
+
+  // ---- Library OPML export, multi-item zip download and metadata file removal:
+  // LibraryController.getOPMLFile, downloadMultiple, removeAllMetadataFiles.
+  // Zip entries are compared by name, size and method (sorted), not by bytes:
+  // entry timestamps are wall-clock and archiver orders entries differently.
+  const PLIB = ids.podcastLibrary
+  add('opml.podcast.nofeed', R, `/api/libraries/${PLIB}/opml`, { binary: 'xml' })
+  add('opml.setup.feed', R, `/api/items/${ids.podcast}/media`, { method: 'PATCH', body: { metadata: { title: 'Tom & "Jerry" <Show>', feedUrl: 'http://example.com/feed?a=1&b=2', description: 'Edited <b>podcast</b> & more', itunesPageUrl: 'https://podcasts.apple.com/podcast/id1', language: 'en-US' } } })
+  add('opml.podcast', R, `/api/libraries/${PLIB}/opml`, { binary: 'xml' })
+  add('opml.podcast.listener', L, `/api/libraries/${PLIB}/opml`, { binary: 'xml' })
+  add('opml.podcast.finisher', 'finisher', `/api/libraries/${PLIB}/opml`, { binary: 'xml' })
+  add('opml.book', R, `/api/libraries/${ids.library}/opml`, { binary: 'xml' })
+  add('opml.limit.nan', R, `/api/libraries/${PLIB}/opml?limit=abc&page=`, { binary: 'xml' })
+  add('opml.limit.negative', R, `/api/libraries/${PLIB}/opml?limit=-1`)
+  add('opml.page.fraction', R, `/api/libraries/${PLIB}/opml?page=1.5`)
+  add('opml.missing', R, `/api/libraries/${ZERO_ID}/opml`)
+  add('opml.anon', null, `/api/libraries/${PLIB}/opml`)
+  const DL = (query) => `/api/libraries/${ids.library}/download${query}`
+  add('download.noids', L, DL(''))
+  add('download.emptyids', L, DL('?ids='))
+  add('download.unknown', L, DL(`?ids=${ZERO_ID}`))
+  add('download.otherlibrary', L, DL(`?ids=${ids.podcast}`))
+  add('download.two', L, DL(`?ids=${ids.saga1},${ids.saga2}`), { binary: 'zip' })
+  add('download.mixed', L, DL(`?ids=${ids.novel},${ZERO_ID},${ids.podcast}`), { binary: 'zip' })
+  add('download.root', R, DL(`?ids=${ids.saga2}`), { binary: 'zip' })
+  add('download.missinglibrary', L, `/api/libraries/${ZERO_ID}/download?ids=${ids.saga1}`)
+  // The positive path (files listed in libraryFiles) is a Go unit test: upstream's
+  // saveMetadataFile does not persist the new metadata.json entry, so a file written
+  // through the API is not found until a rescan.
+  add('metadata.remove.listener', L, `/api/libraries/${ids.library}/remove-metadata`, { method: 'POST', body: {} })
+  add('metadata.remove.abs', R, `/api/libraries/${ids.library}/remove-metadata?ext=abs`, { method: 'POST', body: {} })
+  add('metadata.remove.json', R, `/api/libraries/${ids.library}/remove-metadata`, { method: 'POST', body: {} })
+  add('metadata.remove.again', R, `/api/libraries/${ids.library}/remove-metadata?ext=json`, { method: 'POST', body: {} })
+  add('metadata.remove.podcastlibrary', R, `/api/libraries/${PLIB}/remove-metadata`, { method: 'POST', body: {} })
+  add('metadata.remove.missing', R, `/api/libraries/${ZERO_ID}/remove-metadata`, { method: 'POST', body: {} })
   return s
 }
 
@@ -1032,6 +1067,7 @@ async function runJourney(server, ids, logDir) {
       if (step.id === 'login.finisher' && r.ok) tokens.finisher = r.value.user.accessToken
       let recorded
       if (step.binary === 'bytes') recorded = { len: r.bytes.length, sha: require('node:crypto').createHash('sha256').update(r.bytes).digest('hex'), type: r.headers.get('content-type'), range: r.headers.get('content-range') }
+      else if (step.binary === 'zip') recorded = { type: r.headers.get('content-type'), disposition: (r.headers.get('content-disposition') || '').replace(/LibraryItems-\d+/, 'LibraryItems-<ms>'), entries: zipEntries(r.bytes), text: zipEntries(r.bytes) ? undefined : r.bytes.toString('utf8') }
       else if (step.binary === 'meta') recorded = { type: r.headers.get('content-type'), nonEmpty: r.bytes.length > 0 }
       else if (step.binary === 'xml') recorded = { status: r.status, type: r.headers.get('content-type'), text: typeof r.value === 'string' ? normalizeFeedXML(r.value) : r.value }
       else if (step.binary === 'text') recorded = { type: r.headers.get('content-type'), text: typeof r.value === 'string' ? r.value.replace(UUID, '<uuid>').replace(/[?&]token=[^\s&]+/g, '') : r.value }
@@ -1159,6 +1195,25 @@ function dumpRows(dbPath, ids) {
   }
   db.close()
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { status: 200, body: v }]))
+}
+
+// Entries (name, size, method) of a zip held in memory, sorted by name: the
+// order archiver writes and the order of the Go writer can differ without
+// changing what a client extracts, and the entry timestamps are wall-clock.
+function zipEntries(buffer) {
+  let eocd = -1
+  for (let i = buffer.length - 22; i >= 0; i--) if (buffer.readUInt32LE(i) === 0x06054b50) { eocd = i; break }
+  if (eocd < 0) return null
+  const count = buffer.readUInt16LE(eocd + 10)
+  let offset = buffer.readUInt32LE(eocd + 16)
+  const entries = []
+  for (let n = 0; n < count; n++) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) return null
+    const nameLength = buffer.readUInt16LE(offset + 28)
+    entries.push({ name: buffer.toString('utf8', offset + 46, offset + 46 + nameLength), size: buffer.readUInt32LE(offset + 24), method: buffer.readUInt16LE(offset + 10) })
+    offset += 46 + nameLength + buffer.readUInt16LE(offset + 30) + buffer.readUInt16LE(offset + 32)
+  }
+  return entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
 }
 
 function sortKeys(value) {

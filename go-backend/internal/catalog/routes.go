@@ -34,4 +34,9 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	// server/routers/ApiRouter.js:102-103.
 	mux.HandleFunc("POST /api/items/batch/delete", h.batchDelete)
 	mux.HandleFunc("POST /api/items/batch/update", h.batchUpdate)
+
+	// server/routers/ApiRouter.js:93-97.
+	mux.HandleFunc("GET /api/libraries/{id}/opml", h.libraryOPML)
+	mux.HandleFunc("POST /api/libraries/{id}/remove-metadata", h.libraryRemoveMetadata)
+	mux.HandleFunc("GET /api/libraries/{id}/download", h.libraryDownload)
 }

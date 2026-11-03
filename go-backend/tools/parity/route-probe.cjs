@@ -57,10 +57,7 @@ const ALLOWLIST = [
   'POST /api/items/batch/quickmatch',
   'POST /api/items/:id/match',
   'GET /api/libraries/:id/matchall',
-  'GET /api/search/podcast',
-  'GET /api/libraries/:id/opml',
-  'GET /api/libraries/:id/download',
-  'POST /api/libraries/:id/remove-metadata'
+  'GET /api/search/podcast'
 ]
 
 function upstreamRoutes() {

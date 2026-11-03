@@ -124,12 +124,13 @@ func jsTruthy(v any) bool {
 }
 
 // userAllows is `!!user.permissions?.<key> && user.isActive` (User.js:560-571)
-// for the update, delete and upload permissions.
+// for the update, delete, upload and download permissions.
 func userAllows(user store.User, key string) bool {
 	var permissions struct {
-		Update any `json:"update"`
-		Delete any `json:"delete"`
-		Upload any `json:"upload"`
+		Update   any `json:"update"`
+		Delete   any `json:"delete"`
+		Upload   any `json:"upload"`
+		Download any `json:"download"`
 	}
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	var granted any
@@ -140,6 +141,8 @@ func userAllows(user store.User, key string) bool {
 		granted = permissions.Delete
 	case "upload":
 		granted = permissions.Upload
+	case "download":
+		granted = permissions.Download
 	}
 	return user.IsActive && jsTruthy(granted)
 }
