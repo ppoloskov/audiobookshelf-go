@@ -76,22 +76,22 @@ type journeyShapesOutput struct {
 	Steps map[string]recordedStep `json:"steps"`
 }
 
-// recordJourney runs the steps and the dumps against the install and writes
-// journey.json. A step that fails to run (a capture it needs is missing, a
-// login fails) stops the recording: the file is only written from a full run.
-func recordJourney(t *testing.T, in *Install, c *journeyCtx, steps []journeyStep) {
+// recordJourneyFile runs the steps and the dumps against the install and writes
+// shapesFile. A step that fails to run (a capture it needs is missing, a login
+// fails) stops the recording: the file is only written from a full run.
+func recordJourneyFile(t *testing.T, shapesFile string, in *Install, c *journeyCtx, steps []journeyStep, dumps []string) {
 	t.Helper()
 	meta := readJSON[fixtureMeta](t, filepath.Join(fixtureDir, fixtureFile))
 	out := journeyShapesOutput{Steps: map[string]recordedStep{}}
 	out.Source.UpstreamCommit = meta.UpstreamCommit
-	out.Source.Generator = "go test ./internal/contracttest -run TestJourney -record"
+	out.Source.Generator = "go test ./internal/contracttest -run " + t.Name() + " -record"
 	for _, st := range steps {
 		if _, dup := out.Steps[st.id]; dup {
 			t.Fatalf("duplicate journey step %s", st.id)
 		}
 		out.Steps[st.id] = recordedOf(t, st.id, runJourneyStep(t, in, c, st))
 	}
-	for _, id := range journeyDumps {
+	for _, id := range dumps {
 		out.Steps[id] = recordedStep{
 			Status:      http.StatusOK,
 			ContentType: "application/json",
@@ -100,12 +100,12 @@ func recordJourney(t *testing.T, in *Install, c *journeyCtx, steps []journeyStep
 	}
 	raw, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
-		t.Fatalf("marshal %s: %v", journeyShapesFile, err)
+		t.Fatalf("marshal %s: %v", shapesFile, err)
 	}
-	if err := os.WriteFile(journeyShapesFile, append(raw, '\n'), 0o644); err != nil {
-		t.Fatalf("write %s: %v", journeyShapesFile, err)
+	if err := os.WriteFile(shapesFile, append(raw, '\n'), 0o644); err != nil {
+		t.Fatalf("write %s: %v", shapesFile, err)
 	}
-	t.Logf("recorded %d steps and %d dumps to %s", len(steps), len(journeyDumps), journeyShapesFile)
+	t.Logf("recorded %d steps and %d dumps to %s", len(steps), len(dumps), shapesFile)
 }
 
 // recordedOf is what journey.json keeps of one response. A body is a shape only

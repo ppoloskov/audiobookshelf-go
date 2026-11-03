@@ -165,22 +165,34 @@ func (in *Install) Do(t testing.TB, method, path, token string, body any) (*http
 	return in.request(t, method, path, token, nil, body)
 }
 
+// rawBody is a request body sent as it is, with its own media type (multipart
+// uploads). Any other non-nil body is sent as JSON.
+type rawBody struct {
+	contentType string
+	data        []byte
+}
+
 func (in *Install) request(t testing.TB, method, path, token string, headers map[string]string, body any) (*http.Response, []byte) {
 	t.Helper()
 	var reader io.Reader
-	if body != nil {
+	contentType := ""
+	switch b := body.(type) {
+	case nil:
+	case rawBody:
+		reader, contentType = bytes.NewReader(b.data), b.contentType
+	default:
 		raw, err := json.Marshal(body)
 		if err != nil {
 			t.Fatalf("contracttest: marshal %s %s: %v", method, path, err)
 		}
-		reader = bytes.NewReader(raw)
+		reader, contentType = bytes.NewReader(raw), "application/json"
 	}
 	req, err := http.NewRequestWithContext(context.Background(), method, in.BaseURL+path, reader)
 	if err != nil {
 		t.Fatalf("contracttest: build %s %s: %v", method, path, err)
 	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)

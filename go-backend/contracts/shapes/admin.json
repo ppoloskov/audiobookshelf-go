@@ -1,0 +1,4026 @@
+{
+  "source": {
+    "upstreamCommit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "generator": "go test ./internal/contracttest -run TestJourneyAdmin -record"
+  },
+  "steps": {
+    "apikeys.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "apiKey": {
+            "kind": "object",
+            "keys": {
+              "apiKey": {
+                "kind": "string"
+              },
+              "createdAt": {
+                "kind": "string"
+              },
+              "createdByUserId": {
+                "kind": "string"
+              },
+              "expiresAt": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "name": {
+                "kind": "string"
+              },
+              "updatedAt": {
+                "kind": "string"
+              },
+              "user": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "string"
+                  },
+                  "type": {
+                    "kind": "string"
+                  },
+                  "username": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "userId": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "apikeys.delete": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "apikeys.list.after": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "apiKeys": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "createdAt": {
+                  "kind": "string"
+                },
+                "createdByUser": {
+                  "kind": "object",
+                  "keys": {
+                    "id": {
+                      "kind": "string"
+                    },
+                    "type": {
+                      "kind": "string"
+                    },
+                    "username": {
+                      "kind": "string"
+                    }
+                  }
+                },
+                "createdByUserId": {
+                  "kind": "string"
+                },
+                "description": {
+                  "kind": "null"
+                },
+                "expiresAt": {
+                  "kind": "null"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "isActive": {
+                  "kind": "bool"
+                },
+                "lastUsedAt": {
+                  "kind": "null"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "permissions": {
+                  "kind": "null"
+                },
+                "updatedAt": {
+                  "kind": "string"
+                },
+                "user": {
+                  "kind": "object",
+                  "keys": {
+                    "id": {
+                      "kind": "string"
+                    },
+                    "type": {
+                      "kind": "string"
+                    },
+                    "username": {
+                      "kind": "string"
+                    }
+                  }
+                },
+                "userId": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "apikeys.list.before": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "apiKeys": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "apikeys.update": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "apiKey": {
+            "kind": "object",
+            "keys": {
+              "createdAt": {
+                "kind": "string"
+              },
+              "createdByUserId": {
+                "kind": "string"
+              },
+              "description": {
+                "kind": "null"
+              },
+              "expiresAt": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "lastUsedAt": {
+                "kind": "null"
+              },
+              "name": {
+                "kind": "string"
+              },
+              "permissions": {
+                "kind": "null"
+              },
+              "updatedAt": {
+                "kind": "string"
+              },
+              "user": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "string"
+                  },
+                  "type": {
+                    "kind": "string"
+                  },
+                  "username": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "userId": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "auth.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "authActiveAuthMethods": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "authLoginCustomMessage": {
+            "kind": "null"
+          },
+          "authOpenIDAdvancedPermsClaim": {
+            "kind": "string"
+          },
+          "authOpenIDAuthorizationURL": {
+            "kind": "null"
+          },
+          "authOpenIDAutoLaunch": {
+            "kind": "bool"
+          },
+          "authOpenIDAutoRegister": {
+            "kind": "bool"
+          },
+          "authOpenIDButtonText": {
+            "kind": "string"
+          },
+          "authOpenIDClientID": {
+            "kind": "null"
+          },
+          "authOpenIDClientSecret": {
+            "kind": "null"
+          },
+          "authOpenIDGroupClaim": {
+            "kind": "string"
+          },
+          "authOpenIDIssuerURL": {
+            "kind": "null"
+          },
+          "authOpenIDJwksURL": {
+            "kind": "null"
+          },
+          "authOpenIDLogoutURL": {
+            "kind": "null"
+          },
+          "authOpenIDMatchExistingBy": {
+            "kind": "null"
+          },
+          "authOpenIDMobileRedirectURIs": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "authOpenIDSamplePermissions": {
+            "kind": "string"
+          },
+          "authOpenIDTokenSigningAlgorithm": {
+            "kind": "string"
+          },
+          "authOpenIDTokenURL": {
+            "kind": "null"
+          },
+          "authOpenIDUserInfoURL": {
+            "kind": "null"
+          }
+        }
+      }
+    },
+    "auth.patch": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "updated": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "backups.apply": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "backups.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "backups": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "backupDirPath": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "datePretty": {
+                  "kind": "string"
+                },
+                "fileSize": {
+                  "kind": "number"
+                },
+                "filename": {
+                  "kind": "string"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "key": {
+                  "kind": "string"
+                },
+                "path": {
+                  "kind": "string"
+                },
+                "serverVersion": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "backups.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "backups": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "backups.download": {
+      "status": 200,
+      "contentType": "application/octet-stream"
+    },
+    "backups.get.after-create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "backupLocation": {
+            "kind": "string"
+          },
+          "backupPathEnvSet": {
+            "kind": "bool"
+          },
+          "backups": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "backupDirPath": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "datePretty": {
+                  "kind": "string"
+                },
+                "fileSize": {
+                  "kind": "number"
+                },
+                "filename": {
+                  "kind": "string"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "key": {
+                  "kind": "string"
+                },
+                "path": {
+                  "kind": "string"
+                },
+                "serverVersion": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "backups.get.before": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "backupLocation": {
+            "kind": "string"
+          },
+          "backupPathEnvSet": {
+            "kind": "bool"
+          },
+          "backups": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "backups.path.restore": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "backups.path.set": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "backups.upload": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "backups": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "backupDirPath": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "datePretty": {
+                  "kind": "string"
+                },
+                "fileSize": {
+                  "kind": "number"
+                },
+                "filename": {
+                  "kind": "string"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "key": {
+                  "kind": "string"
+                },
+                "path": {
+                  "kind": "string"
+                },
+                "serverVersion": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cache.items.purge": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "cache.purge": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "emails.ereader.add": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "ereaderDevices": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "availabilityOption": {
+                  "kind": "string"
+                },
+                "email": {
+                  "kind": "string"
+                },
+                "name": {
+                  "kind": "string"
+                },
+                "users": {
+                  "kind": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "emails.ereader.remove": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "ereaderDevices": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "emails.settings.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "ereaderDevices": {
+                "kind": "array"
+              },
+              "fromAddress": {
+                "kind": "null"
+              },
+              "host": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "pass": {
+                "kind": "null"
+              },
+              "port": {
+                "kind": "number"
+              },
+              "rejectUnauthorized": {
+                "kind": "bool"
+              },
+              "secure": {
+                "kind": "bool"
+              },
+              "testAddress": {
+                "kind": "null"
+              },
+              "user": {
+                "kind": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    "emails.settings.patch": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "ereaderDevices": {
+                "kind": "array"
+              },
+              "fromAddress": {
+                "kind": "null"
+              },
+              "host": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "pass": {
+                "kind": "null"
+              },
+              "port": {
+                "kind": "number"
+              },
+              "rejectUnauthorized": {
+                "kind": "bool"
+              },
+              "secure": {
+                "kind": "bool"
+              },
+              "testAddress": {
+                "kind": "null"
+              },
+              "user": {
+                "kind": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    "emails.test": {
+      "status": 400,
+      "contentType": "text/html"
+    },
+    "embed.batch": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "embed.quick": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "encode.cancel": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "encode.start": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "filesystem.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "directories": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "dirname": {
+                  "kind": "string"
+                },
+                "level": {
+                  "kind": "number"
+                },
+                "path": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "posix": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "filesystem.pathexists": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "exists": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "filesystem.pathexists.after": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "exists": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "forbidden.apikeys.list": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.backups.list": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.emails.settings": {
+      "status": 404,
+      "contentType": "text/plain"
+    },
+    "forbidden.embed": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.notifications.list": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.providers.list": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.settings.patch": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.users.create": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "forbidden.users.update": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "lib.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "createdAt": {
+            "kind": "number"
+          },
+          "displayOrder": {
+            "kind": "number"
+          },
+          "folders": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fullPath": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "libraryId": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "icon": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "lastScanVersion": {
+            "kind": "string"
+          },
+          "lastUpdate": {
+            "kind": "number"
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "name": {
+            "kind": "string"
+          },
+          "provider": {
+            "kind": "string"
+          },
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "audiobooksOnly": {
+                "kind": "bool"
+              },
+              "autoScanCronExpression": {
+                "kind": "null"
+              },
+              "coverAspectRatio": {
+                "kind": "number"
+              },
+              "disableWatcher": {
+                "kind": "bool"
+              },
+              "epubsAllowScriptedContent": {
+                "kind": "bool"
+              },
+              "hideSingleBookSeries": {
+                "kind": "bool"
+              },
+              "markAsFinishedPercentComplete": {
+                "kind": "null"
+              },
+              "markAsFinishedTimeRemaining": {
+                "kind": "number"
+              },
+              "metadataPrecedence": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "onlyShowLaterBooksInContinueSeries": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithAsin": {
+                "kind": "bool"
+              },
+              "skipMatchingMediaWithIsbn": {
+                "kind": "bool"
+              }
+            }
+          }
+        }
+      }
+    },
+    "logger.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "currentDailyLogs": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "level": {
+                  "kind": "number"
+                },
+                "levelName": {
+                  "kind": "string"
+                },
+                "message": {
+                  "kind": "string"
+                },
+                "source": {
+                  "kind": "string"
+                },
+                "timestamp": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "login.listener": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "createdAt": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "time": {
+                      "kind": "number"
+                    },
+                    "title": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "currentTime": {
+                      "kind": "number"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "ebookLocation": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "ebookProgress": {
+                      "kind": "number"
+                    },
+                    "episodeId": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "finishedAt": {
+                      "kind": "number",
+                      "nullable": true
+                    },
+                    "hideFromContinueListening": {
+                      "kind": "bool"
+                    },
+                    "id": {
+                      "kind": "string"
+                    },
+                    "isFinished": {
+                      "kind": "bool"
+                    },
+                    "lastUpdate": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemType": {
+                      "kind": "string"
+                    },
+                    "progress": {
+                      "kind": "number"
+                    },
+                    "startedAt": {
+                      "kind": "number"
+                    },
+                    "userId": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "login.root": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "notifications.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "appriseApiUrl": {
+            "kind": "string"
+          },
+          "appriseType": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "maxFailedAttempts": {
+            "kind": "number"
+          },
+          "maxNotificationQueue": {
+            "kind": "number"
+          },
+          "notificationDelay": {
+            "kind": "number"
+          },
+          "notifications": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "bodyTemplate": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "enabled": {
+                  "kind": "bool"
+                },
+                "eventName": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "lastAttemptFailed": {
+                  "kind": "bool"
+                },
+                "lastFiredAt": {
+                  "kind": "null"
+                },
+                "libraryId": {
+                  "kind": "null"
+                },
+                "numConsecutiveFailedAttempts": {
+                  "kind": "number"
+                },
+                "numTimesFired": {
+                  "kind": "number"
+                },
+                "titleTemplate": {
+                  "kind": "string"
+                },
+                "type": {
+                  "kind": "null"
+                },
+                "urls": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notifications.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "appriseApiUrl": {
+            "kind": "string"
+          },
+          "appriseType": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "maxFailedAttempts": {
+            "kind": "number"
+          },
+          "maxNotificationQueue": {
+            "kind": "number"
+          },
+          "notificationDelay": {
+            "kind": "number"
+          },
+          "notifications": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "notifications.enable": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "appriseApiUrl": {
+            "kind": "string"
+          },
+          "appriseType": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "maxFailedAttempts": {
+            "kind": "number"
+          },
+          "maxNotificationQueue": {
+            "kind": "number"
+          },
+          "notificationDelay": {
+            "kind": "number"
+          },
+          "notifications": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "bodyTemplate": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "enabled": {
+                  "kind": "bool"
+                },
+                "eventName": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "lastAttemptFailed": {
+                  "kind": "bool"
+                },
+                "lastFiredAt": {
+                  "kind": "null"
+                },
+                "libraryId": {
+                  "kind": "null"
+                },
+                "numConsecutiveFailedAttempts": {
+                  "kind": "number"
+                },
+                "numTimesFired": {
+                  "kind": "number"
+                },
+                "titleTemplate": {
+                  "kind": "string"
+                },
+                "type": {
+                  "kind": "null"
+                },
+                "urls": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notifications.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "data": {
+            "kind": "object",
+            "keys": {
+              "events": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "defaults": {
+                      "kind": "object",
+                      "keys": {
+                        "body": {
+                          "kind": "string"
+                        },
+                        "title": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "description": {
+                      "kind": "string"
+                    },
+                    "descriptionKey": {
+                      "kind": "string"
+                    },
+                    "libraryMediaType": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "name": {
+                      "kind": "string"
+                    },
+                    "requiresLibrary": {
+                      "kind": "bool"
+                    },
+                    "testData": {
+                      "kind": "object",
+                      "keys": {
+                        "backupCount": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "backupPath": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "backupSize": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "completionTime": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "episodeDescription": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "episodeId": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "episodeSubtitle": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "episodeTitle": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "errorMsg": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "feedUrl": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "libraryId": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "libraryItemId": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "libraryName": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "mediaTags": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "numFailed": {
+                          "kind": "number",
+                          "optional": true
+                        },
+                        "podcastAuthor": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "podcastDescription": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "podcastGenres": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "podcastTitle": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "removedOldest": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "title": {
+                          "kind": "string",
+                          "optional": true
+                        },
+                        "version": {
+                          "kind": "string",
+                          "optional": true
+                        }
+                      }
+                    },
+                    "variables": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "settings": {
+            "kind": "object",
+            "keys": {
+              "appriseApiUrl": {
+                "kind": "null"
+              },
+              "appriseType": {
+                "kind": "string"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "maxFailedAttempts": {
+                "kind": "number"
+              },
+              "maxNotificationQueue": {
+                "kind": "number"
+              },
+              "notificationDelay": {
+                "kind": "number"
+              },
+              "notifications": {
+                "kind": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    "notifications.settings.patch": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "notifications.test.all": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "notifications.test.one": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "notifications.update": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "appriseApiUrl": {
+            "kind": "string"
+          },
+          "appriseType": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "maxFailedAttempts": {
+            "kind": "number"
+          },
+          "maxNotificationQueue": {
+            "kind": "number"
+          },
+          "notificationDelay": {
+            "kind": "number"
+          },
+          "notifications": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "bodyTemplate": {
+                  "kind": "string"
+                },
+                "createdAt": {
+                  "kind": "number"
+                },
+                "enabled": {
+                  "kind": "bool"
+                },
+                "eventName": {
+                  "kind": "string"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "lastAttemptFailed": {
+                  "kind": "bool"
+                },
+                "lastFiredAt": {
+                  "kind": "null"
+                },
+                "libraryId": {
+                  "kind": "null"
+                },
+                "numConsecutiveFailedAttempts": {
+                  "kind": "number"
+                },
+                "numTimesFired": {
+                  "kind": "number"
+                },
+                "titleTemplate": {
+                  "kind": "string"
+                },
+                "type": {
+                  "kind": "null"
+                },
+                "urls": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "providers.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "provider": {
+            "kind": "object",
+            "keys": {
+              "authHeaderValue": {
+                "kind": "null"
+              },
+              "createdAt": {
+                "kind": "string"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "mediaType": {
+                "kind": "string"
+              },
+              "name": {
+                "kind": "string"
+              },
+              "updatedAt": {
+                "kind": "string"
+              },
+              "url": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "providers.delete": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "providers.list.before": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "providers": {
+            "kind": "array"
+          }
+        }
+      }
+    },
+    "settings.patch": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "sorting-prefixes.patch": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "rowsUpdated": {
+            "kind": "number"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "tasks.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "queuedTaskData": {
+            "kind": "object",
+            "keys": {
+              "embedMetadata": {
+                "kind": "array"
+              }
+            }
+          },
+          "tasks": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "action": {
+                  "kind": "string"
+                },
+                "data": {
+                  "kind": "object",
+                  "keys": {
+                    "chapters": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "object",
+                        "keys": {
+                          "end": {
+                            "kind": "number"
+                          },
+                          "id": {
+                            "kind": "number"
+                          },
+                          "start": {
+                            "kind": "number"
+                          },
+                          "title": {
+                            "kind": "string"
+                          }
+                        }
+                      },
+                      "optional": true
+                    },
+                    "coverPath": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "duration": {
+                      "kind": "number",
+                      "optional": true
+                    },
+                    "encodeOptions": {
+                      "kind": "object",
+                      "keys": {
+                        "bitrate": {
+                          "kind": "string"
+                        },
+                        "channels": {
+                          "kind": "string"
+                        },
+                        "codec": {
+                          "kind": "string"
+                        }
+                      },
+                      "optional": true
+                    },
+                    "ffmetadataObject": {
+                      "kind": "object",
+                      "keys": {
+                        "TRACKTOTAL": {
+                          "kind": "string"
+                        },
+                        "album": {
+                          "kind": "string"
+                        },
+                        "album_artist": {
+                          "kind": "string"
+                        },
+                        "artist": {
+                          "kind": "string"
+                        },
+                        "grouping": {
+                          "kind": "string"
+                        },
+                        "title": {
+                          "kind": "string"
+                        }
+                      },
+                      "optional": true
+                    },
+                    "ffmetadataPath": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "ffmpeg": {
+                      "kind": "object",
+                      "keys": {
+                        "_currentInput": {
+                          "kind": "object",
+                          "keys": {
+                            "isFile": {
+                              "kind": "bool"
+                            },
+                            "isStream": {
+                              "kind": "bool"
+                            },
+                            "source": {
+                              "kind": "string"
+                            }
+                          }
+                        },
+                        "_currentOutput": {
+                          "kind": "object",
+                          "keys": {
+                            "flags": {
+                              "kind": "object"
+                            },
+                            "isFile": {
+                              "kind": "bool"
+                            },
+                            "pipeopts": {
+                              "kind": "object"
+                            },
+                            "target": {
+                              "kind": "string"
+                            }
+                          }
+                        },
+                        "_events": {
+                          "kind": "object"
+                        },
+                        "_eventsCount": {
+                          "kind": "number"
+                        },
+                        "_inputs": {
+                          "kind": "array",
+                          "elem": {
+                            "kind": "object",
+                            "keys": {
+                              "isFile": {
+                                "kind": "bool"
+                              },
+                              "isStream": {
+                                "kind": "bool"
+                              },
+                              "source": {
+                                "kind": "string"
+                              }
+                            }
+                          }
+                        },
+                        "_outputs": {
+                          "kind": "array",
+                          "elem": {
+                            "kind": "object",
+                            "keys": {
+                              "flags": {
+                                "kind": "object"
+                              },
+                              "isFile": {
+                                "kind": "bool"
+                              },
+                              "pipeopts": {
+                                "kind": "object"
+                              },
+                              "target": {
+                                "kind": "string"
+                              }
+                            }
+                          }
+                        },
+                        "ffmpegProc": {
+                          "kind": "object",
+                          "keys": {
+                            "_closesGot": {
+                              "kind": "number"
+                            },
+                            "_closesNeeded": {
+                              "kind": "number"
+                            },
+                            "_events": {
+                              "kind": "object"
+                            },
+                            "_eventsCount": {
+                              "kind": "number"
+                            },
+                            "_handle": {
+                              "kind": "object",
+                              "keys": {
+                                "pid": {
+                                  "kind": "number"
+                                }
+                              }
+                            },
+                            "connected": {
+                              "kind": "bool"
+                            },
+                            "exitCode": {
+                              "kind": "null"
+                            },
+                            "killed": {
+                              "kind": "bool"
+                            },
+                            "pid": {
+                              "kind": "number"
+                            },
+                            "signalCode": {
+                              "kind": "null"
+                            },
+                            "spawnargs": {
+                              "kind": "array",
+                              "elem": {
+                                "kind": "string"
+                              }
+                            },
+                            "spawnfile": {
+                              "kind": "string"
+                            },
+                            "stderr": {
+                              "kind": "object",
+                              "keys": {
+                                "_closeAfterHandlingError": {
+                                  "kind": "bool"
+                                },
+                                "_events": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "close": {
+                                      "kind": "array",
+                                      "elem": {
+                                        "kind": "null"
+                                      }
+                                    }
+                                  }
+                                },
+                                "_eventsCount": {
+                                  "kind": "number"
+                                },
+                                "_hadError": {
+                                  "kind": "bool"
+                                },
+                                "_host": {
+                                  "kind": "null"
+                                },
+                                "_parent": {
+                                  "kind": "null"
+                                },
+                                "_pendingData": {
+                                  "kind": "null"
+                                },
+                                "_pendingEncoding": {
+                                  "kind": "string"
+                                },
+                                "_readableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "awaitDrainWriters": {
+                                      "kind": "null"
+                                    },
+                                    "buffer": {
+                                      "kind": "array"
+                                    },
+                                    "bufferIndex": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pipes": {
+                                      "kind": "array"
+                                    }
+                                  }
+                                },
+                                "_server": {
+                                  "kind": "null"
+                                },
+                                "_sockname": {
+                                  "kind": "null"
+                                },
+                                "_writableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "bufferedIndex": {
+                                      "kind": "number"
+                                    },
+                                    "corked": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pendingcb": {
+                                      "kind": "number"
+                                    },
+                                    "writelen": {
+                                      "kind": "number"
+                                    }
+                                  }
+                                },
+                                "allowHalfOpen": {
+                                  "kind": "bool"
+                                },
+                                "connecting": {
+                                  "kind": "bool"
+                                },
+                                "server": {
+                                  "kind": "null"
+                                }
+                              }
+                            },
+                            "stdin": {
+                              "kind": "object",
+                              "keys": {
+                                "_closeAfterHandlingError": {
+                                  "kind": "bool"
+                                },
+                                "_events": {
+                                  "kind": "object"
+                                },
+                                "_eventsCount": {
+                                  "kind": "number"
+                                },
+                                "_hadError": {
+                                  "kind": "bool"
+                                },
+                                "_host": {
+                                  "kind": "null"
+                                },
+                                "_parent": {
+                                  "kind": "null"
+                                },
+                                "_pendingData": {
+                                  "kind": "null"
+                                },
+                                "_pendingEncoding": {
+                                  "kind": "string"
+                                },
+                                "_readableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "awaitDrainWriters": {
+                                      "kind": "null"
+                                    },
+                                    "buffer": {
+                                      "kind": "array"
+                                    },
+                                    "bufferIndex": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pipes": {
+                                      "kind": "array"
+                                    },
+                                    "readable": {
+                                      "kind": "bool"
+                                    }
+                                  }
+                                },
+                                "_server": {
+                                  "kind": "null"
+                                },
+                                "_sockname": {
+                                  "kind": "null"
+                                },
+                                "_writableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "bufferedIndex": {
+                                      "kind": "number"
+                                    },
+                                    "corked": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pendingcb": {
+                                      "kind": "number"
+                                    },
+                                    "writelen": {
+                                      "kind": "number"
+                                    }
+                                  }
+                                },
+                                "allowHalfOpen": {
+                                  "kind": "bool"
+                                },
+                                "connecting": {
+                                  "kind": "bool"
+                                },
+                                "server": {
+                                  "kind": "null"
+                                }
+                              }
+                            },
+                            "stdio": {
+                              "kind": "array",
+                              "elem": {
+                                "kind": "object",
+                                "keys": {
+                                  "_closeAfterHandlingError": {
+                                    "kind": "bool"
+                                  },
+                                  "_events": {
+                                    "kind": "object",
+                                    "keys": {
+                                      "close": {
+                                        "kind": "array",
+                                        "elem": {
+                                          "kind": "null"
+                                        },
+                                        "optional": true
+                                      }
+                                    }
+                                  },
+                                  "_eventsCount": {
+                                    "kind": "number"
+                                  },
+                                  "_hadError": {
+                                    "kind": "bool"
+                                  },
+                                  "_host": {
+                                    "kind": "null"
+                                  },
+                                  "_parent": {
+                                    "kind": "null"
+                                  },
+                                  "_pendingData": {
+                                    "kind": "null"
+                                  },
+                                  "_pendingEncoding": {
+                                    "kind": "string"
+                                  },
+                                  "_readableState": {
+                                    "kind": "object",
+                                    "keys": {
+                                      "awaitDrainWriters": {
+                                        "kind": "null"
+                                      },
+                                      "buffer": {
+                                        "kind": "array"
+                                      },
+                                      "bufferIndex": {
+                                        "kind": "number"
+                                      },
+                                      "highWaterMark": {
+                                        "kind": "number"
+                                      },
+                                      "length": {
+                                        "kind": "number"
+                                      },
+                                      "pipes": {
+                                        "kind": "array"
+                                      },
+                                      "readable": {
+                                        "kind": "bool",
+                                        "optional": true
+                                      }
+                                    }
+                                  },
+                                  "_server": {
+                                    "kind": "null"
+                                  },
+                                  "_sockname": {
+                                    "kind": "null"
+                                  },
+                                  "_writableState": {
+                                    "kind": "object",
+                                    "keys": {
+                                      "bufferedIndex": {
+                                        "kind": "number"
+                                      },
+                                      "corked": {
+                                        "kind": "number"
+                                      },
+                                      "highWaterMark": {
+                                        "kind": "number"
+                                      },
+                                      "length": {
+                                        "kind": "number"
+                                      },
+                                      "pendingcb": {
+                                        "kind": "number"
+                                      },
+                                      "writelen": {
+                                        "kind": "number"
+                                      }
+                                    }
+                                  },
+                                  "allowHalfOpen": {
+                                    "kind": "bool"
+                                  },
+                                  "connecting": {
+                                    "kind": "bool"
+                                  },
+                                  "server": {
+                                    "kind": "null"
+                                  }
+                                }
+                              }
+                            },
+                            "stdout": {
+                              "kind": "object",
+                              "keys": {
+                                "_closeAfterHandlingError": {
+                                  "kind": "bool"
+                                },
+                                "_events": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "close": {
+                                      "kind": "array",
+                                      "elem": {
+                                        "kind": "null"
+                                      }
+                                    }
+                                  }
+                                },
+                                "_eventsCount": {
+                                  "kind": "number"
+                                },
+                                "_hadError": {
+                                  "kind": "bool"
+                                },
+                                "_host": {
+                                  "kind": "null"
+                                },
+                                "_parent": {
+                                  "kind": "null"
+                                },
+                                "_pendingData": {
+                                  "kind": "null"
+                                },
+                                "_pendingEncoding": {
+                                  "kind": "string"
+                                },
+                                "_readableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "awaitDrainWriters": {
+                                      "kind": "null"
+                                    },
+                                    "buffer": {
+                                      "kind": "array"
+                                    },
+                                    "bufferIndex": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pipes": {
+                                      "kind": "array"
+                                    }
+                                  }
+                                },
+                                "_server": {
+                                  "kind": "null"
+                                },
+                                "_sockname": {
+                                  "kind": "null"
+                                },
+                                "_writableState": {
+                                  "kind": "object",
+                                  "keys": {
+                                    "bufferedIndex": {
+                                      "kind": "number"
+                                    },
+                                    "corked": {
+                                      "kind": "number"
+                                    },
+                                    "highWaterMark": {
+                                      "kind": "number"
+                                    },
+                                    "length": {
+                                      "kind": "number"
+                                    },
+                                    "pendingcb": {
+                                      "kind": "number"
+                                    },
+                                    "writelen": {
+                                      "kind": "number"
+                                    }
+                                  }
+                                },
+                                "allowHalfOpen": {
+                                  "kind": "bool"
+                                },
+                                "connecting": {
+                                  "kind": "bool"
+                                },
+                                "server": {
+                                  "kind": "null"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "logger": {
+                          "kind": "object"
+                        },
+                        "options": {
+                          "kind": "object",
+                          "keys": {
+                            "niceness": {
+                              "kind": "number"
+                            },
+                            "presets": {
+                              "kind": "string"
+                            },
+                            "stdoutLines": {
+                              "kind": "number"
+                            }
+                          }
+                        }
+                      },
+                      "optional": true
+                    },
+                    "inos": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "itemCachePath": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "libraryId": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "libraryItemDir": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "libraryItemId": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "libraryName": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "originalTrackPaths": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "targetFilename": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "targetFilepath": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "tempFilepath": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "userId": {
+                      "kind": "string",
+                      "optional": true
+                    }
+                  }
+                },
+                "description": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "descriptionKey": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "descriptionSubs": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "string"
+                  },
+                  "nullable": true
+                },
+                "error": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "errorKey": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "errorSubs": {
+                  "kind": "null"
+                },
+                "finishedAt": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "isFailed": {
+                  "kind": "bool"
+                },
+                "isFinished": {
+                  "kind": "bool"
+                },
+                "showSuccess": {
+                  "kind": "bool"
+                },
+                "startedAt": {
+                  "kind": "number"
+                },
+                "title": {
+                  "kind": "string"
+                },
+                "titleKey": {
+                  "kind": "string"
+                },
+                "titleSubs": {
+                  "kind": "array",
+                  "elem": {
+                    "kind": "string"
+                  },
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "upload.file": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "users.create": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "user": {
+            "kind": "object",
+            "keys": {
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "users.delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "success": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "users.list": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "users": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "createdAt": {
+                  "kind": "number"
+                },
+                "email": {
+                  "kind": "null"
+                },
+                "hasOpenIDLink": {
+                  "kind": "bool"
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "isActive": {
+                  "kind": "bool"
+                },
+                "isLocked": {
+                  "kind": "bool"
+                },
+                "itemTagsSelected": {
+                  "kind": "array"
+                },
+                "lastSeen": {
+                  "kind": "null"
+                },
+                "librariesAccessible": {
+                  "kind": "array"
+                },
+                "permissions": {
+                  "kind": "object",
+                  "keys": {
+                    "accessAllLibraries": {
+                      "kind": "bool"
+                    },
+                    "accessAllTags": {
+                      "kind": "bool"
+                    },
+                    "accessExplicitContent": {
+                      "kind": "bool"
+                    },
+                    "createEreader": {
+                      "kind": "bool"
+                    },
+                    "delete": {
+                      "kind": "bool"
+                    },
+                    "download": {
+                      "kind": "bool"
+                    },
+                    "selectedTagsNotAccessible": {
+                      "kind": "bool"
+                    },
+                    "update": {
+                      "kind": "bool"
+                    },
+                    "upload": {
+                      "kind": "bool"
+                    }
+                  }
+                },
+                "seriesHideFromContinueListening": {
+                  "kind": "array"
+                },
+                "token": {
+                  "kind": "string"
+                },
+                "type": {
+                  "kind": "string"
+                },
+                "username": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "users.listening-stats": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "dayOfWeek": {
+            "kind": "object",
+            "keys": {
+              "Monday": {
+                "kind": "number"
+              },
+              "Sunday": {
+                "kind": "number"
+              },
+              "Thursday": {
+                "kind": "number"
+              },
+              "Tuesday": {
+                "kind": "number"
+              }
+            }
+          },
+          "days": {
+            "kind": "object",
+            "keys": {
+              "2026-02-02": {
+                "kind": "number"
+              },
+              "2026-11-02": {
+                "kind": "number"
+              },
+              "2026-11-03": {
+                "kind": "number"
+              }
+            }
+          },
+          "items": {
+            "kind": "object",
+            "keys": {
+              "7baea19e-3334-416f-b862-0cb7499e5006": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "string"
+                  },
+                  "mediaMetadata": {
+                    "kind": "object",
+                    "keys": {
+                      "abridged": {
+                        "kind": "bool"
+                      },
+                      "asin": {
+                        "kind": "null"
+                      },
+                      "authors": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "object",
+                          "keys": {
+                            "id": {
+                              "kind": "string"
+                            },
+                            "name": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      },
+                      "description": {
+                        "kind": "string"
+                      },
+                      "explicit": {
+                        "kind": "bool"
+                      },
+                      "genres": {
+                        "kind": "array"
+                      },
+                      "isbn": {
+                        "kind": "null"
+                      },
+                      "language": {
+                        "kind": "null"
+                      },
+                      "narrators": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "string"
+                        }
+                      },
+                      "publishedDate": {
+                        "kind": "null"
+                      },
+                      "publishedYear": {
+                        "kind": "null"
+                      },
+                      "publisher": {
+                        "kind": "null"
+                      },
+                      "series": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "object",
+                          "keys": {
+                            "id": {
+                              "kind": "string"
+                            },
+                            "name": {
+                              "kind": "string"
+                            },
+                            "sequence": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      },
+                      "subtitle": {
+                        "kind": "null"
+                      },
+                      "title": {
+                        "kind": "string"
+                      }
+                    }
+                  },
+                  "timeListening": {
+                    "kind": "number"
+                  }
+                }
+              },
+              "b3c61dfc-dd4b-47ee-8998-0340c1228f52": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "string"
+                  },
+                  "mediaMetadata": {
+                    "kind": "object",
+                    "keys": {
+                      "abridged": {
+                        "kind": "bool"
+                      },
+                      "asin": {
+                        "kind": "null"
+                      },
+                      "authors": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "object",
+                          "keys": {
+                            "id": {
+                              "kind": "string"
+                            },
+                            "name": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      },
+                      "description": {
+                        "kind": "null"
+                      },
+                      "explicit": {
+                        "kind": "bool"
+                      },
+                      "genres": {
+                        "kind": "array"
+                      },
+                      "isbn": {
+                        "kind": "null"
+                      },
+                      "language": {
+                        "kind": "null"
+                      },
+                      "narrators": {
+                        "kind": "array"
+                      },
+                      "publishedDate": {
+                        "kind": "null"
+                      },
+                      "publishedYear": {
+                        "kind": "null"
+                      },
+                      "publisher": {
+                        "kind": "null"
+                      },
+                      "series": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "object",
+                          "keys": {
+                            "id": {
+                              "kind": "string"
+                            },
+                            "name": {
+                              "kind": "string"
+                            },
+                            "sequence": {
+                              "kind": "string"
+                            }
+                          }
+                        }
+                      },
+                      "subtitle": {
+                        "kind": "null"
+                      },
+                      "title": {
+                        "kind": "string"
+                      }
+                    }
+                  },
+                  "timeListening": {
+                    "kind": "number"
+                  }
+                }
+              },
+              "eeb6224f-1316-40c8-b8bf-00804cc90436": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "string"
+                  },
+                  "mediaMetadata": {
+                    "kind": "object",
+                    "keys": {
+                      "author": {
+                        "kind": "string"
+                      },
+                      "description": {
+                        "kind": "null"
+                      },
+                      "explicit": {
+                        "kind": "bool"
+                      },
+                      "feedUrl": {
+                        "kind": "null"
+                      },
+                      "genres": {
+                        "kind": "array",
+                        "elem": {
+                          "kind": "string"
+                        }
+                      },
+                      "imageUrl": {
+                        "kind": "null"
+                      },
+                      "itunesArtistId": {
+                        "kind": "null"
+                      },
+                      "itunesId": {
+                        "kind": "null"
+                      },
+                      "itunesPageUrl": {
+                        "kind": "null"
+                      },
+                      "language": {
+                        "kind": "null"
+                      },
+                      "releaseDate": {
+                        "kind": "null"
+                      },
+                      "title": {
+                        "kind": "string"
+                      },
+                      "type": {
+                        "kind": "string"
+                      }
+                    }
+                  },
+                  "timeListening": {
+                    "kind": "number"
+                  }
+                }
+              },
+              "null": {
+                "kind": "object",
+                "keys": {
+                  "id": {
+                    "kind": "null"
+                  },
+                  "mediaMetadata": {
+                    "kind": "object"
+                  },
+                  "timeListening": {
+                    "kind": "null"
+                  }
+                }
+              }
+            }
+          },
+          "recentSessions": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "bookId": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "chapters": {
+                  "kind": "array"
+                },
+                "coverPath": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "currentTime": {
+                  "kind": "number"
+                },
+                "date": {
+                  "kind": "string"
+                },
+                "dayOfWeek": {
+                  "kind": "string"
+                },
+                "deviceInfo": {
+                  "kind": "object",
+                  "keys": {
+                    "browserVersion": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "clientName": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "clientVersion": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "deviceId": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "deviceName": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "id": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "ipAddress": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "manufacturer": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "model": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "sdkVersion": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "userId": {
+                      "kind": "string",
+                      "optional": true
+                    }
+                  }
+                },
+                "displayAuthor": {
+                  "kind": "string"
+                },
+                "displayTitle": {
+                  "kind": "string"
+                },
+                "duration": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "episodeId": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "id": {
+                  "kind": "string"
+                },
+                "libraryId": {
+                  "kind": "string"
+                },
+                "libraryItemId": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "mediaMetadata": {
+                  "kind": "object",
+                  "keys": {
+                    "abridged": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "asin": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "author": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "authors": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "object",
+                        "keys": {
+                          "id": {
+                            "kind": "string",
+                            "optional": true
+                          },
+                          "name": {
+                            "kind": "string"
+                          }
+                        }
+                      },
+                      "optional": true
+                    },
+                    "description": {
+                      "kind": "string",
+                      "nullable": true,
+                      "optional": true
+                    },
+                    "explicit": {
+                      "kind": "bool",
+                      "optional": true
+                    },
+                    "feedUrl": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "genres": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "imageUrl": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "isbn": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "itunesArtistId": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "itunesId": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "itunesPageUrl": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "language": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "narrators": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "string"
+                      },
+                      "optional": true
+                    },
+                    "publishedDate": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "publishedYear": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "publisher": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "releaseDate": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "series": {
+                      "kind": "array",
+                      "elem": {
+                        "kind": "object",
+                        "keys": {
+                          "id": {
+                            "kind": "string"
+                          },
+                          "name": {
+                            "kind": "string"
+                          },
+                          "sequence": {
+                            "kind": "string"
+                          }
+                        }
+                      },
+                      "optional": true
+                    },
+                    "subtitle": {
+                      "kind": "null",
+                      "optional": true
+                    },
+                    "title": {
+                      "kind": "string",
+                      "optional": true
+                    },
+                    "type": {
+                      "kind": "string",
+                      "optional": true
+                    }
+                  },
+                  "nullable": true
+                },
+                "mediaPlayer": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "mediaType": {
+                  "kind": "string"
+                },
+                "playMethod": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "serverVersion": {
+                  "kind": "string",
+                  "nullable": true
+                },
+                "startTime": {
+                  "kind": "number"
+                },
+                "startedAt": {
+                  "kind": "number"
+                },
+                "timeListening": {
+                  "kind": "number",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "kind": "number"
+                },
+                "userId": {
+                  "kind": "string"
+                }
+              }
+            }
+          },
+          "today": {
+            "kind": "number"
+          },
+          "totalTime": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "users.openid-unlink": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "users.update": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "success": {
+            "kind": "bool"
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "validate-cron.invalid": {
+      "status": 400,
+      "contentType": "text/html"
+    },
+    "validate-cron.valid": {
+      "status": 200,
+      "contentType": "text/plain"
+    }
+  }
+}

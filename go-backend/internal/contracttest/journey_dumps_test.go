@@ -38,9 +38,9 @@ var dumpQueries = map[string]string{
 
 // checkJourneyDumps checks the database and file entries after the steps, on the
 // same install. Each one must be a status 200 response with its recorded shape.
-func checkJourneyDumps(t *testing.T, in *Install, recorded map[string]recordedStep) {
+func checkJourneyDumps(t *testing.T, in *Install, recorded map[string]recordedStep, dumps []string) {
 	t.Helper()
-	for _, id := range journeyDumps {
+	for _, id := range dumps {
 		t.Run(id, func(t *testing.T) {
 			rec, ok := recorded[id]
 			if !ok {

@@ -70,6 +70,12 @@ type journeyStep struct {
 	// trial waited for its events). The runner waits for the database to stop
 	// changing before the next step.
 	settle bool
+	// taskStarted names a task action: after its request the step waits until
+	// an unfinished task of that action is listed by GET /api/tasks.
+	taskStarted string
+	// taskFinished names a task action: after its request the step waits until
+	// the tasks of that action have finished (see awaitTaskFinished).
+	taskFinished string
 }
 
 // recordedStep is one entry of journey.json: the status, media type and, for a
@@ -94,6 +100,17 @@ type journeyResult struct {
 // steps run against a TS server instead, and journey.json is written from them
 // (journey_record_test.go).
 func TestJourney(t *testing.T) {
+	runJourney(t, journeyShapesFile, journeyDumps, func(_ *testing.T, in *Install, _ *journeyCtx) []journeyStep {
+		return journeySteps(in.IDs)
+	})
+}
+
+// runJourney runs one journey on its own install: steps builds the steps from
+// the booted install and the journey's context. A plain run checks each step
+// against shapesFile, then the dumps. With -record the same steps run against
+// TS and shapesFile is written from them (journey_record_test.go).
+func runJourney(t *testing.T, shapesFile string, dumps []string, steps func(*testing.T, *Install, *journeyCtx) []journeyStep) {
+	t.Helper()
 	// The image source is on 127.0.0.1, which the SSRF filter refuses unless
 	// whitelisted. The trial needs the same setting (AGENTS.md).
 	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1")
@@ -104,19 +121,19 @@ func TestJourney(t *testing.T) {
 		fixtureURL: startJourneyImageSource(t),
 		deadURL:    closedURL(t),
 	}
-	steps := journeySteps(in.IDs)
+	list := steps(t, in, c)
 	if *record {
-		recordJourney(t, in, c, steps)
+		recordJourneyFile(t, shapesFile, in, c, list, dumps)
 		return
 	}
 	recorded := readJSON[struct {
 		Steps map[string]recordedStep `json:"steps"`
-	}](t, journeyShapesFile).Steps
-	for _, st := range steps {
+	}](t, shapesFile).Steps
+	for _, st := range list {
 		t.Run(st.id, func(t *testing.T) {
 			rec, ok := recorded[st.id]
 			if !ok {
-				t.Fatalf("no recorded shape for step %s in %s", st.id, journeyShapesFile)
+				t.Fatalf("no recorded shape for step %s in %s", st.id, shapesFile)
 			}
 			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st))
 			if st.events > 0 {
@@ -124,7 +141,7 @@ func TestJourney(t *testing.T) {
 			}
 		})
 	}
-	checkJourneyDumps(t, in, recorded)
+	checkJourneyDumps(t, in, recorded, dumps)
 }
 
 // runJourneyStep sends one step's request and keeps what its response captures.
@@ -195,6 +212,12 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 	}
 	if st.settle {
 		waitForBackgroundWork(t, in.DB, before)
+	}
+	if st.taskStarted != "" {
+		awaitTaskStarted(t, in, token, st.taskStarted)
+	}
+	if st.taskFinished != "" {
+		awaitTaskFinished(t, in, token, st.taskFinished)
 	}
 
 	if ok2xx(resp.StatusCode) {
@@ -399,6 +422,76 @@ func waitForBackgroundWork(t testing.TB, db *sql.DB, before string) {
 		}
 	}
 	t.Fatalf("background work still changing the database after %s", limit)
+}
+
+// Background tasks (embed, m4b merge) answer before their work is done. A step
+// waits on the task list, not on a fixed sleep.
+const (
+	// taskWait bounds a wait for a task to start or finish.
+	taskWait = 60 * time.Second
+	// taskAppearWait is how long a wait for a task's end accepts that no such
+	// task was ever listed: it finished before the first poll.
+	taskAppearWait = 3 * time.Second
+	taskPoll       = 50 * time.Millisecond
+)
+
+// listedTask is the part of a GET /api/tasks entry the waits read.
+type listedTask struct {
+	Action     string `json:"action"`
+	IsFinished bool   `json:"isFinished"`
+}
+
+// taskUnfinished reports whether GET /api/tasks lists an unfinished task of action.
+func taskUnfinished(t testing.TB, in *Install, token, action string) bool {
+	t.Helper()
+	resp, raw := in.Do(t, http.MethodGet, "/api/tasks", token, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("tasks: status %d: %s", resp.StatusCode, snippet(raw))
+	}
+	var out struct {
+		Tasks []listedTask `json:"tasks"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("tasks: %v: %s", err, snippet(raw))
+	}
+	for _, task := range out.Tasks {
+		if task.Action == action && !task.IsFinished {
+			return true
+		}
+	}
+	return false
+}
+
+// awaitTaskStarted waits until an unfinished task of action is listed.
+func awaitTaskStarted(t testing.TB, in *Install, token, action string) {
+	t.Helper()
+	start := time.Now()
+	for !taskUnfinished(t, in, token, action) {
+		if time.Since(start) >= taskWait {
+			t.Fatalf("no unfinished %s task listed after %s", action, taskWait)
+		}
+		time.Sleep(taskPoll)
+	}
+}
+
+// awaitTaskFinished waits until the tasks of action have finished: one was
+// listed unfinished and is no longer. A task that is never listed unfinished
+// within taskAppearWait counts as finished before the first poll.
+func awaitTaskFinished(t testing.TB, in *Install, token, action string) {
+	t.Helper()
+	start := time.Now()
+	seen := false
+	for {
+		if taskUnfinished(t, in, token, action) {
+			seen = true
+		} else if seen || time.Since(start) >= taskAppearWait {
+			return
+		}
+		if time.Since(start) >= taskWait {
+			t.Fatalf("%s tasks still unfinished after %s", action, taskWait)
+		}
+		time.Sleep(taskPoll)
+	}
 }
 
 // closedURL is an address nothing listens on: the port is bound, then released.
