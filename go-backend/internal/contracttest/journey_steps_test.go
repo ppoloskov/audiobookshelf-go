@@ -6,5 +6,6 @@ package contracttest
 func journeySteps(ids map[string]string) []journeyStep {
 	var steps []journeyStep
 	steps = append(steps, journeyStepsPlayback(ids)...)
+	steps = append(steps, journeyStepsPodcastAndAccounts(ids)...)
 	return steps
 }
