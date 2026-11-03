@@ -104,19 +104,9 @@ func (d *nullableDate) Scan(value any) error {
 	default:
 		return fmt.Errorf("identity: unsupported timestamp value %T", value)
 	}
-	for _, layout := range []string{
-		time.RFC3339Nano,
-		"2006-01-02 15:04:05.999999999 -07:00",
-		"2006-01-02 15:04:05.000 -07:00",
-		"2006-01-02 15:04:05 -07:00",
-		"2006-01-02 15:04:05.999999999",
-		"2006-01-02 15:04:05.000",
-		"2006-01-02 15:04:05",
-	} {
-		if parsed, err := time.Parse(layout, text); err == nil {
-			d.Time, d.Valid = parsed, true
-			return nil
-		}
+	if parsed, ok := dbtime.Parse(text); ok {
+		d.Time, d.Valid = parsed, true
+		return nil
 	}
 	return fmt.Errorf("identity: invalid timestamp %q", text)
 }

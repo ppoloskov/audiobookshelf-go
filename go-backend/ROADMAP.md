@@ -327,7 +327,7 @@ creates them.
   - Done when: `grep -n 'time.Parse(' go-backend/internal/userapi/*.go go-backend/internal/progressdto/*.go`
     returns only non-DATETIME uses, and `make parity` passes.
 
-- [ ] K13: Route the remaining DATETIME `time.Parse` calls through `dbtime.Parse`
+- [x] K13: Route the remaining DATETIME `time.Parse` calls through `dbtime.Parse`
   - Files: `go-backend/internal/playback/playback.go` (2), `internal/scanner/files.go`
     (2), `internal/podcasts/rss.go`, `internal/podcasts/item.go`, `internal/sharing/feedsrc.go`
     (2), `internal/sharing/handler.go`, `internal/providers/handler.go`,

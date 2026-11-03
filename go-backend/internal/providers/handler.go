@@ -343,10 +343,8 @@ func (h *Handler) customProviders(ctx context.Context) ([]customProvider, error)
 }
 
 func isoDate(value string) string {
-	for _, layout := range []string{"2006-01-02 15:04:05.000 -07:00", time.RFC3339Nano, "2006-01-02 15:04:05 -07:00"} {
-		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed.UTC().Format(time.RFC3339Nano)
-		}
+	if parsed, ok := dbtime.Parse(value); ok {
+		return parsed.UTC().Format(time.RFC3339Nano)
 	}
 	return value
 }
