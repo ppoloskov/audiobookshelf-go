@@ -213,7 +213,7 @@ async function loginToken(base, credentials) {
 
 async function openSocket(base, token) {
   const { io } = require('socket.io-client')
-  const socket = io(base, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+  const socket = io(base, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['websocket'] })
   const connected = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Socket.IO init timeout')), 10000)
     socket.once('connect', () => socket.emit('auth', token))

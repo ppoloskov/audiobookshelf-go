@@ -25,7 +25,7 @@ function loadSocketIOClient() {
 
 function socketNotificationProbe(io, server, socketPath, token, route, call) {
   return new Promise((resolve, reject) => {
-    const socket = io(server.url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+    const socket = io(server.url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['websocket'] })
     let settled = false
     const received = []
     const finish = (fn, value) => {
@@ -59,7 +59,7 @@ function socketAuthentication(io, url, socketPath, token) {
       path: socketPath,
       timeout: 8000,
       reconnection: false,
-      transports: ['polling', 'websocket']
+      transports: ['websocket']
     })
     let finished = false
     let connected = false
@@ -90,7 +90,7 @@ function socketAuthentication(io, url, socketPath, token) {
 
 function socketUserUpdatedProbe(io, url, socketPath, { readerToken, rootToken, progressRoute, expectedUsername }) {
   const openSocket = (token) => new Promise((resolve, reject) => {
-    const socket = io(url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+    const socket = io(url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['websocket'] })
     let settled = false
     const settle = (fn, value) => { if (!settled) { settled = true; fn(value) } }
     socket.once('connect', () => socket.emit('auth', token))

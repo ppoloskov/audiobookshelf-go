@@ -380,7 +380,7 @@ module.exports = async function runFullCoreWorkflows({ context, runtime }) {
 
   if (ioClient) {
     const adminEventRequest = async (server, route, options) => {
-      const socket = ioClient(server.url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+      const socket = ioClient(server.url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['websocket'] })
       const events = []
       let timer
       try {

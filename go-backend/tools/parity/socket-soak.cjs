@@ -38,7 +38,7 @@ function fixtureCopy(manifest, dir, side) {
 function connectAuth(url, socketPath, token) {
   return new Promise(resolve => {
     const started = performance.now()
-    const socket = io(url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+    const socket = io(url, { path: socketPath, timeout: 8000, reconnection: false, transports: ['websocket'] })
     let settled = false
     const done = result => {
       if (settled) return
