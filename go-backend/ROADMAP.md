@@ -130,6 +130,9 @@ L2, JWT issuing -> L1).
 
 - [ ] F8: Journey steps for client routes the journey misses (112, listed in F6)
   - Prerequisite: F5b (new steps are recorded against TS by the Go recorder).
+  - Layout: each domain is its own test (`TestJourneyAdmin`, ...) in its own
+    file, on its own fresh fixture, recorded into its own
+    `contracts/shapes/<domain>.json`, so domains run and record independently.
   - Change: Add steps, one domain per commit: F8a admin (api-keys,
     auth-settings, backups, cache, emails, notifications, settings,
     sorting-prefixes, tasks, tools, users, logger-data, validate-cron,
