@@ -305,7 +305,7 @@ creates them.
   - Done when: `grep -rln 'func nullable' go-backend/internal --include=*.go`
     lists only `internal/store`.
 
-- [ ] K11: Move time helpers to `dbtime`
+- [x] K11: Move time helpers to `dbtime`
   - Files: `parseTime` (`internal/catalog/handler.go:860`,
     `internal/userapi/me_extra.go:473`, `internal/sharing/handler.go:182`);
     `millis` (`internal/progressdto/progress.go:89`,

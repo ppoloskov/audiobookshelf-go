@@ -55,7 +55,7 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 		"mediaType": mediaType.String,
 	}
 	for key, raw := range map[string]any{"mtimeMs": mtime, "ctimeMs": ctime, "birthtimeMs": birthtime, "addedAt": created, "updatedAt": updated} {
-		ms, err := dateMillis(raw)
+		ms, err := dbtime.OptionalMillis(raw)
 		if err != nil {
 			return nil, "", err
 		}
@@ -63,7 +63,7 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 			item[key] = *ms
 		}
 	}
-	last, err := dateMillis(lastScan)
+	last, err := dbtime.OptionalMillis(lastScan)
 	if err != nil {
 		return nil, "", err
 	}
@@ -146,7 +146,7 @@ func (h *Handler) podcastBase(ctx context.Context, podcastID string) (map[string
 	if err != nil {
 		return nil, err
 	}
-	check, err := dateMillis(lastCheck)
+	check, err := dbtime.OptionalMillis(lastCheck)
 	if err != nil {
 		return nil, err
 	}
@@ -259,18 +259,18 @@ func (h *Handler) podcastEpisodes(ctx context.Context, podcastID, itemID string,
 	}
 	out := make([]map[string]any, 0, len(data))
 	for _, e := range data {
-		pub, err := dateMillis(e.published)
+		pub, err := dbtime.OptionalMillis(e.published)
 		if err != nil {
 			return nil, err
 		}
 		if pub != nil && *pub == 0 {
 			pub = nil
 		}
-		created, err := dateMillis(e.created)
+		created, err := dbtime.OptionalMillis(e.created)
 		if err != nil {
 			return nil, err
 		}
-		updated, err := dateMillis(e.updated)
+		updated, err := dbtime.OptionalMillis(e.updated)
 		if err != nil {
 			return nil, err
 		}
@@ -794,42 +794,6 @@ func decodeStrings(raw []byte) []string {
 	}
 	return v
 }
-func dateMillis(v any) (*int64, error) {
-	if v == nil {
-		return nil, nil
-	}
-	switch x := v.(type) {
-	case int64:
-		n := x
-		return &n, nil
-	case float64:
-		n := int64(x)
-		return &n, nil
-	case string:
-		return parseTime(x)
-	case []byte:
-		return parseTime(string(x))
-	case time.Time:
-		n := x.UnixMilli()
-		return &n, nil
-	default:
-		return nil, fmt.Errorf("unsupported timestamp value %T", v)
-	}
-}
-func parseTime(s string) (*int64, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil, nil
-	}
-	layouts := []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999 -07:00", "2006-01-02 15:04:05 -07:00", "2006-01-02 15:04:05.999999999", "2006-01-02 15:04:05"}
-	for _, l := range layouts {
-		if t, e := time.Parse(l, s); e == nil {
-			n := t.UnixMilli()
-			return &n, nil
-		}
-	}
-	return nil, fmt.Errorf("invalid timestamp %q", s)
-}
 func deref(n *int64) any {
 	if n == nil {
 		return nil
@@ -1311,7 +1275,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		last, err := dateMillis(row.lastScan)
+		last, err := dbtime.OptionalMillis(row.lastScan)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -1320,13 +1284,13 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 		if last != nil && *last == 0 {
 			last = nil // Library.toOldJSON emits lastScan?.valueOf() || null.
 		}
-		created, err := dateMillis(row.createdAt)
+		created, err := dbtime.OptionalMillis(row.createdAt)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		updated, err := dateMillis(row.updatedAt)
+		updated, err := dbtime.OptionalMillis(row.updatedAt)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -1393,7 +1357,7 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	last, err := dateMillis(lastScan)
+	last, err := dbtime.OptionalMillis(lastScan)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -1402,13 +1366,13 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 	if last != nil && *last == 0 {
 		last = nil
 	}
-	created, err := dateMillis(createdAt)
+	created, err := dbtime.OptionalMillis(createdAt)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	updated, err := dateMillis(updatedAt)
+	updated, err := dbtime.OptionalMillis(updatedAt)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -1890,13 +1854,13 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 	}
 	authors := make([]map[string]any, 0, len(filtered))
 	for _, a := range filtered {
-		created, e := dateMillis(a.created)
+		created, e := dbtime.OptionalMillis(a.created)
 		if e != nil {
 			logging.RequestError(r, "database read failed", e)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		updated, e := dateMillis(a.updated)
+		updated, e := dbtime.OptionalMillis(a.updated)
 		if e != nil {
 			logging.RequestError(r, "database read failed", e)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -2089,13 +2053,13 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	results := make([]map[string]any, 0, len(all))
 	for _, s := range all {
-		created, e := dateMillis(s.created)
+		created, e := dbtime.OptionalMillis(s.created)
 		if e != nil {
 			logging.RequestError(r, "database read failed", e)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		updated, e := dateMillis(s.updated)
+		updated, e := dbtime.OptionalMillis(s.updated)
 		if e != nil {
 			logging.RequestError(r, "database read failed", e)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -2206,13 +2170,13 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		httputil.WriteError(w, http.StatusNotFound, "")
 		return
 	}
-	createdMs, e := dateMillis(created)
+	createdMs, e := dbtime.OptionalMillis(created)
 	if e != nil {
 		logging.RequestError(r, "database read failed", e)
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	updatedMs, e := dateMillis(updated)
+	updatedMs, e := dbtime.OptionalMillis(updated)
 	if e != nil {
 		logging.RequestError(r, "database read failed", e)
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
@@ -2256,7 +2220,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 }
 
 func dateSortKey(v any) int64 {
-	ms, _ := dateMillis(v)
+	ms, _ := dbtime.OptionalMillis(v)
 	if ms == nil {
 		return 0
 	}
@@ -2276,7 +2240,7 @@ func (h *Handler) libraryFolders(ctx context.Context, libraryID string) ([]map[s
 		if err := rows.Scan(&id, &path, &parent, &created); err != nil {
 			return nil, err
 		}
-		ms, err := dateMillis(created)
+		ms, err := dbtime.OptionalMillis(created)
 		if err != nil {
 			return nil, err
 		}
@@ -3187,11 +3151,11 @@ func (h *Handler) searchAuthors(ctx context.Context, libraryID, query string, li
 		if err := rows.Scan(&id, &name, &asin, &description, &image, &library, &created, &updated, &count); err != nil {
 			return nil, err
 		}
-		added, e := dateMillis(created)
+		added, e := dbtime.OptionalMillis(created)
 		if e != nil {
 			return nil, e
 		}
-		updatedMs, e := dateMillis(updated)
+		updatedMs, e := dbtime.OptionalMillis(updated)
 		if e != nil {
 			return nil, e
 		}
@@ -3222,11 +3186,11 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 			rows.Close()
 			return nil, err
 		}
-		if m.added, err = dateMillis(created); err != nil {
+		if m.added, err = dbtime.OptionalMillis(created); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		if m.updated, err = dateMillis(updated); err != nil {
+		if m.updated, err = dbtime.OptionalMillis(updated); err != nil {
 			rows.Close()
 			return nil, err
 		}

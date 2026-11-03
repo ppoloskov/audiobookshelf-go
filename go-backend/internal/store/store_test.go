@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"testing"
 
+	"audiobookshelf-compat/internal/dbtime"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -165,9 +167,9 @@ func TestOpenReadOnlyDoesNotCreateAndRequiresSchema(t *testing.T) {
 }
 
 func TestNullableMillisTreatsNumericDatesAsMilliseconds(t *testing.T) {
-	got, err := nullableMillis(int64(1234))
+	got, err := dbtime.OptionalMillis(int64(1234))
 	if err != nil || got == nil || *got != 1234 {
-		t.Fatalf("nullableMillis(1234) = %v, %v; want 1234ms", got, err)
+		t.Fatalf("dbtime.OptionalMillis(1234) = %v, %v; want 1234ms", got, err)
 	}
 }
 

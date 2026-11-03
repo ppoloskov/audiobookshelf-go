@@ -185,7 +185,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		if err != nil {
 			continue
 		}
-		li["progressLastUpdate"] = millis(p.updated)
+		li["progressLastUpdate"] = dbtime.Millis(p.updated)
 		if p.typ == "podcastEpisode" {
 			full, e := h.items.ItemJSON(r.Context(), p.itemID, true)
 			if e == nil {
@@ -355,7 +355,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		// sessions count toward a title only when displayTitle is non-empty,
 		// and authors, narrators and genres are tallied for book sessions
 		// only (podcast sessions add to totalPodcastListeningTime alone).
-		if t := parseTime(created); !t.IsZero() {
+		if t := dbtime.Time(created); !t.IsZero() {
 			months[int(t.In(time.Local).Month())-1] += secs
 		}
 		if typ.String != "book" {
@@ -413,7 +413,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		finished++
 		if duration.Valid && duration.Float64 > longestDuration {
 			longestDuration = duration.Float64
-			longest = map[string]any{"id": mediaID, "title": title, "duration": int(math.Round(duration.Float64)), "finishedAt": millis(finishedAt.String)}
+			longest = map[string]any{"id": mediaID, "title": title, "duration": int(math.Round(duration.Float64)), "finishedAt": dbtime.Millis(finishedAt.String)}
 		}
 		if cover.Valid && len(finishedCovers) < 5 {
 			if _, err := os.Stat(cover.String); err == nil {
@@ -441,7 +441,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	for _, session := range yearSessions {
-		created := parseTime(session.CreatedAt)
+		created := dbtime.Time(session.CreatedAt)
 		if created.IsZero() || created.Before(time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)) || !created.Before(time.Date(year+1, 1, 1, 0, 0, 0, 0, time.UTC)) {
 			continue
 		}
@@ -466,23 +466,6 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		}
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
-}
-
-// parseTime accepts every stored DATETIME spelling, including upstream's
-// "YYYY-MM-DD HH:mm:ss.SSS +00:00"; the old offset-less layout returned the
-// zero time for upstream-written rows, which silently dropped them.
-func parseTime(v any) time.Time {
-	switch x := v.(type) {
-	case time.Time:
-		return x
-	case string:
-		t, _ := dbtime.Parse(x)
-		return t
-	case []byte:
-		t, _ := dbtime.Parse(string(x))
-		return t
-	}
-	return time.Time{}
 }
 
 // roundTimes applies upstream's per-entry Math.round to summed seconds.

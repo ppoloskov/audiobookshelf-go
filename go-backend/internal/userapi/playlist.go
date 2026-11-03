@@ -223,7 +223,7 @@ func (h *Handler) playlistJSON(r *http.Request, id string, user store.User) (map
 			items = append(items, map[string]any{"libraryItemId": libraryItemID, "libraryItem": li})
 		}
 	}
-	return map[string]any{"id": id, "name": name, "libraryId": libraryID, "userId": ownerID, "description": store.NullString(description), "lastUpdate": millis(updated), "createdAt": millis(created), "items": items}, libraryID, nil
+	return map[string]any{"id": id, "name": name, "libraryId": libraryID, "userId": ownerID, "description": store.NullString(description), "lastUpdate": dbtime.Millis(updated), "createdAt": dbtime.Millis(created), "items": items}, libraryID, nil
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user store.User) {

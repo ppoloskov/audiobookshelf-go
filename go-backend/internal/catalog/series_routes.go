@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -33,11 +34,11 @@ func (h *Handler) loadSeries(ctx context.Context, id string) (seriesRecord, erro
 // toOldJSON is Series.toOldJSON (server/models/Series.js:168-178); the
 // prefix-free name is computed from the name, not read from the column.
 func (h *Handler) seriesOldJSON(ctx context.Context, s seriesRecord) (wire.Series, error) {
-	added, err := dateMillis(s.createdAt)
+	added, err := dbtime.OptionalMillis(s.createdAt)
 	if err != nil || added == nil {
 		return wire.Series{}, errors.New("series createdAt")
 	}
-	updated, err := dateMillis(s.updatedAt)
+	updated, err := dbtime.OptionalMillis(s.updatedAt)
 	if err != nil || updated == nil {
 		return wire.Series{}, errors.New("series updatedAt")
 	}

@@ -565,7 +565,7 @@ func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string,
 		if extra != nil {
 			oldID = extra["oldEpisodeId"]
 		}
-		jsonEpisode := map[string]any{"libraryItemId": itemID, "podcastId": id, "id": eid, "oldEpisodeId": oldID, "index": store.NullString(idx), "season": store.NullString(season), "episode": store.NullString(episodeNo), "episodeType": store.NullString(episodeType), "title": et, "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": nil, "pubDate": nil, "chapters": ch, "audioFile": audioJSON(f), "publishedAt": millis(published), "addedAt": millis(created), "updatedAt": millis(updated), "audioTrack": track, "size": f.Metadata["size"], "duration": f.Duration}
+		jsonEpisode := map[string]any{"libraryItemId": itemID, "podcastId": id, "id": eid, "oldEpisodeId": oldID, "index": store.NullString(idx), "season": store.NullString(season), "episode": store.NullString(episodeNo), "episodeType": store.NullString(episodeType), "title": et, "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": nil, "pubDate": nil, "chapters": ch, "audioFile": audioJSON(f), "publishedAt": dbtime.Millis(published), "addedAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "audioTrack": track, "size": f.Metadata["size"], "duration": f.Duration}
 		if extra != nil {
 			if extra["guid"] != nil {
 				jsonEpisode["guid"] = extra["guid"]
@@ -936,7 +936,7 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 			return false, err
 		}
 		if err == nil {
-			if stored, ok := millis(updated).(int64); ok && stored > *lastUpdate {
+			if stored, ok := dbtime.Millis(updated).(int64); ok && stored > *lastUpdate {
 				return false, nil
 			}
 		}
@@ -2056,29 +2056,6 @@ func stripTags(s string) string {
 		}
 	}
 	return b.String()
-}
-func millis(v any) any {
-	if v == nil {
-		return nil
-	}
-	switch x := v.(type) {
-	case int64:
-		return x
-	case float64:
-		return int64(x)
-	case []byte:
-		return millis(string(x))
-	case string:
-		if n, e := strconv.ParseInt(x, 10, 64); e == nil {
-			return n
-		}
-		for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999 -07:00", "2006-01-02 15:04:05.999999999 -0700 MST", "2006-01-02 15:04:05.999999999-07:00"} {
-			if t, e := time.Parse(layout, x); e == nil {
-				return t.UnixMilli()
-			}
-		}
-	}
-	return nil
 }
 func number(v any, fallback float64) float64 {
 	if n, ok := asFloat(v); ok {

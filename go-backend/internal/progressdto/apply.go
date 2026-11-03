@@ -525,10 +525,10 @@ func toWire(r row, userID string, t target) wire.MediaProgress {
 		id := t.mediaItemID
 		out.EpisodeID = &id
 	}
-	if ms, ok := dateMillis(r.updatedAt); ok {
+	if ms, ok := dbtime.ParseUnixMilli(r.updatedAt); ok {
 		out.LastUpdate = &ms
 	}
-	if ms, ok := dateMillis(r.createdAt); ok {
+	if ms, ok := dbtime.ParseUnixMilli(r.createdAt); ok {
 		out.StartedAt = &ms
 	}
 	if r.finishedAt != nil {
@@ -537,12 +537,4 @@ func toWire(r row, userID string, t target) wire.MediaProgress {
 		}
 	}
 	return out
-}
-
-func dateMillis(value string) (int64, bool) {
-	t, ok := dbtime.Parse(value)
-	if !ok {
-		return 0, false
-	}
-	return t.UnixMilli(), true
 }

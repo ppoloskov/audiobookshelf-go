@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
@@ -707,7 +708,7 @@ func nullValue(s sql.NullString) any {
 }
 
 func dbTimeMillis(value string) int64 {
-	n, _ := dateMillis(value)
+	n, _ := dbtime.OptionalMillis(value)
 	if n == nil {
 		return 0
 	}

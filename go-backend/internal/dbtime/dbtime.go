@@ -1,8 +1,9 @@
 // Package dbtime formats timestamps for SQLite DATETIME columns.
 //
-// These helpers are only for SQLite DATETIME values. Do not use them for API
-// JSON, RSS, millisecond, or display formats. SQL NULL must remain nil; never
-// replace a NULL timestamp with an empty string.
+// Format and Parse are only for SQLite DATETIME values; the Millis family in
+// millis.go converts stored DATETIME values to the epoch milliseconds the API
+// reports. Do not use any of them for RSS or display formats. SQL NULL must
+// remain nil; never replace a NULL timestamp with an empty string.
 package dbtime
 
 import "time"

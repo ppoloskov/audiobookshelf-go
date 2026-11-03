@@ -259,8 +259,8 @@ func (h *Handler) recentSeriesShelf(r *http.Request, user store.User, libraryID 
 			rows.Close()
 			return nil, 0, err
 		}
-		e.AddedAt, _ = dateMillis(created)
-		e.UpdatedAt, _ = dateMillis(updated)
+		e.AddedAt, _ = dbtime.OptionalMillis(created)
+		e.UpdatedAt, _ = dbtime.OptionalMillis(updated)
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -448,8 +448,8 @@ func (h *Handler) newestAuthorsShelf(r *http.Request, user store.User, libraryID
 		if err := rows.Scan(&a.ID, &a.ASIN, &a.Name, &a.Description, &a.ImagePath, &a.LibraryID, &created, &updated, &a.NumBooks); err != nil {
 			return nil, 0, err
 		}
-		a.AddedAt, _ = dateMillis(created)
-		a.UpdatedAt, _ = dateMillis(updated)
+		a.AddedAt, _ = dbtime.OptionalMillis(created)
+		a.UpdatedAt, _ = dbtime.OptionalMillis(updated)
 		authors = append(authors, a)
 	}
 	return authors, count, rows.Err()

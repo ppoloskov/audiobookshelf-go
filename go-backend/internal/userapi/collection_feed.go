@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -22,7 +23,7 @@ func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[s
 	}
 	var entityUpdatedAt any
 	if entityUpdated.Valid {
-		entityUpdatedAt = millis(entityUpdated.String)
+		entityUpdatedAt = dbtime.Millis(entityUpdated.String)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,title,description,enclosureURL,enclosureSize,enclosureType,pubDate,siteURL,author,explicit,duration,season,episode,episodeType,filePath FROM feedEpisodes WHERE feedId=? ORDER BY pubDate DESC`, id)
 	if err != nil {
@@ -44,5 +45,5 @@ func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[s
 		return nil, err
 	}
 	rows.Close()
-	return map[string]any{"id": id, "slug": slug, "userId": userID, "entityType": entityType, "entityId": entityID, "entityUpdatedAt": entityUpdatedAt, "coverPath": store.NullString(cover), "meta": map[string]any{"title": title, "description": description, "author": author, "imageUrl": store.NullString(imageURL), "feedUrl": store.NullString(feedURL), "link": store.NullString(siteURL), "explicit": explicit, "type": podcastType, "language": language, "preventIndexing": preventIndexing, "ownerName": ownerName, "ownerEmail": ownerEmail}, "serverAddress": serverAddress.String, "feedUrl": feedURL.String, "episodes": episodes, "createdAt": millis(created), "updatedAt": millis(updated)}, nil
+	return map[string]any{"id": id, "slug": slug, "userId": userID, "entityType": entityType, "entityId": entityID, "entityUpdatedAt": entityUpdatedAt, "coverPath": store.NullString(cover), "meta": map[string]any{"title": title, "description": description, "author": author, "imageUrl": store.NullString(imageURL), "feedUrl": store.NullString(feedURL), "link": store.NullString(siteURL), "explicit": explicit, "type": podcastType, "language": language, "preventIndexing": preventIndexing, "ownerName": ownerName, "ownerEmail": ownerEmail}, "serverAddress": serverAddress.String, "feedUrl": feedURL.String, "episodes": episodes, "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated)}, nil
 }

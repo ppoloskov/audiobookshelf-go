@@ -12,7 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+
+	"audiobookshelf-compat/internal/dbtime"
 
 	_ "modernc.org/sqlite"
 )
@@ -205,15 +206,15 @@ func (s *Store) user(ctx context.Context, col, value string) (User, error) {
 	}
 	u.Email, u.Password, u.Type, u.Token = email.String, pash.String, typ.String, token.String
 	u.IsActive, u.IsLocked = active != 0, locked != 0
-	u.LastSeen, err = nullableMillis(lastSeen)
+	u.LastSeen, err = dbtime.OptionalMillis(lastSeen)
 	if err != nil {
 		return User{}, fmt.Errorf("store: user lastSeen: %w", err)
 	}
-	u.CreatedAt, err = nullableMillis(created)
+	u.CreatedAt, err = dbtime.OptionalMillis(created)
 	if err != nil {
 		return User{}, fmt.Errorf("store: user createdAt: %w", err)
 	}
-	u.UpdatedAt, err = nullableMillis(updated)
+	u.UpdatedAt, err = dbtime.OptionalMillis(updated)
 	if err != nil {
 		return User{}, fmt.Errorf("store: user updatedAt: %w", err)
 	}
@@ -274,7 +275,7 @@ func (s *Store) Libraries(ctx context.Context) ([]map[string]any, error) {
 			rows.Close()
 			return nil, fmt.Errorf("store: scan library: %w", err)
 		}
-		last, err := nullableMillis(lastScan)
+		last, err := dbtime.OptionalMillis(lastScan)
 		if err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("store: library lastScan: %w", err)
@@ -282,12 +283,12 @@ func (s *Store) Libraries(ctx context.Context) ([]map[string]any, error) {
 		if last != nil && *last == 0 {
 			last = nil
 		} // upstream emits valueOf() || null
-		createdMs, err := nullableMillis(created)
+		createdMs, err := dbtime.OptionalMillis(created)
 		if err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("store: library createdAt: %w", err)
 		}
-		updatedMs, err := nullableMillis(updated)
+		updatedMs, err := dbtime.OptionalMillis(updated)
 		if err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("store: library updatedAt: %w", err)
@@ -400,7 +401,7 @@ func (s *Store) libraryFolders(ctx context.Context, libraryID string) ([]any, er
 		if err := rows.Scan(&id, &path, &parent, &added); err != nil {
 			return nil, err
 		}
-		addedMs, err := nullableMillis(added)
+		addedMs, err := dbtime.OptionalMillis(added)
 		if err != nil {
 			return nil, fmt.Errorf("store: folder createdAt: %w", err)
 		}
@@ -421,54 +422,4 @@ func rawJSON(b []byte) (json.RawMessage, error) {
 		return nil, fmt.Errorf("invalid JSON")
 	}
 	return append(json.RawMessage(nil), b...), nil
-}
-
-func nullableMillis(v any) (*int64, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var n int64
-	switch x := v.(type) {
-	case int64:
-		n = x
-	case int:
-		n = int64(x)
-	case float64:
-		n = int64(x)
-	case []byte:
-		return parseDate(string(x))
-	case string:
-		return parseDate(x)
-	case time.Time:
-		n = x.UnixMilli()
-	default:
-		return nil, fmt.Errorf("unsupported date value %T", v)
-	}
-	// Numeric date values in fixtures and integrations are interpreted as Unix
-	// milliseconds. The pinned Sequelize SQLite schema stores dates as text.
-	return &n, nil
-}
-
-func parseDate(s string) (*int64, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil, nil
-	}
-	if n, err := time.Parse(time.RFC3339Nano, s); err == nil {
-		ms := n.UnixMilli()
-		return &ms, nil
-	}
-	for _, layout := range []string{
-		"2006-01-02 15:04:05.999999999 -07:00",
-		"2006-01-02 15:04:05 -07:00",
-		"2006-01-02 15:04:05.999999999-07:00",
-		"2006-01-02 15:04:05.999999999",
-		"2006-01-02 15:04:05",
-	} {
-		if n, err := time.Parse(layout, s); err == nil {
-			ms := n.UnixMilli()
-			return &ms, nil
-		}
-	}
-	return nil, fmt.Errorf("unrecognized timestamp %q", s)
 }

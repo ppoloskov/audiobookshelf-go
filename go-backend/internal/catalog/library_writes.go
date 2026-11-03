@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -817,7 +818,7 @@ func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, e
 			folders.Close()
 			return nil, err
 		}
-		ms, e := dateMillis(added)
+		ms, e := dbtime.OptionalMillis(added)
 		if e != nil {
 			folders.Close()
 			return nil, e
@@ -829,15 +830,15 @@ func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, e
 		return nil, err
 	}
 	folders.Close()
-	createdMs, err := dateMillis(created)
+	createdMs, err := dbtime.OptionalMillis(created)
 	if err != nil {
 		return nil, err
 	}
-	updatedMs, err := dateMillis(updated)
+	updatedMs, err := dbtime.OptionalMillis(updated)
 	if err != nil {
 		return nil, err
 	}
-	scanMs, err := dateMillis(lastScan)
+	scanMs, err := dbtime.OptionalMillis(lastScan)
 	if err != nil {
 		return nil, err
 	}

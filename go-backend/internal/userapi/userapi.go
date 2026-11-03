@@ -1475,7 +1475,7 @@ func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User)
 		books = append(books, item)
 		visible++
 	}
-	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(description), "books": books, "lastUpdate": millis(updated), "createdAt": millis(created)}, libraryID, visible > 0 || len(books) == 0, nil
+	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(description), "books": books, "lastUpdate": dbtime.Millis(updated), "createdAt": dbtime.Millis(created)}, libraryID, visible > 0 || len(books) == 0, nil
 }
 
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
@@ -2040,7 +2040,7 @@ func (h *Handler) apiKey(ctx context.Context, id string) (map[string]any, error)
 			creator = map[string]any{"id": u.ID, "username": u.Username, "type": u.Type}
 		}
 	}
-	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": millis(created), "updatedAt": millis(updated), "user": user, "createdByUser": creator}, nil
+	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "user": user, "createdByUser": creator}, nil
 }
 
 // sequelizeISOString mirrors Sequelize model serialization of DATE attributes
@@ -2240,7 +2240,7 @@ func scanUser(row rowScanner) (store.User, error) {
 	}
 	u.Email, u.Password, u.Type, u.Token = email.String, pash.String, typ.String, token.String
 	u.IsActive, u.IsLocked = active != 0, locked != 0
-	u.LastSeen, u.CreatedAt, u.UpdatedAt = int64Pointer(millis(lastSeen)), int64Pointer(millis(createdAt)), int64Pointer(millis(updatedAt))
+	u.LastSeen, u.CreatedAt, u.UpdatedAt = int64Pointer(dbtime.Millis(lastSeen)), int64Pointer(dbtime.Millis(createdAt)), int64Pointer(dbtime.Millis(updatedAt))
 	u.Permissions, u.Bookmarks, u.ExtraData = permissionsRaw, bookmarksRaw, extraRaw
 	return u, nil
 }
@@ -2448,40 +2448,6 @@ func nullNumber(n sql.NullFloat64) any {
 		return nil
 	}
 	return n.Float64
-}
-func millis(v any) any {
-	if v == nil {
-		return nil
-	}
-	switch t := v.(type) {
-	case time.Time:
-		return t.UnixMilli()
-	case int64:
-		return t
-	case float64:
-		return int64(t)
-	case []byte:
-		return parseDateMillis(string(t))
-	case string:
-		return parseDateMillis(t)
-	}
-	return nil
-}
-func parseDateMillis(v string) any {
-	if n, e := strconv.ParseInt(v, 10, 64); e == nil {
-		return n
-	}
-	for _, layout := range []string{
-		time.RFC3339Nano,
-		"2006-01-02 15:04:05.999999999 -07:00", // Sequelize SQLite DATETIME
-		"2006-01-02 15:04:05.999999999-07:00",
-		"2006-01-02 15:04:05.999999999",
-	} {
-		if t, e := time.Parse(layout, v); e == nil {
-			return t.UnixMilli()
-		}
-	}
-	return nil
 }
 func timestampString(v any, fallback string) any {
 	if n, ok := finiteNumber(v); ok {

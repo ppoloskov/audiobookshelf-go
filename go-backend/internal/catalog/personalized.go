@@ -250,21 +250,21 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 				httputil.WriteError(w, 500, "database read failed")
 				return
 			}
-			pub, e := dateMillis(published)
+			pub, e := dbtime.OptionalMillis(published)
 			if e != nil {
 				rows.Close()
 				logging.RequestError(r, "database read failed", e)
 				httputil.WriteError(w, 500, "database read failed")
 				return
 			}
-			createdMs, e := dateMillis(created)
+			createdMs, e := dbtime.OptionalMillis(created)
 			if e != nil {
 				rows.Close()
 				logging.RequestError(r, "database read failed", e)
 				httputil.WriteError(w, 500, "database read failed")
 				return
 			}
-			updatedMs, e := dateMillis(updated)
+			updatedMs, e := dbtime.OptionalMillis(updated)
 			if e != nil {
 				rows.Close()
 				logging.RequestError(r, "database read failed", e)

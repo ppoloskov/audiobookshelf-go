@@ -155,23 +155,6 @@ func libraryAccess(u store.User, id string) bool {
 	}
 	return false
 }
-func parseTime(v any) time.Time {
-	switch x := v.(type) {
-	case time.Time:
-		return x
-	case string:
-		for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999 -07:00", "2006-01-02 15:04:05.000 -07:00", "2006-01-02 15:04:05"} {
-			if t, e := time.Parse(layout, x); e == nil {
-				return t
-			}
-		}
-	case []byte:
-		return parseTime(string(x))
-	case int64:
-		return time.UnixMilli(x)
-	}
-	return time.Time{}
-}
 func sqlDate(t time.Time) string { return dbtime.Format(t) }
 
 // hostPrefix is req.originalHostPrefix (server/Server.js:324): the request

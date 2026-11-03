@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"audiobookshelf-compat/internal/dbtime"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -78,18 +79,18 @@ func (h *Handler) openMediaItemShare(ctx context.Context, mediaItemID string) (*
 	if err != nil {
 		return nil, err
 	}
-	expiresMs, err := dateMillis(expires)
+	expiresMs, err := dbtime.OptionalMillis(expires)
 	if err != nil {
 		return nil, err
 	}
 	if expiresMs != nil && *expiresMs <= time.Now().UnixMilli() {
 		return nil, nil
 	}
-	createdMs, err := dateMillis(created)
+	createdMs, err := dbtime.OptionalMillis(created)
 	if err != nil {
 		return nil, err
 	}
-	updatedMs, err := dateMillis(updated)
+	updatedMs, err := dbtime.OptionalMillis(updated)
 	if err != nil {
 		return nil, err
 	}

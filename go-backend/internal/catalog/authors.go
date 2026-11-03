@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
@@ -61,11 +62,11 @@ func (h *Handler) loadAuthor(ctx context.Context, id string) (authorRecord, erro
 
 // toOldJSON is Author.toOldJSON (Author.js:177-188).
 func (a authorRecord) toOldJSON() (wire.Author, error) {
-	added, err := dateMillis(a.createdAt)
+	added, err := dbtime.OptionalMillis(a.createdAt)
 	if err != nil || added == nil {
 		return wire.Author{}, fmt.Errorf("author %s createdAt: %v", a.id, err)
 	}
-	updated, err := dateMillis(a.updatedAt)
+	updated, err := dbtime.OptionalMillis(a.updatedAt)
 	if err != nil || updated == nil {
 		return wire.Author{}, fmt.Errorf("author %s updatedAt: %v", a.id, err)
 	}
