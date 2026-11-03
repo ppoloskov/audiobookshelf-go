@@ -1086,7 +1086,7 @@ func (h *Handler) OpenSessions() []map[string]any {
 	h.mu.RUnlock()
 	out := make([]map[string]any, 0, len(sessions))
 	for _, s := range sessions {
-		entry := s.publicJSON()
+		entry := s.openJSON()
 		var username string
 		_ = h.db.QueryRow(`SELECT username FROM users WHERE id=?`, s.UserID).Scan(&username)
 		entry["user"] = map[string]any{"id": s.UserID, "username": username}
@@ -1721,11 +1721,17 @@ func makeDirectTracks(s *session, item *itemData) []map[string]any {
 	return out
 }
 
-func (s *session) publicJSON() map[string]any {
-	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt}
+// openJSON is a playback session as TS PlaybackSession.toJSON writes it (GET
+// /api/sessions/open lists these, the client's sessions page reads them). The
+// client's session response adds the tracks and the item to it.
+func (s *session) openJSON() map[string]any {
+	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "mediaMetadata": s.MediaMetadata, "chapters": s.Chapters, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "coverPath": s.CoverPath, "duration": s.Duration, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": s.Date, "dayOfWeek": s.DayOfWeek, "timeListening": s.TimeListening, "startTime": s.StartTime, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt}
 }
 func (s *session) clientJSON() map[string]any {
-	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "mediaMetadata": s.MediaMetadata, "chapters": s.Chapters, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "coverPath": s.CoverPath, "duration": s.Duration, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": s.Date, "dayOfWeek": s.DayOfWeek, "timeListening": s.TimeListening, "startTime": s.StartTime, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt, "audioTracks": s.AudioTracks, "libraryItem": s.Item}
+	out := s.openJSON()
+	out["audioTracks"] = s.AudioTracks
+	out["libraryItem"] = s.Item
+	return out
 }
 
 func parseAudioFile(raw map[string]any) (audioFile, error) {
