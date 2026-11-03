@@ -39,7 +39,7 @@ L2, JWT issuing -> L1).
 
 ## Phase F: foundations (before any refactor)
 
-- [ ] F1: Move to the latest stable Go
+- [x] F1: Move to the latest stable Go
   - Files: `go.mod` (`go 1.24.0`), `Dockerfile.go` (builder image),
     `.github/workflows/docker-go.yml`, `.github/workflows/go-backend.yml`
   - Change: `go 1.27` with the current toolchain (1.27.3 on 2026-11-03);

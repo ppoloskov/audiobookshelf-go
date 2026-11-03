@@ -1,6 +1,8 @@
 module audiobookshelf-compat
 
-go 1.24.0
+go 1.27
+
+toolchain go1.27.3
 
 require (
 	github.com/coreos/go-oidc/v3 v3.14.1
@@ -11,6 +13,7 @@ require (
 	github.com/zishang520/socket.io/v2 v2.3.8
 	golang.org/x/crypto v0.42.0
 	golang.org/x/net v0.43.0
+	golang.org/x/sys v0.36.0
 	golang.org/x/text v0.29.0
 	modernc.org/sqlite v1.39.1
 )
@@ -40,7 +43,6 @@ require (
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0
 	golang.org/x/tools v0.36.0 // indirect
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
