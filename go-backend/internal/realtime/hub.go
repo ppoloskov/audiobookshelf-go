@@ -19,6 +19,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 
 	"github.com/zishang520/engine.io/v2/types"
@@ -221,6 +222,7 @@ func (h *Hub) connected(s *socket.Socket) {
 		}
 		level, ok := integer(first(args))
 		if !ok || level < 0 || level > 6 {
+			logging.Warnf("[SocketAuthority] Invalid set_log_listener level from socket %s", id)
 			return
 		}
 		h.dispatchAction(s, user, "set_log_listener", level, nil, ackFrom(args)...)

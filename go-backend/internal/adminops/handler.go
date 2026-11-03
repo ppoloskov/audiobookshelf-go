@@ -20,6 +20,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/robfig/cron/v3"
 )
@@ -31,7 +32,6 @@ type Handler struct {
 	settingsChanged func(context.Context, map[string]any) error
 	itemChanged     func(context.Context, string) (any, error)
 	watcherUpdate   func(context.Context, string, string, string, string) error
-	loggerDataFn    func() any
 }
 
 func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
@@ -45,7 +45,6 @@ func (h *Handler) SetItemChanged(fn func(context.Context, string) (any, error)) 
 func (h *Handler) SetWatcherUpdate(fn func(context.Context, string, string, string, string) error) {
 	h.watcherUpdate = fn
 }
-func (h *Handler) SetLoggerData(fn func() any) { h.loggerDataFn = fn }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	p := r.URL.Path
@@ -167,12 +166,17 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	changed := false
 	for k, v := range patch {
 		if allowed[k] && !equalJSON(m[k], v) {
+			if level, isNumber := v.(float64); k == "logLevel" && isNumber {
+				// ServerSettings.update (ServerSettings.js:371)
+				logging.Default().ChangeLevel(logging.Level(int(level)))
+			}
 			m[k] = v
 			changed = true
 		}
 	}
 	if changed {
 		if e = h.saveSettings(r, m); e != nil {
+			logging.Errorf("[adminops] PATCH /api/settings: save server settings failed: %v", e)
 			http.Error(w, "database error", 500)
 			return
 		}
@@ -375,11 +379,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 		w.WriteHeader(403)
 		return
 	}
-	var logs any = []any{}
-	if h.loggerDataFn != nil {
-		logs = h.loggerDataFn()
-	}
-	writeJSON(w, map[string]any{"currentDailyLogs": logs})
+	writeJSON(w, logging.Default().LoggerData())
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) {

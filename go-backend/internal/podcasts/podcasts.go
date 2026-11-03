@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,6 +24,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 	"github.com/robfig/cron/v3"
@@ -547,7 +547,7 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastI
 	}
 	if len(found) > 0 {
 		if err := h.enqueue(item, found, false); err != nil {
-			log.Printf("[podcasts] manual episode check enqueue failed for %s: %v", item.ID, err)
+			logging.Errorf("[podcasts] manual episode check enqueue failed for %s: %v", item.ID, err)
 		}
 	}
 	jsonResponse(w, 200, map[string]any{"episodes": found})
@@ -994,7 +994,7 @@ func (h *Handler) runScheduled(itemID string) {
 		if disable {
 			now := dbtime.Now()
 			if _, err := h.db.Exec(`UPDATE podcasts SET autoDownloadEpisodes=0,lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
-				log.Printf("[podcasts] auto-download disable update failed for %s: %v", item.MediaID, err)
+				logging.Errorf("[podcasts] auto-download disable update failed for %s: %v", item.MediaID, err)
 			}
 			h.queueMu.Lock()
 			entry, ok := h.scheduleIDs[itemID]
@@ -1009,7 +1009,7 @@ func (h *Handler) runScheduled(itemID string) {
 		} else {
 			now := dbtime.Now()
 			if _, err := h.db.Exec(`UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
-				log.Printf("[podcasts] episode check bookkeeping update failed for %s: %v", item.MediaID, err)
+				logging.Errorf("[podcasts] episode check bookkeeping update failed for %s: %v", item.MediaID, err)
 			}
 		}
 		return
@@ -1030,12 +1030,12 @@ func (h *Handler) runScheduled(itemID string) {
 	found := filterNew(all, item, after, item.MaxNew)
 	if len(found) > 0 {
 		if err := h.enqueue(item, found, true); err != nil {
-			log.Printf("[podcasts] scheduled episode enqueue failed for %s: %v", item.MediaID, err)
+			logging.Errorf("[podcasts] scheduled episode enqueue failed for %s: %v", item.MediaID, err)
 		}
 	}
 	now := dbtime.Now()
 	if _, err := h.db.Exec(`UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
-		log.Printf("[podcasts] episode check bookkeeping update failed for %s: %v", item.MediaID, err)
+		logging.Errorf("[podcasts] episode check bookkeeping update failed for %s: %v", item.MediaID, err)
 	}
 }
 
