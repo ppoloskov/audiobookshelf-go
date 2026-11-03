@@ -131,6 +131,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	}
 	rt.routes = http.NewServeMux()
 	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
+	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -336,14 +337,6 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rt.playback.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.adminops.Handle(w, withPath(r, path), user) {
-		if !isGet(r) {
-			// Tag, genre and author edits patch upstream's filter data cache in
-			// place; reloading it on the next read yields the same content.
-			rt.catalog.FilterCache().Invalidate("")
-		}
 		return
 	}
 	if rt.notifications.Handle(w, withPath(r, path), user) {

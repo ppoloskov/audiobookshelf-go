@@ -12,7 +12,6 @@ import (
 	"errors"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -47,51 +46,57 @@ func (h *Handler) SetWatcherUpdate(fn func(context.Context, string, string, stri
 	h.watcherUpdate = fn
 }
 
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	p := r.URL.Path
-	switch {
-	case r.Method == http.MethodPatch && p == "/api/settings":
-		h.patchSettings(w, r, user)
-	case r.Method == http.MethodPatch && p == "/api/sorting-prefixes":
-		h.sortingPrefixes(w, r, user)
-	case r.Method == http.MethodGet && p == "/api/auth-settings":
-		h.authSettings(w, r, user, false)
-	case r.Method == http.MethodPatch && p == "/api/auth-settings":
-		h.authSettings(w, r, user, true)
-	case r.Method == http.MethodPost && p == "/api/validate-cron":
-		h.validateCron(w, r, user)
-	case r.Method == http.MethodGet && p == "/api/logger-data":
-		h.loggerData(w, r, user)
-	case r.Method == http.MethodPost && (p == "/api/cache/purge" || p == "/api/cache/items/purge"):
-		h.purgeCache(w, r, user, p == "/api/cache/items/purge")
-	case r.Method == http.MethodGet && p == "/api/stats/server":
-		h.serverStats(w, r, user)
-	case r.Method == http.MethodPost && p == "/api/watcher/update":
-		h.updateWatchedPath(w, r, user)
-	case r.Method == http.MethodGet && p == "/api/tags":
-		h.listTaxonomy(w, r, user, "tags")
-	case r.Method == http.MethodGet && p == "/api/genres":
-		h.listTaxonomy(w, r, user, "genres")
-	case r.Method == http.MethodPost && p == "/api/tags/rename":
-		h.renameTaxonomy(w, r, user, "tags", "tag", "newTag")
-	case r.Method == http.MethodPost && p == "/api/genres/rename":
-		h.renameTaxonomy(w, r, user, "genres", "genre", "newGenre")
-	case r.Method == http.MethodDelete && strings.HasPrefix(p, "/api/tags/"):
-		h.deleteTaxonomy(w, r, user, "tags")
-	case r.Method == http.MethodDelete && strings.HasPrefix(p, "/api/genres/"):
-		h.deleteTaxonomy(w, r, user, "genres")
-	case r.Method == http.MethodGet && strings.HasPrefix(p, "/api/stats/year/"):
-		h.statsForYear(w, r, user)
-	case r.Method == http.MethodGet && p == "/api/filesystem":
-		h.filesystem(w, r, user)
-	case r.Method == http.MethodPost && p == "/api/filesystem/pathexists":
-		h.pathExists(w, r, user)
-	case r.Method == http.MethodPost && p == "/api/upload":
-		h.upload(w, r, user)
-	default:
-		return false
+// RouteDeps are the collaborators Routes calls outside this package.
+type RouteDeps struct {
+	// AfterWrite runs once a write route (any method but GET) has answered.
+	// Tag, genre and author edits patch the catalog's filter data cache in
+	// place, so the composition root drops it here.
+	AfterWrite func()
+}
+
+// Routes registers the admin routes on mux. The server attaches the user to
+// the request context before dispatch (store.ContextWithUser). Each handler
+// keeps its own admin check, which answers 403.
+func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
+	read := func(fn func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			user, _ := store.UserFromContext(r.Context())
+			fn(w, r, user)
+		}
 	}
-	return true
+	write := func(fn func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
+		handle := read(fn)
+		return func(w http.ResponseWriter, r *http.Request) {
+			handle(w, r)
+			if deps.AfterWrite != nil {
+				deps.AfterWrite()
+			}
+		}
+	}
+	mux.HandleFunc("PATCH /api/settings", write(h.patchSettings))
+	mux.HandleFunc("PATCH /api/sorting-prefixes", write(h.sortingPrefixes))
+	mux.HandleFunc("GET /api/auth-settings", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.authSettings(w, r, u, false) }))
+	mux.HandleFunc("PATCH /api/auth-settings", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.authSettings(w, r, u, true) }))
+	mux.HandleFunc("POST /api/validate-cron", write(h.validateCron))
+	mux.HandleFunc("GET /api/logger-data", read(h.loggerData))
+	mux.HandleFunc("POST /api/cache/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.purgeCache(w, r, u, false) }))
+	mux.HandleFunc("POST /api/cache/items/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.purgeCache(w, r, u, true) }))
+	mux.HandleFunc("GET /api/stats/server", read(h.serverStats))
+	mux.HandleFunc("POST /api/watcher/update", write(h.updateWatchedPath))
+	mux.HandleFunc("GET /api/tags", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.listTaxonomy(w, r, u, "tags") }))
+	mux.HandleFunc("GET /api/genres", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.listTaxonomy(w, r, u, "genres") }))
+	mux.HandleFunc("POST /api/tags/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) {
+		h.renameTaxonomy(w, r, u, "tags", "tag", "newTag")
+	}))
+	mux.HandleFunc("POST /api/genres/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) {
+		h.renameTaxonomy(w, r, u, "genres", "genre", "newGenre")
+	}))
+	mux.HandleFunc("DELETE /api/tags/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.deleteTaxonomy(w, r, u, "tags") }))
+	mux.HandleFunc("DELETE /api/genres/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.deleteTaxonomy(w, r, u, "genres") }))
+	mux.HandleFunc("GET /api/stats/year/{year}", read(h.statsForYear))
+	mux.HandleFunc("GET /api/filesystem", read(h.filesystem))
+	mux.HandleFunc("POST /api/filesystem/pathexists", write(h.pathExists))
+	mux.HandleFunc("POST /api/upload", write(h.upload))
 }
 
 func admin(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
@@ -613,16 +618,12 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		http.Error(w, "item metadata writer is unavailable", http.StatusNotImplemented)
 		return
 	}
-	escaped := r.URL.EscapedPath()
-	seg := escaped[strings.LastIndex(escaped, "/")+1:]
-	decoded, e := url.PathUnescape(seg)
+	// The client sends the name base64-encoded and URL-escaped; PathValue
+	// returns it unescaped.
+	seg := r.PathValue("name")
+	raw, e := base64.StdEncoding.DecodeString(seg)
 	if e != nil {
-		w.WriteHeader(400)
-		return
-	}
-	raw, e := base64.StdEncoding.DecodeString(decoded)
-	if e != nil {
-		raw, e = base64.RawURLEncoding.DecodeString(decoded)
+		raw, e = base64.RawURLEncoding.DecodeString(seg)
 	}
 	if e != nil {
 		w.WriteHeader(400)
@@ -701,7 +702,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 		w.WriteHeader(403)
 		return
 	}
-	year, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/api/stats/year/"))
+	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil || year < 2000 || year > 9999 {
 		http.Error(w, "Invalid year", 400)
 		return

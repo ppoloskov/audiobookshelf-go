@@ -16,12 +16,12 @@ func TestLoggerDataAdminOnlyAndShape(t *testing.T) {
 	h := New(adminopsDB(t), config.Config{}, nil)
 	logging.Info("adminops logger-data marker")
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/logger-data", nil), store.User{Type: "user"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/logger-data", nil), store.User{Type: "user"})
 	if w.Code != 403 {
 		t.Fatalf("non-admin status %d", w.Code)
 	}
 	w = httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/logger-data", nil), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/logger-data", nil), store.User{Type: "admin"})
 	var out struct {
 		CurrentDailyLogs []struct {
 			Message   string `json:"message"`
@@ -49,7 +49,7 @@ func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 	}
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodPatch, "/api/settings?x=1", strings.NewReader(`{"language":"fr"}`)), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings?x=1", strings.NewReader(`{"language":"fr"}`)), store.User{Type: "admin"})
 	if w.Code != 500 || w.Body.String() != "database error\n" {
 		t.Fatalf("status %d body %q", w.Code, w.Body.String())
 	}
@@ -67,7 +67,7 @@ func TestSettingsPatchLogLevelChangesLogger(t *testing.T) {
 	t.Cleanup(func() { l.ChangeLevel(before) })
 	h := New(adminopsDB(t), config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"logLevel":4}`)), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"logLevel":4}`)), store.User{Type: "admin"})
 	if w.Code != 200 || l.Level() != logging.LevelError {
 		t.Fatalf("status %d level %v", w.Code, l.Level())
 	}

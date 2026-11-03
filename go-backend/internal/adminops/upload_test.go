@@ -43,7 +43,7 @@ func TestUploadWritesSanitizedFileAndRejectsInvalidRequests(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	u := store.User{IsActive: true, Permissions: []byte(`{"upload":true,"accessAllLibraries":true}`)}
 	w := httptest.NewRecorder()
-	h.Handle(w, uploadRequest(t, map[string]string{"title": "Title", "library": "lib", "folder": "folder", "author": "A/B"}, "a:b?.mp3"), u)
+	serve(h, w, uploadRequest(t, map[string]string{"title": "Title", "library": "lib", "folder": "folder", "author": "A/B"}, "a:b?.mp3"), u)
 	if w.Code != 200 {
 		t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
 	}
@@ -67,14 +67,14 @@ func TestUploadWritesSanitizedFileAndRejectsInvalidRequests(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := httptest.NewRecorder()
-			h.Handle(got, tc.req, tc.user)
+			serve(h, got, tc.req, tc.user)
 			if got.Code != tc.status {
 				t.Fatalf("status=%d want=%d body=%s", got.Code, tc.status, strings.TrimSpace(got.Body.String()))
 			}
 		})
 	}
 	bad := httptest.NewRecorder()
-	h.Handle(bad, httptest.NewRequest(http.MethodPost, "/api/upload", strings.NewReader("not multipart")), u)
+	serve(h, bad, httptest.NewRequest(http.MethodPost, "/api/upload", strings.NewReader("not multipart")), u)
 	if bad.Code != 400 {
 		t.Fatalf("invalid multipart status=%d", bad.Code)
 	}
