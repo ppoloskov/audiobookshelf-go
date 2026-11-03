@@ -193,15 +193,9 @@ func UserFromRow(r sqlc.User) (User, error) {
 	if u.UpdatedAt, err = dbtime.OptionalMillis(r.Updatedat); err != nil {
 		return User{}, fmt.Errorf("store: user updatedAt: %w", err)
 	}
-	if u.Permissions, err = rawJSON([]byte(r.Permissions.String)); err != nil {
-		return User{}, fmt.Errorf("store: user permissions: %w", err)
-	}
-	if u.Bookmarks, err = rawJSON([]byte(r.Bookmarks.String)); err != nil {
-		return User{}, fmt.Errorf("store: user bookmarks: %w", err)
-	}
-	if u.ExtraData, err = rawJSON([]byte(r.Extradata.String)); err != nil {
-		return User{}, fmt.Errorf("store: user extraData: %w", err)
-	}
+	u.Permissions = lenientJSON(r.Permissions.String)
+	u.Bookmarks = lenientJSON(r.Bookmarks.String)
+	u.ExtraData = lenientJSON(r.Extradata.String)
 	return u, nil
 }
 
@@ -394,4 +388,14 @@ func rawJSON(b []byte) (json.RawMessage, error) {
 		return nil, fmt.Errorf("invalid JSON")
 	}
 	return append(json.RawMessage(nil), b...), nil
+}
+
+// lenientJSON reads a users JSON column. A malformed value reads as null
+// instead of failing: one bad column must not lock a user out of login.
+func lenientJSON(v string) json.RawMessage {
+	raw, err := rawJSON([]byte(v))
+	if err != nil {
+		return json.RawMessage("null")
+	}
+	return raw
 }
