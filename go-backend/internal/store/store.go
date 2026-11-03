@@ -336,6 +336,49 @@ func NullString(s sql.NullString) any {
 	return s.String
 }
 
+// NullStringPtr is a nullable text column as an optional string field: NULL
+// becomes nil, which encodes as JSON null.
+func NullStringPtr(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	return &s.String
+}
+
+// StringPtrValue unwraps an optional string for a dynamic JSON value.
+func StringPtrValue(s *string) any {
+	if s == nil {
+		return nil
+	}
+	return *s
+}
+
+// NullInt64 is a nullable integer column as a JSON value: NULL becomes nil.
+func NullInt64(v sql.NullInt64) any {
+	if !v.Valid {
+		return nil
+	}
+	return v.Int64
+}
+
+// NullIfZero is an integer (for example epoch milliseconds) that reads as
+// absent when it is 0.
+func NullIfZero(v int64) any {
+	if v == 0 {
+		return nil
+	}
+	return v
+}
+
+// NullIfBlank is a text value that reads as absent when it is empty or only
+// white space.
+func NullIfBlank(s string) any {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	return s
+}
+
 // NullIfEmpty is a text value that is stored or serialized as NULL when empty.
 func NullIfEmpty(s string) any {
 	if s == "" {

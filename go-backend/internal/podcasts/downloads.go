@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -59,12 +60,6 @@ func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 		out.PodcastTitle = &d.item.Title.String
 	}
 	return out
-}
-func nullableInt64(v int64) any {
-	if v == 0 {
-		return nil
-	}
-	return v
 }
 
 func (h *Handler) enqueue(item podcastItem, episodes []map[string]any, auto bool) error {
@@ -419,7 +414,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 		return err
 	}
 	defer tx.Rollback()
-	_, err = tx.ExecContext(d.ctx, `INSERT INTO podcastEpisodes (id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt,podcastId) VALUES (?,NULL,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, episodeID, nullableAny(season), nullableAny(episodeNo), kind, title, nullableAny(subtitle), nullableAny(description), nullableAny(pubDate), nullableAny(enclosureURL), enclosureSize, nullableAny(enclosureType), published, string(audioJSON), string(chaptersJSON), string(extraJSON), stamp, stamp, d.item.MediaID)
+	_, err = tx.ExecContext(d.ctx, `INSERT INTO podcastEpisodes (id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt,podcastId) VALUES (?,NULL,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, episodeID, store.NullIfEmpty(season), store.NullIfEmpty(episodeNo), kind, title, store.NullIfEmpty(subtitle), store.NullIfEmpty(description), store.NullIfEmpty(pubDate), store.NullIfEmpty(enclosureURL), enclosureSize, store.NullIfEmpty(enclosureType), published, string(audioJSON), string(chaptersJSON), string(extraJSON), stamp, stamp, d.item.MediaID)
 	if err != nil {
 		return err
 	}

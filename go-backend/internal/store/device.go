@@ -36,14 +36,8 @@ func LoadDeviceInfo(ctx context.Context, db *sql.DB, id string) (*wire.DeviceInf
 		}
 		return &s
 	}
-	nullPtr := func(v sql.NullString) *string {
-		if !v.Valid {
-			return nil
-		}
-		return &v.String
-	}
 	info := &wire.DeviceInfo{
-		ID: nullPtr(rowID), UserID: nullPtr(userID), DeviceID: deviceID.String, IPAddress: nullPtr(ip),
+		ID: NullStringPtr(rowID), UserID: NullStringPtr(userID), DeviceID: deviceID.String, IPAddress: NullStringPtr(ip),
 		BrowserName: ptr(extra.BrowserName), OSName: ptr(extra.OSName), OSVersion: ptr(extra.OSVersion),
 		ClientVersion: clientVersion.String, Manufacturer: extra.Manufacturer, Model: extra.Model,
 		ClientName: clientName.String, DeviceName: deviceName.String,

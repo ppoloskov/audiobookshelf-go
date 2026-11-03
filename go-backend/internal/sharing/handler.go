@@ -116,12 +116,12 @@ func (h *Handler) oldBookMetadata(ctx context.Context, id string) map[string]any
 			var i, n string
 			var seq sql.NullString
 			if rows.Scan(&i, &n, &seq) == nil {
-				series = append(series, map[string]any{"id": i, "name": n, "sequence": nullable(seq)})
+				series = append(series, map[string]any{"id": i, "name": n, "sequence": store.NullString(seq)})
 			}
 		}
 		rows.Close()
 	}
-	return map[string]any{"title": title.String, "subtitle": nullable(subtitle), "authors": authors, "narrators": narrators, "series": series, "genres": genreList, "publishedYear": nullable(year), "publishedDate": nullable(date), "publisher": nullable(publisher), "description": nullable(desc), "isbn": nullable(isbn), "asin": nullable(asin), "language": nullable(language), "explicit": exp != 0, "abridged": abr != 0}
+	return map[string]any{"title": title.String, "subtitle": store.NullString(subtitle), "authors": authors, "narrators": narrators, "series": series, "genres": genreList, "publishedYear": store.NullString(year), "publishedDate": store.NullString(date), "publisher": store.NullString(publisher), "description": store.NullString(desc), "isbn": store.NullString(isbn), "asin": store.NullString(asin), "language": store.NullString(language), "explicit": exp != 0, "abridged": abr != 0}
 }
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -166,18 +166,6 @@ func libraryAccess(u store.User, id string) bool {
 		}
 	}
 	return false
-}
-func nullable(v sql.NullString) any {
-	if !v.Valid {
-		return nil
-	}
-	return v.String
-}
-func nullableString(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 func parseTime(v any) time.Time {
 	switch x := v.(type) {

@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -422,11 +423,11 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		}
 	} else {
 		if added {
-			if _, err = tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?,NULL,?,?,?, ?,?)`, mediaID, title, scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), nullableString(coverPath), duration, mustJSON(metadata.Narrators), mustJSON(audio), mustJSON(chapters), mustJSON(metadata.Tags), mustJSON(metadata.Genres), now, now); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?,NULL,?,?,?, ?,?)`, mediaID, title, scannerTitleSortKey(title, l.sortingPrefixes), store.NullIfBlank(metadata.Subtitle), store.NullIfBlank(metadata.PublishedYear), store.NullIfBlank(metadata.PublishedDate), store.NullIfBlank(metadata.Publisher), store.NullIfBlank(metadata.Description), store.NullIfBlank(metadata.ISBN), store.NullIfBlank(metadata.ASIN), store.NullIfBlank(metadata.Language), store.NullIfBlank(coverPath), duration, mustJSON(metadata.Narrators), mustJSON(audio), mustJSON(chapters), mustJSON(metadata.Tags), mustJSON(metadata.Genres), now, now); err != nil {
 				return imported{}, err
 			}
 		} else if rescanMedia {
-			if _, err = tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,coverPath=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, nullableString(metadata.Title), scannerTitleSortKey(title, l.sortingPrefixes), nullableString(metadata.Subtitle), nullableString(metadata.PublishedYear), nullableString(metadata.PublishedDate), nullableString(metadata.Publisher), nullableString(metadata.Description), nullableString(metadata.ISBN), nullableString(metadata.ASIN), nullableString(metadata.Language), duration, mustJSON(audio), mustJSON(chapters), nullableString(coverPath), mustJSON(metadata.Tags), mustJSON(metadata.Tags), mustJSON(metadata.Genres), mustJSON(metadata.Genres), mustJSON(metadata.Narrators), mustJSON(metadata.Narrators), now, mediaID); err != nil {
+			if _, err = tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,coverPath=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, store.NullIfBlank(metadata.Title), scannerTitleSortKey(title, l.sortingPrefixes), store.NullIfBlank(metadata.Subtitle), store.NullIfBlank(metadata.PublishedYear), store.NullIfBlank(metadata.PublishedDate), store.NullIfBlank(metadata.Publisher), store.NullIfBlank(metadata.Description), store.NullIfBlank(metadata.ISBN), store.NullIfBlank(metadata.ASIN), store.NullIfBlank(metadata.Language), duration, mustJSON(audio), mustJSON(chapters), store.NullIfBlank(coverPath), mustJSON(metadata.Tags), mustJSON(metadata.Tags), mustJSON(metadata.Genres), mustJSON(metadata.Genres), mustJSON(metadata.Narrators), mustJSON(metadata.Narrators), now, mediaID); err != nil {
 				return imported{}, err
 			}
 		}
@@ -692,13 +693,6 @@ func scannableCompanion(ext string) bool {
 		return true
 	}
 	return false
-}
-
-func nullableString(v string) any {
-	if strings.TrimSpace(v) == "" {
-		return nil
-	}
-	return v
 }
 
 // readABSMetadata prefers a readable in-item metadata.json and falls back to

@@ -59,13 +59,6 @@ func (h *Handler) loadAuthor(ctx context.Context, id string) (authorRecord, erro
 	return scanAuthor(h.db.QueryRowContext(ctx, `SELECT `+authorColumns+` FROM authors WHERE id=?`, id))
 }
 
-func nullStringPointer(s sql.NullString) *string {
-	if !s.Valid {
-		return nil
-	}
-	return &s.String
-}
-
 // toOldJSON is Author.toOldJSON (Author.js:177-188).
 func (a authorRecord) toOldJSON() (wire.Author, error) {
 	added, err := dateMillis(a.createdAt)
@@ -77,8 +70,8 @@ func (a authorRecord) toOldJSON() (wire.Author, error) {
 		return wire.Author{}, fmt.Errorf("author %s updatedAt: %v", a.id, err)
 	}
 	return wire.Author{
-		ID: a.id, ASIN: nullStringPointer(a.asin), Name: nullStringPointer(a.name),
-		Description: nullStringPointer(a.description), ImagePath: nullStringPointer(a.imagePath),
+		ID: a.id, ASIN: store.NullStringPtr(a.asin), Name: store.NullStringPtr(a.name),
+		Description: store.NullStringPtr(a.description), ImagePath: store.NullStringPtr(a.imagePath),
 		LibraryID: a.libraryID, AddedAt: *added, UpdatedAt: *updated,
 	}, nil
 }
@@ -364,7 +357,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 		for _, s := range memberships {
 			withSeries := maps.Clone(base)
 			m := media
-			m.Metadata.Series = wire.BookSeriesRef{ID: s.id, Name: nullStringPointer(s.name), NameIgnorePrefix: nullStringPointer(s.prefix), Sequence: nullStringPointer(s.number)}
+			m.Metadata.Series = wire.BookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
 			withSeries["media"] = m
 			raw, err := json.Marshal(withSeries)
 			if err != nil {
@@ -372,11 +365,11 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 			}
 			g := groups[s.id]
 			if g == nil {
-				g = &group{id: s.id, name: nullStringPointer(s.name)}
+				g = &group{id: s.id, name: store.NullStringPtr(s.name)}
 				groups[s.id] = g
 				order = append(order, s.id)
 			}
-			g.entries = append(g.entries, entry{raw: raw, sequence: nullStringPointer(s.number)})
+			g.entries = append(g.entries, entry{raw: raw, sequence: store.NullStringPtr(s.number)})
 		}
 	}
 	out := make([]wire.AuthorSeriesGroup, 0, len(order))
@@ -522,7 +515,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newName, hasName := payload["name"]
-	authorNameUpdate := hasName && !samePointer(newName, nullStringPointer(a.name))
+	authorNameUpdate := hasName && !samePointer(newName, store.NullStringPtr(a.name))
 	var newLastFirst *string
 	if authorNameUpdate {
 		newLastFirst = authorLastFirst(newName)
@@ -548,16 +541,16 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	update := &authorColumnUpdate{}
-	current := map[string]*string{"name": nullStringPointer(a.name), "description": nullStringPointer(a.description), "asin": nullStringPointer(a.asin)}
+	current := map[string]*string{"name": store.NullStringPtr(a.name), "description": store.NullStringPtr(a.description), "asin": store.NullStringPtr(a.asin)}
 	for _, key := range []string{"name", "description", "asin"} {
 		if value, present := payload[key]; present {
 			update.set(key, current[key], value)
 		}
 	}
 	if authorNameUpdate {
-		update.set("lastFirst", nullStringPointer(a.lastFirst), newLastFirst)
+		update.set("lastFirst", store.NullStringPtr(a.lastFirst), newLastFirst)
 	} else if !a.lastFirst.Valid || a.lastFirst.String == "" {
-		update.set("lastFirst", nullStringPointer(a.lastFirst), authorLastFirst(nullStringPointer(a.name)))
+		update.set("lastFirst", store.NullStringPtr(a.lastFirst), authorLastFirst(store.NullStringPtr(a.name)))
 	}
 	hasUpdated := len(update.columns) > 0
 	if hasUpdated {
@@ -982,7 +975,7 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	update := &authorColumnUpdate{}
-	update.set("imagePath", nullStringPointer(a.imagePath), nil)
+	update.set("imagePath", store.NullStringPtr(a.imagePath), nil)
 	if err := update.save(ctx, h.db, a.id); err != nil {
 		h.authorServerError(w, r, "database write failed", err)
 		return
@@ -1034,20 +1027,20 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 	hasUpdates := false
 	if data.ASIN != "" && (!a.asin.Valid || a.asin.String != data.ASIN) {
 		asin := data.ASIN
-		update.set("asin", nullStringPointer(a.asin), &asin)
+		update.set("asin", store.NullStringPtr(a.asin), &asin)
 		hasUpdates = true
 	}
 	// Only updates the image if there was none before or the ASIN was updated.
 	if data.Image != nil && *data.Image != "" && (!a.imagePath.Valid || a.imagePath.String == "" || hasUpdates) {
 		h.purgeImageCache(a.id)
 		if imagePath, message := h.saveAuthorImage(ctx, a.id, *data.Image); message == "" {
-			update.set("imagePath", nullStringPointer(a.imagePath), &imagePath)
+			update.set("imagePath", store.NullStringPtr(a.imagePath), &imagePath)
 			hasUpdates = true
 		}
 	}
 	if data.Description != "" && (!a.description.Valid || a.description.String != data.Description) {
 		description := data.Description
-		update.set("description", nullStringPointer(a.description), &description)
+		update.set("description", store.NullStringPtr(a.description), &description)
 		hasUpdates = true
 	}
 	if hasUpdates {

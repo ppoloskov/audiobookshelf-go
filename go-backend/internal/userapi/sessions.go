@@ -53,7 +53,7 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 			http.Error(w, "database read failed", 500)
 			return
 		}
-		sessions = append(sessions, map[string]any{"id": id, "ipAddress": nullableValue(ip), "userAgent": nullableValue(agent), "deviceInfo": parseUA(agent.String), "createdAt": millis(created), "updatedAt": millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
+		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": parseUA(agent.String), "createdAt": millis(created), "updatedAt": millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
 	}
 	if err := rows.Err(); err != nil {
 		logging.RequestError(r, "database read failed", err)

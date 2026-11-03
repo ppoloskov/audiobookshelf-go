@@ -334,7 +334,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 				if (key == "description" || key == "subtitle") && s != "" {
 					s, _ = sanitizeHTML(s)
 				}
-				old := nullableSQL(episodeStringField(ep, key))
+				old := store.NullString(episodeStringField(ep, key))
 				if old != s {
 					fields[column] = s
 				}
@@ -362,7 +362,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 					fields["enclosureSize"] = size
 				}
 				if !ep.EnclosureType.Valid || ep.EnclosureType.String != typ {
-					fields["enclosureType"] = nullableAny(typ)
+					fields["enclosureType"] = store.NullIfEmpty(typ)
 				}
 			}
 		}
@@ -814,7 +814,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 			_ = os.Remove(path)
 		}
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO podcasts (id,title,titleIgnorePrefix,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,numEpisodes,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?)`, mediaID, nullableAny(title), nullableAny(sortTitle), vals["author"], vals["releaseDate"], vals["feedURL"], vals["imageURL"], vals["description"], vals["itunesPageURL"], vals["itunesId"], vals["itunesArtistId"], vals["language"], vals["podcastType"], explicit, auto, schedule, timestamp, 0, 3, nil, string(tagJSON), string(genreJSON), 0, timestamp, timestamp)
+	_, err = tx.ExecContext(ctx, `INSERT INTO podcasts (id,title,titleIgnorePrefix,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,numEpisodes,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?)`, mediaID, store.NullIfEmpty(title), store.NullIfEmpty(sortTitle), vals["author"], vals["releaseDate"], vals["feedURL"], vals["imageURL"], vals["description"], vals["itunesPageURL"], vals["itunesId"], vals["itunesArtistId"], vals["language"], vals["podcastType"], explicit, auto, schedule, timestamp, 0, 3, nil, string(tagJSON), string(genreJSON), 0, timestamp, timestamp)
 	if err != nil {
 		rollback()
 		return podcastItem{}, 500, "Failed to create podcast", err
@@ -823,7 +823,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	if libRel == "." {
 		libRel = ""
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO libraryItems (id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,mtime,ctime,birthtime,size,libraryFiles,extraData,title,titleIgnorePrefix,libraryId,libraryFolderId,createdAt,updatedAt) VALUES (?,?,?,?,?,'podcast',0,0,0,?,?,?,0,'[]','{}',?,?,?,?,?,?)`, id, ino, filepath.ToSlash(path), libRel, mediaID, timestamp, timestamp, timestamp, nullableAny(title), nullableAny(sortTitle), libID, folderID, timestamp, timestamp)
+	_, err = tx.ExecContext(ctx, `INSERT INTO libraryItems (id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,mtime,ctime,birthtime,size,libraryFiles,extraData,title,titleIgnorePrefix,libraryId,libraryFolderId,createdAt,updatedAt) VALUES (?,?,?,?,?,'podcast',0,0,0,?,?,?,0,'[]','{}',?,?,?,?,?,?)`, id, ino, filepath.ToSlash(path), libRel, mediaID, timestamp, timestamp, timestamp, store.NullIfEmpty(title), store.NullIfEmpty(sortTitle), libID, folderID, timestamp, timestamp)
 	if err != nil {
 		rollback()
 		return podcastItem{}, 500, "Failed to create podcast", err
@@ -1129,12 +1129,6 @@ func stringArray(v any) []string {
 		out = append(out, s)
 	}
 	return out
-}
-func nullableAny(v string) any {
-	if v == "" {
-		return nil
-	}
-	return v
 }
 func newUUID() string {
 	var b [16]byte

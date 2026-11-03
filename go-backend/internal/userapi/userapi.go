@@ -1457,7 +1457,7 @@ func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User)
 		books = append(books, item)
 		visible++
 	}
-	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": nullableValue(description), "books": books, "lastUpdate": millis(updated), "createdAt": millis(created)}, libraryID, visible > 0 || len(books) == 0, nil
+	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(description), "books": books, "lastUpdate": millis(updated), "createdAt": millis(created)}, libraryID, visible > 0 || len(books) == 0, nil
 }
 
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
@@ -2010,7 +2010,7 @@ func (h *Handler) apiKey(ctx context.Context, id string) (map[string]any, error)
 			creator = map[string]any{"id": u.ID, "username": u.Username, "type": u.Type}
 		}
 	}
-	return map[string]any{"id": id, "name": name.String, "description": nullableValue(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": nullableValue(userID), "createdByUserId": nullableValue(creatorID), "createdAt": millis(created), "updatedAt": millis(updated), "user": user, "createdByUser": creator}, nil
+	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": millis(created), "updatedAt": millis(updated), "user": user, "createdByUser": creator}, nil
 }
 
 // sequelizeISOString mirrors Sequelize model serialization of DATE attributes
@@ -2140,11 +2140,11 @@ func (h *Handler) decorateAdminProgress(ctx context.Context, progress []any) err
 		if err != nil {
 			return err
 		}
-		p["displayTitle"] = nullableValue(title)
+		p["displayTitle"] = store.NullString(title)
 		if p["mediaItemType"] == "podcastEpisode" {
-			p["displaySubtitle"] = nullableValue(subtitle)
+			p["displaySubtitle"] = store.NullString(subtitle)
 		}
-		p["coverPath"] = nullableValue(cover)
+		p["coverPath"] = store.NullString(cover)
 		p["mediaUpdatedAt"] = nil
 		switch v := updated.(type) {
 		case time.Time:
@@ -2191,7 +2191,7 @@ func (h *Handler) browserUserDB(ctx context.Context, user store.User, progress, 
 	if err := h.db.QueryRowContext(ctx, `SELECT email FROM users WHERE id=?`, user.ID).Scan(&email); err != nil {
 		return nil, err
 	}
-	result["email"] = nullableValue(email)
+	result["email"] = store.NullString(email)
 	return result, nil
 }
 
@@ -2252,14 +2252,7 @@ func minimalBrowserUser(user store.User, hideRootToken bool) map[string]any {
 	if user.CreatedAt != nil {
 		createdAt = *user.CreatedAt
 	}
-	return map[string]any{"id": user.ID, "username": user.Username, "email": nullableUserEmail(user.Email), "type": user.Type, "token": token, "seriesHideFromContinueListening": series, "isActive": user.IsActive, "isLocked": user.IsLocked, "lastSeen": lastSeen, "createdAt": createdAt, "permissions": permissionsMap, "librariesAccessible": libraries, "itemTagsSelected": tags, "hasOpenIDLink": extra != nil && extra["authOpenIDSub"] != nil}
-}
-
-func nullableUserEmail(email string) any {
-	if email == "" {
-		return nil
-	}
-	return email
+	return map[string]any{"id": user.ID, "username": user.Username, "email": store.NullIfEmpty(user.Email), "type": user.Type, "token": token, "seriesHideFromContinueListening": series, "isActive": user.IsActive, "isLocked": user.IsLocked, "lastSeen": lastSeen, "createdAt": createdAt, "permissions": permissionsMap, "librariesAccessible": libraries, "itemTagsSelected": tags, "hasOpenIDLink": extra != nil && extra["authOpenIDSub"] != nil}
 }
 
 func defaultPermissions(userType string) map[string]any {
@@ -2321,7 +2314,7 @@ func browserUser(user store.User, progress []any, bookmarks []any) map[string]an
 	if extra != nil && extra["seriesHideFromContinueListening"] != nil {
 		series = extra["seriesHideFromContinueListening"]
 	}
-	return map[string]any{"id": user.ID, "username": user.Username, "email": nullableUserEmail(user.Email), "type": user.Type, "token": user.Token, "mediaProgress": progress, "seriesHideFromContinueListening": series, "bookmarks": bookmarks, "isActive": user.IsActive, "isLocked": user.IsLocked, "lastSeen": user.LastSeen, "createdAt": user.CreatedAt, "permissions": permissionsMap, "librariesAccessible": libraries, "itemTagsSelected": tags, "hasOpenIDLink": extra != nil && extra["authOpenIDSub"] != nil && extra["authOpenIDSub"] != ""}
+	return map[string]any{"id": user.ID, "username": user.Username, "email": store.NullIfEmpty(user.Email), "type": user.Type, "token": user.Token, "mediaProgress": progress, "seriesHideFromContinueListening": series, "bookmarks": bookmarks, "isActive": user.IsActive, "isLocked": user.IsLocked, "lastSeen": user.LastSeen, "createdAt": user.CreatedAt, "permissions": permissionsMap, "librariesAccessible": libraries, "itemTagsSelected": tags, "hasOpenIDLink": extra != nil && extra["authOpenIDSub"] != nil && extra["authOpenIDSub"] != ""}
 }
 
 func jsonArray(raw json.RawMessage) []any {
@@ -2426,12 +2419,6 @@ func nullNumber(n sql.NullFloat64) any {
 	}
 	return n.Float64
 }
-func nullableValue(s sql.NullString) any {
-	if !s.Valid {
-		return nil
-	}
-	return s.String
-}
 func millis(v any) any {
 	if v == nil {
 		return nil
@@ -2450,7 +2437,6 @@ func millis(v any) any {
 	}
 	return nil
 }
-func nullableMillis(v any) any { return millis(v) }
 func parseDateMillis(v string) any {
 	if n, e := strconv.ParseInt(v, 10, 64); e == nil {
 		return n
@@ -2472,13 +2458,6 @@ func timestampString(v any, fallback string) any {
 		return dbtime.Format(time.UnixMilli(int64(n)).UTC())
 	}
 	return fallback
-}
-func nullableString(m map[string]any, key string) any {
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	return v
 }
 func decodeBody(r *http.Request) (map[string]any, error) {
 	defer r.Body.Close()

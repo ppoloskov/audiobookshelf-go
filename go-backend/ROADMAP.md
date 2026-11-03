@@ -291,7 +291,7 @@ creates them.
   - Done when: `grep -rln '^func nullString(' go-backend/internal --include=*.go`
     lists only `internal/store/store.go`.
 
-- [ ] K10: Keep one nullable-string helper family, in `store`
+- [x] K10: Keep one nullable-string helper family, in `store`
   - Files: `internal/progressdto/progress.go` (`nullable`, line 83),
     `internal/playback/playback.go` (`nullable` line 2048, `nullableString` line
     1399), `internal/sharing/handler.go` (`nullable` line 170,

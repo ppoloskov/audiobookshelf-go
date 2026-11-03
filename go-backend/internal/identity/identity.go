@@ -305,7 +305,7 @@ func UserBrowser(user store.User, hideRootToken, minimal bool) map[string]any {
 		created = *user.CreatedAt
 	}
 	result := map[string]any{
-		"id": user.ID, "username": user.Username, "email": nullableUserEmail(user.Email), "type": user.Type,
+		"id": user.ID, "username": user.Username, "email": store.NullIfEmpty(user.Email), "type": user.Type,
 		"token": user.Token, "mediaProgress": []any{}, "seriesHideFromContinueListening": series,
 		"bookmarks": bookmarks, "isActive": user.IsActive, "isLocked": user.IsLocked,
 		"lastSeen": lastSeen, "createdAt": created, "permissions": permissions,
@@ -319,13 +319,6 @@ func UserBrowser(user store.User, hideRootToken, minimal bool) map[string]any {
 		delete(result, "bookmarks")
 	}
 	return result
-}
-
-func nullableUserEmail(email string) any {
-	if email == "" {
-		return nil
-	}
-	return email
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {

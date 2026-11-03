@@ -296,16 +296,16 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 		authorNames = append(authorNames, author.Name)
 	}
 	values := map[string]any{
-		"title": nullableStringPointerValue(metadata.Title), "artist": strings.Join(authorNames, ", "), "album_artist": strings.Join(authorNames, ", "),
+		"title": store.StringPtrValue(metadata.Title), "artist": strings.Join(authorNames, ", "), "album_artist": strings.Join(authorNames, ", "),
 		"album": stringPointerValue(metadata.Title) + func() string {
 			if subtitle := stringPointerValue(metadata.Subtitle); subtitle != "" {
 				return ": " + subtitle
 			}
 			return ""
 		}(),
-		"TIT3": nullableStringPointerValue(metadata.Subtitle), "genre": strings.Join(metadata.Genres, "; "),
-		"date": nullableStringPointerValue(metadata.PublishedYear), "comment": nullableStringPointerValue(metadata.Description), "description": nullableStringPointerValue(metadata.Description),
-		"composer": strings.Join(metadata.Narrators, ", "), "copyright": nullableStringPointerValue(metadata.Publisher), "publisher": nullableStringPointerValue(metadata.Publisher),
+		"TIT3": store.StringPtrValue(metadata.Subtitle), "genre": strings.Join(metadata.Genres, "; "),
+		"date": store.StringPtrValue(metadata.PublishedYear), "comment": store.StringPtrValue(metadata.Description), "description": store.StringPtrValue(metadata.Description),
+		"composer": strings.Join(metadata.Narrators, ", "), "copyright": store.StringPtrValue(metadata.Publisher), "publisher": store.StringPtrValue(metadata.Publisher),
 		"TRACKTOTAL": fmt.Sprint(audioCount),
 	}
 	groups := make([]string, 0, len(metadata.Series))

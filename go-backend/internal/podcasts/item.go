@@ -85,9 +85,9 @@ func (x podcastItem) oldJSON() map[string]any {
 		_ = json.Unmarshal(mustJSON(audio["metadata"]), &metadata)
 		total += number(metadata["size"])
 	}
-	meta := map[string]any{"title": nullableSQL(x.Title), "author": nullableSQL(x.Author), "description": nullableSQL(x.Description), "releaseDate": nullableSQL(x.ReleaseDate), "genres": genres, "feedUrl": nullableSQL(x.FeedURL), "imageUrl": nullableSQL(x.ImageURL), "itunesPageUrl": nullableSQL(x.ITunesPageURL), "itunesId": nullableSQL(x.ITunesID), "itunesArtistId": nullableSQL(x.ITunesArtistID), "explicit": x.Explicit, "language": nullableSQL(x.Language), "type": nullableSQL(x.PodcastType), "titleIgnorePrefix": titlePrefixAtEnd(x.Title.String)}
+	meta := map[string]any{"title": store.NullString(x.Title), "author": store.NullString(x.Author), "description": store.NullString(x.Description), "releaseDate": store.NullString(x.ReleaseDate), "genres": genres, "feedUrl": store.NullString(x.FeedURL), "imageUrl": store.NullString(x.ImageURL), "itunesPageUrl": store.NullString(x.ITunesPageURL), "itunesId": store.NullString(x.ITunesID), "itunesArtistId": store.NullString(x.ITunesArtistID), "explicit": x.Explicit, "language": store.NullString(x.Language), "type": store.NullString(x.PodcastType), "titleIgnorePrefix": titlePrefixAtEnd(x.Title.String)}
 	last := millisOrNull(x.LastEpisodeCheck)
-	minified := map[string]any{"id": x.MediaID, "metadata": meta, "coverPath": nullableSQL(x.CoverPath), "tags": tags, "numEpisodes": len(episodes), "autoDownloadEpisodes": x.AutoDownload, "autoDownloadSchedule": nullableSQL(x.AutoSchedule), "lastEpisodeCheck": last, "maxEpisodesToKeep": x.MaxKeep, "maxNewEpisodesToDownload": x.MaxNew, "size": int64(total)}
+	minified := map[string]any{"id": x.MediaID, "metadata": meta, "coverPath": store.NullString(x.CoverPath), "tags": tags, "numEpisodes": len(episodes), "autoDownloadEpisodes": x.AutoDownload, "autoDownloadSchedule": store.NullString(x.AutoSchedule), "lastEpisodeCheck": last, "maxEpisodesToKeep": x.MaxKeep, "maxNewEpisodesToDownload": x.MaxNew, "size": int64(total)}
 	for i, raw := range files {
 		if m, ok := raw.(map[string]any); ok {
 			if _, ok = m["fileType"]; !ok {
@@ -98,7 +98,7 @@ func (x podcastItem) oldJSON() map[string]any {
 	}
 	added := sqlMillis(x.CreatedAt)
 	updated := sqlMillis(x.UpdatedAt)
-	return map[string]any{"id": x.ID, "ino": x.Ino, "oldLibraryItemId": nil, "libraryId": x.LibraryID, "folderId": x.FolderID, "path": x.Path, "relPath": x.RelPath, "isFile": false, "mtimeMs": sqlMillis(x.MTime), "ctimeMs": sqlMillis(x.CTime), "birthtimeMs": sqlMillis(x.BirthTime), "addedAt": added, "updatedAt": updated, "isMissing": false, "isInvalid": false, "mediaType": "podcast", "media": mergeMap(minified, map[string]any{"libraryItemId": x.ID, "episodes": episodes}), "numFiles": len(files), "size": x.Size, "lastScan": sqlMillis(x.LastScan), "scanVersion": nullableSQL(x.ScanVersion), "libraryFiles": files}
+	return map[string]any{"id": x.ID, "ino": x.Ino, "oldLibraryItemId": nil, "libraryId": x.LibraryID, "folderId": x.FolderID, "path": x.Path, "relPath": x.RelPath, "isFile": false, "mtimeMs": sqlMillis(x.MTime), "ctimeMs": sqlMillis(x.CTime), "birthtimeMs": sqlMillis(x.BirthTime), "addedAt": added, "updatedAt": updated, "isMissing": false, "isInvalid": false, "mediaType": "podcast", "media": mergeMap(minified, map[string]any{"libraryItemId": x.ID, "episodes": episodes}), "numFiles": len(files), "size": x.Size, "lastScan": sqlMillis(x.LastScan), "scanVersion": store.NullString(x.ScanVersion), "libraryFiles": files}
 }
 
 func (x podcastItem) legacyJSON() map[string]any {
@@ -115,8 +115,8 @@ func (x podcastItem) legacyJSON() map[string]any {
 	for _, ep := range x.Episodes {
 		episodes = append(episodes, ep.oldJSON(x.ID))
 	}
-	metadata := map[string]any{"title": nullableSQL(x.Title), "author": nullableSQL(x.Author), "description": nullableSQL(x.Description), "releaseDate": nullableSQL(x.ReleaseDate), "genres": genres, "feedUrl": nullableSQL(x.FeedURL), "imageUrl": nullableSQL(x.ImageURL), "itunesPageUrl": nullableSQL(x.ITunesPageURL), "itunesId": nullableSQL(x.ITunesID), "itunesArtistId": nullableSQL(x.ITunesArtistID), "explicit": x.Explicit, "language": nullableSQL(x.Language), "type": nullableSQL(x.PodcastType)}
-	media := map[string]any{"id": x.MediaID, "libraryItemId": x.ID, "metadata": metadata, "coverPath": nullableSQL(x.CoverPath), "tags": tags, "episodes": episodes, "autoDownloadEpisodes": x.AutoDownload, "autoDownloadSchedule": nullableSQL(x.AutoSchedule), "lastEpisodeCheck": millisOrNull(x.LastEpisodeCheck), "maxEpisodesToKeep": x.MaxKeep, "maxNewEpisodesToDownload": x.MaxNew}
+	metadata := map[string]any{"title": store.NullString(x.Title), "author": store.NullString(x.Author), "description": store.NullString(x.Description), "releaseDate": store.NullString(x.ReleaseDate), "genres": genres, "feedUrl": store.NullString(x.FeedURL), "imageUrl": store.NullString(x.ImageURL), "itunesPageUrl": store.NullString(x.ITunesPageURL), "itunesId": store.NullString(x.ITunesID), "itunesArtistId": store.NullString(x.ITunesArtistID), "explicit": x.Explicit, "language": store.NullString(x.Language), "type": store.NullString(x.PodcastType)}
+	media := map[string]any{"id": x.MediaID, "libraryItemId": x.ID, "metadata": metadata, "coverPath": store.NullString(x.CoverPath), "tags": tags, "episodes": episodes, "autoDownloadEpisodes": x.AutoDownload, "autoDownloadSchedule": store.NullString(x.AutoSchedule), "lastEpisodeCheck": millisOrNull(x.LastEpisodeCheck), "maxEpisodesToKeep": x.MaxKeep, "maxNewEpisodesToDownload": x.MaxNew}
 	item := x.oldJSON()
 	delete(item, "numFiles")
 	delete(item, "size")
@@ -146,13 +146,13 @@ func (e podcastEpisode) oldJSON(libraryItemID string) map[string]any {
 		if e.EnclosureSize.Valid {
 			length = fmt.Sprint(e.EnclosureSize.Int64)
 		}
-		enclosure = map[string]any{"url": e.EnclosureURL.String, "type": nullableSQL(e.EnclosureType), "length": length}
+		enclosure = map[string]any{"url": e.EnclosureURL.String, "type": store.NullString(e.EnclosureType), "length": length}
 	}
 	var index any
 	if e.Index.Valid {
 		index = e.Index.Int64
 	}
-	base := map[string]any{"libraryItemId": libraryItemID, "podcastId": e.PodcastID, "id": e.ID, "oldEpisodeId": extra["oldEpisodeId"], "index": index, "season": nullableSQL(e.Season), "episode": nullableSQL(e.Episode), "episodeType": nullableSQL(e.EpisodeType), "title": nullableSQL(e.Title), "subtitle": nullableSQL(e.Subtitle), "description": nullableSQL(e.Description), "enclosure": enclosure, "guid": extra["guid"], "pubDate": nullableSQL(e.PubDate), "chapters": chapters, "audioFile": audio, "publishedAt": millisOrNull(e.PublishedAt), "addedAt": sqlMillis(e.CreatedAt), "updatedAt": sqlMillis(e.UpdatedAt)}
+	base := map[string]any{"libraryItemId": libraryItemID, "podcastId": e.PodcastID, "id": e.ID, "oldEpisodeId": extra["oldEpisodeId"], "index": index, "season": store.NullString(e.Season), "episode": store.NullString(e.Episode), "episodeType": store.NullString(e.EpisodeType), "title": store.NullString(e.Title), "subtitle": store.NullString(e.Subtitle), "description": store.NullString(e.Description), "enclosure": enclosure, "guid": extra["guid"], "pubDate": store.NullString(e.PubDate), "chapters": chapters, "audioFile": audio, "publishedAt": millisOrNull(e.PublishedAt), "addedAt": sqlMillis(e.CreatedAt), "updatedAt": sqlMillis(e.UpdatedAt)}
 	return base
 }
 
@@ -239,12 +239,6 @@ func titlePrefixAtEnd(s string) string {
 		}
 	}
 	return s
-}
-func nullableSQL(v sql.NullString) any {
-	if !v.Valid {
-		return nil
-	}
-	return v.String
 }
 
 // sqlMillis converts a stored DATETIME to epoch milliseconds the way

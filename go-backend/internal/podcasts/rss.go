@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/store"
+
 	"golang.org/x/net/html/charset"
 )
 
@@ -219,19 +221,7 @@ func parseEpisode(n *xmlNode) map[string]any {
 	if length != "" {
 		enclosureMap["length"] = length
 	}
-	return map[string]any{"title": firstChildText(n, "title", ""), "subtitle": firstTextWithFallback(n, "subtitle", "itunes"), "description": desc, "descriptionPlain": plain, "pubDate": pubDate, "episodeType": firstTextWithFallback(n, "episodeType", "itunes"), "season": season, "episode": episodeNum, "author": firstTextWithFallback(n, "author", "itunes"), "duration": duration, "durationSeconds": dur, "explicit": firstTextWithFallback(n, "explicit", "itunes"), "publishedAt": nullableMillis(published), "enclosure": enclosure, "guid": firstChildText(n, "guid", ""), "chaptersUrl": nullableString(chaptersURL), "chaptersType": nullableString(chaptersType), "chapters": chapters}
-}
-func nullableMillis(v int64) any {
-	if v == 0 {
-		return nil
-	}
-	return v
-}
-func nullableString(v string) any {
-	if v == "" {
-		return nil
-	}
-	return v
+	return map[string]any{"title": firstChildText(n, "title", ""), "subtitle": firstTextWithFallback(n, "subtitle", "itunes"), "description": desc, "descriptionPlain": plain, "pubDate": pubDate, "episodeType": firstTextWithFallback(n, "episodeType", "itunes"), "season": season, "episode": episodeNum, "author": firstTextWithFallback(n, "author", "itunes"), "duration": duration, "durationSeconds": dur, "explicit": firstTextWithFallback(n, "explicit", "itunes"), "publishedAt": store.NullIfZero(published), "enclosure": enclosure, "guid": firstChildText(n, "guid", ""), "chaptersUrl": store.NullIfEmpty(chaptersURL), "chaptersType": store.NullIfEmpty(chaptersType), "chapters": chapters}
 }
 func durationSeconds(s string) int {
 	parts := strings.Split(strings.TrimSpace(s), ":")

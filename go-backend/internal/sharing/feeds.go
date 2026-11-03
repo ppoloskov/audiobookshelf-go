@@ -100,13 +100,6 @@ func (h *Handler) feedEpisodeRows(ctx context.Context, feedID string) ([]feedEpi
 	return out, rows.Err()
 }
 
-func strPtr(v sql.NullString) *string {
-	if !v.Valid {
-		return nil
-	}
-	return &v.String
-}
-
 func boolPtr(v sql.NullBool) *bool {
 	if !v.Valid {
 		return nil
@@ -116,20 +109,20 @@ func boolPtr(v sql.NullBool) *bool {
 
 func (f feedRow) minified() wire.FeedMinified {
 	return wire.FeedMinified{
-		ID: f.ID, EntityType: f.EntityType.String, EntityID: f.EntityID.String, FeedURL: strPtr(f.FeedURL),
-		Meta: wire.FeedMinifiedMeta{Title: strPtr(f.Title), Description: strPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: strPtr(f.OwnerName), OwnerEmail: strPtr(f.OwnerEmail)},
+		ID: f.ID, EntityType: f.EntityType.String, EntityID: f.EntityID.String, FeedURL: store.NullStringPtr(f.FeedURL),
+		Meta: wire.FeedMinifiedMeta{Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail)},
 	}
 }
 
 func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 	out := wire.Feed{
-		ID: f.ID, Slug: strPtr(f.Slug), UserID: strPtr(f.UserID), EntityType: strPtr(f.EntityType), EntityID: strPtr(f.EntityID),
+		ID: f.ID, Slug: store.NullStringPtr(f.Slug), UserID: store.NullStringPtr(f.UserID), EntityType: store.NullStringPtr(f.EntityType), EntityID: store.NullStringPtr(f.EntityID),
 		Meta: wire.FeedMeta{
-			Title: strPtr(f.Title), Description: strPtr(f.Description), Author: strPtr(f.Author), ImageURL: strPtr(f.ImageURL),
-			FeedURL: strPtr(f.FeedURL), Link: strPtr(f.SiteURL), Explicit: boolPtr(f.Explicit), Type: strPtr(f.PodcastType),
-			Language: strPtr(f.Language), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: strPtr(f.OwnerName), OwnerEmail: strPtr(f.OwnerEmail),
+			Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), Author: store.NullStringPtr(f.Author), ImageURL: store.NullStringPtr(f.ImageURL),
+			FeedURL: store.NullStringPtr(f.FeedURL), Link: store.NullStringPtr(f.SiteURL), Explicit: boolPtr(f.Explicit), Type: store.NullStringPtr(f.PodcastType),
+			Language: store.NullStringPtr(f.Language), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail),
 		},
-		ServerAddress: strPtr(f.ServerAddress), FeedURL: strPtr(f.FeedURL), Episodes: make([]wire.FeedEpisode, 0, len(eps)),
+		ServerAddress: store.NullStringPtr(f.ServerAddress), FeedURL: store.NullStringPtr(f.FeedURL), Episodes: make([]wire.FeedEpisode, 0, len(eps)),
 		CreatedAt: f.CreatedAt.UnixMilli(), UpdatedAt: f.UpdatedAt.UnixMilli(),
 	}
 	// entityUpdatedAt?.valueOf() || null, coverPath || null
@@ -149,10 +142,10 @@ func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 			duration = &e.Duration.Float64
 		}
 		out.Episodes = append(out.Episodes, wire.FeedEpisode{
-			ID: e.ID, Title: strPtr(e.Title), Description: strPtr(e.Description),
-			Enclosure: wire.FeedEpisodeEnclosure{URL: strPtr(e.EnclosureURL), Size: size, Type: strPtr(e.EnclosureType)},
-			PubDate:   strPtr(e.PubDate), Link: strPtr(e.SiteURL), Author: strPtr(e.Author), Explicit: boolPtr(e.Explicit),
-			Duration: duration, Season: strPtr(e.Season), Episode: strPtr(e.Episode), EpisodeType: strPtr(e.EpisodeType), FullPath: strPtr(e.FilePath),
+			ID: e.ID, Title: store.NullStringPtr(e.Title), Description: store.NullStringPtr(e.Description),
+			Enclosure: wire.FeedEpisodeEnclosure{URL: store.NullStringPtr(e.EnclosureURL), Size: size, Type: store.NullStringPtr(e.EnclosureType)},
+			PubDate:   store.NullStringPtr(e.PubDate), Link: store.NullStringPtr(e.SiteURL), Author: store.NullStringPtr(e.Author), Explicit: boolPtr(e.Explicit),
+			Duration: duration, Season: store.NullStringPtr(e.Season), Episode: store.NullStringPtr(e.Episode), EpisodeType: store.NullStringPtr(e.EpisodeType), FullPath: store.NullStringPtr(e.FilePath),
 		})
 	}
 	return out

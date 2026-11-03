@@ -3,6 +3,8 @@ package userapi
 import (
 	"database/sql"
 	"net/http"
+
+	"audiobookshelf-compat/internal/store"
 )
 
 func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[string]any, error) {
@@ -20,7 +22,7 @@ func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[s
 	}
 	var entityUpdatedAt any
 	if entityUpdated.Valid {
-		entityUpdatedAt = nullableMillis(entityUpdated.String)
+		entityUpdatedAt = millis(entityUpdated.String)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,title,description,enclosureURL,enclosureSize,enclosureType,pubDate,siteURL,author,explicit,duration,season,episode,episodeType,filePath FROM feedEpisodes WHERE feedId=? ORDER BY pubDate DESC`, id)
 	if err != nil {
@@ -35,19 +37,12 @@ func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[s
 			rows.Close()
 			return nil, err
 		}
-		episodes = append(episodes, map[string]any{"id": eid.String, "title": nullableValue(etitle), "description": nullableValue(edescription), "enclosure": map[string]any{"url": nullableValue(enclosureURL), "size": nullableNumber(enclosureSize), "type": nullableValue(enclosureType)}, "pubDate": nullableValue(pubDate), "link": nullableValue(link), "author": nullableValue(eauthor), "explicit": exp.Bool, "duration": nullableNumber(duration), "season": nullableValue(season), "episode": nullableValue(episode), "episodeType": nullableValue(episodeType), "fullPath": nullableValue(fullPath)})
+		episodes = append(episodes, map[string]any{"id": eid.String, "title": store.NullString(etitle), "description": store.NullString(edescription), "enclosure": map[string]any{"url": store.NullString(enclosureURL), "size": store.NullInt64(enclosureSize), "type": store.NullString(enclosureType)}, "pubDate": store.NullString(pubDate), "link": store.NullString(link), "author": store.NullString(eauthor), "explicit": exp.Bool, "duration": store.NullInt64(duration), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "fullPath": store.NullString(fullPath)})
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		return nil, err
 	}
 	rows.Close()
-	return map[string]any{"id": id, "slug": slug, "userId": userID, "entityType": entityType, "entityId": entityID, "entityUpdatedAt": entityUpdatedAt, "coverPath": nullableValue(cover), "meta": map[string]any{"title": title, "description": description, "author": author, "imageUrl": nullableValue(imageURL), "feedUrl": nullableValue(feedURL), "link": nullableValue(siteURL), "explicit": explicit, "type": podcastType, "language": language, "preventIndexing": preventIndexing, "ownerName": ownerName, "ownerEmail": ownerEmail}, "serverAddress": serverAddress.String, "feedUrl": feedURL.String, "episodes": episodes, "createdAt": millis(created), "updatedAt": millis(updated)}, nil
-}
-
-func nullableNumber(v sql.NullInt64) any {
-	if !v.Valid {
-		return nil
-	}
-	return v.Int64
+	return map[string]any{"id": id, "slug": slug, "userId": userID, "entityType": entityType, "entityId": entityID, "entityUpdatedAt": entityUpdatedAt, "coverPath": store.NullString(cover), "meta": map[string]any{"title": title, "description": description, "author": author, "imageUrl": store.NullString(imageURL), "feedUrl": store.NullString(feedURL), "link": store.NullString(siteURL), "explicit": explicit, "type": podcastType, "language": language, "preventIndexing": preventIndexing, "ownerName": ownerName, "ownerEmail": ownerEmail}, "serverAddress": serverAddress.String, "feedUrl": feedURL.String, "episodes": episodes, "createdAt": millis(created), "updatedAt": millis(updated)}, nil
 }

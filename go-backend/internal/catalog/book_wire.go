@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -95,7 +96,7 @@ func (h *Handler) bookFull(ctx context.Context, bookID, itemID string) (wire.Boo
 		ID:            source.row.id.String,
 		LibraryItemID: itemID,
 		Metadata:      fullMetadata(source),
-		CoverPath:     nullableStringPointer(source.row.coverPath),
+		CoverPath:     store.NullStringPtr(source.row.coverPath),
 		Tags:          source.tags,
 		AudioFiles:    audioJSON,
 		Chapters:      chaptersJSON,
@@ -121,7 +122,7 @@ func (h *Handler) bookMinified(ctx context.Context, bookID, itemID string) (wire
 	return wire.BookMinified{
 		ID:            source.row.id.String,
 		Metadata:      minifiedMetadata(source, h.bookTitlePrefix(ctx, source.row.title)),
-		CoverPath:     nullableStringPointer(source.row.coverPath),
+		CoverPath:     store.NullStringPtr(source.row.coverPath),
 		Tags:          source.tags,
 		NumTracks:     includedAudioCount(audio),
 		NumAudioFiles: len(audio),
@@ -166,7 +167,7 @@ func (h *Handler) bookExpanded(ctx context.Context, bookID, itemID string) (wire
 	return wire.BookExpanded{
 		ID:            source.row.id.String,
 		Metadata:      expandedMetadata(source, h.bookTitlePrefix(ctx, source.row.title)),
-		CoverPath:     nullableStringPointer(source.row.coverPath),
+		CoverPath:     store.NullStringPtr(source.row.coverPath),
 		Tags:          source.tags,
 		NumTracks:     includedAudioCount(audio),
 		NumAudioFiles: len(audio),
@@ -184,19 +185,19 @@ func (h *Handler) bookExpanded(ctx context.Context, bookID, itemID string) (wire
 
 func fullMetadata(source bookSource) wire.BookMetadataFull {
 	return wire.BookMetadataFull{
-		Title:         nullableStringPointer(source.row.title),
-		Subtitle:      nullableStringPointer(source.row.subtitle),
+		Title:         store.NullStringPtr(source.row.title),
+		Subtitle:      store.NullStringPtr(source.row.subtitle),
 		Authors:       source.authors,
 		Narrators:     source.narrators,
 		Series:        source.series,
 		Genres:        source.genres,
-		PublishedYear: nullableStringPointer(source.row.year),
-		PublishedDate: nullableStringPointer(source.row.publishedDate),
-		Publisher:     nullableStringPointer(source.row.publisher),
-		Description:   nullableStringPointer(source.row.description),
-		ISBN:          nullableStringPointer(source.row.isbn),
-		ASIN:          nullableStringPointer(source.row.asin),
-		Language:      nullableStringPointer(source.row.language),
+		PublishedYear: store.NullStringPtr(source.row.year),
+		PublishedDate: store.NullStringPtr(source.row.publishedDate),
+		Publisher:     store.NullStringPtr(source.row.publisher),
+		Description:   store.NullStringPtr(source.row.description),
+		ISBN:          store.NullStringPtr(source.row.isbn),
+		ASIN:          store.NullStringPtr(source.row.asin),
+		Language:      store.NullStringPtr(source.row.language),
 		Explicit:      source.row.explicit != 0,
 		Abridged:      source.row.abridged != 0,
 	}
@@ -204,21 +205,21 @@ func fullMetadata(source bookSource) wire.BookMetadataFull {
 
 func minifiedMetadata(source bookSource, titlePrefix *string) wire.BookMetadataMinified {
 	return wire.BookMetadataMinified{
-		Title:             nullableStringPointer(source.row.title),
+		Title:             store.NullStringPtr(source.row.title),
 		TitleIgnorePrefix: titlePrefix,
-		Subtitle:          nullableStringPointer(source.row.subtitle),
+		Subtitle:          store.NullStringPtr(source.row.subtitle),
 		AuthorName:        authorNames(source.authors, false),
 		AuthorNameLF:      authorNames(source.authors, true),
 		NarratorName:      strings.Join(source.narrators, ", "),
 		SeriesName:        seriesName(source.series),
 		Genres:            source.genres,
-		PublishedYear:     nullableStringPointer(source.row.year),
-		PublishedDate:     nullableStringPointer(source.row.publishedDate),
-		Publisher:         nullableStringPointer(source.row.publisher),
-		Description:       nullableStringPointer(source.row.description),
-		ISBN:              nullableStringPointer(source.row.isbn),
-		ASIN:              nullableStringPointer(source.row.asin),
-		Language:          nullableStringPointer(source.row.language),
+		PublishedYear:     store.NullStringPtr(source.row.year),
+		PublishedDate:     store.NullStringPtr(source.row.publishedDate),
+		Publisher:         store.NullStringPtr(source.row.publisher),
+		Description:       store.NullStringPtr(source.row.description),
+		ISBN:              store.NullStringPtr(source.row.isbn),
+		ASIN:              store.NullStringPtr(source.row.asin),
+		Language:          store.NullStringPtr(source.row.language),
 		Explicit:          source.row.explicit != 0,
 		Abridged:          source.row.abridged != 0,
 	}
@@ -304,23 +305,9 @@ func encodeJSON(value any) (json.RawMessage, error) {
 	return json.RawMessage(encoded), err
 }
 
-func nullableStringPointer(value sql.NullString) *string {
-	if !value.Valid {
-		return nil
-	}
-	return &value.String
-}
-
 func stringPointerValue(value *string) string {
 	if value == nil {
 		return ""
-	}
-	return *value
-}
-
-func nullableStringPointerValue(value *string) any {
-	if value == nil {
-		return nil
 	}
 	return *value
 }

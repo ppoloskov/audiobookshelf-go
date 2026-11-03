@@ -222,7 +222,7 @@ func (h *Handler) playlistJSON(r *http.Request, id string, user store.User) (map
 			items = append(items, map[string]any{"libraryItemId": libraryItemID, "libraryItem": li})
 		}
 	}
-	return map[string]any{"id": id, "name": name, "libraryId": libraryID, "userId": ownerID, "description": nullableValue(description), "lastUpdate": millis(updated), "createdAt": millis(created), "items": items}, libraryID, nil
+	return map[string]any{"id": id, "name": name, "libraryId": libraryID, "userId": ownerID, "description": store.NullString(description), "lastUpdate": millis(updated), "createdAt": millis(created), "items": items}, libraryID, nil
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -308,7 +308,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, nullableStringForDB(description), libraryID, user.ID, now, now); err != nil {
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, store.NullIfEmpty(description), libraryID, user.ID, now, now); err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
 		http.Error(w, "Failed to create playlist", 500)
 		return
@@ -335,13 +335,6 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		h.emit(user.ID, "playlist_added", item)
 	}
 	httputil.WriteJSON(w, 200, item)
-}
-
-func nullableStringForDB(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 
 func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id string, user store.User) {
@@ -874,7 +867,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		return
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, nullableStringForDB(desc), libraryID, user.ID, now, now); err != nil {
+	if _, err = tx.ExecContext(r.Context(), `INSERT INTO playlists(id,name,description,libraryId,userId,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?)`, id, name, store.NullIfEmpty(desc), libraryID, user.ID, now, now); err != nil {
 		logging.RequestError(r, "Failed to create playlist", err)
 		http.Error(w, "Failed to create playlist", 500)
 		return

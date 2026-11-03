@@ -414,7 +414,7 @@ func (h *Handler) loadBook(ctx context.Context, id, itemID string, files *[]audi
 		return nil, err
 	}
 	*title = t.String
-	*cover = nullable(coverPath)
+	*cover = store.NullString(coverPath)
 	if dur.Valid {
 		*duration = dur.Float64
 	}
@@ -476,7 +476,7 @@ func (h *Handler) loadBook(ctx context.Context, id, itemID string, files *[]audi
 	*chapters = ch
 	authorName, authorLF := joinAuthors(authors, false), joinAuthors(authors, true)
 	seriesName := joinSeries(series)
-	oldMeta := map[string]any{"title": t.String, "subtitle": nullable(subtitle), "authors": authors, "narrators": au, "series": series, "genres": ge, "publishedYear": nullable(year), "publishedDate": nullable(published), "publisher": nullable(publisher), "description": nullable(description), "isbn": nullable(isbn), "asin": nullable(asin), "language": nullable(language), "explicit": explicit != 0, "abridged": abridged != 0}
+	oldMeta := map[string]any{"title": t.String, "subtitle": store.NullString(subtitle), "authors": authors, "narrators": au, "series": series, "genres": ge, "publishedYear": store.NullString(year), "publishedDate": store.NullString(published), "publisher": store.NullString(publisher), "description": store.NullString(description), "isbn": store.NullString(isbn), "asin": store.NullString(asin), "language": store.NullString(language), "explicit": explicit != 0, "abridged": abridged != 0}
 	*metadata = oldMeta
 	*author = authorName
 	expanded := map[string]any{}
@@ -509,7 +509,7 @@ func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string,
 	}
 	*title = t.String
 	*author = a.String
-	*cover = nullable(coverPath)
+	*cover = store.NullString(coverPath)
 	_ = json.Unmarshal(tagsRaw, tags)
 	var ge []string
 	_ = json.Unmarshal(genres, &ge)
@@ -547,7 +547,7 @@ func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string,
 			if enclosureSize != nil {
 				length = fmt.Sprint(enclosureSize)
 			}
-			enclosure = map[string]any{"url": enclosureURL.String, "type": nullable(enclosureType), "length": length}
+			enclosure = map[string]any{"url": enclosureURL.String, "type": store.NullString(enclosureType), "length": length}
 		}
 		f.Index = 1
 		track := map[string]any{}
@@ -562,7 +562,7 @@ func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string,
 		if extra != nil {
 			oldID = extra["oldEpisodeId"]
 		}
-		jsonEpisode := map[string]any{"libraryItemId": itemID, "podcastId": id, "id": eid, "oldEpisodeId": oldID, "index": nullable(idx), "season": nullable(season), "episode": nullable(episodeNo), "episodeType": nullable(episodeType), "title": et, "subtitle": nullable(subtitle), "description": nullable(description), "enclosure": enclosure, "guid": nil, "pubDate": nil, "chapters": ch, "audioFile": audioJSON(f), "publishedAt": millis(published), "addedAt": millis(created), "updatedAt": millis(updated), "audioTrack": track, "size": f.Metadata["size"], "duration": f.Duration}
+		jsonEpisode := map[string]any{"libraryItemId": itemID, "podcastId": id, "id": eid, "oldEpisodeId": oldID, "index": store.NullString(idx), "season": store.NullString(season), "episode": store.NullString(episodeNo), "episodeType": store.NullString(episodeType), "title": et, "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": nil, "pubDate": nil, "chapters": ch, "audioFile": audioJSON(f), "publishedAt": millis(published), "addedAt": millis(created), "updatedAt": millis(updated), "audioTrack": track, "size": f.Metadata["size"], "duration": f.Duration}
 		if extra != nil {
 			if extra["guid"] != nil {
 				jsonEpisode["guid"] = extra["guid"]
@@ -577,7 +577,7 @@ func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string,
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	oldMeta := map[string]any{"title": t.String, "author": a.String, "description": nullable(desc), "releaseDate": nullable(rd), "genres": ge, "feedUrl": nullable(feed), "imageUrl": nullable(image), "itunesPageUrl": nullable(page), "itunesId": nullable(itunes), "itunesArtistId": nullable(artist), "explicit": explicit != 0, "language": nullable(lang), "type": nullable(ptype)}
+	oldMeta := map[string]any{"title": t.String, "author": a.String, "description": store.NullString(desc), "releaseDate": store.NullString(rd), "genres": ge, "feedUrl": store.NullString(feed), "imageUrl": store.NullString(image), "itunesPageUrl": store.NullString(page), "itunesId": store.NullString(itunes), "itunesArtistId": store.NullString(artist), "explicit": explicit != 0, "language": store.NullString(lang), "type": store.NullString(ptype)}
 	*metadata = oldMeta
 	*chapters = []any{}
 	expanded := map[string]any{}
@@ -826,7 +826,7 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	extra, _ := json.Marshal(map[string]any{"libraryItemId": s.LibraryItemID})
 	now := dbtime.Format(time.UnixMilli(s.UpdatedAt))
 	created := dbtime.Format(time.UnixMilli(s.StartedAt))
-	_, err = h.db.ExecContext(ctx, `INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET currentTime=excluded.currentTime,timeListening=excluded.timeListening,updatedAt=excluded.updatedAt,date=excluded.date,dayOfWeek=excluded.dayOfWeek,mediaMetadata=excluded.mediaMetadata`, s.ID, mediaID, kind, s.DisplayTitle, s.DisplayAuthor, s.Duration, s.PlayMethod, s.MediaPlayer, s.StartTime, s.CurrentTime, "2.37.2", s.CoverPath, s.TimeListening, string(metadata), s.Date, s.DayOfWeek, string(extra), s.UserID, nilIfEmpty(s.DeviceID), s.LibraryID, created, now)
+	_, err = h.db.ExecContext(ctx, `INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET currentTime=excluded.currentTime,timeListening=excluded.timeListening,updatedAt=excluded.updatedAt,date=excluded.date,dayOfWeek=excluded.dayOfWeek,mediaMetadata=excluded.mediaMetadata`, s.ID, mediaID, kind, s.DisplayTitle, s.DisplayAuthor, s.Duration, s.PlayMethod, s.MediaPlayer, s.StartTime, s.CurrentTime, "2.37.2", s.CoverPath, s.TimeListening, string(metadata), s.Date, s.DayOfWeek, string(extra), s.UserID, store.NullIfEmpty(s.DeviceID), s.LibraryID, created, now)
 	return err
 }
 
@@ -1397,12 +1397,6 @@ func stringOr(v any, fallback string) string {
 	}
 	return fallback
 }
-func nullableString(v string) any {
-	if v == "" {
-		return nil
-	}
-	return v
-}
 func deviceDescription(device map[string]any) string {
 	model := stringOr(device["model"], "")
 	if model != "" {
@@ -1714,10 +1708,10 @@ func makeDirectTracks(s *session, item *itemData) []map[string]any {
 }
 
 func (s *session) publicJSON() map[string]any {
-	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": nilIfEmpty(s.BookID), "episodeId": nilIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt}
+	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt}
 }
 func (s *session) clientJSON() map[string]any {
-	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": nilIfEmpty(s.BookID), "episodeId": nilIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "mediaMetadata": s.MediaMetadata, "chapters": s.Chapters, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "coverPath": s.CoverPath, "duration": s.Duration, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": s.Date, "dayOfWeek": s.DayOfWeek, "timeListening": s.TimeListening, "startTime": s.StartTime, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt, "audioTracks": s.AudioTracks, "libraryItem": s.Item}
+	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "mediaMetadata": s.MediaMetadata, "chapters": s.Chapters, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "coverPath": s.CoverPath, "duration": s.Duration, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": s.Date, "dayOfWeek": s.DayOfWeek, "timeListening": s.TimeListening, "startTime": s.StartTime, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt, "audioTracks": s.AudioTracks, "libraryItem": s.Item}
 }
 
 func parseAudioFile(raw map[string]any) (audioFile, error) {
@@ -1860,14 +1854,14 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	}
 	now := dbtime.Now()
 	if existing == "" {
-		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, dbID, deviceKey, clientName, clientVersion, ip, nilIfEmpty(deviceName), nilIfEmpty(version), string(extraRaw), user.ID, now, now)
+		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, dbID, deviceKey, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), user.ID, now, now)
 	} else {
-		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`, clientName, clientVersion, ip, nilIfEmpty(deviceName), nilIfEmpty(version), string(extraRaw), now, dbID)
+		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), now, dbID)
 	}
 	if err != nil {
 		return "", nil, err
 	}
-	info := map[string]any{"id": dbID, "userId": user.ID, "deviceId": deviceKey, "ipAddress": ip, "clientVersion": clientVersion, "clientName": clientName, "deviceName": nilIfEmpty(deviceName), "browserName": nilIfEmpty(browser), "browserVersion": nilIfEmpty(browserVersion), "osName": nilIfEmpty(osName), "osVersion": nilIfEmpty(osVersion), "deviceType": nil, "manufacturer": nilIfEmpty(manufacturer), "model": nilIfEmpty(model), "sdkVersion": nilIfEmpty(sdk)}
+	info := map[string]any{"id": dbID, "userId": user.ID, "deviceId": deviceKey, "ipAddress": ip, "clientVersion": clientVersion, "clientName": clientName, "deviceName": store.NullIfEmpty(deviceName), "browserName": store.NullIfEmpty(browser), "browserVersion": store.NullIfEmpty(browserVersion), "osName": store.NullIfEmpty(osName), "osVersion": store.NullIfEmpty(osVersion), "deviceType": nil, "manufacturer": store.NullIfEmpty(manufacturer), "model": store.NullIfEmpty(model), "sdkVersion": store.NullIfEmpty(sdk)}
 	for k, v := range info {
 		if v == nil {
 			delete(info, k)
@@ -2046,12 +2040,6 @@ func stripTags(s string) string {
 	}
 	return b.String()
 }
-func nullable(v sql.NullString) any {
-	if v.Valid {
-		return v.String
-	}
-	return nil
-}
 func millis(v any) any {
 	if v == nil {
 		return nil
@@ -2146,12 +2134,6 @@ func newUUID() string {
 	return hexed[:8] + "-" + hexed[8:12] + "-" + hexed[12:16] + "-" + hexed[16:20] + "-" + hexed[20:]
 }
 func nowMS() int64 { return time.Now().UnixMilli() }
-func nilIfEmpty(v string) any {
-	if v == "" {
-		return nil
-	}
-	return v
-}
 func segmentNumber(name string) (int, bool) {
 	base := strings.TrimSuffix(name, filepath.Ext(name))
 	parts := strings.Split(base, "-")

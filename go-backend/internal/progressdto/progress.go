@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
+
+	"audiobookshelf-compat/internal/store"
 )
 
 // Read returns the user's progress in the order upstream first loads it.
@@ -49,7 +51,7 @@ func Read(ctx context.Context, db *sql.DB, userID string) ([]any, error) {
 		if typ == "podcastEpisode" {
 			episode = itemID
 		}
-		out = append(out, map[string]any{"id": id, "userId": uid, "libraryItemId": libID, "episodeId": episode, "mediaItemId": itemID, "mediaItemType": typ, "duration": number(duration), "progress": progress, "currentTime": number(current), "isFinished": finished != 0, "hideFromContinueListening": hide != 0, "ebookLocation": nullable(location), "ebookProgress": number(ebook), "lastUpdate": millis(updatedAt), "startedAt": millis(createdAt), "finishedAt": millis(finishedAt)})
+		out = append(out, map[string]any{"id": id, "userId": uid, "libraryItemId": libID, "episodeId": episode, "mediaItemId": itemID, "mediaItemType": typ, "duration": number(duration), "progress": progress, "currentTime": number(current), "isFinished": finished != 0, "hideFromContinueListening": hide != 0, "ebookLocation": store.NullString(location), "ebookProgress": number(ebook), "lastUpdate": millis(updatedAt), "startedAt": millis(createdAt), "finishedAt": millis(finishedAt)})
 	}
 	return out, rows.Err()
 }
@@ -79,12 +81,6 @@ func number(v sql.NullFloat64) any {
 		return nil
 	}
 	return v.Float64
-}
-func nullable(v sql.NullString) any {
-	if !v.Valid {
-		return nil
-	}
-	return v.String
 }
 func millis(v any) any {
 	if v == nil {

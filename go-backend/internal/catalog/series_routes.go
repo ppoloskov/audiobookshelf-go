@@ -46,7 +46,7 @@ func (h *Handler) seriesOldJSON(ctx context.Context, s seriesRecord) (wire.Serie
 		value := h.titlePrefix(ctx, s.name.String)
 		prefixFree = &value
 	}
-	return wire.Series{ID: s.id, Name: nullStringPointer(s.name), NameIgnorePrefix: prefixFree, Description: nullStringPointer(s.description), AddedAt: *added, UpdatedAt: *updated, LibraryID: s.libraryID}, nil
+	return wire.Series{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: prefixFree, Description: store.NullStringPtr(s.description), AddedAt: *added, UpdatedAt: *updated, LibraryID: s.libraryID}, nil
 }
 
 // seriesItem is a library item of a series with the book it holds.
@@ -183,7 +183,7 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	body := jsonBodyObject(r)
-	current := map[string]*string{"name": nullStringPointer(s.name), "description": nullStringPointer(s.description)}
+	current := map[string]*string{"name": store.NullStringPtr(s.name), "description": store.NullStringPtr(s.description)}
 	changes := &authorColumnUpdate{}
 	valid := 0
 	for _, key := range []string{"name", "description"} {
