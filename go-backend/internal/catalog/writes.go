@@ -1064,12 +1064,12 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		Cover string `json:"cover"`
 	}
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 10_000_000)).Decode(&body) != nil || body.Cover == "" {
-		sendTextStatus(w, 400, "Invalid request no cover path")
+		httputil.SendText(w, 400, "Invalid request no cover path")
 		return
 	}
 	if strings.HasPrefix(body.Cover, "http:") || strings.HasPrefix(body.Cover, "https:") {
 		logging.RequestDebug(r, "responding 500: cover path is a URL, a local file is required")
-		sendTextStatus(w, 500, "Invalid cover path")
+		httputil.SendText(w, 500, "Invalid cover path")
 		return
 	}
 	var raw []byte
@@ -1089,7 +1089,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	if !valid {
 		logging.RequestDebug(r, "responding 500: cover path is not one of the library item files")
-		sendTextStatus(w, 500, "Invalid cover path")
+		httputil.SendText(w, 500, "Invalid cover path")
 		return
 	}
 	table := "books"
@@ -1112,18 +1112,18 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	info, err := os.Stat(body.Cover)
 	if err != nil {
 		logging.RequestError(r, "Cover path does not exist", err)
-		sendTextStatus(w, 500, "Cover path does not exist")
+		httputil.SendText(w, 500, "Cover path does not exist")
 		return
 	}
 	if !info.Mode().IsRegular() {
 		logging.RequestDebug(r, "responding 500: cover path is not a regular file")
-		sendTextStatus(w, 500, "Cover path is not a file")
+		httputil.SendText(w, 500, "Cover path is not a file")
 		return
 	}
 	ext, validationError := validateCoverImage(body.Cover)
 	if validationError != "" {
 		logging.RequestDebug(r, "responding 500: "+validationError)
-		sendTextStatus(w, 500, validationError)
+		httputil.SendText(w, 500, validationError)
 		return
 	}
 	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
@@ -1140,21 +1140,21 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	if !strings.HasPrefix(coverPath, coverDir) {
 		if err := os.MkdirAll(coverDir, 0o755); err != nil {
 			logging.RequestError(r, "Failed to copy cover to dir", err)
-			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			httputil.SendText(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		coverPath = filepath.Join(coverDir, "cover."+ext)
 		source, err := os.Open(body.Cover)
 		if err != nil {
 			logging.RequestError(r, "Failed to copy cover to dir", err)
-			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			httputil.SendText(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		target, err := os.Create(coverPath)
 		if err != nil {
 			_ = source.Close()
 			logging.RequestError(r, "Failed to copy cover to dir", err)
-			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			httputil.SendText(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		_, copyErr := io.Copy(target, source)
@@ -1162,7 +1162,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		sourceErr := source.Close()
 		if copyErr != nil || targetErr != nil || sourceErr != nil {
 			logging.RequestError(r, "Failed to copy cover to dir", sourceErr)
-			sendTextStatus(w, 500, "Failed to copy cover to dir")
+			httputil.SendText(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		removeOldCovers(coverDir, "."+ext)

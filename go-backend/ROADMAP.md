@@ -258,7 +258,7 @@ creates them.
   - Done when: `grep -rln '^func sendStatus(' go-backend/internal --include=*.go`
     is empty.
 
-- [ ] K6: Move `sendText` and `sendTextStatus` into `httputil`
+- [x] K6: Move `sendText` and `sendTextStatus` into `httputil`
   - Files: `go-backend/internal/providers/handler.go` (line 361),
     `internal/userapi/userapi.go` (line 2593), `internal/sharing/shares.go`
     (line 29), `internal/catalog/cover.go` (`sendTextStatus`)

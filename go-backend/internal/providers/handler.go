@@ -165,19 +165,19 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 	var request map[string]any
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
-		sendText(w, http.StatusBadRequest, "Invalid request body")
+		httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
 		return
 	}
 	name, _ := request["name"].(string)
 	rawURL, _ := request["url"].(string)
 	mediaType, _ := request["mediaType"].(string)
 	if name == "" || rawURL == "" || mediaType == "" {
-		sendText(w, http.StatusBadRequest, "Invalid request body")
+		httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
 		return
 	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Scheme == "" || parsed.Opaque != "" {
-		sendText(w, http.StatusBadRequest, "Invalid url")
+		httputil.SendText(w, http.StatusBadRequest, "Invalid url", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
 		return
 	}
 	if parsed.Host != "" && parsed.Path == "" {
@@ -195,7 +195,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 	if extra != nil {
 		encoded, err := json.Marshal(extra)
 		if err != nil {
-			sendText(w, http.StatusBadRequest, "Invalid request body")
+			httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
 			return
 		}
 		extraValue = string(encoded)
@@ -352,11 +352,6 @@ func isoDate(value string) string {
 	return value
 }
 func dbNow() string { return dbtime.Now() }
-func sendText(w http.ResponseWriter, status int, body string) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = io.WriteString(w, body)
-}
 func writeError(w http.ResponseWriter, status int, err error) {
 	httputil.WriteJSON(w, status, map[string]string{"error": err.Error()}, httputil.Streamed())
 }

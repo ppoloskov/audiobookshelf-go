@@ -34,7 +34,7 @@ func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, 
 		return 0, 0, false
 	}
 	if exists == 0 {
-		sendText(w, http.StatusNotFound, "Library not found")
+		httputil.SendText(w, http.StatusNotFound, "Library not found")
 		return 0, 0, false
 	}
 	values := map[string]int{}
@@ -52,7 +52,7 @@ func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, 
 			n = 0
 		}
 		if n != math.Trunc(n) || n < 0 || math.IsInf(n, 0) {
-			sendText(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
+			httputil.SendText(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
 			return 0, 0, false
 		}
 		values[key] = int(n)

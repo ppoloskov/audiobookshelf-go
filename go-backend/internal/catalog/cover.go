@@ -28,16 +28,10 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
-
-// sendTextStatus writes an Express-style body+status pair without the
-// trailing newline http.Error would add (res.status(..).send('...')); express
-// 'send' also attaches the weak ETag.
-func sendTextStatus(w http.ResponseWriter, status int, message string) {
-	_, _ = sendExpressText(w, status, message)
-}
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
 func (h *Handler) coverCachePath() string {
@@ -439,7 +433,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		}
 	}
 	if fileHeader == nil && coverURL == "" {
-		sendTextStatus(w, http.StatusBadRequest, "Invalid request no file or url")
+		httputil.SendText(w, http.StatusBadRequest, "Invalid request no file or url")
 		return
 	}
 	var ext string
@@ -447,7 +441,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		ext = strings.TrimPrefix(strings.ToLower(filepath.Ext(fileHeader.Filename)), ".")
 		if ext == "" || !supportedImageTypes[ext] {
 			extension := filepath.Ext(strings.ToLower(fileHeader.Filename))
-			sendTextStatus(w, http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
+			httputil.SendText(w, http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
 			return
 		}
 	}
@@ -467,7 +461,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		if coverURL != "" {
 			message = "Failed to fetch image from url"
 		}
-		sendTextStatus(w, http.StatusBadRequest, message)
+		httputil.SendText(w, http.StatusBadRequest, message)
 		return
 	}
 	var coverFullPath string
@@ -476,31 +470,31 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		var message string
 		ext, message = downloadCoverFromURL(r.Context(), coverURL, tempPath)
 		if message != "" {
-			sendTextStatus(w, http.StatusBadRequest, message)
+			httputil.SendText(w, http.StatusBadRequest, message)
 			return
 		}
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		if err := os.Rename(tempPath, coverFullPath); err != nil {
-			sendTextStatus(w, http.StatusBadRequest, "Failed to fetch image from url")
+			httputil.SendText(w, http.StatusBadRequest, "Failed to fetch image from url")
 			return
 		}
 	} else {
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		source, err := fileHeader.Open()
 		if err != nil {
-			sendTextStatus(w, http.StatusBadRequest, "Failed to move cover into destination")
+			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
 			return
 		}
 		target, err := os.Create(coverFullPath)
 		if err != nil {
 			source.Close()
-			sendTextStatus(w, http.StatusBadRequest, "Failed to move cover into destination")
+			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
 			return
 		}
 		if _, err := io.Copy(target, source); err != nil {
 			target.Close()
 			source.Close()
-			sendTextStatus(w, http.StatusBadRequest, "Failed to move cover into destination")
+			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
 			return
 		}
 		target.Close()

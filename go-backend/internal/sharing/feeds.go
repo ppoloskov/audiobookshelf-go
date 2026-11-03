@@ -285,12 +285,12 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	}
 	serverAddress, slug, ok := req.valid()
 	if !ok {
-		sendText(w, 400, "Invalid request body")
+		httputil.SendText(w, 400, "Invalid request body", httputil.WithoutETag())
 		return
 	}
 	if entityType == "libraryItem" {
 		if len(src.Episodes) == 0 {
-			sendText(w, 400, noTracks)
+			httputil.SendText(w, 400, noTracks, httputil.WithoutETag())
 			return
 		}
 		if h.slugInUse(ctx, w, slug) {
@@ -305,14 +305,14 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 			return
 		}
 		if len(src.Episodes) == 0 {
-			sendText(w, 400, noTracks)
+			httputil.SendText(w, 400, noTracks, httputil.WithoutETag())
 			return
 		}
 	}
 	feed, err := h.createFeed(ctx, u.ID, entityType, id, src, serverAddress, slug, req.options())
 	if err != nil {
 		logging.RequestError(r, "Failed to open RSS feed", err)
-		sendText(w, 500, "Failed to open RSS feed")
+		httputil.SendText(w, 500, "Failed to open RSS feed", httputil.WithoutETag())
 		return
 	}
 	minified := feed.minified()
@@ -348,7 +348,7 @@ func (h *Handler) slugInUse(ctx context.Context, w http.ResponseWriter, slug str
 		return true
 	}
 	if count > 0 {
-		sendText(w, 400, "Slug already in use")
+		httputil.SendText(w, 400, "Slug already in use", httputil.WithoutETag())
 		return true
 	}
 	return false

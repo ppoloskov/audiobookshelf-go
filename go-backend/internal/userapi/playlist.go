@@ -567,7 +567,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 	}
 	body, err := decodeBody(r)
 	if err != nil {
-		sendText(w, 400, "Invalid request body items")
+		httputil.SendText(w, 400, "Invalid request body items")
 		return
 	}
 	type ref struct{ libraryItemID, episodeID string }
@@ -575,17 +575,17 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 	if batch {
 		items, ok := body["items"].([]any)
 		if !ok || len(items) == 0 {
-			sendText(w, 400, "Invalid request body items")
+			httputil.SendText(w, 400, "Invalid request body items")
 			return
 		}
 		for _, raw := range items {
 			item, ok := raw.(map[string]any)
 			if !ok || stringValue(item["libraryItemId"]) == "" {
-				sendText(w, 400, "Invalid request body items")
+				httputil.SendText(w, 400, "Invalid request body items")
 				return
 			}
 			if jsTruthy(item["episodeId"]) && stringValue(item["episodeId"]) == "" {
-				sendText(w, 400, "Invalid request body items")
+				httputil.SendText(w, 400, "Invalid request body items")
 				return
 			}
 			refs = append(refs, ref{stringValue(item["libraryItemId"]), stringValue(item["episodeId"])})
@@ -617,7 +617,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		var mediaID, typ, lib string
 		if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType,libraryId FROM libraryItems WHERE id=?`, ref.libraryItemID).Scan(&mediaID, &typ, &lib); err != nil {
 			if batch {
-				sendText(w, 400, "Invalid request body items")
+				httputil.SendText(w, 400, "Invalid request body items")
 				return
 			}
 			http.Error(w, "Library item not found", 400)

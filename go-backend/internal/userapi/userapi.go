@@ -529,13 +529,13 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	body, err := decodeBody(r)
 	if err != nil {
-		sendText(w, 400, "Username and password are required")
+		httputil.SendText(w, 400, "Username and password are required")
 		return
 	}
 	username, _ := body["username"].(string)
 	password, _ := body["password"].(string)
 	if username == "" || password == "" {
-		sendText(w, 400, "Username and password are required")
+		httputil.SendText(w, 400, "Username and password are required")
 		return
 	}
 	typ, _ := body["type"].(string)
@@ -543,7 +543,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		typ = "user"
 	}
 	if typ != "user" && typ != "admin" && typ != "guest" {
-		sendText(w, 400, "Invalid account type")
+		httputil.SendText(w, 400, "Invalid account type")
 		return
 	}
 	var exists int
@@ -554,7 +554,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		return
 	}
 	if exists > 0 {
-		sendText(w, 400, "Username already taken")
+		httputil.SendText(w, 400, "Username already taken")
 		return
 	}
 	permissions := defaultPermissions(typ)
@@ -828,25 +828,25 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		if value, exists := body["email"]; exists && value != nil && value != "" {
 			if _, ok := value.(string); !ok {
-				sendText(w, 400, "Invalid email")
+				httputil.SendText(w, 400, "Invalid email")
 				return
 			}
 		}
 		if value, exists := body["username"]; exists && value != nil && value != "" {
 			if _, ok := value.(string); !ok {
-				sendText(w, 400, "Invalid username")
+				httputil.SendText(w, 400, "Invalid username")
 				return
 			}
 		}
 		if value, exists := body["type"]; exists && value != nil && value != "" {
 			if _, ok := value.(string); !ok {
-				sendText(w, 400, "Invalid account type")
+				httputil.SendText(w, 400, "Invalid account type")
 				return
 			}
 		}
 		if value, exists := body["permissions"]; exists && value != nil {
 			if _, ok := value.(map[string]any); !ok {
-				sendText(w, 400, "Invalid permissions")
+				httputil.SendText(w, 400, "Invalid permissions")
 				return
 			}
 		}
@@ -860,7 +860,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 				return
 			}
 			if exists != 0 {
-				sendText(w, 400, "Username already taken")
+				httputil.SendText(w, 400, "Username already taken")
 				return
 			}
 			u.Username = name
@@ -894,7 +894,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		if typ, ok := body["type"].(string); ok && typ != "" && u.Type != "root" {
 			if typ != "user" && typ != "admin" && typ != "guest" {
-				sendText(w, 400, "Invalid account type")
+				httputil.SendText(w, 400, "Invalid account type")
 				return
 			}
 			u.Type = typ
@@ -1328,7 +1328,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	}
 	body, err := decodeBody(r)
 	if err != nil {
-		sendText(w, 400, "Invalid collection data")
+		httputil.SendText(w, 400, "Invalid collection data")
 		return
 	}
 	name, _ := body["name"].(string)
@@ -1336,7 +1336,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	libraryID, _ := body["libraryId"].(string)
 	description, descOK := body["description"].(string)
 	if name == "" || libraryID == "" {
-		sendText(w, 400, "Invalid collection data")
+		httputil.SendText(w, 400, "Invalid collection data")
 		return
 	}
 	if jsTruthy(body["description"]) && !descOK {
@@ -1598,7 +1598,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	body, err := decodeBody(r)
 	if err != nil {
 		if add {
-			sendText(w, 400, "Invalid request body")
+			httputil.SendText(w, 400, "Invalid request body")
 		} else {
 			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
 			http.Error(w, "Invalid request body", 500)
@@ -1608,7 +1608,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	ids := validCollectionBookIDs(body["books"])
 	if len(ids) == 0 {
 		if add {
-			sendText(w, 400, "Invalid request body")
+			httputil.SendText(w, 400, "Invalid request body")
 		} else {
 			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
 			http.Error(w, "Invalid request body", 500)
@@ -1652,7 +1652,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	}
 	rows.Close()
 	if add && len(mediaByItem) == 0 {
-		sendText(w, 400, "Invalid request body. No valid books")
+		httputil.SendText(w, 400, "Invalid request body. No valid books")
 		return true
 	}
 	if add {
@@ -2536,16 +2536,6 @@ func respondPlaylistError(w http.ResponseWriter, code int) {
 		return
 	}
 	httputil.SendStatus(w, code)
-}
-
-// sendText mirrors Express res.send(string): an HTML-typed plain-text body
-// without a trailing newline, used for upstream res.send validation messages.
-func sendText(w http.ResponseWriter, status int, body string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", userExpressETag([]byte(body)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
 }
 
 func userExpressETag(body []byte) string {
