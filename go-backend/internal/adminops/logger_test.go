@@ -41,6 +41,26 @@ func TestLoggerDataAdminOnlyAndShape(t *testing.T) {
 	}
 }
 
+// A 500 keeps its exact response bytes and records the cause with the route.
+func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
+	db := adminopsDB(t)
+	if _, err := db.Exec(`DROP TABLE settings`); err != nil {
+		t.Fatal(err)
+	}
+	h := New(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	h.Handle(w, httptest.NewRequest(http.MethodPatch, "/api/settings?x=1", strings.NewReader(`{"language":"fr"}`)), store.User{Type: "admin"})
+	if w.Code != 500 || w.Body.String() != "database error\n" {
+		t.Fatalf("status %d body %q", w.Code, w.Body.String())
+	}
+	for _, e := range logging.Default().Recent() {
+		if e.LevelName == "ERROR" && strings.HasPrefix(e.Message, "[HTTP] PATCH /api/settings: database error: ") && strings.Contains(e.Message, "no such table: settings") {
+			return
+		}
+	}
+	t.Fatal("underlying error was not logged")
+}
+
 func TestSettingsPatchLogLevelChangesLogger(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()

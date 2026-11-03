@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/logging"
 )
 
 func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
@@ -334,6 +335,7 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
+		logging.RequestError(r, "error", nil)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
@@ -351,6 +353,7 @@ func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) {
 	asin := strings.ToUpper(r.URL.Query().Get("asin"))
 	if _, exists := r.URL.Query()["asin"]; !exists {
+		logging.RequestError(r, "error", nil)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}

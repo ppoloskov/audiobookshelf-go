@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -29,11 +30,13 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 	var total int
 	now := dbtime.Now()
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM sessions WHERE userId=? AND expiresAt>?`, user.ID, now).Scan(&total); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,ipAddress,userAgent,createdAt,updatedAt,refreshToken,lastRefreshToken FROM sessions WHERE userId=? AND expiresAt>? ORDER BY updatedAt DESC LIMIT ? OFFSET ?`, user.ID, now, perPage, perPage*page)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -45,12 +48,14 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		var ip, agent, token, last sql.NullString
 		var created, updated any
 		if err := rows.Scan(&id, &ip, &agent, &created, &updated, &token, &last); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
 		sessions = append(sessions, map[string]any{"id": id, "ipAddress": nullableValue(ip), "userAgent": nullableValue(agent), "deviceInfo": parseUA(agent.String), "createdAt": millis(created), "updatedAt": millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
 	}
 	if err := rows.Err(); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -78,6 +83,7 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	}
 	res, err := h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id=? AND userId=?`, id, user.ID)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}

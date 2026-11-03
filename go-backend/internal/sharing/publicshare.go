@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -150,6 +151,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	}
 	authors, err := h.bookAuthors(ctx, share.MediaItemID)
 	if err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -185,6 +187,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UnixMilli()
 	device, err := h.shareDevice(ctx, r, sid)
 	if err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -355,6 +358,7 @@ func (h *Handler) publicShareFile(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+safeFilename(s.Title)+`.zip"`)
 		if err := zipDirectory(w, itemPath.String); err != nil {
+			logging.RequestError(r, "Failed to download the item", err)
 			sendText(w, 500, "Failed to download the item")
 		}
 	default:

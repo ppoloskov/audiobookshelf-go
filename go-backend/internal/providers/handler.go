@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/google/uuid"
 )
@@ -127,6 +128,7 @@ type customProvider struct {
 func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders ORDER BY createdAt ASC`)
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -137,6 +139,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		var authValue sql.NullString
 		var extra []byte
 		if err := rows.Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			logging.RequestError(r, "internal error", err)
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -151,6 +154,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		providers = append(providers, p)
 	}
 	if err := rows.Err(); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -196,6 +200,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 		extraValue = string(encoded)
 	}
 	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO customMetadataProviders(id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)`, id, name, mediaType, normalized, authValue, extraValue, now, now); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -223,6 +228,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -232,11 +238,13 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	p.ExtraData = extra
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer tx.Rollback()
 	if _, err = tx.ExecContext(r.Context(), `DELETE FROM customMetadataProviders WHERE id=?`, id); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -245,10 +253,12 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 		fallback = "google"
 	}
 	if _, err = tx.ExecContext(r.Context(), `UPDATE libraries SET provider=? WHERE provider=?`, fallback, "custom-"+id); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if err = tx.Commit(); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -264,6 +274,7 @@ var bookProviderValues = []string{"google", "itunes", "openlibrary", "fantlab", 
 func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) {
 	custom, err := h.customProviders(r.Context())
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}

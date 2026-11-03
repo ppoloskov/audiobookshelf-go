@@ -148,6 +148,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	if errors.Is(err, sql.ErrNoRows) {
 		var other string
 		if e := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraryItems WHERE id=?`, id).Scan(&other); e == nil {
+			logging.RequestError(r, "internal error", nil)
 			sendStatus(w, 500)
 		} else {
 			sendStatus(w, 404)
@@ -155,6 +156,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -201,6 +203,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		}
 		title := r.URL.Query().Get("title")
 		if title == "" {
+			logging.RequestError(r, "internal error", nil)
 			sendStatus(w, 500)
 			return true
 		}
@@ -225,6 +228,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		}
 		updated, err := matcher(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
 		if err != nil {
+			logging.RequestError(r, "Podcast episode matching failed", err)
 			http.Error(w, "Podcast episode matching failed", http.StatusInternalServerError)
 			return true
 		}
@@ -398,6 +402,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 		args = append(args, dbtime.Now(), episodeID)
 		set = append(set, "updatedAt=?")
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE podcastEpisodes SET `+strings.Join(set, ",")+` WHERE id=?`, args...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -458,6 +463,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	fileBytes, _ := json.Marshal(files)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
@@ -476,15 +482,18 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	}
 	if err != nil {
 		_ = tx.Rollback()
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
 	if err = tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
 	updated, err := h.loadItem(r.Context(), item.ID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -542,6 +551,7 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastI
 	}
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", http.StatusInternalServerError)
 		return
 	}
@@ -652,6 +662,7 @@ func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) {
 	item, status, message, err := h.createPodcastFromBody(r.Context(), body)
 	if err != nil {
 		if status == http.StatusInternalServerError {
+			logging.RequestError(r, message, err)
 			http.Error(w, message, status)
 		} else {
 			text(w, status, message)
@@ -848,6 +859,7 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) {
 		text(w, 404, "Folder not found")
 		return
 	} else if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -1258,6 +1270,7 @@ func text(w http.ResponseWriter, status int, s string) {
 func jsonResponse(w http.ResponseWriter, status int, v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
+		logging.Errorf("[podcasts] jsonResponse: internal server error: %v", err)
 		http.Error(w, "internal server error", 500)
 		return
 	}

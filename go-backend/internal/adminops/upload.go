@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -38,6 +39,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Library not found", http.StatusNotFound)
 		} else {
+			logging.RequestError(r, "Internal server error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return
@@ -51,6 +53,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Folder not found", http.StatusNotFound)
 		} else {
+			logging.RequestError(r, "Internal server error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return
@@ -70,6 +73,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 	}
 	dir := filepath.Join(append([]string{folderPath}, parts...)...)
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		logging.RequestError(r, "internal error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

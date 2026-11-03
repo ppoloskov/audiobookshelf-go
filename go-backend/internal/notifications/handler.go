@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -108,6 +109,7 @@ func writeExpressSend(w http.ResponseWriter, status int, body string) {
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) {
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -130,6 +132,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -168,6 +171,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if updated {
 		if e = h.save(r.Context(), s); e != nil {
+			logging.RequestError(r, "database error", e)
 			http.Error(w, "database error", 500)
 			return
 		}
@@ -224,11 +228,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	id, e := id()
 	if e != nil {
+		logging.RequestError(r, "internal error", e)
 		http.Error(w, "internal error", 500)
 		return
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -250,7 +256,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	items = append(items, n)
 	s["notifications"] = items
-	if h.save(r.Context(), s) != nil {
+	if saveErr := h.save(r.Context(), s); saveErr != nil {
+		logging.RequestError(r, "database error", saveErr)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -259,6 +266,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -279,7 +287,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s["notifications"] = out
-	if h.save(r.Context(), s) != nil {
+	if saveErr := h.save(r.Context(), s); saveErr != nil {
+		logging.RequestError(r, "database error", saveErr)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -288,6 +297,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -331,7 +341,8 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if updated {
-			if h.save(r.Context(), s) != nil {
+			if saveErr := h.save(r.Context(), s); saveErr != nil {
+				logging.RequestError(r, "database error", saveErr)
 				http.Error(w, "database error", 500)
 				return
 			}
@@ -342,6 +353,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) {
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -371,6 +383,7 @@ func (h *Handler) TriggerEvent(ctx context.Context, eventName string, data map[s
 func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 	s, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -386,12 +399,14 @@ func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 	}
 	event := eventData(n["eventName"].(string))
 	if event == nil {
+		logging.RequestError(r, "internal error", nil)
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
-	if h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))) == nil {
+	if deliverErr := h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))); deliverErr == nil {
 		writeStatus(w, http.StatusOK)
 	} else {
+		logging.RequestError(r, "Apprise test notification failed", deliverErr)
 		writeStatus(w, http.StatusInternalServerError)
 	}
 }

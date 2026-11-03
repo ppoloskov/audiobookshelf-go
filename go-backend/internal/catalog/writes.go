@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/robfig/cron/v3"
 )
@@ -46,6 +47,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -80,6 +82,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
@@ -111,6 +114,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		if raw, ok := metadata["authors"]; ok {
 			changed, e := h.syncBookAuthors(r.Context(), tx, scope.mediaID, scope.libraryID, raw, &sync)
 			if e != nil {
+				logging.RequestError(r, "database write failed", e)
 				writeError(w, http.StatusInternalServerError, "database write failed")
 				return
 			}
@@ -119,6 +123,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 		if raw, ok := metadata["series"]; ok {
 			changed, e := h.syncBookSeries(r.Context(), tx, scope.mediaID, scope.libraryID, raw, prefixes, &sync)
 			if e != nil {
+				logging.RequestError(r, "database write failed", e)
 				writeError(w, http.StatusInternalServerError, "database write failed")
 				return
 			}
@@ -140,15 +145,18 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 			table = "podcasts"
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE `+table+` SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), itemID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
@@ -170,12 +178,14 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request, user store
 	}
 	if updated && h.itemChanged != nil {
 		if err := h.itemChanged(r.Context(), itemID); err != nil {
+			logging.RequestError(r, "metadata file write failed", err)
 			writeError(w, http.StatusInternalServerError, "metadata file write failed")
 			return
 		}
 	}
 	item, err := h.ItemJSON(r.Context(), itemID, false)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -227,6 +237,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		return http.StatusNotFound, ""
 	}
 	if err != nil {
+		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database read failed"
 	}
 	if user != nil {
@@ -245,6 +256,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 	if scope.mediaType == "podcast" {
 		rows, e := h.db.QueryContext(ctx, `SELECT id FROM podcastEpisodes WHERE podcastId=?`, scope.mediaID)
 		if e != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
 			return http.StatusInternalServerError, "database read failed"
 		}
 		mediaIDs = nil
@@ -256,6 +268,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		}
 		if e = rows.Err(); e != nil {
 			rows.Close()
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
 			return http.StatusInternalServerError, "database read failed"
 		}
 		rows.Close()
@@ -267,6 +280,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		}{{"bookAuthors", "authorId", &authorIDs}, {"bookSeries", "seriesId", &seriesIDs}} {
 			rows, e := h.db.QueryContext(ctx, `SELECT `+spec.column+` FROM `+spec.table+` WHERE bookId=?`, scope.mediaID)
 			if e != nil {
+				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
 				return http.StatusInternalServerError, "database read failed"
 			}
 			for rows.Next() {
@@ -277,6 +291,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			}
 			if e = rows.Err(); e != nil {
 				rows.Close()
+				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
 				return http.StatusInternalServerError, "database read failed"
 			}
 			rows.Close()
@@ -284,6 +299,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 	}
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {
+		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database write failed"
 	}
 	defer tx.Rollback()
@@ -294,26 +310,33 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			args[i] = id
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId IN (`+placeholders+`)`, args...); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 		if err := deletePlaylistMedia(ctxTx{tx, ctx}, mediaIDs); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds WHERE entityType='libraryItem' AND entityId=?`, itemID); err != nil {
+		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database write failed"
 	}
 	if scope.mediaType == "book" {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=?`, scope.mediaID); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=?`, scope.mediaID); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE mediaItemType='book' AND mediaItemId=?`, scope.mediaID); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM books WHERE id=?`, scope.mediaID); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 	} else if scope.mediaType == "podcast" {
@@ -324,6 +347,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 				args[i] = id
 			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE mediaItemType='podcastEpisode' AND mediaItemId IN (`+marks+`)`, args...); err != nil {
+				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 				return http.StatusInternalServerError, "database write failed"
 			}
 		}
@@ -334,19 +358,23 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 				args[i] = id
 			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM podcastEpisodes WHERE id IN (`+marks+`)`, args...); err != nil {
+				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 				return http.StatusInternalServerError, "database write failed"
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM podcasts WHERE id=?`, scope.mediaID); err != nil {
+			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 			return http.StatusInternalServerError, "database write failed"
 		}
 	} else {
 		return http.StatusBadRequest, ""
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM libraryItems WHERE id=?`, itemID); err != nil {
+		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database write failed"
 	}
 	if err := tx.Commit(); err != nil {
+		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
 		return http.StatusInternalServerError, "database write failed"
 	}
 	if linked != nil {
@@ -822,6 +850,7 @@ func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -835,6 +864,7 @@ func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=NULL,updatedAt=? WHERE id=? AND coverPath IS NOT NULL`, dbNow(), scope.mediaID)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -858,6 +888,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -873,6 +904,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if strings.HasPrefix(body.Cover, "http:") || strings.HasPrefix(body.Cover, "https:") {
+		logging.RequestError(r, "Invalid cover path", nil)
 		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
@@ -880,6 +912,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	var itemPath string
 	var isFile int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryFiles,path,COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&raw, &itemPath, &isFile); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -891,6 +924,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		}
 	}
 	if !valid {
+		logging.RequestError(r, "Invalid cover path", nil)
 		sendTextStatus(w, 500, "Invalid cover path")
 		return
 	}
@@ -900,6 +934,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	var currentCover sql.NullString
 	if err := h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM `+table+` WHERE id=?`, scope.mediaID).Scan(&currentCover); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -912,15 +947,18 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	info, err := os.Stat(body.Cover)
 	if err != nil {
+		logging.RequestError(r, "Cover path does not exist", err)
 		sendTextStatus(w, 500, "Cover path does not exist")
 		return
 	}
 	if !info.Mode().IsRegular() {
+		logging.RequestError(r, "Cover path is not a file", nil)
 		sendTextStatus(w, 500, "Cover path is not a file")
 		return
 	}
 	ext, validationError := validateCoverImage(body.Cover)
 	if validationError != "" {
+		logging.RequestError(r, validationError, nil)
 		sendTextStatus(w, 500, validationError)
 		return
 	}
@@ -937,18 +975,21 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	coverPath := body.Cover
 	if !strings.HasPrefix(coverPath, coverDir) {
 		if err := os.MkdirAll(coverDir, 0o755); err != nil {
+			logging.RequestError(r, "Failed to copy cover to dir", err)
 			sendTextStatus(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		coverPath = filepath.Join(coverDir, "cover."+ext)
 		source, err := os.Open(body.Cover)
 		if err != nil {
+			logging.RequestError(r, "Failed to copy cover to dir", err)
 			sendTextStatus(w, 500, "Failed to copy cover to dir")
 			return
 		}
 		target, err := os.Create(coverPath)
 		if err != nil {
 			_ = source.Close()
+			logging.RequestError(r, "Failed to copy cover to dir", err)
 			sendTextStatus(w, 500, "Failed to copy cover to dir")
 			return
 		}
@@ -956,6 +997,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		targetErr := target.Close()
 		sourceErr := source.Close()
 		if copyErr != nil || targetErr != nil || sourceErr != nil {
+			logging.RequestError(r, "Failed to copy cover to dir", sourceErr)
 			sendTextStatus(w, 500, "Failed to copy cover to dir")
 			return
 		}
@@ -963,6 +1005,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=?,updatedAt=? WHERE id=? AND (coverPath IS NULL OR coverPath!=?)`, coverPath, dbNow(), scope.mediaID, coverPath)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -989,6 +1032,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -998,6 +1042,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 	}
 	var libraryFilesRaw, audioRaw, ebookRaw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles,b.ebookFile FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&libraryFilesRaw, &audioRaw, &ebookRaw); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -1023,6 +1068,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 	_ = os.Remove(target)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -1044,12 +1090,14 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 				ebookValue = string(ebookRaw)
 			}
 			if _, err := tx.ExecContext(r.Context(), `UPDATE books SET audioFiles=?,ebookFile=?,updatedAt=? WHERE id=?`, jsonValue(nextAudio), ebookValue, now, scope.mediaID); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				writeError(w, 500, "database write failed")
 				return
 			}
 		}
 		missing := len(nextAudio) == 0 && (len(ebookRaw) == 0 || ebookChanged || string(ebookRaw) == "null")
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,isMissing=?,updatedAt=? WHERE id=?`, jsonValue(remaining), missing, now, itemID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
@@ -1061,22 +1109,27 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM playlistMediaItems WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE id=?`, episodeID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, jsonValue(remaining), now, itemID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
@@ -1085,6 +1138,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}

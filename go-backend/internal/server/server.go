@@ -14,6 +14,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -53,6 +54,10 @@ func NewHandler(ctx context.Context, cfg config.Config, repo Repository) (*Handl
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	guardPanics(w, r, h.serveHTTP)
+}
+
+func (h *Handler) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	path, ok := h.routePath(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -163,6 +168,7 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request, path string) {
 		}
 		libraries, err := h.Store.Libraries(r.Context())
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", http.StatusInternalServerError)
 			return
 		}
@@ -252,6 +258,7 @@ func writeJSONForRequest(w http.ResponseWriter, r *http.Request, status int, val
 func writeJSONBody(w http.ResponseWriter, status int, value any, withBody bool) {
 	data, err := json.Marshal(value)
 	if err != nil {
+		logging.Errorf("[server] writeJSONBody: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

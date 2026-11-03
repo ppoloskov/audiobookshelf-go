@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -120,6 +121,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -129,6 +131,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	var exists int
 	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE id=?`, mediaID).Scan(&exists); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -138,6 +141,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	id, err := uuid()
 	if err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -154,6 +158,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		downloadable = boolInt64(dl)
 	}
 	if _, err = h.db.ExecContext(ctx, `INSERT INTO mediaItemShares(id,mediaItemId,mediaItemType,slug,pash,expiresAt,extraData,isDownloadable,createdAt,updatedAt,userId) VALUES(?,?,?,?,NULL,?,NULL,?,?,?,?)`, id, mediaID, mediaType, slug, expires, downloadable, dbtime.Format(now), dbtime.Format(now), u.ID); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
@@ -182,10 +187,12 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}
 	if _, err = h.db.ExecContext(r.Context(), `DELETE FROM mediaItemShares WHERE id=?`, id); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		sendText(w, 500, "Internal server error")
 		return
 	}

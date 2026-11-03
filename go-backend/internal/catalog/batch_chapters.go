@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -48,6 +49,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,libraryId,mediaType FROM libraryItems WHERE id IN (`+placeholders(len(ids))+`)`, args...)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -57,6 +59,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 		var item access
 		if err := rows.Scan(&item.id, &item.libraryID, &item.mediaType); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -64,6 +67,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -73,6 +77,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 	// and Sequelize emits each item at its first joined row.
 	ordered, err := h.queryStrings(r.Context(), `SELECT li.id FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, args...)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -107,6 +112,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 		}
 		queryArgs := append([]any{id}, permissionArgs...)
 		if err := h.db.QueryRowContext(r.Context(), query, queryArgs...).Scan(&visible); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -116,6 +122,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request, user store.Us
 		}
 		item, err := h.ItemJSON(r.Context(), id, true)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -131,6 +138,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -143,16 +151,19 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if scope.mediaType != "book" {
+		logging.RequestError(r, "internal error", nil)
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
 	var missing, audioCount int
 	var currentRaw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.isMissing,(SELECT COUNT(*) FROM json_each(COALESCE(b.audioFiles,'[]')) WHERE COALESCE(json_extract(json_each.value,'$.exclude'),0)=0),b.chapters FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&missing, &audioCount, &currentRaw); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	if missing != 0 || audioCount == 0 {
+		logging.RequestError(r, "internal error", nil)
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
@@ -207,11 +218,13 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request, user st
 		encoded, _ := json.Marshal(chapters)
 		now := dbtime.Now()
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET chapters=?,updatedAt=? WHERE id=?`, string(encoded), now, scope.mediaID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
 		if h.itemChanged != nil {
 			if err := h.itemChanged(r.Context(), itemID); err != nil {
+				logging.RequestError(r, "metadata file write failed", err)
 				writeError(w, http.StatusInternalServerError, "metadata file write failed")
 				return
 			}
@@ -238,6 +251,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -248,6 +262,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 	var audioRaw []byte
 	if mediaType == "book" {
 		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&audioRaw); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -264,11 +279,13 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request, user st
 	}
 	item, err := h.ItemJSON(r.Context(), itemID, false)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
 	media, ok := item["media"].(wire.BookFull)
 	if !ok {
+		logging.RequestError(r, "database read failed", nil)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -319,6 +336,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user store.Use
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -329,11 +347,13 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user store.Use
 	var filesRaw []byte
 	if mediaType == "book" {
 		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&filesRaw); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 	} else if mediaType == "podcast" {
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(json_group_array(json(audioFile)), '[]') FROM podcastEpisodes WHERE podcastId=?`, mediaID).Scan(&filesRaw); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -364,11 +384,13 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user store.Use
 	cmd := exec.CommandContext(r.Context(), probe, "-hide_banner", "-loglevel", "fatal", "-show_error", "-show_format", "-show_streams", "-show_programs", "-show_chapters", "-show_private_data", "-print_format", "json", target)
 	output, err := cmd.Output()
 	if err != nil {
+		logging.RequestError(r, "ffprobe failed", err)
 		writeError(w, http.StatusInternalServerError, "ffprobe failed")
 		return
 	}
 	var result any
 	if err := json.Unmarshal(output, &result); err != nil {
+		logging.RequestError(r, "ffprobe returned invalid data", err)
 		writeError(w, http.StatusInternalServerError, "ffprobe returned invalid data")
 		return
 	}
@@ -382,6 +404,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -410,6 +433,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user stor
 	}
 	var raw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&raw); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -445,11 +469,13 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request, user stor
 	})
 	encoded, _ := json.Marshal(orderedFiles)
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET audioFiles=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), scope.mediaID); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
 	item, err := h.ItemJSON(r.Context(), itemID, true)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -466,6 +492,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -483,6 +510,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 	}
 	var rawFiles, rawAudio []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&rawFiles, &rawAudio); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -534,10 +562,12 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		missing = 0
 	}
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET ebookFile=?,updatedAt=? WHERE id=?`, string(encodedPrimary), dbNow(), scope.mediaID); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,isMissing=?,updatedAt=? WHERE id=?`, string(filesJSON), missing, dbNow(), itemID); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}

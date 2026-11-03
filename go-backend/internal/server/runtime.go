@@ -253,12 +253,18 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	// Engine.IO is mounted both at the legacy root and under the configured
 	// router prefix, so dispatch it using the original URL before stripping.
+	// It is not wrapped by the panic guard because WebSocket upgrades need the
+	// original ResponseWriter's Hijacker.
 	for _, socketPath := range rt.realtime.Paths() {
 		if r.URL.Path == socketPath || strings.HasPrefix(r.URL.Path, socketPath+"/") {
 			rt.realtime.ServeHTTP(w, r)
 			return
 		}
 	}
+	guardPanics(w, r, rt.serveHTTP)
+}
+
+func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	path := rt.stripBase(r.URL.Path)
 	if path == "" {
 		path = "/"
@@ -351,6 +357,7 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if path == "/api/tasks" && isGet(r) {
 		payload, err := rt.audiotools.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
 		if err != nil {
+			logging.RequestError(r, "error", err)
 			writeJSON(w, 500, map[string]string{"error": "failed to load tasks"})
 			return
 		}

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -27,6 +28,7 @@ type listeningSession struct {
 func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request, userID, mediaID string, includeUser bool) {
 	sessions, err := h.listeningSessions(r, userID, mediaID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -49,6 +51,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 	for _, session := range sessions[start:end] {
 		row, err := h.listeningSessionJSON(r, session)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -67,6 +70,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, userID string) {
 	sessions, err := h.listeningSessions(r, userID, "")
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -82,6 +86,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		if index < 10 {
 			row, err := h.listeningSessionJSON(r, session)
 			if err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return
 			}
