@@ -707,6 +707,13 @@ function journeySteps(ids) {
   add('life.items.share', R, `/api/libraries/${ids.library}/items?limit=20&minified=1&sort=media.metadata.title&include=rssfeed,share`)
   add('life.share.delete.ebook', R, ctx => `/api/share/mediaitem/${ctx.shareEbook.id}`, { method: 'DELETE', events: 1, isoShape: true })
   add('life.share.public.ebook.deleted', null, '/public/share/life-share-ebook')
+  // Year in review over the legacy rows (NULL and REAL columns).
+  const year = new Date().getUTCFullYear()
+  add('legacy.year.me', L, `/api/me/stats/year/${year}`)
+  add('legacy.year.admin', R, `/api/stats/year/${year}`)
+  add('legacy.listening-stats', L, '/api/me/listening-stats')
+  add('legacy.listening-sessions', L, '/api/me/listening-sessions?itemsPerPage=50&page=0')
+  add('legacy.sessions.all', R, '/api/sessions?itemsPerPage=50&page=0')
   return s
 }
 
@@ -740,6 +747,10 @@ function normalize(value, known, fresh, key = '') {
     if (/(lastUpdate|startedAt|updatedAt|createdAt|addedAt|finishedAt|lastSeen|lastScan|birthtimeMs|mtimeMs|ctimeMs)$/.test(key)) return '<ts>'
     return value
   }
+  // booksWithCovers / finishedBooksWithCovers / booksAddedWithCovers are
+  // selected with ORDER BY RANDOM() upstream (userStats.js, adminStats.js):
+  // compare them as sets.
+  if (Array.isArray(value) && /WithCovers$/.test(key)) return value.map(v => normalize(v, known, fresh, key)).sort()
   if (Array.isArray(value)) return value.map(v => normalize(v, known, fresh, key))
   if (value && typeof value === 'object') {
     const out = {}
@@ -885,6 +896,31 @@ function snapshotUUIDs(ids) {
   return set
 }
 
+// Real installs carry playbackSessions rows written by older upstream
+// versions and mobile uploads: NULL playMethod, timeListening, display
+// fields, date and mediaMetadata, and fractional seconds. The current
+// upstream never writes such rows through its API, so the seed inserts them
+// directly (both servers then read the same rows). A Go reader that scanned
+// these into non-nullable types returned 500 on /api/me/listening-stats in a
+// real deployment. No row has 0 < timeListening <= 3 or 0: upstream's boot
+// cleanup (Database.cleanDatabase, server/Database.js:777-786) deletes those,
+// so they cannot exist in an install upstream has booted.
+function addLegacySessions(dbPath, ids) {
+  const { DatabaseSync } = require('node:sqlite')
+  const db = new DatabaseSync(dbPath)
+  try {
+    const book = db.prepare(`SELECT mediaId FROM libraryItems WHERE id = ?`).get(ids.saga1).mediaId
+    const ins = db.prepare(`INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    const extra = JSON.stringify({ libraryItemId: ids.saga1 })
+    const y = new Date().getUTCFullYear()
+    ins.run('legacy-null-0001', book, 'book', null, null, null, null, null, null, null, null, null, null, null, null, null, extra, ids.listener, null, ids.library, `${y}-01-15 10:00:00.000 +00:00`, `${y}-01-15 10:05:00.000 +00:00`)
+    ins.run('legacy-null-0002', book, 'book', 'The Beginning', null, 60.186123, 3, null, 0, 12.4, '2.17.0', null, 12.4, '{"title":"The Beginning","authors":[{"name":"Terry Fixture"}],"genres":["Fiction"]}', `${y}-02-02`, 'Monday', extra, ids.listener, null, ids.library, `${y}-02-02 10:00:00.000 +00:00`, `${y}-02-02 10:01:00.000 +00:00`)
+    ins.run('legacy-null-0003', book, 'book', 'The Beginning', 'Terry Fixture', 60.186123, null, 'AVPlayer', 1.25, 33.75, null, null, null, '{}', null, null, JSON.stringify({ libraryItemId: 'li_legacy' }), ids.listener, null, ids.library, `${y}-03-02 10:00:00.000 +00:00`, `${y}-03-02 10:01:00.000 +00:00`)
+  } finally {
+    db.close()
+  }
+}
+
 // Persisted rows written by the journey (feeds, feed episodes, shares), read
 // from the stopped server's database. IDs created during the journey and
 // timestamps are normalized; everything else (NULL vs '', booleans, dates,
@@ -962,6 +998,7 @@ async function main() {
   } else {
     const media = generateMedia(path.join(work, 'media'))
     ;({ dirs, ids } = await seed(work, media))
+    addLegacySessions(path.join(dirs.config, 'absdatabase.sqlite'), ids)
     copyTree(path.join(work, 'install'), snapshot)
     fs.writeFileSync(path.join(work, 'ids.json'), JSON.stringify(ids, null, 2))
   }

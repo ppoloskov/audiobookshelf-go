@@ -712,7 +712,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 	var sizeSum, durationSum float64
 	var totalSize, totalDuration float64
 	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(li.size),0),COALESCE(SUM(b.duration),0) FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.mediaType='book' AND li.createdAt<?`, end).Scan(&bookCount, &totalSize, &totalDuration)
-	rows, err := h.db.QueryContext(r.Context(), `SELECT b.id,b.coverPath,b.duration,li.size FROM books b JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE b.createdAt>=? AND b.createdAt<? ORDER BY RANDOM()`, start, end)
+	rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,b.coverPath,b.duration,li.size FROM books b JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE b.createdAt>=? AND b.createdAt<? ORDER BY RANDOM()`, start, end)
 	covers := []string{}
 	booksAdded := 0
 	if err == nil {
@@ -731,6 +731,8 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			if size.Valid {
 				sizeSum += size.Float64
 			}
+			// adminStats.getStatsForYear pushes book.libraryItem.id, the id the
+			// web client loads covers by (server/utils/queries/adminStats.js:76-80).
 			if cover.Valid && len(covers) < 25 {
 				if _, e := os.Stat(cover.String); e == nil {
 					covers = append(covers, id)
@@ -738,17 +740,20 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			}
 		}
 	}
-	var authorTimes, narratorTimes, genreTimes map[string]int64 = map[string]int64{}, map[string]int64{}, map[string]int64{}
+	var authorTimes, narratorTimes, genreTimes map[string]float64 = map[string]float64{}, map[string]float64{}, map[string]float64{}
 	rows, err = h.db.QueryContext(r.Context(), `SELECT timeListening,mediaMetadata FROM playbackSessions WHERE createdAt>=? AND createdAt<?`, start, end)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
-			var listen sql.NullInt64
+			// REAL and NULL timeListening both occur; adminStats.js sums
+			// `ls.timeListening || 0` as floats. NullInt64 rejected REAL
+			// values and the row was silently skipped.
+			var listen sql.NullFloat64
 			var raw []byte
 			if rows.Scan(&listen, &raw) != nil {
 				continue
 			}
-			n := listen.Int64
+			n := listen.Float64
 			var meta map[string]any
 			if json.Unmarshal(raw, &meta) != nil {
 				continue
@@ -781,10 +786,10 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 	}
 	writeJSON(w, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
 }
-func topTimes(m map[string]int64, key string) []map[string]any {
+func topTimes(m map[string]float64, key string) []map[string]any {
 	a := make([]map[string]any, 0, len(m))
 	for n, t := range m {
-		a = append(a, map[string]any{key: n, "time": math.Round(float64(t))})
+		a = append(a, map[string]any{key: n, "time": math.Round(t)})
 	}
 	sort.SliceStable(a, func(i, j int) bool { return a[i]["time"].(float64) > a[j]["time"].(float64) })
 	if len(a) > 3 {

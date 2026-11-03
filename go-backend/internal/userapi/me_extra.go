@@ -320,39 +320,50 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
-	var sessions, total, bookTime, podcastTime int
+	// userStats.getStatsForYear sums raw float seconds (`ls.timeListening
+	// || 0`) and Math.rounds only the totals (server/utils/queries/userStats.js:114-190).
+	var sessions int
+	var total, bookTime, podcastTime float64
 	rows, err := h.db.QueryContext(r.Context(), `SELECT mediaItemType,timeListening,displayTitle,mediaMetadata,createdAt FROM playbackSessions WHERE userId=? AND createdAt>=? AND createdAt<?`, user.ID, start, end)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	months := map[int]int{}
-	books := map[string]int{}
-	authors := map[string]int{}
-	genres := map[string]int{}
-	narrators := map[string]int{}
+	months := map[int]float64{}
+	books := map[string]float64{}
+	authors := map[string]float64{}
+	genres := map[string]float64{}
+	narrators := map[string]float64{}
 	for rows.Next() {
-		var typ, title string
-		var secs int
+		var typ, title sql.NullString
+		var listened sql.NullFloat64
 		var metaRaw []byte
 		var created any
-		if err := rows.Scan(&typ, &secs, &title, &metaRaw, &created); err != nil {
+		if err := rows.Scan(&typ, &listened, &title, &metaRaw, &created); err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
+		secs := listened.Float64
 		sessions++
 		total += secs
-		if typ == "book" {
-			bookTime += secs
-			books[title] += secs
-		} else {
-			podcastTime += secs
-		}
+		// userStats.getStatsForYear (server/utils/queries/userStats.js:108-150):
+		// the month is ls.createdAt.getMonth() in server-local time; book
+		// sessions count toward a title only when displayTitle is non-empty,
+		// and authors, narrators and genres are tallied for book sessions
+		// only (podcast sessions add to totalPodcastListeningTime alone).
 		if t := parseTime(created); !t.IsZero() {
-			months[int(t.Month())-1] += secs
+			months[int(t.In(time.Local).Month())-1] += secs
+		}
+		if typ.String != "book" {
+			podcastTime += secs
+			continue
+		}
+		bookTime += secs
+		if title.String != "" {
+			books[title.String] += secs
 		}
 		var m map[string]any
 		_ = json.Unmarshal(metaRaw, &m)
@@ -360,15 +371,15 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 			a, _ := x.(map[string]any)
 			authors[stringValue(a["name"])] += secs
 		}
-		for _, x := range anyArray(m["genres"]) {
-			g, _ := x.(string)
-			if !strings.Contains(strings.ToLower(g), "audiobook") && !strings.Contains(strings.ToLower(g), "audio book") {
-				genres[g] += secs
-			}
-		}
 		for _, x := range anyArray(m["narrators"]) {
 			n, _ := x.(string)
 			narrators[n] += secs
+		}
+		for _, x := range anyArray(m["genres"]) {
+			g, _ := x.(string)
+			if g != "" && !strings.Contains(strings.ToLower(g), "audiobook") && !strings.Contains(strings.ToLower(g), "audio book") {
+				genres[g] += secs
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -429,36 +440,65 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	for _, session := range yearSessions {
-		created := parseTime(session.createdAt)
+		created := parseTime(session.CreatedAt)
 		if created.IsZero() || created.Before(time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)) || !created.Before(time.Date(year+1, 1, 1, 0, 0, 0, 0, time.UTC)) {
 			continue
 		}
-		var extra map[string]any
-		_ = json.Unmarshal(session.extraData, &extra)
-		itemID, _ := extra["libraryItemId"].(string)
-		if itemID == "" || finishedSet[itemID] || booksWithCoversSet[itemID] || len(booksWithCovers) >= 25 || session.coverPath == "" {
+		// Upstream joins the session's book and uses its current coverPath
+		// and library item id (userStats.js:8-30, 108-111), not the cover
+		// path stored on the session. Its session order is RANDOM(), so the
+		// order of booksWithCovers is unspecified upstream.
+		if session.MediaItemType.String != "book" || len(booksWithCovers) >= 25 {
 			continue
 		}
-		if _, err := os.Stat(session.coverPath); err == nil {
+		var itemID string
+		var coverPath sql.NullString
+		if err := h.db.QueryRowContext(r.Context(), `SELECT li.id, b.coverPath FROM books b JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book' WHERE b.id = ?`, session.MediaItemID.String).Scan(&itemID, &coverPath); err != nil {
+			continue
+		}
+		if finishedSet[itemID] || booksWithCoversSet[itemID] || coverPath.String == "" {
+			continue
+		}
+		if _, err := os.Stat(coverPath.String); err == nil {
 			booksWithCovers = append(booksWithCovers, itemID)
 			booksWithCoversSet[itemID] = true
 		}
 	}
-	writeJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": total, "totalBookListeningTime": bookTime, "totalPodcastListeningTime": podcastTime, "topAuthors": topEntries(authors, "name", 3), "topGenres": topEntries(genres, "genre", 3), "mostListenedNarrator": topOne(narrators, "name"), "mostListenedMonth": topMonth(months), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
+	writeJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
 }
 
+// parseTime accepts every stored DATETIME spelling, including upstream's
+// "YYYY-MM-DD HH:mm:ss.SSS +00:00"; the old offset-less layout returned the
+// zero time for upstream-written rows, which silently dropped them.
 func parseTime(v any) time.Time {
 	switch x := v.(type) {
 	case time.Time:
 		return x
 	case string:
-		t, _ := time.Parse("2006-01-02 15:04:05.999999999", x)
+		t, _ := dbtime.Parse(x)
 		return t
 	case []byte:
-		t, _ := time.Parse("2006-01-02 15:04:05.999999999", string(x))
+		t, _ := dbtime.Parse(string(x))
 		return t
 	}
 	return time.Time{}
+}
+
+// roundTimes applies upstream's per-entry Math.round to summed seconds.
+func roundTimes(m map[string]float64) map[string]int {
+	out := make(map[string]int, len(m))
+	for k, v := range m {
+		out[k] = int(math.Round(v))
+	}
+	return out
+}
+
+func roundMonths(m map[int]float64) map[int]int {
+	out := make(map[int]int, len(m))
+	for k, v := range m {
+		out[k] = int(math.Round(v))
+	}
+	return out
 }
 func anyArray(v any) []any { x, _ := v.([]any); return x }
 func topEntries(m map[string]int, key string, n int) []any {

@@ -2,7 +2,6 @@ package userapi
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
@@ -13,17 +12,6 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
-
-type listeningSession struct {
-	id, userID, libraryID, mediaItemID, mediaItemType       string
-	displayTitle, displayAuthor, mediaPlayer, serverVersion string
-	coverPath, date, dayOfWeek                              string
-	timeListening                                           float64
-	duration, playMethod, startTime, currentTime            float64
-	mediaMetadata, extraData                                []byte
-	deviceID                                                sql.NullString
-	createdAt, updatedAt                                    any
-}
 
 func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request, userID, mediaID string, includeUser bool) {
 	sessions, err := h.listeningSessions(r, userID, mediaID)
@@ -57,8 +45,8 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 		}
 		if includeUser {
 			var username string
-			if err := h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, session.userID).Scan(&username); err == nil {
-				row["user"] = map[string]any{"id": session.userID, "username": username}
+			if err := h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, session.UserID.String).Scan(&username); err == nil {
+				row["user"] = map[string]any{"id": session.UserID.String, "username": username}
 				wire.AddPlaybackSessionSpreadFields(row)
 			}
 		}
@@ -92,36 +80,49 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 			}
 			recent = append(recent, row)
 		}
-		seconds := session.timeListening
-		stats["totalTime"] = stats["totalTime"].(float64) + seconds
-		if session.dayOfWeek != "" {
-			dayOfWeek[session.dayOfWeek] = numberValue(dayOfWeek[session.dayOfWeek]) + seconds
+		// ApiRouter.getUserListeningStatsHelpers (server/routers/ApiRouter.js:535-575)
+		// works on the constructed legacy session: derived date/dayOfWeek,
+		// `timeListening || null`, prefix-stripped libraryItemId and
+		// mediaMetadata as stored. JS arithmetic treats null as 0, `null > 0`
+		// is false, and an object key of null is the string "null".
+		legacy := session.LegacyJSON(nil)
+		var seconds float64
+		listened := legacy["timeListening"]
+		if v, ok := listened.(float64); ok {
+			seconds = v
 		}
-		if session.date != "" && seconds > 0 {
-			days[session.date] = numberValue(days[session.date]) + seconds
-			if session.date == time.Now().Format("2006-01-02") {
+		stats["totalTime"] = stats["totalTime"].(float64) + seconds
+		if day, _ := legacy["dayOfWeek"].(string); day != "" {
+			dayOfWeek[day] = numberValue(dayOfWeek[day]) + seconds
+		}
+		if date, _ := legacy["date"].(string); date != "" && seconds > 0 {
+			days[date] = numberValue(days[date]) + seconds
+			if date == time.Now().Format("2006-01-02") {
 				stats["today"] = stats["today"].(float64) + seconds
 			}
 		}
-		var extra map[string]any
-		_ = json.Unmarshal(session.extraData, &extra)
-		itemID, _ := extra["libraryItemId"].(string)
+		itemID := "null"
+		if id, ok := legacy["libraryItemId"].(string); ok {
+			itemID = id
+		}
 		if current, ok := items[itemID].(map[string]any); ok {
 			current["timeListening"] = numberValue(current["timeListening"]) + seconds
 		} else {
-			var metadata map[string]any
-			_ = json.Unmarshal(session.mediaMetadata, &metadata)
 			// Upstream also assigns lastUpdate: s.lastUpdate, a property the legacy
 			// session object never has, so the key is absent (server/routers/ApiRouter.js:569).
-			items[itemID] = map[string]any{"id": itemID, "timeListening": seconds, "mediaMetadata": metadataOrEmpty(metadata)}
+			var id any = itemID
+			if itemID == "null" {
+				id = nil
+			}
+			items[itemID] = map[string]any{"id": id, "timeListening": listened, "mediaMetadata": legacy["mediaMetadata"]}
 		}
 	}
 	stats["recentSessions"] = recent
 	writeJSON(w, 200, stats)
 }
 
-func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]listeningSession, error) {
-	query := `SELECT id,userId,libraryId,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,date,dayOfWeek,timeListening,mediaMetadata,extraData,deviceId,createdAt,updatedAt FROM playbackSessions WHERE userId=?`
+func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]store.PlaybackSessionRow, error) {
+	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions WHERE userId=?`
 	args := []any{userID}
 	if mediaID != "" {
 		query += ` AND mediaItemId=?`
@@ -133,42 +134,26 @@ func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]
 		return nil, err
 	}
 	defer rows.Close()
-	result := make([]listeningSession, 0)
+	result := make([]store.PlaybackSessionRow, 0)
 	for rows.Next() {
-		var s listeningSession
-		var player, version, cover, date, weekday sql.NullString
-		var metadata, extra sql.NullString
-		if err := rows.Scan(&s.id, &s.userID, &s.libraryID, &s.mediaItemID, &s.mediaItemType, &s.displayTitle, &s.displayAuthor, &s.duration, &s.playMethod, &player, &s.startTime, &s.currentTime, &version, &cover, &date, &weekday, &s.timeListening, &metadata, &extra, &s.deviceID, &s.createdAt, &s.updatedAt); err != nil {
+		s, err := store.ScanPlaybackSession(rows)
+		if err != nil {
 			return nil, err
 		}
-		s.mediaPlayer, s.serverVersion, s.coverPath, s.date, s.dayOfWeek = player.String, version.String, cover.String, date.String, weekday.String
-		s.mediaMetadata, s.extraData = []byte(metadata.String), []byte(extra.String)
 		result = append(result, s)
 	}
 	return result, rows.Err()
 }
 
-func (h *Handler) listeningSessionJSON(r *http.Request, s listeningSession) (map[string]any, error) {
-	var extra, metadata map[string]any
-	_ = json.Unmarshal(s.extraData, &extra)
-	_ = json.Unmarshal(s.mediaMetadata, &metadata)
-	if metadata == nil {
-		metadata = map[string]any{}
-	}
-	device, err := store.LoadDeviceInfo(r.Context(), h.db, s.deviceID.String)
+func (h *Handler) listeningSessionJSON(r *http.Request, s store.PlaybackSessionRow) (map[string]any, error) {
+	device, err := store.LoadDeviceInfo(r.Context(), h.db, s.DeviceID.String)
 	if errors.Is(err, sql.ErrNoRows) {
 		device, err = nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	podcast := s.mediaItemType == "podcastEpisode"
-	var bookID, episodeID any = s.mediaItemID, nil
-	mediaType := "book"
-	if podcast {
-		bookID, episodeID, mediaType = nil, s.mediaItemID, "podcast"
-	}
-	return map[string]any{"id": s.id, "userId": s.userID, "libraryId": s.libraryID, "libraryItemId": extra["libraryItemId"], "bookId": bookID, "episodeId": episodeID, "mediaType": mediaType, "mediaMetadata": metadata, "chapters": []any{}, "displayTitle": s.displayTitle, "displayAuthor": s.displayAuthor, "coverPath": nullableStringValue(s.coverPath), "duration": s.duration, "playMethod": s.playMethod, "mediaPlayer": nullableStringValue(s.mediaPlayer), "deviceInfo": device, "serverVersion": nullableStringValue(s.serverVersion), "date": nullableStringValue(s.date), "dayOfWeek": nullableStringValue(s.dayOfWeek), "timeListening": s.timeListening, "startTime": s.startTime, "currentTime": s.currentTime, "startedAt": millis(s.createdAt), "updatedAt": millis(s.updatedAt)}, nil
+	return s.LegacyJSON(device), nil
 }
 
 func queryInt(r *http.Request, key string, fallback int) int {
@@ -189,18 +174,6 @@ func numberValue(value any) float64 {
 	default:
 		return 0
 	}
-}
-func metadataOrEmpty(v map[string]any) map[string]any {
-	if v == nil {
-		return map[string]any{}
-	}
-	return v
-}
-func nullableStringValue(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 func minInt(a, b int) int {
 	if a < b {

@@ -1006,16 +1006,16 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 		h.serverError(w, r, err)
 		return
 	}
-	query := `SELECT id,userId,libraryId,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,deviceId,createdAt,updatedAt FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
+	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
 	args = append(args, perPage, perPage*page)
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		h.serverError(w, r, err)
 		return
 	}
-	sessions := []historySession{}
+	sessions := []store.PlaybackSessionRow{}
 	for rows.Next() {
-		s, err := scanHistoryRow(rows)
+		s, err := store.ScanPlaybackSession(rows)
 		if err != nil {
 			_ = rows.Close()
 			h.serverError(w, r, err)
@@ -1034,7 +1034,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 	}
 	result := []map[string]any{}
 	for _, s := range sessions {
-		device, err := store.LoadDeviceInfo(r.Context(), h.db, s.deviceID.String)
+		device, err := store.LoadDeviceInfo(r.Context(), h.db, s.DeviceID.String)
 		if errors.Is(err, sql.ErrNoRows) {
 			device, err = nil, nil
 		}
@@ -1042,11 +1042,11 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 			h.serverError(w, r, err)
 			return
 		}
-		obj := s.oldJSON(device)
+		obj := s.LegacyJSON(device)
 		var username sql.NullString
-		_ = h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, s.userID).Scan(&username)
+		_ = h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, s.UserID.String).Scan(&username)
 		if username.Valid {
-			obj["user"] = map[string]any{"id": s.userID, "username": username.String}
+			obj["user"] = map[string]any{"id": s.UserID.String, "username": username.String}
 			wire.AddPlaybackSessionSpreadFields(obj)
 		}
 		result = append(result, obj)
@@ -1320,45 +1320,6 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	return map[string]any{"id": id, "success": true, "progressSynced": synced}, ""
 }
 
-type historySession struct {
-	id, userID, libraryID, mediaItemID, mediaItemType, displayTitle, displayAuthor string
-	duration, playMethod, startTime, currentTime                                   float64
-	mediaPlayer, serverVersion, coverPath, date, dayOfWeek                         string
-	timeListening                                                                  float64
-	mediaMetadata, extraData                                                       []byte
-	deviceID                                                                       sql.NullString
-	createdAt, updatedAt                                                           any
-}
-
-func scanHistoryRow(rows *sql.Rows) (historySession, error) {
-	var s historySession
-	var mp, md, ed sql.NullString
-	var cp, sv, dt, dow sql.NullString
-	err := rows.Scan(&s.id, &s.userID, &s.libraryID, &s.mediaItemID, &s.mediaItemType, &s.displayTitle, &s.displayAuthor, &s.duration, &s.playMethod, &mp, &s.startTime, &s.currentTime, &sv, &cp, &s.timeListening, &md, &dt, &dow, &ed, &s.deviceID, &s.createdAt, &s.updatedAt)
-	s.mediaPlayer = mp.String
-	s.serverVersion = sv.String
-	s.coverPath = cp.String
-	s.date = dt.String
-	s.dayOfWeek = dow.String
-	s.mediaMetadata = []byte(md.String)
-	s.extraData = []byte(ed.String)
-	return s, err
-}
-func (s historySession) oldJSON(device *wire.DeviceInfo) map[string]any {
-	var extra, metadata map[string]any
-	_ = json.Unmarshal(s.extraData, &extra)
-	_ = json.Unmarshal(s.mediaMetadata, &metadata)
-	if metadata == nil {
-		metadata = map[string]any{}
-	}
-	podcast := s.mediaItemType == "podcastEpisode"
-	bookID, episodeID := any(s.mediaItemID), any(nil)
-	if podcast {
-		bookID = nil
-		episodeID = s.mediaItemID
-	}
-	return map[string]any{"id": s.id, "userId": s.userID, "libraryId": s.libraryID, "libraryItemId": extra["libraryItemId"], "bookId": bookID, "episodeId": episodeID, "mediaType": map[bool]string{true: "podcast", false: "book"}[podcast], "mediaMetadata": metadata, "chapters": []any{}, "displayTitle": s.displayTitle, "displayAuthor": s.displayAuthor, "coverPath": nullableString(s.coverPath), "duration": s.duration, "playMethod": s.playMethod, "mediaPlayer": nullableString(s.mediaPlayer), "deviceInfo": device, "serverVersion": nullableString(s.serverVersion), "date": nullableString(s.date), "dayOfWeek": nullableString(s.dayOfWeek), "timeListening": s.timeListening, "startTime": s.startTime, "currentTime": s.currentTime, "startedAt": millis(s.createdAt), "updatedAt": millis(s.updatedAt)}
-}
 func (h *Handler) titleIgnorePrefix(ctx context.Context, title string) string {
 	var raw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
