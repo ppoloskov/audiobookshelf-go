@@ -597,7 +597,9 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 func (h *Handler) list() []Backup {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := append([]Backup(nil), h.backups...)
+	// Non-nil even when empty: the response is a JSON array, never null.
+	out := make([]Backup, len(h.backups))
+	copy(out, h.backups)
 	return out
 }
 func (h *Handler) options() Options { h.mu.Lock(); defer h.mu.Unlock(); return h.opt }
