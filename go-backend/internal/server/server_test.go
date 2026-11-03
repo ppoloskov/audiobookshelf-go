@@ -39,6 +39,7 @@ func TestPingStatusAndPrefixedPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	if _, err = db.Exec(`CREATE TABLE users(type TEXT); INSERT INTO users(type) VALUES ('user')`); err != nil {
 		t.Fatal(err)
@@ -144,6 +145,7 @@ func TestLibraryStatsAndCustomAuthMessageReturn501(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	if _, err := db.Exec(`CREATE TABLE users(type TEXT); INSERT INTO users(type) VALUES ('root')`); err != nil {
 		t.Fatal(err)

@@ -746,22 +746,31 @@ func (h *Handler) userByOIDCSub(ctx context.Context, sub string) (store.User, er
 	if err != nil {
 		return store.User{}, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		var raw []byte
-		if err := rows.Scan(&id, &raw); err != nil {
-			return store.User{}, err
+	// The pool has one connection: close the cursor before userByID, or the
+	// second query waits for the first forever (until the request is
+	// cancelled).
+	matched, err := func() (string, error) {
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var raw []byte
+			if err := rows.Scan(&id, &raw); err != nil {
+				return "", err
+			}
+			var extra map[string]any
+			if json.Unmarshal(raw, &extra) == nil && extra["authOpenIDSub"] == sub {
+				return id, nil
+			}
 		}
-		var extra map[string]any
-		if json.Unmarshal(raw, &extra) == nil && extra["authOpenIDSub"] == sub {
-			return h.userByID(ctx, id)
-		}
-	}
-	if err := rows.Err(); err != nil {
+		return "", rows.Err()
+	}()
+	if err != nil {
 		return store.User{}, err
 	}
-	return store.User{}, sql.ErrNoRows
+	if matched == "" {
+		return store.User{}, sql.ErrNoRows
+	}
+	return h.userByID(ctx, matched)
 }
 
 func (h *Handler) userByEmail(ctx context.Context, email string) (store.User, error) {

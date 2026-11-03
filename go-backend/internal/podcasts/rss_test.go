@@ -63,6 +63,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	for _, ddl := range []string{
 		`CREATE TABLE libraries(id TEXT PRIMARY KEY,mediaType TEXT)`,
@@ -323,6 +324,7 @@ func TestOPMLImportCreationOutcomesAndEventPayloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	for _, ddl := range []string{
 		`CREATE TABLE libraries(id TEXT PRIMARY KEY,mediaType TEXT)`,

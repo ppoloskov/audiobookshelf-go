@@ -235,7 +235,7 @@ func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.SetMaxOpenConns(8)
+	db.SetMaxOpenConns(1) // production pool size (store.Open); exposes nested-query deadlocks
 	schema := []string{
 		`CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen DATETIME, permissions JSON, bookmarks JSON, extraData JSON, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE settings (key TEXT PRIMARY KEY, value JSON)`,
