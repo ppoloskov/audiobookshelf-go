@@ -176,7 +176,7 @@ func TestUsersOnlineCallsPlaybackLookupOutsideHubLock(t *testing.T) {
 	}
 }
 
-func TestSocketIO4PollingUpgradeAuthAndPrefixedPath(t *testing.T) {
+func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	if err := exec.Command("node", "-e", "require('socket.io-client')").Run(); err != nil {
 		t.Skip("socket.io-client@4 is not installed; set NODE_PATH to a directory containing it")
 	}
@@ -196,7 +196,7 @@ func TestSocketIO4PollingUpgradeAuthAndPrefixedPath(t *testing.T) {
 				"libraryId": "lib-1", "media": map[string]any{"tags": []string{"mystery"}},
 			})
 			if action.Ack != nil {
-				action.Ack([]any{"scan_cancelled"}, nil)
+				action.Ack("scan_cancelled")
 			}
 		}
 		return nil
@@ -216,7 +216,7 @@ const once = (socket, name) => new Promise((resolve, reject) => {
   socket.once(name, onValue);
   socket.once('connect_error', onError);
 });
-async function connect(path, token, opts, expectUpgrade, id, username) {
+async function connect(path, token, opts, id, username) {
   const client = io(base, { path, timeout: 4000, ...opts });
   const seen = [];
   const diagnostics = [];
@@ -242,21 +242,13 @@ async function connect(path, token, opts, expectUpgrade, id, username) {
     throw new Error(error.message + '; path=' + path + '; user=' + id + '; connected=' + client.connected + '; transport=' + engine?.transport?.name + '; readyState=' + engine?.readyState + '; events=' + JSON.stringify(seen) + '; diagnostics=' + JSON.stringify(diagnostics));
   });
   console.log('pong', path);
-  if (expectUpgrade) {
-    const deadline = Date.now() + 3000;
-    while (client.io.engine.transport.name !== 'websocket' && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 20));
-    }
-    assert.equal(client.io.engine.transport.name, 'websocket', 'polling connection did not upgrade');
-  } else {
-    assert.equal(client.io.engine.transport.name, 'polling');
-  }
+  assert.equal(client.io.engine.transport.name, 'websocket');
   return { client, seen, diagnostics };
 }
 (async () => {
-  const admin = await connect('/socket.io', process.env.ABS_ADMIN_TOKEN, { transports: ['polling', 'websocket'], upgrade: true }, true, 'admin-1', 'root');
-  const alice = await connect('/abs/socket.io', process.env.ABS_USER_TOKEN, { transports: ['polling'], upgrade: false }, false, 'user-1', 'alice');
-  const restricted = await connect('/socket.io', process.env.ABS_LIMITED_TOKEN, { transports: ['polling'], upgrade: false }, false, 'limited-1', 'bob');
+  const admin = await connect('/socket.io', process.env.ABS_ADMIN_TOKEN, { transports: ['websocket'] }, 'admin-1', 'root');
+  const alice = await connect('/abs/socket.io', process.env.ABS_USER_TOKEN, { transports: ['websocket'] }, 'user-1', 'alice');
+  const restricted = await connect('/socket.io', process.env.ABS_LIMITED_TOKEN, { transports: ['websocket'] }, 'limited-1', 'bob');
   await new Promise(resolve => setTimeout(resolve, 100));
   assert(admin.seen.some(event => event === 'user_online'), 'admin did not receive user_online');
   assert(!alice.seen.includes('user_online'), 'non-admin received admin-only user_online');

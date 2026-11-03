@@ -16,8 +16,7 @@ import (
 
 // sioClient is a minimal Socket.IO v4 client for the journey's root connection:
 // Engine.IO v4 over WebSocket, the default namespace, events in both directions.
-// It is test-only and speaks nothing else. (The Socket.IO client module needs a
-// newer quic-go than engine.io v2.3.3 builds with, so it is not used.)
+// It is test-only and speaks nothing else.
 type sioClient struct {
 	ws      *websocket.Conn
 	writeMu sync.Mutex
@@ -28,23 +27,9 @@ type sioClient struct {
 }
 
 // dialSocketIO opens the WebSocket at baseURL+path and connects the default
-// namespace. It returns once the server acknowledged the namespace connect.
-// Sometimes the server never answers the connect (its listener is not bound
-// yet, or the previous connection is still closing); then the WebSocket is
-// closed and dialled again. A second CONNECT on the same socket would close it
-// on the server, so the connect is never re-sent on the same socket.
+// namespace. It returns once the server acknowledged the namespace connect; the
+// caller may send events right away.
 func dialSocketIO(baseURL, path string, timeout time.Duration) (*sioClient, error) {
-	var err error
-	for attempt := 0; attempt < 3; attempt++ {
-		var c *sioClient
-		if c, err = dialSocketIOOnce(baseURL, path, timeout); err == nil {
-			return c, nil
-		}
-	}
-	return nil, err
-}
-
-func dialSocketIOOnce(baseURL, path string, timeout time.Duration) (*sioClient, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err

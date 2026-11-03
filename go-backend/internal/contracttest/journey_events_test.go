@@ -74,32 +74,15 @@ func connectEventSocket(t testing.TB, baseURL, token string) *eventSocket {
 		}
 	}
 	es.client = client
-	// The server acks the namespace connect before it registers the namespace
-	// (socket.io v2.3.8 socket/client.go: an event for an unregistered namespace
-	// closes the whole client, "forced server close"). So the first auth waits
-	// 100ms, which was enough in 120 of 120 connects. Auth is then sent again each
-	// second until init arrives; the server handles a repeated auth as the first.
-	time.Sleep(100 * time.Millisecond)
-	retry := time.NewTicker(time.Second)
-	defer retry.Stop()
-	deadline := time.After(10 * time.Second)
 	if err := client.emit("auth", token); err != nil {
 		client.close()
 		t.Fatalf("event socket: auth: %v", err)
 	}
-	for waiting := true; waiting; {
-		select {
-		case <-ready:
-			waiting = false
-		case <-retry.C:
-			if err := client.emit("auth", token); err != nil {
-				client.close()
-				t.Fatalf("event socket: auth: %v", err)
-			}
-		case <-deadline:
-			client.close()
-			t.Fatal("event socket: no init within 10s")
-		}
+	select {
+	case <-ready:
+	case <-time.After(10 * time.Second):
+		client.close()
+		t.Fatal("event socket: no init within 10s")
 	}
 	es.drain()
 	return es

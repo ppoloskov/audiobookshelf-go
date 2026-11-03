@@ -106,7 +106,7 @@ function normalizePaths(value, marker) {
 
 async function openEventSocket(url, token) {
   const { io } = require('socket.io-client')
-  const socket = io(url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['polling', 'websocket'] })
+  const socket = io(url, { path: `${PREFIX}/socket.io`, timeout: 8000, reconnection: false, transports: ['websocket'] })
   const events = []
   let settled = false
   const connected = new Promise((resolve, reject) => {
