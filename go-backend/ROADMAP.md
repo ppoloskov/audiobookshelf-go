@@ -48,7 +48,7 @@ L2, JWT issuing -> L1).
   - Done when: CI is green on the new toolchain and `go version` in the image
     build log shows 1.27.
 
-- [ ] F2: Measure handwritten code and complexity in the ratchet
+- [x] F2: Measure handwritten code and complexity in the ratchet
   - Files: `tools/ratchet/`, `ratchet-baseline.json`
   - Change: Add metrics: handwritten non-test Go lines (skip files with a
     `// Code generated` header), total cyclomatic complexity, and the count of

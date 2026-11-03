@@ -3,12 +3,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -22,10 +24,14 @@ type metrics map[string]int
 
 func main() {
 	update := flag.Bool("update", false, "write current counts to ratchet-baseline.json")
+	top := flag.Int("top", 0, "also list the N most complex functions with file:line")
 	flag.Parse()
+	if *top < 0 {
+		fatalIf(fmt.Errorf("-top must be 0 or more, got %d", *top))
+	}
 	root, err := repositoryRoot()
 	fatalIf(err)
-	counts, err := measure(root)
+	counts, funcs, err := measure(root)
 	fatalIf(err)
 	path := filepath.Join(root, "go-backend", "ratchet-baseline.json")
 	data, err := os.ReadFile(path)
@@ -46,8 +52,11 @@ func main() {
 	}
 	for _, name := range sortedMetricNames(counts) {
 		if old, ok := baseline[name]; ok {
-			fmt.Printf("%s: %d (baseline %d)\n", name, counts[name], old)
+			fmt.Printf("%s: %d (baseline %d, delta %+d)\n", name, counts[name], old, counts[name]-old)
 		}
+	}
+	if *top > 0 {
+		printTop(os.Stdout, funcs, *top)
 	}
 	problems := compareCounts(counts, baseline)
 	for _, problem := range problems {
@@ -128,14 +137,22 @@ func repositoryRoot() (string, error) {
 	}
 }
 
-func measure(root string) (metrics, error) {
-	goCounts, err := measureGo(filepath.Join(root, "go-backend"))
+func measure(root string) (metrics, []funcStat, error) {
+	goRoot := filepath.Join(root, "go-backend")
+	goCounts, err := measureGo(goRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	simplification, funcs, err := measureSimplification(goRoot)
+	if err != nil {
+		return nil, nil, err
+	}
+	for key, value := range simplification {
+		goCounts[key] = value
 	}
 	harness, err := measureHarness(filepath.Join(root, "go-backend", "tools", "parity"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for key, value := range harness {
 		goCounts[key] = value
@@ -151,7 +168,185 @@ func measure(root string) (metrics, error) {
 			goCounts[key] = 0
 		}
 	}
-	return goCounts, nil
+	return goCounts, funcs, nil
+}
+
+// complexityThreshold is the per-function cyclomatic complexity above which a
+// function is counted by the "functions with complexity > 15" metric.
+const complexityThreshold = 15
+
+// funcStat is one FuncDecl with its cyclomatic complexity, for -top.
+type funcStat struct {
+	name       string
+	file       string
+	line       int
+	complexity int
+}
+
+// measureSimplification counts handwritten lines and cyclomatic complexity over
+// non-test, non-generated .go files under internal and cmd. Complexity is the
+// gocyclo definition: 1 per FuncDecl plus one per if, for, range, non-default
+// case or select comm clause, and per && and ||. FuncLits add to their enclosing
+// FuncDecl.
+func measureSimplification(root string) (metrics, []funcStat, error) {
+	counts := metrics{
+		"handwritten Go lines":           0,
+		"cyclomatic complexity total":    0,
+		"functions with complexity > 15": 0,
+	}
+	var funcs []funcStat
+	fset := token.NewFileSet()
+	for _, dir := range []string{"internal", "cmd"} {
+		err := filepath.WalkDir(filepath.Join(root, dir), func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			src, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if isGeneratedSource(src) {
+				return nil
+			}
+			file, err := parser.ParseFile(fset, path, src, parser.AllErrors)
+			if err != nil {
+				return err
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			counts["handwritten Go lines"] += physicalLines(src)
+			for _, decl := range file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok {
+					continue
+				}
+				c := complexity(fn)
+				counts["cyclomatic complexity total"] += c
+				if c > complexityThreshold {
+					counts["functions with complexity > 15"]++
+				}
+				funcs = append(funcs, funcStat{
+					name:       funcName(fn),
+					file:       rel,
+					line:       fset.Position(fn.Pos()).Line,
+					complexity: c,
+				})
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return counts, funcs, nil
+}
+
+var generatedHeader = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
+
+// isGeneratedSource reports whether a line before the package clause matches
+// the generated-code header.
+func isGeneratedSource(src []byte) bool {
+	for _, line := range strings.Split(string(src), "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if strings.HasPrefix(line, "package ") {
+			return false
+		}
+		if generatedHeader.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
+// physicalLines counts lines as an editor does: a final line without a newline
+// still counts.
+func physicalLines(src []byte) int {
+	n := bytes.Count(src, []byte("\n"))
+	if len(src) > 0 && src[len(src)-1] != '\n' {
+		n++
+	}
+	return n
+}
+
+// complexity returns the gocyclo complexity of one FuncDecl, including the
+// bodies of any FuncLits it contains.
+func complexity(fn *ast.FuncDecl) int {
+	total := 1
+	ast.Inspect(fn, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
+			total++
+		case *ast.CaseClause:
+			if n.List != nil {
+				total++
+			}
+		case *ast.CommClause:
+			if n.Comm != nil {
+				total++
+			}
+		case *ast.BinaryExpr:
+			if n.Op == token.LAND || n.Op == token.LOR {
+				total++
+			}
+		}
+		return true
+	})
+	return total
+}
+
+// funcName returns "Name" for functions and "Recv.Name" for methods.
+func funcName(fn *ast.FuncDecl) string {
+	if fn.Recv == nil || len(fn.Recv.List) == 0 {
+		return fn.Name.Name
+	}
+	if recv := receiverName(fn.Recv.List[0].Type); recv != "" {
+		return recv + "." + fn.Name.Name
+	}
+	return fn.Name.Name
+}
+
+func receiverName(expr ast.Expr) string {
+	switch n := expr.(type) {
+	case *ast.StarExpr:
+		return receiverName(n.X)
+	case *ast.ParenExpr:
+		return receiverName(n.X)
+	case *ast.IndexExpr:
+		return receiverName(n.X)
+	case *ast.IndexListExpr:
+		return receiverName(n.X)
+	case *ast.Ident:
+		return n.Name
+	}
+	return ""
+}
+
+// printTop lists the n most complex functions, most complex first.
+func printTop(w io.Writer, funcs []funcStat, n int) {
+	sorted := append([]funcStat(nil), funcs...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+		if a.complexity != b.complexity {
+			return a.complexity > b.complexity
+		}
+		if a.file != b.file {
+			return a.file < b.file
+		}
+		return a.line < b.line
+	})
+	if n > len(sorted) {
+		n = len(sorted)
+	}
+	fmt.Fprintf(w, "top %d most complex functions:\n", n)
+	for _, f := range sorted[:n] {
+		fmt.Fprintf(w, "%4d  %s:%d  %s\n", f.complexity, f.file, f.line, f.name)
+	}
 }
 
 func measureGo(root string) (metrics, error) {
