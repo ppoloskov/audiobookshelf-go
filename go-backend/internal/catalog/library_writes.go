@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
@@ -590,24 +591,34 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 	}
 	if len(itemIDs) > 0 {
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM feeds WHERE entityType='libraryItem' AND entityId IN (`+sqlMarks(len(itemIDs))+`)`, stringArgs(itemIDs)...); err != nil {
+		if err := sqlc.New(tx).DeleteLibraryItemFeedsByItemIDs(r.Context(), store.Texts(itemIDs)); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			httputil.WriteError(w, 500, "database write failed")
 			return
 		}
 	}
 	if len(bookIDs) > 0 {
-		for _, q := range []string{`DELETE FROM bookAuthors WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM bookSeries WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM mediaItemShares WHERE mediaItemType='book' AND mediaItemId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM books WHERE id IN (` + sqlMarks(len(bookIDs)) + `)`} {
+		for _, q := range []string{`DELETE FROM bookAuthors WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM bookSeries WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`} {
 			if _, err := tx.ExecContext(r.Context(), q, stringArgs(bookIDs)...); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				httputil.WriteError(w, 500, "database write failed")
 				return
 			}
 		}
+		if err := sqlc.New(tx).DeleteBookSharesByMediaIDs(r.Context(), store.Texts(bookIDs)); err != nil {
+			logging.RequestError(r, "database write failed", err)
+			httputil.WriteError(w, 500, "database write failed")
+			return
+		}
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM books WHERE id IN (`+sqlMarks(len(bookIDs))+`)`, stringArgs(bookIDs)...); err != nil {
+			logging.RequestError(r, "database write failed", err)
+			httputil.WriteError(w, 500, "database write failed")
+			return
+		}
 	}
 	if len(podcastIDs) > 0 {
 		if len(podcastEpisodeIDs) > 0 {
-			if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaItemShares WHERE mediaItemType='podcastEpisode' AND mediaItemId IN (`+sqlMarks(len(podcastEpisodeIDs))+`)`, stringArgs(podcastEpisodeIDs)...); err != nil {
+			if err := sqlc.New(tx).DeletePodcastEpisodeSharesByMediaIDs(r.Context(), store.Texts(podcastEpisodeIDs)); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				httputil.WriteError(w, 500, "database write failed")
 				return
@@ -639,12 +650,12 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		httputil.WriteError(w, 500, "database write failed")
 		return
 	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE collectionId IN (SELECT id FROM collections WHERE libraryId=?)`, id); err != nil {
+	if err := sqlc.New(tx).DeleteCollectionBooksByLibraryID(r.Context(), id); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		httputil.WriteError(w, 500, "database write failed")
 		return
 	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM collections WHERE libraryId=?`, id); err != nil {
+	if err := sqlc.New(tx).DeleteCollectionsByLibraryID(r.Context(), id); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		httputil.WriteError(w, 500, "database write failed")
 		return

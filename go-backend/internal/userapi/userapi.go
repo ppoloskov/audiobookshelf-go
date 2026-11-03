@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -28,6 +29,10 @@ import (
 	"audiobookshelf-compat/internal/wire"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// queries returns the generated query set on the handler's pool; sqlc.New only
+// stores the handle.
+func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
 
 type Handler struct {
 	db                 *sql.DB
@@ -768,7 +773,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		defer tx.Rollback()
-		if _, err = tx.ExecContext(r.Context(), `DELETE FROM playlists WHERE userId = ?`, id); err != nil {
+		if err = sqlc.New(tx).DeleteUserPlaylists(r.Context(), id); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
@@ -1200,32 +1205,14 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 	if tail == "" || tail == "/" {
 		switch r.Method {
 		case http.MethodGet:
-			rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM collections ORDER BY createdAt ASC`)
+			// One-connection pool: the ids are read whole before collectionDTO
+			// opens its own queries.
+			ids, err := h.queries().ListCollectionIDs(r.Context())
 			if err != nil {
 				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
-			// One-connection pool: materialize ids and close this cursor before
-			// collectionDTO opens its own queries.
-			ids := make([]string, 0)
-			for rows.Next() {
-				var id string
-				if err := rows.Scan(&id); err != nil {
-					rows.Close()
-					logging.RequestError(r, "database read failed", err)
-					http.Error(w, "database read failed", 500)
-					return true
-				}
-				ids = append(ids, id)
-			}
-			if err := rows.Err(); err != nil {
-				rows.Close()
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			rows.Close()
 			out := make([]any, 0)
 			for _, id := range ids {
 				dto, libraryID, hasVisible, err := h.collectionDTO(r.Context(), id, user)
@@ -1281,8 +1268,8 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 		case http.MethodPatch:
 			return h.updateCollection(w, r, user, id)
 		case http.MethodDelete:
-			var libraryID string
-			if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM collections WHERE id=?`, id).Scan(&libraryID); errors.Is(err, sql.ErrNoRows) {
+			libraryID, err := h.collectionLibraryID(r.Context(), id)
+			if errors.Is(err, sql.ErrNoRows) {
 				sendEntityNotFound(w, "Collection not found")
 				return true
 			} else if err != nil {
@@ -1299,7 +1286,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 				return true
 			}
 			dto, _, _, _ := h.collectionDTO(r.Context(), id, user)
-			if _, err := h.db.ExecContext(r.Context(), `DELETE FROM collections WHERE id=?`, id); err != nil {
+			if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
@@ -1351,8 +1338,8 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	// Collection.create persists `description || null` upstream; an empty
-	// string therefore round-trips as JSON null, not as an empty string.
-	storedDescription := collectionDescriptionForDB(description)
+	// string therefore round-trips as JSON null, not as an empty string
+	// (store.TextOrNull writes NULL for it).
 	if !canAccessLibrary(permissions(user), libraryID) {
 		httputil.SendStatus(w, 403)
 		return
@@ -1386,7 +1373,8 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(r.Context(), `INSERT INTO collections (id,name,description,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?)`, id, name, storedDescription, libraryID, now, now); err != nil {
+	q := sqlc.New(tx)
+	if err = q.InsertCollection(r.Context(), sqlc.InsertCollectionParams{ID: id, Name: name, Description: store.TextOrNull(description), LibraryID: libraryID, Createdat: now, Updatedat: now}); err != nil {
 		logging.RequestError(r, "Failed to create collection", err)
 		http.Error(w, "Failed to create collection", 500)
 		return
@@ -1398,7 +1386,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 			http.Error(w, "Failed to create collection", 500)
 			return
 		}
-		if _, err = tx.ExecContext(r.Context(), `INSERT INTO collectionBooks (id,collectionId,bookId,"order",createdAt) VALUES (?,?,?,?,?)`, entryID, id, bookID, i+1, now); err != nil {
+		if err = q.InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: bookID, Position: int64(i + 1), Createdat: now}); err != nil {
 			logging.RequestError(r, "Failed to create collection", err)
 			http.Error(w, "Failed to create collection", 500)
 			return
@@ -1421,42 +1409,26 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	httputil.WriteJSON(w, 200, dto)
 }
 
-func collectionDescriptionForDB(description string) any {
-	if description == "" {
-		return nil
-	}
-	return description
+// collectionLibraryID is the library of a collection; sql.ErrNoRows when the
+// collection does not exist.
+func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, error) {
+	libraryID, err := h.queries().GetCollectionLibraryID(ctx, id)
+	return libraryID.String, err
 }
 
 func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User) (map[string]any, string, bool, error) {
-	var libraryID, name string
-	var description sql.NullString
-	var created, updated any
-	err := h.db.QueryRowContext(ctx, `SELECT libraryId,name,description,createdAt,updatedAt FROM collections WHERE id=?`, id).Scan(&libraryID, &name, &description, &created, &updated)
+	c, err := h.queries().GetCollection(ctx, id)
 	if err != nil {
 		return nil, "", false, err
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM collectionBooks cb JOIN libraryItems li ON li.mediaId=cb.bookId AND li.mediaType='book' WHERE cb.collectionId=? ORDER BY cb."order" ASC`, id)
-	if err != nil {
-		return nil, "", false, err
-	}
-	// Materialize the item IDs before running per-item queries: the database
-	// pool allows a single connection, and nested queries while these rows are
+	libraryID, name := c.Libraryid.String, c.Name.String
+	// Read the item IDs whole before the per-item queries below: the database
+	// pool allows a single connection, and nested queries while a cursor is
 	// open would deadlock waiting for a free connection.
-	itemIDs := make([]string, 0)
-	for rows.Next() {
-		var itemID string
-		if err := rows.Scan(&itemID); err != nil {
-			rows.Close()
-			return nil, "", false, err
-		}
-		itemIDs = append(itemIDs, itemID)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
+	itemIDs, err := h.queries().ListCollectionBookItemIDs(ctx, id)
+	if err != nil {
 		return nil, "", false, err
 	}
-	rows.Close()
 	books := make([]any, 0)
 	visible := 0
 	for _, itemID := range itemIDs {
@@ -1474,13 +1446,12 @@ func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User)
 		books = append(books, item)
 		visible++
 	}
-	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(description), "books": books, "lastUpdate": dbtime.Millis(updated), "createdAt": dbtime.Millis(created)}, libraryID, visible > 0 || len(books) == 0, nil
+	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(c.Description), "books": books, "lastUpdate": dbtime.Millis(c.Updatedat), "createdAt": dbtime.Millis(c.Createdat)}, libraryID, visible > 0 || len(books) == 0, nil
 }
 
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
-	var libraryID, name string
-	var desc sql.NullString
-	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,name,description FROM collections WHERE id=?`, id).Scan(&libraryID, &name, &desc); errors.Is(err, sql.ErrNoRows) {
+	c, err := h.queries().GetCollection(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		httputil.SendStatus(w, 404)
 		return true
 	} else if err != nil {
@@ -1488,6 +1459,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		http.Error(w, "database read failed", 500)
 		return true
 	}
+	libraryID, name, desc := c.Libraryid.String, c.Name.String, c.Description
 	if !canAccessLibrary(permissions(user), libraryID) {
 		httputil.SendStatus(w, 404)
 		return true
@@ -1525,7 +1497,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	}
 	defer tx.Rollback()
 	if books := stringSlice(body["books"]); len(books) > 0 {
-		rows, err := tx.QueryContext(r.Context(), `SELECT cb.id,li.id,cb."order" FROM collectionBooks cb JOIN libraryItems li ON li.mediaId=cb.bookId AND li.mediaType='book' WHERE cb.collectionId=?`, id)
+		linkRows, err := sqlc.New(tx).ListCollectionBookLinks(r.Context(), id)
 		if err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
@@ -1535,18 +1507,10 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 			linkID, itemID string
 			order          int
 		}
-		links := make([]collectionLink, 0)
-		for rows.Next() {
-			var link collectionLink
-			if err := rows.Scan(&link.linkID, &link.itemID, &link.order); err != nil {
-				rows.Close()
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-			links = append(links, link)
+		links := make([]collectionLink, 0, len(linkRows))
+		for _, row := range linkRows {
+			links = append(links, collectionLink{linkID: row.LinkID, itemID: row.ItemID, order: int(row.Position.Int64)})
 		}
-		rows.Close()
 		indexOf := func(item string) int {
 			for i, wanted := range books {
 				if wanted == item {
@@ -1558,7 +1522,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		sort.SliceStable(links, func(i, j int) bool { return indexOf(links[i].itemID) < indexOf(links[j].itemID) })
 		for i, link := range links {
 			if link.order != i+1 {
-				if _, err := tx.ExecContext(r.Context(), `UPDATE collectionBooks SET "order"=? WHERE id=?`, i+1, link.linkID); err != nil {
+				if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(i + 1), ID: link.linkID}); err != nil {
 					logging.RequestError(r, "database write failed", err)
 					http.Error(w, "database write failed", 500)
 					return true
@@ -1568,7 +1532,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		}
 	}
 	if changed {
-		if _, err := tx.ExecContext(r.Context(), `UPDATE collections SET name=?,description=?,updatedAt=? WHERE id=?`, name, desc, dbtime.Now(), id); err != nil {
+		if err := sqlc.New(tx).UpdateCollection(r.Context(), sqlc.UpdateCollectionParams{Name: name, Description: desc, Updatedat: dbtime.Now(), ID: id}); err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return true
@@ -1596,8 +1560,8 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 // are filtered before the query; adding a batch with no valid books is an
 // error, while removing unknown books is an idempotent no-op.
 func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, user store.User, id string, add bool) bool {
-	var libraryID string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM collections WHERE id=?`, id).Scan(&libraryID); errors.Is(err, sql.ErrNoRows) {
+	libraryID, err := h.collectionLibraryID(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		sendEntityNotFound(w, "Collection not found")
 		return true
 	} else if err != nil {
@@ -1674,36 +1638,23 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	if add {
-		var order int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM collectionBooks WHERE collectionId=?`, id).Scan(&order); err != nil {
+		count, err := h.queries().CountCollectionBooks(r.Context(), id)
+		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
-		rows, err := h.db.QueryContext(r.Context(), `SELECT bookId FROM collectionBooks WHERE collectionId=?`, id)
+		order := int(count)
+		members, err := h.queries().ListCollectionBookMediaIDs(r.Context(), id)
 		if err != nil {
 			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
 		existing := map[string]bool{}
-		for rows.Next() {
-			var mediaID string
-			if err := rows.Scan(&mediaID); err != nil {
-				rows.Close()
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			existing[mediaID] = true
+		for _, m := range members {
+			existing[m.String] = true
 		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return true
-		}
-		rows.Close()
 		tx, err := h.db.BeginTx(r.Context(), nil)
 		if err != nil {
 			logging.RequestError(r, "database write failed", err)
@@ -1726,7 +1677,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 				http.Error(w, "database write failed", 500)
 				return true
 			}
-			if _, err := tx.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, entryID, id, mediaID, order, dbtime.Now()); err != nil {
+			if err := sqlc.New(tx).InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: int64(order), Createdat: dbtime.Now()}); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
@@ -1740,7 +1691,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		return h.writeCollectionAfterBatch(w, r, user, id, changed)
 	}
 
-	rows, err = h.db.QueryContext(r.Context(), `SELECT id,bookId,"order" FROM collectionBooks WHERE collectionId=? ORDER BY "order" ASC`, id)
+	entries, err := h.queries().ListCollectionBooks(r.Context(), id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -1750,24 +1701,10 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		id, mediaID string
 		order       int
 	}
-	links := make([]link, 0)
-	for rows.Next() {
-		var entry link
-		if err := rows.Scan(&entry.id, &entry.mediaID, &entry.order); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return true
-		}
-		links = append(links, entry)
+	links := make([]link, 0, len(entries))
+	for _, e := range entries {
+		links = append(links, link{id: e.ID, mediaID: e.Bookid.String, order: int(e.Order.Int64)})
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	rows.Close()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
@@ -1778,7 +1715,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	changed, order := false, 1
 	for _, entry := range links {
 		if mediaSet[entry.mediaID] {
-			if _, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE id=?`, entry.id); err != nil {
+			if err := sqlc.New(tx).DeleteCollectionBook(r.Context(), entry.id); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
@@ -1787,7 +1724,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 			continue
 		}
 		if entry.order != order {
-			if _, err := tx.ExecContext(r.Context(), `UPDATE collectionBooks SET "order"=? WHERE id=?`, order, entry.id); err != nil {
+			if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(order), ID: entry.id}); err != nil {
 				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
@@ -1832,8 +1769,7 @@ func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
-	var libraryID string
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM collections WHERE id=?`, id).Scan(&libraryID)
+	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		sendEntityNotFound(w, "Collection not found")
 		return true
@@ -1871,9 +1807,8 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 		http.Error(w, "Book not found", 404)
 		return true
 	}
-	var count, exists int
-	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM collectionBooks WHERE collectionId=?`, id).Scan(&count)
-	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM collectionBooks WHERE collectionId=? AND bookId=?`, id, mediaID).Scan(&exists)
+	count, _ := h.queries().CountCollectionBooks(r.Context(), id)
+	exists, _ := h.queries().CountCollectionBook(r.Context(), sqlc.CountCollectionBookParams{CollectionID: id, BookID: mediaID})
 	if exists > 0 {
 		http.Error(w, "Book already in collection", 400)
 		return true
@@ -1885,7 +1820,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 		http.Error(w, "database write failed", 500)
 		return true
 	}
-	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, entryID, id, mediaID, count+1, now); err != nil {
+	if err = h.queries().InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: count + 1, Createdat: now}); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
@@ -1904,8 +1839,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 }
 
 func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, user store.User, id, itemID string) bool {
-	var libraryID string
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM collections WHERE id=?`, id).Scan(&libraryID)
+	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		sendEntityNotFound(w, "Collection not found")
 		return true
@@ -1941,27 +1875,23 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	defer tx.Rollback()
-	res, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE collectionId=? AND bookId=?`, id, mediaID)
+	q := sqlc.New(tx)
+	res, err := q.DeleteCollectionBookByMediaID(r.Context(), sqlc.DeleteCollectionBookByMediaIDParams{CollectionID: id, BookID: mediaID})
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	removed, _ := res.RowsAffected()
-	rows, err := tx.QueryContext(r.Context(), `SELECT id FROM collectionBooks WHERE collectionId=? ORDER BY "order"`, id)
+	entries, err := q.ListCollectionBooks(r.Context(), id)
 	if err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
-	seq := 1
-	for rows.Next() {
-		var link string
-		_ = rows.Scan(&link)
-		_, _ = tx.ExecContext(r.Context(), `UPDATE collectionBooks SET "order"=? WHERE id=?`, seq, link)
-		seq++
+	for seq, e := range entries {
+		_ = q.UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(seq + 1), ID: e.ID})
 	}
-	rows.Close()
 	if err = tx.Commit(); err != nil {
 		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)

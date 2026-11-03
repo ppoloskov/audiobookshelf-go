@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -20,8 +21,6 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
-
-const feedColumns = `id,slug,entityType,entityId,entityUpdatedAt,serverAddress,feedURL,imageURL,siteURL,title,description,author,podcastType,language,ownerName,ownerEmail,explicit,preventIndexing,coverPath,userId,createdAt,updatedAt`
 
 // feedRow is one feeds row. Every nullable column stays nullable so a NULL
 // reaches JSON as null and the RSS builder as a falsy value, like Sequelize.
@@ -68,37 +67,52 @@ type feedEpisodeRow struct {
 	Explicit      sql.NullBool
 }
 
-const feedEpisodeColumns = `id,title,author,description,siteURL,enclosureURL,enclosureType,enclosureSize,pubDate,season,episode,episodeType,duration,filePath,explicit`
-
-type rowScanner interface{ Scan(...any) error }
-
-func scanFeedRow(row rowScanner) (feedRow, error) {
-	var f feedRow
-	var entityUpdated, created, updated any
-	err := row.Scan(&f.ID, &f.Slug, &f.EntityType, &f.EntityID, &entityUpdated, &f.ServerAddress, &f.FeedURL, &f.ImageURL, &f.SiteURL, &f.Title, &f.Description, &f.Author, &f.PodcastType, &f.Language, &f.OwnerName, &f.OwnerEmail, &f.Explicit, &f.PreventIndexing, &f.CoverPath, &f.UserID, &created, &updated)
-	f.EntityUpdatedAt, f.CreatedAt, f.UpdatedAt = asTime(entityUpdated), asTime(created), asTime(updated)
-	return f, err
+// feedFromRow maps a feeds row from the generated queries. The nullable flags
+// keep NULL, as the wire and RSS code read them.
+func feedFromRow(r sqlc.Feed) feedRow {
+	return feedRow{
+		ID: r.ID, Slug: r.Slug, EntityType: r.Entitytype, EntityID: r.Entityid, EntityUpdatedAt: asTime(r.Entityupdatedat),
+		ServerAddress: r.Serveraddress, FeedURL: r.Feedurl, ImageURL: r.Imageurl, SiteURL: r.Siteurl, Title: r.Title,
+		Description: r.Description, Author: r.Author, PodcastType: r.Podcasttype, Language: r.Language,
+		OwnerName: r.Ownername, OwnerEmail: r.Owneremail, Explicit: nullBool(r.Explicit), PreventIndexing: nullBool(r.Preventindexing),
+		CoverPath: r.Coverpath, UserID: r.Userid, CreatedAt: asTime(r.Createdat), UpdatedAt: asTime(r.Updatedat),
+	}
 }
 
+// feedResult is feedFromRow for a generated query's (row, error) result.
+func feedResult(row sqlc.Feed, err error) (feedRow, error) {
+	if err != nil {
+		return feedRow{}, err
+	}
+	return feedFromRow(row), nil
+}
+
+func feedEpisodeFromRow(r sqlc.Feedepisode) feedEpisodeRow {
+	return feedEpisodeRow{
+		ID: r.ID, Title: r.Title, Author: r.Author, Description: r.Description, SiteURL: r.Siteurl,
+		EnclosureURL: r.Enclosureurl, EnclosureType: r.Enclosuretype, EnclosureSize: r.Enclosuresize, PubDate: r.Pubdate,
+		Season: r.Season, Episode: r.Episode, EpisodeType: r.Episodetype, Duration: r.Duration, FilePath: r.Filepath,
+		Explicit: nullBool(r.Explicit),
+	}
+}
+
+// nullBool reads a nullable TINYINT(1) flag, keeping NULL.
+func nullBool(v sql.NullInt64) sql.NullBool { return sql.NullBool{Bool: v.Int64 != 0, Valid: v.Valid} }
+
 func (h *Handler) feedBySlug(ctx context.Context, slug string) (feedRow, error) {
-	return scanFeedRow(h.db.QueryRowContext(ctx, `SELECT `+feedColumns+` FROM feeds WHERE slug=?`, slug))
+	return feedResult(h.queries().GetFeedBySlug(ctx, slug))
 }
 
 func (h *Handler) feedEpisodeRows(ctx context.Context, feedID string) ([]feedEpisodeRow, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT `+feedEpisodeColumns+` FROM feedEpisodes WHERE feedId=? ORDER BY rowid`, feedID)
+	rows, err := h.queries().ListFeedEpisodes(ctx, feedID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := []feedEpisodeRow{}
-	for rows.Next() {
-		var e feedEpisodeRow
-		if err := rows.Scan(&e.ID, &e.Title, &e.Author, &e.Description, &e.SiteURL, &e.EnclosureURL, &e.EnclosureType, &e.EnclosureSize, &e.PubDate, &e.Season, &e.Episode, &e.EpisodeType, &e.Duration, &e.FilePath, &e.Explicit); err != nil {
-			return nil, err
-		}
-		out = append(out, e)
+	out := make([]feedEpisodeRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, feedEpisodeFromRow(r))
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func boolPtr(v sql.NullBool) *bool {
@@ -157,32 +171,15 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT `+feedColumns+` FROM feeds`)
+	rows, err := h.queries().ListFeeds(r.Context())
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
 		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
-	var feeds []feedRow
-	for rows.Next() {
-		f, err := scanFeedRow(rows)
-		if err != nil {
-			_ = rows.Close()
-			logging.RequestError(r, "internal error", err)
-			httputil.SendStatus(w, 500, httputil.WithoutETag())
-			return
-		}
-		feeds = append(feeds, f)
-	}
-	err = rows.Err()
-	_ = rows.Close()
-	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return
-	}
-	out := wire.FeedList{Feeds: make([]wire.Feed, 0, len(feeds)), Minified: make([]wire.FeedMinified, 0, len(feeds))}
-	for _, f := range feeds {
+	out := wire.FeedList{Feeds: make([]wire.Feed, 0, len(rows)), Minified: make([]wire.FeedMinified, 0, len(rows))}
+	for _, row := range rows {
+		f := feedFromRow(row)
 		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
 		if err != nil {
 			logging.RequestError(r, "internal error", err)
@@ -335,8 +332,8 @@ func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
 
 // slugInUse answers 400 and reports true when a feed already has the slug.
 func (h *Handler) slugInUse(ctx context.Context, w http.ResponseWriter, slug string) bool {
-	var count int
-	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM feeds WHERE slug=?`, slug).Scan(&count); err != nil {
+	count, err := h.queries().CountFeedsBySlug(ctx, slug)
+	if err != nil {
 		logging.Errorf("[sharing] slugInUse: internal error: %v", err)
 		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return true
@@ -366,11 +363,8 @@ func boolInt64(b bool) int64 {
 	return 0
 }
 
-func nullBoolInt(v sql.NullBool) any {
-	if !v.Valid {
-		return nil
-	}
-	return boolInt64(v.Bool)
+func nullBoolInt(v sql.NullBool) sql.NullInt64 {
+	return sql.NullInt64{Int64: boolInt64(v.Bool), Valid: v.Valid}
 }
 
 // newFeedRow is Feed.getFeedObjFor* plus the options and a new id.
@@ -388,8 +382,14 @@ func newFeedRow(id, userID, entityType, entityID string, src *feedSource, server
 	}
 }
 
-func (f feedRow) insertArgs() []any {
-	return []any{f.ID, f.Slug, f.EntityType, f.EntityID, dbtime.Format(f.EntityUpdatedAt), f.ServerAddress, f.FeedURL, f.ImageURL, f.SiteURL, f.Title, f.Description, f.Author, f.PodcastType, f.Language, f.OwnerName, f.OwnerEmail, nullBoolInt(f.Explicit), nullBoolInt(f.PreventIndexing), f.CoverPath, f.UserID, dbtime.Format(f.CreatedAt), dbtime.Format(f.UpdatedAt)}
+func (f feedRow) insertParams() sqlc.InsertFeedParams {
+	return sqlc.InsertFeedParams{
+		ID: f.ID, Slug: f.Slug, EntityType: f.EntityType, EntityID: f.EntityID, Entityupdatedat: dbtime.Format(f.EntityUpdatedAt),
+		ServerAddress: f.ServerAddress, FeedUrl: f.FeedURL, ImageUrl: f.ImageURL, SiteUrl: f.SiteURL, Title: f.Title,
+		Description: f.Description, Author: f.Author, PodcastType: f.PodcastType, Language: f.Language,
+		OwnerName: f.OwnerName, OwnerEmail: f.OwnerEmail, Explicit: nullBoolInt(f.Explicit), PreventIndexing: nullBoolInt(f.PreventIndexing),
+		CoverPath: f.CoverPath, UserID: f.UserID, Createdat: dbtime.Format(f.CreatedAt), Updatedat: dbtime.Format(f.UpdatedAt),
+	}
 }
 
 // episodeRow is FeedEpisode.getFeedEpisodeObj*: the episode id is part of the
@@ -404,8 +404,15 @@ func episodeRow(id string, feed feedRow, ep feedEpisodeSource) feedEpisodeRow {
 	}
 }
 
-func (e feedEpisodeRow) args() []any {
-	return []any{e.ID, e.Title, e.Author, e.Description, e.SiteURL, e.EnclosureURL, e.EnclosureType, e.EnclosureSize, e.PubDate, e.Season, e.Episode, e.EpisodeType, e.Duration, e.FilePath, nullBoolInt(e.Explicit)}
+// params is the feedEpisodes upsert for this episode in feedID, with createdAt
+// and updatedAt both set to at (a new row; an existing row keeps its own).
+func (e feedEpisodeRow) params(feedID, at string) sqlc.UpsertFeedEpisodeParams {
+	return sqlc.UpsertFeedEpisodeParams{
+		ID: e.ID, Title: e.Title, Author: e.Author, Description: e.Description, SiteUrl: e.SiteURL,
+		EnclosureUrl: e.EnclosureURL, EnclosureType: e.EnclosureType, EnclosureSize: e.EnclosureSize, PubDate: e.PubDate,
+		Season: e.Season, Episode: e.Episode, EpisodeType: e.EpisodeType, Duration: e.Duration, FilePath: e.FilePath,
+		Explicit: nullBoolInt(e.Explicit), Createdat: at, Updatedat: at, FeedID: feedID,
+	}
 }
 
 // createFeed is Feed.createFeedFor* (server/models/Feed.js:157): the feed row
@@ -422,7 +429,8 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 		return feedRow{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO feeds(`+feedColumns+`) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, feed.insertArgs()...); err != nil {
+	q := sqlc.New(tx)
+	if err = q.InsertFeed(ctx, feed.insertParams()); err != nil {
 		return feedRow{}, err
 	}
 	for _, ep := range src.Episodes {
@@ -430,8 +438,7 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 		if err != nil {
 			return feedRow{}, err
 		}
-		args := append(episodeRow(epID, feed, ep).args(), dbtime.Format(now), dbtime.Format(now), id)
-		if _, err = tx.ExecContext(ctx, `INSERT INTO feedEpisodes(`+feedEpisodeColumns+`,createdAt,updatedAt,feedId) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, args...); err != nil {
+		if err = q.UpsertFeedEpisode(ctx, episodeRow(epID, feed, ep).params(id, dbtime.Format(now))); err != nil {
 			return feedRow{}, err
 		}
 	}
@@ -445,7 +452,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	id := routeID(r.URL.Path, "close")
-	feed, err := scanFeedRow(h.db.QueryRowContext(r.Context(), `SELECT `+feedColumns+` FROM feeds WHERE id=?`, id))
+	feed, err := feedResult(h.queries().GetFeed(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
@@ -455,7 +462,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
 	}
-	if _, err = h.db.ExecContext(r.Context(), `DELETE FROM feeds WHERE id=?`, id); err != nil {
+	if err = h.queries().DeleteFeed(r.Context(), id); err != nil {
 		logging.RequestError(r, "internal error", err)
 		httputil.SendStatus(w, 500, httputil.WithoutETag())
 		return
@@ -555,8 +562,12 @@ func (h *Handler) refreshFeedIfStale(ctx context.Context, feed feedRow, eps []fe
 		return feed, eps, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err = tx.ExecContext(ctx, `UPDATE feeds SET entityUpdatedAt=?,imageURL=?,siteURL=?,title=?,description=?,author=?,podcastType=?,language=?,explicit=?,coverPath=?,updatedAt=? WHERE id=?`,
-		dbtime.Format(next.EntityUpdatedAt), next.ImageURL, next.SiteURL, next.Title, next.Description, next.Author, next.PodcastType, next.Language, nullBoolInt(next.Explicit), next.CoverPath, dbtime.Format(next.UpdatedAt), feed.ID); err != nil {
+	q := sqlc.New(tx)
+	if err = q.UpdateFeedFromEntity(ctx, sqlc.UpdateFeedFromEntityParams{
+		Entityupdatedat: dbtime.Format(next.EntityUpdatedAt), ImageUrl: next.ImageURL, SiteUrl: next.SiteURL, Title: next.Title,
+		Description: next.Description, Author: next.Author, PodcastType: next.PodcastType, Language: next.Language,
+		Explicit: nullBoolInt(next.Explicit), CoverPath: next.CoverPath, Updatedat: dbtime.Format(next.UpdatedAt), ID: feed.ID,
+	}); err != nil {
 		return feed, eps, err
 	}
 	kept := map[string]bool{}
@@ -573,8 +584,7 @@ func (h *Handler) refreshFeedIfStale(ctx context.Context, feed feedRow, eps []fe
 		fresh = append(fresh, row)
 		// bulkCreate with updateOnDuplicate leaves createdAt and updatedAt of
 		// existing rows alone (server/models/FeedEpisode.js updateOnDuplicate list).
-		args := append(row.args(), dbtime.Format(now), dbtime.Format(now), feed.ID)
-		if _, err = tx.ExecContext(ctx, `INSERT INTO feedEpisodes(`+feedEpisodeColumns+`,createdAt,updatedAt,feedId) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,author=excluded.author,description=excluded.description,siteURL=excluded.siteURL,enclosureURL=excluded.enclosureURL,enclosureType=excluded.enclosureType,enclosureSize=excluded.enclosureSize,pubDate=excluded.pubDate,season=excluded.season,episode=excluded.episode,episodeType=excluded.episodeType,duration=excluded.duration,filePath=excluded.filePath,explicit=excluded.explicit`, args...); err != nil {
+		if err = q.UpsertFeedEpisode(ctx, row.params(feed.ID, dbtime.Format(now))); err != nil {
 			return feed, eps, err
 		}
 	}
@@ -582,7 +592,7 @@ func (h *Handler) refreshFeedIfStale(ctx context.Context, feed feedRow, eps []fe
 		if kept[e.ID] {
 			continue
 		}
-		if _, err = tx.ExecContext(ctx, `DELETE FROM feedEpisodes WHERE id=?`, e.ID); err != nil {
+		if err = q.DeleteFeedEpisode(ctx, e.ID); err != nil {
 			return feed, eps, err
 		}
 	}
@@ -601,8 +611,7 @@ func feedColumnsChanged(a, b feedRow) bool {
 }
 
 func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episodeID string) {
-	var path sql.NullString
-	err := h.db.QueryRowContext(r.Context(), `SELECT fe.filePath FROM feedEpisodes fe JOIN feeds f ON f.id=fe.feedId WHERE f.slug=? AND fe.id=?`, slug, episodeID).Scan(&path)
+	path, err := h.queries().GetFeedEpisodeFilePath(r.Context(), sqlc.GetFeedEpisodeFilePathParams{Slug: slug, EpisodeID: episodeID})
 	if err != nil || path.String == "" {
 		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
@@ -613,8 +622,8 @@ func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episode
 // feedCover streams the cover with Content-Type image/<extension> like
 // RssFeedManager.getFeedCover (res.type + createReadStream, no ranges).
 func (h *Handler) feedCover(w http.ResponseWriter, r *http.Request, slug string) {
-	var path sql.NullString
-	if err := h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM feeds WHERE slug=?`, slug).Scan(&path); err != nil || path.String == "" {
+	path, err := h.queries().GetFeedCoverPathBySlug(r.Context(), slug)
+	if err != nil || path.String == "" {
 		httputil.SendStatus(w, 404, httputil.WithoutETag())
 		return
 	}

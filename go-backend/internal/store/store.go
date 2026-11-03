@@ -346,6 +346,22 @@ func NullIfBlank(s string) any {
 	return s
 }
 
+// Text is a value for a nullable TEXT column in a sqlc parameter.
+func Text(s string) sql.NullString { return sql.NullString{String: s, Valid: true} }
+
+// TextOrNull is a value for a nullable TEXT column that is stored as NULL when
+// empty (NullIfEmpty for sqlc parameters).
+func TextOrNull(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
+
+// Texts is Text for each element, for sqlc.slice parameters over nullable columns.
+func Texts(values []string) []sql.NullString {
+	out := make([]sql.NullString, len(values))
+	for i, v := range values {
+		out[i] = Text(v)
+	}
+	return out
+}
+
 // NullIfEmpty is a text value that is stored or serialized as NULL when empty.
 func NullIfEmpty(s string) any {
 	if s == "" {

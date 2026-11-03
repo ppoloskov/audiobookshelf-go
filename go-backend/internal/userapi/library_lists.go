@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -88,7 +89,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 			include = append(include, v)
 		}
 	}
-	ids, err := h.queryIDs(r, `SELECT id FROM collections WHERE libraryId=? ORDER BY createdAt ASC`, libraryID)
+	ids, err := h.queries().ListLibraryCollectionIDs(r.Context(), libraryID)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -144,7 +145,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	if !ok {
 		return
 	}
-	ids, err := h.queryIDs(r, `SELECT id FROM playlists WHERE userId=? AND libraryId=?`, user.ID, libraryID)
+	ids, err := h.queries().ListUserLibraryPlaylistIDs(r.Context(), sqlc.ListUserLibraryPlaylistIDsParams{UserID: user.ID, LibraryID: libraryID})
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -175,23 +176,4 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 		results = append(results, p.dto)
 	}
 	httputil.WriteJSON(w, 200, wire.LibraryPlaylistsPage{Results: results, Total: len(playlists), Limit: limit, Page: page})
-}
-
-// queryIDs materializes a single-column id query and closes the cursor before
-// callers open further queries on the one-connection pool.
-func (h *Handler) queryIDs(r *http.Request, query string, args ...any) ([]string, error) {
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	ids := make([]string, 0)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
 }

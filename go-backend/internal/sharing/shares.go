@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -29,16 +30,21 @@ type shareRow struct {
 	IsDownloadable sql.NullBool
 }
 
-const shareColumns = `id,mediaItemId,mediaItemType,slug,expiresAt,isDownloadable,createdAt,updatedAt`
+// shareFromRow maps a mediaItemShares row from the generated queries.
+func shareFromRow(r sqlc.Mediaitemshare) shareRow {
+	return shareRow{
+		ID: r.ID, MediaItemID: r.Mediaitemid.String, MediaItemType: r.Mediaitemtype.String, Slug: r.Slug.String,
+		ExpiresAt: asTime(r.Expiresat), CreatedAt: asTime(r.Createdat), UpdatedAt: asTime(r.Updatedat),
+		IsDownloadable: sql.NullBool{Bool: r.Isdownloadable.Int64 != 0, Valid: r.Isdownloadable.Valid},
+	}
+}
 
-func scanShareRow(row rowScanner) (shareRow, error) {
-	var s shareRow
-	var mediaID, typ, slug sql.NullString
-	var expires, created, updated any
-	err := row.Scan(&s.ID, &mediaID, &typ, &slug, &expires, &s.IsDownloadable, &created, &updated)
-	s.MediaItemID, s.MediaItemType, s.Slug = mediaID.String, typ.String, slug.String
-	s.ExpiresAt, s.CreatedAt, s.UpdatedAt = asTime(expires), asTime(created), asTime(updated)
-	return s, err
+// shareResult is shareFromRow for a generated query's (row, error) result.
+func shareResult(row sqlc.Mediaitemshare, err error) (shareRow, error) {
+	if err != nil {
+		return shareRow{}, err
+	}
+	return shareFromRow(row), nil
 }
 
 // wire is MediaItemShare.toJSONForClient: Date attributes as ISO strings.
@@ -94,8 +100,8 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return
 	}
 	ctx := r.Context()
-	var existingMedia sql.NullString
-	err := h.db.QueryRowContext(ctx, `SELECT mediaItemId FROM mediaItemShares WHERE slug=? OR mediaItemId=? LIMIT 1`, slug, mediaID).Scan(&existingMedia)
+	q := h.queries()
+	existingMedia, err := q.GetShareMediaIDBySlugOrMedia(ctx, sqlc.GetShareMediaIDBySlugOrMediaParams{Slug: slug, MediaID: mediaID})
 	if err == nil {
 		if existingMedia.String == mediaID {
 			httputil.SendText(w, 409, "Item is already shared", httputil.WithoutETag())
@@ -109,6 +115,8 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
 		return
 	}
+	// The media table is chosen by type; books and podcastEpisodes are not
+	// sharing tables, so this existence check stays a plain query.
 	table := "books"
 	if mediaType == "podcastEpisode" {
 		table = "podcastEpisodes"
@@ -131,23 +139,27 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	share := shareRow{ID: id, MediaItemID: mediaID, MediaItemType: mediaType, Slug: slug, CreatedAt: now, UpdatedAt: now}
-	var expires, downloadable any
+	var expires any
 	if expiresMillis > 0 {
 		share.ExpiresAt = time.UnixMilli(int64(expiresMillis)).UTC()
 		expires = dbtime.Format(share.ExpiresAt)
 	}
+	var downloadable sql.NullInt64
 	var dl bool
 	if string(req.IsDownloadable) != "null" && json.Unmarshal(req.IsDownloadable, &dl) == nil {
 		share.IsDownloadable = sql.NullBool{Bool: dl, Valid: true}
-		downloadable = boolInt64(dl)
+		downloadable = sql.NullInt64{Int64: boolInt64(dl), Valid: true}
 	}
-	if _, err = h.db.ExecContext(ctx, `INSERT INTO mediaItemShares(id,mediaItemId,mediaItemType,slug,pash,expiresAt,extraData,isDownloadable,createdAt,updatedAt,userId) VALUES(?,?,?,?,NULL,?,NULL,?,?,?,?)`, id, mediaID, mediaType, slug, expires, downloadable, dbtime.Format(now), dbtime.Format(now), u.ID); err != nil {
+	if err = q.InsertMediaItemShare(ctx, sqlc.InsertMediaItemShareParams{
+		ID: id, MediaID: mediaID, MediaType: mediaType, Slug: slug, Expiresat: expires, Isdownloadable: downloadable,
+		Createdat: dbtime.Format(now), Updatedat: dbtime.Format(now), UserID: u.ID,
+	}); err != nil {
 		logging.RequestError(r, "Internal server error", err)
 		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
 		return
 	}
 	if !share.ExpiresAt.IsZero() && !share.ExpiresAt.After(time.Now()) {
-		_, _ = h.db.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE id=?`, id)
+		_ = q.DeleteMediaItemShare(ctx, id)
 	}
 	if h.emit != nil {
 		h.emit("@admins", "share_open", share.wire())
@@ -165,7 +177,7 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return
 	}
 	id := routeID(r.URL.Path, "")
-	share, err := scanShareRow(h.db.QueryRowContext(r.Context(), `SELECT `+shareColumns+` FROM mediaItemShares WHERE id=?`, id))
+	share, err := shareResult(h.queries().GetMediaItemShare(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		httputil.SendText(w, 404, "Media item share not found", httputil.WithoutETag())
 		return
@@ -175,7 +187,7 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
 		return
 	}
-	if _, err = h.db.ExecContext(r.Context(), `DELETE FROM mediaItemShares WHERE id=?`, id); err != nil {
+	if err = h.queries().DeleteMediaItemShare(r.Context(), id); err != nil {
 		logging.RequestError(r, "Internal server error", err)
 		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
 		return
@@ -202,7 +214,7 @@ var errShareGone = errors.New("share expired")
 
 // findShare is ShareManager.findBySlug.
 func (h *Handler) findShare(ctx context.Context, slug string) (shareRow, error) {
-	return scanShareRow(h.db.QueryRowContext(ctx, `SELECT `+shareColumns+` FROM mediaItemShares WHERE slug=?`, slug))
+	return shareResult(h.queries().GetMediaItemShareBySlug(ctx, slug))
 }
 
 // loadShare is findShare plus the expiry check of
@@ -214,7 +226,7 @@ func (h *Handler) loadShare(ctx context.Context, slug string) (shareRow, error) 
 		return shareRow{}, err
 	}
 	if !share.ExpiresAt.IsZero() && share.ExpiresAt.Before(time.Now()) {
-		_, _ = h.db.ExecContext(ctx, `DELETE FROM mediaItemShares WHERE id=?`, share.ID)
+		_ = h.queries().DeleteMediaItemShare(ctx, share.ID)
 		h.dropShareSessions(share.ID)
 		if h.emit != nil {
 			h.emit("@admins", "share_closed", share.wire())

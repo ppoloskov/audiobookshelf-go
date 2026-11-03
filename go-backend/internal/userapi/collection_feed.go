@@ -4,46 +4,34 @@ import (
 	"database/sql"
 	"net/http"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
 )
 
 func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[string]any, error) {
-	var id, slug, userID, entityType, entityID string
-	var entityUpdated, cover, serverAddress, feedURL, imageURL, siteURL sql.NullString
-	var title, description, author, podcastType, language, ownerName, ownerEmail string
-	var explicit, preventIndexing bool
-	var created, updated any
-	err := h.db.QueryRowContext(r.Context(), `SELECT id,slug,userId,entityType,entityId,entityUpdatedAt,coverPath,serverAddress,feedURL,imageURL,siteURL,title,description,author,podcastType,language,ownerName,ownerEmail,explicit,preventIndexing,createdAt,updatedAt FROM feeds WHERE entityType='collection' AND entityId=? LIMIT 1`, collectionID).Scan(&id, &slug, &userID, &entityType, &entityID, &entityUpdated, &cover, &serverAddress, &feedURL, &imageURL, &siteURL, &title, &description, &author, &podcastType, &language, &ownerName, &ownerEmail, &explicit, &preventIndexing, &created, &updated)
+	feed, err := h.queries().GetFeedByEntity(r.Context(), sqlc.GetFeedByEntityParams{EntityType: "collection", EntityID: collectionID})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var entityUpdatedAt any
-	if entityUpdated.Valid {
-		entityUpdatedAt = dbtime.Millis(entityUpdated.String)
-	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,title,description,enclosureURL,enclosureSize,enclosureType,pubDate,siteURL,author,explicit,duration,season,episode,episodeType,filePath FROM feedEpisodes WHERE feedId=? ORDER BY pubDate DESC`, id)
+	eps, err := h.queries().ListFeedEpisodesNewestFirst(r.Context(), feed.ID)
 	if err != nil {
 		return nil, err
 	}
-	episodes := make([]any, 0)
-	for rows.Next() {
-		var eid, etitle, edescription, enclosureURL, enclosureType, pubDate, link, eauthor, season, episode, episodeType, fullPath sql.NullString
-		var enclosureSize, duration sql.NullInt64
-		var exp sql.NullBool
-		if err := rows.Scan(&eid, &etitle, &edescription, &enclosureURL, &enclosureSize, &enclosureType, &pubDate, &link, &eauthor, &exp, &duration, &season, &episode, &episodeType, &fullPath); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		episodes = append(episodes, map[string]any{"id": eid.String, "title": store.NullString(etitle), "description": store.NullString(edescription), "enclosure": map[string]any{"url": store.NullString(enclosureURL), "size": store.NullInt64(enclosureSize), "type": store.NullString(enclosureType)}, "pubDate": store.NullString(pubDate), "link": store.NullString(link), "author": store.NullString(eauthor), "explicit": exp.Bool, "duration": store.NullInt64(duration), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "fullPath": store.NullString(fullPath)})
+	episodes := make([]any, 0, len(eps))
+	for _, e := range eps {
+		episodes = append(episodes, map[string]any{"id": e.ID, "title": store.NullString(e.Title), "description": store.NullString(e.Description), "enclosure": map[string]any{"url": store.NullString(e.Enclosureurl), "size": store.NullInt64(e.Enclosuresize), "type": store.NullString(e.Enclosuretype)}, "pubDate": store.NullString(e.Pubdate), "link": store.NullString(e.Siteurl), "author": store.NullString(e.Author), "explicit": e.Explicit.Int64 != 0, "duration": nullFloat(e.Duration), "season": store.NullString(e.Season), "episode": store.NullString(e.Episode), "episodeType": store.NullString(e.Episodetype), "fullPath": store.NullString(e.Filepath)})
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
+	return map[string]any{"id": feed.ID, "slug": feed.Slug.String, "userId": feed.Userid.String, "entityType": feed.Entitytype.String, "entityId": feed.Entityid.String, "entityUpdatedAt": dbtime.Millis(feed.Entityupdatedat), "coverPath": store.NullString(feed.Coverpath), "meta": map[string]any{"title": feed.Title.String, "description": feed.Description.String, "author": feed.Author.String, "imageUrl": store.NullString(feed.Imageurl), "feedUrl": store.NullString(feed.Feedurl), "link": store.NullString(feed.Siteurl), "explicit": feed.Explicit.Int64 != 0, "type": feed.Podcasttype.String, "language": feed.Language.String, "preventIndexing": feed.Preventindexing.Int64 != 0, "ownerName": feed.Ownername.String, "ownerEmail": feed.Owneremail.String}, "serverAddress": feed.Serveraddress.String, "feedUrl": feed.Feedurl.String, "episodes": episodes, "createdAt": dbtime.Millis(feed.Createdat), "updatedAt": dbtime.Millis(feed.Updatedat)}, nil
+}
+
+// nullFloat is a nullable FLOAT column as a JSON value: NULL becomes nil.
+func nullFloat(v sql.NullFloat64) any {
+	if !v.Valid {
+		return nil
 	}
-	rows.Close()
-	return map[string]any{"id": id, "slug": slug, "userId": userID, "entityType": entityType, "entityId": entityID, "entityUpdatedAt": entityUpdatedAt, "coverPath": store.NullString(cover), "meta": map[string]any{"title": title, "description": description, "author": author, "imageUrl": store.NullString(imageURL), "feedUrl": store.NullString(feedURL), "link": store.NullString(siteURL), "explicit": explicit, "type": podcastType, "language": language, "preventIndexing": preventIndexing, "ownerName": ownerName, "ownerEmail": ownerEmail}, "serverAddress": serverAddress.String, "feedUrl": feedURL.String, "episodes": episodes, "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated)}, nil
+	return v.Float64
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -27,6 +28,11 @@ type Handler struct {
 	mu       sync.Mutex
 	sessions map[string]*shareSession
 }
+
+// queries returns the generated query set on the handler's pool; sqlc.New only
+// stores the handle.
+func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
+
 type shareSession struct {
 	ID          string
 	ShareID     string

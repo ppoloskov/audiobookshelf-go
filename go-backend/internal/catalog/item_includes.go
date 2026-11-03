@@ -67,19 +67,17 @@ func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, item
 // (server/managers/ShareManager.js:49-60): the open (unexpired) share of a
 // media item without pash, userId and extraData; nil when there is none.
 func (h *Handler) openMediaItemShare(ctx context.Context, mediaItemID string) (*wire.MediaItemShareForClient, error) {
-	var share wire.MediaItemShareForClient
-	var itemType, slug sql.NullString
-	var expires, created, updated any
-	var downloadable sql.NullBool
-	err := h.db.QueryRowContext(ctx, `SELECT id,mediaItemId,mediaItemType,slug,expiresAt,isDownloadable,createdAt,updatedAt FROM mediaItemShares WHERE mediaItemId=? LIMIT 1`, mediaItemID).
-		Scan(&share.ID, &share.MediaItemID, &itemType, &slug, &expires, &downloadable, &created, &updated)
+	row, err := h.queries().GetMediaItemShareSummaryByMediaID(ctx, mediaItemID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	expiresMs, err := dbtime.OptionalMillis(expires)
+	var share wire.MediaItemShareForClient
+	share.ID, share.MediaItemID = row.ID, row.Mediaitemid.String
+	created, updated := row.Createdat, row.Updatedat
+	expiresMs, err := dbtime.OptionalMillis(row.Expiresat)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +92,8 @@ func (h *Handler) openMediaItemShare(ctx context.Context, mediaItemID string) (*
 	if err != nil {
 		return nil, err
 	}
-	share.MediaItemType, share.Slug, share.IsDownloadable = itemType.String, slug.String, downloadable.Valid && downloadable.Bool
+	share.MediaItemType, share.Slug = row.Mediaitemtype.String, row.Slug.String
+	share.IsDownloadable = row.Isdownloadable.Valid && row.Isdownloadable.Int64 != 0
 	share.ExpiresAt, share.CreatedAt, share.UpdatedAt = isoMillis(expiresMs), isoMillis(createdMs), isoMillis(updatedMs)
 	return &share, nil
 }

@@ -220,7 +220,7 @@ L2, JWT issuing -> L1).
   - Done when: those packages have no hand-written scans for `mediaProgresses`
     and `playbackSessions`; the persistence test (F5) passes.
 
-- [ ] L7: sqlc for collections, playlists, shares and feeds
+- [x] L7: sqlc for collections, playlists, shares and feeds
   - Files: `internal/db/queries/lists.sql`, `internal/catalog/` (collections),
     `internal/userapi/playlist.go`, `internal/sharing/`
   - Done when: no hand-written scans remain for those tables.
