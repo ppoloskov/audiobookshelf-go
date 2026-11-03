@@ -14,6 +14,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -65,7 +66,7 @@ func (h *Handler) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case isGet(r) && path == "/ping":
-		writeJSONForRequest(w, r, http.StatusOK, map[string]any{"success": true})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true}, httputil.ForRequest(r))
 	case isGet(r) && path == "/healthcheck":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "2")
@@ -146,7 +147,7 @@ func (h *Handler) status(w http.ResponseWriter, r *http.Request) {
 		payload["ConfigPath"] = h.Config.ConfigPath
 		payload["MetadataPath"] = h.Config.MetadataPath
 	}
-	writeJSONForRequest(w, r, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 }
 
 func (h *Handler) api(w http.ResponseWriter, r *http.Request, path string) {
@@ -193,7 +194,7 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request, path string) {
 		if libraries == nil {
 			libraries = []map[string]any{}
 		}
-		writeJSONForRequest(w, r, http.StatusOK, map[string]any{"libraries": libraries})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraries": libraries}, httputil.ForRequest(r))
 		return
 	}
 	// /authorize requires media-progress, browser-user, server-settings and
@@ -244,30 +245,7 @@ func stringArray(raw json.RawMessage, key string) []string {
 }
 
 func (h *Handler) unsupported(w http.ResponseWriter) {
-	writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	writeJSONBody(w, status, value, true)
-}
-
-func writeJSONForRequest(w http.ResponseWriter, r *http.Request, status int, value any) {
-	writeJSONBody(w, status, value, r.Method != http.MethodHead)
-}
-
-func writeJSONBody(w http.ResponseWriter, status int, value any, withBody bool) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		logging.Errorf("[server] writeJSONBody: internal server error: %v", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-	w.WriteHeader(status)
-	if withBody {
-		_, _ = w.Write(data)
-	}
+	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
 }
 
 func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }

@@ -35,6 +35,7 @@ linters:
           allow:
             - $gostd
             - audiobookshelf-compat/internal/wire
+            - audiobookshelf-compat/internal/logging
         textsort-leaf-dependency:
           list-mode: strict
           files:

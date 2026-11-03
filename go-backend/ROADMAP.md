@@ -218,7 +218,7 @@ Helper families are listed with file and line. Each task removes one family
 or one package's copies. Leaf packages named here do not exist yet; the task
 creates them.
 
-- [ ] K1: Create `internal/httputil` with the Express-exact JSON writer; move the server's three writers into it
+- [x] K1: Create `internal/httputil` with the Express-exact JSON writer; move the server's three writers into it
   - Files: `go-backend/internal/server/server.go` (`writeJSON` line 250,
     `writeJSONForRequest` line 254, `writeJSONBody` line 258); new
     `go-backend/internal/httputil/json.go`

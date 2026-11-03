@@ -21,6 +21,7 @@ import (
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/emailapi"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/notifications"
@@ -282,7 +283,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isGet(r) && path == "/ping" {
-		writeJSONForRequest(w, r, 200, map[string]any{"success": true})
+		httputil.WriteJSON(w, 200, map[string]any{"success": true}, httputil.ForRequest(r))
 		return
 	}
 	if isGet(r) && path == "/healthcheck" {
@@ -367,10 +368,10 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		payload, err := rt.audiotools.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
 		if err != nil {
 			logging.RequestError(r, "error", err)
-			writeJSON(w, 500, map[string]string{"error": "failed to load tasks"})
+			httputil.WriteJSON(w, 500, map[string]string{"error": "failed to load tasks"})
 			return
 		}
-		writeJSON(w, 200, payload)
+		httputil.WriteJSON(w, 200, payload)
 		return
 	}
 	if rt.backup != nil {
@@ -378,7 +379,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
 }
 
 // serveRoute dispatches a request to a handler registered on the route mux and
@@ -480,7 +481,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		payload["ConfigPath"] = rt.cfg.ConfigPath
 		payload["MetadataPath"] = rt.cfg.MetadataPath
 	}
-	writeJSONForRequest(w, r, 200, payload)
+	httputil.WriteJSON(w, 200, payload, httputil.ForRequest(r))
 }
 func (rt *Runtime) settingsAllowIframe() bool {
 	settings, err := rt.repo.ServerSettings(context.Background())
