@@ -2,6 +2,7 @@ package contracttest
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -58,6 +59,10 @@ type journeyStep struct {
 	// shapeSkip is why the recorded shape is not checked here. The status and
 	// media type still are.
 	shapeSkip string
+	// settle marks a step whose handler answers before its work is done (the
+	// trial waited for its events). The runner waits for the database to stop
+	// changing before the next step.
+	settle bool
 }
 
 // recordedStep is one entry of journey.json.
@@ -90,6 +95,7 @@ func TestJourney(t *testing.T) {
 			runJourneyStep(t, in, c, st, recorded)
 		})
 	}
+	checkJourneyDumps(t, in, recorded)
 }
 
 func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, recorded map[string]recordedStep) {
@@ -147,6 +153,10 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, re
 	if method == "" {
 		method = http.MethodGet
 	}
+	before := ""
+	if st.settle {
+		before = databaseFingerprint(t, in.DB)
+	}
 	var resp *http.Response
 	var raw []byte
 	for attempt := 0; ; attempt++ {
@@ -155,6 +165,9 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, re
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
+	}
+	if st.settle {
+		waitForBackgroundWork(t, in.DB, before)
 	}
 
 	if resp.StatusCode != rec.Status {
@@ -345,6 +358,47 @@ func encodeJourneyImage(t testing.TB, fill color.RGBA, width, height int, asPNG 
 		t.Fatalf("encode journey image: %v", err)
 	}
 	return buf.Bytes()
+}
+
+// databaseFingerprint summarises the tables background matching writes: the
+// newest updatedAt of each and the row counts of the two that are created.
+func databaseFingerprint(t testing.TB, db *sql.DB) string {
+	t.Helper()
+	var fp string
+	err := db.QueryRow(`SELECT (SELECT COALESCE(MAX(updatedAt), '') FROM libraryItems) || '|' ||
+		(SELECT COALESCE(MAX(updatedAt), '') FROM books) || '|' ||
+		(SELECT COALESCE(MAX(updatedAt), '') FROM authors) || '|' ||
+		(SELECT COALESCE(MAX(updatedAt), '') FROM series) || '|' ||
+		(SELECT COUNT(*) FROM authors) || '|' || (SELECT COUNT(*) FROM series)`).Scan(&fp)
+	if err != nil {
+		t.Fatalf("database fingerprint: %v", err)
+	}
+	return fp
+}
+
+// waitForBackgroundWork waits for work a handler started and answered before
+// (the trial waited for its Socket.IO events, which this runner cannot read).
+// If the database changed since before, the wait ends once it has been quiet for
+// 300ms. If it did not change within 2s, there was nothing to wait for.
+func waitForBackgroundWork(t testing.TB, db *sql.DB, before string) {
+	t.Helper()
+	const quiet, noChange, limit = 300 * time.Millisecond, 2 * time.Second, 10 * time.Second
+	start := time.Now()
+	last, lastChange, changed := before, start, false
+	for time.Since(start) < limit {
+		time.Sleep(25 * time.Millisecond)
+		fp := databaseFingerprint(t, db)
+		if fp != last {
+			last, lastChange, changed = fp, time.Now(), true
+		}
+		if changed && time.Since(lastChange) >= quiet {
+			return
+		}
+		if !changed && time.Since(start) >= noChange {
+			return
+		}
+	}
+	t.Fatalf("background work still changing the database after %s", limit)
 }
 
 // closedURL is an address nothing listens on: the port is bound, then released.
