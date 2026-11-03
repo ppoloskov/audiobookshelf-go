@@ -53,7 +53,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 		return
 	}
 	permission, permissionArgs := userMediaClause(user, "book")
-	shelves := make([]map[string]any, 0, 5)
+	shelves := make([]wire.Shelf, 0, 5)
 	for _, spec := range []struct {
 		id, label, key, query string
 	}{
@@ -110,7 +110,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 				if id == "listen-again" {
 					id, label, key = "listen-again", "Listen Again", "LabelListenAgain"
 				}
-				shelves = append(shelves, map[string]any{"id": id, "label": label, "labelStringKey": key, "type": "book", "entities": audio, "total": total})
+				shelves = append(shelves, wire.Shelf{ID: id, Label: label, LabelStringKey: key, Type: "book", Entities: audio, Total: total})
 			}
 			if len(reading) > 0 {
 				id, label, key := spec.id, spec.label, spec.key
@@ -119,10 +119,10 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 				} else {
 					id, label, key = "read-again", "Read Again", "LabelReadAgain"
 				}
-				shelves = append(shelves, map[string]any{"id": id, "label": label, "labelStringKey": key, "type": "book", "entities": reading, "total": total})
+				shelves = append(shelves, wire.Shelf{ID: id, Label: label, LabelStringKey: key, Type: "book", Entities: reading, Total: total})
 			}
 		} else if len(items) > 0 {
-			shelves = append(shelves, map[string]any{"id": spec.id, "label": spec.label, "labelStringKey": spec.key, "type": "book", "entities": items, "total": total})
+			shelves = append(shelves, wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: "book", Entities: items, Total: total})
 		}
 		// Remaining book shelves, in LibraryItem.getPersonalizedShelves order
 		// (server/models/LibraryItem.js:384-491).
@@ -144,42 +144,42 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.Streamed(), httputil.ForRequest(r))
 }
 
-func (h *Handler) appendContinueSeries(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+func (h *Handler) appendContinueSeries(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
 	items, count, err := h.continueSeriesShelf(r, user, libraryID, limit)
 	if err != nil {
 		return err
 	}
 	if len(items) > 0 {
-		*shelves = append(*shelves, map[string]any{"id": "continue-series", "label": "Continue Series", "labelStringKey": "LabelContinueSeries", "type": "book", "entities": items, "total": count})
+		*shelves = append(*shelves, wire.Shelf{ID: "continue-series", Label: "Continue Series", LabelStringKey: "LabelContinueSeries", Type: "book", Entities: items, Total: count})
 	}
 	return nil
 }
 
-func (h *Handler) appendRecentSeriesAndDiscover(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+func (h *Handler) appendRecentSeriesAndDiscover(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
 	series, count, err := h.recentSeriesShelf(r, user, libraryID, includeHas(r, "rssfeed"))
 	if err != nil {
 		return err
 	}
 	if len(series) > 0 {
-		*shelves = append(*shelves, map[string]any{"id": "recent-series", "label": "Recent Series", "labelStringKey": "LabelRecentSeries", "type": "series", "entities": series, "total": count})
+		*shelves = append(*shelves, wire.Shelf{ID: "recent-series", Label: "Recent Series", LabelStringKey: "LabelRecentSeries", Type: "series", Entities: series, Total: count})
 	}
 	items, count, err := h.discoverShelf(r, user, libraryID, limit)
 	if err != nil {
 		return err
 	}
 	if len(items) > 0 {
-		*shelves = append(*shelves, map[string]any{"id": "discover", "label": "Discover", "labelStringKey": "LabelDiscover", "type": "book", "entities": items, "total": count})
+		*shelves = append(*shelves, wire.Shelf{ID: "discover", Label: "Discover", LabelStringKey: "LabelDiscover", Type: "book", Entities: items, Total: count})
 	}
 	return nil
 }
 
-func (h *Handler) appendNewestAuthors(r *http.Request, user store.User, libraryID string, limit int, shelves *[]map[string]any) error {
+func (h *Handler) appendNewestAuthors(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
 	authors, count, err := h.newestAuthorsShelf(r, user, libraryID, limit)
 	if err != nil {
 		return err
 	}
 	if len(authors) > 0 {
-		*shelves = append(*shelves, map[string]any{"id": "newest-authors", "label": "Newest Authors", "labelStringKey": "LabelNewestAuthors", "type": "authors", "entities": authors, "total": count})
+		*shelves = append(*shelves, wire.Shelf{ID: "newest-authors", Label: "Newest Authors", LabelStringKey: "LabelNewestAuthors", Type: "authors", Entities: authors, Total: count})
 	}
 	return nil
 }
@@ -192,8 +192,8 @@ type episodeShelfRow struct {
 func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, user store.User, libraryID string, limit int) {
 	permission, args := podcastPermissionClause(user)
 	cutoff := dbtime.Format(time.Now().Add(-60 * 24 * time.Hour))
-	shelves := make([]map[string]any, 0, 3)
-	var listenAgain map[string]any
+	shelves := make([]wire.Shelf, 0, 3)
+	var listenAgain *wire.Shelf
 	for _, spec := range []struct {
 		id, label, key, kind string
 		filter               string
@@ -305,9 +305,9 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			entities = append(entities, item)
 		}
 		if len(entities) > 0 {
-			shelf := map[string]any{"id": spec.id, "label": spec.label, "labelStringKey": spec.key, "type": spec.kind, "entities": entities, "total": total}
+			shelf := wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: spec.kind, Entities: entities, Total: total}
 			if spec.id == "listen-again" {
-				listenAgain = shelf
+				listenAgain = &shelf
 			} else {
 				shelves = append(shelves, shelf)
 			}
@@ -381,10 +381,10 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		entities = append(entities, item)
 	}
 	if len(entities) > 0 {
-		shelves = append(shelves, map[string]any{"id": "recently-added", "label": "Recently Added", "labelStringKey": "LabelRecentlyAdded", "type": "podcast", "entities": entities, "total": total})
+		shelves = append(shelves, wire.Shelf{ID: "recently-added", Label: "Recently Added", LabelStringKey: "LabelRecentlyAdded", Type: "podcast", Entities: entities, Total: total})
 	}
 	if listenAgain != nil {
-		shelves = append(shelves, listenAgain)
+		shelves = append(shelves, *listenAgain)
 	}
 	httputil.WriteJSON(w, 200, shelves, httputil.Streamed(), httputil.ForRequest(r))
 }

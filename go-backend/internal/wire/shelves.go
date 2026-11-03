@@ -1,5 +1,19 @@
 package wire
 
+// Shelf is one home-page shelf of GET /api/libraries/:id/personalized
+// (LibraryItem.getPersonalizedShelves, server/models/LibraryItem.js:384-491).
+// Entities holds the shelf's entries (minified items, series or authors).
+// The fields are declared in the alphabetical order encoding/json gave the map
+// this replaced, so the response bytes are unchanged.
+type Shelf struct {
+	Entities       any    `json:"entities"`
+	ID             string `json:"id"`
+	Label          string `json:"label"`
+	LabelStringKey string `json:"labelStringKey"`
+	Total          int    `json:"total"`
+	Type           string `json:"type"`
+}
+
 // SeriesShelfEntry is one entity of the "recent-series" home shelf:
 // Series.toOldJSON (server/models/Series.js:168) plus the rssFeed and books
 // that libraryFilters.getSeriesMostRecentlyAdded attaches

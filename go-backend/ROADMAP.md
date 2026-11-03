@@ -549,6 +549,11 @@ opaque stays `json.RawMessage` and is documented as opaque.
     and so on), named for the wire shape.
   - Done when: `grep -c 'map\[string\]any' go-backend/internal/catalog/personalized.go`
     prints 0, and `make parity` and `make parity-replacement` pass.
+  - Progress: the shelf envelope is typed (`wire.Shelf`, fields in the order
+    `encoding/json` gave the map, so bytes are unchanged) and the nine literals
+    plus the shelves slices use it. Still open: the entities are item maps from
+    `ItemMinifiedJSON` (blocked on T2), podcast episode and `recentEpisode`
+    maps, and the query-argument `[]any` slices, so the "prints 0" check is not met.
 
 - [ ] T4: Type the rest of `catalog` (`writes.go`, `batch_chapters.go`, `library_writes.go`, `authors.go`, `handler.go`)
   - Files: `go-backend/internal/catalog/writes.go` (17), `batch_chapters.go` (16),
