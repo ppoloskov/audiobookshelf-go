@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Boom Business Daily</title>
+    <link>https://audioboom.example/business</link>
+    <description>Daily business news in five minutes.</description>
+    <language>en-gb</language>
+    <itunes:author>AudioBoom Studios</itunes:author>
+    <itunes:explicit>clean</itunes:explicit>
+    <itunes:type>episodic</itunes:type>
+    <itunes:image href="https://audioboom.example/boom.jpg"/>
+    <itunes:category text="Business">
+      <itunes:category text="Entrepreneurship"/>
+    </itunes:category>
+    <itunes:category text="News"/>
+    <itunes:category text=""/>
+    <item>
+      <title>Markets open higher</title>
+      <description>Markets opened higher on Monday.</description>
+      <itunes:summary>Markets opened higher on Monday, summarised.</itunes:summary>
+      <itunes:author>Sam Reid</itunes:author>
+      <itunes:duration>00:04:12</itunes:duration>
+      <itunes:explicit>clean</itunes:explicit>
+      <itunes:episodeType>full</itunes:episodeType>
+      <pubDate>Mon, 15 Jan 2024 07:15:00 GMT</pubDate>
+      <guid>boom-1001</guid>
+      <enclosure url="https://audioboom.example/clips/1001.mp3" length="4032000" type="audio/mpeg"/>
+      <podcast:chapters url="https://audioboom.example/clips/1001.json" type="application/json+chapters"/>
+    </item>
+    <item>
+      <title>Quarterly outlook</title>
+      <description><![CDATA[<ul><li>Growth</li><li>Inflation <em>easing</em></li></ul><p>Read more at <a href="https://audioboom.example/q">our site</a>, don't miss it.</p>]]></description>
+      <itunes:duration>1800</itunes:duration>
+      <pubDate>Sun, 14 Jan 2024 18:00:00 GMT</pubDate>
+      <guid>boom-1000</guid>
+      <enclosure url="https://audioboom.example/clips/1000.mp3" length="2000000" type="audio/mpeg"/>
+      <podcast:chapters url="https://audioboom.example/clips/1000.chapters"/>
+    </item>
+  </channel>
+</rss>

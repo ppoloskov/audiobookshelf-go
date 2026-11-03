@@ -1,0 +1,64 @@
+{
+  "episodes": [
+    {
+      "author": "",
+      "chapters": null,
+      "chaptersType": null,
+      "chaptersUrl": null,
+      "description": "",
+      "descriptionPlain": "",
+      "duration": "",
+      "durationSeconds": null,
+      "enclosure": {
+        "length": "1024",
+        "type": "audio/mpeg",
+        "url": "https://plain.example/e1.mp3"
+      },
+      "episode": "",
+      "episodeType": "",
+      "explicit": "",
+      "guid": "",
+      "pubDate": "Fri, 05 Jan 2024 10:00:00 GMT",
+      "publishedAt": 1704448800000,
+      "season": "",
+      "subtitle": "",
+      "title": "Only enclosure"
+    },
+    {
+      "author": "",
+      "chapters": null,
+      "chaptersType": null,
+      "chaptersUrl": null,
+      "description": "",
+      "descriptionPlain": "",
+      "duration": "",
+      "durationSeconds": null,
+      "enclosure": {
+        "url": "https://plain.example/e2.mp3"
+      },
+      "episode": "",
+      "episodeType": "",
+      "explicit": "",
+      "guid": "plain-2",
+      "pubDate": "",
+      "publishedAt": null,
+      "season": "",
+      "subtitle": "",
+      "title": "Second with guid"
+    }
+  ],
+  "metadata": {
+    "author": "",
+    "categories": null,
+    "description": "No iTunes namespace at all.",
+    "descriptionPlain": "No iTunes namespace at all.",
+    "explicit": "",
+    "feedUrl": "https://feeds.example/feed.xml",
+    "image": "",
+    "language": "",
+    "link": "",
+    "pubDate": "",
+    "title": "Plain Feed",
+    "type": ""
+  }
+}

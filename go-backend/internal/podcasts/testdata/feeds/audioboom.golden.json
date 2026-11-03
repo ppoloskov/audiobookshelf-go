@@ -1,0 +1,69 @@
+{
+  "episodes": [
+    {
+      "author": "Sam Reid",
+      "chapters": null,
+      "chaptersType": "application/json+chapters",
+      "chaptersUrl": "https://audioboom.example/clips/1001.json",
+      "description": "Markets opened higher on Monday.",
+      "descriptionPlain": "Markets opened higher on Monday.",
+      "duration": "00:04:12",
+      "durationSeconds": 252,
+      "enclosure": {
+        "length": "4032000",
+        "type": "audio/mpeg",
+        "url": "https://audioboom.example/clips/1001.mp3"
+      },
+      "episode": "",
+      "episodeType": "full",
+      "explicit": "clean",
+      "guid": "boom-1001",
+      "pubDate": "Mon, 15 Jan 2024 07:15:00 GMT",
+      "publishedAt": 1705302900000,
+      "season": "",
+      "subtitle": "",
+      "title": "Markets open higher"
+    },
+    {
+      "author": "",
+      "chapters": null,
+      "chaptersType": "application/json",
+      "chaptersUrl": "https://audioboom.example/clips/1000.chapters",
+      "description": "\u003cul\u003e\u003cli\u003eGrowth\u003c/li\u003e\u003cli\u003eInflation \u003cem\u003eeasing\u003c/em\u003e\u003c/li\u003e\u003c/ul\u003e\u003cp\u003eRead more at \u003ca href=\"https://audioboom.example/q\"\u003eour site\u003c/a\u003e, don't miss it.\u003c/p\u003e",
+      "descriptionPlain": "GrowthInflation easingRead more at our site, don't miss it.",
+      "duration": "1800",
+      "durationSeconds": 1800,
+      "enclosure": {
+        "length": "2000000",
+        "type": "audio/mpeg",
+        "url": "https://audioboom.example/clips/1000.mp3"
+      },
+      "episode": "",
+      "episodeType": "",
+      "explicit": "",
+      "guid": "boom-1000",
+      "pubDate": "Sun, 14 Jan 2024 18:00:00 GMT",
+      "publishedAt": 1705255200000,
+      "season": "",
+      "subtitle": "",
+      "title": "Quarterly outlook"
+    }
+  ],
+  "metadata": {
+    "author": "AudioBoom Studios",
+    "categories": [
+      "Business:Entrepreneurship",
+      "News"
+    ],
+    "description": "Daily business news in five minutes.",
+    "descriptionPlain": "Daily business news in five minutes.",
+    "explicit": "clean",
+    "feedUrl": "https://feeds.example/feed.xml",
+    "image": "https://audioboom.example/boom.jpg",
+    "language": "en-gb",
+    "link": "https://audioboom.example/business",
+    "pubDate": "",
+    "title": "Boom Business Daily",
+    "type": "episodic"
+  }
+}

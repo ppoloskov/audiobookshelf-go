@@ -194,7 +194,7 @@ L2, JWT issuing -> L1).
   - Done when: the four functions are gone, table tests cover descriptions from
     the fixtures and real feeds.
 
-- [ ] L4: Parse podcast feeds with `gofeed`
+- [x] L4: Parse podcast feeds with `gofeed`
   - Files: `internal/podcasts/rss.go` (`parseFeed`, `encoding/xml` mapping)
   - Change: Parse with `gofeed` (including the iTunes extension) and map to the
     podcast/episode fields Go stores and returns. Keep the gzip handling.

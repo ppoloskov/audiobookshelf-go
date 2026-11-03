@@ -1,0 +1,42 @@
+{
+  "episodes": [
+    {
+      "author": "",
+      "chapters": null,
+      "chaptersType": null,
+      "chaptersUrl": null,
+      "description": "Tea time — été.",
+      "descriptionPlain": "Tea time — été.",
+      "duration": "",
+      "durationSeconds": null,
+      "enclosure": {
+        "length": "100",
+        "type": "audio/mpeg",
+        "url": "https://cafe.example/1.mp3"
+      },
+      "episode": "1",
+      "episodeType": "",
+      "explicit": "",
+      "guid": "",
+      "pubDate": "Sat, 06 Jan 2024 12:00:00 GMT",
+      "publishedAt": 1704542400000,
+      "season": "",
+      "subtitle": "",
+      "title": "L’heure du thé"
+    }
+  ],
+  "metadata": {
+    "author": "Renée Dupont",
+    "categories": null,
+    "description": "Conversations at the café — always “fresh”.",
+    "descriptionPlain": "Conversations at the café — always “fresh”.",
+    "explicit": "",
+    "feedUrl": "https://feeds.example/feed.xml",
+    "image": "",
+    "language": "",
+    "link": "",
+    "pubDate": "",
+    "title": "Café Talk",
+    "type": ""
+  }
+}

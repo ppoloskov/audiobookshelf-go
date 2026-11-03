@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 
+	"github.com/mmcdole/gofeed"
+	ext "github.com/mmcdole/gofeed/extensions"
 	"golang.org/x/net/html/charset"
 )
 
+// xmlNode is a small element tree for OPML, which gofeed does not parse.
 type xmlNode struct {
 	Name     xml.Name
 	Attr     []xml.Attr
@@ -52,31 +54,7 @@ func parseXML(raw []byte) (*xmlNode, error) {
 	}
 	return root.Children[0], nil
 }
-func children(n *xmlNode, local string, namespace string) []*xmlNode {
-	var out []*xmlNode
-	if n == nil {
-		return out
-	}
-	for _, c := range n.Children {
-		if strings.EqualFold(c.Name.Local, local) && (namespace == "" || strings.Contains(strings.ToLower(c.Name.Space), strings.ToLower(namespace))) {
-			out = append(out, c)
-		}
-	}
-	return out
-}
-func child(n *xmlNode, local string, namespace string) *xmlNode {
-	xs := children(n, local, namespace)
-	if len(xs) > 0 {
-		return xs[0]
-	}
-	return nil
-}
-func value(n *xmlNode) string {
-	if n == nil {
-		return ""
-	}
-	return strings.TrimSpace(n.Text.String())
-}
+
 func attr(n *xmlNode, key string) string {
 	if n == nil {
 		return ""
@@ -88,67 +66,45 @@ func attr(n *xmlNode, key string) string {
 	}
 	return ""
 }
-func firstChildText(n *xmlNode, local, namespace string) string {
-	return value(child(n, local, namespace))
-}
-func firstTextWithFallback(n *xmlNode, local, namespace string) string {
-	v := firstChildText(n, local, namespace)
-	if v != "" {
-		return v
-	}
-	return firstChildText(n, local, "")
-}
 
+// parseFeed maps a gofeed parse of an RSS document to the podcast metadata and
+// episodes Go stores. The iTunes fields are read from gofeed's iTunes
+// extension, the chapter and media fields from its generic extensions.
+// gofeed's translated fields are used only where they equal the raw element.
 func parseFeed(raw []byte, feedURL string) (map[string]any, error) {
-	root, err := parseXML(raw)
+	parser := gofeed.NewParser()
+	// The channel image comes from <image>, then itunes:image. gofeed's
+	// last-resort scan of the description HTML is off.
+	parser.RSSTranslator = &gofeed.DefaultRSSTranslator{DisableContentImageScan: true}
+	feed, err := parser.Parse(bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
 	}
-	if !strings.EqualFold(root.Name.Local, "rss") {
+	if feed.FeedType != "rss" {
 		return nil, fmt.Errorf("invalid RSS document")
 	}
-	channel := child(root, "channel", "")
-	if channel == nil {
-		return nil, fmt.Errorf("RSS channel is missing")
-	}
-	items := children(channel, "item", "")
-	if len(items) == 0 {
+	if len(feed.Items) == 0 {
 		return nil, fmt.Errorf("RSS feed has no episodes")
 	}
-	meta := map[string]any{"title": firstChildText(channel, "title", ""), "language": firstChildText(channel, "language", ""), "explicit": firstTextWithFallback(channel, "explicit", "itunes"), "author": firstTextWithFallback(channel, "author", "itunes"), "pubDate": firstChildText(channel, "pubDate", ""), "link": firstChildText(channel, "link", ""), "image": firstChildText(child(channel, "image", ""), "url", ""), "categories": []string{}, "feedUrl": feedURL, "description": "", "descriptionPlain": "", "type": firstTextWithFallback(channel, "type", "itunes")}
-	if meta["image"] == "" {
-		meta["image"] = attr(child(channel, "image", "itunes"), "href")
+	itunes := feed.ITunesExt
+	if itunes == nil {
+		itunes = &ext.ITunesFeedExtension{}
 	}
-	channelDesc := firstChildText(channel, "description", "")
-	meta["description"], meta["descriptionPlain"] = textclean.Sanitize(channelDesc), textclean.Strip(channelDesc)
-	if atom := child(channel, "link", "http://www.w3.org/2005/Atom"); atom != nil && meta["feedUrl"] == "" {
-		meta["feedUrl"] = attr(atom, "href")
+	image := itunes.Image
+	if feed.Image != nil && feed.Image.URL != "" {
+		image = feed.Image.URL
 	}
-	if link := child(channel, "new-feed-url", "itunes"); link != nil {
-		meta["feedUrl"] = value(link)
+	meta := map[string]any{"title": feed.Title, "language": feed.Language, "explicit": itunes.Explicit, "author": itunes.Author, "pubDate": feed.Published, "link": feed.Link, "image": image, "categories": feedCategories(itunes), "feedUrl": feedURL, "description": "", "descriptionPlain": "", "type": itunes.Type}
+	if feedURL == "" {
+		meta["feedUrl"] = feed.FeedLink
 	}
-	var genres []string
-	var category func(*xmlNode, string)
-	category = func(parent *xmlNode, prefix string) {
-		for _, c := range children(parent, "category", "itunes") {
-			label := attr(c, "text")
-			if label == "" {
-				continue
-			}
-			nested := children(c, "category", "itunes")
-			if len(nested) > 0 {
-				category(c, label)
-			} else if prefix != "" {
-				genres = append(genres, prefix+":"+label)
-			} else {
-				genres = append(genres, label)
-			}
-		}
+	if itunes.NewFeedURL != "" {
+		meta["feedUrl"] = itunes.NewFeedURL
 	}
-	category(channel, "")
-	meta["categories"] = genres
-	episodes := make([]map[string]any, 0, len(items))
-	for _, item := range items {
+	description := strings.TrimSpace(feed.Description)
+	meta["description"], meta["descriptionPlain"] = textclean.Sanitize(description), textclean.Strip(description)
+	episodes := make([]map[string]any, 0, len(feed.Items))
+	for _, item := range feed.Items {
 		episode := parseEpisode(item)
 		if episode != nil {
 			episodes = append(episodes, episode)
@@ -160,70 +116,95 @@ func parseFeed(raw []byte, feedURL string) (map[string]any, error) {
 	return map[string]any{"metadata": meta, "episodes": episodes}, nil
 }
 
-func parseEpisode(n *xmlNode) map[string]any {
-	enc := child(n, "enclosure", "")
-	urlValue := attr(enc, "url")
-	typeValue := attr(enc, "type")
-	length := attr(enc, "length")
-	if urlValue == "" {
-		for _, m := range children(n, "content", "media") {
-			if strings.HasPrefix(attr(m, "type"), "audio") {
-				urlValue = attr(m, "url")
-				typeValue = attr(m, "type")
-				length = attr(m, "fileSize")
-				break
-			}
+// feedCategories joins each itunes:category with its one subcategory as
+// "Parent:Child", and keeps a category without one as its own name. A category
+// without a name is skipped. A category with no names gives a nil slice.
+func feedCategories(itunes *ext.ITunesFeedExtension) []string {
+	var genres []string
+	for _, c := range itunes.Categories {
+		if c == nil || c.Text == "" {
+			continue
+		}
+		if c.Subcategory == nil {
+			genres = append(genres, c.Text)
+		} else if c.Subcategory.Text != "" {
+			genres = append(genres, c.Text+":"+c.Subcategory.Text)
 		}
 	}
+	return genres
+}
+
+func parseEpisode(item *gofeed.Item) map[string]any {
+	itunes := item.ITunesExt
+	if itunes == nil {
+		itunes = &ext.ITunesItemExtension{}
+	}
+	urlValue, typeValue, length := episodeEnclosure(item)
 	if urlValue == "" {
 		return nil
 	}
-	urlValue = strings.TrimSpace(urlValue)
-	rawDesc := firstTextWithFallback(n, "encoded", "http://purl.org/rss/1.0/modules/content/")
+	rawDesc := strings.TrimSpace(item.Content)
 	if rawDesc == "" {
-		rawDesc = firstChildText(n, "description", "")
+		rawDesc = strings.TrimSpace(item.Description)
 	}
-	rawDesc = strings.TrimSpace(rawDesc)
-	desc, plain := textclean.Sanitize(rawDesc), textclean.Strip(rawDesc)
-	pubDate := firstChildText(n, "pubDate", "")
 	published := int64(0)
-	for _, layout := range []string{time.RFC1123Z, time.RFC1123, time.RFC822Z, time.RFC822, time.RFC3339, "Mon, 2 Jan 2006 15:04:05 MST"} {
-		if parsed, e := time.Parse(layout, pubDate); e == nil {
-			published = parsed.UnixMilli()
-			break
-		}
+	if item.PublishedParsed != nil {
+		published = item.PublishedParsed.UnixMilli()
 	}
-	season := firstTextWithFallback(n, "season", "itunes")
-	episodeNum := firstTextWithFallback(n, "episode", "itunes")
-	duration := firstTextWithFallback(n, "duration", "itunes")
-	durSec := durationSeconds(duration)
+	durSec := durationSeconds(itunes.Duration)
 	var dur any
 	if durSec > 0 {
 		dur = durSec
 	}
 	var chapters []map[string]any
-	if psc := child(n, "chapters", "psc"); psc != nil {
-		chapters = pscChapters(psc, durSec)
+	if psc := firstExtension(item.Extensions, "psc", "chapters"); psc != nil {
+		chapters = pscChapters(psc.Children["chapter"], durSec)
 	}
-	chaptersURL := ""
-	chaptersType := ""
-	if ch := child(n, "chapters", "podcast"); ch != nil {
-		chaptersURL = attr(ch, "url")
-		chaptersType = attr(ch, "type")
+	chaptersURL, chaptersType := "", ""
+	if ch := firstExtension(item.Extensions, "podcast", "chapters"); ch != nil {
+		chaptersURL = strings.TrimSpace(ch.Attrs["url"])
+		chaptersType = strings.TrimSpace(ch.Attrs["type"])
 	}
 	if chaptersType == "" && chaptersURL != "" {
 		chaptersType = "application/json"
 	}
-	var enclosure any = map[string]any{"url": urlValue}
-	enclosureMap := enclosure.(map[string]any)
+	enclosure := map[string]any{"url": urlValue}
 	if typeValue != "" {
-		enclosureMap["type"] = typeValue
+		enclosure["type"] = typeValue
 	}
 	if length != "" {
-		enclosureMap["length"] = length
+		enclosure["length"] = length
 	}
-	return map[string]any{"title": firstChildText(n, "title", ""), "subtitle": firstTextWithFallback(n, "subtitle", "itunes"), "description": desc, "descriptionPlain": plain, "pubDate": pubDate, "episodeType": firstTextWithFallback(n, "episodeType", "itunes"), "season": season, "episode": episodeNum, "author": firstTextWithFallback(n, "author", "itunes"), "duration": duration, "durationSeconds": dur, "explicit": firstTextWithFallback(n, "explicit", "itunes"), "publishedAt": store.NullIfZero(published), "enclosure": enclosure, "guid": firstChildText(n, "guid", ""), "chaptersUrl": store.NullIfEmpty(chaptersURL), "chaptersType": store.NullIfEmpty(chaptersType), "chapters": chapters}
+	return map[string]any{"title": item.Title, "subtitle": itunes.Subtitle, "description": textclean.Sanitize(rawDesc), "descriptionPlain": textclean.Strip(rawDesc), "pubDate": item.Published, "episodeType": itunes.EpisodeType, "season": itunes.Season, "episode": itunes.Episode, "author": itunes.Author, "duration": itunes.Duration, "durationSeconds": dur, "explicit": itunes.Explicit, "publishedAt": store.NullIfZero(published), "enclosure": enclosure, "guid": item.GUID, "chaptersUrl": store.NullIfEmpty(chaptersURL), "chaptersType": store.NullIfEmpty(chaptersType), "chapters": chapters}
 }
+
+// episodeEnclosure returns the first enclosure. When it has no URL, it returns
+// the first audio media:content instead.
+func episodeEnclosure(item *gofeed.Item) (urlValue, typeValue, length string) {
+	if len(item.Enclosures) > 0 {
+		enc := item.Enclosures[0]
+		urlValue, typeValue, length = strings.TrimSpace(enc.URL), strings.TrimSpace(enc.Type), strings.TrimSpace(enc.Length)
+	}
+	if urlValue != "" {
+		return urlValue, typeValue, length
+	}
+	for _, m := range item.Extensions["media"]["content"] {
+		if strings.HasPrefix(m.Attrs["type"], "audio") {
+			return strings.TrimSpace(m.Attrs["url"]), strings.TrimSpace(m.Attrs["type"]), strings.TrimSpace(m.Attrs["fileSize"])
+		}
+	}
+	return "", "", ""
+}
+
+// firstExtension returns the first element named name in the namespace prefix.
+func firstExtension(exts ext.Extensions, prefix, name string) *ext.Extension {
+	matches := exts[prefix][name]
+	if len(matches) == 0 {
+		return nil
+	}
+	return &matches[0]
+}
+
 func durationSeconds(s string) int {
 	parts := strings.Split(strings.TrimSpace(s), ":")
 	total := 0
@@ -234,18 +215,18 @@ func durationSeconds(s string) int {
 	}
 	return total
 }
-func pscChapters(n *xmlNode, duration int) []map[string]any {
+
+func pscChapters(nodes []ext.Extension, duration int) []map[string]any {
 	var out []map[string]any
-	nodes := children(n, "chapter", "")
 	for i, ch := range nodes {
-		start := durationSeconds(attr(ch, "start"))
-		title := attr(ch, "title")
+		start := durationSeconds(ch.Attrs["start"])
+		title := strings.TrimSpace(ch.Attrs["title"])
 		if title == "" {
 			continue
 		}
 		end := duration
 		if i+1 < len(nodes) {
-			end = durationSeconds(attr(nodes[i+1], "start"))
+			end = durationSeconds(nodes[i+1].Attrs["start"])
 		}
 		out = append(out, map[string]any{"id": len(out), "title": title, "start": start, "end": end})
 	}
