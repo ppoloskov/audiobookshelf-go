@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
@@ -125,5 +126,66 @@ func TestAuthSettingsAdminOnlyAndCronValidation(t *testing.T) {
 	h.Handle(bad, httptest.NewRequest(http.MethodPost, "/api/validate-cron", strings.NewReader(`{"expression":"never"}`)), store.User{Type: "user"})
 	if bad.Code != 400 {
 		t.Fatalf("invalid cron status %d", bad.Code)
+	}
+}
+
+// FileSystemController.checkPathExists answers an invalid body with
+// res.status(400).json({error: 'Invalid request body'}) (FileSystemController.js:94-97),
+// so the response carries a JSON Content-Type.
+func TestPathExistsInvalidBodyIsJSON(t *testing.T) {
+	h := New(adminopsDB(t), config.Config{}, nil)
+	u := store.User{Type: "admin", IsActive: true, Permissions: json.RawMessage(`{"upload":true}`)}
+	for _, body := range []string{`{}`, `{"directory":"a"}`, `{"folderPath":"/x"}`, `not json`} {
+		w := httptest.NewRecorder()
+		h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/filesystem/pathexists", strings.NewReader(body)), u)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("%s: status %d, want 400", body, w.Code)
+		}
+		if ct := w.Header().Get("Content-Type"); ct != "application/json; charset=utf-8" {
+			t.Fatalf("%s: Content-Type %q, want application/json; charset=utf-8", body, ct)
+		}
+		if got := strings.TrimSpace(w.Body.String()); got != `{"error":"Invalid request body"}` {
+			t.Fatalf("%s: body %q", body, got)
+		}
+	}
+}
+
+// The sorting-prefix rewrite reads each table and then updates it; every query
+// runs on the one-connection pool, so none may start while a cursor is open.
+func TestSortingPrefixesRewritesAllTablesOnOneConnection(t *testing.T) {
+	db := adminopsDB(t)
+	_, err := db.Exec(`CREATE TABLE books(id TEXT PRIMARY KEY,title TEXT,titleIgnorePrefix TEXT);
+CREATE TABLE podcasts(id TEXT PRIMARY KEY,title TEXT,titleIgnorePrefix TEXT);
+CREATE TABLE series(id TEXT PRIMARY KEY,name TEXT,nameIgnorePrefix TEXT);
+INSERT INTO books VALUES('b1','Der Hobbit','Der Hobbit');
+INSERT INTO podcasts VALUES('p1','Der Podcast','Der Podcast');
+INSERT INTO series VALUES('s1','Der Ring','Der Ring')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(db, config.Config{}, nil)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPatch, "/api/sorting-prefixes", strings.NewReader(`{"sortingPrefixes":["der"]}`)).WithContext(ctx)
+	w := httptest.NewRecorder()
+	h.Handle(w, req, store.User{Type: "admin"})
+	if w.Code != 200 {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		RowsUpdated int `json:"rowsUpdated"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || out.RowsUpdated != 3 {
+		t.Fatalf("rowsUpdated = %d (%v), body %s", out.RowsUpdated, err, w.Body.String())
+	}
+	for query, want := range map[string]string{
+		`SELECT titleIgnorePrefix FROM books`:    "Hobbit",
+		`SELECT titleIgnorePrefix FROM podcasts`: "Podcast",
+		`SELECT nameIgnorePrefix FROM series`:    "Ring",
+	} {
+		var got string
+		if err := db.QueryRow(query).Scan(&got); err != nil || got != want {
+			t.Fatalf("%s = %q (%v), want %q", query, got, err, want)
+		}
 	}
 }

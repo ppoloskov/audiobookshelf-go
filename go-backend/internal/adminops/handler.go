@@ -867,12 +867,8 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		FolderPath string `json:"folderPath"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Directory == "" || p.FolderPath == "" {
-		// The status is written before any header is set, so this response
-		// carries no JSON Content-Type (net/http sniffs text/plain), unlike
-		// upstream's res.status(400).json(...). Kept as is; WriteJSON would
-		// add the header.
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "Invalid request body"})
+		// Upstream answers res.status(400).json({error}), FileSystemController.js:94-97.
+		httputil.ErrorJSON(w, http.StatusBadRequest, "Invalid request body", httputil.Streamed())
 		return
 	}
 	var libraryID string
