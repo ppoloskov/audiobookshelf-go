@@ -146,6 +146,7 @@ L2, JWT issuing -> L1).
     reached by a journey step (OIDC through a test provider).
   - F8b done (33 steps). Bug found and fixed: `GET /api/libraries/:id/series/:seriesId?include=rssfeed` omitted `rssFeed: null`.
   - F8a done (66 steps). Bugs found and fixed: api-key `createdAt`/`updatedAt` sent as Unix milliseconds (TS: ISO strings); `PATCH /api/users/:id` stored `""` for a null email (TS: NULL); `GET`/`DELETE /api/backups` sent `null` for an empty list; embed passed the item folder to ffmpeg (path read from the wrong level) and put `-c copy`/`-f` before the cover input. Checker compares content type only for JSON, image, audio and video.
+  - F8d done (58 steps). Bugs found and fixed: `POST /api/me/ereader-devices` answered 500 when the `email-settings` row was missing (TS creates it on write); `GET /api/sessions/open` omitted the `PlaybackSession.toJSON` fields (`mediaMetadata`, `chapters`, `deviceInfo`, `duration`, `date`, ...).
 
 - [ ] F9: Socket.IO event checks in the Go journey
   - Prerequisite: F5b. Client approved 2026-11-03:
