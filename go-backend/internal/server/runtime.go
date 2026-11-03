@@ -228,6 +228,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			return nil, err
 		}
 		rt.backup.SetNotificationHandler(rt.notifications.TriggerEvent)
+		rt.backup.Routes(rt.routes)
 	}
 	return rt, nil
 }
@@ -354,11 +355,6 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if rt.providers.Handle(w, withPath(r, path), user) {
 		return
-	}
-	if rt.backup != nil {
-		if rt.backup.Handle(w, withPath(r, path), user) {
-			return
-		}
 	}
 	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
 }

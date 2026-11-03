@@ -21,6 +21,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// serve dispatches r through Routes the way the server does: the user travels
+// in the request context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, u store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), u)))
+}
+
 func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}
@@ -227,7 +235,7 @@ func TestMissingBackupUsesExpressSendStatus(t *testing.T) {
 			method = "DELETE"
 		}
 		w := httptest.NewRecorder()
-		h.Handle(w, httptest.NewRequest(method, path, nil), store.User{Type: "admin"})
+		serve(h, w, httptest.NewRequest(method, path, nil), store.User{Type: "admin"})
 		if w.Code != http.StatusNotFound || w.Body.String() != "Not Found" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") == "" {
 			t.Fatalf("%s %s status=%d headers=%v body=%q", method, path, w.Code, w.Header(), w.Body.String())
 		}
@@ -360,7 +368,7 @@ func TestApplyStagesSafeMetadataAndRejectsTraversalAndSymlinks(t *testing.T) {
 	}
 	r := httptest.NewRequest("GET", "/api/backups/fixture-id/apply", nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serve(h, w, r, store.User{Type: "admin"})
 	if w.Code != 200 {
 		t.Fatalf("apply returned %d: %s", w.Code, w.Body.String())
 	}
@@ -386,7 +394,7 @@ func TestApplyStagesSafeMetadataAndRejectsTraversalAndSymlinks(t *testing.T) {
 		h.mu.Unlock()
 		r = httptest.NewRequest("GET", "/api/backups/"+id+"/apply", nil)
 		w = httptest.NewRecorder()
-		h.Handle(w, r, store.User{Type: "admin"})
+		serve(h, w, r, store.User{Type: "admin"})
 		if w.Code != 400 {
 			t.Fatalf("hostile archive %s returned %d: %s", id, w.Code, w.Body.String())
 		}
@@ -467,7 +475,7 @@ func TestUpstreamCreatedBackupImports(t *testing.T) {
 	}
 	r := httptest.NewRequest("GET", "/api/backups/"+b.ID+"/apply", nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serve(h, w, r, store.User{Type: "admin"})
 	if w.Code != 200 {
 		t.Fatalf("import upstream backup failed (%d): %s", w.Code, w.Body.String())
 	}
