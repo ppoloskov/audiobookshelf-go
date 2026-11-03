@@ -242,9 +242,11 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 			}
 			m, _ := f["metadata"].(map[string]any)
 			ino := str(f["ino"])
-			path := str(f["path"])
+			// The file's path and name are in its metadata (TS AudioFile.metadata),
+			// not at the top level of the entry.
+			path := str(m["path"])
 			if path == "" {
-				path = filepath.Join(x.path, filepath.Base(str(f["filename"])))
+				path = filepath.Join(x.path, filepath.Base(str(m["filename"])))
 			}
 			d := num(m["duration"])
 			if d == 0 {
