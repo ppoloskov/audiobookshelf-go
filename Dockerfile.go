@@ -17,7 +17,7 @@ RUN npm run generate
 
 ### STAGE 1: Cross-compile the Go server on the builder CPU (no QEMU) ###
 # Keep the version in step with go-backend/go.mod.
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS build-server
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build-server
 
 ARG TARGETARCH
 # Git commit shown in the startup log ("Go backend build <sha>").
