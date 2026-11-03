@@ -217,10 +217,21 @@ Conventions:
   - Change: `TestAccessLineIsDebugOnly` and `TestLivenessProbesAreTraceOnly` fail under `go test -count=3` because global log state leaks between runs; save and restore it in each test.
   - Done when: `go test -count=5 ./internal/server` passes.
 
-- [ ] C22: Find nested queries that hold a cursor on the one-connection pool
+- [x] C22: Find nested queries that hold a cursor on the one-connection pool
   - Files: `go-backend/internal/**` (look for a query run inside a `rows.Next()` loop); test fixtures that open SQLite without `SetMaxOpenConns(1)` (`store`, `backup`, `bootstrap`, `dbtime`, podcasts `dbtime_write_errors_test.go`)
   - Change: Production uses one connection (`store.Open`), so a query issued while a `*sql.Rows` is open waits forever. OIDC login hit this (fixed in `userByOIDCSub`). Materialize rows before querying again, and give every handler fixture one connection.
   - Done when: every handler test fixture sets `SetMaxOpenConns(1)` and `go test ./...` passes.
+  - Result: `tools/dbnest` (go/ast, run by `make ratchet`, the `verify` job and
+    `go test ./tools/dbnest`) flags a pool call, or a call that reaches the pool,
+    made while a `rows` cursor or `*sql.Tx` is open, and any function that opens
+    SQLite (tests included) without `SetMaxOpenConns(1)`. Sites fixed:
+    `identity.userByIDOrOldID` (every authenticated request whose JWT carries a
+    pre-2.3 user id; hung until the request was cancelled), and a latent
+    double `QueryContext` in `adminops.sortingPrefixes` (PATCH
+    `/api/sorting-prefixes`, series table; harmless today only because the first
+    query fails on a missing column). `userByOIDCSub` and
+    `userByIDOrOldID` now share `userIDByExtra`. Fixtures in `store`, `backup`,
+    `bootstrap`, `dbtime` and `podcasts` now use one connection.
 
 ## Code consolidation (copy/paste removal)
 

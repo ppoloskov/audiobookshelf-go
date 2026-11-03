@@ -864,26 +864,40 @@ func (h *Handler) userByIDOrOldID(ctx context.Context, id string) (store.User, e
 	if err == nil || !errors.Is(err, sql.ErrNoRows) {
 		return user, err
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT id, extraData FROM users`)
+	// The pool has one connection: close the cursor before userByID, or the
+	// second query waits for the first forever (until the request is
+	// cancelled). Every authenticated request with a pre-migration token hit
+	// this.
+	matched, err := h.userIDByExtra(ctx, "oldUserId", id)
 	if err != nil {
 		return store.User{}, err
 	}
+	if matched == "" {
+		return store.User{}, sql.ErrNoRows
+	}
+	return h.userByID(ctx, matched)
+}
+
+// userIDByExtra returns the id of the first user (table order) whose extraData
+// field equals value, or "" when none does. The cursor is closed on return.
+func (h *Handler) userIDByExtra(ctx context.Context, field string, value string) (string, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT id, extraData FROM users`)
+	if err != nil {
+		return "", err
+	}
 	defer rows.Close()
 	for rows.Next() {
-		var userID string
+		var id string
 		var raw []byte
-		if err := rows.Scan(&userID, &raw); err != nil {
-			return store.User{}, err
+		if err := rows.Scan(&id, &raw); err != nil {
+			return "", err
 		}
 		var extra map[string]any
-		if json.Unmarshal(raw, &extra) == nil && extra["oldUserId"] == id {
-			return h.userByID(ctx, userID)
+		if json.Unmarshal(raw, &extra) == nil && extra[field] == value {
+			return id, nil
 		}
 	}
-	if err := rows.Err(); err != nil {
-		return store.User{}, err
-	}
-	return store.User{}, sql.ErrNoRows
+	return "", rows.Err()
 }
 
 func (h *Handler) userQuery(ctx context.Context, query string, args ...any) (store.User, error) {

@@ -742,28 +742,9 @@ func (h *Handler) matchOIDCUser(ctx context.Context, cfg oidcConfig, info map[st
 }
 
 func (h *Handler) userByOIDCSub(ctx context.Context, sub string) (store.User, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id, extraData FROM users`)
-	if err != nil {
-		return store.User{}, err
-	}
-	// The pool has one connection: close the cursor before userByID, or the
-	// second query waits for the first forever (until the request is
-	// cancelled).
-	matched, err := func() (string, error) {
-		defer rows.Close()
-		for rows.Next() {
-			var id string
-			var raw []byte
-			if err := rows.Scan(&id, &raw); err != nil {
-				return "", err
-			}
-			var extra map[string]any
-			if json.Unmarshal(raw, &extra) == nil && extra["authOpenIDSub"] == sub {
-				return id, nil
-			}
-		}
-		return "", rows.Err()
-	}()
+	// userIDByExtra closes its cursor before userByID runs: the pool has one
+	// connection, so a nested query would wait for the cursor forever.
+	matched, err := h.userIDByExtra(ctx, "authOpenIDSub", sub)
 	if err != nil {
 		return store.User{}, err
 	}

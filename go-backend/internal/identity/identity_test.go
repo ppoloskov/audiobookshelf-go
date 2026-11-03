@@ -1,9 +1,11 @@
 package identity
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -341,5 +343,29 @@ func TestInvalidateSessionsWithoutValidCurrentDeletesAll(t *testing.T) {
 	var count int
 	if err = db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE userId='user-1'`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("session count=%d err=%v", count, err)
+	}
+}
+
+// A token minted before the 2.3 user-id migration carries the old id. Looking
+// it up scans users.extraData and then loads the match; on the production
+// one-connection pool the second query used to wait for the open cursor until
+// the request was cancelled.
+func TestUserByIDOrOldIDDoesNotHoldCursorOnOneConnectionPool(t *testing.T) {
+	db, h := identityFixture(t)
+	defer db.Close()
+	if _, err := db.Exec(`UPDATE users SET extraData = '{"oldUserId":"old-user-1"}' WHERE id = 'user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	user, err := h.userByIDOrOldID(ctx, "old-user-1")
+	if err != nil {
+		t.Fatalf("userByIDOrOldID: %v", err)
+	}
+	if user.ID != "user-1" {
+		t.Fatalf("user id = %q, want user-1", user.ID)
+	}
+	if _, err := h.userByIDOrOldID(ctx, "unknown"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("unknown id error = %v, want sql.ErrNoRows", err)
 	}
 }

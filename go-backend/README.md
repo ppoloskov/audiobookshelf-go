@@ -63,7 +63,7 @@ make parity-equivalence   # two independent fixtures must agree
 make parity-replacement   # product check: swap Go into a realistic install, replay the mobile/web journey, roll back
 make parity-scan          # new content and library maintenance after the swap
 make route-probe          # every upstream API, public and HLS route must be handled by Go
-make ratchet              # architecture guardrails
+make ratchet              # architecture guardrails, plus tools/dbnest (no query while a cursor or tx holds the one-connection pool)
 make status               # regenerate STATUS.md from the latest recorded run
 ```
 

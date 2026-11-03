@@ -32,6 +32,7 @@ func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	if _, err = db.Exec(`CREATE TABLE example (id INTEGER PRIMARY KEY, value TEXT); INSERT INTO example(value) VALUES ('snapshot')`); err != nil {
 		t.Fatal(err)
 	}
@@ -113,6 +114,7 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		db.SetMaxOpenConns(1) // production pool size (store.Open)
 		defer db.Close()
 		if _, err := db.Exec(`CREATE TABLE example (id INTEGER PRIMARY KEY)`); err != nil {
 			t.Fatal(err)
@@ -503,6 +505,7 @@ func TestExportNodeFixtureDatabaseForNodeImport(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	if e = os.MkdirAll(outDir, 0755); e != nil {
 		t.Fatal(e)

@@ -20,6 +20,7 @@ func TestEnsureCreatesPinnedFreshSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	for key := range map[string]string{"version": baseline, "maxVersion": baseline} {
 		var value string
@@ -53,6 +54,7 @@ func TestEnsureExistingVersionMismatchDoesNotMutate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	if _, err := db.Exec(`CREATE TABLE migrationsMeta (key TEXT, value TEXT); INSERT INTO migrationsMeta VALUES ('version','2.36.0'),('maxVersion','2.36.0')`); err != nil {
 		t.Fatal(err)
 	}

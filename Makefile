@@ -39,7 +39,7 @@ bench:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/bench.cjs $(BENCH_ARGS)
 
 ratchet:
-	cd go-backend && go run ./tools/ratchet
+	cd go-backend && go run ./tools/ratchet && go run ./tools/dbnest
 
 ratchet-update:
 	cd go-backend && go run ./tools/ratchet -update

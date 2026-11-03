@@ -33,6 +33,7 @@ func TestSQLNullBindingStaysNullInDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
 	if _, err := db.Exec(`CREATE TABLE timestamps (ts DATETIME)`); err != nil {
 		t.Fatal(err)

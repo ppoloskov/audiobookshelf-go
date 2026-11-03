@@ -58,6 +58,10 @@ jobs:
         working-directory: go-backend
         run: go run ./tools/ratchet
 
+      - name: One-connection pool guard (no nested queries)
+        working-directory: go-backend
+        run: go run ./tools/dbnest
+
       - name: Enforce dependency boundaries
         uses: golangci/golangci-lint-action@v9
         with:

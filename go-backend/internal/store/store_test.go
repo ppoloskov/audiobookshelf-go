@@ -42,6 +42,7 @@ func createFixture(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	if _, err = db.Exec(fixtureDDL); err != nil {
 		t.Fatal(err)
 	}
@@ -157,6 +158,7 @@ func TestOpenReadOnlyDoesNotCreateAndRequiresSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	if _, err := db.Exec(`CREATE TABLE users (id TEXT)`); err != nil {
 		t.Fatal(err)
 	}
@@ -179,6 +181,7 @@ func TestLibrariesMatchPinnedUpstreamGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	if _, err := db.Exec(fixtureDDL); err != nil {
 		t.Fatal(err)
 	}

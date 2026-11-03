@@ -326,10 +326,13 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 	}
 	rowsUpdated := 0
 	for _, table := range []struct{ name, title string }{{"books", "title"}, {"podcasts", "title"}, {"series", "name"}} {
-		rows, e := h.db.QueryContext(r.Context(), `SELECT id,`+table.title+`,titleIgnorePrefix FROM `+table.name)
+		// One query per table: a second QueryContext while the first cursor is
+		// open would wait for it forever on the one-connection pool.
+		query := `SELECT id,` + table.title + `,titleIgnorePrefix FROM ` + table.name
 		if table.name == "series" {
-			rows, e = h.db.QueryContext(r.Context(), `SELECT id,name,nameIgnorePrefix FROM series`)
+			query = `SELECT id,name,nameIgnorePrefix FROM series`
 		}
+		rows, e := h.db.QueryContext(r.Context(), query)
 		if e != nil {
 			continue
 		}
