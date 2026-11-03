@@ -31,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
 	"github.com/robfig/cron/v3"
 )
@@ -619,32 +620,12 @@ func similarity(a, b string) float64 {
 	if a == "" || b == "" {
 		return 0
 	}
-	distance := levenshtein(a, b)
+	distance := textdist.Levenshtein(a, b)
 	maxLen := len([]rune(a))
 	if n := len([]rune(b)); n > maxLen {
 		maxLen = n
 	}
 	return 1 - float64(distance)/float64(maxLen)
-}
-func levenshtein(a, b string) int {
-	x, y := []rune(a), []rune(b)
-	prev := make([]int, len(y)+1)
-	for j := range prev {
-		prev[j] = j
-	}
-	for i, rx := range x {
-		cur := make([]int, len(y)+1)
-		cur[0] = i + 1
-		for j, ry := range y {
-			cost := 0
-			if rx != ry {
-				cost = 1
-			}
-			cur[j+1] = min(cur[j]+1, prev[j+1]+1, prev[j]+cost)
-		}
-		prev = cur
-	}
-	return prev[len(y)]
 }
 
 func (h *Handler) Close() {

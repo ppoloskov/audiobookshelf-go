@@ -18,6 +18,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textdist"
 )
 
 func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
@@ -456,7 +457,7 @@ func (h *Handler) findAuthorByName(ctx context.Context, name, region string) (an
 	bestDistance := 4
 	for i, candidate := range candidates {
 		candidateName := stringField(candidate, "name")
-		distance := levenshtein(candidateName, name)
+		distance := textdist.LevenshteinFold(candidateName, name)
 		if distance < bestDistance {
 			best, bestDistance = i, distance
 		}
@@ -845,24 +846,4 @@ func stripHTML(value string) string {
 		}
 	}
 	return strings.TrimSpace(html.UnescapeString(out.String()))
-}
-func levenshtein(a, b string) int {
-	ar, br := []rune(strings.ToLower(a)), []rune(strings.ToLower(b))
-	previous := make([]int, len(br)+1)
-	for j := range previous {
-		previous[j] = j
-	}
-	for i, ra := range ar {
-		current := make([]int, len(br)+1)
-		current[0] = i + 1
-		for j, rb := range br {
-			cost := 0
-			if ra != rb {
-				cost = 1
-			}
-			current[j+1] = min(current[j]+1, previous[j+1]+1, previous[j]+cost)
-		}
-		previous = current
-	}
-	return previous[len(br)]
 }

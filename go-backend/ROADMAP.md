@@ -355,7 +355,7 @@ creates them.
   - Done when: `grep -rn '^func parseUA(' go-backend/internal --include=*.go` is
     empty and `go test ./internal/useragent` passes.
 
-- [ ] K16: Keep one `levenshtein`
+- [x] K16: Keep one `levenshtein`
   - Files: `go-backend/internal/providers/builtin_search.go` (line 853, keep),
     `go-backend/internal/podcasts/podcasts.go` (line 628), and the wrappers in
     `go-backend/internal/providers/book_finder.go` (lines 249-251)

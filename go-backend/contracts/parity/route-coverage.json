@@ -15,7 +15,7 @@
     "go-backend/internal/emailapi/handler.go": "978466f4792a994a8f64473726d226986ca21fa56325ec2525ea9f4d4f784828",
     "go-backend/internal/identity/identity.go": "09495185a02163ee782a42f4834c42f939b6eb27ff58bdb5c62d0cf060247804",
     "go-backend/internal/notifications/handler.go": "b721fa8bcb7e279ccf5c75acabdc828cab4ce8fe3d5e29974ecc7d37cb90c3db",
-    "go-backend/internal/podcasts/podcasts.go": "ae3612289c008791408baead5dcff5696debd0de22da18c4bcc824cbf2865ad6",
+    "go-backend/internal/podcasts/podcasts.go": "838b87b15cf644db2f76d7a27abfc24a33ea3209b7144f7034a21be8c36f7a13",
     "go-backend/internal/providers/handler.go": "ad0525a88dd2d1e30f09acdab9641b339fe1e9e2bd349d1a1edd48a32b091657",
     "go-backend/internal/userapi/userapi.go": "01c160ebc344a24fb4609d909363f420f0459d36d30507d8cfdc9f57a906c48d",
     "go-backend/internal/playback/playback.go": "f8d83fe1234d9997d88761af2147900231d79a8bbf25b762599aa86e89ffb450",

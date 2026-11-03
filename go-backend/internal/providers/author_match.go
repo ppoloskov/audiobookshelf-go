@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -75,7 +76,7 @@ func (h *Handler) FindAuthorByName(ctx context.Context, name, region string) *wi
 	}
 	best, bestDistance := -1, 0
 	for i, candidate := range candidates {
-		distance := levenshtein(candidate.Name, name)
+		distance := textdist.LevenshteinFold(candidate.Name, name)
 		if best < 0 || bestDistance > distance {
 			best, bestDistance = i, distance
 		}

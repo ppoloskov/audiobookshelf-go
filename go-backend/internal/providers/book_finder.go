@@ -11,11 +11,12 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/text/unicode/norm"
-
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // SearchBooks is BookFinder.search (server/finders/BookFinder.js:243-312): a
@@ -246,14 +247,14 @@ func removeMiddleInitials(s string) string {
 	return string(out)
 }
 
-func levenshteinDistance(a, b string) int { return levenshtein(a, b) }
+func levenshteinDistance(a, b string) int { return textdist.LevenshteinFold(a, b) }
 
 func levenshteinSimilarity(a, b string) float64 {
 	max := math.Max(float64(len([]rune(a))), float64(len([]rune(b))))
 	if max == 0 {
 		return 1
 	}
-	return 1 - float64(levenshtein(a, b))/max
+	return 1 - float64(textdist.LevenshteinFold(a, b))/max
 }
 
 // filterSearchResults is BookFinder.filterSearchResults (BookFinder.js:41-100)
