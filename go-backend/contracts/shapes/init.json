@@ -1,0 +1,348 @@
+{
+  "source": {
+    "upstreamCommit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "generator": "go test ./internal/contracttest -run TestJourneyInit -record"
+  },
+  "steps": {
+    "init.again": {
+      "status": 500,
+      "contentType": "text/plain"
+    },
+    "init.create": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "login.root": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "null"
+          }
+        }
+      }
+    },
+    "login.wrong": {
+      "status": 401,
+      "contentType": ""
+    },
+    "status.after": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "app": {
+            "kind": "string"
+          },
+          "authFormData": {
+            "kind": "object",
+            "keys": {
+              "authLoginCustomMessage": {
+                "kind": "string"
+              }
+            }
+          },
+          "authMethods": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "isInit": {
+            "kind": "bool"
+          },
+          "language": {
+            "kind": "string"
+          },
+          "serverVersion": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "status.before": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "ConfigPath": {
+            "kind": "string"
+          },
+          "MetadataPath": {
+            "kind": "string"
+          },
+          "app": {
+            "kind": "string"
+          },
+          "authFormData": {
+            "kind": "object",
+            "keys": {
+              "authLoginCustomMessage": {
+                "kind": "string"
+              }
+            }
+          },
+          "authMethods": {
+            "kind": "array",
+            "elem": {
+              "kind": "string"
+            }
+          },
+          "isInit": {
+            "kind": "bool"
+          },
+          "language": {
+            "kind": "string"
+          },
+          "serverVersion": {
+            "kind": "string"
+          }
+        }
+      }
+    }
+  }
+}

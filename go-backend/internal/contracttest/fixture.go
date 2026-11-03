@@ -75,12 +75,30 @@ type fixtureMeta struct {
 // closed by t.Cleanup.
 func Boot(t testing.TB) *Install {
 	t.Helper()
+	return boot(t, true)
+}
+
+// BootEmpty boots an uninitialized install: empty config and metadata
+// directories, so bootstrap creates a database with no root user. It is the
+// starting point of the first-run flow (POST /init). Its IDs and Users are empty.
+func BootEmpty(t testing.TB) *Install {
+	t.Helper()
+	return boot(t, false)
+}
+
+// boot is Boot and BootEmpty: seeded copies the fixture and rewrites its seed
+// paths; otherwise the install starts empty.
+func boot(t testing.TB, seeded bool) *Install {
 	dir := t.TempDir()
-	if err := copyTree(fixtureDir, dir); err != nil {
-		t.Fatalf("contracttest: copy fixture: %v", err)
+	var meta fixtureMeta
+	var ids map[string]string
+	if seeded {
+		if err := copyTree(fixtureDir, dir); err != nil {
+			t.Fatalf("contracttest: copy fixture: %v", err)
+		}
+		meta = readJSON[fixtureMeta](t, filepath.Join(dir, fixtureFile))
+		ids = readJSON[map[string]string](t, filepath.Join(dir, idsFile))
 	}
-	meta := readJSON[fixtureMeta](t, filepath.Join(dir, fixtureFile))
-	ids := readJSON[map[string]string](t, filepath.Join(dir, idsFile))
 
 	cfg := config.Config{
 		ConfigPath:     filepath.Join(dir, "config"),
@@ -98,13 +116,15 @@ func Boot(t testing.TB) *Install {
 	}
 	t.Cleanup(func() { _ = st.Close() })
 
-	pairs := []pathPair{
-		{from: meta.SeedRoots.Media, to: filepath.Join(dir, "media")},
-		{from: meta.SeedRoots.Metadata, to: filepath.Join(dir, "metadata")},
-		{from: meta.SeedRoots.Config, to: filepath.Join(dir, "config")},
-	}
-	if err := rewriteSeedPaths(context.Background(), st.DB(), pairs); err != nil {
-		t.Fatalf("contracttest: rewrite seed paths: %v", err)
+	if seeded {
+		pairs := []pathPair{
+			{from: meta.SeedRoots.Media, to: filepath.Join(dir, "media")},
+			{from: meta.SeedRoots.Metadata, to: filepath.Join(dir, "metadata")},
+			{from: meta.SeedRoots.Config, to: filepath.Join(dir, "config")},
+		}
+		if err := rewriteSeedPaths(context.Background(), st.DB(), pairs); err != nil {
+			t.Fatalf("contracttest: rewrite seed paths: %v", err)
+		}
 	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

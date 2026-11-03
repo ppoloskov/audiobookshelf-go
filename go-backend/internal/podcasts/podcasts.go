@@ -1194,7 +1194,7 @@ func secureClient() *http.Client {
 		}
 		var last error
 		for _, ip := range ips {
-			if ip.IP.IsPrivate() || ip.IP.IsLoopback() || ip.IP.IsLinkLocalUnicast() || ip.IP.IsLinkLocalMulticast() || ip.IP.IsUnspecified() {
+			if !httputil.SSRFFilterDisabled(host) && (ip.IP.IsPrivate() || ip.IP.IsLoopback() || ip.IP.IsLinkLocalUnicast() || ip.IP.IsLinkLocalMulticast() || ip.IP.IsUnspecified()) {
 				last = fmt.Errorf("private or non-routable feed host blocked")
 				continue
 			}
@@ -1231,6 +1231,9 @@ func rejectPrivateHost(ctx context.Context, raw string) error {
 	host := u.Hostname()
 	if host == "" {
 		return errors.New("feed URL has no host")
+	}
+	if httputil.SSRFFilterDisabled(host) {
+		return nil
 	}
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {

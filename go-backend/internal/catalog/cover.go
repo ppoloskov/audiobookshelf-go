@@ -266,18 +266,6 @@ func validateCoverImage(path string) (string, string) {
 	return ext, ""
 }
 
-func ssrfFilterDisabled(host string) bool {
-	if os.Getenv("DISABLE_SSRF_REQUEST_FILTER") == "1" || os.Getenv("EXP_PROXY_SUPPORT") == "1" {
-		return true
-	}
-	for _, candidate := range strings.Split(os.Getenv("SSRF_REQUEST_FILTER_WHITELIST"), ",") {
-		if strings.TrimSpace(candidate) == host && host != "" {
-			return true
-		}
-	}
-	return false
-}
-
 func publicUnicastAddress(ip netip.Addr) bool {
 	if !ip.IsValid() || ip.Zone() != "" || ip.Is4In6() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 		return false
@@ -329,7 +317,7 @@ func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string,
 	transport := coverURLTransport()
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
 	experimentalProxySupport := os.Getenv("EXP_PROXY_SUPPORT") == "1"
-	if ssrfFilterDisabled(u.Hostname()) {
+	if httputil.SSRFFilterDisabled(u.Hostname()) {
 		transport.DialContext = (&net.Dialer{}).DialContext
 	}
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {

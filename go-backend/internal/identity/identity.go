@@ -572,7 +572,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	permissions := map[string]any{"download": true, "update": true, "delete": true, "upload": true, "createEreader": true, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
-	_, err = tx.ExecContext(r.Context(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES (?, ?, '', ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)`, id, username, passwordHash, legacyToken, mustJSON(permissions), mustJSON(extra), now, now)
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES (?, ?, NULL, ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)`, id, username, passwordHash, legacyToken, mustJSON(permissions), mustJSON(extra), now, now)
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -771,6 +771,11 @@ func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, er
 	}
 	for key, value := range stored {
 		settings[key] = value
+	}
+	// TS ServerSettings keeps an unset authOpenIDTokenURL as null (`settings.x || null`),
+	// and the fresh default row does not store the key. The login response sends it.
+	if _, ok := settings["authOpenIDTokenURL"]; !ok {
+		settings["authOpenIDTokenURL"] = nil
 	}
 	if value := os.Getenv("BACKUP_PATH"); value != "" {
 		settings["backupPath"] = value

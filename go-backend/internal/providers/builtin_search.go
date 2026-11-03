@@ -24,6 +24,19 @@ import (
 func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
 	provider := queryValue(r, "provider", "google")
 	title, author := r.URL.Query().Get("title"), r.URL.Query().Get("author")
+	// The item match modal names the item it matches; TS (SearchController.fetchLibraryItem)
+	// answers 404 for an item that does not exist, before any provider is asked.
+	if id := r.URL.Query().Get("id"); id != "" {
+		var found int
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems WHERE id = ?`, id).Scan(&found); err != nil {
+			httputil.ErrorJSON(w, http.StatusInternalServerError, "Internal server error", httputil.Streamed())
+			return
+		}
+		if found == 0 {
+			httputil.ErrorJSON(w, http.StatusNotFound, fmt.Sprintf(`library item "%s" not found`, id), httputil.Streamed())
+			return
+		}
+	}
 	var results []map[string]any
 	var err error
 	if strings.HasPrefix(provider, "custom-") {
@@ -378,8 +391,8 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
-		logging.RequestDebug(r, "responding 500: query parameter q is missing")
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
+		// TS SearchController.findAuthor: a missing required parameter is a ValidationError, 400.
+		httputil.ErrorJSON(w, http.StatusBadRequest, `Query parameter "q" is required`, httputil.Streamed())
 		return
 	}
 	if name == "" {
@@ -394,12 +407,9 @@ func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
 }
 func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) {
+	// A missing asin is the same answer as an invalid one: TS findChapters turns the
+	// required-parameter ValidationError into the Invalid ASIN body with status 200.
 	asin := strings.ToUpper(r.URL.Query().Get("asin"))
-	if _, exists := r.URL.Query()["asin"]; !exists {
-		logging.RequestDebug(r, "responding 500: query parameter asin is missing")
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"}, httputil.Streamed())
-		return
-	}
 	if !validASIN(asin) {
 		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"}, httputil.Streamed())
 		return

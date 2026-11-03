@@ -804,7 +804,7 @@ func downloadImageFile(ctx context.Context, rawURL, filepath string) error {
 		return errors.New("Invalid URL")
 	}
 	transport := coverURLTransport()
-	if ssrfFilterDisabled(u.Hostname()) {
+	if httputil.SSRFFilterDisabled(u.Hostname()) {
 		transport.DialContext = (&net.Dialer{}).DialContext
 	}
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
