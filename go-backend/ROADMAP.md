@@ -370,7 +370,7 @@ creates them.
   - Change: One `events.Emitter` type. Packages receive it in their deps.
   - Done when: ratchet `EmitFunc-style declarations` goes from 7 to <= 4.
 
-- [ ] K18: Replace the `EmitFunc` types in `userapi`, `scanner`, `backup` and `audiotools`
+- [x] K18: Replace the `EmitFunc` types in `userapi`, `scanner`, `backup` and `audiotools`
   - Files: `go-backend/internal/userapi/userapi.go` (line 36),
     `internal/scanner/scanner.go` (line 34), `internal/backup/backup.go` (line 33),
     `internal/audiotools/tools.go` (line 29)

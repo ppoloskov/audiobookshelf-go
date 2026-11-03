@@ -5,6 +5,7 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -31,8 +32,6 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type EmitFunc func(userID, event string, payload any)
-
 type Result struct {
 	Added, Updated, Missing int
 	Canceled                bool
@@ -42,7 +41,7 @@ type Result struct {
 type Scanner struct {
 	db                 *sql.DB
 	cfg                config.Config
-	emit               EmitFunc
+	emit               events.Emitter
 	mu                 sync.Mutex
 	runs               map[string]context.CancelFunc
 	watchCancel        context.CancelFunc
@@ -54,7 +53,7 @@ type Scanner struct {
 	filterLoader filterdata.Provider
 }
 
-func New(db *sql.DB, cfg config.Config, emit EmitFunc, itemReader items.Reader) (*Scanner, error) {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, itemReader items.Reader) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
 	}

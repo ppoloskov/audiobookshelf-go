@@ -22,15 +22,15 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
-type EmitFunc func(userID, event string, payload any)
 type Handler struct {
 	db     *sql.DB
 	cfg    config.Config
-	emit   EmitFunc
+	emit   events.Emitter
 	mu     sync.Mutex
 	tasks  map[string]*task
 	queued []*task
@@ -84,7 +84,7 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 	if emit == nil {
 		emit = func(string, string, any) {}
 	}
-	return &Handler{db: db, cfg: cfg, emit: EmitFunc(emit), tasks: map[string]*task{}}
+	return &Handler{db: db, cfg: cfg, emit: events.Emitter(emit), tasks: map[string]*task{}}
 }
 
 // Handle handles tool routes relative to /api.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/events"
 	_ "modernc.org/sqlite"
 )
 
@@ -37,7 +38,7 @@ printf '%s' '{"format":{"format_name":"mp3","duration":"1"},"streams":[{"codec_t
 	t.Setenv("FFPROBE_PATH", path)
 }
 
-func captureEvents() (EmitFunc, *[]capturedEvent) {
+func captureEvents() (events.Emitter, *[]capturedEvent) {
 	events := &[]capturedEvent{}
 	return func(userID, event string, payload any) {
 		*events = append(*events, capturedEvent{scope: userID, event: event, payload: payload})

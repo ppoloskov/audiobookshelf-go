@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -29,7 +30,6 @@ import (
 const serverVersion = "2.37.2"
 const maxRestoreUncompressedBytes = 20 << 30
 
-type EmitFunc func(userID, event string, payload any)
 type RestoreFunc func(context.Context, string, string, string) error
 type PathUpdateFunc func(context.Context, string) error
 type NotificationFunc func(context.Context, string, map[string]any) error
@@ -50,7 +50,7 @@ type Handler struct {
 	db       *sql.DB
 	cfg      config.Config
 	opt      Options
-	emitFunc EmitFunc
+	emitFunc events.Emitter
 	mu       sync.Mutex
 	backups  []Backup
 	cron     *cron.Cron
@@ -71,7 +71,7 @@ type Backup struct {
 	ServerVersion string `json:"serverVersion"`
 }
 
-func New(db *sql.DB, cfg config.Config, opt Options, emit EmitFunc) (*Handler, error) {
+func New(db *sql.DB, cfg config.Config, opt Options, emit events.Emitter) (*Handler, error) {
 	if opt.BackupPath == "" {
 		opt.BackupPath = filepath.Join(cfg.MetadataPath, "backups")
 	}

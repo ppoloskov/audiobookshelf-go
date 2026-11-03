@@ -18,6 +18,7 @@ import (
 
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func newScannerForTest(db *sql.DB, cfg config.Config, emit EmitFunc) (*Scanner, error) {
+func newScannerForTest(db *sql.DB, cfg config.Config, emit events.Emitter) (*Scanner, error) {
 	if cfg.MetadataPath == "" {
 		cfg.MetadataPath = scannerTestMetadataRoot
 	}

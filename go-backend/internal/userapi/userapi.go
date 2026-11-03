@@ -24,6 +24,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -33,12 +34,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type EmitFunc func(userID, event string, payload any)
-
 type Handler struct {
 	db                 *sql.DB
 	cfg                config.Config
-	emit               EmitFunc
+	emit               events.Emitter
 	items              items.Reader
 	invalidateSessions func(context.Context, string, string) (string, string, error)
 	changePassword     func(context.Context, string, string, string) error
@@ -54,7 +53,7 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 	if itemReader == nil {
 		return nil, errors.New("userapi: item reader is nil")
 	}
-	return &Handler{db: db, cfg: cfg, emit: EmitFunc(emit), items: itemReader}, nil
+	return &Handler{db: db, cfg: cfg, emit: events.Emitter(emit), items: itemReader}, nil
 }
 
 func (h *Handler) SetCredentialHooks(invalidate func(context.Context, string, string) (string, string, error), changePassword func(context.Context, string, string, string) error, setCookie func(http.ResponseWriter, *http.Request, string)) {
