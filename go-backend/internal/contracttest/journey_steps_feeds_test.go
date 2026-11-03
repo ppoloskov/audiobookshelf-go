@@ -78,7 +78,7 @@ func journeyStepsFeeds(ids map[string]string) []journeyStep {
 		{id: "life.share.public.ebook.deleted", route: "/public/share/life-share-ebook"},
 		{id: "legacy.year.me", who: "listener", route: "/api/me/stats/year/2026"},
 		{id: "legacy.year.admin", who: "root", route: "/api/stats/year/2026"},
-		{id: "legacy.listening-stats", who: "listener", route: "/api/me/listening-stats", shapeSkip: "the recorded items map is keyed by the item ids of the recording run, not the fixture ids; the shape model has no id-keyed maps"},
+		{id: "legacy.listening-stats", who: "listener", route: "/api/me/listening-stats"},
 		{id: "legacy.listening-sessions", who: "listener", route: "/api/me/listening-sessions?itemsPerPage=50&page=0"},
 		{id: "legacy.sessions.all", who: "root", route: "/api/sessions?itemsPerPage=50&page=0"},
 	}

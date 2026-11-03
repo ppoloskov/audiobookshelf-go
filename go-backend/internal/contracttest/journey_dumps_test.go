@@ -36,10 +36,6 @@ var dumpQueries = map[string]string{
 	"db.devices.public":           `SELECT * FROM devices WHERE userId IS NULL ORDER BY clientName, deviceName`,
 }
 
-// idKeyedDumps are keyed by item ids, so their recorded keys are the recording
-// run's ids (see shapeSkip in journey_steps_playback_test.go).
-var idKeyedDumps = map[string]bool{"fs.items.files": true, "fs.items.metadata.json": true}
-
 // checkJourneyDumps checks the database and file entries after the steps, on the
 // same install. Each one must be a status 200 response with its recorded shape.
 func checkJourneyDumps(t *testing.T, in *Install, recorded map[string]recordedStep) {
@@ -53,10 +49,6 @@ func checkJourneyDumps(t *testing.T, in *Install, recorded map[string]recordedSt
 			body := dumpBody(t, in, id)
 			if rec.Status != 200 {
 				t.Fatalf("recorded status %d, want 200", rec.Status)
-			}
-			if idKeyedDumps[id] {
-				t.Logf("shape not checked: the recorded map is keyed by the recording run's item ids")
-				return
 			}
 			for _, problem := range shape.Conforms(rec.Shape, body) {
 				t.Error(problem)

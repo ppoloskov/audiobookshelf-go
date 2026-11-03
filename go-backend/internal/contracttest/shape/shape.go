@@ -4,13 +4,16 @@
 // A Skeleton describes the shape a client can rely on. Objects list their keys;
 // a key absent from some samples is Optional, and a key that was null in some
 // samples and typed in others is Nullable with that type. Arrays carry one
-// element skeleton merged from every element of every sample. Conflicting
-// non-null kinds merge to KindAny.
+// element skeleton merged from every element of every sample. An object whose
+// keys are all UUIDs is a Map: its keys are ids, so only the values have a
+// shape, merged into one value skeleton. Conflicting non-null kinds merge to
+// KindAny.
 package shape
 
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 )
 
@@ -19,6 +22,7 @@ type Kind string
 
 const (
 	KindObject Kind = "object"
+	KindMap    Kind = "map"
 	KindArray  Kind = "array"
 	KindString Kind = "string"
 	KindNumber Kind = "number"
@@ -32,7 +36,8 @@ type Skeleton struct {
 	Kind Kind `json:"kind"`
 	// Keys is set for KindObject.
 	Keys map[string]*Field `json:"keys,omitempty"`
-	// Elem is set for KindArray; nil when every sample array was empty.
+	// Elem is set for KindArray (nil when every sample array was empty) and for
+	// KindMap (the merged skeleton of every value).
 	Elem *Skeleton `json:"elem,omitempty"`
 }
 
@@ -43,6 +48,24 @@ type Field struct {
 	Nullable bool `json:"nullable,omitempty"`
 	// Optional: the key was absent from some object samples.
 	Optional bool `json:"optional,omitempty"`
+}
+
+// uuidKey matches a UUID in the 8-4-4-4-12 hex form the database and the API use
+// for ids.
+var uuidKey = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// isIDMap reports whether an object is keyed by ids: it has keys and every key
+// is a UUID. An empty object is not a map; it says nothing about its keys.
+func isIDMap(m map[string]any) bool {
+	if len(m) == 0 {
+		return false
+	}
+	for k := range m {
+		if !uuidKey.MatchString(k) {
+			return false
+		}
+	}
+	return true
 }
 
 // Infer merges the samples into one skeleton. It returns nil when there are no
@@ -75,6 +98,13 @@ func of(v any) *Skeleton {
 		}
 		return s
 	case map[string]any:
+		if isIDMap(t) {
+			s := &Skeleton{Kind: KindMap}
+			for _, e := range t {
+				s.Elem = mergeNonNil(s.Elem, of(e))
+			}
+			return s
+		}
 		s := &Skeleton{Kind: KindObject, Keys: make(map[string]*Field, len(t))}
 		for k, e := range t {
 			s.Keys[k] = &Field{Skeleton: *of(e)}
@@ -100,6 +130,9 @@ func mergeNonNil(a, b *Skeleton) *Skeleton {
 // mergeValue merges two skeletons of values in the same position where a null
 // cannot be recorded as Nullable. Kinds that differ merge to KindAny.
 func mergeValue(a, b *Skeleton) *Skeleton {
+	if a.Kind == KindMap || b.Kind == KindMap {
+		return mergeMap(a, b)
+	}
 	if a.Kind != b.Kind {
 		return &Skeleton{Kind: KindAny}
 	}
@@ -111,6 +144,21 @@ func mergeValue(a, b *Skeleton) *Skeleton {
 	default:
 		return &Skeleton{Kind: a.Kind}
 	}
+}
+
+// mergeMap merges a map with a map, or with an object that has no keys (an
+// empty object at a path whose other samples are id-keyed). Any other pairing
+// is a conflict.
+func mergeMap(a, b *Skeleton) *Skeleton {
+	if !mapLike(a) || !mapLike(b) {
+		return &Skeleton{Kind: KindAny}
+	}
+	return &Skeleton{Kind: KindMap, Elem: mergeNonNil(a.Elem, b.Elem)}
+}
+
+// mapLike reports whether a skeleton can be a map: a map, or an empty object.
+func mapLike(s *Skeleton) bool {
+	return s.Kind == KindMap || (s.Kind == KindObject && len(s.Keys) == 0)
 }
 
 // mergeKeys unions two key sets. A key present on one side only is Optional,
@@ -164,7 +212,8 @@ func mergeField(a, b *Field) *Field {
 
 // Conforms returns the problems found when v does not match s, one message per
 // problem, each prefixed by its JSON path ("$" is the root). Extra object keys
-// are allowed. A nil skeleton accepts every value.
+// are allowed, and a map's keys are not checked (only its values). A nil
+// skeleton accepts every value.
 func Conforms(s *Skeleton, v any) []string {
 	var problems []string
 	check(s, v, "$", &problems)
@@ -185,7 +234,11 @@ func check(s *Skeleton, v any, path string, out *[]string) {
 		*out = append(*out, fmt.Sprintf("%s: want %s, got null", path, s.Kind))
 		return
 	}
-	if got := valueKind(v); got != string(s.Kind) {
+	want := s.Kind
+	if want == KindMap {
+		want = KindObject // a map is a JSON object
+	}
+	if got := valueKind(v); got != string(want) {
 		*out = append(*out, fmt.Sprintf("%s: want %s, got %s", path, s.Kind, got))
 		return
 	}
@@ -193,6 +246,11 @@ func check(s *Skeleton, v any, path string, out *[]string) {
 	case KindArray:
 		for i, e := range v.([]any) {
 			check(s.Elem, e, fmt.Sprintf("%s[%d]", path, i), out)
+		}
+	case KindMap:
+		obj := v.(map[string]any)
+		for _, k := range sortedKeys(obj) {
+			check(s.Elem, obj[k], path+"."+k, out)
 		}
 	case KindObject:
 		obj := v.(map[string]any)
@@ -217,6 +275,15 @@ func check(s *Skeleton, v any, path string, out *[]string) {
 			check(&f.Skeleton, e, child, out)
 		}
 	}
+}
+
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // valueKind names the JSON type of a decoded value.

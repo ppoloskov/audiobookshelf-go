@@ -42,7 +42,7 @@ func journeyStepsPodcastAndAccounts(ids map[string]string) []journeyStep {
 		{id: "podcast.items-in-progress.after", who: "listener", route: "/api/me/items-in-progress"},
 		{id: "podcast.me.after", who: "listener", route: "/api/me"},
 		{id: "podcast.listening-sessions.after", who: "listener", route: "/api/me/listening-sessions?itemsPerPage=10&page=0"},
-		{id: "podcast.listening-stats.after", who: "listener", route: "/api/me/listening-stats", shapeSkip: "the recorded items map is keyed by the item ids of the recording run, not the fixture ids; the shape model has no id-keyed maps"},
+		{id: "podcast.listening-stats.after", who: "listener", route: "/api/me/listening-stats"},
 		{id: "login.finisher", method: "POST", route: "/login", body: map[string]any{"username": "trial-finisher", "password": "trial-finisher-password"}, headers: map[string]string{"X-Return-Tokens": "true"}, loginAs: "finisher"},
 		{id: "personalized.finisher", who: "finisher", route: "/api/libraries/" + ids["library"] + "/personalized?minified=1&include=rssfeed,numEpisodesIncomplete,share"},
 		{id: "items.collapse.title.desc", who: "finisher", route: "/api/libraries/" + ids["library"] + "/items?limit=20&page=0&minified=1&sort=media.metadata.title&desc=1&collapseseries=1"},

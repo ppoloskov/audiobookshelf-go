@@ -31,7 +31,7 @@ func journeyStepsPlayback(ids map[string]string) []journeyStep {
 		{id: "search", who: "listener", route: "/api/libraries/" + ids["library"] + "/search?q=saga&limit=12"},
 		{id: "search.author", who: "listener", route: "/api/libraries/" + ids["library"] + "/search?q=ada&limit=12"},
 		{id: "items-in-progress", who: "listener", route: "/api/me/items-in-progress"},
-		{id: "listening-stats", who: "listener", route: "/api/me/listening-stats", shapeSkip: "the recorded items map is keyed by the item ids of the recording run, not the fixture ids; the shape model has no id-keyed maps"},
+		{id: "listening-stats", who: "listener", route: "/api/me/listening-stats"},
 		{id: "listening-sessions", who: "listener", route: "/api/me/listening-sessions?itemsPerPage=10&page=0"},
 		{id: "progress.saga1", who: "listener", route: "/api/me/progress/" + ids["saga1"]},
 		{id: "progress.ebook", who: "listener", route: "/api/me/progress/" + ids["ebook"]},
