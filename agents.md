@@ -3,6 +3,5 @@
 Agent instructions for the Go backend live in one place:
 [`go-backend/AGENTS.md`](go-backend/AGENTS.md).
 
-Then read, in order: `go-backend/ARCHITECTURE.md`, `go-backend/ROADMAP.md`.
-Current status is generated into `go-backend/STATUS.md`; do not copy status
-numbers into other files.
+Then read, in order: `go-backend/ARCHITECTURE.md` (North Star, contracts,
+libraries) and `go-backend/ROADMAP.md` (atomic tasks).

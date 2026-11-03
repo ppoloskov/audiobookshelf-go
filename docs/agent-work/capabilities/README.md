@@ -1,3 +1,7 @@
+> **Historical (2026-11-03).** These per-route byte-parity records belong to the
+> previous contract. They are not maintained; the client-usage inventory
+> (go-backend ROADMAP F3) replaces them.
+
 # Capability parity records
 
 Generated per-capability parity ledger for the TypeScript-to-Go rewrite.

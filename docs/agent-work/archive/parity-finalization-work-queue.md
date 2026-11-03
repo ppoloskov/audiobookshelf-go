@@ -1,4 +1,4 @@
-> Superseded: sequencing is owned by [go-backend/ROADMAP.md](../../../go-backend/ROADMAP.md). This queue and its task ledgers (now in `docs/agent-work/archive/tasks/`) are historical evidence.
+> **Closed 2026-11-03.** Every row is done or superseded: all upstream routes are implemented and the North Star changed (database and client protocols are the contracts, byte parity is no longer required). Open work lives only in [go-backend/ROADMAP.md](../../../go-backend/ROADMAP.md). Kept as history.
 
 # Parity finalization work queue
 

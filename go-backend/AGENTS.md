@@ -1,137 +1,94 @@
-# Agent guide: Go backend for Audiobookshelf v2.37.2
+# Agent guide: Go backend
 
-This is the only agent instruction file. Root `agents.md` is a pointer to it.
-Keep it short; rules here must point at a check. If a rule cannot be checked
-by a command, it belongs in `ARCHITECTURE.md` as guidance, not here.
+This is the only agent instruction file (root `agents.md` points here). Rules
+here point at a check; design guidance is in `ARCHITECTURE.md`.
 
 ## Goal
 
-A drop-in replacement for pinned upstream **v2.37.2**
-(`edb1f7efc92ecacdef51aafb4d9d5054ce10604f`): same observable HTTP,
-Socket.IO, SQLite, and filesystem behavior, with idiomatic Go inside.
+Replace the TypeScript Audiobookshelf server (v2.37.2) in an existing
+installation, with clients, books and progress, using simple, clear, fast Go.
 
-The pinned TypeScript server is the **behavior oracle**. It is never the
-architecture template. Do not edit it.
+- **Fixed contracts:** the SQLite database (schema, value formats, meaning;
+  TS v2.37.2 must still open it) and the client protocols (HTTP fields and
+  types, Socket.IO events, auth flows that clients use).
+- **Everything else is replaceable:** structure, SQL, framing, key order,
+  error text no client parses, logs.
+- Upstream `server/` (pinned `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`) is a
+  reference for meaning. Never edit it. Do not copy its structure.
 
-## Read first, in this order
+## Read first
 
 1. This file.
-2. `ARCHITECTURE.md`: the target structure and the rules new code follows.
-3. `ROADMAP.md`: an unchecked task. Your packet is one task, and its
-   "Done when" line is its acceptance check.
+2. `ARCHITECTURE.md`: principles, contracts, target layout, libraries.
+3. `ROADMAP.md`: pick one unchecked task. Its "Done when" is the acceptance
+   check.
 
-Status lives in `STATUS.md`. It is generated from harness output. Never edit
-it by hand, never copy status numbers into other files, and do not report
-status from memory of an older document.
+## A task is done when
 
-## A packet is done when all of these hold
+| # | Check | Command |
+|---|-------|---------|
+| 1 | Builds, vets, tests pass | `cd go-backend && go build ./... && go vet ./... && go test ./...` |
+| 2 | Lint and dependency rules | `golangci-lint run --config=../.golangci.yml ./...` |
+| 3 | Ratchet: no metric rises; lower the baseline when one falls | `make ratchet` |
+| 4 | Contract, persistence and functional tests pass (part of check 1 once ROADMAP F4-F6 land) | `go test ./...` |
+| 5 | Rollback: TS v2.37.2 reopens a database Go wrote | the CI rollback job |
+| 6 | Until ROADMAP V1: the replacement and scan trials pass | `make parity-replacement`, `make parity-scan` |
+| 7 | Generated code is current | `make sqlc` leaves no diff (after ROADMAP L5) |
 
-| # | Check | Command | State |
-|---|-------|---------|-------|
-| 1 | Builds, vets, unit tests pass | `cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...` | exists |
-| 2 | Differential passes, **with at least one case executed** and no fewer cases than before | `make parity` | exists |
-| 3 | Ratchet passes, baseline updated in the same commit | `make ratchet` | exists |
-| 4 | Product-facing packets (anything a client can observe): the replacement trial passes (and the scan trial, `make parity-scan`, for scanner/watcher/metadata-edit changes), with no fewer steps than before and rollback ok | `make parity-replacement` | exists |
-| 4b | Route inventory is current after adding or changing a route | `python3 go-backend/tools/parity/build_route_coverage.py --check` (regenerate without `--check`) | exists |
-| 4c | No upstream route falls to the 501 fallback (its `ALLOWLIST` stays empty) | `make route-probe` | exists |
-| 5 | New or changed behavior has a differential case or a golden test | n/a | review |
-| 6 | Commit message states: what changed, which upstream `file:line` it matches, what is still unverified | n/a | review |
+Rules:
 
-Rules for the table:
-
-- A differential run that executes 0 cases is a **failure**, not a pass.
-- Paste the executed and passed counts of the runs you did into the commit
-  message; do not copy them into any file.
-- Check 4 is the end-to-end proof for the North Star (swap the Go server into
-  an existing installation, with clients, books and progress). Packets that
-  only touch internals, tests or docs may skip it and say so.
-- Refactor packets must **lower** at least one ratchet metric and raise none.
-  Parity-fix packets may not raise any.
-- Never claim parity for a route or variant you did not exercise. Say what you
-  did not run.
+- Refactors must lower handwritten lines or complexity and raise no metric.
+  Say the deltas in the commit message.
+- A trial difference (check 6) that is only in a "free" area of
+  `ARCHITECTURE.md` (bytes, key order, headers, error text no client parses)
+  may be normalized in the harness, with the reason in the commit message.
+  A difference in a field a client reads, a status a client branches on, a
+  stored value, or an event payload must be fixed.
+- Never claim a check you did not run. Say what you did not run.
+- Commit message: what changed, which contract it touches (if any), deltas,
+  what is unverified.
 
 ## Rules
 
-### Behavior (contract)
+### Contracts
 
-- Fix only differences you can reproduce against upstream and trace to source.
-- Express quirks are contract, not bugs: weak ETags, text bodies without a
-  trailing newline, English `sendStatus` texts, passwordless root, `null` vs
-  empty vs absent. Do not "fix" them. They belong in `internal/httputil` once it
-  exists (ROADMAP K1); until then, keep them in the existing writer for that
-  package and do not add another copy.
-- Never run Node and Go against the same writable database, config, metadata,
-  or media tree. Mutating cases consume their fixture; create a fresh fixture
-  for each clean run.
-- An existing database must match the pinned migration version. Never create or
-  migrate a schema implicitly on an existing database.
-- No Node fallback in the Go runtime. FFmpeg and ffprobe run as subprocesses
-  through the `media` runner only.
-- Normalize only documented fixture-dependent IDs, paths, timestamps, and
-  inodes. Every normalization needs a written reason.
+- Never change the schema or migrate an existing database. Write DATETIME
+  values only through `dbtime`; keep JSON columns, ID formats and enum strings
+  as TS writes them.
+- Keep a client-visible field, type or `null` unless ROADMAP R2 approved its
+  removal.
+- Never run TS and Go against the same writable database or metadata tree.
 
-### Code (structure)
+### Code
 
-- New code follows `ARCHITECTURE.md`. In particular:
-  - Typed request and response DTOs live in `internal/wire`. Do not add
-    `map[string]any` to request or response paths.
-  - Register routes on `http.ServeMux` with method patterns. Do not add
-    hand-rolled `parts[N] == "x"` matching or new `Handle(...) bool` chains.
-  - Pass collaborators to `New` through a deps struct. Do not add `Set*`
-    injectors. `New` has no side effects; use `Start` and `Close`.
-  - If a helper exists in a leaf package, use it. If it does not, add it to the
-    leaf package, not to your feature package.
-- One behavior per packet. Edit only the paths your packet names.
-- Do not fix unrelated things on the way past. List them in the commit message
-  or packet report.
-- Do not rewrite ledgers, status files, or generated reports by hand.
+- Follow `ARCHITECTURE.md`: typed request/response structs, routes on
+  `ServeMux`, constructor injection, one owner per concern.
+- No new dependency without owner approval (see the library table in
+  `ARCHITECTURE.md`). Prefer an approved library over handwritten code.
+- No query on the pool while a `*sql.Rows` or `*sql.Tx` is open (`tools/dbnest`
+  fails the build).
+- Delete code you replace in the same commit. Do not leave compatibility shims.
+- One task per commit. List unrelated findings in the commit message instead of
+  fixing them.
 
 ## Commands
 
-Run from the upstream repository root unless noted.
+From the repository root unless noted.
 
 ```sh
-# Upstream (reference server), once:
-npm ci && npm run build:server           # use Node v22.x; Node 26 breaks the dependency tree
-
-# Fast core parity (rebuilds Go and creates a fresh fixture):
-make parity
-
-# All named parity and operational suites (fresh fixture per suite):
-make parity-full
-
-# Prove report repeatability using two independent fresh fixtures:
-make parity-equivalence
-
-# Replacement trial: realistic install, swap, mobile/web journey, rollback:
-make parity-replacement
-
-# Scan trial (new content and library maintenance after the swap) and the
-# route probe (no upstream route answered by the 501 fallback; run last, it
-# mutates its work dir):
-make parity-scan
-make route-probe
-
-# Harness self-test (binds two temporary loopback HTTP servers):
-node --test go-backend/tools/parity/test-differential-selftest.cjs
+cd go-backend && go build ./... && go vet ./... && go test ./...
+make ratchet                 # metrics and dbnest
+make parity-replacement      # until V1; needs Node 22 and `npm ci && npm run build:server`
+make parity-scan             # until V1
+make route-probe             # until V1; run last, it mutates its work dir
+make bench                   # performance snapshot
 ```
 
-Guardrail targets: `make ratchet`, `make ratchet-update`, `make status`.
-Dependency-rule negative witnesses: `node go-backend/tools/test-dependency-boundaries.cjs`
-(requires golangci-lint 2.15.0). Report/status witnesses:
-`node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs`.
-Node 22.x is required. The Makefile defaults to `mise exec node@22 -- node`; without
-`mise`, override it: `make PARITY_NODE=node parity` (see `handover.md`).
-
-Environment notes:
-
-- Local image-source samples need `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1` and
-  loopback permission.
-- Copied fixture files get new inodes; re-stat before comparing.
-- The fixture path rewriter must handle JSON-valued settings columns.
+Node 22.x is needed only for the TS reference server (trials and the rollback
+check). Without `mise`, pass `PARITY_NODE=node` to `make`. Local image-source
+samples need `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1`.
 
 ## When blocked
 
-Stop. Report the exact command, its output, and the smallest repair you would
-propose. Do not work around a failing check by changing expected values,
-widening normalization, or narrowing the case list.
+Stop and report the command, its output and the smallest fix you would
+propose. Do not weaken a test of a fixed contract to make it pass.

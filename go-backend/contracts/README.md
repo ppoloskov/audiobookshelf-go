@@ -1,3 +1,8 @@
+> **Status (2026-11-03):** historical inventory of upstream source. The
+> contracts that bind the Go server are the SQLite database and the client
+> protocols ([ARCHITECTURE.md](../ARCHITECTURE.md)); the client-usage inventory
+> replaces this as the route denominator (ROADMAP F3).
+
 # Legacy source compatibility inventory
 
 `source-inventory.json` is a reproducible, machine-readable index of syntax found in the upstream Node backend. Regenerate it from the repository root with:

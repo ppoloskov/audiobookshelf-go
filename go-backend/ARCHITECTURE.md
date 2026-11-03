@@ -1,270 +1,251 @@
-# Architecture: target state
+# Architecture
 
-Upstream TypeScript is a **behavioral contract**, not an architecture. This
-document describes the Go structure that new and migrated code follows.
-[`archive/reviews/ARCHITECTURE-REVIEW-2026-10-29.md`](archive/reviews/ARCHITECTURE-REVIEW-2026-10-29.md) is dated evidence of the earlier state;
-where its "anti-recommendations" conflict with this file, this file wins.
+## North Star
 
-Tags: **[enforced]** a tool fails the build; **[planned]** a roadmap phase adds
-the check; **[guidance]** reviewed by a human. **DECISION** marks something the
-project owner must confirm; the stated default applies until then.
+A Go server that replaces the TypeScript Audiobookshelf server in an existing
+installation, with clients, books and progress. It must be **simple, clear Go**
+and **faster** than the server it replaces.
+
+Two things are fixed contracts. Everything between them is replaceable.
+
+1. **The SQLite database** (and the `/config` + `/metadata` trees it points
+   at). An existing v2.37.2 install opens unchanged; data Go writes keeps the
+   same structure and meaning, so the TypeScript v2.37.2 server can reopen it
+   (rollback).
+2. **The client-facing protocols**: the HTTP API, Socket.IO events and auth
+   flows that real clients use. Those clients are the bundled web client
+   (`client/`), the iOS and Android apps, and third-party clients that follow
+   the documented API (`docs/openapi.json`).
+
+The upstream TypeScript source (`server/`, pinned v2.37.2,
+`edb1f7efc92ecacdef51aafb4d9d5054ce10604f`) is a **reference** for what the
+contracts mean. It is not a template for structure and not a byte-level oracle.
 
 ## Principles
 
-1. **Compatibility decides observable behavior; Go idioms decide structure.**
-   Wire shapes, status codes, quirks, and persistence are fixed by upstream.
-   Everything behind the HTTP boundary is ours to design.
-2. **One owner per concern.** Each cross-cutting helper (JSON writing, time
-   formatting, IDs, events, authz, ffmpeg) has exactly one package. Copies are
-   defects.
-3. **Types at the boundary.** Requests and responses are typed structs. Dynamic
-   maps are allowed only for genuinely opaque pass-through JSON.
-4. **Explicit wiring.** No setters, no globals, no constructors that start
-   goroutines.
-5. **Change structure only under a differential gate.** Refactors keep the
-   differential case count and result unchanged.
+| Was | Now |
+|-----|-----|
+| Replicate upstream Sequelize behavior | Preserve the SQLite structure and data semantics |
+| Replicate Express behavior | Preserve what clients actually require of the protocol |
+| Exact upstream representations (bytes, key order, headers) | Compatible fields and types; no byte equality |
+| Upstream controller-oriented packages | Cohesive Go domains, redesigned freely |
+| Consolidate custom implementations | Prefer a mature library when it removes complexity |
+| Upstream differential parity as the gate | Contract, persistence and functional tests as the gate |
+| Implement every upstream route | Keep client-required behavior; remove unneeded internals |
 
-## Package layout
+In practice:
+
+1. **Simplicity is a requirement.** Each change should leave less handwritten
+   code or less complexity, or justify why not. Measured by the ratchet (see
+   [Metrics](#metrics)).
+2. **Compatible, not identical.** A response is correct when every field a
+   client reads is present with the right JSON type and meaning. Key order,
+   whitespace, ETag style, `Content-Length`, error wording that no client
+   parses, and log wording are free.
+3. **The database is sacred.** Same tables, columns, column formats (DATETIME
+   text, JSON columns, ID formats), and the same meaning of every value. No
+   schema change, no implicit migration. A row written by Go must read
+   correctly in TypeScript v2.37.2 and the reverse.
+4. **Libraries over hand-rolled code**, from a short, owner-approved list
+   ([Libraries](#libraries)). A library is adopted when it replaces a
+   meaningful amount of code or risk, not for one helper.
+5. **Fast by default.** Constant query counts per page, no per-request settings
+   reads, concurrent reads. Performance is measured, not assumed.
+6. **Remove what no client needs.** A route or behavior with no client caller
+   is a removal candidate. The owner approves each removal.
+
+## Contracts in detail
+
+### Persistence (fixed)
+
+- Schema: exactly the pinned v2.37.2 schema (`SequelizeMeta` at the pinned
+  migration). Go never alters it. An existing database at another migration
+  level is refused at boot.
+- Value formats Go must write: DATETIME as upstream stores it
+  (`YYYY-MM-DD HH:MM:SS.SSS +00:00`, written only through `dbtime`), JSON
+  columns as JSON text, UUIDv4 IDs, booleans as 0/1, the same enum strings.
+- Semantics: the same row means the same thing (progress, sessions, ownership,
+  permissions, extraData keys, `lastFirst`/`titleIgnorePrefix` derivations,
+  feed and share records).
+- Files: the `/metadata` layout (items' covers and `metadata.json`, author
+  images, cache, backups, logs) stays readable by v2.37.2. `metadata.json`
+  needs the same keys and value types, not the same bytes.
+- Proof: persistence tests (Go writes, then the pinned TS server reads, and the
+  reverse) and the rollback check.
+
+### Client protocol (fixed where a client depends on it)
+
+- HTTP: paths, methods, auth (JWT access/refresh, API tokens, OIDC, cookies),
+  status codes that clients branch on, and response fields with their JSON
+  types, including `null` where a client checks for it.
+- Socket.IO v4 on the legacy and `/audiobookshelf` Engine.IO paths: event
+  names, payload fields, and which users receive each event.
+- `ROUTER_BASE_PATH` behavior, `/healthcheck`, `/ping`, `/status`, the served
+  web client and the public share/feed/HLS URLs.
+- Proof: contract tests (request/response field and type checks per route a
+  client calls, Socket.IO event tests) and functional journeys.
+
+### Free
+
+Package structure, SQL text and query plans, HTTP framing (ETag style,
+compression, header order, `Content-Length`), JSON key order and whitespace,
+error message text that no client parses, log text and levels, internal
+caches, goroutines, and anything a client cannot observe.
+
+## Package layout (target)
+
+Organize by domain, not by upstream controller. A domain owns its HTTP
+handlers, its queries and its types.
 
 ```
+cmd/audiobookshelf-go   main: config, open DB, build the server, run
 internal/
-  server/         composition root; Runtime/Manager; assembles the mux
-  config/         typed env/flag parsing (the only place env is read)
-  bootstrap/      fresh-init and schema/migration verification
-  store/          open/pragma/schema boundary; thin, not a repository framework
-  auth/           token verify AND issue (one JWT implementation)
+  server      composition root: builds domains, mounts routes, lifecycle
+  config      env/flags (the only place env is read)
+  db          open/pragmas/schema check; sqlc-generated queries (internal/db/sqlc)
+  dbtime      the one DATETIME format and parser
+  httpx       JSON/text writers, request decoding, error->status mapping
+  auth        JWT issue/verify (golang-jwt), API tokens, OIDC, permissions
+  events      domain event type; realtime subscribes
+  media       ffmpeg/ffprobe runner
+  textclean   HTML sanitize/strip (x/net/html tokenizer)
 
-  wire/           typed request/response DTOs, grouped by domain
-  httputil/       Express-exact response writers, body decoding, error mapping
-  dbtime/         the single SQLite DATETIME write format and parse
-  events/         one Emitter interface/func type; Bus for fan-out
-  authz/          permission evaluation (after characterization, see below)
-  ids/            UUID generation (one implementation, returns error)
-  media/          ffmpeg/ffprobe runner: path resolution, timeouts, stderr
-
-  catalog/ userapi/ identity/ playback/ scanner/ podcasts/ providers/
-  sharing/ adminops/ notifications/ emailapi/ backup/ audiotools/ realtime/
-                  feature packages, one per upstream controller area;
-                  each exposes Routes(mux, deps)
+  library     libraries, folders, filter data, search, stats
+  items       library items, books, podcasts, files, covers, chapters
+  people      authors, series, narrators
+  lists       collections, playlists
+  progress    media progress, bookmarks, listening sessions, playback, HLS
+  podcasts    feeds (gofeed), episode downloads, auto-download schedule
+  scanner     scan, watcher, metadata extraction
+  users       users, settings, API keys, tasks visible to clients
+  sharing     shares, RSS feeds out
+  admin       backups, notifications, email, logs, tools, custom providers
+  providers   metadata providers (Audible, Google, iTunes, ...)
+  realtime    Socket.IO transport, rooms, per-user filtering
 ```
 
-Not created yet: `httputil`, `events`, `ids`, `media`, `authz` (their depguard
-rules already exist in `.golangci.yml`). `dbtime`, `items`, `logging`, `wire`,
-`nameparse`, `textsort`, `progressdto`, `filterdata` and `realtime` exist.
-`auth` verifies tokens; issuing is still in `identity` and `userapi` (ROADMAP K24).
-
-Feature packages keep their 1:1 mapping to upstream controllers. That mapping
-is navigable and lets code cite upstream source lines. The problem was copied
-helpers, not package boundaries.
-
-**Dependency rules** [enforced: `.golangci.yml`; negative witnesses in
-`tools/test-dependency-boundaries.cjs`]:
-
-- `wire` imports nothing from `internal/`.
-- Leaf packages (`httputil`, `dbtime`, `events`, `ids`, `media`, `authz`,
-  `logging`) import only the standard library and `wire`.
-- Feature packages may import leaf packages, `items`, `store`, `auth`, `config`.
-- Feature packages must not import each other. Shared read-side serialization
-  moves to a shared package (see DECISION D1).
-- Nothing outside `*_test.go` imports `net/http/httptest`.
-
-**DECISION D1** (default: extract; partly done): the read side is the
-`items.Reader` interface (`ItemJSON`, `ItemMinifiedJSON`). `scanner`, `userapi`,
-and `playback` take it. `server/runtime.go` still builds one `catalog.Handler`
-and passes it in as that reader; no package builds its own.
-
-## Request flow
-
-```
-net/http -> Runtime.ServeHTTP
-  -> realtime (Engine.IO paths, matched on the original URL)
-  -> strip router base once
-  -> ServeMux (method+path patterns, per-package Routes)
-       -> auth wrappers: public | authenticated | admin
-       -> handler: decode request DTO -> do work -> build response DTO
-       -> httputil writer
-```
+This is a direction, not a big-bang rename. Domains are carved out as the
+roadmap touches them; current packages (`catalog`, `userapi`, `identity`,
+`adminops`, ...) shrink until they disappear.
 
 Rules:
 
-- **Routing** [in progress: `catalog` registers through `Routes`; the other 13
-  packages still use `Handle` chains, ROADMAP K31-K35]: Go 1.22+ `ServeMux` patterns
-  (`mux.HandleFunc("GET /api/libraries/{id}", h.library)`), registered by each
-  package's `Routes(mux, deps)`. Strip the router base exactly once, in
-  `Runtime`. Packages never strip prefixes themselves.
-- **Auth is a wrapper, not a preamble.** Public endpoints (capability URLs,
-  item covers, author images) are registered explicitly as public. Do not
-  repeat access checks as per-route boilerplate.
-- **404/405 are upstream's, not `ServeMux`'s.** Register explicit fallbacks
-  that reproduce Express behavior, and give them smoke cases.
-- **Migration is a strangler.** While `Handle` chains remain, a catch-all `/`
-  pattern delegates to them. Each package moves to `Routes` only when its
-  routes have smoke cases (happy path, 401, 403, 404, wrong method).
+- `httpx`, `dbtime`, `events`, `media`, `textclean` import only the standard
+  library and approved libraries. Domains may import them, `db`, `auth`,
+  `config`.
+- Domains do not import each other's internals. Cross-domain reads go through a
+  small interface or a shared query in `db`.
+- Routes are registered on `net/http.ServeMux` with method patterns by each
+  domain (`Routes(mux)`). The router base path is stripped once in `server`.
+- Collaborators arrive through constructor arguments. No `Set*` injectors, no
+  globals except the logger.
+- `New` allocates; `Start` begins background work; `Close` stops it and waits.
 
-## Wire DTOs
+## Data access
 
-Applies to `internal/wire` [guidance; the ratchet counts `map[string]any`].
+- Queries are SQL in `.sql` files, compiled by **sqlc** into typed Go
+  (`internal/db/sqlc`). The schema sqlc reads is the pinned v2.37.2 schema
+  dump; it is generated from upstream's fresh-init database, never edited by
+  hand.
+- Dynamic SQL (filter/sort builders for library pages) stays handwritten where
+  sqlc cannot express it, in one place per domain, built from ordered slices.
+- Hot reads load a page in a fixed number of queries (batch by ID list), never
+  one query per item.
+- One write connection. Reads may use a separate read pool once the
+  read-modify-write paths are audited (ROADMAP P4). Rollback-journal mode stays,
+  because TS v2.37.2 must reopen the file.
+- Never issue a query on the pool while a `*sql.Rows` or `*sql.Tx` from the
+  same pool is open (`tools/dbnest` fails the build). With one connection that
+  deadlocks.
+- Transactions are owned by the domain function that needs them.
 
-- One struct per wire shape, **named for the shape on the wire**, not for TS
-  methods or flags. Do not use names like `oldJSON`, `legacyJSON`, or an
-  `expanded bool` that switches between different shapes. Two shapes are two
-  types.
-- Field order in the struct follows upstream's key order.
-- A nullable scalar is `*T` **without** `omitempty`, so it marshals as `null`.
-- A key that upstream omits conditionally uses a pointer **with** `omitempty`.
-- Slices must be non-nil (`make([]T, 0)`) so they marshal as `[]`, never `null`.
-  Use constructors in `wire` where it is easy to forget.
-- Opaque pass-through JSON stored in a column stays `json.RawMessage` until a
-  later phase types it.
-- Every DTO has a golden or dual-run test that covers null, empty, and absent
-  variants. Compare after decoding and also check null-vs-absent explicitly.
-- Requests: decode into typed structs with one shared decoder (size limit,
-  trailing-data check, `UseNumber` only where upstream semantics need it).
-  Unknown shapes are rejected the way upstream rejects them, not by panic.
+## HTTP and JSON
 
-**DECISION D2** (default: pointers): if a field can be null **and** absent as
-distinct states, add `wire.Optional[T]` with custom marshalling. Do not
-introduce it speculatively.
+- Requests and responses are typed structs. `map[string]any` is allowed only
+  for opaque JSON stored in a column and passed through.
+- `null` vs absent matters only where a client checks it; use `*T` for nullable
+  and `omitempty` for optional, and stop there.
+- Slices that clients iterate marshal as `[]`, not `null`.
+- Errors map to status in `httpx`. A database error is a 500, not a 404.
+- No Express emulation for its own sake. Keep a quirk only when a client
+  depends on it, and name the client in a comment.
 
-## Dependencies and lifecycle
+## Events and realtime
 
-- Collaborators arrive through a deps struct on `New`. No `Set*` after
-  construction. Nil-emit guards disappear because a nil emitter is a
-  construction error.
-- `New` allocates; it does not start cron, goroutines, or DB work. `Start`
-  begins background work; `Close` stops it and **waits** for in-flight work.
-- Background goroutines take a context from `Start`, not
-  `context.Background()`.
-- `Manager`/`Runtime` hot-restore with rollback stays. It has no upstream
-  counterpart and is the reason the two types exist.
-- Handlers call plain functions, never each other through fabricated requests.
-  `httptest` recorders and forged users in production code are removed.
+- Domains publish typed events (`events.Event`). `realtime` alone knows about
+  sockets, rooms and per-user visibility.
+- Event names and payload fields are client contract; delivery mechanics are
+  not.
 
-## Events
+## Libraries
 
-- One `events.Emitter` type. Packages receive it in deps; there are no per-package
-  `EmitFunc` types.
-- Handlers and services emit domain events by name and payload DTO. Only
-  `realtime` knows about sockets, rooms, and recipient filtering.
-- Fan-out snapshots clients under the lock, then emits outside it.
+Approved by the owner. Adding a library requires owner approval first; propose
+it with what it replaces (lines, risk) and its maintenance status.
 
-## Persistence
+| Library | Use | Replaces |
+|---------|-----|----------|
+| `modernc.org/sqlite` | pure-Go SQLite driver | (in use) |
+| `github.com/sqlc-dev/sqlc` (build-time tool) | typed queries from SQL | ~590 hand-written `Query/Exec` call sites and their row scanning |
+| `github.com/golang-jwt/jwt/v5` | JWT sign/verify | hand-rolled HMAC JWT in `auth`, `identity`, `userapi` |
+| `golang.org/x/time/rate` | login/API rate limiting | custom buckets in `identity` |
+| `golang.org/x/net/html` (tokenizer) | clean text and sanitize metadata HTML | `auth/sanitize.go`, three `stripHTML`/`sanitizeHTML` copies |
+| `github.com/mmcdole/gofeed` | podcast RSS/Atom parsing | `podcasts/rss.go` XML mapping |
+| `github.com/coreos/go-oidc/v3` | OIDC | (in use) |
+| `github.com/zishang520/socket.io/v2` | Socket.IO v4 server | (in use) |
+| `github.com/fsnotify/fsnotify` | library watcher | (in use) |
+| `github.com/robfig/cron/v3` | schedules | (in use) |
+| `github.com/google/uuid` | UUIDv4 | (in use) |
+| `golang.org/x/crypto`, `golang.org/x/text` | bcrypt; text normalization | (in use) |
 
-- `store` stays a thin open/pragma/schema boundary. No generic repository
-  framework and no DI container.
-- Transactions are owned by the calling handler or service, explicitly.
-- All DATETIME columns are written through `dbtime` in one format and parsed
-  through one `dbtime.Parse` [planned: ROADMAP K11-K13; needs a DB-content differential
-  first because the stored format is visible to upstream].
-- Existing N+1 query patterns are allowed during the parity phases. Do not
-  change query behavior in a structure-only packet. Record the hot spots for
-  later.
-- No SQL assembled with `map` iteration order. Build update statements from an
-  ordered slice so text is deterministic.
+The Go toolchain follows the latest stable release (`go` directive in
+`go.mod`), so libraries can use current language features.
 
-## Authorization
+## Metrics
 
-- Seven independent ACL implementations exist and at least two disagree on tag
-  semantics (any-tag vs every-tag). **Do not unify by assumption.** First
-  characterize each against upstream with a generated permission matrix, then
-  consolidate into `authz` where behavior is identical and keep named variants
-  where upstream differs.
-- Every `authz` rule cites the upstream file and line it reproduces.
+`make ratchet` (`tools/ratchet`, baseline `ratchet-baseline.json`) fails when a
+metric rises. When a metric falls, lower the baseline in the same commit.
 
-## Errors
+Primary (simplification):
 
-- Errors are values. No `_ = json.Unmarshal(...)`, no unchecked type assertions
-  on request-derived data, no panics in request paths.
-- Map errors to HTTP in one place (`httputil`). A database error is not a 404.
-- Upstream HTTP failures from providers are not silently converted to empty
-  results; callers can tell "no results" from "provider down" (unless upstream
-  does exactly that, in which case cite it).
+- Handwritten Go lines, non-test, excluding generated files (`// Code
+  generated`). Baseline 44,326 at `768f131`.
+- Total and per-function cyclomatic complexity; functions above 15.
+- `map[string]any` and `[]any` uses in non-test code (1,003 and 313).
 
-## Logging
+Secondary (structure): hand-rolled `Handle(...) bool` routers (13), `Set*`
+injectors (18), duplicate helpers (1 each), `httptest` in non-test code (0),
+nested queries on the pool (`tools/dbnest`, 0).
 
-- `internal/logging` ports upstream's `Logger` and `LogManager`: console lines
-  `[YYYY-MM-DD HH:mm:ss.SSS] LEVEL: message`, daily JSON-line files under
-  `METADATA_PATH/logs/daily`, `logs/crash_logs.txt` for FATAL, the in-memory tail
-  behind `GET /api/logger-data`, and the Socket.IO `log` event for
-  `set_log_listener`. One path, no second ring.
-- Feature packages call the package-level functions (`logging.Infof`,
-  `logging.Errorf`, `logging.RequestError`), which write to `logging.Default()`.
-  This is deliberate and mirrors Node's singleton `Logger`: nearly every
-  constructor is `New(db, cfg, emit)` without a deps struct, and threading a
-  logger through all of them would add a parameter without adding isolation.
-  Composition roots configure the one instance (`cmd`, `server.Runtime`); tests
-  that need isolation build a private `logging.New`.
-- Before a handler writes a 5xx it logs the cause with `logging.RequestError`
-  (route without query string, because the query can carry an API token). The
-  response bytes stay exactly upstream's.
-- Message wording and levels follow the upstream call site; cite its
-  `file:line` in a comment. Never call the logger while holding a lock that the
-  socket emitter also takes (`realtime.Hub.mu`): listeners are emitted
-  synchronously.
+Commit messages report the change in handwritten lines and complexity.
+Performance is tracked by `make bench` (p50/p95 per client-critical call,
+memory, cold start); the roadmap names the calls to beat.
 
-## Shared utilities: single owners
+## Testing
 
-| Concern | Owner | Replaces |
-|---------|-------|----------|
-| JSON/text response writers, Express quirks | `httputil` | ~12 `writeJSON` copies, 4 Express text writers |
-| SQLite DATETIME format and parse | `dbtime` | 13 layouts, parsers repeated 7x |
-| Event emission type | `events` | 7 named `EmitFunc` types plus anonymous ones |
-| UUID generation | `ids` | 4-6 variants (panic, error, silent, empty) |
-| ffmpeg/ffprobe execution | `media` | 4-5 resolution and exec sites |
-| JWT sign and verify | `auth` | 3 signers, one with a dead branch |
-| Permission evaluation | `authz` | 7 copies, after characterization |
-| HTML sanitize/strip, Levenshtein, MIME tables, cron parser | a single shared owner each | duplicates across packages |
+Three kinds of test gate a change. None compares bytes with upstream.
 
-## Naming
+1. **Contract tests**: for each route and Socket.IO event a client uses, the
+   response has the fields the client reads, with the right types and
+   nullability. Source of truth: the client code (`client/`), the mobile apps'
+   observed calls, and `docs/openapi.json`. Written as Go tests against a
+   seeded database.
+2. **Persistence tests**: Go reads databases created by TS v2.37.2; TS v2.37.2
+   reads databases Go wrote (rollback check); `metadata.json` and image files
+   are readable by both.
+3. **Functional tests**: end-to-end journeys a user performs (log in, browse,
+   play and sync progress, download, scan new books, edit metadata, podcasts,
+   collections, OIDC) against a realistic install.
 
-- No TS-shaped names (`oldJSON`, `legacyJSON`, `minifiedFeed`, `clientJSON`).
-  Name by wire shape or purpose.
-- The two `titleIgnorePrefix` functions have different upstream semantics
-  (`getTitlePrefixAtEnd` vs `getTitleIgnorePrefix`). Rename both distinctly;
-  never merge them.
-
-## Concurrency
-
-- One mutex per concern; do not guard unrelated state with one lock.
-- Do not spawn a goroutine inside a cron callback (cron already does).
-- Shared mutable task state is guarded or confined to one goroutine, and has a
-  `-race` test.
-- Settings read-modify-write is serialized or transactional.
-- Cache read-mostly settings (such as the CSP `frame-ancestors` flag) and
-  invalidate through the settings-changed event, not a query per request.
-
-## Ratchet metrics
-
-`make ratchet` counts these and compares to
-`ratchet-baseline.json`. Counts may not rise. After a drop, the
-baseline must be lowered in the same commit.
-
-| Metric | Baseline (`ratchet-baseline.json`) | Target (ROADMAP task) |
-|--------|-------------------------------|--------------|
-| `map[string]any` and aliases of it | 1020 | falls with T2-T14 |
-| Hand-rolled `Handle(w, r, ...) bool` routers | 13 | 0 (K31-K35) |
-| `writeJSON`-style copies | 12 | 1 in `httputil` (K1-K4) |
-| `EmitFunc`-style type declarations | 7 | 0 (K17-K18) |
-| `Set*` injector methods | 18 | 0 (K19-K22) |
-| `catalog.New` call sites | 1 | 0 or 1 shared by injection (no task yet) |
-| `httptest` imports in non-test files | 0 | 0 (met) |
-| Inline `comparePair(...)` calls in `tools/parity/differential.cjs` | 0 | 0 (met) |
-| Duplicated harness helper definitions (`freePort`, `login`, `request`, `waitReady`, `parseArgs`) across `tools/parity/**/*.cjs` | 1 each | 1 each (met) |
-
-The Go metrics use `go/ast`; the harness metrics use regex counters over
-`tools/parity/`. The active snapshot is in `ratchet-baseline.json`; test files
-are excluded. Aliases such as `type JSON = map[string]any` count as the thing
-they alias. The dynamic-map measurement counts declarations and type uses,
-including chained/imported aliases and equivalent `interface{}` values;
-ordinary value identifiers and scalar `any` aliases are not dynamic-map types.
-The ratchet is a floor, not proof of quality; review still checks intent.
+The Node differential harness (`tools/parity/`) is kept as an optional,
+non-blocking diagnostic until the three suites above cover the same journeys;
+then it is retired (ROADMAP V-tasks). Its byte-level normalizations are not a
+spec.
 
 ## Open decisions
 
-| ID | Question | Default |
-|----|----------|---------|
-| D1 | Extract `internal/items` read side, or share one `catalog.Handler` | Extract (interface done; one handler still built) |
-| D2 | `*T` pointers vs `wire.Optional[T]` for null-and-absent | Pointers |
-| D3 | `net/http.ServeMux` vs a router library | Stdlib `ServeMux` |
-| D4 | Keep the Node-based differential harness or port it to Go | Keep (the shared `tools/parity/lib` and `suite-runner.cjs` are in place) |
-| D5 | Type inner objects (`AudioFile`, `Chapter`) in the pilot or later | Later |
+| ID | Question | Status |
+|----|----------|--------|
+| D1 | Run `ANALYZE` at boot (upstream does) | Owner (ROADMAP O1) |
+| D2 | Port upstream's boot cleanup `Database.cleanDatabase` | Owner (O2) |
+| D3 | Which routes no client calls are removed | Owner, per route list (R2) |
+| D4 | Libraries beyond the approved list | Owner, per proposal |

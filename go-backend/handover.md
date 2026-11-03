@@ -1,5 +1,10 @@
 # Go backend handover: current gotchas
 
+> 2026-11-03: the North Star changed (ARCHITECTURE.md). The database and client
+> protocols are the contracts; byte parity with upstream is not required. The
+> harness notes below still apply while the differential runs in CI (until
+> ROADMAP V1).
+
 Process and checks are in [AGENTS.md](AGENTS.md), order of work in
 [ROADMAP.md](ROADMAP.md), status in generated [STATUS.md](STATUS.md). This file
 holds only what trips people up now. Dated reviews are in
@@ -34,8 +39,8 @@ Earlier handover and status documents are in [archive/](archive/).
   cases mutate state. Copied fixture files get new inodes, so re-stat before
   comparing.
 - If Go's cache is unwritable, set a task-specific `GOCACHE`.
-- Compare case IDs, outcomes and normalized body digests. Do not widen
-  normalization to turn a pair green.
+- Compare case IDs, outcomes and normalized body digests. Widen normalization
+  only for a "free" difference (ARCHITECTURE.md), with the reason in the commit.
 - Schema-1 reports under `contracts/parity/` are historical; they lack the
   provenance fields the schema-2 equivalence gate needs. Do not overwrite them.
 - The OIDC suite's provider server must close keep-alive connections after the
@@ -63,7 +68,9 @@ Earlier handover and status documents are in [archive/](archive/).
   builds one `catalog.Handler` and passes it to `scanner`, `userapi` and
   `playback` as that interface.
 - Socket.IO `search_covers` and `cancel_cover_search` have no dispatcher case
-  yet (`internal/server/runtime.go`), so a socket cover search returns nothing,
-  without an error. The HTTP `/api/search/covers` works. ROADMAP C5.
+  yet (`internal/server/runtime.go`), so the web client's cover search tab gets
+  nothing. The HTTP `/api/search/covers` works. ROADMAP C5.
+- Production opens SQLite with one connection. A query issued while a
+  `*sql.Rows` or `*sql.Tx` is open deadlocks; `tools/dbnest` catches it.
 - `tools/parity/create-fixture.cjs` canonicalizes macOS `/private` fixture
   paths; keep that when editing it.

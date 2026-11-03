@@ -1,30 +1,33 @@
 # Audiobookshelf Go backend
 
-An experimental Go rewrite of the Audiobookshelf server. North Star: a Go
-server build that can replace the TypeScript server in an existing
-installation, with clients, books and progress.
+A Go server that replaces the TypeScript Audiobookshelf server (v2.37.2) in an
+existing installation, with clients, books and progress, in simple, clear and
+fast Go.
 
-- Behavior oracle: upstream `advplyr/audiobookshelf` v2.37.2, commit
-  `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`, source under `server/`. It is
-  never modified and never the architecture template.
-- Same HTTP, Socket.IO, SQLite and metadata layout as upstream; the original
-  web client in `client/` is served unchanged.
-- Runtime is Go built with `CGO_ENABLED=0`. No Node process at runtime. FFmpeg
-  and ffprobe run as subprocesses.
-- Fork license is upstream's GPL-3.0. Do not push this work to the upstream
-  repository.
+- **Fixed contracts:** the SQLite database (schema, value formats, meaning; the
+  TS v2.37.2 server can still open it) and the client protocols (HTTP,
+  Socket.IO, auth) that the web client, the mobile apps and documented-API
+  clients use. Everything between them is replaceable.
+- Upstream `advplyr/audiobookshelf` v2.37.2 (`edb1f7efc92ecacdef51aafb4d9d5054ce10604f`,
+  source in `server/`) is a reference for meaning, never modified, and not a
+  byte-level oracle or a structure template.
+- The bundled web client in `client/` is served unchanged.
+- Pure Go (`CGO_ENABLED=0`), no Node at runtime; FFmpeg/ffprobe as
+  subprocesses. A short, owner-approved list of libraries
+  ([ARCHITECTURE.md](ARCHITECTURE.md#libraries)).
+- Fork license is upstream's GPL-3.0. Do not push this work upstream.
 
 ## Where things live
 
 | Concern | File |
 |---------|------|
 | Agent rules and the required checks per packet | [AGENTS.md](AGENTS.md) |
-| Target code structure | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| North Star, contracts, target structure, libraries, metrics | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Ordered list of atomic tasks, with done checks | [ROADMAP.md](ROADMAP.md) |
-| Current verification status (generated, never hand-edited) | [STATUS.md](STATUS.md) |
+| Last differential run (generated; diagnostic until ROADMAP V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
-| Harness usage (fixtures, differential, suites, replacement trial) | [tools/parity/README.md](tools/parity/README.md) |
-| Source inventory and parity contracts | [contracts/README.md](contracts/README.md) |
+| Node differential harness (diagnostic until ROADMAP V1) | [tools/parity/README.md](tools/parity/README.md) |
+| Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
 
 ## Run
@@ -52,37 +55,20 @@ surface, not a full read-only mode.
 
 ## Verify
 
-From the repository root (Node 22.x; upstream built once with `npm ci && npm
-run build:server`):
-
 ```sh
-cd go-backend && CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...
-make parity               # core differential, Node vs Go on fresh fixtures
-make parity-full          # all named API, persistence, rollback and operational suites
-make parity-equivalence   # two independent fixtures must agree
-make parity-replacement   # product check: swap Go into a realistic install, replay the mobile/web journey, roll back
-make parity-scan          # new content and library maintenance after the swap
-make route-probe          # every upstream API, public and HLS route must be handled by Go
-make ratchet              # architecture guardrails, plus tools/dbnest (no query while a cursor or tx holds the one-connection pool)
-make status               # regenerate STATUS.md from the latest recorded run
+cd go-backend && go build ./... && go vet ./... && go test ./...
+make ratchet              # handwritten-code/complexity metrics and tools/dbnest
 ```
 
-Every route upstream registers (209 across `ApiRouter.js`, `PublicRouter.js`
-and `HlsRouter.js`) is handled by Go. `route-probe` sends each one and fails if
-any reaches the `501 "not implemented"` fallback; its `ALLOWLIST` is empty and
-must stay empty. Other statuses pass the probe: differential and trial cases
-check behavior.
+Correctness is proven by contract tests (fields and types clients read),
+persistence tests (Go reads TS databases; TS v2.37.2 reopens databases Go
+wrote) and functional journeys (ROADMAP F4-F6). Until those land and ROADMAP
+V1 is done, CI also runs the Node differential harness against upstream
+(`make parity`, `make parity-replacement`, `make parity-scan`,
+`make route-probe`; Node 22 and `npm ci && npm run build:server` needed), and
+every upstream route currently answers.
 
-Counts and verdicts are in [STATUS.md](STATUS.md) and in the reports the
-harness writes; do not copy them elsewhere. Without `mise`, pass
-`PARITY_NODE=node` to `make`.
-
-`cmd/abs-compat` is a small standard-library differential client for ad-hoc
-GET/HEAD comparison of two running servers (`-left`, `-right`, `-cases`; tokens
-from `ABS_COMPAT_LEFT_TOKEN` and `ABS_COMPAT_RIGHT_TOKEN`). It can trigger work
-on upstream, so use disposable copies. Source inventory tooling:
-`python3 go-backend/tools/source_inventory.py` (see
-[contracts/README.md](contracts/README.md)).
+`cmd/abs-compat` compares GET/HEAD responses of two running servers ad hoc.
 
 ## Docker image
 
@@ -94,7 +80,7 @@ The image has a `HEALTHCHECK` on `/healthcheck`. CI
 (`.github/workflows/docker-go.yml`) runs three jobs in order:
 
 1. `verify`: build, vet, test, the ratchet, dependency boundaries, and an arm64 build.
-2. `parity`: the core differential, the replacement trial, the scan trial, and the route probe, all against upstream v2.37.2.
+2. `parity`: the Node differential (core, replacement trial, scan trial, route probe) against upstream v2.37.2; blocking until ROADMAP V1.
 3. `image`: publishes `ghcr.io/<owner>/audiobookshelf-go` for `linux/amd64` and
    `linux/arm64`, tagged `latest` (from `master`), `sha-<short>` and version
    tags. Pull requests build the image but do not push it.
@@ -138,7 +124,5 @@ and Kubernetes' default `imagePullPolicy: IfNotPresent`, a node keeps the
 
 ## Known limits
 
-Known gaps are the correctness tasks (C-prefixed) in [ROADMAP.md](ROADMAP.md),
-for example lazy share expiry, the podcast cron not rescheduled after a
-`PATCH`, and a Socket.IO cover search that returns nothing. No overall parity
-claim is made here.
+Open work, including known gaps (share expiry timer, podcast schedule after a
+`PATCH`, Socket.IO cover search), is in [ROADMAP.md](ROADMAP.md).
