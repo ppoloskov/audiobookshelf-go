@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -36,6 +37,7 @@ import (
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -56,7 +58,8 @@ type Handler struct {
 	rateWindow       time.Duration
 	rateMessage      string
 	rateMu           sync.Mutex
-	rateBuckets      map[string]rateBucket
+	rateLimiters     map[string]*rate.Limiter
+	rateSwept        time.Time
 	oidcMu           sync.Mutex
 	oidcFlows        map[string]oidcFlow
 	mobileFlows      map[string]mobileFlow
@@ -66,11 +69,6 @@ type Handler struct {
 // Runtime composition supplies the shared Socket.IO hub before serving requests.
 func (h *Handler) SetUserAddedEmitter(emit func(map[string]any)) {
 	h.userAddedEmitter = emit
-}
-
-type rateBucket struct {
-	started time.Time
-	count   int
 }
 
 type session struct {
@@ -137,7 +135,7 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 		rateMax:      intFromEnv("RATE_LIMIT_AUTH_MAX", 40, true),
 		rateWindow:   time.Duration(intFromEnv("RATE_LIMIT_AUTH_WINDOW", 10*60*1000, false)) * time.Millisecond,
 		rateMessage:  envString("RATE_LIMIT_AUTH_MESSAGE", "Too many authentication requests"),
-		rateBuckets:  make(map[string]rateBucket),
+		rateLimiters: make(map[string]*rate.Limiter),
 		oidcFlows:    make(map[string]oidcFlow),
 		mobileFlows:  make(map[string]mobileFlow),
 	}
@@ -1077,29 +1075,30 @@ func envString(name, fallback string) string {
 	return fallback
 }
 
+// allowAuthRequest spends a token from the client's bucket. A burst of rateMax/2
+// plus a refill of the rest over rateWindow admits at most rateMax per window.
 func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool {
-	if h.rateMax == 0 || h.rateMax < 0 || h.rateWindow <= 0 {
+	if h.rateMax <= 0 || h.rateWindow <= 0 {
 		return true
 	}
-	now := time.Now()
 	key := clientIP(r)
 	h.rateMu.Lock()
-	bucket := h.rateBuckets[key]
-	if bucket.started.IsZero() || now.Sub(bucket.started) >= h.rateWindow {
-		bucket = rateBucket{started: now}
+	if time.Since(h.rateSwept) >= h.rateWindow {
+		h.rateSwept = time.Now()
+		// A full bucket is what a new client gets, so forgetting it changes nothing.
+		maps.DeleteFunc(h.rateLimiters, func(_ string, l *rate.Limiter) bool { return l.Tokens() >= float64(l.Burst()) })
 	}
-	bucket.count++
-	h.rateBuckets[key] = bucket
-	count := bucket.count
-	reset := int(math.Ceil(math.Max(0, h.rateWindow.Seconds()-now.Sub(bucket.started).Seconds())))
+	lim := h.rateLimiters[key]
+	if lim == nil {
+		burst := max(1, h.rateMax/2)
+		lim = rate.NewLimiter(rate.Limit(float64(max(h.rateMax-burst, 1))/h.rateWindow.Seconds()), burst)
+		h.rateLimiters[key] = lim
+	}
+	allowed, tokens := lim.Allow(), lim.Tokens()
 	h.rateMu.Unlock()
-	remaining := h.rateMax - count
-	if remaining < 0 {
-		remaining = 0
-	}
 	w.Header().Set("RateLimit-Policy", fmt.Sprintf("%d;w=%d", h.rateMax, int(h.rateWindow.Seconds())))
-	w.Header().Set("RateLimit", fmt.Sprintf("limit=%d, remaining=%d, reset=%d", h.rateMax, remaining, reset))
-	if count <= h.rateMax {
+	w.Header().Set("RateLimit", fmt.Sprintf("limit=%d, remaining=%d, reset=%d", h.rateMax, int(tokens), int(math.Ceil((float64(lim.Burst())-tokens)/float64(lim.Limit())))))
+	if allowed {
 		return true
 	}
 	httputil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})

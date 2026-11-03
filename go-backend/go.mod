@@ -7,6 +7,7 @@ toolchain go1.27.3
 require (
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/zishang520/engine.io/v2 v2.3.3
@@ -15,6 +16,7 @@ require (
 	golang.org/x/net v0.43.0
 	golang.org/x/sys v0.36.0
 	golang.org/x/text v0.29.0
+	golang.org/x/time v0.16.0
 	modernc.org/sqlite v1.39.1
 )
 
@@ -23,7 +25,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect

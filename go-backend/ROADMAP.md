@@ -178,7 +178,7 @@ L2, JWT issuing -> L1).
     lists nothing in auth paths; tokens issued by the TS server still verify
     (test with a fixture token).
 
-- [ ] L2: Rate limiting with `golang.org/x/time/rate`
+- [x] L2: Rate limiting with `golang.org/x/time/rate`
   - Files: `internal/identity/identity.go` (`rateBuckets` and their updates)
   - Change: Per-IP `rate.Limiter` with idle-entry pruning; same limits as today.
   - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
