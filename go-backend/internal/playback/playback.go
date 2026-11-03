@@ -26,6 +26,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -34,12 +35,10 @@ import (
 	"audiobookshelf-compat/internal/wire"
 )
 
-type EmitFunc func(userID, event string, payload any)
-
 type Handler struct {
 	db       *sql.DB
 	cfg      config.Config
-	emit     EmitFunc
+	emit     events.Emitter
 	items    items.Reader
 	mu       sync.RWMutex
 	sessions map[string]*session

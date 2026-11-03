@@ -28,6 +28,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -36,14 +37,12 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type EmitFunc func(userID, event string, payload any)
-
 var errPodcastExists = errors.New("podcast already exists")
 
 type Handler struct {
 	db                  *sql.DB
 	cfg                 config.Config
-	emit                EmitFunc
+	emit                events.Emitter
 	client              *http.Client
 	allowPrivateNetwork bool
 	queueMu             sync.Mutex
@@ -56,7 +55,7 @@ type Handler struct {
 	quickMatch          func(context.Context, string, bool) (int, error)
 }
 
-func New(db *sql.DB, cfg config.Config, emit EmitFunc) *Handler {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	if emit == nil {
 		emit = func(string, string, any) {}
 	}

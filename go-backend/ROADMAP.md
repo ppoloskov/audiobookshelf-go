@@ -364,7 +364,7 @@ creates them.
   - Done when: `grep -rn '^func levenshtein(' go-backend/internal --include=*.go`
     lists one definition.
 
-- [ ] K17: Create `internal/events` and replace the `EmitFunc` types in `providers`, `playback` and `podcasts`
+- [x] K17: Create `internal/events` and replace the `EmitFunc` types in `providers`, `playback` and `podcasts`
   - Files: `go-backend/internal/providers/handler.go` (line 25),
     `internal/playback/playback.go` (line 36), `internal/podcasts/podcasts.go` (line 37)
   - Change: One `events.Emitter` type. Packages receive it in their deps.

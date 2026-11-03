@@ -4,6 +4,7 @@ package providers
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"database/sql"
@@ -23,17 +24,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type EmitFunc func(userID, event string, payload any)
-
 type Handler struct {
 	db         *sql.DB
 	client     *http.Client
-	emit       EmitFunc
+	emit       events.Emitter
 	endpointMu sync.RWMutex
 	endpoints  map[string]string
 }
 
-func New(db *sql.DB, emit EmitFunc) (*Handler, error) {
+func New(db *sql.DB, emit events.Emitter) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("providers: database is nil")
 	}
