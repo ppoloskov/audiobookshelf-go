@@ -1,0 +1,57 @@
+{"timestamp":"2026-11-03 12:46:23.070","source":"Server.js:223","message":"=== Starting Server ===","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.070","source":"Server.js:151","message":"[Server] Init v2.37.2","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.071","source":"Server.js:152","message":"[Server] Node.js Version: v22.23.4","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.071","source":"Server.js:153","message":"[Server] Platform: linux","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.071","source":"Server.js:154","message":"[Server] Arch: x64","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.117","source":"Database.js:133","message":"[Database] absdatabase.sqlite not found at /tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/config/absdatabase.sqlite","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.118","source":"Database.js:171","message":"[Database] Initializing db at \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/config/absdatabase.sqlite\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.192","source":"Database.js:222","message":"[Database] Db connection was successful","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:23.538","source":"MigrationManager.js:75","message":"[MigrationManager] Database is new. Skipping migrations.","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.394","source":"Database.js:159","message":"[Database] Db initialized with models: user, session, apiKey, library, libraryFolder, book, podcast, podcastEpisode, libraryItem, mediaProgress, series, bookSeries, author, bookAuthor, collection, collectionBook, playlist, playlistMediaItem, device, playbackSession, feed, feedEpisode, setting, customMetadataProvider, mediaItemShare","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.396","source":"Database.js:795","message":"[Database] Adding trigger update_library_items_title","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.416","source":"Database.js:795","message":"[Database] Adding trigger update_library_items_title_ignore_prefix","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.435","source":"Database.js:795","message":"[Database] Adding trigger update_library_items_title_from_podcasts_title","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.451","source":"Database.js:795","message":"[Database] Adding trigger update_library_items_title_ignore_prefix_from_podcasts_title_ignore_prefix","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.464","source":"Database.js:830","message":"[Database] Adding trigger update_library_items_author_names_on_book_authors_insert","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.489","source":"Database.js:830","message":"[Database] Adding trigger update_library_items_author_names_on_book_authors_delete","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.504","source":"Database.js:852","message":"[Database] Adding trigger update_library_items_author_names_on_authors_update","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.596","source":"Database.js:162","message":"[Database] running ANALYZE","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.602","source":"Database.js:164","message":"[Database] ANALYZE completed","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.604","source":"Server.js:168","message":"[Server] Serving from base path \"/audiobookshelf\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.605","source":"TokenManager.js:44","message":"[TokenManager] JWT secret key not found, generating one","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.637","source":"LogManager.js:59","message":"[LogManager] Init current daily log filename: 2026-11-03.txt","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.645","source":"BackupManager.js:288","message":"[BackupManager] 0 Backups Found","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.645","source":"BackupManager.js:64","message":"[BackupManager] Auto Backups are disabled","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.679","source":"Server.js:423","message":"Listening on http://127.0.0.1:38447","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.803","source":"Server.js:348","message":"Received ping","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.850","source":"Server.js:432","message":"[Server] Initializing new server","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:24.956","source":"LocalAuthStrategy.js:81","message":"[LocalAuth] User \"trial-root\" logged in from ip 127.0.0.1","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:25.103","source":"Watcher.js:51","message":"[Watcher] Initializing watcher for \"Audiobooks\".","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:25.117","source":"LibraryScanner.js:60","message":"[LibraryScanner] Library metadata precedence changed since last scan. From [Unset] to [folderStructure,audioMetatags,nfoFile,txtFiles,opfFile,absMetadata]","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:25.118","source":"LibraryScanner.js:78","message":"[LibraryScanner] Starting (forced) library scan 631add81-9aa7-4a6f-876b-3c234bcb07a7 for Audiobooks","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:25.126","source":"Watcher.js:81","message":"[Watcher] \"Audiobooks\" Ready","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:25.814","source":"parseEpubMetadata.js:122","message":"Cover image not found in manifest for epub at \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/media/audiobooks/Ada Example/Ebook Only/Ebook Only.epub\"","levelName":"WARN","level":3}
+{"timestamp":"2026-11-03 12:46:26.303","source":"LibraryScanner.js:82","message":"[LibraryScanner] Library scan \"631add81-9aa7-4a6f-876b-3c234bcb07a7\" completed in 0:01 | 5 Added | 0 Updated | 0 Missing","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:26.327","source":"LibraryScan.js:125","message":"[LibraryScan] Scan log saved \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/metadata/logs/scans/2026-11-03_631add81-9aa7-4a6f-876b-3c234bcb07a7.txt\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:26.328","source":"LibraryController.js:1169","message":"[LibraryController] Scan complete","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:26.850","source":"LocalAuthStrategy.js:81","message":"[LocalAuth] User \"trial-listener\" logged in from ip 127.0.0.1","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.280","source":"LocalAuthStrategy.js:81","message":"[LocalAuth] User \"trial-finisher\" logged in from ip 127.0.0.1","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.352","source":"PlaybackSessionManager.js:96","message":"[PlaybackSessionManager] Syncing local session \"The Middle\" (play_local_trial0001) (updatedAt: 1793623596321)","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.376","source":"PlaybackSessionManager.js:225","message":"[PlaybackSessionManager] Creating new media progress for media item \"The Middle\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.447","source":"Watcher.js:51","message":"[Watcher] Initializing watcher for \"Podcasts\".","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.455","source":"Watcher.js:81","message":"[Watcher] \"Podcasts\" Ready","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.457","source":"LibraryScanner.js:78","message":"[LibraryScanner] Starting library scan 5b96c077-6e1f-4cc7-bc13-8b40ce5beff2 for Podcasts","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.770","source":"LibraryScanner.js:82","message":"[LibraryScanner] Library scan \"5b96c077-6e1f-4cc7-bc13-8b40ce5beff2\" completed in 0:00 | 1 Added | 0 Updated | 0 Missing","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.783","source":"LibraryScan.js:125","message":"[LibraryScan] Scan log saved \"/tmp/claude-0/-home-user-audiobookshelf-go/5331018b-40cc-513f-a8bf-51f7829dd6e1/scratchpad/seed/install/metadata/logs/scans/2026-11-03_5b96c077-6e1f-4cc7-bc13-8b40ce5beff2.txt\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:27.784","source":"LibraryController.js:1169","message":"[LibraryController] Scan complete","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.212","source":"PlaybackSessionManager.js:96","message":"[PlaybackSessionManager] Syncing local session \"Third Time\" (play_local_trial0003) (updatedAt: 1793666793321)","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.240","source":"PlaybackSessionManager.js:225","message":"[PlaybackSessionManager] Creating new media progress for media item \"Third Time\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.355","source":"RssFeedManager.js:269","message":"[RssFeedManager] Creating RSS feed for item eeb6224f-1316-40c8-b8bf-00804cc90436 \"Fixture Cast\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.360","source":"FeedEpisode.js:103","message":"[FeedEpisode] Upserting 3 episodes for feed 88e5eb3a-0ec5-45ca-856f-f9d7a25fe073 (0 existing)","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.377","source":"RssFeedManager.js:272","message":"[RssFeedManager] Opened RSS feed \"/feed/fixture-cast-feed\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.392","source":"RssFeedManager.js:269","message":"[RssFeedManager] Creating RSS feed for item b3c61dfc-dd4b-47ee-8998-0340c1228f52 \"The Beginning\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.398","source":"FeedEpisode.js:194","message":"[FeedEpisode] Upserting 3 episodes for feed 601e397d-3b81-44b6-94ed-2b0d860e532a (0 existing)","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.414","source":"RssFeedManager.js:272","message":"[RssFeedManager] Opened RSS feed \"/feed/trial-feed-saga1\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.427","source":"RssFeedManager.js:269","message":"[RssFeedManager] Creating RSS feed for item 91bb63f7-97c9-4230-8fd0-1dfd994977ea \"Single File Novel\"","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.431","source":"FeedEpisode.js:194","message":"[FeedEpisode] Upserting 1 episodes for feed 34dfa385-5620-4d0e-afb9-ebe319c4f253 (0 existing)","levelName":"INFO","level":2}
+{"timestamp":"2026-11-03 12:46:28.448","source":"RssFeedManager.js:272","message":"[RssFeedManager] Opened RSS feed \"/feed/trial-feed-novel\"","levelName":"INFO","level":2}

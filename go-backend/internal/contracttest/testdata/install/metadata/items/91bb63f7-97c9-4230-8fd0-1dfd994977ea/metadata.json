@@ -1,0 +1,42 @@
+{
+  "tags": [],
+  "chapters": [
+    {
+      "start": 0,
+      "end": 15,
+      "title": "Opening",
+      "id": 0
+    },
+    {
+      "start": 15,
+      "end": 30,
+      "title": "Middle",
+      "id": 1
+    },
+    {
+      "start": 30,
+      "end": 45,
+      "title": "Ending",
+      "id": 2
+    }
+  ],
+  "title": "Single File Novel",
+  "subtitle": null,
+  "authors": [
+    "Ada Example"
+  ],
+  "narrators": [],
+  "series": [],
+  "genres": [
+    "Fiction"
+  ],
+  "publishedYear": "2021",
+  "publishedDate": null,
+  "publisher": null,
+  "description": null,
+  "isbn": null,
+  "asin": null,
+  "language": null,
+  "explicit": false,
+  "abridged": false
+}
