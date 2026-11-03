@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
@@ -138,6 +139,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 	}
 	results, total, err := h.collapseSubseriesResults(r.Context(), user, libraryID, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}

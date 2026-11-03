@@ -26,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -131,11 +132,13 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User) {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
 	serialized, err := h.browserUserDB(r.Context(), user, progress, jsonArray(user.Bookmarks))
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -195,6 +198,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 	}
 	accessToken, refreshToken, err := h.invalidateSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
@@ -211,6 +215,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user store.User) {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -225,6 +230,7 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 	}
 	access, err := h.canAccessItem(r.Context(), user, libraryItemID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -250,6 +256,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 	if len(parts) == 2 && parts[1] == "remove-from-continue-listening" && r.Method == http.MethodGet {
 		res, err := h.db.ExecContext(r.Context(), `UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?`, dbtime.Now(), parts[0], user.ID)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -261,6 +268,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		h.emitUserUpdate(r.Context(), user)
 		payload, err := h.userPayload(r.Context(), user)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -279,6 +287,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		}
 		p, err := progressdto.ReadOne(r.Context(), h.db, user.ID, parts[0], episodeID)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -294,6 +303,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 		}
 		res, err := h.db.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE id = ? AND userId = ?`, parts[0], user.ID)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -385,6 +395,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 	itemID := parts[0]
 	access, err := h.canAccessItem(r.Context(), user, itemID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -432,6 +443,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 			entry["title"] = title
 		}
 		if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -455,6 +467,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		}
 		bookmarks = append(bookmarks[:index], bookmarks[index+1:]...)
 		if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -482,6 +495,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt FROM users`)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -491,12 +505,14 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
 		users = append(users, minimalBrowserUser(u, hideRootToken))
 	}
 	if err := rows.Err(); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -530,6 +546,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	var exists int
 	err = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username = ?`, username).Scan(&exists)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -561,6 +578,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	encodedPerms, _ := json.Marshal(permissions)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
+		logging.RequestError(r, "Failed to save new user", err)
 		http.Error(w, "Failed to save new user", 500)
 		return
 	}
@@ -577,20 +595,24 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	now := dbtime.Now()
 	token, err := h.signToken(map[string]any{"userId": userID, "username": username})
 	if err != nil {
+		logging.RequestError(r, "Failed to save new user", err)
 		http.Error(w, "Failed to save new user", 500)
 		return
 	}
 	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, encodedPerms, `[]`, `{"seriesHideFromContinueListening":[]}`, now, now); err != nil {
+		logging.RequestError(r, "Failed to save new user", err)
 		http.Error(w, "Failed to save new user", 500)
 		return
 	}
 	newUser, err := h.userByID(r.Context(), userID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
 	serialized, err := h.browserUserDB(r.Context(), newUser, []any{}, []any{})
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -615,6 +637,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			sendStatus(w, 404)
 			return
 		} else if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -636,6 +659,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -652,12 +676,14 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		extra["authOpenIDSub"] = nil
 		encoded, _ := json.Marshal(extra)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, encoded, dbtime.Now(), id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		u.ExtraData = encoded
 		serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -681,20 +707,24 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
 		progress, err := h.progressRows(r.Context(), id)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
 		if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
 		serialized, err := h.browserUserDB(r.Context(), u, progress, jsonArray(u.Bookmarks))
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -712,6 +742,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -725,23 +756,28 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 		tx, err := h.db.BeginTx(r.Context(), nil)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		defer tx.Rollback()
 		if _, err = tx.ExecContext(r.Context(), `DELETE FROM playlists WHERE userId = ?`, id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		if _, err = tx.ExecContext(r.Context(), `UPDATE playbackSessions SET userId = NULL WHERE userId = ?`, id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		if err = tx.Commit(); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -762,6 +798,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -809,6 +846,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if name, ok := body["username"].(string); ok && name != "" && name != u.Username {
 			var exists int
 			if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username=? AND id<>?`, name, id).Scan(&exists); err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return
 			}
@@ -819,6 +857,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			u.Username = name
 			token, err := h.signToken(map[string]any{"userId": u.ID, "username": u.Username})
 			if err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return
 			}
@@ -828,6 +867,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if password, ok := body["password"].(string); ok && password != "" {
 			hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 			if err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return
 			}
@@ -886,12 +926,14 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, encoded, now, u.ID)
 		}
 		if writeErr != nil {
+			logging.RequestError(r, "database write failed", writeErr)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		if credentialsChanged && h.invalidateSessions != nil {
 			_, refresh, err := h.invalidateSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
 			if err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return
 			}
@@ -902,6 +944,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		u.Permissions = encoded
 		serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -923,6 +966,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 	if id == "" && r.Method == http.MethodGet {
 		keys, err := h.apiKeys(r.Context())
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -947,6 +991,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -971,16 +1016,19 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		}
 		token, err := h.signToken(tokenClaims)
 		if err != nil {
+			logging.RequestError(r, "API key creation failed", err)
 			http.Error(w, "API key creation failed", 500)
 			return
 		}
 		active, _ := body["isActive"].(bool)
 		if _, err = h.db.ExecContext(r.Context(), `INSERT INTO apiKeys (id,name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, keyID, name, nil, expires, nil, active, nil, userID, current.ID, dbtime.Format(now), dbtime.Format(now)); err != nil {
+			logging.RequestError(r, "API key creation failed", err)
 			http.Error(w, "API key creation failed", 500)
 			return
 		}
 		entry, err := h.apiKey(r.Context(), keyID)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -1003,6 +1051,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 	if r.Method == http.MethodDelete {
 		res, err := h.db.ExecContext(r.Context(), `DELETE FROM apiKeys WHERE id=?`, id)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -1022,6 +1071,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			return
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -1069,11 +1119,13 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,updatedAt=? WHERE id=?`, newOwner, dbtime.Now(), id)
 		}
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
 		key, err := h.apiKey(r.Context(), id)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -1134,6 +1186,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 		case http.MethodGet:
 			rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM collections ORDER BY createdAt ASC`)
 			if err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
@@ -1144,6 +1197,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 				var id string
 				if err := rows.Scan(&id); err != nil {
 					rows.Close()
+					logging.RequestError(r, "database read failed", err)
 					http.Error(w, "database read failed", 500)
 					return true
 				}
@@ -1151,6 +1205,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 			}
 			if err := rows.Err(); err != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
@@ -1162,6 +1217,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 					continue
 				}
 				if err != nil {
+					logging.RequestError(r, "database read failed", err)
 					http.Error(w, "database read failed", 500)
 					return true
 				}
@@ -1189,12 +1245,14 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 				return true
 			}
 			if err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
 			if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
 				feed, err := h.collectionRSSFeed(r, id)
 				if err != nil {
+					logging.RequestError(r, "database read failed", err)
 					http.Error(w, "database read failed", 500)
 					return true
 				}
@@ -1212,6 +1270,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 				sendEntityNotFound(w, "Collection not found")
 				return true
 			} else if err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
@@ -1225,6 +1284,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 			}
 			dto, _, _, _ := h.collectionDTO(r.Context(), id, user)
 			if _, err := h.db.ExecContext(r.Context(), `DELETE FROM collections WHERE id=?`, id); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
 			}
@@ -1300,26 +1360,31 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	now := dbtime.Now()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "Failed to create collection", err)
 		http.Error(w, "Failed to create collection", 500)
 		return
 	}
 	defer tx.Rollback()
 	if _, err = tx.ExecContext(r.Context(), `INSERT INTO collections (id,name,description,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?)`, id, name, storedDescription, libraryID, now, now); err != nil {
+		logging.RequestError(r, "Failed to create collection", err)
 		http.Error(w, "Failed to create collection", 500)
 		return
 	}
 	for i, bookID := range mediaIDs {
 		if _, err = tx.ExecContext(r.Context(), `INSERT INTO collectionBooks (id,collectionId,bookId,"order",createdAt) VALUES (?,?,?,?,?)`, newUUID(), id, bookID, i+1, now); err != nil {
+			logging.RequestError(r, "Failed to create collection", err)
 			http.Error(w, "Failed to create collection", 500)
 			return
 		}
 	}
 	if err = tx.Commit(); err != nil {
+		logging.RequestError(r, "Failed to create collection", err)
 		http.Error(w, "Failed to create collection", 500)
 		return
 	}
 	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -1392,6 +1457,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		sendStatus(w, 404)
 		return true
 	} else if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1413,6 +1479,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		if s, ok := val.(string); ok {
 			desc = sql.NullString{String: s, Valid: true}
 		} else {
+			logging.RequestError(r, "database write failed", nil)
 			http.Error(w, "database write failed", 500)
 			return true
 		}
@@ -1425,6 +1492,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	changed := name != oldName || desc != oldDesc
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
@@ -1432,6 +1500,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	if books := stringSlice(body["books"]); len(books) > 0 {
 		rows, err := tx.QueryContext(r.Context(), `SELECT cb.id,li.id,cb."order" FROM collectionBooks cb JOIN libraryItems li ON li.mediaId=cb.bookId AND li.mediaType='book' WHERE cb.collectionId=?`, id)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return true
 		}
@@ -1444,6 +1513,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 			var link collectionLink
 			if err := rows.Scan(&link.linkID, &link.itemID, &link.order); err != nil {
 				rows.Close()
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
 			}
@@ -1462,6 +1532,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		for i, link := range links {
 			if link.order != i+1 {
 				if _, err := tx.ExecContext(r.Context(), `UPDATE collectionBooks SET "order"=? WHERE id=?`, i+1, link.linkID); err != nil {
+					logging.RequestError(r, "database write failed", err)
 					http.Error(w, "database write failed", 500)
 					return true
 				}
@@ -1471,16 +1542,19 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	}
 	if changed {
 		if _, err := tx.ExecContext(r.Context(), `UPDATE collections SET name=?,description=?,updatedAt=? WHERE id=?`, name, desc, dbtime.Now(), id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return true
 		}
 	}
 	if err = tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1500,6 +1574,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		sendEntityNotFound(w, "Collection not found")
 		return true
 	} else if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1516,6 +1591,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		if add {
 			sendText(w, 400, "Invalid request body")
 		} else {
+			logging.RequestError(r, "Invalid request body", nil)
 			http.Error(w, "Invalid request body", 500)
 		}
 		return true
@@ -1525,6 +1601,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		if add {
 			sendText(w, 400, "Invalid request body")
 		} else {
+			logging.RequestError(r, "Invalid request body", nil)
 			http.Error(w, "Invalid request body", 500)
 		}
 		return true
@@ -1541,6 +1618,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	}
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1550,6 +1628,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		var itemID, mediaID string
 		if err := rows.Scan(&itemID, &mediaID); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
@@ -1558,6 +1637,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1569,11 +1649,13 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	if add {
 		var order int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM collectionBooks WHERE collectionId=?`, id).Scan(&order); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
 		rows, err := h.db.QueryContext(r.Context(), `SELECT bookId FROM collectionBooks WHERE collectionId=?`, id)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
@@ -1582,6 +1664,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 			var mediaID string
 			if err := rows.Scan(&mediaID); err != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return true
 			}
@@ -1589,12 +1672,14 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		}
 		if err := rows.Err(); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
 		rows.Close()
 		tx, err := h.db.BeginTx(r.Context(), nil)
 		if err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return true
 		}
@@ -1609,11 +1694,13 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 			changed = true
 			existing[mediaID] = true
 			if _, err := tx.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, newUUID(), id, mediaID, order, dbtime.Now()); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
 			}
 		}
 		if err := tx.Commit(); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return true
 		}
@@ -1622,6 +1709,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 
 	rows, err = h.db.QueryContext(r.Context(), `SELECT id,bookId,"order" FROM collectionBooks WHERE collectionId=? ORDER BY "order" ASC`, id)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1634,6 +1722,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		var entry link
 		if err := rows.Scan(&entry.id, &entry.mediaID, &entry.order); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return true
 		}
@@ -1641,12 +1730,14 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
 	rows.Close()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
@@ -1655,6 +1746,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 	for _, entry := range links {
 		if mediaSet[entry.mediaID] {
 			if _, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE id=?`, entry.id); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
 			}
@@ -1663,6 +1755,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		}
 		if entry.order != order {
 			if _, err := tx.ExecContext(r.Context(), `UPDATE collectionBooks SET "order"=? WHERE id=?`, order, entry.id); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				http.Error(w, "database write failed", 500)
 				return true
 			}
@@ -1671,6 +1764,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, u
 		order++
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
@@ -1693,6 +1787,7 @@ func validCollectionBookIDs(raw any) []string {
 func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Request, user store.User, id string, changed bool) bool {
 	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1711,6 +1806,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 		return true
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1751,11 +1847,13 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 	}
 	now := dbtime.Now()
 	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO collectionBooks(id,collectionId,bookId,"order",createdAt) VALUES(?,?,?,?,?)`, newUUID(), id, mediaID, count+1, now); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1774,6 +1872,7 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -1792,23 +1891,27 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 		return true
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	defer tx.Rollback()
 	res, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE collectionId=? AND bookId=?`, id, mediaID)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	removed, _ := res.RowsAffected()
 	rows, err := tx.QueryContext(r.Context(), `SELECT id FROM collectionBooks WHERE collectionId=? ORDER BY "order"`, id)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
@@ -1821,11 +1924,13 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 	}
 	rows.Close()
 	if err = tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return true
 	}
 	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return true
 	}
@@ -2392,11 +2497,13 @@ func writeError(w http.ResponseWriter, err error) {
 		sendEntityNotFoundStatus(w, ae.status, ae.message)
 		return
 	}
+	logging.Errorf("[userapi] request failed: %v", err)
 	http.Error(w, "database write failed", 500)
 }
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	data, e := json.Marshal(v)
 	if e != nil {
+		logging.Errorf("[userapi] writeJSON: internal server error: %v", e)
 		http.Error(w, "internal server error", 500)
 		return
 	}
@@ -2422,6 +2529,7 @@ func writeJSONKeys(w http.ResponseWriter, status int, values map[string]any, key
 		name, _ := json.Marshal(key)
 		encoded, err := json.Marshal(value)
 		if err != nil {
+			logging.Errorf("[userapi] writeJSONKeys: internal server error: %v", err)
 			http.Error(w, "internal server error", 500)
 			return
 		}

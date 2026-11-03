@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -57,6 +58,7 @@ func writeExpressJSON(w http.ResponseWriter, status int, value any) {
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
+		logging.Errorf("[catalog] writeExpressJSON: internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
@@ -168,6 +170,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 		return
 	}
 	if err := os.MkdirAll(h.coverCachePath(), 0o755); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
@@ -179,6 +182,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
@@ -190,6 +194,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) {
 	file, err := os.Open(cachePath)
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writeError(w, http.StatusInternalServerError, "")
 		return
 	}
@@ -400,6 +405,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 			writeError(w, http.StatusNotFound, "")
 			return
 		}
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -518,6 +524,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		return tx.Commit()
 	}()
 	if writeErr != nil {
+		logging.RequestError(r, "database write failed", writeErr)
 		writeError(w, http.StatusInternalServerError, "database write failed")
 		return
 	}

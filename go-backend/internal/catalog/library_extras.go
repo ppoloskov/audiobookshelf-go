@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -18,6 +19,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -26,6 +28,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -39,6 +42,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, user store.U
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -94,6 +98,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,b.id,b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND EXISTS(SELECT 1 FROM json_each(COALESCE(b.narrators,'[]')) WHERE json_each.value=?)`, libraryID, oldName)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -107,6 +112,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 		var raw []byte
 		if err := rows.Scan(&row.itemID, &row.bookID, &raw); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -115,6 +121,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -141,6 +148,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, user st
 		}
 		encoded, _ := json.Marshal(next)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), row.bookID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, http.StatusInternalServerError, "database write failed")
 			return
 		}
@@ -165,6 +173,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -174,6 +183,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 		var itemID, libID string
 		if err := rows.Scan(&title, &itunesID, &itemID, &libID); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -181,6 +191,7 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}

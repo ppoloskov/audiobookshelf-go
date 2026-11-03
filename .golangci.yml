@@ -30,6 +30,8 @@ linters:
             - "**/internal/media/**/*.go"
             - "**/internal/authz/*.go"
             - "**/internal/authz/**/*.go"
+            - "**/internal/logging/*.go"
+            - "**/internal/logging/**/*.go"
           allow:
             - $gostd
             - audiobookshelf-compat/internal/wire

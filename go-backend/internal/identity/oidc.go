@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -68,6 +69,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg, err := h.readOIDCConfig(r.Context())
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writePlain(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -86,6 +88,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	if !isMobile || state == "" {
 		state, err = randomURLToken(32)
 		if err != nil {
+			logging.RequestError(r, "Internal Server Error", err)
 			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
@@ -124,6 +127,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	verifier := ""
 	nonce, err := randomURLToken(32)
 	if err != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -135,6 +139,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	} else {
 		verifier, err = randomURLToken(32)
 		if err != nil {
+			logging.RequestError(r, "Internal Server Error", err)
 			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
@@ -161,6 +166,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionCookie, err := h.sessionCookieValue(r)
 	if err != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -183,6 +189,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	h.oidcMu.Unlock()
 	providerURL, err := authorizationURL(cfg, callbackURL, state, challenge, nonce)
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		writePlain(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -265,6 +272,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg, err := h.readOIDCConfig(r.Context())
 	if err != nil {
+		logging.RequestError(r, "Error in callback", err)
 		h.oidcFailure(w, http.StatusInternalServerError, "Error in callback")
 		return
 	}
@@ -280,6 +288,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
+		logging.RequestError(r, "Error during login", err)
 		h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 		return
 	}
@@ -287,6 +296,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	if flow.mobile || cookieValue(r, "auth_method") == "openid-mobile" || cookieValue(r, "auth_method") == "api" {
 		payload, err := h.loginPayload(r.Context(), user)
 		if err != nil {
+			logging.RequestError(r, "Error during login", err)
 			h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 			return
 		}
@@ -395,6 +405,7 @@ func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string)
 	// the mobile redirect URI string there. A valid mobile flow therefore uses
 	// the web login redirect on callback failure, regardless of auth_method.
 	if status == http.StatusInternalServerError {
+		logging.Errorf("[Auth] OpenID callback failed with status %d: %s", status, message)
 		message = "Error in callback"
 	} else if status == http.StatusBadRequest && message == "No sign-in session" {
 		message = "No sign-in session"

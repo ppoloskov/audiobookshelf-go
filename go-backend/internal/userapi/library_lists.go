@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
@@ -27,6 +28,7 @@ func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, 
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, libraryID).Scan(&exists); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return 0, 0, false
 	}
@@ -87,6 +89,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	}
 	ids, err := h.queryIDs(r, `SELECT id FROM collections WHERE libraryId=? ORDER BY createdAt ASC`, libraryID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -97,6 +100,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 			continue
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -108,6 +112,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 		if slices.Contains(include, "rssfeed") {
 			feed, err := h.collectionRSSFeed(r, id)
 			if err != nil {
+				logging.RequestError(r, "database read failed", err)
 				http.Error(w, "database read failed", 500)
 				return
 			}
@@ -140,6 +145,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	}
 	ids, err := h.queryIDs(r, `SELECT id FROM playlists WHERE userId=? AND libraryId=?`, user.ID, libraryID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -154,6 +160,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 			continue
 		}
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}

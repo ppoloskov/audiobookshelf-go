@@ -20,6 +20,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/robfig/cron/v3"
 )
@@ -31,7 +32,6 @@ type Handler struct {
 	settingsChanged func(context.Context, map[string]any) error
 	itemChanged     func(context.Context, string) (any, error)
 	watcherUpdate   func(context.Context, string, string, string, string) error
-	loggerDataFn    func() any
 }
 
 func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
@@ -45,7 +45,6 @@ func (h *Handler) SetItemChanged(fn func(context.Context, string) (any, error)) 
 func (h *Handler) SetWatcherUpdate(fn func(context.Context, string, string, string, string) error) {
 	h.watcherUpdate = fn
 }
-func (h *Handler) SetLoggerData(fn func() any) { h.loggerDataFn = fn }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	p := r.URL.Path
@@ -161,18 +160,24 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	}
 	m, e := h.settings(r)
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
 	changed := false
 	for k, v := range patch {
 		if allowed[k] && !equalJSON(m[k], v) {
+			if level, isNumber := v.(float64); k == "logLevel" && isNumber {
+				// ServerSettings.update (ServerSettings.js:371)
+				logging.Default().ChangeLevel(logging.Level(int(level)))
+			}
 			m[k] = v
 			changed = true
 		}
 	}
 	if changed {
 		if e = h.saveSettings(r, m); e != nil {
+			logging.RequestError(r, "database error", e)
 			http.Error(w, "database error", 500)
 			return
 		}
@@ -186,6 +191,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 	}
 	m, e := h.settings(r)
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -263,6 +269,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 		}
 		if updated {
 			if e = h.saveSettings(r, m); e != nil {
+				logging.RequestError(r, "database error", e)
 				http.Error(w, "database error", 500)
 				return
 			}
@@ -306,11 +313,13 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 	}
 	m, e := h.settings(r)
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
 	m["sortingPrefixes"] = out
 	if e = h.saveSettings(r, m); e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -375,11 +384,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 		w.WriteHeader(403)
 		return
 	}
-	var logs any = []any{}
-	if h.loggerDataFn != nil {
-		logs = h.loggerDataFn()
-	}
-	writeJSON(w, map[string]any{"currentDailyLogs": logs})
+	writeJSON(w, logging.Default().LoggerData())
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) {
@@ -392,16 +397,19 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.Use
 		root = filepath.Join(root, "items")
 	}
 	if err := os.RemoveAll(root); err != nil {
+		logging.RequestError(r, "Failed to purge cache", err)
 		http.Error(w, "Failed to purge cache", 500)
 		return
 	}
 	if err := os.MkdirAll(root, 0755); err != nil {
+		logging.RequestError(r, "Failed to purge cache", err)
 		http.Error(w, "Failed to purge cache", 500)
 		return
 	}
 	if !itemsOnly {
 		for _, child := range []string{"covers", "images", "items"} {
 			if err := os.MkdirAll(filepath.Join(root, child), 0755); err != nil {
+				logging.RequestError(r, "Failed to purge cache", err)
 				http.Error(w, "Failed to purge cache", 500)
 				return
 			}
@@ -417,19 +425,23 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	var booksSize, booksCount, podcastsSize, podcastsCount int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='book'`).Scan(&booksSize, &booksCount); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		http.Error(w, "Internal server error", 500)
 		return
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='podcast'`).Scan(&podcastsSize, &podcastsCount); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		http.Error(w, "Internal server error", 500)
 		return
 	}
 	var bookFiles, podcastFiles int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(json_array_length(audioFiles)),0) FROM books`).Scan(&bookFiles); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		http.Error(w, "Internal server error", 500)
 		return
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes`).Scan(&podcastFiles); err != nil {
+		logging.RequestError(r, "Internal server error", err)
 		http.Error(w, "Internal server error", 500)
 		return
 	}
@@ -464,6 +476,7 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u st
 		return
 	}
 	if err := h.watcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type, body.OldPath); err != nil {
+		logging.RequestError(r, "Failed to update watched path", err)
 		http.Error(w, "Failed to update watched path", 500)
 		return
 	}
@@ -572,6 +585,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 				if n > 0 {
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
+						logging.RequestError(r, "failed to update item metadata", e)
 						http.Error(w, "failed to update item metadata", 500)
 						return
 					}
@@ -643,6 +657,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 				if n > 0 {
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
+						logging.RequestError(r, "failed to update item metadata", e)
 						http.Error(w, "failed to update item metadata", 500)
 						return
 					}

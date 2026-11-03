@@ -24,6 +24,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
@@ -439,11 +440,13 @@ func (s *Scanner) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	}
 	if isFile != 0 {
+		logging.RequestError(r, "Cannot scan a library file", nil)
 		http.Error(w, "Cannot scan a library file", http.StatusInternalServerError)
 		return true
 	}
 	res, err := s.ScanItemForce(r.Context(), parts[0])
 	if err != nil && !res.Canceled {
+		logging.RequestError(r, "internal error", err)
 		http.Error(w, err.Error(), 500)
 		return true
 	}

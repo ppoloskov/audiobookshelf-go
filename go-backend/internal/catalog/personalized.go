@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -27,6 +28,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 		writeError(w, http.StatusNotFound, "Library not found")
 		return
 	} else if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -70,11 +72,13 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 		totalQuery := "SELECT COUNT(*) FROM (" + spec.query + ")"
 		var total int
 		if err := h.db.QueryRowContext(r.Context(), totalQuery, args...).Scan(&total); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		items, err := h.personalizedItems(r, user, spec.query+` LIMIT ?`, append(append([]any{}, args...), limit))
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -131,6 +135,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, user stor
 			shelfErr = h.appendNewestAuthors(r, user, libraryID, limit, &shelves)
 		}
 		if shelfErr != nil {
+			logging.RequestError(r, "database read failed", shelfErr)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
@@ -220,11 +225,13 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		}
 		var total int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(DISTINCT ep.id)`+base, queryArgs...).Scan(&total); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
 		rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,ep.id,ep."index",ep.season,ep.episode,ep.episodeType,ep.title,ep.subtitle,ep.description,ep.pubDate,ep.enclosureURL,ep.enclosureSize,ep.enclosureType,ep.publishedAt,ep.audioFile,ep.chapters,ep.extraData,ep.createdAt,ep.updatedAt`+base+` ORDER BY `+map[bool]string{true: "mp.updatedAt", false: "ep.createdAt"}[spec.progress]+` DESC LIMIT ?`, append(queryArgs, limit)...)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -238,24 +245,28 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			var audioRaw, chaptersRaw, extraRaw []byte
 			if err := rows.Scan(&itemID, &episodeID, &index, &season, &episode, &episodeType, &title, &subtitle, &description, &pubDate, &enclosureURL, &enclosureSize, &enclosureType, &published, &audioRaw, &chaptersRaw, &extraRaw, &created, &updated); err != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", err)
 				writeError(w, 500, "database read failed")
 				return
 			}
 			pub, e := dateMillis(published)
 			if e != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", e)
 				writeError(w, 500, "database read failed")
 				return
 			}
 			createdMs, e := dateMillis(created)
 			if e != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", e)
 				writeError(w, 500, "database read failed")
 				return
 			}
 			updatedMs, e := dateMillis(updated)
 			if e != nil {
 				rows.Close()
+				logging.RequestError(r, "database read failed", e)
 				writeError(w, 500, "database read failed")
 				return
 			}
@@ -275,6 +286,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		}
 		if err := rows.Err(); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -283,6 +295,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		for _, record := range records {
 			item, e := h.ItemMinifiedJSON(r.Context(), record.itemID)
 			if e != nil {
+				logging.RequestError(r, "database read failed", e)
 				writeError(w, 500, "database read failed")
 				return
 			}
@@ -302,11 +315,13 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	// Recently-added podcasts are parent items, separate from episode shelves.
 	var total int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+permission, append([]any{libraryID, cutoff}, args...)...).Scan(&total); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
 	ids, err := h.db.QueryContext(r.Context(), `SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+permission+` ORDER BY li.createdAt DESC LIMIT ?`, append(append([]any{libraryID, cutoff}, args...), limit)...)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -319,6 +334,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	}
 	if err := ids.Err(); err != nil {
 		ids.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -330,6 +346,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			e = h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), id, item["media"], func(k string, v any) { item[k] = v })
 		}
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -342,6 +359,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		}
 		if includeHas(r, "rssfeed") {
 			if feed, ok, feedErr := h.feedMinified(r.Context(), "libraryItem", id); feedErr != nil {
+				logging.RequestError(r, "database read failed", feedErr)
 				writeError(w, 500, "database read failed")
 				return
 			} else if ok {
@@ -351,6 +369,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		if includeHas(r, "numepisodesincomplete") {
 			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, podcastID)
 			if incErr != nil {
+				logging.RequestError(r, "database read failed", incErr)
 				writeError(w, 500, "database read failed")
 				return
 			}

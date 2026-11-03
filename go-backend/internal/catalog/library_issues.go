@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -23,6 +24,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusNotFound, "Library not found")
 		return
 	} else if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -32,6 +34,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
@@ -40,12 +43,14 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
 		itemIDs = append(itemIDs, id)
 	}
 	if err := rows.Close(); err != nil || rows.Err() != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}

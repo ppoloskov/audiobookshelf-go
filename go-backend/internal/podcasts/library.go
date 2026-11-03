@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -44,6 +45,7 @@ func (h *Handler) handleLibrary(w http.ResponseWriter, r *http.Request, user sto
 		return true
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", http.StatusInternalServerError)
 		return true
 	}
@@ -63,6 +65,7 @@ func (h *Handler) handleLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		episodes, err := h.recentEpisodes(r.Context(), user, libraryID, limit, limit*page)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", http.StatusInternalServerError)
 			return true
 		}

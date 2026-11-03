@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -141,11 +142,13 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	var order int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(displayOrder),0)+1 FROM libraries`).Scan(&order); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
 	id := makeUUID()
 	if id == "" {
+		logging.RequestError(r, "failed to create library", nil)
 		writeError(w, 500, "failed to create library")
 		return
 	}
@@ -153,31 +156,37 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	settingsJSON, _ := json.Marshal(settings)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,lastScan,lastScanVersion,settings,extraData,createdAt,updatedAt) VALUES(?,?,?,?,?,?,NULL,NULL,?,'{}',?,?)`, id, name, order, icon, mediaType, provider, string(settingsJSON), now, now); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	for _, folderPath := range paths {
 		folderID := makeUUID()
 		if folderID == "" {
+			logging.RequestError(r, "database write failed", nil)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, folderID, folderPath, id, now, now); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -220,6 +229,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -334,6 +344,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		current := map[string]bool{}
 		rows, e := h.db.QueryContext(r.Context(), `SELECT id FROM libraryFolders WHERE libraryId=?`, id)
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -379,6 +390,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	for _, folderID := range removedFolders {
 		rows, e := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryFolderId=?`, folderID)
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -391,6 +403,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		if e = rows.Err(); e != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -409,6 +422,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if !hasUpdates {
 		result, e := h.libraryJSON(r.Context(), id)
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -417,6 +431,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -435,27 +450,32 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	sets = append(sets, `"updatedAt"=?`)
 	args = append(args, dbNow(), id)
 	if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	for _, folderPath := range newFolders {
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, makeUUID(), folderPath, id, dbNow(), dbNow()); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	for _, folderID := range removedFolders {
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE id=? AND libraryId=?`, folderID, id); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -475,6 +495,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	var count int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, id).Scan(&count); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -484,11 +505,13 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaId,mediaType FROM libraryItems WHERE libraryId=?`, id)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -501,6 +524,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		var item deletedItem
 		if err := rows.Scan(&item.id, &item.mediaID, &item.mediaType); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -514,6 +538,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -523,6 +548,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	for _, podcastID := range podcastIDs {
 		eps, e := h.db.QueryContext(r.Context(), `SELECT id FROM podcastEpisodes WHERE podcastId=?`, podcastID)
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -535,6 +561,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		if e = eps.Err(); e != nil {
 			eps.Close()
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}
@@ -542,22 +569,26 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	defer tx.Rollback()
 	if len(mediaIDs) > 0 {
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId IN (`+sqlMarks(len(mediaIDs))+`)`, stringArgs(mediaIDs)...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if err := deletePlaylistMedia(ctxTx{tx, r.Context()}, mediaIDs); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	if len(itemIDs) > 0 {
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM feeds WHERE entityType='libraryItem' AND entityId IN (`+sqlMarks(len(itemIDs))+`)`, stringArgs(itemIDs)...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
@@ -565,6 +596,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if len(bookIDs) > 0 {
 		for _, q := range []string{`DELETE FROM bookAuthors WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM bookSeries WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM mediaItemShares WHERE mediaItemType='book' AND mediaItemId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM books WHERE id IN (` + sqlMarks(len(bookIDs)) + `)`} {
 			if _, err := tx.ExecContext(r.Context(), q, stringArgs(bookIDs)...); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				writeError(w, 500, "database write failed")
 				return
 			}
@@ -573,53 +605,65 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if len(podcastIDs) > 0 {
 		if len(podcastEpisodeIDs) > 0 {
 			if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaItemShares WHERE mediaItemType='podcastEpisode' AND mediaItemId IN (`+sqlMarks(len(podcastEpisodeIDs))+`)`, stringArgs(podcastEpisodeIDs)...); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				writeError(w, 500, "database write failed")
 				return
 			}
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE podcastId IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcasts WHERE id IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryItems WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM authors WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM series WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM collectionBooks WHERE collectionId IN (SELECT id FROM collections WHERE libraryId=?)`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM collections WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET libraryId=NULL WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE libraryId=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraries WHERE id=?`, id); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	orderRows, err := tx.QueryContext(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder,id`)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -632,17 +676,20 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err := orderRows.Err(); err != nil {
 		orderRows.Close()
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
 	orderRows.Close()
 	for order, libraryID := range remainingLibraries {
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=? WHERE id=?`, order+1, libraryID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			writeError(w, 500, "database write failed")
 			return
 		}
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -687,6 +734,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user 
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
@@ -701,22 +749,26 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user 
 			writeError(w, 400, "Library not found with id "+row.ID)
 			return
 		} else if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			writeError(w, 500, "database read failed")
 			return
 		}
 		if float64(old) != row.NewOrder {
 			if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=?,updatedAt=? WHERE id=?`, row.NewOrder, dbNow(), row.ID); err != nil {
+				logging.RequestError(r, "database write failed", err)
 				writeError(w, 500, "database write failed")
 				return
 			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		writeError(w, 500, "database write failed")
 		return
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder`)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, 500, "database read failed")
 		return
 	}
@@ -732,6 +784,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user 
 	for _, id := range ids {
 		library, e := h.libraryJSON(r.Context(), id)
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			writeError(w, 500, "database read failed")
 			return
 		}

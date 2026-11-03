@@ -26,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -236,7 +237,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	if !canAccess(user, item) {
@@ -272,7 +273,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	}
 	deviceID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	mediaPlayer, _ := body["mediaPlayer"].(string)
@@ -284,7 +285,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	forceTranscode, _ := body["forceTranscode"].(bool)
 	progress, err := h.readProgress(r.Context(), user.ID, item, episodeID)
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	start := 0.0
@@ -303,7 +304,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	// that serializer.
 	itemJSON, err := h.items.ItemJSON(r.Context(), item.ID, true)
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	s := &session{ID: newUUID(), UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
@@ -332,7 +333,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		}
 		t, err := h.startTranscode(s, item, start)
 		if err != nil {
-			h.serverError(w, err)
+			h.serverError(w, r, err)
 			return
 		}
 		s.stream = t
@@ -654,11 +655,13 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexT
 		}
 	}
 	if f == nil {
+		logging.RequestError(r, "internal error", nil)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 	path, _ := f.Metadata["path"].(string)
 	if path == "" {
+		logging.RequestError(r, "internal error", nil)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
@@ -676,7 +679,7 @@ func (h *Handler) handleItemFile(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	if !canAccess(user, item) {
@@ -687,6 +690,7 @@ func (h *Handler) handleItemFile(w http.ResponseWriter, r *http.Request, user st
 		if f.Ino == ino {
 			path, _ := f.Metadata["path"].(string)
 			if path == "" {
+				logging.RequestError(r, "internal error", nil)
 				http.Error(w, "", 500)
 				return
 			}
@@ -765,19 +769,19 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
 		if err := h.saveSession(r.Context(), s); err != nil {
-			h.serverError(w, err)
+			h.serverError(w, r, err)
 			return
 		}
 		syncDuration, _ := asFloat(body["duration"])
 		if _, err := h.syncProgress(r.Context(), user.ID, s, syncDuration, nil); err != nil {
-			h.serverError(w, err)
+			h.serverError(w, r, err)
 			return
 		}
 	}
 	if closeSession {
 		if len(body) == 0 {
 			if err := h.saveSession(r.Context(), s); err != nil {
-				h.serverError(w, err)
+				h.serverError(w, r, err)
 				return
 			}
 		}
@@ -989,14 +993,14 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 	}
 	var total int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playbackSessions`+where, args...).Scan(&total); err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	query := `SELECT id,userId,libraryId,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,deviceId,createdAt,updatedAt FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
 	args = append(args, perPage, perPage*page)
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	sessions := []historySession{}
@@ -1004,18 +1008,18 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 		s, err := scanHistoryRow(rows)
 		if err != nil {
 			_ = rows.Close()
-			h.serverError(w, err)
+			h.serverError(w, r, err)
 			return
 		}
 		sessions = append(sessions, s)
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	if err := rows.Close(); err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	result := []map[string]any{}
@@ -1025,7 +1029,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 			device, err = nil, nil
 		}
 		if err != nil {
-			h.serverError(w, err)
+			h.serverError(w, r, err)
 			return
 		}
 		obj := s.oldJSON(device)
@@ -1088,7 +1092,7 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request, us
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playbackSessions WHERE id=?`, id).Scan(&exists); err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	if exists == 0 {
@@ -1097,7 +1101,7 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request, us
 	}
 	h.removeOpenSession(id)
 	if _, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id=?`, id); err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	sendOK(w)
@@ -1134,6 +1138,7 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request, user
 		args[i] = id
 	}
 	if _, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id IN (`+placeholders+`)`, args...); err != nil {
+		logging.RequestError(r, "Failed to remove sessions", err)
 		http.Error(w, "Failed to remove sessions", 500)
 		return
 	}
@@ -1171,12 +1176,13 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 	}
 	deviceDBID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		h.serverError(w, err)
+		h.serverError(w, r, err)
 		return
 	}
 	if !all {
 		result, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
 		if errMsg != "" {
+			logging.RequestError(r, "internal error", nil)
 			http.Error(w, errMsg, 500)
 			return
 		}
@@ -2142,6 +2148,7 @@ func methodNotAllowed(w http.ResponseWriter) {
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	b, err := json.Marshal(value)
 	if err != nil {
+		logging.Errorf("[playback] writeJSON: Internal Server Error: %v", err)
 		http.Error(w, "Internal Server Error", 500)
 		return
 	}
@@ -2172,7 +2179,7 @@ func ffmpegExecutable() string {
 	}
 	return "ffmpeg"
 }
-func (h *Handler) serverError(w http.ResponseWriter, err error) {
-	_ = err
+func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	logging.RequestError(r, "Internal Server Error", err)
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }

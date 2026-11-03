@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -119,6 +120,7 @@ func (h *Handler) save(ctx context.Context, m map[string]any) error {
 func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 	m, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -156,6 +158,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 		after, _ := json.Marshal(m)
 		if !bytes.Equal(before, after) {
 			if e = h.save(r.Context(), m); e != nil {
+				logging.RequestError(r, "database error", e)
 				http.Error(w, "database error", 500)
 				return
 			}
@@ -195,6 +198,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -207,6 +211,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 	m["ereaderDevices"] = clean
 	if changed {
 		if e = h.save(r.Context(), m); e != nil {
+			logging.RequestError(r, "database error", e)
 			http.Error(w, "database error", 500)
 			return
 		}
@@ -219,6 +224,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 	m, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -251,6 +257,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
+		logging.RequestError(r, "database error", e)
 		http.Error(w, "database error", 500)
 		return
 	}
@@ -302,6 +309,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 	defer f.Close()
 	data, e := io.ReadAll(io.LimitReader(f, 512<<20))
 	if e != nil {
+		logging.RequestError(r, "Failed to read ebook file", e)
 		http.Error(w, "Failed to read ebook file", 500)
 		return
 	}

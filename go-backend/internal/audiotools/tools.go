@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -125,6 +126,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		if errors.Is(err, sql.ErrNoRows) {
 			status(w, 404)
 		} else {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 		}
 		return true
@@ -280,6 +282,7 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, i
 	t := h.newTask("encode-m4b", u, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
 	if err := os.MkdirAll(t.cache, 0755); err != nil {
 		cancel()
+		logging.RequestError(r, "Unable to create task cache", err)
 		http.Error(w, "Unable to create task cache", 500)
 		return
 	}
@@ -332,6 +335,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) {
 			return
 		}
 		if e != nil {
+			logging.RequestError(r, "database read failed", e)
 			http.Error(w, "database read failed", 500)
 			return
 		}

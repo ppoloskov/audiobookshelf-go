@@ -14,6 +14,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -25,6 +26,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 	}
 	access, err := h.canAccessItem(r.Context(), user, parts[0])
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -44,6 +46,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 	if len(parts) == 2 && parts[1] != "" {
 		var exists int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, parts[1]).Scan(&exists); err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -71,6 +74,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM series WHERE id=?`, parts[0]).Scan(&exists); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -107,6 +111,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 		extra["seriesHideFromContinueListening"] = filtered
 		raw, _ := json.Marshal(extra)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, raw, dbtime.Now(), user.ID); err != nil {
+			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
 			return
 		}
@@ -115,6 +120,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	}
 	payload, err := h.userPayload(r.Context(), user)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -128,6 +134,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaItemId,mediaItemType,extraData,updatedAt FROM mediaProgresses WHERE userId=? AND isFinished=0 AND (currentTime>0 OR ebookProgress>0) ORDER BY updatedAt DESC`, user.ID)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -141,6 +148,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		var extra []byte
 		if err := rows.Scan(&p.id, &p.mediaID, &p.typ, &extra, &p.updated); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -151,6 +159,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -164,6 +173,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		seen[p.id] = true
 		access, err := h.canAccessItem(r.Context(), user, p.itemID)
 		if err != nil {
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -237,6 +247,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	}
 	var raw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw); err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -277,6 +288,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	settings["ereaderDevices"] = combined
 	encoded, _ := json.Marshal(settings)
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE settings SET value=?,updatedAt=? WHERE key='email-settings'`, encoded, dbtime.Now()); err != nil {
+		logging.RequestError(r, "database write failed", err)
 		http.Error(w, "database write failed", 500)
 		return
 	}
@@ -311,6 +323,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	var sessions, total, bookTime, podcastTime int
 	rows, err := h.db.QueryContext(r.Context(), `SELECT mediaItemType,timeListening,displayTitle,mediaMetadata,createdAt FROM playbackSessions WHERE userId=? AND createdAt>=? AND createdAt<?`, user.ID, start, end)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -326,6 +339,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		var created any
 		if err := rows.Scan(&typ, &secs, &title, &metaRaw, &created); err != nil {
 			rows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -359,12 +373,14 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
 	rows.Close()
 	finishedRows, err := h.db.QueryContext(r.Context(), `SELECT mp.mediaItemId,b.title,mp.duration,mp.finishedAt,li.id,b.coverPath FROM mediaProgresses mp JOIN books b ON b.id=mp.mediaItemId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE mp.userId=? AND mp.mediaItemType='book' AND mp.finishedAt>=? AND mp.finishedAt<?`, user.ID, start, end)
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -378,6 +394,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		var finishedAt, cover sql.NullString
 		if err := finishedRows.Scan(&mediaID, &title, &duration, &finishedAt, &itemID, &cover); err != nil {
 			finishedRows.Close()
+			logging.RequestError(r, "database read failed", err)
 			http.Error(w, "database read failed", 500)
 			return
 		}
@@ -394,6 +411,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	}
 	if err := finishedRows.Err(); err != nil {
 		finishedRows.Close()
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}
@@ -406,6 +424,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	booksWithCoversSet := map[string]bool{}
 	yearSessions, err := h.listeningSessions(r, user.ID, "")
 	if err != nil {
+		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
 		return
 	}

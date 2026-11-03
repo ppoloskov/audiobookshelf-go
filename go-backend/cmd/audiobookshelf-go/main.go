@@ -10,22 +10,43 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/server"
 	"audiobookshelf-compat/internal/store"
 )
 
+// fatal logs at FATAL (console, daily log and crash log) and exits, the way
+// upstream's uncaughtExceptionMonitor handler records a crash
+// (server/Server.js:243).
+func fatal(format string, args ...any) {
+	logging.Fatalf(format, args...)
+	os.Exit(1)
+}
+
 func main() {
+	// Anything still using the standard library logger (and http.Server's own
+	// error log) goes through the one logger.
+	log.SetFlags(0)
+	log.SetOutput(logging.Default().Writer(logging.LevelInfo, "log"))
+
 	cfg, err := config.LoadArgs(os.Args[1:])
 	if err != nil {
-		log.Fatalf("configuration error: %v", err)
+		fatal("[Server] configuration error: %v", err)
 	}
+	logging.Info("=== Starting Server ===")
+	logging.Infof("[Server] Init v%s", server.Version)
+	logging.Infof("[Server] Go Version: %s", runtime.Version())
+	logging.Infof("[Server] Platform: %s", runtime.GOOS)
+	logging.Infof("[Server] Arch: %s", runtime.GOARCH)
 	if err := bootstrap.Ensure(cfg); err != nil {
-		log.Fatalf("bootstrap error: %v", err)
+		fatal("[Server] bootstrap error: %v", err)
 	}
 	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
 	var db *store.Store
@@ -35,30 +56,47 @@ func main() {
 		db, err = store.OpenReadWrite(dbPath)
 	}
 	if err != nil {
-		log.Fatalf("cannot start: %v", err)
+		fatal("[Database] Failed to connect to db %q: %v", dbPath, err)
+	}
+	logging.Infof("[Database] Db connection was successful (%s)", dbPath)
+	// Upstream applies logLevel when ServerSettings loads, then initializes
+	// the LogManager (server/Server.js:186).
+	if settings, settingsErr := db.ServerSettings(context.Background()); settingsErr == nil {
+		server.ApplyLoggingSettings(settings)
+	} else {
+		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
+	}
+	if !cfg.ReadOnly {
+		if err := logging.Default().OpenFiles(cfg.MetadataPath); err != nil {
+			logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
+		}
 	}
 	var handler http.Handler
 	if cfg.ReadOnly {
 		readOnlyHandler, err := server.NewHandler(context.Background(), cfg, db)
 		if err != nil {
-			log.Fatalf("cannot start: %v", err)
+			fatal("[Server] cannot start: %v", err)
 		}
 		handler = readOnlyHandler
 		defer db.Close()
 	} else {
 		manager, err := server.NewManager(db, cfg)
 		if err != nil {
-			log.Fatalf("cannot start: %v", err)
+			fatal("[Server] cannot start: %v", err)
 		}
 		handler = manager
 		defer manager.Close()
 	}
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second,
+		ErrorLog: log.New(logging.Default().Writer(logging.LevelError, "http"), "", 0)}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {
 		<-ctx.Done()
+		logging.Info("SIGINT/SIGTERM received. Shutting down...")
+		logging.Info("=== Stopping Server ===")
+		logging.Info("[Server] Closing HTTP Server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
@@ -67,8 +105,26 @@ func main() {
 	if cfg.ReadOnly {
 		mode = "read-only"
 	}
-	log.Printf("Experimental Audiobookshelf Go backend v%s; %s mode; SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", server.Version, mode, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("HTTP server: %v", err)
+	logging.Infof("Experimental Audiobookshelf Go backend v%s; %s mode; SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", server.Version, mode, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
+	basePath := cfg.RouterBasePath
+	if basePath == "" {
+		basePath = "/"
 	}
+	logging.Infof("[Server] Serving from base path %q", basePath)
+	// Same two wordings as server/Server.js:476.
+	if cfg.Host != "" {
+		host := cfg.Host
+		if net.ParseIP(host) != nil && strings.Contains(host, ":") {
+			host = "[" + host + "]"
+		}
+		logging.Infof("Listening on http://%s:%d", host, cfg.Port)
+	} else {
+		logging.Infof("Listening on port :%d", cfg.Port)
+	}
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		fatal("[Server] HTTP server: %v", err)
+	}
+	logging.Info("[Server] HTTP Server Closed")
+	logging.Info("Server stopped. Exiting.")
+	logging.Default().Close()
 }

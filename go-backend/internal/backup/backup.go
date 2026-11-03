@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/robfig/cron/v3"
 )
@@ -213,6 +214,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 	}
 	if p == "/backups" && r.Method == http.MethodPost {
 		if _, err := h.Create(r.Context()); err != nil {
+			logging.RequestError(r, "backup failed", err)
 			http.Error(w, "backup failed", 500)
 			return true
 		}
@@ -341,16 +343,19 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	opt := h.options()
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		logging.RequestError(r, "Invalid backup file", err)
 		http.Error(w, "Invalid backup file", 500)
 		return
 	}
 	f, header, err := r.FormFile("file")
 	if err != nil {
+		logging.RequestError(r, "Invalid backup file", err)
 		http.Error(w, "Invalid backup file", 500)
 		return
 	}
 	defer f.Close()
 	if filepath.Ext(header.Filename) != ".audiobookshelf" {
+		logging.RequestError(r, "Invalid backup file", nil)
 		sendBody(w, 500, "Invalid backup file")
 		return
 	}
@@ -358,6 +363,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	dest := filepath.Join(opt.BackupPath, name)
 	tmp, err := os.CreateTemp(opt.BackupPath, "upload-*.tmp")
 	if err != nil {
+		logging.RequestError(r, "Failed to move backup file into backups directory", err)
 		http.Error(w, "Failed to move backup file into backups directory", 500)
 		return
 	}
@@ -365,10 +371,12 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	defer os.Remove(tmpName)
 	if _, err = io.Copy(tmp, f); err != nil {
 		tmp.Close()
+		logging.RequestError(r, "Failed to move backup file into backups directory", err)
 		http.Error(w, "Failed to move backup file into backups directory", 500)
 		return
 	}
 	if err = tmp.Close(); err != nil {
+		logging.RequestError(r, "Failed to move backup file into backups directory", err)
 		http.Error(w, "Failed to move backup file into backups directory", 500)
 		return
 	}
@@ -382,6 +390,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	b.BackupDirPath = opt.BackupPath
 	b.Path = filepath.Join("backups", name)
 	if err = os.Rename(tmpName, dest); err != nil {
+		logging.RequestError(r, "Failed to move backup file into backups directory", err)
 		http.Error(w, "Failed to move backup file into backups directory", 500)
 		return
 	}
@@ -431,11 +440,13 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err = opt.UpdatePath(r.Context(), path); err != nil {
+		logging.RequestError(r, "failed to save backup path", err)
 		http.Error(w, "failed to save backup path", 500)
 		return
 	}
 	opt.BackupPath = path
 	if err = h.UpdateOptions(r.Context(), opt); err != nil {
+		logging.RequestError(r, "failed to reload backup path", err)
 		http.Error(w, "failed to reload backup path", 500)
 		return
 	}
@@ -464,12 +475,14 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 	}
 	zipr, err := zip.OpenReader(b.FullPath)
 	if err != nil {
+		logging.RequestError(r, "Invalid backup file", err)
 		http.Error(w, "Invalid backup file", 500)
 		return
 	}
 	defer zipr.Close()
 	stage, err := os.MkdirTemp(h.cfg.ConfigPath, "backup-restore-")
 	if err != nil {
+		logging.RequestError(r, "Failed to prepare restore", err)
 		http.Error(w, "Failed to prepare restore", 500)
 		return
 	}
@@ -478,10 +491,12 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 	items := filepath.Join(stage, "metadata-items")
 	authors := filepath.Join(stage, "metadata-authors")
 	if err = os.MkdirAll(items, 0755); err != nil {
+		logging.RequestError(r, "Failed to prepare restore", err)
 		http.Error(w, "Failed to prepare restore", 500)
 		return
 	}
 	if err = os.MkdirAll(authors, 0755); err != nil {
+		logging.RequestError(r, "Failed to prepare restore", err)
 		http.Error(w, "Failed to prepare restore", 500)
 		return
 	}
@@ -495,6 +510,7 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 			}
 			total += f.UncompressedSize64
 			if err = extractEntry(f, dbTemp); err != nil {
+				logging.RequestError(r, "Failed to extract sqlite db from backup", err)
 				http.Error(w, "Failed to extract sqlite db from backup", 500)
 				return
 			}
@@ -535,20 +551,24 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 		out := filepath.Join(targetRoot, clean)
 		if f.FileInfo().IsDir() {
 			if err = os.MkdirAll(out, 0755); err != nil {
+				logging.RequestError(r, "Failed to extract backup metadata", err)
 				http.Error(w, "Failed to extract backup metadata", 500)
 				return
 			}
 		} else if err = extractEntry(f, out); err != nil {
+			logging.RequestError(r, "Failed to extract backup metadata", err)
 			http.Error(w, "Failed to extract backup metadata", 500)
 			return
 		}
 	}
 	if dbTemp == "" {
+		logging.RequestError(r, "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", nil)
 		http.Error(w, "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", 500)
 		return
 	}
 	defer os.Remove(dbTemp)
 	if err = opt.Restore(r.Context(), dbTemp, items, authors); err != nil {
+		logging.RequestError(r, "Failed to apply backup", err)
 		http.Error(w, "Failed to apply backup", 500)
 		return
 	}
@@ -772,6 +792,7 @@ func (h *Handler) emit(user, event string, payload any) { h.emitFunc(user, event
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
+		logging.Errorf("[backup] writeJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", 500)
 		return
 	}

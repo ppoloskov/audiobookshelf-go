@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -163,6 +164,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT `+feedColumns+` FROM feeds`)
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		sendStatus(w, 500)
 		return
 	}
@@ -171,6 +173,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 		f, err := scanFeedRow(rows)
 		if err != nil {
 			_ = rows.Close()
+			logging.RequestError(r, "internal error", err)
 			sendStatus(w, 500)
 			return
 		}
@@ -179,6 +182,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	err = rows.Err()
 	_ = rows.Close()
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		sendStatus(w, 500)
 		return
 	}
@@ -186,6 +190,7 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	for _, f := range feeds {
 		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
 		if err != nil {
+			logging.RequestError(r, "internal error", err)
 			sendStatus(w, 500)
 			return
 		}
@@ -305,6 +310,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	}
 	feed, err := h.createFeed(ctx, u.ID, entityType, id, src, serverAddress, slug, req.options())
 	if err != nil {
+		logging.RequestError(r, "Failed to open RSS feed", err)
 		sendText(w, 500, "Failed to open RSS feed")
 		return
 	}
@@ -320,6 +326,7 @@ func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
 		sendStatus(w, 404)
 		return
 	}
+	logging.Errorf("[sharing] RSS feed entity lookup failed: %v", err)
 	sendStatus(w, 500)
 }
 
@@ -327,6 +334,7 @@ func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
 func (h *Handler) slugInUse(ctx context.Context, w http.ResponseWriter, slug string) bool {
 	var count int
 	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM feeds WHERE slug=?`, slug).Scan(&count); err != nil {
+		logging.Errorf("[sharing] slugInUse: internal error: %v", err)
 		sendStatus(w, 500)
 		return true
 	}
@@ -440,10 +448,12 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		sendStatus(w, 500)
 		return
 	}
 	if _, err = h.db.ExecContext(r.Context(), `DELETE FROM feeds WHERE id=?`, id); err != nil {
+		logging.RequestError(r, "internal error", err)
 		sendStatus(w, 500)
 		return
 	}
@@ -488,6 +498,7 @@ func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 		feed, eps, err = h.refreshFeedIfStale(ctx, feed, eps)
 	}
 	if err != nil {
+		logging.RequestError(r, "internal error", err)
 		sendStatus(w, 500)
 		return
 	}

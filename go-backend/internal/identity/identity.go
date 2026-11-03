@@ -31,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
@@ -264,6 +265,7 @@ func (h *Handler) Authenticate(r *http.Request) (store.User, error) {
 func (h *Handler) Authorize(w http.ResponseWriter, r *http.Request, user store.User) {
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
+		logging.RequestError(r, "error", err)
 		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
 		return
 	}
@@ -357,11 +359,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
+		logging.RequestError(r, "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to create session"})
 		return
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
+		logging.RequestError(r, "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 		return
 	}
@@ -440,11 +444,13 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		access, newRefresh, err = h.rotateSession(r.Context(), s)
 	}
 	if err != nil {
+		logging.RequestError(r, "error", err)
 		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to rotate session"})
 		return
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
+		logging.RequestError(r, "error", err)
 		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 		return
 	}
@@ -497,12 +503,14 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	defer tx.Rollback()
 	var count int
 	if err := tx.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE type = 'root'`).Scan(&count); err != nil || count > 0 {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -524,6 +532,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	if body.NewRoot.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(body.NewRoot.Password), 8)
 		if err != nil {
+			logging.RequestError(r, "Internal Server Error", err)
 			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
@@ -531,11 +540,13 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := randomUUID()
 	if err != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	legacyToken, err := h.issueLegacyToken(id, username)
 	if err != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -544,6 +555,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	now := sqlDate(time.Now())
 	_, err = tx.ExecContext(r.Context(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES (?, ?, '', ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)`, id, username, passwordHash, legacyToken, mustJSON(permissions), mustJSON(extra), now, now)
 	if err != nil || tx.Commit() != nil {
+		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -1125,6 +1137,7 @@ func mustJSON(value any) string {
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	data, err := json.Marshal(value)
 	if err != nil {
+		logging.Errorf("[identity] writeJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -1161,6 +1174,7 @@ func writeExpressJSON(w http.ResponseWriter, status int, value any) {
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
+		logging.Errorf("[identity] writeExpressJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

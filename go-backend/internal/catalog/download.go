@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -64,6 +65,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 			writeError(w, http.StatusNotFound, "")
 			return
 		}
+		logging.RequestError(r, "database read failed", err)
 		writeError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}

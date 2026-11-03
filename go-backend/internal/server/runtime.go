@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
 	"audiobookshelf-compat/internal/adminops"
 	"audiobookshelf-compat/internal/audiotools"
@@ -22,6 +21,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/emailapi"
 	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/notifications"
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/podcasts"
@@ -31,6 +31,7 @@ import (
 	"audiobookshelf-compat/internal/sharing"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/userapi"
+	"audiobookshelf-compat/internal/wire"
 )
 
 type Runtime struct {
@@ -52,8 +53,6 @@ type Runtime struct {
 	sharing       *sharing.Handler
 	podcasts      *podcasts.Handler
 	providers     *providers.Handler
-	logMu         sync.RWMutex
-	logListeners  map[string]int
 }
 
 // NewRuntime assembles the single-process implementation around an already
@@ -63,7 +62,12 @@ func NewRuntime(db *sql.DB, cfg config.Config, repo Repository) (*Runtime, error
 }
 
 func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager, preservedHub ...*realtime.Hub) (*Runtime, error) {
-	installLogRing()
+	if manager != nil {
+		// A restored database may carry a different logLevel.
+		if settings, err := repo.ServerSettings(context.Background()); err == nil {
+			ApplyLoggingSettings(settings)
+		}
+	}
 	ident, err := identity.New(db, cfg)
 	if err != nil {
 		return nil, err
@@ -118,7 +122,6 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		sharing:       sharing.New(db, cfg, hub.Emit),
 		podcasts:      podcastsHandler,
 		providers:     prov,
-		logListeners:  map[string]int{},
 		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),
 	}
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
@@ -141,20 +144,8 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		}
 		return sc.UpdateWatchedPath(ctx, libraryID, path, mapped, oldPath)
 	})
-	rt.adminops.SetLoggerData(runtimeLogBuffer.Snapshot)
-	runtimeLogBuffer.SetNotify(func(entry map[string]any) {
-		rt.logMu.RLock()
-		listeners := make(map[string]int, len(rt.logListeners))
-		for socketID, level := range rt.logListeners {
-			listeners[socketID] = level
-		}
-		rt.logMu.RUnlock()
-		entryLevel, _ := entry["level"].(int)
-		for socketID, level := range listeners {
-			if entryLevel <= level {
-				hub.EmitSocket(socketID, "log", entry)
-			}
-		}
+	logging.Default().BindSockets(func(socketID string, entry wire.LogEntry) {
+		hub.EmitSocket(socketID, "log", entry)
 	})
 	hub.SetDispatcher(func(ctx context.Context, action realtime.Action) error {
 		switch action.Event {
@@ -169,13 +160,9 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			if !ok {
 				return fmt.Errorf("invalid log listener level")
 			}
-			rt.logMu.Lock()
-			rt.logListeners[action.SocketID] = level
-			rt.logMu.Unlock()
+			logging.Default().AddSocketListener(action.SocketID, logging.Level(level))
 		case "remove_log_listener", "disconnect":
-			rt.logMu.Lock()
-			delete(rt.logListeners, action.SocketID)
-			rt.logMu.Unlock()
+			logging.Default().RemoveSocketListener(action.SocketID)
 		}
 		return nil
 	})
@@ -266,12 +253,18 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	// Engine.IO is mounted both at the legacy root and under the configured
 	// router prefix, so dispatch it using the original URL before stripping.
+	// It is not wrapped by the panic guard because WebSocket upgrades need the
+	// original ResponseWriter's Hijacker.
 	for _, socketPath := range rt.realtime.Paths() {
 		if r.URL.Path == socketPath || strings.HasPrefix(r.URL.Path, socketPath+"/") {
 			rt.realtime.ServeHTTP(w, r)
 			return
 		}
 	}
+	guardPanics(w, r, rt.serveHTTP)
+}
+
+func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	path := rt.stripBase(r.URL.Path)
 	if path == "" {
 		path = "/"
@@ -364,6 +357,7 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if path == "/api/tasks" && isGet(r) {
 		payload, err := rt.audiotools.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
 		if err != nil {
+			logging.RequestError(r, "error", err)
 			writeJSON(w, 500, map[string]string{"error": "failed to load tasks"})
 			return
 		}
