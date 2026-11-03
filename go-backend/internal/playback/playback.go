@@ -339,6 +339,11 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 		s.stream = t
 		s.AudioTracks = []map[string]any{{"index": 1, "startOffset": 0, "duration": s.Duration, "title": s.DisplayTitle, "contentUrl": "/hls/" + s.ID + "/output.m3u8", "mimeType": "application/vnd.apple.mpegurl", "codec": nil, "metadata": nil}}
 	}
+	if playMethod == 0 {
+		logging.Debugf("[PlaybackSessionManager] %q starting direct play session for item %q with id %s (Device: %s)", user.Username, item.ID, s.ID, deviceDescription(device)) // PlaybackSessionManager.js:340
+	} else {
+		logging.Debugf("[PlaybackSessionManager] %q starting stream session for item %q (Device: %s)", user.Username, item.ID, deviceDescription(device)) // PlaybackSessionManager.js:344
+	}
 	h.mu.Lock()
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
@@ -655,13 +660,13 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexT
 		}
 	}
 	if f == nil {
-		logging.RequestError(r, "internal error", nil)
+		logging.RequestDebug(r, "responding 500: audio track "+indexText+" of the item was not found")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 	path, _ := f.Metadata["path"].(string)
 	if path == "" {
-		logging.RequestError(r, "internal error", nil)
+		logging.RequestDebug(r, "responding 500: audio file has no path")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
@@ -690,7 +695,7 @@ func (h *Handler) handleItemFile(w http.ResponseWriter, r *http.Request, user st
 		if f.Ino == ino {
 			path, _ := f.Metadata["path"].(string)
 			if path == "" {
-				logging.RequestError(r, "internal error", nil)
+				logging.RequestDebug(r, "responding 500: library file has no path")
 				http.Error(w, "", 500)
 				return
 			}
@@ -765,6 +770,7 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 		}
 		s.CurrentTime = ct
 		s.TimeListening += listened
+		logging.Debugf("[PlaybackSessionManager] syncSession %q (Device: %s) | Total Time Listened: %v", s.ID, deviceDescription(s.Device), s.TimeListening) // PlaybackSessionManager.js:389
 		s.UpdatedAt = nowMS()
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
@@ -785,11 +791,14 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 				return
 			}
 		}
+		logging.Debugf("[PlaybackSessionManager] closeSession %q", s.ID) // PlaybackSessionManager.js:427
 		h.mu.Lock()
 		delete(h.sessions, id)
 		h.mu.Unlock()
 		if s.stream != nil {
-			_ = s.stream.close()
+			if closeErr := s.stream.close(); closeErr != nil {
+				logging.Errorf("[PlaybackSessionManager] Failed to close stream for session %q: %v", s.ID, closeErr)
+			}
 		}
 		h.emit(user.ID, "user_session_closed", s.ID)
 	}
@@ -1137,10 +1146,14 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request, user
 	for i, id := range body.Sessions {
 		args[i] = id
 	}
-	if _, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id IN (`+placeholders+`)`, args...); err != nil {
+	res, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id IN (`+placeholders+`)`, args...)
+	if err != nil {
 		logging.RequestError(r, "Failed to remove sessions", err)
 		http.Error(w, "Failed to remove sessions", 500)
 		return
+	}
+	if removed, rowsErr := res.RowsAffected(); rowsErr == nil {
+		logging.Infof("[SessionController] %d playback sessions removed by %q", removed, user.Username) // SessionController.js:238
 	}
 	sendOK(w)
 }
@@ -1182,7 +1195,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 	if !all {
 		result, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
 		if errMsg != "" {
-			logging.RequestError(r, "internal error", nil)
+			logging.RequestDebug(r, "responding 500: "+errMsg)
 			http.Error(w, errMsg, 500)
 			return
 		}
@@ -1214,12 +1227,17 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[string]any, deviceDBID string, device map[string]any) (map[string]any, string) {
 	itemID, _ := obj["libraryItemId"].(string)
 	episodeID, _ := obj["episodeId"].(string)
+	displayTitle, _ := obj["displayTitle"].(string)
+	localID, _ := obj["id"].(string)
+	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %v)", displayTitle, localID, obj["updatedAt"]) // PlaybackSessionManager.js:110
 	item, err := h.loadItem(ctx, itemID, episodeID)
 	if err != nil {
+		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Media item not found for session %q (%s): %v", displayTitle, localID, err) // PlaybackSessionManager.js:132
 		return nil, "Media item not found"
 	}
 	var libraryExists int
 	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryExists); err != nil || libraryExists == 0 {
+		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Library not found for session %q (%s)", displayTitle, localID) // PlaybackSessionManager.js:142
 		return nil, "Library not found"
 	}
 	oldID, _ := obj["id"].(string)
@@ -1571,7 +1589,8 @@ func (t *transcode) start(concat string, duration float64) error {
 	args = append(args, "-f", "concat", "-safe", "0", "-i", concat, "-map", "0:a", "-c:a", t.audioCodec, "-f", "hls", "-copyts", "-avoid_negative_ts", "make_non_negative", "-max_delay", "5000000", "-max_muxing_queue_size", "2048", "-hls_time", "6", "-hls_segment_type", "mpegts", "-start_number", strconv.Itoa(t.segmentStart), "-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_allow_cache", "0", "-hls_segment_filename", filepath.Join(t.root, "output-%d.ts"), filepath.Join(t.root, "final-output.m3u8"))
 	cmd := exec.CommandContext(ctx, ffmpegExecutable(), args...)
 	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
+	stderrTail := &tailBuffer{limit: 4096}
+	cmd.Stderr = stderrTail
 	done := make(chan struct{})
 	t.mu.Lock()
 	t.ctx = ctx
@@ -1593,14 +1612,42 @@ func (t *transcode) start(concat string, duration float64) error {
 		t.cmd = nil
 		t.mu.Unlock()
 		if err != nil && !errors.Is(err, context.Canceled) {
+			// Upstream runs ffmpeg with -loglevel error in production
+			// (Stream.js:268) and logs its failure.
+			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v: %s", t.root, err, stderrTail.String())
 			return
 		}
 		if err == nil {
-			_ = t.promoteFinalPlaylist()
+			if promoteErr := t.promoteFinalPlaylist(); promoteErr != nil {
+				logging.Errorf("[Stream] Failed to publish the final playlist in %q: %v", t.root, promoteErr)
+			}
 		}
 	}()
 	_ = duration
 	return nil
+}
+
+// tailBuffer keeps the last limit bytes written to it (ffmpeg's stderr).
+type tailBuffer struct {
+	mu    sync.Mutex
+	limit int
+	data  []byte
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.data = append(b.data, p...)
+	if len(b.data) > b.limit {
+		b.data = append([]byte(nil), b.data[len(b.data)-b.limit:]...)
+	}
+	return len(p), nil
+}
+
+func (b *tailBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return strings.TrimSpace(string(b.data))
 }
 
 func (t *transcode) promoteFinalPlaylist() error {

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/logging"
 	"github.com/google/uuid"
 )
 
@@ -70,6 +71,11 @@ func (w *fsWatcher) stop() {
 
 // onFile is Watcher.onFileAdded / onFileRemoved (Watcher.js:162-190).
 func (w *fsWatcher) onFile(libraryID, p, kind string) {
+	if kind == "added" {
+		logging.Debugf("[Watcher] File Added %s", p) // Watcher.js:192
+	} else {
+		logging.Debugf("[Watcher] File Removed %s", p) // Watcher.js:213
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if !w.addUpdate(libraryID, p, kind) {
@@ -96,6 +102,7 @@ func (w *fsWatcher) waitForFileToAdd(p string, last int64, loop int) {
 			w.pending = kept
 			delete(w.being, p)
 			w.mu.Unlock()
+			logging.Warnf("[Watcher] Waiting to add file at %q timeout (loop %d) - bailing", p, loop) // Watcher.js:242
 			return
 		}
 		var mtime int64
@@ -269,6 +276,7 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 		group := groups[folderID]
 		results, err := s.scanFolderUpdates(ctx, group[0].libraryID, folderID, group)
 		if err != nil {
+			logging.Errorf("[LibraryScanner] Scanning %d file updates in folder %q of library %s failed: %v", len(group), folderID, group[0].libraryID, err)
 			continue
 		}
 		changed := false

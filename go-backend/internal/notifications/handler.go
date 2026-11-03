@@ -399,7 +399,7 @@ func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
 	}
 	event := eventData(n["eventName"].(string))
 	if event == nil {
-		logging.RequestError(r, "internal error", nil)
+		logging.RequestDebug(r, "responding 500: unknown notification event "+fmt.Sprint(n["eventName"]))
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}

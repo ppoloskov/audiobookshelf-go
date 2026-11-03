@@ -258,6 +258,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if providerError := r.URL.Query().Get("error"); providerError != "" {
+		logging.Errorf("[OidcAuth] openid callback error: provider returned %q (%s)", providerError, r.URL.Query().Get("error_description"))
 		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -278,10 +279,16 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	userinfo, idToken, err := exchangeAndLoadUserInfo(r.Context(), cfg, code, flow.redirectURI, verifier, flow.nonce)
 	if err != nil {
+		logging.Errorf("[OidcAuth] openid callback error: %v", err) // OidcAuthStrategy.js:160
 		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 	user, err := h.userFromOIDCInfo(r.Context(), cfg, userinfo)
+	if err != nil {
+		logging.Errorf("[OidcAuth] openid callback: could not match or create a user: %v", err)
+	} else if !user.IsActive {
+		logging.Warn("[User] openid: User found but is not active") // User.js:292
+	}
 	if err != nil || !user.IsActive {
 		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 		return
@@ -292,6 +299,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 		return
 	}
+	logging.Infof("[OidcAuth] User %q logged in with OpenID from ip %s", user.Username, clientIP(r))
 	setExpressCookie(w, "openid_id_token", idToken, 10*365*24*60*60, true, true, "Strict")
 	if flow.mobile || cookieValue(r, "auth_method") == "openid-mobile" || cookieValue(r, "auth_method") == "api" {
 		payload, err := h.loginPayload(r.Context(), user)
@@ -355,6 +363,7 @@ func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
 	if err != nil {
+		logging.Errorf("[OidcAuth] Failed to get openid configuration at %q: %v", u.String(), err) // OidcAuthStrategy.js:470
 		writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
 		return
 	}

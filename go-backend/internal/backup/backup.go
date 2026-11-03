@@ -95,6 +95,9 @@ func New(db *sql.DB, cfg config.Config, opt Options, emit EmitFunc) (*Handler, e
 			return nil, fmt.Errorf("invalid backup schedule %q: %w", opt.BackupSchedule, err)
 		}
 		h.cron.Start()
+		logging.Infof("[BackupManager] Starting backup schedule %s", opt.BackupSchedule) // BackupManager.js:94
+	} else {
+		logging.Info("[BackupManager] Auto Backups are disabled") // BackupManager.js:77
 	}
 	return h, nil
 }
@@ -179,9 +182,11 @@ func (h *Handler) Reload() error {
 		}
 		b, err := readBackup(filepath.Join(opt.BackupPath, e.Name()))
 		if err != nil {
+			logging.Warnf("[BackupManager] Backup %q could not be loaded and was ignored: %v", e.Name(), err) // upstream warns only for pre-sqlite backups (BackupManager.js:312)
 			continue
 		}
 		if seen[b.ID] {
+			logging.Warnf("[BackupManager] Backup already loaded with id %s - ignoring", b.ID) // BackupManager.js:318
 			continue
 		}
 		seen[b.ID] = true
@@ -191,6 +196,7 @@ func (h *Handler) Reload() error {
 	h.mu.Lock()
 	h.backups = loaded
 	h.mu.Unlock()
+	logging.Infof("[BackupManager] %d Backups Found", len(loaded)) // BackupManager.js:327
 	return nil
 }
 
@@ -256,11 +262,14 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) b
 
 func (h *Handler) Create(ctx context.Context) (Backup, error) {
 	before := h.list()
+	logging.Info("[BackupManager] Running Backup") // BackupManager.js:335
 	backup, err := h.create(ctx)
 	if err != nil {
+		logging.Errorf("[BackupManager] Backup Failed %v", err) // BackupManager.js:356
 		h.notifyEvent(ctx, "onBackupFailed", map[string]any{"errorMsg": err.Error()})
 		return Backup{}, err
 	}
+	logging.Infof("[BackupManager] Backup successful %s", backup.ID) // BackupManager.js:366
 	backups := h.list()
 	h.notifyEvent(ctx, "onBackupCompleted", map[string]any{"completionTime": backup.CreatedAt, "backupPath": backup.FullPath, "backupSize": backup.FileSize, "backupCount": len(backups), "removedOldest": len(before) >= h.options().BackupsToKeep})
 	return backup, nil
@@ -335,7 +344,11 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	h.backups = h.backups[max(0, excess):]
 	h.mu.Unlock()
 	for _, old := range expired {
-		_ = os.Remove(old.FullPath)
+		if err := os.Remove(old.FullPath); err != nil {
+			logging.Errorf("[BackupManager] Failed to remove backup: %v", err) // BackupManager.js:400
+		} else {
+			logging.Infof("[BackupManager] Backup %q Removed", old.ID) // BackupManager.js:398
+		}
 	}
 	return backup, nil
 }
@@ -355,7 +368,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 	if filepath.Ext(header.Filename) != ".audiobookshelf" {
-		logging.RequestError(r, "Invalid backup file", nil)
+		logging.RequestDebug(r, "responding 500: uploaded file "+header.Filename+" does not end in .audiobookshelf")
 		sendBody(w, 500, "Invalid backup file")
 		return
 	}
@@ -439,6 +452,10 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "backup path updates are unavailable", 501)
 		return
 	}
+	logging.Infof("[BackupController] Updating backup path to %q from %q", path, opt.BackupPath) // BackupController.js:101
+	if opt.BackupPathEnvSet {
+		logging.Warn("[BackupController] Backup path is set in environment variable BACKUP_PATH. Backup path will be reverted on server restart.") // BackupController.js:105
+	}
 	if err = opt.UpdatePath(r.Context(), path); err != nil {
 		logging.RequestError(r, "failed to save backup path", err)
 		http.Error(w, "failed to save backup path", 500)
@@ -473,6 +490,7 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 		http.Error(w, "backup restore is unavailable", 501)
 		return
 	}
+	logging.Infof("[BackupManager] Applying backup at %q", b.FullPath) // BackupManager.js:201
 	zipr, err := zip.OpenReader(b.FullPath)
 	if err != nil {
 		logging.RequestError(r, "Invalid backup file", err)
@@ -562,7 +580,7 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 		}
 	}
 	if dbTemp == "" {
-		logging.RequestError(r, "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", nil)
+		logging.RequestError(r, "Invalid backup file", errors.New("the archive does not include absdatabase.sqlite; it might be from an older Audiobookshelf server"))
 		http.Error(w, "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", 500)
 		return
 	}

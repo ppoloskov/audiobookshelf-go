@@ -208,6 +208,7 @@ func (h *Handler) dropShareSessions(shareID string) {
 	defer h.mu.Unlock()
 	for key, s := range h.sessions {
 		if s.ShareID == shareID {
+			logging.Infof("[ShareManager] Closing share playback session %q", s.Title) // ShareManager.js:40
 			delete(h.sessions, key)
 		}
 	}

@@ -345,18 +345,30 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userByUsername(r.Context(), strings.ToLower(body.Username))
 	if err != nil || !user.IsActive {
+		if err == nil {
+			h.logFailedLogin(r, user.Username, "User is not active")
+		} else {
+			h.logFailedLogin(r, body.Username, "User not found")
+		}
 		writePassportDenied(w)
 		return
 	}
 	if user.Type == "root" && user.Password == "" {
 		if body.Password != "" {
+			h.logFailedLogin(r, user.Username, "Root user has no password set")
 			writePassportDenied(w)
 			return
 		}
-	} else if user.Password == "" || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)) != nil {
+	} else if user.Password == "" {
+		h.logFailedLogin(r, user.Username, "User has no password set. Might have been created with OpenID")
+		writePassportDenied(w)
+		return
+	} else if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)) != nil {
+		h.logFailedLogin(r, user.Username, "Invalid password")
 		writePassportDenied(w)
 		return
 	}
+	logging.Infof("[LocalAuth] User %q logged in from ip %s", user.Username, clientIP(r)) // LocalAuthStrategy.js:74,88
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
 		logging.RequestError(r, "error", err)
@@ -386,6 +398,11 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	writeExpressJSON(w, http.StatusOK, payload)
 }
 
+// logFailedLogin is LocalAuthStrategy.logFailedLoginAttempt (LocalAuthStrategy.js:104).
+func (h *Handler) logFailedLogin(r *http.Request, username, message string) {
+	logging.Errorf("[LocalAuth] Failed login attempt for username %q from ip %s (%s)", username, clientIP(r), message)
+}
+
 func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	if !h.allowAuthRequest(w, r) {
 		return
@@ -398,25 +415,30 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		refreshToken = cookie.Value
 	}
 	if refreshToken == "" {
+		logging.Error("[Auth] Failed to refresh token. No refresh token provided") // Auth.js:343
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
 		return
 	}
 	claims, err := auth.ValidateToken(refreshToken, h.secret, time.Now())
 	if err != nil {
 		if errors.Is(err, auth.ErrExpired) {
+			logging.Info("[TokenManager] Refresh token expired, cleaning up session") // TokenManager.js:429
 			_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE refreshToken = ?`, refreshToken)
 			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		} else {
+			logging.Errorf("[TokenManager] Invalid refresh token format: %v", err) // TokenManager.js:445
 			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		}
 		return
 	}
 	if claims.Type != "refresh" {
+		logging.Errorf("[TokenManager] Failed to refresh token. Invalid token type: %s", claims.Type) // TokenManager.js:356
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
 		return
 	}
 	s, err := h.sessionByToken(r.Context(), refreshToken)
 	if err != nil {
+		logging.Error("[TokenManager] Failed to refresh token. Session not found") // TokenManager.js:369
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		return
 	}
@@ -427,12 +449,14 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if !s.expiresAt.After(time.Now()) {
+		logging.Info("[TokenManager] Session expired in database, cleaning up") // TokenManager.js:391
 		_, _ = h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id = ?`, s.id)
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 		return
 	}
 	user, err := h.userByID(r.Context(), claims.UserID)
 	if err != nil || !user.IsActive {
+		logging.Errorf("[TokenManager] Failed to refresh token. User not found or inactive for user id: %s", claims.UserID) // TokenManager.js:401
 		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "User not found or inactive"})
 		return
 	}
@@ -481,6 +505,9 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 		logoutURL = h.openIDLogoutURL(r, idToken, authMethod)
 		clearExpressCookie(w, "openid_id_token")
 	}
+	if refresh == "" {
+		logging.Info("[Auth] logout: No refresh token on request") // Auth.js:501
+	}
 	if r.URL.Query().Get("allDevices") == "1" && refresh != "" {
 		var userID string
 		err := h.db.QueryRowContext(r.Context(), `SELECT userId FROM sessions WHERE refreshToken = ? OR lastRefreshToken = ? LIMIT 1`, refresh, refresh).Scan(&userID)
@@ -501,6 +528,7 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
+	logging.Info("[Server] Initializing new server") // Server.js:486
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
@@ -510,7 +538,11 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var count int
 	if err := tx.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE type = 'root'`).Scan(&count); err != nil || count > 0 {
-		logging.RequestError(r, "Internal Server Error", err)
+		if err == nil {
+			logging.Error("[Server] attempt to init server when server already has a root user") // Server.js:493
+		} else {
+			logging.RequestError(r, "Internal Server Error", err)
+		}
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
@@ -529,6 +561,9 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		username = "root"
 	}
 	passwordHash := ""
+	if body.NewRoot.Password == "" {
+		logging.Warn("[Server] Creating root user with no password") // Server.js:490
+	}
 	if body.NewRoot.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(body.NewRoot.Password), 8)
 		if err != nil {
@@ -554,7 +589,10 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
 	_, err = tx.ExecContext(r.Context(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES (?, ?, '', ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)`, id, username, passwordHash, legacyToken, mustJSON(permissions), mustJSON(extra), now, now)
-	if err != nil || tx.Commit() != nil {
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
 		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		return

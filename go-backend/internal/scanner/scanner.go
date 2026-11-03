@@ -233,6 +233,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID string, force bool) (Resul
 	s.mu.Lock()
 	if _, ok := s.runs[libraryID]; ok {
 		s.mu.Unlock()
+		logging.Errorf("[LibraryScanner] Already scanning %s", libraryID) // LibraryScanner.js:53
 		return Result{}, errors.New("scanner: library scan already running")
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -240,9 +241,25 @@ func (s *Scanner) scan(ctx context.Context, libraryID string, force bool) (Resul
 	s.mu.Unlock()
 	defer func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }()
 	task := s.startScanTask(ctx, libraryID)
+	forced := ""
+	if force {
+		forced = " (forced)"
+	}
+	logging.Infof("[LibraryScanner] Starting%s library scan %s for %s", forced, task.ID, task.Data.LibraryName) // LibraryScanner.js:86
 	result, err := s.scanLibrary(ctx, libraryID, force)
 	if errors.Is(ctx.Err(), context.Canceled) {
 		result.Canceled = true
+	}
+	// LibraryScanner.js:92,119: elapsed is secondsToTimestamp(elapsed / 1000).
+	elapsed := secondsToTimestamp(float64(time.Now().UnixMilli()-task.StartedAt) / 1000)
+	stats := fmt.Sprintf("%d Added | %d Updated | %d Missing", result.Added, result.Updated, result.Missing)
+	switch {
+	case err != nil:
+		logging.Errorf("[LibraryScanner] Library scan %s failed after %s | %s. %v", task.ID, elapsed, stats, err)
+	case result.Canceled:
+		logging.Infof("[LibraryScanner] Library scan %q canceled after %s | %s", task.ID, elapsed, stats)
+	default:
+		logging.Infof("[LibraryScanner] Library scan %q completed in %s | %s", task.ID, elapsed, stats)
 	}
 	s.finishScanTask(task, result, err)
 	s.resetIssuesFilterData(ctx, libraryID) // LibraryController.js:1272
@@ -296,6 +313,24 @@ func (s *Scanner) finishScanTask(task *watcherTask, result Result, err error) {
 		task.Description, task.DescriptionKey = &description, &key
 	}
 	s.emitTask("task_finished", task)
+}
+
+// secondsToTimestamp is server/utils/index.js:123 without milliseconds.
+func secondsToTimestamp(seconds float64) string {
+	minutes := int(seconds / 60)
+	secs := int(seconds - float64(minutes)*60)
+	hours := minutes / 60
+	minutes -= hours * 60
+	if hours == 0 {
+		return fmt.Sprintf("%d:%02d", minutes, secs)
+	}
+	return fmt.Sprintf("%d:%02d:%02d", hours, minutes, secs)
+}
+
+// scanDebug is LibraryScan.addLog with verbose set: a DEBUG line tagged with
+// the library name (LibraryScan.js:119).
+func scanDebug(l library, format string, args ...any) {
+	logging.Debugf("[LibraryScan] %q: %s", l.name, fmt.Sprintf(format, args...))
 }
 
 // scanResultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).
@@ -440,7 +475,7 @@ func (s *Scanner) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		return true
 	}
 	if isFile != 0 {
-		logging.RequestError(r, "Cannot scan a library file", nil)
+		logging.RequestDebug(r, "responding 500: cannot scan a library file")
 		http.Error(w, "Cannot scan a library file", http.StatusInternalServerError)
 		return true
 	}
@@ -508,7 +543,10 @@ func (s *Scanner) Start(ctx context.Context) error {
 		})
 	}
 	for _, lib := range libraries {
-		if !lib.disabled {
+		if lib.disabled {
+			logging.Infof("[Watcher] updateLibrary: Library %q watcher disabled", lib.name) // Watcher.js:136
+		} else {
+			logging.Infof("[Watcher] Initializing watcher for %q.", lib.name) // Watcher.js:58
 			watch := &libraryWatch{id: lib.id, name: lib.name}
 			for _, f := range lib.folders {
 				root := filepath.Clean(f.path)
@@ -522,10 +560,17 @@ func (s *Scanner) Start(ctx context.Context) error {
 				}
 			}
 			fw.libraries[lib.id] = watch
+			logging.Infof("[Watcher] %q Ready", lib.name) // Watcher.js:89
 		}
 		if strings.TrimSpace(lib.cron) != "" {
 			id := lib.id
-			if _, err = cronJobs.AddFunc(lib.cron, func() { go func() { _, _ = s.Scan(watchCtx, id) }() }); err != nil {
+			if _, err = cronJobs.AddFunc(lib.cron, func() {
+				go func() {
+					if _, scanErr := s.Scan(watchCtx, id); scanErr != nil {
+						logging.Errorf("[CronManager] Scheduled scan of library %s failed: %v", id, scanErr)
+					}
+				}()
+			}); err != nil {
 				_ = watcher.Close()
 				cronJobs.Stop()
 				reset()
@@ -586,10 +631,11 @@ func (s *Scanner) Start(ctx context.Context) error {
 					// (Watcher.js:64-66).
 					fw.onFile(libraryID, posix, "deleted")
 				}
-			case _, ok := <-watcher.Errors:
+			case watchErr, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
+				logging.Errorf("[Watcher] %v", watchErr) // Watcher.js:86
 			}
 		}
 	}()
@@ -667,12 +713,12 @@ func nowDB() string        { return dbtime.Now() }
 func ms(t time.Time) int64 { return t.UnixMilli() }
 
 type library struct {
-	id, mediaType      string
-	audiobooksOnly     bool
-	metadataPrecedence []string
-	lastPrecedence     []string
-	parseSubtitle      bool
-	sortingPrefixes    []string
+	id, name, mediaType string
+	audiobooksOnly      bool
+	metadataPrecedence  []string
+	lastPrecedence      []string
+	parseSubtitle       bool
+	sortingPrefixes     []string
 }
 type folder struct{ id, path string }
 
@@ -680,7 +726,7 @@ func (s *Scanner) library(ctx context.Context, id string) (library, error) {
 	var l library
 	var raw []byte
 	var extra []byte
-	err := s.db.QueryRowContext(ctx, `SELECT id,mediaType,settings,extraData FROM libraries WHERE id=?`, id).Scan(&l.id, &l.mediaType, &raw, &extra)
+	err := s.db.QueryRowContext(ctx, `SELECT id,name,mediaType,settings,extraData FROM libraries WHERE id=?`, id).Scan(&l.id, &l.name, &l.mediaType, &raw, &extra)
 	if err == nil {
 		var settings map[string]any
 		_ = json.Unmarshal(raw, &settings)
@@ -760,6 +806,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		return result, err
 	}
 	if len(folders) == 0 {
+		logging.Warnf("[LibraryScanner] Library has no folders to scan %q", l.name) // LibraryScanner.js:58
 		return result, errors.New("scanner: library has no folders")
 	}
 	s.ensureFilterData(ctx, libraryID, l.mediaType)
@@ -940,6 +987,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 				}
 			}
 			result.Missing++
+			scanDebug(l, "Library Item %q (inode: %s) is missing", ex.path, ex.ino) // LibraryScanner.js:187
 			if !ex.missing {
 				now := nowDB()
 				if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=?,lastScan=?,lastScanVersion=? WHERE id=?`, now, now, "2.37.2", ex.id); e != nil {
@@ -959,6 +1007,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 			tally.merge(n)
 			if n.updated {
 				result.Updated++
+				scanDebug(l, "Library item %q was updated", ex.path)
 				if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil {
 					updatedItems = append(updatedItems, item)
 				}
@@ -987,6 +1036,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		tally.merge(n)
 		if n.added {
 			result.Added++
+			scanDebug(l, "Created new library item %q with id %q", mustRel(g.folder.path, g.path), n.id) // LibraryItemScanner.js:194
 			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil {
 				addedItems = append(addedItems, item)
 			}

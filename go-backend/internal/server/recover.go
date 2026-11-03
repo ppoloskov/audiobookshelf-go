@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"audiobookshelf-compat/internal/logging"
 )
@@ -16,6 +17,18 @@ import (
 // no longer change the status either.
 func guardPanics(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	guard := &panicGuard{ResponseWriter: w}
+	begin := time.Now()
+	defer func() {
+		// Upstream logs requests only in development; here the access line is
+		// DEBUG, so the default output has no per-request lines.
+		if guard.started && logging.Default().Level() <= logging.LevelDebug {
+			status := guard.status
+			if status == 0 {
+				status = http.StatusOK
+			}
+			logging.Debugf("[HTTP] %s %s %d %dms", r.Method, r.URL.Path, status, time.Since(begin).Milliseconds())
+		}
+	}()
 	defer func() {
 		recovered := recover()
 		if recovered == nil {
@@ -51,9 +64,13 @@ func guardPanics(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) 
 type panicGuard struct {
 	http.ResponseWriter
 	started bool
+	status  int
 }
 
 func (g *panicGuard) WriteHeader(status int) {
+	if !g.started {
+		g.status = status
+	}
 	g.started = true
 	g.ResponseWriter.WriteHeader(status)
 }

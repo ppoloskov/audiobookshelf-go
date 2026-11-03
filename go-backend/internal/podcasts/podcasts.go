@@ -148,7 +148,9 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	if errors.Is(err, sql.ErrNoRows) {
 		var other string
 		if e := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraryItems WHERE id=?`, id).Scan(&other); e == nil {
-			logging.RequestError(r, "internal error", nil)
+			// PodcastController.middleware answers a bare 500 for a non-podcast
+			// item (PodcastController.js:565); upstream logs nothing.
+			logging.RequestDebug(r, "responding 500: library item "+id+" is a "+other+" item, not a podcast")
 			sendStatus(w, 500)
 		} else {
 			sendStatus(w, 404)
@@ -203,7 +205,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		}
 		title := r.URL.Query().Get("title")
 		if title == "" {
-			logging.RequestError(r, "internal error", nil)
+			logging.RequestDebug(r, "responding 500: query parameter title is empty")
 			sendStatus(w, 500)
 			return true
 		}
@@ -985,6 +987,9 @@ func (h *Handler) addSchedule(itemID string) {
 		h.queueMu.Lock()
 		h.scheduleIDs[itemID] = entry
 		h.queueMu.Unlock()
+		logging.Infof("[CronManager] Added podcast %q to auto dl episode cron %q", item.Title.String, item.AutoSchedule.String) // CronManager.js:249
+	} else {
+		logging.Errorf("[PodcastManager] Failed to schedule podcast cron %s: %v", item.AutoSchedule.String, err) // CronManager.js:175
 	}
 }
 
@@ -993,8 +998,10 @@ func (h *Handler) runScheduled(itemID string) {
 	if err != nil || !item.FeedURL.Valid || !item.AutoDownload {
 		return
 	}
+	logging.Infof("[PodcastManager] runEpisodeCheck: %q | Last check: %s", item.Title.String, item.LastEpisodeCheck.String) // PodcastManager.js:329
 	feed, err := h.getFeed(context.Background(), item.FeedURL.String, false)
 	if err != nil {
+		logging.Errorf("[PodcastManager] Failed to get feed for podcast %q (%s): %v", item.Title.String, item.FeedURL.String, err)
 		h.queueMu.Lock()
 		h.failedCheckMap[itemID]++
 		failed := h.failedCheckMap[itemID]
@@ -1004,6 +1011,7 @@ func (h *Handler) runScheduled(itemID string) {
 		}
 		h.queueMu.Unlock()
 		if disable {
+			logging.Errorf("[PodcastManager] runEpisodeCheck %d failed attempts at checking episodes for %q - disabling auto download", failed, item.Title.String) // PodcastManager.js:343
 			now := dbtime.Now()
 			if _, err := h.db.Exec(`UPDATE podcasts SET autoDownloadEpisodes=0,lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
 				logging.Errorf("[podcasts] auto-download disable update failed for %s: %v", item.MediaID, err)

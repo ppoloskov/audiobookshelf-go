@@ -121,7 +121,7 @@ func New(db *sql.DB, cfg config.Config, authenticate func(*http.Request) (store.
 			if !ok {
 				return
 			}
-			h.connected(s)
+			h.connected(s, path)
 		}); err != nil {
 			return nil, fmt.Errorf("realtime: register connection handler: %w", err)
 		}
@@ -195,19 +195,20 @@ func (h *Hub) Close() {
 	})
 }
 
-func (h *Hub) connected(s *socket.Socket) {
+func (h *Hub) connected(s *socket.Socket, path string) {
 	id := string(s.Id())
 	c := &client{socket: s, connectedAt: time.Now()}
 	h.mu.Lock()
 	h.clients[id] = c
 	h.mu.Unlock()
+	logging.Infof("[SocketAuthority] Socket Connected to %s %s", path, id) // SocketAuthority.js:185
 
 	bind := func(event string, handler func(...any)) {
 		_ = s.On(event, handler)
 	}
 	bind("auth", func(args ...any) { h.handleAuth(s, first(args)) })
 	bind("cancel_scan", func(args ...any) {
-		user, ok := h.requireAdmin(id)
+		user, ok := h.requireAdmin(id, "cancel_scan")
 		if !ok {
 			return
 		}
@@ -216,7 +217,7 @@ func (h *Hub) connected(s *socket.Socket) {
 	bind("search_covers", func(args ...any) { h.handleSearchCovers(s, args...) })
 	bind("cancel_cover_search", func(args ...any) { h.handleCancelCoverSearch(s, args...) })
 	bind("set_log_listener", func(args ...any) {
-		user, ok := h.requireAdmin(id)
+		user, ok := h.requireAdmin(id, "set_log_listener")
 		if !ok {
 			return
 		}
@@ -234,6 +235,7 @@ func (h *Hub) connected(s *socket.Socket) {
 	bind("message_all_users", func(args ...any) {
 		user, ok := h.userFor(id)
 		if !ok || !isAdmin(user) {
+			logging.Error("[SocketAuthority] Non-admin user sent the message_all_users event") // SocketAuthority.js:246
 			return
 		}
 		payload := object(first(args))
@@ -247,16 +249,29 @@ func (h *Hub) connected(s *socket.Socket) {
 	bind("disconnect", func(args ...any) { h.disconnected(id, first(args)) })
 }
 
-func (h *Hub) disconnected(id string, _ any) {
+func (h *Hub) disconnected(id string, reason any) {
 	h.mu.RLock()
 	c := h.clients[id]
 	var user store.User
 	online := false
+	var connectedFor time.Duration
 	if c != nil && c.user != nil {
 		user = *c.user
 		online = true
 	}
+	if c != nil {
+		connectedFor = time.Since(c.connectedAt)
+	}
 	h.mu.RUnlock()
+	// SocketAuthority.js:216-228
+	switch {
+	case c == nil:
+		logging.Warnf("[SocketAuthority] Socket %s disconnect, no client (Reason: %v)", id, reason)
+	case !online:
+		logging.Infof("[SocketAuthority] Unauth socket %s disconnected (Reason: %v)", id, reason)
+	default:
+		logging.Infof("[SocketAuthority] Socket %s disconnected from client %q after %dms (Reason: %v)", id, user.Username, connectedFor.Milliseconds(), reason)
+	}
 	var offline map[string]any
 	if online {
 		offline = h.publicUser(user)
@@ -284,11 +299,13 @@ func (h *Hub) disconnected(id string, _ any) {
 func (h *Hub) handleAuth(s *socket.Socket, raw any) {
 	token, ok := raw.(string)
 	if !ok || token == "" {
+		logging.Error("Cannot validate socket - invalid token") // SocketAuthority.js:276
 		_ = s.Emit("auth_failed", map[string]any{"message": "Invalid token"})
 		return
 	}
 	request := s.Request().Request()
 	if request == nil {
+		logging.Error("Cannot validate socket - invalid token")
 		_ = s.Emit("auth_failed", map[string]any{"message": "Invalid token"})
 		return
 	}
@@ -303,14 +320,27 @@ func (h *Hub) handleAuth(s *socket.Socket, raw any) {
 	user, err := authenticate(request)
 	if err != nil {
 		message := authFailureMessage(token, err)
+		// SocketAuthority.js:276-319 words each failure differently.
+		switch message {
+		case "Token expired":
+			logging.Error("Cannot validate socket - token expired")
+		case "Invalid API key":
+			logging.Error("Cannot validate socket - API key not found or inactive")
+		case "API key expired":
+			logging.Info("[SocketAuthority] API key is expired - deactivated")
+		default:
+			logging.Errorf("Cannot validate socket - %s (%v)", strings.ToLower(message), err)
+		}
 		_ = s.Emit("auth_failed", map[string]any{"message": message})
 		return
 	}
 	if !user.IsActive {
+		logging.Error("Cannot validate socket - user is not active") // SocketAuthority.js:325
 		_ = s.Emit("auth_failed", map[string]any{"message": "Invalid user"})
 		return
 	}
 	if user.ID == "" {
+		logging.Error("Cannot validate socket - invalid token")
 		_ = s.Emit("auth_failed", map[string]any{"message": "Invalid user"})
 		return
 	}
@@ -325,16 +355,27 @@ func (h *Hub) handleAuth(s *socket.Socket, raw any) {
 	if writeErr != nil {
 		// The upstream save must complete before init is emitted. Preserve that
 		// ordering and leave the socket unauthenticated when the write fails.
+		logging.Errorf("[SocketAuthority] Failed to update lastSeen for user %q: %v", user.Username, writeErr)
 		return
 	}
 	user.LastSeen = int64Pointer(lastSeen)
 	id := string(s.Id())
+	var previous *store.User
 	h.mu.Lock()
 	if c := h.clients[id]; c != nil {
+		previous = c.user
 		copy := user
 		c.user = &copy
 	}
 	h.mu.Unlock()
+	// SocketAuthority.js:336-345
+	if previous != nil {
+		if previous.ID == user.ID {
+			logging.Infof("[SocketAuthority] Authenticating socket already associated to user %q", previous.Username)
+		} else {
+			logging.Warnf("[SocketAuthority] Authenticating socket to user %q, but is already associated with a different user %q", user.Username, previous.Username)
+		}
+	}
 
 	h.Emit("@admins", "user_online", h.publicUser(user))
 	initial := map[string]any{"userId": user.ID, "username": user.Username}
@@ -441,9 +482,14 @@ func (h *Hub) EmitSocket(socketID, event string, payload any) bool {
 	return true
 }
 
-func (h *Hub) requireAdmin(id string) (store.User, bool) {
+// requireAdmin is SocketAuthority.requireAdminSocket (SocketAuthority.js:88).
+func (h *Hub) requireAdmin(id, eventName string) (store.User, bool) {
 	user, ok := h.userFor(id)
-	return user, ok && isAdmin(user)
+	if ok && isAdmin(user) {
+		return user, true
+	}
+	logging.Warnf("[SocketAuthority] Unauthorized %s socket event from socket %s", eventName, id)
+	return user, false
 }
 
 func (h *Hub) userFor(id string) (store.User, bool) {

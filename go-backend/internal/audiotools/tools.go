@@ -431,6 +431,9 @@ func (h *Handler) finish(t *task, err error) {
 		t.IsFailed = true
 		t.Error = err.Error()
 		t.ErrorKey = "MessageTaskCanceledByUser"
+		if err.Error() != "Task canceled by user" {
+			logging.Errorf("[AbMergeManager] Task %q (%s) failed: %v", t.Action, t.ID, err)
+		}
 	}
 	snapshot := snapshotTask(t)
 	delete(h.tasks, t.ID)
