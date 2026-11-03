@@ -479,7 +479,7 @@ L2, JWT issuing -> L1).
 
 ## Phase V: verification moves off the Node differential
 
-- [ ] V1: Make the differential jobs non-blocking in CI
+- [x] V1: Make the differential jobs non-blocking in CI
   - Prerequisite: F4-F7 green.
   - Files: `.github/workflows/docker-go.yml` (`parity` job)
   - Change: Core differential, replacement and scan trials run as an optional

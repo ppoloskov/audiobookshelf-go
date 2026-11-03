@@ -76,9 +76,13 @@ jobs:
           GOARCH: arm64
         run: go build -trimpath -ldflags "-s -w" -o /tmp/audiobookshelf-go-arm64 ./cmd/audiobookshelf-go
 
+  # Advisory since ROADMAP V1: the Node differential against TS v2.37.2 still
+  # runs and reports, but the image is gated by verify (Go contract,
+  # persistence and journey tests) and rollback.
   parity:
-    name: Upstream parity
+    name: Upstream parity (advisory)
     needs: verify
+    continue-on-error: true
     runs-on: ubuntu-24.04
     env:
       SSRF_REQUEST_FILTER_WHITELIST: 127.0.0.1
@@ -203,7 +207,7 @@ jobs:
 
   image:
     name: Build and push image
-    needs: [verify, parity, rollback]
+    needs: [verify, rollback]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
