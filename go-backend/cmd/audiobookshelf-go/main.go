@@ -30,6 +30,11 @@ func fatal(format string, args ...any) {
 	os.Exit(1)
 }
 
+// buildCommit identifies the running build in the startup log. CI sets it
+// with -ldflags "-X main.buildCommit=<git sha>" (Dockerfile.go VCS_REF);
+// local builds report "dev".
+var buildCommit = "dev"
+
 func main() {
 	// Anything still using the standard library logger (and http.Server's own
 	// error log) goes through the one logger.
@@ -41,7 +46,7 @@ func main() {
 		fatal("[Server] configuration error: %v", err)
 	}
 	logging.Info("=== Starting Server ===")
-	logging.Infof("[Server] Init v%s", server.Version)
+	logging.Infof("[Server] Init v%s (Go backend build %s)", server.Version, buildCommit)
 	logging.Infof("[Server] Go Version: %s", runtime.Version())
 	logging.Infof("[Server] Platform: %s", runtime.GOOS)
 	logging.Infof("[Server] Arch: %s", runtime.GOARCH)
@@ -105,7 +110,7 @@ func main() {
 	if cfg.ReadOnly {
 		mode = "read-only"
 	}
-	logging.Infof("Experimental Audiobookshelf Go backend v%s; %s mode; SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", server.Version, mode, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
+	logging.Infof("Experimental Audiobookshelf Go backend v%s (build %s); %s mode; SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", server.Version, buildCommit, mode, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
 	basePath := cfg.RouterBasePath
 	if basePath == "" {
 		basePath = "/"

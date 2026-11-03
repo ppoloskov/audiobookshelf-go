@@ -238,6 +238,13 @@ parity job). Details are in the commit messages.
   planner-dependent orderings (`/api/me` `mediaProgress`, `authorsWithCount`
   ties) can differ on installs whose statistics differ from the fixtures. It
   is a database side effect, so it needs an owner decision.
+- Decide whether Go runs upstream's boot cleanup (`Database.cleanDatabase`,
+  server/Database.js:~680-830): it removes playback sessions with
+  `timeListening <= 3`, orphaned playlist/collection entries, empty series,
+  duplicate media progress and invalid library items at every upstream boot.
+  Go skips it, so such rows created while Go runs persist until upstream
+  boots again (and show up in session lists and stats). It is a database
+  write at boot, like `ANALYZE`, so it needs the same owner decision.
 - Known behavioral gaps: share expiry is lazy (upstream uses timers and emits
   `share_closed`); the podcast auto-download cron is not rescheduled after
   `PATCH` media; `POST /api/watcher/update` still runs a full scan; series RSS

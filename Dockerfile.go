@@ -20,6 +20,8 @@ RUN npm run generate
 FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS build-server
 
 ARG TARGETARCH
+# Git commit shown in the startup log ("Go backend build <sha>").
+ARG VCS_REF=dev
 
 WORKDIR /src/go-backend
 COPY go-backend/go.mod go-backend/go.sum ./
@@ -28,7 +30,7 @@ COPY go-backend /src/go-backend
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
   CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH \
-  go build -trimpath -ldflags "-s -w" -o /out/audiobookshelf-go ./cmd/audiobookshelf-go
+  go build -trimpath -ldflags "-s -w -X main.buildCommit=${VCS_REF}" -o /out/audiobookshelf-go ./cmd/audiobookshelf-go
 
 ### STAGE 2: Minimal runtime image ###
 FROM alpine:3.22

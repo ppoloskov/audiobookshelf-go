@@ -108,6 +108,12 @@ same volumes (restore the backup if you wrote data you want to discard).
 paths such as `/ping` and `/healthcheck` keep working, and the variable can be
 set or emptied exactly as for the TypeScript image.
 
+**Which build is running.** The startup log names it:
+`[Server] Init v2.37.2 (Go backend build <git sha>)`. With the `latest` tag
+and Kubernetes' default `imagePullPolicy: IfNotPresent`, a node keeps the
+`latest` it pulled first. Use `imagePullPolicy: Always`, or pin the
+`sha-<short sha>` tag CI also publishes, so a restart picks up new builds.
+
 ## Known limits
 
 The remaining gaps and the next workstreams are listed in the product track of
