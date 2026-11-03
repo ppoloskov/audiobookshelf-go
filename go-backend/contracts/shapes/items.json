@@ -1,0 +1,3480 @@
+{
+  "source": {
+    "upstreamCommit": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+    "generator": "go test ./internal/contracttest -run TestJourneyItems -record"
+  },
+  "steps": {
+    "item.batch.scan": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.batch.scan.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.chapters.clear": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "success": {
+            "kind": "bool"
+          },
+          "updated": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "item.chapters.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.chapters.set": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "success": {
+            "kind": "bool"
+          },
+          "updated": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "item.cover.delete": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.cover.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.cover.patch": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "cover": {
+            "kind": "string"
+          },
+          "success": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "item.cover.patch.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.cover.upload": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "cover": {
+            "kind": "string"
+          },
+          "success": {
+            "kind": "bool"
+          }
+        }
+      }
+    },
+    "item.cover.upload.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.delete": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.download": {
+      "status": 200,
+      "contentType": "application/zip"
+    },
+    "item.ebook.status": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.ebook.status.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.ebook.status.restore": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.ffprobe": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "chapters": {
+            "kind": "array"
+          },
+          "format": {
+            "kind": "object",
+            "keys": {
+              "bit_rate": {
+                "kind": "string"
+              },
+              "duration": {
+                "kind": "string"
+              },
+              "filename": {
+                "kind": "string"
+              },
+              "format_long_name": {
+                "kind": "string"
+              },
+              "format_name": {
+                "kind": "string"
+              },
+              "nb_programs": {
+                "kind": "number"
+              },
+              "nb_streams": {
+                "kind": "number"
+              },
+              "probe_score": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "string"
+              },
+              "start_time": {
+                "kind": "string"
+              },
+              "tags": {
+                "kind": "object",
+                "keys": {
+                  "album": {
+                    "kind": "string"
+                  },
+                  "artist": {
+                    "kind": "string"
+                  },
+                  "encoder": {
+                    "kind": "string"
+                  },
+                  "title": {
+                    "kind": "string"
+                  }
+                }
+              }
+            }
+          },
+          "programs": {
+            "kind": "array"
+          },
+          "streams": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "avg_frame_rate": {
+                  "kind": "string"
+                },
+                "bit_rate": {
+                  "kind": "string"
+                },
+                "bits_per_sample": {
+                  "kind": "number"
+                },
+                "channel_layout": {
+                  "kind": "string"
+                },
+                "channels": {
+                  "kind": "number"
+                },
+                "codec_long_name": {
+                  "kind": "string"
+                },
+                "codec_name": {
+                  "kind": "string"
+                },
+                "codec_tag": {
+                  "kind": "string"
+                },
+                "codec_tag_string": {
+                  "kind": "string"
+                },
+                "codec_type": {
+                  "kind": "string"
+                },
+                "disposition": {
+                  "kind": "object",
+                  "keys": {
+                    "attached_pic": {
+                      "kind": "number"
+                    },
+                    "captions": {
+                      "kind": "number"
+                    },
+                    "clean_effects": {
+                      "kind": "number"
+                    },
+                    "comment": {
+                      "kind": "number"
+                    },
+                    "default": {
+                      "kind": "number"
+                    },
+                    "dependent": {
+                      "kind": "number"
+                    },
+                    "descriptions": {
+                      "kind": "number"
+                    },
+                    "dub": {
+                      "kind": "number"
+                    },
+                    "forced": {
+                      "kind": "number"
+                    },
+                    "hearing_impaired": {
+                      "kind": "number"
+                    },
+                    "karaoke": {
+                      "kind": "number"
+                    },
+                    "lyrics": {
+                      "kind": "number"
+                    },
+                    "metadata": {
+                      "kind": "number"
+                    },
+                    "non_diegetic": {
+                      "kind": "number"
+                    },
+                    "original": {
+                      "kind": "number"
+                    },
+                    "still_image": {
+                      "kind": "number"
+                    },
+                    "timed_thumbnails": {
+                      "kind": "number"
+                    },
+                    "visual_impaired": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "duration": {
+                  "kind": "string"
+                },
+                "duration_ts": {
+                  "kind": "number"
+                },
+                "index": {
+                  "kind": "number"
+                },
+                "initial_padding": {
+                  "kind": "number"
+                },
+                "r_frame_rate": {
+                  "kind": "string"
+                },
+                "sample_fmt": {
+                  "kind": "string"
+                },
+                "sample_rate": {
+                  "kind": "string"
+                },
+                "start_pts": {
+                  "kind": "number"
+                },
+                "start_time": {
+                  "kind": "string"
+                },
+                "time_base": {
+                  "kind": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "item.ffprobe.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.file.delete": {
+      "status": 200,
+      "contentType": "text/plain"
+    },
+    "item.file.delete.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.file.download": {
+      "status": 200,
+      "contentType": "audio/mpeg"
+    },
+    "item.get": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "null"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "null"
+              },
+              "duration": {
+                "kind": "number"
+              },
+              "ebookFile": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authorName": {
+                    "kind": "string"
+                  },
+                  "authorNameLF": {
+                    "kind": "string"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "descriptionPlain": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "null"
+                  },
+                  "narratorName": {
+                    "kind": "string"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "seriesName": {
+                    "kind": "string"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  },
+                  "titleIgnorePrefix": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "numAudioFiles": {
+                "kind": "number"
+              },
+              "numChapters": {
+                "kind": "number"
+              },
+              "numTracks": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "number"
+              },
+              "tags": {
+                "kind": "array"
+              },
+              "tracks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "contentUrl": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "startOffset": {
+                      "kind": "number"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "title": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "numFiles": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "size": {
+            "kind": "number"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.get.after-delete": {
+      "status": 404,
+      "contentType": "text/plain"
+    },
+    "item.get.after-tracks": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "null"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "null"
+              },
+              "duration": {
+                "kind": "number"
+              },
+              "ebookFile": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authorName": {
+                    "kind": "string"
+                  },
+                  "authorNameLF": {
+                    "kind": "string"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "descriptionPlain": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "null"
+                  },
+                  "narratorName": {
+                    "kind": "string"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "seriesName": {
+                    "kind": "string"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  },
+                  "titleIgnorePrefix": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "numAudioFiles": {
+                "kind": "number"
+              },
+              "numChapters": {
+                "kind": "number"
+              },
+              "numTracks": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "number"
+              },
+              "tags": {
+                "kind": "array"
+              },
+              "tracks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "contentUrl": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "startOffset": {
+                      "kind": "number"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "title": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "numFiles": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "size": {
+            "kind": "number"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.get.before-file-delete": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "null"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "string"
+              },
+              "duration": {
+                "kind": "number"
+              },
+              "ebookFile": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authorName": {
+                    "kind": "string"
+                  },
+                  "authorNameLF": {
+                    "kind": "string"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "descriptionPlain": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "null"
+                  },
+                  "narratorName": {
+                    "kind": "string"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "seriesName": {
+                    "kind": "string"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  },
+                  "titleIgnorePrefix": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "numAudioFiles": {
+                "kind": "number"
+              },
+              "numChapters": {
+                "kind": "number"
+              },
+              "numTracks": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "number"
+              },
+              "tags": {
+                "kind": "array"
+              },
+              "tracks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "contentUrl": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "startOffset": {
+                      "kind": "number"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "title": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "numFiles": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "size": {
+            "kind": "number"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.get.ebook": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "bool"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array"
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "null"
+              },
+              "duration": {
+                "kind": "number"
+              },
+              "ebookFile": {
+                "kind": "object",
+                "keys": {
+                  "addedAt": {
+                    "kind": "number"
+                  },
+                  "ebookFormat": {
+                    "kind": "string"
+                  },
+                  "fileType": {
+                    "kind": "string"
+                  },
+                  "ino": {
+                    "kind": "string"
+                  },
+                  "isSupplementary": {
+                    "kind": "null"
+                  },
+                  "metadata": {
+                    "kind": "object",
+                    "keys": {
+                      "birthtimeMs": {
+                        "kind": "number"
+                      },
+                      "ctimeMs": {
+                        "kind": "number"
+                      },
+                      "ext": {
+                        "kind": "string"
+                      },
+                      "filename": {
+                        "kind": "string"
+                      },
+                      "mtimeMs": {
+                        "kind": "number"
+                      },
+                      "path": {
+                        "kind": "string"
+                      },
+                      "relPath": {
+                        "kind": "string"
+                      },
+                      "size": {
+                        "kind": "number"
+                      }
+                    }
+                  },
+                  "updatedAt": {
+                    "kind": "number"
+                  }
+                }
+              },
+              "ebookFormat": {
+                "kind": "string"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authorName": {
+                    "kind": "string"
+                  },
+                  "authorNameLF": {
+                    "kind": "string"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "descriptionPlain": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "string"
+                  },
+                  "narratorName": {
+                    "kind": "string"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "seriesName": {
+                    "kind": "string"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  },
+                  "titleIgnorePrefix": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "numAudioFiles": {
+                "kind": "number"
+              },
+              "numChapters": {
+                "kind": "number"
+              },
+              "numTracks": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "number"
+              },
+              "tags": {
+                "kind": "array"
+              },
+              "tracks": {
+                "kind": "array"
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "numFiles": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "size": {
+            "kind": "number"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.get.ebook.after": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "bool"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array"
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "null"
+              },
+              "duration": {
+                "kind": "number"
+              },
+              "ebookFile": {
+                "kind": "object",
+                "keys": {
+                  "addedAt": {
+                    "kind": "number"
+                  },
+                  "ebookFormat": {
+                    "kind": "string"
+                  },
+                  "ino": {
+                    "kind": "string"
+                  },
+                  "metadata": {
+                    "kind": "object",
+                    "keys": {
+                      "birthtimeMs": {
+                        "kind": "number"
+                      },
+                      "ctimeMs": {
+                        "kind": "number"
+                      },
+                      "ext": {
+                        "kind": "string"
+                      },
+                      "filename": {
+                        "kind": "string"
+                      },
+                      "mtimeMs": {
+                        "kind": "number"
+                      },
+                      "path": {
+                        "kind": "string"
+                      },
+                      "relPath": {
+                        "kind": "string"
+                      },
+                      "size": {
+                        "kind": "number"
+                      }
+                    }
+                  },
+                  "updatedAt": {
+                    "kind": "number"
+                  }
+                }
+              },
+              "ebookFormat": {
+                "kind": "string"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authorName": {
+                    "kind": "string"
+                  },
+                  "authorNameLF": {
+                    "kind": "string"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "descriptionPlain": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "string"
+                  },
+                  "narratorName": {
+                    "kind": "string"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "seriesName": {
+                    "kind": "string"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  },
+                  "titleIgnorePrefix": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "numAudioFiles": {
+                "kind": "number"
+              },
+              "numChapters": {
+                "kind": "number"
+              },
+              "numTracks": {
+                "kind": "number"
+              },
+              "size": {
+                "kind": "number"
+              },
+              "tags": {
+                "kind": "array"
+              },
+              "tracks": {
+                "kind": "array"
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "numFiles": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "size": {
+            "kind": "number"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.metadata-object": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "TRACKTOTAL": {
+            "kind": "string"
+          },
+          "album": {
+            "kind": "string"
+          },
+          "album_artist": {
+            "kind": "string"
+          },
+          "artist": {
+            "kind": "string"
+          },
+          "title": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "item.metadata-object.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.scan": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "result": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "item.scan.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "item.settings.store-cover": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "item.tracks": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "addedAt": {
+            "kind": "number"
+          },
+          "birthtimeMs": {
+            "kind": "number"
+          },
+          "ctimeMs": {
+            "kind": "number"
+          },
+          "folderId": {
+            "kind": "string"
+          },
+          "id": {
+            "kind": "string"
+          },
+          "ino": {
+            "kind": "string"
+          },
+          "isFile": {
+            "kind": "bool"
+          },
+          "isInvalid": {
+            "kind": "bool"
+          },
+          "isMissing": {
+            "kind": "bool"
+          },
+          "lastScan": {
+            "kind": "number"
+          },
+          "libraryFiles": {
+            "kind": "array",
+            "elem": {
+              "kind": "object",
+              "keys": {
+                "addedAt": {
+                  "kind": "number"
+                },
+                "fileType": {
+                  "kind": "string"
+                },
+                "ino": {
+                  "kind": "string"
+                },
+                "isSupplementary": {
+                  "kind": "null"
+                },
+                "metadata": {
+                  "kind": "object",
+                  "keys": {
+                    "birthtimeMs": {
+                      "kind": "number"
+                    },
+                    "ctimeMs": {
+                      "kind": "number"
+                    },
+                    "ext": {
+                      "kind": "string"
+                    },
+                    "filename": {
+                      "kind": "string"
+                    },
+                    "mtimeMs": {
+                      "kind": "number"
+                    },
+                    "path": {
+                      "kind": "string"
+                    },
+                    "relPath": {
+                      "kind": "string"
+                    },
+                    "size": {
+                      "kind": "number"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "kind": "number"
+                }
+              }
+            }
+          },
+          "libraryId": {
+            "kind": "string"
+          },
+          "media": {
+            "kind": "object",
+            "keys": {
+              "audioFiles": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "addedAt": {
+                      "kind": "number"
+                    },
+                    "bitRate": {
+                      "kind": "number"
+                    },
+                    "channelLayout": {
+                      "kind": "string"
+                    },
+                    "channels": {
+                      "kind": "number"
+                    },
+                    "chapters": {
+                      "kind": "array"
+                    },
+                    "codec": {
+                      "kind": "string"
+                    },
+                    "discNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "discNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "embeddedCoverArt": {
+                      "kind": "null"
+                    },
+                    "error": {
+                      "kind": "null"
+                    },
+                    "exclude": {
+                      "kind": "bool"
+                    },
+                    "format": {
+                      "kind": "string"
+                    },
+                    "index": {
+                      "kind": "number"
+                    },
+                    "ino": {
+                      "kind": "string"
+                    },
+                    "language": {
+                      "kind": "null"
+                    },
+                    "manuallyVerified": {
+                      "kind": "bool"
+                    },
+                    "metaTags": {
+                      "kind": "object",
+                      "keys": {
+                        "tagAlbum": {
+                          "kind": "string"
+                        },
+                        "tagArtist": {
+                          "kind": "string"
+                        },
+                        "tagEncoder": {
+                          "kind": "string"
+                        },
+                        "tagTitle": {
+                          "kind": "string"
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "kind": "object",
+                      "keys": {
+                        "birthtimeMs": {
+                          "kind": "number"
+                        },
+                        "ctimeMs": {
+                          "kind": "number"
+                        },
+                        "ext": {
+                          "kind": "string"
+                        },
+                        "filename": {
+                          "kind": "string"
+                        },
+                        "mtimeMs": {
+                          "kind": "number"
+                        },
+                        "path": {
+                          "kind": "string"
+                        },
+                        "relPath": {
+                          "kind": "string"
+                        },
+                        "size": {
+                          "kind": "number"
+                        }
+                      }
+                    },
+                    "mimeType": {
+                      "kind": "string"
+                    },
+                    "timeBase": {
+                      "kind": "string"
+                    },
+                    "trackNumFromFilename": {
+                      "kind": "null"
+                    },
+                    "trackNumFromMeta": {
+                      "kind": "null"
+                    },
+                    "updatedAt": {
+                      "kind": "number"
+                    }
+                  }
+                }
+              },
+              "chapters": {
+                "kind": "array"
+              },
+              "coverPath": {
+                "kind": "null"
+              },
+              "ebookFile": {
+                "kind": "null"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "libraryItemId": {
+                "kind": "string"
+              },
+              "metadata": {
+                "kind": "object",
+                "keys": {
+                  "abridged": {
+                    "kind": "bool"
+                  },
+                  "asin": {
+                    "kind": "null"
+                  },
+                  "authors": {
+                    "kind": "array",
+                    "elem": {
+                      "kind": "object",
+                      "keys": {
+                        "id": {
+                          "kind": "string"
+                        },
+                        "name": {
+                          "kind": "string"
+                        }
+                      }
+                    }
+                  },
+                  "description": {
+                    "kind": "null"
+                  },
+                  "explicit": {
+                    "kind": "bool"
+                  },
+                  "genres": {
+                    "kind": "array"
+                  },
+                  "isbn": {
+                    "kind": "null"
+                  },
+                  "language": {
+                    "kind": "null"
+                  },
+                  "narrators": {
+                    "kind": "array"
+                  },
+                  "publishedDate": {
+                    "kind": "null"
+                  },
+                  "publishedYear": {
+                    "kind": "null"
+                  },
+                  "publisher": {
+                    "kind": "null"
+                  },
+                  "series": {
+                    "kind": "array"
+                  },
+                  "subtitle": {
+                    "kind": "null"
+                  },
+                  "title": {
+                    "kind": "string"
+                  }
+                }
+              },
+              "tags": {
+                "kind": "array"
+              }
+            }
+          },
+          "mediaType": {
+            "kind": "string"
+          },
+          "mtimeMs": {
+            "kind": "number"
+          },
+          "oldLibraryItemId": {
+            "kind": "null"
+          },
+          "path": {
+            "kind": "string"
+          },
+          "relPath": {
+            "kind": "string"
+          },
+          "scanVersion": {
+            "kind": "string"
+          },
+          "updatedAt": {
+            "kind": "number"
+          }
+        }
+      }
+    },
+    "item.tracks.listener": {
+      "status": 403,
+      "contentType": "text/plain"
+    },
+    "login.listener": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "createdAt": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "time": {
+                      "kind": "number"
+                    },
+                    "title": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array",
+                "elem": {
+                  "kind": "object",
+                  "keys": {
+                    "currentTime": {
+                      "kind": "number"
+                    },
+                    "duration": {
+                      "kind": "number"
+                    },
+                    "ebookLocation": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "ebookProgress": {
+                      "kind": "number"
+                    },
+                    "episodeId": {
+                      "kind": "string",
+                      "nullable": true
+                    },
+                    "finishedAt": {
+                      "kind": "number",
+                      "nullable": true
+                    },
+                    "hideFromContinueListening": {
+                      "kind": "bool"
+                    },
+                    "id": {
+                      "kind": "string"
+                    },
+                    "isFinished": {
+                      "kind": "bool"
+                    },
+                    "lastUpdate": {
+                      "kind": "number"
+                    },
+                    "libraryItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemId": {
+                      "kind": "string"
+                    },
+                    "mediaItemType": {
+                      "kind": "string"
+                    },
+                    "progress": {
+                      "kind": "number"
+                    },
+                    "startedAt": {
+                      "kind": "number"
+                    },
+                    "userId": {
+                      "kind": "string"
+                    }
+                  }
+                }
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    },
+    "login.root": {
+      "status": 200,
+      "contentType": "application/json",
+      "shape": {
+        "kind": "object",
+        "keys": {
+          "Source": {
+            "kind": "string"
+          },
+          "ereaderDevices": {
+            "kind": "array"
+          },
+          "serverSettings": {
+            "kind": "object",
+            "keys": {
+              "allowIframe": {
+                "kind": "bool"
+              },
+              "allowedOrigins": {
+                "kind": "array"
+              },
+              "authActiveAuthMethods": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "authLoginCustomMessage": {
+                "kind": "null"
+              },
+              "authOpenIDAuthorizationURL": {
+                "kind": "null"
+              },
+              "authOpenIDAutoLaunch": {
+                "kind": "bool"
+              },
+              "authOpenIDAutoRegister": {
+                "kind": "bool"
+              },
+              "authOpenIDButtonText": {
+                "kind": "string"
+              },
+              "authOpenIDIssuerURL": {
+                "kind": "null"
+              },
+              "authOpenIDJwksURL": {
+                "kind": "null"
+              },
+              "authOpenIDLogoutURL": {
+                "kind": "null"
+              },
+              "authOpenIDMatchExistingBy": {
+                "kind": "null"
+              },
+              "authOpenIDTokenSigningAlgorithm": {
+                "kind": "string"
+              },
+              "authOpenIDTokenURL": {
+                "kind": "null"
+              },
+              "authOpenIDUserInfoURL": {
+                "kind": "null"
+              },
+              "backupPath": {
+                "kind": "string"
+              },
+              "backupSchedule": {
+                "kind": "bool"
+              },
+              "backupsToKeep": {
+                "kind": "number"
+              },
+              "bookshelfView": {
+                "kind": "number"
+              },
+              "buildNumber": {
+                "kind": "number"
+              },
+              "chromecastEnabled": {
+                "kind": "bool"
+              },
+              "dateFormat": {
+                "kind": "string"
+              },
+              "homeBookshelfView": {
+                "kind": "number"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "language": {
+                "kind": "string"
+              },
+              "logLevel": {
+                "kind": "number"
+              },
+              "loggerDailyLogsToKeep": {
+                "kind": "number"
+              },
+              "loggerScannerLogsToKeep": {
+                "kind": "number"
+              },
+              "maxBackupSize": {
+                "kind": "number"
+              },
+              "metadataFileFormat": {
+                "kind": "string"
+              },
+              "podcastEpisodeSchedule": {
+                "kind": "string"
+              },
+              "rateLimitLoginRequests": {
+                "kind": "number"
+              },
+              "rateLimitLoginWindow": {
+                "kind": "number"
+              },
+              "scannerCoverProvider": {
+                "kind": "string"
+              },
+              "scannerDisableWatcher": {
+                "kind": "bool"
+              },
+              "scannerFindCovers": {
+                "kind": "bool"
+              },
+              "scannerParseSubtitle": {
+                "kind": "bool"
+              },
+              "scannerPreferMatchedMetadata": {
+                "kind": "bool"
+              },
+              "sortingIgnorePrefix": {
+                "kind": "bool"
+              },
+              "sortingPrefixes": {
+                "kind": "array",
+                "elem": {
+                  "kind": "string"
+                }
+              },
+              "storeCoverWithItem": {
+                "kind": "bool"
+              },
+              "storeMetadataWithItem": {
+                "kind": "bool"
+              },
+              "timeFormat": {
+                "kind": "string"
+              },
+              "timeZone": {
+                "kind": "string"
+              },
+              "version": {
+                "kind": "string"
+              }
+            }
+          },
+          "user": {
+            "kind": "object",
+            "keys": {
+              "accessToken": {
+                "kind": "string"
+              },
+              "bookmarks": {
+                "kind": "array"
+              },
+              "createdAt": {
+                "kind": "number"
+              },
+              "email": {
+                "kind": "null"
+              },
+              "hasOpenIDLink": {
+                "kind": "bool"
+              },
+              "id": {
+                "kind": "string"
+              },
+              "isActive": {
+                "kind": "bool"
+              },
+              "isLocked": {
+                "kind": "bool"
+              },
+              "itemTagsSelected": {
+                "kind": "array"
+              },
+              "lastSeen": {
+                "kind": "null"
+              },
+              "librariesAccessible": {
+                "kind": "array"
+              },
+              "mediaProgress": {
+                "kind": "array"
+              },
+              "permissions": {
+                "kind": "object",
+                "keys": {
+                  "accessAllLibraries": {
+                    "kind": "bool"
+                  },
+                  "accessAllTags": {
+                    "kind": "bool"
+                  },
+                  "accessExplicitContent": {
+                    "kind": "bool"
+                  },
+                  "createEreader": {
+                    "kind": "bool"
+                  },
+                  "delete": {
+                    "kind": "bool"
+                  },
+                  "download": {
+                    "kind": "bool"
+                  },
+                  "selectedTagsNotAccessible": {
+                    "kind": "bool"
+                  },
+                  "update": {
+                    "kind": "bool"
+                  },
+                  "upload": {
+                    "kind": "bool"
+                  }
+                }
+              },
+              "refreshToken": {
+                "kind": "string"
+              },
+              "seriesHideFromContinueListening": {
+                "kind": "array"
+              },
+              "token": {
+                "kind": "string"
+              },
+              "type": {
+                "kind": "string"
+              },
+              "username": {
+                "kind": "string"
+              }
+            }
+          },
+          "userDefaultLibraryId": {
+            "kind": "string"
+          }
+        }
+      }
+    }
+  }
+}
