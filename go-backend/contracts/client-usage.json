@@ -1,0 +1,3232 @@
+{
+  "generatedFrom": {
+    "routeCoverage": {
+      "path": "go-backend/contracts/parity/route-coverage.json",
+      "sha256": "0fb1d3a8ecf5641e3e3c175c68ca354261b84ba74ce610ab2e28d328551532a9"
+    },
+    "replacementTrial": {
+      "path": "go-backend/tools/parity/replacement-trial.cjs",
+      "sha256": "e096adf5ee6d8203a35ab3054a1aa524d576181dc7ce5e4692d6927ff62f04fe"
+    },
+    "clientRoots": [
+      "client/components",
+      "client/layouts",
+      "client/middleware",
+      "client/mixins",
+      "client/pages",
+      "client/players",
+      "client/plugins",
+      "client/store"
+    ],
+    "clientSkipDirs": [
+      ".nuxt",
+      "assets",
+      "cypress",
+      "dist",
+      "node_modules",
+      "static"
+    ],
+    "axiosPrefixes": [
+      "/api/",
+      "/auth/",
+      "/public/",
+      "/hls/",
+      "/feed/"
+    ],
+    "axiosExact": [
+      "/login",
+      "/logout",
+      "/status",
+      "/init",
+      "/ping",
+      "/healthcheck"
+    ],
+    "resourcePrefixes": [
+      "/api/",
+      "/public/",
+      "/hls/",
+      "/feed/"
+    ],
+    "socketBuiltins": [
+      "connect",
+      "connect_error",
+      "disconnect"
+    ],
+    "rules": [
+      "web: $axios.get|post|patch|put|delete calls whose first argument is a literal; the method is the call's",
+      "web: other literals that start with a resource prefix or follow a ${...} interpolation (covers, downloads, feeds, HLS, variable-assigned paths) take the method from upstream: GET if upstream serves GET for the path, else the methods it serves; no match is GET",
+      "web: requests whose path is a variable or a concatenation are listed in unresolvedCallSites, not in routes",
+      "web: query strings are dropped; each ${...} becomes :param",
+      "mobile-log: fixed list in tools/clientusage/main.go (owner production logs, iOS app); no callers",
+      "mobile-trial: journeySteps steps labelled mobile: id contains mobile or android, block references an Android or iOS device, an Android or episode session, or the step sits under a // Mobile or // Android comment; contentUrl steps are /api/items/:param/file/:param",
+      "matching: segment by segment; a client :param matches any upstream segment (a literal one only when the path has two literal segments; all tied best matches count as used); upstream :name? is optional; a trailing * matches the rest; ALL, regex and dynamic upstream routes never match"
+    ]
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/api-keys",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/ApiKeysTable.vue:121"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:338"
+    },
+    {
+      "method": "POST",
+      "path": "/api/api-keys",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/ApiKeyModal.vue:160"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:339"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/api-keys/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/ApiKeysTable.vue:90"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:341"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/api-keys/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/ApiKeyModal.vue:132"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:340"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth-settings",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/authentication.vue:141"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:358"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/auth-settings",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/authentication.vue:345"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:359"
+    },
+    {
+      "method": "POST",
+      "path": "/api/authorize",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/pages/login.vue:235"
+      ],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/routers/ApiRouter.js:350"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/authors/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/authors/EditModal.vue:117"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:219"
+    },
+    {
+      "method": "GET",
+      "path": "/api/authors/:id",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/pages/author/_id.vue:50"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:217"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/authors/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/authors/EditModal.vue:148"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:218"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/authors/:id/image",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/authors/EditModal.vue:168"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:223"
+    },
+    {
+      "method": "GET",
+      "path": "/api/authors/:id/image",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/covers/AuthorImage.vue:56"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:221"
+    },
+    {
+      "method": "POST",
+      "path": "/api/authors/:id/image",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/authors/EditModal.vue:194"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:222"
+    },
+    {
+      "method": "POST",
+      "path": "/api/authors/:id/match",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/BookShelfToolbar.vue:494",
+        "client/components/cards/AuthorCard.vue:123",
+        "client/components/modals/authors/EditModal.vue:226"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:220"
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:183"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:200"
+    },
+    {
+      "method": "POST",
+      "path": "/api/backups",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:144"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:201"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/backups/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:124"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:202"
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups/:id/apply",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:96"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:204"
+    },
+    {
+      "method": "GET",
+      "path": "/api/backups/:id/download",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:89"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:203"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/backups/path",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/backups.vue:157"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:206"
+    },
+    {
+      "method": "POST",
+      "path": "/api/backups/upload",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/BackupsTable.vue:163"
+      ],
+      "goHandler": "go-backend/internal/backup/backup.go",
+      "upstream": "server/routers/ApiRouter.js:205"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cache/items/purge",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/index.vue:407"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:297"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cache/purge",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/index.vue:381"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:296"
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/AddCreateModal.vue:221"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:146"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/collections/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/EditModal.vue:111",
+        "client/pages/collection/_id.vue:193"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:150"
+    },
+    {
+      "method": "GET",
+      "path": "/api/collections/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/collection/_id.vue:54"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:148"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/collections/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/EditModal.vue:139",
+        "client/components/tables/CollectionBooksTable.vue:75"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:149"
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/add",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/AddCreateModal.vue:181"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:153"
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/remove",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/AddCreateModal.vue:149"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:154"
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/book",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/AddCreateModal.vue:195"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:151"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/collections/:id/book/:bookId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/collections/AddCreateModal.vue:162",
+        "client/components/tables/collection/BookTableRow.vue:202"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:152"
+    },
+    {
+      "method": "GET",
+      "path": "/api/custom-metadata-providers",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/custom-metadata-providers.vue:55"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:319"
+    },
+    {
+      "method": "POST",
+      "path": "/api/custom-metadata-providers",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AddCustomMetadataProviderModal.vue:80"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:320"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/custom-metadata-providers/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/CustomMetadataProviderTable.vue:54"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:321"
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/ereader-devices",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/emails/EReaderDeviceModal.vue:174",
+        "client/components/modals/emails/EReaderDeviceModal.vue:200",
+        "client/pages/config/email.vue:218"
+      ],
+      "goHandler": "go-backend/internal/emailapi/handler.go",
+      "upstream": "server/routers/ApiRouter.js:280"
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/send-ebook-to-device",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:811",
+        "client/pages/item/_id/index.vue:742"
+      ],
+      "goHandler": "go-backend/internal/emailapi/handler.go",
+      "upstream": "server/routers/ApiRouter.js:281"
+    },
+    {
+      "method": "GET",
+      "path": "/api/emails/settings",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/email.vue:305"
+      ],
+      "goHandler": "go-backend/internal/emailapi/handler.go",
+      "upstream": "server/routers/ApiRouter.js:277"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/emails/settings",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/email.vue:285"
+      ],
+      "goHandler": "go-backend/internal/emailapi/handler.go",
+      "upstream": "server/routers/ApiRouter.js:278"
+    },
+    {
+      "method": "POST",
+      "path": "/api/emails/test",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/email.vue:246"
+      ],
+      "goHandler": "go-backend/internal/emailapi/handler.go",
+      "upstream": "server/routers/ApiRouter.js:279"
+    },
+    {
+      "method": "GET",
+      "path": "/api/feeds",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/rss-feeds.vue:132"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:310"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/:id/close",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/rssfeed/OpenCloseModal.vue:164",
+        "client/pages/config/rss-feeds.vue:107"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:314"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/collection/:collectionId/open",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/rssfeed/OpenCloseModal.vue:147"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:312"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/item/:itemId/open",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/rssfeed/OpenCloseModal.vue:147"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:311"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feeds/series/:seriesId/open",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/rssfeed/OpenCloseModal.vue:147"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:313"
+    },
+    {
+      "method": "GET",
+      "path": "/api/filesystem",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/libraries/LazyFolderChooser.vue:157",
+        "client/store/libraries.js:90"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:211"
+    },
+    {
+      "method": "POST",
+      "path": "/api/filesystem/pathexists",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/upload/index.vue:384"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:212"
+    },
+    {
+      "method": "GET",
+      "path": "/api/genres",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/genres.vue:159"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:354"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/genres/:genre",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/genres.vue:143"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:356"
+    },
+    {
+      "method": "POST",
+      "path": "/api/genres/rename",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/genres.vue:119"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:355"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:921",
+        "client/pages/item/_id/index.vue:716"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:109"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/MediaPlayerContainer.vue:513",
+        "client/components/cards/LazyBookCard.vue:990",
+        "client/components/cards/LazyBookCard.vue:1010",
+        "client/components/modals/item/EditModal.vue:204",
+        "client/components/modals/item/EditModal.vue:226",
+        "client/components/modals/item/EditModal.vue:257",
+        "client/pages/audiobook/_id/chapters.vue:306",
+        "client/pages/audiobook/_id/chapters.vue:992",
+        "client/pages/audiobook/_id/edit.vue:90",
+        "client/pages/audiobook/_id/manage.vue:196",
+        "client/pages/config/sessions.vue:368",
+        "client/pages/config/users/_id/sessions.vue:130",
+        "client/pages/item/_id/index.vue:157",
+        "client/pages/library/_library/podcast/latest.vue:198"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:108"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/chapters",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/audiobook/_id/chapters.vue:706",
+        "client/pages/audiobook/_id/chapters.vue:880"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:122"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id/cover",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Cover.vue:266"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:115"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/cover",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/store/globals.js:100",
+        "client/store/globals.js:107"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:112"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/cover",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Cover.vue:428"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:114"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/cover",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/UploadImageModal.vue:76",
+        "client/components/modals/UploadImageModal.vue:95",
+        "client/components/modals/item/tabs/Cover.vue:206",
+        "client/components/modals/item/tabs/Cover.vue:289"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:113"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/download",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/item/_id/index.vue:193"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:110"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/ebook/:fileid/status",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/EbookFilesTableRow.vue:97"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:128"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/ebook/:fileid?",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/readers/ComicReader.vue:112",
+        "client/components/readers/ComicReader.vue:114",
+        "client/components/readers/EpubReader.vue:97",
+        "client/components/readers/EpubReader.vue:99",
+        "client/components/readers/MobiReader.vue:34",
+        "client/components/readers/MobiReader.vue:36",
+        "client/components/readers/PdfReader.vue:107",
+        "client/components/readers/PdfReader.vue:109"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:127"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/ffprobe/:fileid",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AudioFileDataModal.vue:154"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:123"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items/:id/file/:fileid",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/AudioTracksTableRow.vue:95",
+        "client/components/tables/EbookFilesTableRow.vue:116",
+        "client/components/tables/LibraryFilesTableRow.vue:90"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:125"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/file/:fileid",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Cover.vue:191",
+        "go-backend/tools/parity/replacement-trial.cjs:384",
+        "go-backend/tools/parity/replacement-trial.cjs:385",
+        "go-backend/tools/parity/replacement-trial.cjs:485",
+        "go-backend/tools/parity/replacement-trial.cjs:486",
+        "go-backend/tools/parity/replacement-trial.cjs:487"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:124"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/file/:fileid/download",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/AudioTracksTableRow.vue:76",
+        "client/components/tables/EbookFilesTableRow.vue:50",
+        "client/components/tables/LibraryFilesTableRow.vue:48"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:126"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/match",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Details.vue:103"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:116"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/media",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Details.vue:164",
+        "client/components/modals/item/tabs/Episodes.vue:111",
+        "client/components/modals/item/tabs/Match.vue:638",
+        "client/components/modals/item/tabs/Schedule.vue:159"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:111"
+    },
+    {
+      "method": "GET",
+      "path": "/api/items/:id/metadata-object",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/audiobook/_id/manage.vue:426"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:121"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/play",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/players/PlayerHandler.js:196",
+        "go-backend/tools/parity/replacement-trial.cjs:382"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:117"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/play/:episodeId",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/players/PlayerHandler.js:196",
+        "go-backend/tools/parity/replacement-trial.cjs:483",
+        "go-backend/tools/parity/replacement-trial.cjs:501"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:118"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/:id/scan",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:768",
+        "client/components/modals/item/tabs/Details.vue:124"
+      ],
+      "goHandler": "go-backend/internal/scanner/scanner.go",
+      "upstream": "server/routers/ApiRouter.js:120"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items/:id/tracks",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/audiobook/_id/edit.vue:219"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:119"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/delete",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:347"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:102"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/get",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:266",
+        "client/pages/batch/index.vue:135"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:104"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/quickmatch",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/BatchQuickMatchModel.vue:116"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:105"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/scan",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:238"
+      ],
+      "goHandler": "go-backend/internal/scanner/scanner.go",
+      "upstream": "server/routers/ApiRouter.js:106"
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/batch/update",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/batch/index.vue:450"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:103"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/store/libraries.js:156"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:70"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/libraries/EditModal.vue:234"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:69"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/library/LibraryItem.vue:148"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:73"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/store/libraries.js:115"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:71"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/libraries/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/libraries/EditModal.vue:215"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:72"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/authors",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/BookShelfToolbar.vue:473",
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:86"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/collections",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/components/modals/collections/AddCreateModal.vue:128"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:80"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/download",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:259",
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:97"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/episode-downloads",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/pages/library/_library/podcast/download-queue.vue:109"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:77"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/filterdata",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:83"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id/issues",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/BookShelfToolbar.vue:520"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:76"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/items",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/plugins/chromecast.js:4"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:75"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/matchall",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/components/tables/library/LibraryItem.vue:117"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:90"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/narrators",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/pages/library/_library/narrators.vue:147"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:87"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/libraries/:id/narrators/:narratorId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/library/_library/narrators.vue:130"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:89"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/libraries/:id/narrators/:narratorId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/library/_library/narrators.vue:111"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:88"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/opml",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/BookShelfToolbar.vue:425",
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:93"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/personalized",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/BookShelfCategorized.vue:182",
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:82"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/playlists",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/components/modals/playlists/AddCreateModal.vue:125"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:81"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/podcast-titles",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/pages/library/_library/podcast/search.vue:214"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:96"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/recent-episodes",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/pages/library/_library/podcast/latest.vue:252"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:92"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/:id/remove-metadata",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/libraries/LibraryTools.vue:60"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:95"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/:id/scan",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/store/libraries.js:76"
+      ],
+      "goHandler": "go-backend/internal/scanner/scanner.go",
+      "upstream": "server/routers/ApiRouter.js:91"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/search",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/components/controls/GlobalSearch.vue:180",
+        "client/pages/library/_library/search.vue:19",
+        "client/pages/library/_library/search.vue:59"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:84"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/series",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:78"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/series/:seriesId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/library/_library/series/_id.vue:22"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:79"
+    },
+    {
+      "method": "GET",
+      "path": "/api/libraries/:id/stats",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/LazyBookshelf.vue:343",
+        "client/pages/library/_library/stats.vue:172"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:85"
+    },
+    {
+      "method": "POST",
+      "path": "/api/libraries/order",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/library/LibrariesTable.vue:78"
+      ],
+      "goHandler": "go-backend/internal/catalog/handler.go",
+      "upstream": "server/routers/ApiRouter.js:94"
+    },
+    {
+      "method": "GET",
+      "path": "/api/logger-data",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/log.vue:149"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:361"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me",
+      "sources": [
+        "mobile-trial"
+      ],
+      "callers": [
+        "go-backend/tools/parity/replacement-trial.cjs:419"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:173"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/ereader-devices",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/emails/UserEReaderDeviceModal.vue:125",
+        "client/components/modals/emails/UserEReaderDeviceModal.vue:155",
+        "client/pages/account.vue:289"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:195"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/item/:id/bookmark",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/modals/bookmarks/BookmarkItem.vue:91",
+        "go-backend/tools/parity/replacement-trial.cjs:415"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:188"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/item/:id/bookmark",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/modals/BookmarksModal.vue:118",
+        "go-backend/tools/parity/replacement-trial.cjs:414"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:187"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/item/:id/bookmark/:time",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/modals/BookmarksModal.vue:96",
+        "go-backend/tools/parity/replacement-trial.cjs:416"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:189"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/item/listening-sessions/:libraryItemId/:episodeId?",
+      "sources": [
+        "mobile-log"
+      ],
+      "callers": [],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:180"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/items-in-progress",
+      "sources": [
+        "mobile-trial"
+      ],
+      "callers": [
+        "go-backend/tools/parity/replacement-trial.cjs:420"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:191"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/listening-sessions",
+      "sources": [
+        "mobile-trial"
+      ],
+      "callers": [
+        "go-backend/tools/parity/replacement-trial.cjs:421"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:179"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/listening-stats",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/pages/config/stats.vue:122"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:181"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/password",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/account.vue:243"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:190"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/progress/:id",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/pages/item/_id/index.vue:619"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:186"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress/:id/:episodeId?",
+      "sources": [
+        "web",
+        "mobile-log",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:744",
+        "client/components/tables/playlist/ItemTableRow.vue:193",
+        "go-backend/tools/parity/replacement-trial.cjs:387",
+        "go-backend/tools/parity/replacement-trial.cjs:390",
+        "go-backend/tools/parity/replacement-trial.cjs:413"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:183"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress/:id/remove-from-continue-listening",
+      "sources": [
+        "web",
+        "mobile-log",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:852",
+        "go-backend/tools/parity/replacement-trial.cjs:418"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:182"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/progress/:libraryItemId/:episodeId?",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/readers/ComicReader.vue:179",
+        "client/components/readers/EpubReader.vue:209",
+        "client/components/readers/PdfReader.vue:130",
+        "client/components/tables/collection/BookTableRow.vue:188",
+        "client/components/tables/podcast/LazyEpisodeRow.vue:209",
+        "client/pages/item/_id/index.vue:523",
+        "client/pages/library/_library/podcast/latest.vue:177",
+        "go-backend/tools/parity/replacement-trial.cjs:417"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:185"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/progress/batch/update",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:320",
+        "client/components/app/BookShelfToolbar.vue:551",
+        "client/components/tables/podcast/LazyEpisodesTable.vue:353",
+        "go-backend/tools/parity/replacement-trial.cjs:410"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:184"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/readd-to-continue-listening",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/BookShelfToolbar.vue:459"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:193"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/remove-from-continue-listening",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/LazyBookCard.vue:834"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:192"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/sessions",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/account.vue:311"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:174"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/sessions/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/account.vue:350"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:175"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/stats/year/:year",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/stats/YearInReview.vue:274",
+        "client/components/stats/YearInReviewShort.vue:183"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:194"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/notifications.vue:143"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:265"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/notifications.vue:129"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:266"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/notification/NotificationEditModal.vue:155"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:269"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/notifications/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/NotificationCard.vue:154"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:270"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/NotificationCard.vue:127",
+        "client/components/modals/notification/NotificationEditModal.vue:133"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:271"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/:id/test",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/NotificationCard.vue:107"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:272"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/test",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/NotificationCard.vue:66"
+      ],
+      "goHandler": "go-backend/internal/notifications/handler.go",
+      "upstream": "server/routers/ApiRouter.js:268"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/playlists/AddCreateModal.vue:185"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:159"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/playlists/EditModal.vue:91",
+        "client/pages/playlist/_id.vue:126"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:163"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/playlist/_id.vue:47"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:161"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/playlists/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/playlists/EditModal.vue:119",
+        "client/components/tables/PlaylistItemsTable.vue:89"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:162"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/batch/add",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/playlists/AddCreateModal.vue:160"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:166"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/batch/remove",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/playlists/AddCreateModal.vue:143"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:167"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/:id/item/:libraryItemId/:episodeId?",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/playlist/ItemTableRow.vue:210"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:165"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/collection/:collectionId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/collection/_id.vue:160"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:168"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/NewModal.vue:206"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:248"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/checknew",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Episodes.vue:123"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:252"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/clear-queue",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/item/_id/index.vue:462"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:254"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/:id/download-episodes",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/EpisodeFeed.vue:260"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:256"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/RemoveEpisode.vue:80"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:260"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/EditEpisode.vue:126",
+        "client/components/modals/podcast/EditEpisode.vue:147",
+        "client/components/modals/podcast/EditEpisode.vue:173"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:258"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/podcasts/:id/episode/:episodeId",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/tabs/EpisodeDetails.vue:164",
+        "client/components/modals/podcast/tabs/EpisodeMatch.vue:114"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:259"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/:id/match-episodes",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/podcast/LazyEpisodesTable.vue:302"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:257"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/search-episode",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/tabs/EpisodeMatch.vue:135"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:255"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/feed",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/item/_id/index.vue:478",
+        "client/pages/library/_library/podcast/search.vue:147",
+        "client/pages/library/_library/podcast/search.vue:198"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:249"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/opml/create",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/podcast/OpmlFeedsModal.vue:119"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:251"
+    },
+    {
+      "method": "POST",
+      "path": "/api/podcasts/opml/parse",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/library/_library/podcast/search.vue:117"
+      ],
+      "goHandler": "go-backend/internal/podcasts/podcasts.go",
+      "upstream": "server/routers/ApiRouter.js:250"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/authors",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Match.vue:426"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:289"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/books",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/cards/ItemUploadCard.vue:189",
+        "client/components/modals/item/tabs/Match.vue:426"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:287"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/chapters",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Match.vue:426",
+        "client/pages/audiobook/_id/chapters.vue:781"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:290"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/covers",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Match.vue:426"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:286"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/podcast",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Match.vue:426",
+        "client/pages/library/_library/podcast/search.vue:167"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:288"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/providers",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Match.vue:426",
+        "client/store/scanners.js:27",
+        "client/store/scanners.js:42"
+      ],
+      "goHandler": "go-backend/internal/providers/handler.go",
+      "upstream": "server/routers/ApiRouter.js:291"
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/:id/close",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/components/modals/ListeningSessionModal.vue:210",
+        "client/players/PlayerHandler.js:303",
+        "go-backend/tools/parity/replacement-trial.cjs:389",
+        "go-backend/tools/parity/replacement-trial.cjs:490"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:243"
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/:id/sync",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/players/PlayerHandler.js:321",
+        "go-backend/tools/parity/replacement-trial.cjs:386",
+        "go-backend/tools/parity/replacement-trial.cjs:388",
+        "go-backend/tools/parity/replacement-trial.cjs:488"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:242"
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/local",
+      "sources": [
+        "mobile-log",
+        "mobile-trial"
+      ],
+      "callers": [
+        "go-backend/tools/parity/replacement-trial.cjs:404",
+        "go-backend/tools/parity/replacement-trial.cjs:506"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:238"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/sessions.vue:477"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:234"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sessions/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/ListeningSessionModal.vue:193"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:235"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/batch/delete",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/sessions.vue:305"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:237"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/open",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/sessions.vue:499"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/ApiRouter.js:236"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/store/index.js:73"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:348"
+    },
+    {
+      "method": "POST",
+      "path": "/api/share/mediaitem",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/ShareModal.vue:191"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:326"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/share/mediaitem/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/ShareModal.vue:163"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/ApiRouter.js:327"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/sorting-prefixes",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/index.vue:284"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:349"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/year/:year",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/stats/YearInReviewServer.vue:253"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:332"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tags",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AccountModal.vue:258",
+        "client/pages/config/item-metadata-utils/tags.vue:159"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:351"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tags/:tag",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/tags.vue:139"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:353"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tags/rename",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/item-metadata-utils/tags.vue:115"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:352"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/layouts/default.vue:581"
+      ],
+      "goHandler": "go-backend/internal/audiotools/tools.go",
+      "upstream": "server/routers/ApiRouter.js:347"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/batch/embed-metadata",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/app/Appbar.vue:203"
+      ],
+      "goHandler": "go-backend/internal/audiotools/tools.go",
+      "upstream": "server/routers/ApiRouter.js:305"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/item/:id/embed-metadata",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/item/tabs/Tools.vue:114",
+        "client/pages/audiobook/_id/manage.vue:390"
+      ],
+      "goHandler": "go-backend/internal/audiotools/tools.go",
+      "upstream": "server/routers/ApiRouter.js:304"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tools/item/:id/encode-m4b",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/audiobook/_id/manage.vue:340"
+      ],
+      "goHandler": "go-backend/internal/audiotools/tools.go",
+      "upstream": "server/routers/ApiRouter.js:303"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/item/:id/encode-m4b",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/audiobook/_id/manage.vue:365"
+      ],
+      "goHandler": "go-backend/internal/audiotools/tools.go",
+      "upstream": "server/routers/ApiRouter.js:302"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/upload/index.vue:337"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:346"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/UsersTable.vue:130",
+        "client/pages/config/api-keys/index.vue:65",
+        "client/pages/config/email.vue:175",
+        "client/pages/config/sessions.vue:215"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:134"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AccountModal.vue:337"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:133"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/tables/UsersTable.vue:109"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:138"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/users/_id/index.vue:89",
+        "client/pages/config/users/_id/sessions.vue:78"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:136"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AccountModal.vue:304"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:137"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/listening-sessions",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/users/_id/index.vue:146",
+        "client/pages/config/users/_id/sessions.vue:219"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:140"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/listening-stats",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/users/_id/index.vue:154"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:141"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id/openid-unlink",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/AccountModal.vue:229"
+      ],
+      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "upstream": "server/routers/ApiRouter.js:139"
+    },
+    {
+      "method": "POST",
+      "path": "/api/validate-cron",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/widgets/CronExpressionBuilder.vue:273"
+      ],
+      "goHandler": "go-backend/internal/adminops/handler.go",
+      "upstream": "server/routers/ApiRouter.js:357"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid",
+      "sources": [
+        "mobile-log"
+      ],
+      "callers": [],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:362"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/callback",
+      "sources": [
+        "mobile-log"
+      ],
+      "callers": [],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:383"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/config",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/config/authentication.vue:238"
+      ],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:464"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/openid/mobile-redirect",
+      "sources": [
+        "mobile-log"
+      ],
+      "callers": [],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:380"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/store/user.js:152"
+      ],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:331"
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/modals/rssfeed/OpenCloseModal.vue:116"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/Server.js:362"
+    },
+    {
+      "method": "POST",
+      "path": "/init",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/login.vue:165"
+      ],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Server.js:377"
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "sources": [
+        "web",
+        "mobile-trial"
+      ],
+      "callers": [
+        "client/pages/login.vue:212",
+        "go-backend/tools/parity/replacement-trial.cjs:344"
+      ],
+      "goHandler": "go-backend/internal/identity/identity.go",
+      "upstream": "server/Auth.js:322"
+    },
+    {
+      "method": "GET",
+      "path": "/public/session/:id/track/:index",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/players/AudioTrack.js:16"
+      ],
+      "goHandler": "go-backend/internal/playback/playback.go",
+      "upstream": "server/routers/PublicRouter.js:21"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/share/_slug.vue:31"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/PublicRouter.js:16"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/cover",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/share/_slug.vue:68"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/PublicRouter.js:18"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/download",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/share/_slug.vue:71"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/PublicRouter.js:19"
+    },
+    {
+      "method": "PATCH",
+      "path": "/public/share/:slug/progress",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/pages/share/_slug.vue:267"
+      ],
+      "goHandler": "go-backend/internal/sharing/handler.go",
+      "upstream": "server/routers/PublicRouter.js:20"
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "sources": [
+        "web",
+        "mobile-log"
+      ],
+      "callers": [
+        "client/pages/login.vue:264"
+      ],
+      "goHandler": "go-backend/internal/server/runtime.go",
+      "upstream": "server/Server.js:384"
+    }
+  ],
+  "events": {
+    "clientToServer": [
+      {
+        "event": "auth",
+        "callers": [
+          "client/layouts/default.vue:88",
+          "client/layouts/default.vue:114"
+        ]
+      },
+      {
+        "event": "cancel_cover_search",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:385"
+        ]
+      },
+      {
+        "event": "cancel_scan",
+        "callers": [
+          "client/components/cards/ItemTaskRunningCard.vue:128"
+        ]
+      },
+      {
+        "event": "remove_log_listener",
+        "callers": [
+          "client/pages/config/log.vue:182"
+        ]
+      },
+      {
+        "event": "search_covers",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:417"
+        ]
+      },
+      {
+        "event": "set_log_listener",
+        "callers": [
+          "client/pages/config/log.vue:127",
+          "client/pages/config/log.vue:171"
+        ]
+      }
+    ],
+    "serverToClient": [
+      {
+        "event": "admin_message",
+        "callers": [
+          "client/layouts/default.vue:475"
+        ]
+      },
+      {
+        "event": "auth_failed",
+        "callers": [
+          "client/layouts/default.vue:416"
+        ]
+      },
+      {
+        "event": "author_added",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:807"
+        ]
+      },
+      {
+        "event": "author_removed",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:475",
+          "client/components/app/LazyBookshelf.vue:809",
+          "client/pages/author/_id.vue:121"
+        ]
+      },
+      {
+        "event": "author_updated",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:474",
+          "client/components/app/LazyBookshelf.vue:808",
+          "client/pages/author/_id.vue:120"
+        ]
+      },
+      {
+        "event": "backup_applied",
+        "callers": [
+          "client/layouts/default.vue:471"
+        ]
+      },
+      {
+        "event": "batch_quickmatch_complete",
+        "callers": [
+          "client/layouts/default.vue:473"
+        ]
+      },
+      {
+        "event": "collection_added",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:801",
+          "client/layouts/default.vue:447"
+        ]
+      },
+      {
+        "event": "collection_removed",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:803",
+          "client/layouts/default.vue:449"
+        ]
+      },
+      {
+        "event": "collection_updated",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:802",
+          "client/layouts/default.vue:448"
+        ]
+      },
+      {
+        "event": "cover_search_cancelled",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:324"
+        ]
+      },
+      {
+        "event": "cover_search_complete",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:321"
+        ]
+      },
+      {
+        "event": "cover_search_error",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:322"
+        ]
+      },
+      {
+        "event": "cover_search_provider_error",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:323"
+        ]
+      },
+      {
+        "event": "cover_search_result",
+        "callers": [
+          "client/components/modals/item/tabs/Cover.vue:320"
+        ]
+      },
+      {
+        "event": "custom_metadata_provider_added",
+        "callers": [
+          "client/layouts/default.vue:478"
+        ]
+      },
+      {
+        "event": "custom_metadata_provider_removed",
+        "callers": [
+          "client/layouts/default.vue:479"
+        ]
+      },
+      {
+        "event": "episode_added",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:481"
+        ]
+      },
+      {
+        "event": "episode_download_finished",
+        "callers": [
+          "client/pages/item/_id/index.vue:796",
+          "client/pages/library/_library/podcast/download-queue.vue:127"
+        ]
+      },
+      {
+        "event": "episode_download_queue_cleared",
+        "callers": [
+          "client/pages/item/_id/index.vue:797"
+        ]
+      },
+      {
+        "event": "episode_download_queued",
+        "callers": [
+          "client/pages/item/_id/index.vue:794",
+          "client/pages/library/_library/podcast/download-queue.vue:125"
+        ]
+      },
+      {
+        "event": "episode_download_started",
+        "callers": [
+          "client/pages/item/_id/index.vue:795",
+          "client/pages/library/_library/podcast/download-queue.vue:126"
+        ]
+      },
+      {
+        "event": "ereader-devices-updated",
+        "callers": [
+          "client/layouts/default.vue:469"
+        ]
+      },
+      {
+        "event": "init",
+        "callers": [
+          "client/layouts/default.vue:415"
+        ]
+      },
+      {
+        "event": "item_added",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:477",
+          "client/components/app/LazyBookshelf.vue:797",
+          "client/layouts/default.vue:432"
+        ]
+      },
+      {
+        "event": "item_removed",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:478",
+          "client/components/app/LazyBookshelf.vue:798",
+          "client/layouts/default.vue:434"
+        ]
+      },
+      {
+        "event": "item_updated",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:476",
+          "client/components/app/LazyBookshelf.vue:796",
+          "client/layouts/default.vue:433",
+          "client/pages/item/_id/index.vue:789"
+        ]
+      },
+      {
+        "event": "items_added",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:480",
+          "client/components/app/LazyBookshelf.vue:800",
+          "client/layouts/default.vue:436"
+        ]
+      },
+      {
+        "event": "items_updated",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:479",
+          "client/components/app/LazyBookshelf.vue:799",
+          "client/layouts/default.vue:435"
+        ]
+      },
+      {
+        "event": "library_added",
+        "callers": [
+          "client/layouts/default.vue:428"
+        ]
+      },
+      {
+        "event": "library_removed",
+        "callers": [
+          "client/layouts/default.vue:429"
+        ]
+      },
+      {
+        "event": "library_updated",
+        "callers": [
+          "client/layouts/default.vue:427"
+        ]
+      },
+      {
+        "event": "log",
+        "callers": [
+          "client/pages/config/log.vue:170"
+        ]
+      },
+      {
+        "event": "metadata_embed_queue_update",
+        "callers": [
+          "client/layouts/default.vue:462"
+        ]
+      },
+      {
+        "event": "notifications_updated",
+        "callers": [
+          "client/pages/config/notifications.vue:169"
+        ]
+      },
+      {
+        "event": "playlist_added",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:804",
+          "client/layouts/default.vue:455"
+        ]
+      },
+      {
+        "event": "playlist_removed",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:806",
+          "client/layouts/default.vue:457"
+        ]
+      },
+      {
+        "event": "playlist_updated",
+        "callers": [
+          "client/components/app/LazyBookshelf.vue:805",
+          "client/layouts/default.vue:456"
+        ]
+      },
+      {
+        "event": "rss_feed_closed",
+        "callers": [
+          "client/components/app/BookShelfToolbar.vue:625",
+          "client/pages/collection/_id.vue:260",
+          "client/pages/item/_id/index.vue:791"
+        ]
+      },
+      {
+        "event": "rss_feed_open",
+        "callers": [
+          "client/components/app/BookShelfToolbar.vue:624",
+          "client/pages/collection/_id.vue:259",
+          "client/pages/item/_id/index.vue:790"
+        ]
+      },
+      {
+        "event": "series_removed",
+        "callers": [
+          "client/layouts/default.vue:452"
+        ]
+      },
+      {
+        "event": "series_updated",
+        "callers": [
+          "client/pages/library/_library/series/_id.vue:50"
+        ]
+      },
+      {
+        "event": "share_closed",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:483",
+          "client/components/app/LazyBookshelf.vue:811",
+          "client/pages/item/_id/index.vue:793"
+        ]
+      },
+      {
+        "event": "share_open",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:482",
+          "client/components/app/LazyBookshelf.vue:810",
+          "client/pages/item/_id/index.vue:792"
+        ]
+      },
+      {
+        "event": "stream_closed",
+        "callers": [
+          "client/layouts/default.vue:420"
+        ]
+      },
+      {
+        "event": "stream_error",
+        "callers": [
+          "client/layouts/default.vue:424"
+        ]
+      },
+      {
+        "event": "stream_open",
+        "callers": [
+          "client/layouts/default.vue:419"
+        ]
+      },
+      {
+        "event": "stream_progress",
+        "callers": [
+          "client/layouts/default.vue:421"
+        ]
+      },
+      {
+        "event": "stream_ready",
+        "callers": [
+          "client/layouts/default.vue:422"
+        ]
+      },
+      {
+        "event": "stream_reset",
+        "callers": [
+          "client/layouts/default.vue:423"
+        ]
+      },
+      {
+        "event": "task_finished",
+        "callers": [
+          "client/layouts/default.vue:461"
+        ]
+      },
+      {
+        "event": "task_progress",
+        "callers": [
+          "client/layouts/default.vue:466"
+        ]
+      },
+      {
+        "event": "task_started",
+        "callers": [
+          "client/layouts/default.vue:460"
+        ]
+      },
+      {
+        "event": "track_finished",
+        "callers": [
+          "client/layouts/default.vue:464"
+        ]
+      },
+      {
+        "event": "track_progress",
+        "callers": [
+          "client/layouts/default.vue:465"
+        ]
+      },
+      {
+        "event": "track_started",
+        "callers": [
+          "client/layouts/default.vue:463"
+        ]
+      },
+      {
+        "event": "user_added",
+        "callers": [
+          "client/components/tables/UsersTable.vue:163"
+        ]
+      },
+      {
+        "event": "user_item_progress_updated",
+        "callers": [
+          "client/layouts/default.vue:444"
+        ]
+      },
+      {
+        "event": "user_offline",
+        "callers": [
+          "client/layouts/default.vue:441"
+        ]
+      },
+      {
+        "event": "user_online",
+        "callers": [
+          "client/layouts/default.vue:440"
+        ]
+      },
+      {
+        "event": "user_removed",
+        "callers": [
+          "client/components/tables/UsersTable.vue:165"
+        ]
+      },
+      {
+        "event": "user_session_closed",
+        "callers": [
+          "client/layouts/default.vue:443"
+        ]
+      },
+      {
+        "event": "user_stream_update",
+        "callers": [
+          "client/layouts/default.vue:442"
+        ]
+      },
+      {
+        "event": "user_updated",
+        "callers": [
+          "client/components/app/BookShelfCategorized.vue:473",
+          "client/components/tables/UsersTable.vue:164",
+          "client/layouts/default.vue:439"
+        ]
+      }
+    ]
+  },
+  "unusedUpstreamRoutes": [
+    {
+      "method": "ALL",
+      "path": "*",
+      "goHandler": "go-backend/internal/server/runtime.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/^\\/libraries/",
+      "goHandler": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/collections",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/bookmarks",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/bookmarks/:libraryItemId",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/progress",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notificationdata",
+      "goHandler": "go-backend/internal/notifications/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/item",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/podcasts/:id/downloads",
+      "goHandler": "go-backend/internal/podcasts/podcasts.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/series/:id",
+      "goHandler": "go-backend/internal/catalog/handler.go"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/series/:id",
+      "goHandler": "go-backend/internal/catalog/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/session/:id",
+      "goHandler": "go-backend/internal/playback/playback.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/session/local-all",
+      "goHandler": "go-backend/internal/playback/playback.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/server",
+      "goHandler": "go-backend/internal/adminops/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/online",
+      "goHandler": "go-backend/internal/userapi/userapi.go"
+    },
+    {
+      "method": "POST",
+      "path": "/api/watcher/update",
+      "goHandler": "go-backend/internal/adminops/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug/cover*",
+      "goHandler": "go-backend/internal/sharing/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug/item/:episodeId/*",
+      "goHandler": "go-backend/internal/sharing/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "/healthcheck",
+      "goHandler": "go-backend/internal/server/runtime.go"
+    },
+    {
+      "method": "GET",
+      "path": "/hls/:stream/:file",
+      "goHandler": "go-backend/internal/playback/playback.go"
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "goHandler": "go-backend/internal/identity/identity.go"
+    },
+    {
+      "method": "GET",
+      "path": "/ping",
+      "goHandler": "go-backend/internal/server/runtime.go"
+    },
+    {
+      "method": "GET",
+      "path": "/public/share/:slug/track/:index",
+      "goHandler": "go-backend/internal/sharing/handler.go"
+    },
+    {
+      "method": "GET",
+      "path": "route",
+      "goHandler": "go-backend/internal/server/runtime.go"
+    }
+  ],
+  "unmatched": [
+    {
+      "method": "GET",
+      "path": "/api/:param",
+      "sources": [
+        "web"
+      ],
+      "callers": [
+        "client/components/ui/QueryInput.vue:77"
+      ]
+    }
+  ],
+  "unresolvedCallSites": [
+    "client/components/cards/LazyBookCard.vue:750 $axios.patch(...)",
+    "client/components/readers/ComicReader.vue:233 $axios.get(...)",
+    "client/components/readers/EpubReader.vue:322 $axios.get(...)",
+    "client/components/readers/MobiReader.vue:96 $axios.get(...)",
+    "client/components/tables/playlist/ItemTableRow.vue:197 $axios.patch(...)",
+    "client/components/tables/playlist/ItemTableRow.vue:214 $axios.delete(...)",
+    "client/pages/account.vue:212 $axios.post(...)",
+    "client/pages/share/_slug.vue:35 $axios.get(...)",
+    "client/players/PlayerHandler.js:197 $axios.post(...)"
+  ]
+}
