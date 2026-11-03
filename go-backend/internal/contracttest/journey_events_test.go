@@ -46,19 +46,25 @@ type journeyEvent struct {
 // It is journey.json's "events" for a step.
 type eventShapes map[string]*shape.Skeleton
 
+// libraryScanAction is the action of a library scan task. The library journey
+// waits for its task_finished instead of polling GET /api/tasks.
+const libraryScanAction = "library-scan"
+
 // eventSocket is the root client's Socket.IO connection. It buffers the
-// journey's events until a step takes them.
+// journey's events until a step takes them, and remembers which library scans
+// have finished.
 type eventSocket struct {
 	client *sioClient
 	mu     sync.Mutex
 	events []journeyEvent
+	scans  map[string]bool // libraryId -> a library-scan task_finished arrived
 }
 
 // connectEventSocket connects as the root user the way the trial does: the auth
 // event with the token once the namespace is connected, then it waits for init.
 func connectEventSocket(t testing.TB, baseURL, token string) *eventSocket {
 	t.Helper()
-	es := &eventSocket{}
+	es := &eventSocket{scans: map[string]bool{}}
 	ready := make(chan struct{})
 	var readyOnce sync.Once
 	client, err := dialSocketIO(baseURL, journeySocketPath, 2*time.Second)
@@ -90,13 +96,47 @@ func connectEventSocket(t testing.TB, baseURL, token string) *eventSocket {
 
 func (es *eventSocket) record(name string, payload any) {
 	if name == "task_finished" {
-		if task, _ := payload.(map[string]any); task["action"] != journeyMatchAllAction {
+		task, _ := payload.(map[string]any)
+		if task["action"] == libraryScanAction {
+			data, _ := task["data"].(map[string]any)
+			libraryID, _ := data["libraryId"].(string)
+			es.mu.Lock()
+			es.scans[libraryID] = true
+			es.mu.Unlock()
+		}
+		if task["action"] != journeyMatchAllAction {
 			return
 		}
 	}
 	es.mu.Lock()
 	es.events = append(es.events, journeyEvent{name: name, payload: payload})
 	es.mu.Unlock()
+}
+
+// forgetScan clears the finished mark of a library's scans, so a wait after it
+// sees only the scan the step starts.
+func (es *eventSocket) forgetScan(libraryID string) {
+	es.mu.Lock()
+	delete(es.scans, libraryID)
+	es.mu.Unlock()
+}
+
+// waitScan returns true once a library-scan task_finished has arrived for
+// libraryID, or false after limit.
+func (es *eventSocket) waitScan(libraryID string, limit time.Duration) bool {
+	deadline := time.Now().Add(limit)
+	for {
+		es.mu.Lock()
+		done := es.scans[libraryID]
+		es.mu.Unlock()
+		if done {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
 }
 
 // drain forgets the events received so far, so a step sees only its own.

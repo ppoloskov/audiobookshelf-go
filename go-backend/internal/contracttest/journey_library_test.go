@@ -34,12 +34,13 @@ const (
 	librarySecondFolder = "second-library"
 )
 
-// libraryStep is a journeyStep plus a hook that runs after its response, in
-// record and check mode alike. The hook waits for background work the handler
-// started (the scan).
+// libraryStep is a journeyStep plus hooks that run before its request and after
+// its response, in record and check mode alike. The after hook waits for
+// background work the handler started (the scan).
 type libraryStep struct {
 	journeyStep
-	after func(t *testing.T, in *Install, c *journeyCtx)
+	before func(t *testing.T, in *Install, c *journeyCtx)
+	after  func(t *testing.T, in *Install, c *journeyCtx)
 }
 
 // TestJourneyLibrary runs the library steps against one booted fixture, in order.
@@ -48,7 +49,7 @@ func TestJourneyLibrary(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(in.Dir, "media", librarySecondFolder), 0o755); err != nil {
 		t.Fatalf("create second library folder: %v", err)
 	}
-	c := &journeyCtx{vals: map[string]any{}, tokens: map[string]string{}}
+	c := &journeyCtx{vals: map[string]any{}, tokens: map[string]string{}, wantEvents: true}
 	steps := librarySteps(in)
 	if *record {
 		recordLibrary(t, in, c, steps)
@@ -71,6 +72,9 @@ func TestJourneyLibrary(t *testing.T) {
 // runLibraryStep sends one step's request, then runs its hook.
 func runLibraryStep(t *testing.T, in *Install, c *journeyCtx, st libraryStep) journeyResult {
 	t.Helper()
+	if st.before != nil {
+		st.before(t, in, c)
+	}
 	res := runJourneyStep(t, in, c, st.journeyStep, nil)
 	if st.after != nil {
 		st.after(t, in, c)
@@ -102,43 +106,19 @@ func recordLibrary(t *testing.T, in *Install, c *journeyCtx, steps []libraryStep
 	t.Logf("recorded %d steps to %s", len(steps), libraryShapesFile)
 }
 
-// waitForLibraryScan returns when no library-scan task for libraryID is left in
-// GET /api/tasks. TS registers the task before it answers the scan request, so
-// the first poll already sees it. The poll interval is not a timeout: it only
-// bounds how often the list is read.
-func waitForLibraryScan(t *testing.T, in *Install, c *journeyCtx, libraryID string) {
+// libraryScanWait bounds the wait for a library scan's task_finished event.
+const libraryScanWait = 60 * time.Second
+
+// waitForLibraryScan waits for the library-scan task_finished event of libraryID
+// on the root socket. The step's before hook cleared earlier finishes, so the
+// event seen is this step's scan. A timeout names the step.
+func waitForLibraryScan(t *testing.T, c *journeyCtx, stepID, libraryID string) {
 	t.Helper()
-	const limit = 60 * time.Second
-	start := time.Now()
-	for {
-		resp, raw := in.Do(t, http.MethodGet, "/api/tasks", c.tokens["root"], nil)
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("GET /api/tasks while waiting for the scan: status %d: %s", resp.StatusCode, snippet(raw))
-		}
-		var tasks struct {
-			Tasks []struct {
-				Action string `json:"action"`
-				Data   struct {
-					LibraryID string `json:"libraryId"`
-				} `json:"data"`
-			} `json:"tasks"`
-		}
-		if err := json.Unmarshal(raw, &tasks); err != nil {
-			t.Fatalf("GET /api/tasks: %v: %s", err, snippet(raw))
-		}
-		running := false
-		for _, task := range tasks.Tasks {
-			if task.Action == "library-scan" && task.Data.LibraryID == libraryID {
-				running = true
-			}
-		}
-		if !running {
-			return
-		}
-		if time.Since(start) >= limit {
-			t.Fatalf("scan of library %s still running after %s", libraryID, limit)
-		}
-		time.Sleep(25 * time.Millisecond)
+	if c.events == nil {
+		t.Fatalf("step %s: no root socket to wait for the scan of library %s", stepID, libraryID)
+	}
+	if !c.events.waitScan(libraryID, libraryScanWait) {
+		t.Fatalf("step %s: no library-scan task_finished for library %s within %s", stepID, libraryID, libraryScanWait)
 	}
 }
 
@@ -185,9 +165,15 @@ func librarySteps(in *Install) []libraryStep {
 	}
 	plain := func(s journeyStep) libraryStep { return libraryStep{journeyStep: s} }
 	withWait := func(s journeyStep) libraryStep {
-		return libraryStep{journeyStep: s, after: func(t *testing.T, in *Install, c *journeyCtx) {
-			waitForLibraryScan(t, in, c, lib)
-		}}
+		return libraryStep{journeyStep: s,
+			before: func(t *testing.T, in *Install, c *journeyCtx) {
+				if c.events != nil {
+					c.events.forgetScan(lib)
+				}
+			},
+			after: func(t *testing.T, in *Install, c *journeyCtx) {
+				waitForLibraryScan(t, c, s.id, lib)
+			}}
 	}
 	return []libraryStep{
 		plain(journeyStep{id: "login.root", method: http.MethodPost, route: "/login",

@@ -334,7 +334,7 @@ L2, JWT issuing -> L1).
     websocket transport only) that registers the socket first. Regression test:
     `internal/server/socket_connect_test.go`.
 
-- [ ] C26: TestJourneyLibrary flaked once under full-suite load
+- [x] C26: TestJourneyLibrary flaked once under full-suite load
   - Evidence: failed once in `go test ./...` while merging L3+L4 (2026-11-03),
     passed alone 3x and on the next full run. Likely the library-scan wait.
   - Files: `internal/contracttest/journey_library_test.go`
