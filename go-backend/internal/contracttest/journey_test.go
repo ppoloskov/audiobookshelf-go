@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -63,8 +62,9 @@ type journeyStep struct {
 	// retry is the number of extra attempts after a 404 (HLS playlists appear
 	// once transcoding starts).
 	retry int
-	// events is how many Socket.IO events the trial waited for after the
-	// request. They are not checked here (see the skip in TestJourney).
+	// events is how many Socket.IO events the step expects. The root client
+	// waits for them (up to 3s) and the step's events are checked against
+	// the recording (journey_events_test.go).
 	events int
 	// skip is why the step does not run here.
 	skip string
@@ -90,6 +90,18 @@ type recordedStep struct {
 	Status      int             `json:"status"`
 	ContentType string          `json:"contentType"`
 	Shape       *shape.Skeleton `json:"shape,omitempty"`
+	// Events is set for a step that expects Socket.IO events: the events TS
+	// sent, by name, with their payload skeletons.
+	Events *eventShapes `json:"events,omitempty"`
+}
+
+// expectedEvents is what the recording says the step emits (nil when it
+// recorded none).
+func (r recordedStep) expectedEvents() eventShapes {
+	if r.Events == nil {
+		return nil
+	}
+	return *r.Events
 }
 
 // journeyResult is what one request of the journey got back.
@@ -97,14 +109,15 @@ type journeyResult struct {
 	status int
 	media  string // media type of the Content-Type header, without parameters
 	raw    []byte
+	events []journeyEvent
 }
 
 // TestJourney runs the replacement trial's client journey against one booted
 // fixture, in order: the steps mutate state that later steps read. Each step
 // is a subtest. A step checks its recorded status, media type and, for JSON,
-// the recorded shape. Socket.IO events are not checked. With -record the same
-// steps run against a TS server instead, and journey.json is written from them
-// (journey_record_test.go).
+// the recorded shape; a step that declares Socket.IO events also checks the
+// events its root client received. With -record the same steps run against a
+// TS server instead, and journey.json is written from them (journey_record_test.go).
 func TestJourney(t *testing.T) {
 	runJourney(t, journeyShapesFile, journeyDumps, func(_ *testing.T, in *Install, _ *journeyCtx) []journeyStep {
 		return journeySteps(in.IDs)
@@ -127,7 +140,15 @@ func runJourney(t *testing.T, shapesFile string, dumps []string, steps func(*tes
 		fixtureURL: startJourneyImageSource(t),
 		deadURL:    closedURL(t),
 	}
+	t.Cleanup(c.closeEvents)
 	list := steps(t, in, c)
+	// Only a journey with event steps connects the root client: its auth updates
+	// the root user's lastSeen, which the other journeys' recordings do not show.
+	for _, st := range list {
+		if st.events > 0 {
+			c.wantEvents = true
+		}
+	}
 	if *record {
 		recordJourneyFile(t, shapesFile, in, c, list, dumps)
 		return
@@ -141,10 +162,10 @@ func runJourney(t *testing.T, shapesFile string, dumps []string, steps func(*tes
 			if !ok {
 				t.Fatalf("no recorded shape for step %s in %s", st.id, shapesFile)
 			}
-			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st))
-			if st.events > 0 {
-				t.Skip(fmt.Sprintf("%d Socket.IO event(s) not checked: no Socket.IO client in the module", st.events))
+			if st.events > 0 && rec.Events == nil {
+				t.Fatalf("step %s expects events but %s has none: re-record", st.id, shapesFile)
 			}
+			checkJourneyStep(t, rec, runJourneyStep(t, in, c, st, rec.expectedEvents()))
 		})
 	}
 	checkJourneyDumps(t, in, recorded, dumps)
@@ -152,7 +173,7 @@ func runJourney(t *testing.T, shapesFile string, dumps []string, steps func(*tes
 
 // runJourneyStep sends one step's request and keeps what its response captures.
 // It does not check the response; checkJourneyStep does.
-func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) journeyResult {
+func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep, expect eventShapes) journeyResult {
 	t.Helper()
 	if st.skip != "" {
 		t.Skip(st.skip)
@@ -207,6 +228,15 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 	if st.settle {
 		before = databaseFingerprint(t, in.DB)
 	}
+	if st.events > 0 {
+		if c.events == nil {
+			t.Fatal("step expects Socket.IO events but login.root did not connect a root client")
+		}
+		// The trial drained the buffer before the request, so the step sees
+		// only its own events.
+		time.Sleep(100 * time.Millisecond)
+		c.events.drain()
+	}
 	touched := ""
 	var touchedBefore time.Time
 	if st.touches != "" {
@@ -221,6 +251,12 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
+	}
+	var events []journeyEvent
+	if st.events > 0 {
+		// The step's completion event (batch_quickmatch_complete, task_finished)
+		// is among the expected names, so this also waits for background work.
+		events = c.events.take(expect, st.events)
 	}
 	if st.settle {
 		waitForBackgroundWork(t, in.DB, before)
@@ -239,11 +275,14 @@ func runJourneyStep(t *testing.T, in *Install, c *journeyCtx, st journeyStep) jo
 		if st.loginAs != "" {
 			captureLogin(t, c, st.loginAs, raw)
 		}
+		if st.loginAs == "root" && c.wantEvents && c.tokens["root"] != "" && c.events == nil {
+			c.events = connectEventSocket(t, in.BaseURL, c.tokens["root"])
+		}
 		if st.capture != "" {
 			c.vals[st.capture] = decodeAny(raw)
 		}
 	}
-	return journeyResult{status: resp.StatusCode, media: mediaType(resp.Header.Get("Content-Type")), raw: raw}
+	return journeyResult{status: resp.StatusCode, media: mediaType(resp.Header.Get("Content-Type")), raw: raw, events: events}
 }
 
 // checkJourneyStep checks a response against its recorded status, media type
@@ -259,6 +298,9 @@ func checkJourneyStep(t *testing.T, rec recordedStep, got journeyResult) {
 	// and error or empty responses are free framing (ARCHITECTURE.md).
 	if rec.Status < 300 && typedMedia(rec.ContentType) && got.media != rec.ContentType {
 		t.Errorf("content type %q, recorded %q", got.media, rec.ContentType)
+	}
+	if rec.Events != nil {
+		checkJourneyEvents(t, *rec.Events, got.events)
 	}
 	if rec.Shape == nil {
 		return

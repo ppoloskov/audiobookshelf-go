@@ -75,13 +75,13 @@ func journeyStepsCatalog(ids map[string]string) []journeyStep {
 		{id: "batchmatch.unknown", who: "root", method: "POST", route: "/api/items/batch/quickmatch", body: map[string]any{"libraryItemIds": []any{"00000000-0000-4000-8000-000000000000"}}},
 		{id: "batchmatch.run", who: "root", method: "POST", route: "/api/items/batch/quickmatch", bodyFn: func(c *journeyCtx) any {
 			return map[string]any{"libraryItemIds": []any{ids["novel"], ids["saga2"], "00000000-0000-4000-8000-000000000000"}, "options": matchBody(map[string]any{"overrideDetails": true, "overrideCover": false})(c)}
-		}, events: 12, settle: true},
+		}, events: 12},
 		{id: "batchmatch.after.novel", who: "root", route: "/api/items/" + ids["novel"] + "?expanded=1"},
 		{id: "matchall.listener", who: "listener", route: "/api/libraries/" + ids["library"] + "/matchall"},
 		{id: "matchall.missing", who: "root", route: "/api/libraries/00000000-0000-4000-8000-000000000000/matchall"},
 		{id: "matchall.podcast", who: "root", route: "/api/libraries/" + ids["podcastLibrary"] + "/matchall"},
 		{id: "matchall.setprovider", who: "root", method: "PATCH", route: "/api/libraries/" + ids["library"], bodyFn: matchBody(nil)},
-		{id: "matchall.run", who: "root", route: "/api/libraries/" + ids["library"] + "/matchall", events: 14, settle: true},
+		{id: "matchall.run", who: "root", route: "/api/libraries/" + ids["library"] + "/matchall", events: 14},
 		{id: "matchall.after.items", who: "root", route: "/api/libraries/" + ids["library"] + "/items?limit=20&page=0&minified=1&sort=media.metadata.title"},
 		{id: "search.podcast.noterm", who: "root", route: "/api/search/podcast"},
 		{id: "search.podcast.array", who: "root", route: "/api/search/podcast?term=a&term=b"},

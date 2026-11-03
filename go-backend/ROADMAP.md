@@ -149,9 +149,9 @@ L2, JWT issuing -> L1).
   - F8c done (37 steps). Bug found and fixed: `PATCH /api/items/:id/ebook/:fileid/status` left `ebookFile.ebookFormat` and `media.ebookFormat` null (TS: the extension without its dot). Not changed: `PATCH /api/items/:id/tracks` returns the expanded item where TS returns `toOldJSON()`; the client ignores the body and extra keys are allowed.
   - F8d done (58 steps). Bugs found and fixed: `POST /api/me/ereader-devices` answered 500 when the `email-settings` row was missing (TS creates it on write); `GET /api/sessions/open` omitted the `PlaybackSession.toJSON` fields (`mediaMetadata`, `chapters`, `deviceInfo`, `duration`, `date`, ...).
 
-- [ ] F9: Socket.IO event checks in the Go journey
-  - Prerequisite: F5b. Client approved 2026-11-03:
-    `github.com/zishang520/socket.io/clients/socket/v3` (tests only).
+- [x] F9: Socket.IO event checks in the Go journey
+  - Prerequisite: F5b.
+  - Client: a small test-only Engine.IO v4 client on golang.org/x/net/websocket (the approved v3 client needs a newer quic-go that breaks engine.io v2.3.3).
   - Change: The 37 steps that expect events assert event names, recipients and
     payload shapes (recorded like HTTP shapes).
   - Done when: no journey step skips its event check.

@@ -89,7 +89,13 @@ func recordJourneyFile(t *testing.T, shapesFile string, in *Install, c *journeyC
 		if _, dup := out.Steps[st.id]; dup {
 			t.Fatalf("duplicate journey step %s", st.id)
 		}
-		out.Steps[st.id] = recordedOf(t, st.id, runJourneyStep(t, in, c, st))
+		got := runJourneyStep(t, in, c, st, nil)
+		rec := recordedOf(t, st.id, got)
+		if st.events > 0 {
+			events := eventShapesOf(got.events)
+			rec.Events = &events
+		}
+		out.Steps[st.id] = rec
 	}
 	for _, id := range dumps {
 		out.Steps[id] = recordedStep{

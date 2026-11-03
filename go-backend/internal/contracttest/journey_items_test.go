@@ -64,7 +64,7 @@ func runItemStep(t *testing.T, in *Install, c *journeyCtx, st itemStep) journeyR
 	if st.before != nil {
 		st.before(t, in, c)
 	}
-	res := runJourneyStep(t, in, c, st.journeyStep)
+	res := runJourneyStep(t, in, c, st.journeyStep, nil)
 	if st.after != nil {
 		st.after(t, in, c)
 	}

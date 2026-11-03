@@ -18,6 +18,10 @@ type journeyCtx struct {
 	listenerRefresh string
 	fixtureURL      string
 	deadURL         string
+	// events is the root client's Socket.IO connection, made at login.root when
+	// the journey has event steps (wantEvents).
+	events     *eventSocket
+	wantEvents bool
 }
 
 // v walks the value captured under name: string elements index objects, int

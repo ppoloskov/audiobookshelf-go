@@ -1,6 +1,6 @@
 package contracttest
 
-// journeyStepsFeeds is the third part of the journey: the include=rssfeed and include=share shelves, the RSS feeds and media item shares the server opens, closes and serves, and their public routes. The Socket.IO events the trial waited for are not checked. It ports replacement-trial.cjs journeySteps in order.
+// journeyStepsFeeds is the third part of the journey: the include=rssfeed and include=share shelves, the RSS feeds and media item shares the server opens, closes and serves, and their public routes. The Socket.IO events the steps declare are checked against journey.json. It ports replacement-trial.cjs journeySteps in order.
 func journeyStepsFeeds(ids map[string]string) []journeyStep {
 	return []journeyStep{
 		{id: "includes.root.finish", who: "root", method: "PATCH", route: "/api/me/progress/" + ids["saga1"], body: map[string]any{"isFinished": true}},

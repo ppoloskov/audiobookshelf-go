@@ -71,7 +71,7 @@ func TestJourneyLibrary(t *testing.T) {
 // runLibraryStep sends one step's request, then runs its hook.
 func runLibraryStep(t *testing.T, in *Install, c *journeyCtx, st libraryStep) journeyResult {
 	t.Helper()
-	res := runJourneyStep(t, in, c, st.journeyStep)
+	res := runJourneyStep(t, in, c, st.journeyStep, nil)
 	if st.after != nil {
 		st.after(t, in, c)
 	}
