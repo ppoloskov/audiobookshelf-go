@@ -30,13 +30,16 @@ type Handler struct {
 	emit       events.Emitter
 	endpointMu sync.RWMutex
 	endpoints  map[string]string
+	// coverSearches maps the running socket cover searches to their cancel.
+	coverMu       sync.Mutex
+	coverSearches map[string]context.CancelFunc
 }
 
 func New(db *sql.DB, emit events.Emitter) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("providers: database is nil")
 	}
-	return &Handler{db: db, client: &http.Client{Timeout: 10 * time.Second}, emit: emit, endpoints: map[string]string{"google": "https://www.googleapis.com/books/v1/volumes", "openlibrary": "https://openlibrary.org", "itunes": "https://itunes.apple.com/search", "fantlab": "https://api.fantlab.ru", "audible": "https://api.audible.com/1.0/catalog/products", "audnexus": "https://api.audnex.us", "audiobookcovers": "https://api.audiobookcovers.com/cover/bytext/"}}, nil
+	return &Handler{db: db, client: &http.Client{Timeout: 10 * time.Second}, emit: emit, coverSearches: map[string]context.CancelFunc{}, endpoints: map[string]string{"google": "https://www.googleapis.com/books/v1/volumes", "openlibrary": "https://openlibrary.org", "itunes": "https://itunes.apple.com/search", "fantlab": "https://api.fantlab.ru", "audible": "https://api.audible.com/1.0/catalog/products", "audnexus": "https://api.audnex.us", "audiobookcovers": "https://api.audiobookcovers.com/cover/bytext/"}}, nil
 }
 
 // SetEndpoint overrides one public upstream base URL. It supports isolated

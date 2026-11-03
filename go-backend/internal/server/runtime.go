@@ -170,6 +170,17 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			logging.Default().AddSocketListener(action.SocketID, logging.Level(level))
 		case "remove_log_listener", "disconnect":
 			logging.Default().RemoveSocketListener(action.SocketID)
+		case "search_covers":
+			payload, _ := action.Payload.(map[string]any)
+			requestID, _ := payload["requestId"].(string)
+			title, _ := payload["title"].(string)
+			author, _ := payload["author"].(string)
+			provider, _ := payload["provider"].(string)
+			podcast, _ := payload["podcast"].(bool)
+			prov.StartCoverSearch(providers.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
+		case "cancel_cover_search":
+			requestID, _ := action.Payload.(string)
+			prov.CancelCoverSearch(requestID, action.Reply)
 		}
 		return nil
 	})

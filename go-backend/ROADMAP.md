@@ -255,7 +255,7 @@ L2, JWT issuing -> L1).
   - Files: `internal/catalog/quickmatch.go`, `internal/scanner/scanner.go`
   - Done when: `TestMatchAllStopsOnCancel` passes.
 
-- [ ] C5: Socket.IO `search_covers` and `cancel_cover_search`
+- [x] C5: Socket.IO `search_covers` and `cancel_cover_search`
   - Files: `internal/server/runtime.go` (dispatcher has no case),
     `internal/realtime/hub.go`, `internal/providers/handler.go`
   - Change: The web client's cover tab uses this (`client/components/modals/item/tabs/Cover.vue`).
