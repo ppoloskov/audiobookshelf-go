@@ -244,7 +244,7 @@ func bookMetadataObject(media, metadata map[string]any) map[string]any {
 }
 
 func podcastMetadataObject(media, metadata map[string]any) map[string]any {
-	return map[string]any{"tags": valueOrEmpty(media["tags"]), "title": metadata["title"], "author": metadata["author"], "description": metadata["description"], "releaseDate": metadata["releaseDate"], "genres": valueOrEmpty(metadata["genres"]), "feedURL": firstValue(metadata, "feedURL", "feedUrl"), "imageURL": firstValue(metadata, "imageURL", "imageUrl"), "itunesPageURL": firstValue(metadata, "itunesPageURL", "itunesPageUrl"), "itunesId": metadata["itunesId"], "itunesArtistId": metadata["itunesArtistId"], "asin": metadata["asin"], "language": metadata["language"], "explicit": truth(metadata["explicit"]), "podcastType": firstValue(metadata, "podcastType", "type")}
+	return map[string]any{"tags": valueOrEmpty(media["tags"]), "title": metadata["title"], "author": metadata["author"], "description": metadata["description"], "releaseDate": metadata["releaseDate"], "genres": valueOrEmpty(metadata["genres"]), "feedURL": firstValue(metadata, "feedURL", "feedUrl"), "imageURL": firstValue(metadata, "imageURL", "imageUrl"), "itunesPageURL": firstValue(metadata, "itunesPageURL", "itunesPageUrl"), "itunesId": metadata["itunesId"], "itunesArtistId": metadata["itunesArtistId"], "language": metadata["language"], "explicit": truth(metadata["explicit"]), "podcastType": firstValue(metadata, "podcastType", "type")}
 }
 
 func valueOrEmpty(v any) any {

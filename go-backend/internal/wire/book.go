@@ -55,10 +55,20 @@ type BookMetadataMinified struct {
 	Language          *string  `json:"language"`
 	Explicit          bool     `json:"explicit"`
 	Abridged          bool     `json:"abridged"`
-	// Series is set only on "continue-series" shelf items, where upstream
-	// replaces metadata.series with the single series being continued
-	// (server/utils/queries/libraryFilters.js:148).
-	Series *BookSeries `json:"series,omitempty"`
+	// Series is set only where upstream adds metadata.series to a minified
+	// item: a *BookSeries on "continue-series" shelf items and series-filtered
+	// pages (server/utils/queries/libraryFilters.js:148) and a BookSeriesRef on
+	// an author's series groups (AuthorController.js:56-61).
+	Series any `json:"series,omitempty"`
+}
+
+// BookSeriesRef is the metadata.series object of an item in an author's series
+// group: the series with its prefix-free name and the book's sequence.
+type BookSeriesRef struct {
+	ID               string  `json:"id"`
+	Name             *string `json:"name"`
+	NameIgnorePrefix *string `json:"nameIgnorePrefix"`
+	Sequence         *string `json:"sequence"`
 }
 
 // BookMetadataExpanded is the strict superset used by item detail and socket

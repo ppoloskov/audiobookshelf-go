@@ -28,6 +28,7 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -922,13 +923,10 @@ var htmlTags = regexp.MustCompile(`<[^>]*>`)
 func stripHTML(s string) string {
 	return strings.TrimSpace(html.UnescapeString(htmlTags.ReplaceAllString(s, "")))
 }
-func lastFirst(name string) string {
-	parts := strings.Fields(name)
-	if len(parts) < 2 {
-		return name
-	}
-	return strings.Join(parts[1:], " ") + ", " + parts[0]
-}
+
+// lastFirst is Author.getLastFirst for a non-empty name
+// (server/models/Author.js:33-36, parseNameString.nameToLastFirst).
+func lastFirst(name string) string { return nameparse.ToLastFirst(name) }
 func includedAudioCount(a []map[string]any) int {
 	n := 0
 	for _, f := range a {
@@ -1020,6 +1018,7 @@ type Handler struct {
 	itemChanged    func(context.Context, string) error
 	filters        *filterdata.Cache
 	downloads      itemapi.DownloadQueue
+	authorFinder   AuthorFinder
 }
 
 // Option configures optional collaborators of New.

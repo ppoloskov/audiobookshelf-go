@@ -155,4 +155,28 @@ async function readCoverDeleteState(directory, itemID) {
   return { coverPath: coverPath ?? null, cacheFiles, coverFiles }
 }
 
-module.exports = { startCoverSource, startSMTPFixture, startNotificationAppriseFixture, smtpMessageShape, readEmailDeviceState, readCoverDeleteState }
+// Serves images and error responses to the routes that download an image from
+// a URL (author image upload and match). Paths: /author.jpg, /author.png,
+// /page.html (text/html), /icon.svg (image/svg+xml), /redirect (302 to
+// /author.jpg); anything else is a 404.
+async function startImageSource(jpegFile, pngFile) {
+  const send = (res, type, file) => {
+    res.writeHead(200, { 'content-type': type, 'content-length': String(fs.statSync(file).size) })
+    fs.createReadStream(file).pipe(res)
+  }
+  const server = require('node:http').createServer((req, res) => {
+    const pathname = req.url.split('?')[0]
+    if (pathname === '/author.jpg') return send(res, 'image/jpeg', jpegFile)
+    if (pathname === '/author.png') return send(res, 'image/png', pngFile)
+    if (pathname === '/redirect') { res.writeHead(302, { location: '/author.jpg' }); return res.end() }
+    if (pathname === '/page.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end('<html></html>') }
+    if (pathname === '/icon.svg') { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end('<svg xmlns="http://www.w3.org/2000/svg"/>') }
+    res.writeHead(404, { 'content-type': 'text/plain' })
+    res.end('nope')
+  })
+  const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
+  server.unref()
+  return { server, url: `http://127.0.0.1:${port}`, close: () => new Promise(resolve => { server.closeAllConnections?.(); server.close(resolve) }) }
+}
+
+module.exports = { startImageSource, startCoverSource, startSMTPFixture, startNotificationAppriseFixture, smtpMessageShape, readEmailDeviceState, readCoverDeleteState }

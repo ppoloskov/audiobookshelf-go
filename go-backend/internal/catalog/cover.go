@@ -174,19 +174,23 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
-	// ffmpegHelpers.resizeImage (ffmpegHelpers.js:78-97): the width or height
-	// that is absent stays -1 so ffmpeg preserves the aspect ratio, and the
-	// output filename selects the muxer exactly as upstream does.
-	args := []string{"-hide_banner", "-loglevel", "error", "-y", "-i", coverPath.String, "-vf", fmt.Sprintf("scale=%d:%d", width, height), cachePath}
-	cmd := exec.CommandContext(r.Context(), "ffmpeg", args...)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
+	if err := resizeImage(r.Context(), coverPath.String, cachePath, width, height); err != nil {
 		logging.RequestError(r, "internal error", err)
 		writeStatus(w, http.StatusInternalServerError)
 		return
 	}
 	streamCoverCache(w, r, cachePath)
+}
+
+// resizeImage is ffmpegHelpers.resizeImage (ffmpegHelpers.js:78-97): the width
+// or height that is absent is -1 so ffmpeg preserves the aspect ratio, and the
+// output filename selects the muxer exactly as upstream does.
+func resizeImage(ctx context.Context, input, output string, width, height int) error {
+	args := []string{"-hide_banner", "-loglevel", "error", "-y", "-i", input, "-vf", fmt.Sprintf("scale=%d:%d", width, height), output}
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run()
 }
 
 // streamCoverCache mirrors the cache-hit/done path: a bare chunked stream

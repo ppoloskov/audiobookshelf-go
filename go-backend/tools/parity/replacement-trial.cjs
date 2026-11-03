@@ -37,6 +37,7 @@ const { freePort, spawnLogged, waitReady, stop } = require('./lib/process.cjs')
 const { requestJSON } = require('./lib/http.cjs')
 const { parseArgs } = require('./lib/args.cjs')
 const { loadSocketIOClient } = require('./lib/socket-probes.cjs')
+const { startImageSource } = require('./lib/local-fixtures.cjs')
 
 const ROOT = path.resolve(__dirname, '../../..')
 const BASE = '/audiobookshelf'
@@ -714,12 +715,97 @@ function journeySteps(ids) {
   add('legacy.listening-stats', L, '/api/me/listening-stats')
   add('legacy.listening-sessions', L, '/api/me/listening-sessions?itemsPerPage=50&page=0')
   add('legacy.sessions.all', R, '/api/sessions?itemsPerPage=50&page=0')
+
+  // ---- Authors: AuthorController.js (findOne, update/merge, delete, image
+  // read/upload/delete, match). The author page and cover grid of the mobile
+  // apps and the web client call these. Images come from a local source
+  // (ctx.fixtureUrl); the Audnexus match needs the network, so only its
+  // no-result paths are compared (an Audnexus lookup cannot be redirected to a
+  // fixture on the upstream side, which has no endpoint override).
+  const ZERO_ID = '00000000-0000-4000-8000-000000000000'
+  const authorId = (ctx, name) => ctx.authorList.authors.find(a => a.name === name).id
+  const AUTH = (name, suffix = '') => ctx => `/api/authors/${authorId(ctx, name)}${suffix}`
+  const TERRY = 'Terry Fixture'
+  const imageBody = (file) => ctx => ({ url: `${ctx.fixtureUrl}/${file}` })
+  add('author.list', R, `/api/libraries/${ids.library}/authors`, { capture: 'authorList' })
+  add('author.get.terry', R, AUTH(TERRY))
+  add('author.get.terry.items', R, AUTH(TERRY, '?include=items'))
+  add('author.get.terry.series', R, AUTH(TERRY, '?include=items,series'))
+  add('author.get.terry.seriesonly', R, AUTH(TERRY, '?include=series'))
+  add('author.get.ada.series', R, AUTH('Ada Example', '?include=items,series'))
+  add('author.get.listener', L, AUTH(TERRY, '?include=items,series'))
+  add('author.get.finisher', 'finisher', AUTH('Ada Example', '?include=items'))
+  add('author.get.anon', null, AUTH(TERRY))
+  add('author.get.missing', R, `/api/authors/${ZERO_ID}`)
+  add('author.get.badid', R, '/api/authors/not-a-uuid')
+  add('author.image.none', null, AUTH(TERRY, '/image'), { binary: 'bytes' })
+  add('author.image.none.raw', null, AUTH(TERRY, '/image?raw=1'), { binary: 'bytes' })
+  add('author.image.badformat', null, AUTH(TERRY, '/image?format=gif'), { binary: 'bytes' })
+  add('author.image.badid', null, '/api/authors/not-a-uuid/image', { binary: 'bytes' })
+  add('author.image.badid.raw', null, '/api/authors/not-a-uuid/image?raw=1', { binary: 'bytes' })
+  add('author.image.missing', null, `/api/authors/${ZERO_ID}/image`, { binary: 'bytes' })
+  add('author.image.upload.listener', L, AUTH(TERRY, '/image'), { method: 'POST', body: imageBody('author.jpg') })
+  add('author.image.upload.nourl', R, AUTH(TERRY, '/image'), { method: 'POST', body: {} })
+  add('author.image.upload.badscheme', R, AUTH(TERRY, '/image'), { method: 'POST', body: { url: 'ftp://example.invalid/a.jpg' } })
+  add('author.image.upload.numurl', R, AUTH(TERRY, '/image'), { method: 'POST', body: { url: 5 } })
+  add('author.image.upload.notimage', R, AUTH(TERRY, '/image'), { method: 'POST', body: imageBody('page.html') })
+  add('author.image.upload.svg', R, AUTH(TERRY, '/image'), { method: 'POST', body: imageBody('icon.svg') })
+  add('author.image.upload.404', R, AUTH(TERRY, '/image'), { method: 'POST', body: imageBody('missing.jpg') })
+  add('author.image.upload.refused', R, AUTH(TERRY, '/image'), { method: 'POST', body: ctx => ({ url: `${ctx.deadUrl}/a.jpg` }) })
+  add('author.image.upload.nochange', R, AUTH(TERRY), { capture: 'terryBefore' })
+  add('author.image.upload.ok', R, AUTH(TERRY, '/image'), { method: 'POST', body: imageBody('author.jpg'), events: 1 })
+  add('author.image.raw', null, AUTH(TERRY, '/image?raw=1'), { binary: 'bytes' })
+  add('author.image.default', null, AUTH(TERRY, '/image'), { binary: 'bytes' })
+  add('author.image.jpeg', null, AUTH(TERRY, '/image?format=jpeg'), { binary: 'bytes' })
+  add('author.image.w200', null, AUTH(TERRY, '/image?width=200&format=jpeg'), { binary: 'bytes' })
+  add('author.image.w100h50', null, AUTH(TERRY, '/image?width=100&height=50&format=png'), { binary: 'bytes' })
+  add('author.image.h120', null, AUTH(TERRY, '/image?height=120&format=jpeg'), { binary: 'bytes' })
+  add('author.image.w0', null, AUTH(TERRY, '/image?width=0&format=jpeg'), { binary: 'bytes' })
+  add('author.image.wbad', null, AUTH(TERRY, '/image?width=abc&format=jpeg'), { binary: 'bytes' })
+  add('author.image.clamp', null, AUTH(TERRY, '/image?width=100&height=999999&format=jpeg'), { binary: 'bytes' })
+  add('author.image.webp', null, AUTH(TERRY, '/image?width=150&format=webp'), { binary: 'bytes' })
+  add('author.image.w200.again', null, AUTH(TERRY, '/image?width=200&format=jpeg'), { binary: 'bytes' })
+  add('author.get.terry.afterimage', R, AUTH(TERRY))
+  add('author.update.listener', L, AUTH(TERRY), { method: 'PATCH', body: { description: 'x' } })
+  add('author.update.empty', R, AUTH(TERRY), { method: 'PATCH', body: {} })
+  add('author.update.invalid', R, AUTH(TERRY), { method: 'PATCH', body: { name: 5, description: {}, other: 'x' } })
+  add('author.update.description', R, AUTH(TERRY), { method: 'PATCH', body: { description: 'A prolific fixture author.', asin: 'B000TERRY1' }, events: 1 })
+  add('author.update.nochange', R, AUTH(TERRY), { method: 'PATCH', body: { description: 'A prolific fixture author.', asin: 'B000TERRY1' } })
+  add('author.update.null', R, AUTH(TERRY), { method: 'PATCH', body: { asin: null }, events: 1 })
+  add('author.match.listener', L, AUTH(TERRY, '/match'), { method: 'POST', body: {} })
+  add('author.match.empty', R, AUTH(TERRY, '/match'), { method: 'POST', body: {} })
+  add('author.match.badasin', R, AUTH(TERRY, '/match'), { method: 'POST', body: { asin: 'nope', region: 'uk' } })
+  add('author.rename.ada', R, AUTH('Ada Example'), { method: 'PATCH', body: { name: 'Ada Renamed' }, events: 2 })
+  add('author.after.rename.list', R, `/api/libraries/${ids.library}/authors`)
+  add('author.after.rename.item', R, `/api/items/${ids.novel}?expanded=1`)
+  add('author.rename.lowercase', R, AUTH('Ada Example'), { method: 'PATCH', body: { name: 'ada renamed again' }, events: 2 })
+  add('author.merge', R, AUTH('Ada Example'), { method: 'PATCH', body: { name: TERRY }, events: 3 })
+  add('author.after.merge.ada', R, AUTH('Ada Example'))
+  add('author.after.merge.terry', R, AUTH(TERRY, '?include=items,series'))
+  add('author.after.merge.list', R, `/api/libraries/${ids.library}/authors`)
+  add('author.after.merge.item', R, `/api/items/${ids.novel}?expanded=1`)
+  add('author.temp.create', R, `/api/items/${ids.saga2}/media`, { method: 'PATCH', body: { metadata: { authors: [{ name: TERRY }, { name: 'Temp Author' }] } } })
+  add('author.temp.list', R, `/api/libraries/${ids.library}/authors`, { capture: 'authorList' })
+  add('author.temp.image', R, AUTH('Temp Author', '/image'), { method: 'POST', body: imageBody('author.png'), events: 1 })
+  add('author.temp.image.get', null, AUTH('Temp Author', '/image?width=64&format=jpeg'), { binary: 'bytes' })
+  add('author.temp.delete.listener', L, AUTH('Temp Author'), { method: 'DELETE' })
+  add('author.temp.delete', R, AUTH('Temp Author'), { method: 'DELETE', events: 1 })
+  add('author.temp.delete.again', R, AUTH('Temp Author'), { method: 'DELETE' })
+  add('author.temp.image.after', null, AUTH('Temp Author', '/image?width=64&format=jpeg'), { binary: 'bytes' })
+  add('author.temp.item', R, `/api/items/${ids.saga2}?expanded=1`)
+  add('author.image.delete.listener', L, AUTH(TERRY, '/image'), { method: 'DELETE' })
+  add('author.image.delete', R, AUTH(TERRY, '/image'), { method: 'DELETE', events: 1 })
+  add('author.image.delete.again', R, AUTH(TERRY, '/image'), { method: 'DELETE' })
+  add('author.image.after.delete', null, AUTH(TERRY, '/image?width=200&format=jpeg'), { binary: 'bytes' })
+  add('author.image.after.delete.raw', null, AUTH(TERRY, '/image?raw=1'), { binary: 'bytes' })
+  add('author.final.list', R, `/api/libraries/${ids.library}/authors`)
   return s
 }
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g
 const JWT = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g
 let WORK_DIR = ''
+let DEAD_PORT = 0
 const TIME_KEY = /(At|Time|Update|Seen|Scan|^date|^dayOfWeek|Ms|token|Token)$/
 
 function normalize(value, known, fresh, key = '') {
@@ -784,7 +870,7 @@ async function connectEventSocket(server, token) {
   if (!io) return null
   const socket = io(server.baseUrl, { path: `${BASE}/socket.io`, transports: ['websocket'], reconnection: false, timeout: 8000 })
   const buffer = []
-  for (const name of ['rss_feed_open', 'rss_feed_closed', 'share_open', 'share_closed']) socket.on(name, payload => buffer.push({ event: name, payload }))
+  for (const name of ['rss_feed_open', 'rss_feed_closed', 'share_open', 'share_closed', 'author_updated', 'author_removed', 'author_added', 'items_updated', 'item_updated', 'item_removed', 'series_updated', 'series_removed', 'batch_quickmatch_complete']) socket.on(name, payload => buffer.push({ event: name, payload }))
   await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('event socket: no init')), 10000)
     socket.on('connect', () => socket.emit('auth', token))
@@ -793,6 +879,8 @@ async function connectEventSocket(server, token) {
   })
   buffer.length = 0
   return {
+    // Forget what earlier steps emitted, so a step that checks events sees only its own.
+    drain() { buffer.length = 0 },
     async take(n) {
       const deadline = Date.now() + 3000
       while (buffer.length < n && Date.now() < deadline) await delay(25)
@@ -812,6 +900,19 @@ async function runJourney(server, ids, logDir) {
   const fresh = new Map()
   const resolve = (v) => typeof v === 'function' ? v(ctx) : v
   let rootSocket = null
+  // A local image source for the routes that download an image from a URL, and
+  // a port nothing listens on (the same for both servers, because the connect
+  // error names it).
+  const imageDir = path.join(logDir, 'image-fixture')
+  fs.mkdirSync(imageDir, { recursive: true })
+  const jpeg = path.join(imageDir, 'author.jpg')
+  const png = path.join(imageDir, 'author.png')
+  if (!fs.existsSync(jpeg)) ffmpeg(['-f', 'lavfi', '-i', 'color=c=orange:s=300x500', '-frames:v', '1', jpeg])
+  if (!fs.existsSync(png)) ffmpeg(['-f', 'lavfi', '-i', 'color=c=purple:s=200x200', '-frames:v', '1', png])
+  const imageSource = await startImageSource(jpeg, png)
+  ctx.fixtureUrl = imageSource.url
+  DEAD_PORT ||= await freePort()
+  ctx.deadUrl = `http://127.0.0.1:${DEAD_PORT}`
   try {
     for (const step of journeySteps(ids)) {
       if (step.skip) continue
@@ -821,6 +922,10 @@ async function runJourney(server, ids, logDir) {
       if (step.tokenQuery && token && !/[?&]token=/.test(route)) route += (route.includes('?') ? '&' : '?') + `token=${token}`
       let body, headers
       try { body = resolve(step.body); headers = resolve(step.headers) || {} } catch (e) { results[step.id] = { error: `body unresolved: ${e.message}` }; continue }
+      if (step.events) {
+        await delay(100)
+        rootSocket?.drain()
+      }
       let r
       for (let attempt = 0; attempt <= (step.retry || 0); attempt++) {
         try {
@@ -861,6 +966,7 @@ async function runJourney(server, ids, logDir) {
     }
   } finally {
     rootSocket?.close()
+    await imageSource.close()
   }
   fs.writeFileSync(path.join(logDir, `journey-${server.kind}.json`), JSON.stringify(results, null, 2))
   return results
@@ -945,7 +1051,26 @@ function dumpRows(dbPath, ids) {
     }
     return Object.fromEntries(Object.keys(r).sort().map(k => [k, shape(r[k], k)]))
   })
+  // Author rows, the book/author links in order, the denormalized author
+  // names of library items, and the files author routes write.
+  const metadataDir = path.join(path.dirname(path.dirname(dbPath)), 'metadata')
+  const listDir = (dir) => fs.existsSync(dir)
+    ? fs.readdirSync(dir).sort().map(name => ({ name: name.replace(UUID, m => known.has(m) ? m : '<new-uuid>'), size: fs.statSync(path.join(dir, name)).size }))
+    : []
+  const itemMetadata = {}
+  const itemsDir = path.join(metadataDir, 'items')
+  for (const id of fs.existsSync(itemsDir) ? fs.readdirSync(itemsDir).sort() : []) {
+    const file = path.join(itemsDir, id, 'metadata.json')
+    // Key order of the file is not part of the contract (readers parse it).
+    if (fs.existsSync(file)) itemMetadata[id.replace(UUID, m => known.has(m) ? m : '<new-uuid>')] = sortKeys(JSON.parse(fs.readFileSync(file, 'utf8')))
+  }
   const out = {
+    'db.authors': rows('SELECT * FROM authors ORDER BY name, createdAt'),
+    'db.bookAuthors': rows('SELECT li.title AS title, a.name AS author FROM bookAuthors ba JOIN authors a ON a.id = ba.authorId JOIN libraryItems li ON li.mediaId = ba.bookId ORDER BY li.title, ba.createdAt, a.name'),
+    'db.libraryItems.authorNames': rows('SELECT title, authorNamesFirstLast, authorNamesLastFirst FROM libraryItems ORDER BY title'),
+    'fs.metadata.authors': listDir(path.join(metadataDir, 'authors')),
+    'fs.cache.images': listDir(path.join(metadataDir, 'cache', 'images')),
+    'fs.items.metadata.json': itemMetadata,
     'db.feeds': rows('SELECT * FROM feeds ORDER BY slug'),
     'db.feedEpisodes': rows('SELECT fe.*, f.slug AS feedSlug FROM feedEpisodes fe LEFT JOIN feeds f ON f.id = fe.feedId ORDER BY f.slug, fe.pubDate, fe.filePath'),
     'db.mediaItemShares': rows('SELECT * FROM mediaItemShares ORDER BY slug'),
@@ -954,6 +1079,12 @@ function dumpRows(dbPath, ids) {
   }
   db.close()
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { status: 200, body: v }]))
+}
+
+function sortKeys(value) {
+  if (Array.isArray(value)) return value.map(sortKeys)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k => [k, sortKeys(value[k])]))
+  return value
 }
 
 function diffResults(a, b) {

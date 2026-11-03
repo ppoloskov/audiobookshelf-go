@@ -54,13 +54,6 @@ const ROUTER_FILES = [
 // Routes known to reach the fallback. Format: 'METHOD /full/path' exactly as
 // registered upstream (with the router mount prefix).
 const ALLOWLIST = [
-  'GET /api/authors/:id',
-  'PATCH /api/authors/:id',
-  'DELETE /api/authors/:id',
-  'POST /api/authors/:id/match',
-  'GET /api/authors/:id/image',
-  'POST /api/authors/:id/image',
-  'DELETE /api/authors/:id/image',
   'GET /api/series/:id',
   'PATCH /api/series/:id',
   'POST /api/items/batch/update',

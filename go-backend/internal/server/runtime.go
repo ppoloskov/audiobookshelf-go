@@ -8,6 +8,7 @@ import (
 	"html"
 	"net/http"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -53,6 +54,9 @@ type Runtime struct {
 	sharing       *sharing.Handler
 	podcasts      *podcasts.Handler
 	providers     *providers.Handler
+	// routes holds the handlers registered with method patterns (Routes);
+	// everything else goes through the Handle chain below.
+	routes *http.ServeMux
 }
 
 // NewRuntime assembles the single-process implementation around an already
@@ -124,6 +128,8 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		providers:     prov,
 		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),
 	}
+	rt.routes = http.NewServeMux()
+	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov})
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -316,6 +322,9 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if rt.serveRoute(w, withPath(r, path), user) {
+		return
+	}
 	if rt.catalog.Handle(w, withPath(r, path), user) {
 		return
 	}
@@ -370,6 +379,22 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+}
+
+// serveRoute dispatches a request to a handler registered on the route mux and
+// reports whether one matched. The user was authenticated already (the zero
+// user for the public image and cover reads) and travels in the context. A
+// path that is not in canonical form is not matched, because the mux would
+// answer it with a redirect.
+func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store.User) bool {
+	if r.URL.Path != pathpkg.Clean(r.URL.Path) {
+		return false
+	}
+	if _, pattern := rt.routes.Handler(r); pattern == "" {
+		return false
+	}
+	rt.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+	return true
 }
 
 func (rt *Runtime) stripBase(path string) string {
