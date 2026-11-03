@@ -740,8 +740,8 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			}
 		}
 	}
-	var authorTimes, narratorTimes, genreTimes map[string]float64 = map[string]float64{}, map[string]float64{}, map[string]float64{}
-	rows, err = h.db.QueryContext(r.Context(), `SELECT timeListening,mediaMetadata FROM playbackSessions WHERE createdAt>=? AND createdAt<?`, start, end)
+	authorTimes, narratorTimes, genreTimes := &orderedTimes{}, &orderedTimes{}, &orderedTimes{}
+	rows, err = h.db.QueryContext(r.Context(), `SELECT timeListening,mediaMetadata FROM playbackSessions WHERE createdAt>=? AND createdAt<? ORDER BY rowid`, start, end)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -763,7 +763,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 					if item, ok := v.(map[string]any); ok {
 						name, _ := item["name"].(string)
 						if name != "" {
-							authorTimes[name] += n
+							authorTimes.add(name, n)
 						}
 					}
 				}
@@ -771,14 +771,14 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			if values, ok := meta["narrators"].([]any); ok {
 				for _, v := range values {
 					if name, ok := v.(string); ok && name != "" {
-						narratorTimes[name] += n
+						narratorTimes.add(name, n)
 					}
 				}
 			}
 			if values, ok := meta["genres"].([]any); ok {
 				for _, v := range values {
 					if name, ok := v.(string); ok && name != "" && !strings.Contains(strings.ToLower(name), "audiobook") && !strings.Contains(strings.ToLower(name), "audio book") {
-						genreTimes[name] += n
+						genreTimes.add(name, n)
 					}
 				}
 			}
@@ -786,10 +786,32 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 	}
 	writeJSON(w, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
 }
-func topTimes(m map[string]float64, key string) []map[string]any {
-	a := make([]map[string]any, 0, len(m))
-	for n, t := range m {
-		a = append(a, map[string]any{key: n, "time": math.Round(t)})
+
+// orderedTimes is a JS object used as a map: keys keep first-insertion
+// order, which Object.keys returns and a stable sort preserves for ties.
+type orderedTimes struct {
+	order []string
+	m     map[string]float64
+}
+
+func (o *orderedTimes) add(k string, v float64) {
+	if o.m == nil {
+		o.m = map[string]float64{}
+	}
+	if _, ok := o.m[k]; !ok {
+		o.order = append(o.order, k)
+	}
+	o.m[k] += v
+}
+
+// topTimes is adminStats.getStatsForYear's top list
+// (server/utils/queries/adminStats.js:120-146): Object.keys in insertion
+// order, time Math.round-ed, stable sort by time descending, first 3.
+// Ranging over a Go map made ties come out in random order.
+func topTimes(o *orderedTimes, key string) []map[string]any {
+	a := make([]map[string]any, 0, len(o.order))
+	for _, n := range o.order {
+		a = append(a, map[string]any{key: n, "time": math.Round(o.m[n])})
 	}
 	sort.SliceStable(a, func(i, j int) bool { return a[i]["time"].(float64) > a[j]["time"].(float64) })
 	if len(a) > 3 {
