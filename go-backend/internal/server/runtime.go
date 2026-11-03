@@ -129,7 +129,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),
 	}
 	rt.routes = http.NewServeMux()
-	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov})
+	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)

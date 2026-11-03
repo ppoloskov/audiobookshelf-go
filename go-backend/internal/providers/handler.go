@@ -69,7 +69,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		h.searchCovers(w, r)
 		return true
 	}
-	if p == "/api/search/podcasts" && r.Method == http.MethodGet {
+	if p == "/api/search/podcast" && r.Method == http.MethodGet {
 		h.searchPodcasts(w, r)
 		return true
 	}
@@ -215,7 +215,13 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 	if h.emit != nil {
 		h.emit("*", "custom_metadata_provider_added", map[string]any{"id": id, "name": name, "mediaType": mediaType, "slug": "custom-" + id})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"provider": p})
+	// The created instance has no extraData attribute unless one was sent, so
+	// upstream's response omits it (the list reads the column, which is null).
+	created := struct {
+		customProvider
+		ExtraData json.RawMessage `json:"extraData,omitempty"`
+	}{customProvider: p, ExtraData: p.ExtraData}
+	writeJSON(w, http.StatusOK, map[string]any{"provider": created})
 }
 
 func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, id string) {

@@ -1,6 +1,9 @@
 package catalog
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
 
 // RouteDeps are the collaborators of the routes Routes registers. They are
 // interfaces defined here and satisfied by feature packages, because feature
@@ -8,6 +11,11 @@ import "net/http"
 type RouteDeps struct {
 	// Authors looks authors up at the metadata provider (POST /api/authors/:id/match).
 	Authors AuthorFinder
+	// Books searches the metadata providers for a quick match.
+	Books BookFinder
+	// PodcastEpisodes quick matches a podcast's unmatched episodes against its
+	// feed (Scanner.quickMatchPodcastEpisodes); it returns the number updated.
+	PodcastEpisodes func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
 }
 
 // Routes registers the catalog routes that use method patterns on mux
@@ -17,6 +25,8 @@ type RouteDeps struct {
 // registered here.
 func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	h.authorFinder = deps.Authors
+	h.finder = deps.Books
+	h.episodes = deps.PodcastEpisodes
 
 	// server/routers/ApiRouter.js:217-223.
 	mux.HandleFunc("GET /api/authors/{id}", h.authorFindOne)
@@ -36,6 +46,10 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	mux.HandleFunc("POST /api/items/batch/update", h.batchUpdate)
 
 	// server/routers/ApiRouter.js:93-97.
+	// server/routers/ApiRouter.js:90,105,116.
+	mux.HandleFunc("GET /api/libraries/{id}/matchall", h.libraryMatchAll)
+	mux.HandleFunc("POST /api/items/batch/quickmatch", h.batchQuickMatch)
+	mux.HandleFunc("POST /api/items/{id}/match", h.itemMatch)
 	mux.HandleFunc("GET /api/libraries/{id}/opml", h.libraryOPML)
 	mux.HandleFunc("POST /api/libraries/{id}/remove-metadata", h.libraryRemoveMetadata)
 	mux.HandleFunc("GET /api/libraries/{id}/download", h.libraryDownload)

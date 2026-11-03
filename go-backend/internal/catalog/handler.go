@@ -1030,6 +1030,8 @@ type Handler struct {
 	filters        *filterdata.Cache
 	downloads      itemapi.DownloadQueue
 	authorFinder   AuthorFinder
+	finder         BookFinder
+	episodes       func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
 }
 
 // Option configures optional collaborators of New.

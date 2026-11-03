@@ -78,16 +78,38 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 // and no asin, description or image, announcing each with author_removed
 // (ApiRouter.js:480-520).
 func (h *Handler) checkRemoveAuthorsWithNoBooks(ctx context.Context, authorIDs []string) {
-	h.removeOrphans(ctx, authorIDs, `SELECT id,libraryId FROM authors WHERE id IN (%s) AND COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.authorId=authors.id) ORDER BY rowid`, `DELETE FROM authors WHERE id=?`, "author_removed", h.filters.RemoveAuthor)
+	_ = h.removeOrphans(ctx, authorIDs, `SELECT id,libraryId FROM authors WHERE id IN (%s) AND COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.authorId=authors.id) ORDER BY rowid`, `DELETE FROM authors WHERE id=?`, "author_removed", h.filters.RemoveAuthor)
 }
 
 // checkRemoveEmptySeries removes the given series that have no books, announcing
 // each with series_removed (ApiRouter.js:417-478).
 func (h *Handler) checkRemoveEmptySeries(ctx context.Context, seriesIDs []string) {
-	h.removeOrphans(ctx, seriesIDs, `SELECT id,libraryId FROM series WHERE id IN (%s) AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.seriesId=series.id) ORDER BY rowid`, `DELETE FROM series WHERE id=?`, "series_removed", h.filters.RemoveSeries)
+	removed := h.removeOrphans(ctx, seriesIDs, `SELECT id,libraryId FROM series WHERE id IN (%s) AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.seriesId=series.id) ORDER BY rowid`, `DELETE FROM series WHERE id=?`, "series_removed", h.filters.RemoveSeries)
+	// A series that is gone loses its open RSS feeds
+	// (RssFeedManager.closeFeedsForEntityIds, ApiRouter.js:456-458).
+	for _, id := range removed {
+		h.closeFeeds(ctx, id)
+	}
 }
 
-func (h *Handler) removeOrphans(ctx context.Context, ids []string, selectFmt, deleteSQL, event string, forget func(libraryID, id string)) {
+// closeFeeds closes every feed of an entity: the row goes and rss_feed_closed
+// carries the feed (RssFeedManager.handleCloseFeed, :355-361).
+func (h *Handler) closeFeeds(ctx context.Context, entityID string) {
+	for {
+		feed, found, err := h.feedMinified(ctx, "", entityID)
+		if err != nil || !found {
+			return
+		}
+		if _, err := h.db.ExecContext(ctx, `DELETE FROM feeds WHERE id=?`, feed["id"]); err != nil {
+			return
+		}
+		if h.emit != nil {
+			h.emit("*", "rss_feed_closed", feed)
+		}
+	}
+}
+
+func (h *Handler) removeOrphans(ctx context.Context, ids []string, selectFmt, deleteSQL, event string, forget func(libraryID, id string)) []string {
 	seen := map[string]bool{}
 	var unique []string
 	for _, id := range ids {
@@ -97,11 +119,11 @@ func (h *Handler) removeOrphans(ctx context.Context, ids []string, selectFmt, de
 		}
 	}
 	if len(unique) == 0 {
-		return
+		return nil
 	}
 	rows, err := h.db.QueryContext(ctx, fmt.Sprintf(selectFmt, sqlMarks(len(unique))), stringArgs(unique)...)
 	if err != nil {
-		return
+		return nil
 	}
 	type orphan struct{ id, libraryID string }
 	var orphans []orphan
@@ -112,13 +134,16 @@ func (h *Handler) removeOrphans(ctx context.Context, ids []string, selectFmt, de
 		}
 	}
 	rows.Close()
+	var removed []string
 	for _, o := range orphans {
 		if _, err := h.db.ExecContext(ctx, deleteSQL, o.id); err != nil {
 			continue
 		}
 		forget(o.libraryID, o.id)
+		removed = append(removed, o.id)
 		if h.emit != nil {
 			h.emit("*", event, map[string]any{"id": o.id, "libraryId": o.libraryID})
 		}
 	}
+	return removed
 }

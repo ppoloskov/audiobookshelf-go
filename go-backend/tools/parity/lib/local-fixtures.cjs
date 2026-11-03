@@ -159,7 +159,7 @@ async function readCoverDeleteState(directory, itemID) {
 // a URL (author image upload and match). Paths: /author.jpg, /author.png,
 // /page.html (text/html), /icon.svg (image/svg+xml), /redirect (302 to
 // /author.jpg); anything else is a 404.
-async function startImageSource(jpegFile, pngFile) {
+async function startImageSource(jpegFile, pngFile, listenPort = 0, imageBase = null) {
   const send = (res, type, file) => {
     res.writeHead(200, { 'content-type': type, 'content-length': String(fs.statSync(file).size) })
     fs.createReadStream(file).pipe(res)
@@ -168,13 +168,25 @@ async function startImageSource(jpegFile, pngFile) {
     const pathname = req.url.split('?')[0]
     if (pathname === '/author.jpg') return send(res, 'image/jpeg', jpegFile)
     if (pathname === '/author.png') return send(res, 'image/png', pngFile)
+    if (pathname.endsWith('/search')) {
+      // A custom metadata provider (CustomProviderAdapter): GET /search?mediaType&query[&author&isbn].
+      const params = new URL(req.url, 'http://x').searchParams
+      const query = params.get('query') || ''
+      const cover = `${imageBase}/author.jpg`
+      const matches = /nothing/i.test(query) ? [] : [
+        { title: `Matched ${query}`.slice(0, 40), subtitle: 'Matched Subtitle', author: 'Terry Fixture, Quick Match Author', narrator: 'Match Narrator One, Match Narrator Two', publisher: 'Match Press', publishedYear: '2001', description: '<b>Matched</b> description', cover, isbn: '9780000000001', asin: 'B0MATCH001', genres: ['Matched Genre'], tags: ['matched-tag'], series: [{ series: 'Matched Series', sequence: '3' }], language: 'English' },
+        { title: 'Second Result', author: 'Nobody' }
+      ]
+      res.writeHead(200, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ matches }))
+    }
     if (pathname === '/redirect') { res.writeHead(302, { location: '/author.jpg' }); return res.end() }
     if (pathname === '/page.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end('<html></html>') }
     if (pathname === '/icon.svg') { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end('<svg xmlns="http://www.w3.org/2000/svg"/>') }
     res.writeHead(404, { 'content-type': 'text/plain' })
     res.end('nope')
   })
-  const port = await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
+  const port = await new Promise((resolve, reject) => server.listen(listenPort, '127.0.0.1', error => error ? reject(error) : resolve(server.address().port)))
   server.unref()
   return { server, url: `http://127.0.0.1:${port}`, close: () => new Promise(resolve => { server.closeAllConnections?.(); server.close(resolve) }) }
 }

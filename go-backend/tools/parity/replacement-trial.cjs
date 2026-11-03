@@ -903,6 +903,45 @@ function journeySteps(ids) {
   add('download.mixed', L, DL(`?ids=${ids.novel},${ZERO_ID},${ids.podcast}`), { binary: 'zip' })
   add('download.root', R, DL(`?ids=${ids.saga2}`), { binary: 'zip' })
   add('download.missinglibrary', L, `/api/libraries/${ZERO_ID}/download?ids=${ids.saga1}`)
+  // ---- Quick match: POST /api/items/:id/match, POST /api/items/batch/quickmatch,
+  // GET /api/libraries/:id/matchall (Scanner.quickMatchLibraryItem) and
+  // GET /api/search/podcast. The metadata provider is a custom provider that
+  // points at the local fixture server (its URL is data, so upstream and Go
+  // both reach it); the built-in providers need the network and are not
+  // compared. The iTunes podcast search needs the network too, so only its
+  // parameter validation is compared.
+  add('match.provider.create', R, '/api/custom-metadata-providers', { method: 'POST', capture: 'matchProvider', body: ctx => ({ name: 'Trial Provider', url: `${ctx.fixtureUrl}/provider`, mediaType: 'book' }) })
+  const slug = (ctx) => `custom-${ctx.matchProvider.provider.id}`
+  const MATCH = (key) => `/api/items/${ids[key]}/match`
+  add('match.listener', L, MATCH('saga1'), { method: 'POST', body: ctx => ({ provider: slug(ctx) }) })
+  add('match.missing', R, `/api/items/${ZERO_ID}/match`, { method: 'POST', body: ctx => ({ provider: slug(ctx) }) })
+  add('match.nomatch', R, MATCH('saga1'), { method: 'POST', body: ctx => ({ provider: slug(ctx), title: 'Nothing Here' }) })
+  add('match.saga2.plain', R, MATCH('saga2'), { method: 'POST', body: ctx => ({ provider: slug(ctx) }), events: 8 })
+  add('match.saga1.override', R, MATCH('saga1'), { method: 'POST', body: ctx => ({ provider: slug(ctx), overrideDetails: true, overrideCover: true, title: 'Override Query', author: 'Terry Fixture' }), events: 8 })
+  add('match.saga1.again', R, MATCH('saga1'), { method: 'POST', body: ctx => ({ provider: slug(ctx), overrideDetails: true }), events: 8 })
+  add('match.after.saga1', R, `/api/items/${ids.saga1}?expanded=1`)
+  add('match.after.saga2', R, `/api/items/${ids.saga2}?expanded=1`)
+  add('match.after.cover', R, `/api/items/${ids.saga1}/cover?width=200&format=jpeg`, { binary: 'bytes' })
+  add('match.after.authors', R, `/api/libraries/${ids.library}/authors`)
+  add('match.after.series', R, `/api/libraries/${ids.library}/series?limit=20&page=0&sort=name&desc=0&minified=1`)
+  const BQ = '/api/items/batch/quickmatch'
+  add('batchmatch.listener', L, BQ, { method: 'POST', body: ctx => ({ libraryItemIds: [ids.novel], options: { provider: slug(ctx) } }) })
+  add('batchmatch.noids', R, BQ, { method: 'POST', body: {} })
+  add('batchmatch.unknown', R, BQ, { method: 'POST', body: { libraryItemIds: [ZERO_ID] } })
+  add('batchmatch.run', R, BQ, { method: 'POST', body: ctx => ({ libraryItemIds: [ids.novel, ids.saga2, ZERO_ID], options: { provider: slug(ctx), overrideDetails: true, overrideCover: false } }), events: 12 })
+  add('batchmatch.after.novel', R, `/api/items/${ids.novel}?expanded=1`)
+  add('matchall.listener', L, `/api/libraries/${ids.library}/matchall`)
+  add('matchall.missing', R, `/api/libraries/${ZERO_ID}/matchall`)
+  add('matchall.podcast', R, `/api/libraries/${ids.podcastLibrary}/matchall`)
+  add('matchall.setprovider', R, `/api/libraries/${ids.library}`, { method: 'PATCH', body: ctx => ({ provider: slug(ctx) }) })
+  add('matchall.run', R, `/api/libraries/${ids.library}/matchall`, { events: 14 })
+  add('matchall.after.items', R, `/api/libraries/${ids.library}/items?limit=20&page=0&minified=1&sort=media.metadata.title`)
+  add('search.podcast.noterm', R, '/api/search/podcast')
+  add('search.podcast.array', R, '/api/search/podcast?term=a&term=b')
+  add('search.podcast.country.array', R, '/api/search/podcast?term=a&country=us&country=de')
+  add('search.podcast.long', R, `/api/search/podcast?term=${'x'.repeat(1001)}`)
+  add('search.podcast.empty', R, '/api/search/podcast?term=')
+  add('search.podcast.anon', null, '/api/search/podcast?term=a')
   // The positive path (files listed in libraryFiles) is a Go unit test: upstream's
   // saveMetadataFile does not persist the new metadata.json entry, so a file written
   // through the API is not found until a rescan.
@@ -919,6 +958,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g
 const JWT = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g
 let WORK_DIR = ''
 let DEAD_PORT = 0
+let FIXTURE_PORT = 0
 const TIME_KEY = /(At|Time|Update|Seen|Scan|^date|^dayOfWeek|Ms|token|Token)$/
 
 function normalize(value, known, fresh, key = '') {
@@ -1022,7 +1062,8 @@ async function runJourney(server, ids, logDir) {
   const png = path.join(imageDir, 'author.png')
   if (!fs.existsSync(jpeg)) ffmpeg(['-f', 'lavfi', '-i', 'color=c=orange:s=300x500', '-frames:v', '1', jpeg])
   if (!fs.existsSync(png)) ffmpeg(['-f', 'lavfi', '-i', 'color=c=purple:s=200x200', '-frames:v', '1', png])
-  const imageSource = await startImageSource(jpeg, png)
+  FIXTURE_PORT ||= await freePort()
+  const imageSource = await startImageSource(jpeg, png, FIXTURE_PORT, `http://127.0.0.1:${FIXTURE_PORT}`)
   ctx.fixtureUrl = imageSource.url
   DEAD_PORT ||= await freePort()
   ctx.deadUrl = `http://127.0.0.1:${DEAD_PORT}`
@@ -1181,11 +1222,13 @@ function dumpRows(dbPath, ids) {
   const out = {
     'db.authors': rows('SELECT * FROM authors ORDER BY name, createdAt'),
     'db.books.titles': rows('SELECT li.title AS itemTitle, li.titleIgnorePrefix AS itemIgnore, b.title AS bookTitle, b.titleIgnorePrefix AS bookIgnore, b.subtitle, b.narrators, b.genres, b.tags, b.explicit, b.publishedYear, b.description FROM libraryItems li JOIN books b ON b.id = li.mediaId ORDER BY li.createdAt, li.title'),
+    'db.books.match': rows('SELECT li.title AS itemTitle, b.coverPath, b.asin, b.isbn, b.publisher, b.language, b.abridged FROM libraryItems li JOIN books b ON b.id = li.mediaId ORDER BY li.createdAt, li.title'),
     'db.series': rows('SELECT * FROM series ORDER BY name, createdAt'),
     'db.bookAuthors': rows('SELECT li.title AS title, a.name AS author FROM bookAuthors ba JOIN authors a ON a.id = ba.authorId JOIN libraryItems li ON li.mediaId = ba.bookId ORDER BY li.title, ba.createdAt, a.name'),
     'db.libraryItems.authorNames': rows('SELECT title, authorNamesFirstLast, authorNamesLastFirst FROM libraryItems ORDER BY title'),
     'fs.metadata.authors': listDir(path.join(metadataDir, 'authors')),
     'fs.cache.images': listDir(path.join(metadataDir, 'cache', 'images')),
+    'fs.items.files': Object.fromEntries((fs.existsSync(itemsDir) ? fs.readdirSync(itemsDir).sort() : []).map(id => [id.replace(UUID, m => known.has(m) ? m : '<new-uuid>'), listDir(path.join(itemsDir, id)).filter(f => f.name !== 'metadata.json')])),
     'fs.items.metadata.json': itemMetadata,
     'db.feeds': rows('SELECT * FROM feeds ORDER BY slug'),
     'db.feedEpisodes': rows('SELECT fe.*, f.slug AS feedSlug FROM feedEpisodes fe LEFT JOIN feeds f ON f.id = fe.feedId ORDER BY f.slug, fe.pubDate, fe.filePath'),

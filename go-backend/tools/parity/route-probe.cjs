@@ -53,12 +53,7 @@ const ROUTER_FILES = [
 
 // Routes known to reach the fallback. Format: 'METHOD /full/path' exactly as
 // registered upstream (with the router mount prefix).
-const ALLOWLIST = [
-  'POST /api/items/batch/quickmatch',
-  'POST /api/items/:id/match',
-  'GET /api/libraries/:id/matchall',
-  'GET /api/search/podcast'
-]
+const ALLOWLIST = []
 
 function upstreamRoutes() {
   const routes = []

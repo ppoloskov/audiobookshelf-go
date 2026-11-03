@@ -238,32 +238,72 @@ func (h *Handler) searchAudiobookCovers(ctx context.Context, title string) ([]ma
 	return out, nil
 }
 
+// queryParamAsString is getQueryParamAsString (server/utils/index.js:326-343):
+// an absent parameter is the default (or an error when required), an array or
+// a value over 1000 characters is a ValidationError.
+func queryParamAsString(r *http.Request, name, fallback string, required bool) (string, error) {
+	values, present := r.URL.Query()[name]
+	if !present {
+		if required {
+			return "", fmt.Errorf(`Query parameter "%s" is required`, name)
+		}
+		return fallback, nil
+	}
+	if len(values) > 1 {
+		return "", fmt.Errorf(`Query parameter "%s" is an array`, name)
+	}
+	if len([]rune(values[0])) > 1000 {
+		return "", fmt.Errorf(`Query parameter "%s" is too long`, name)
+	}
+	return values[0], nil
+}
+
+// searchPodcasts is GET /api/search/podcast, SearchController.findPodcasts
+// (SearchController.js:141-156) over PodcastFinder and iTunes.searchPodcasts.
 func (h *Handler) searchPodcasts(w http.ResponseWriter, r *http.Request) {
-	term := r.URL.Query().Get("term")
-	if _, exists := r.URL.Query()["term"]; !exists {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: term"})
+	term, err := queryParamAsString(r, "term", "", true)
+	if err != nil {
+		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	country, err := queryParamAsString(r, "country", "us", false)
+	if err != nil {
+		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	if term == "" {
 		writeJSON(w, http.StatusOK, nil)
 		return
 	}
-	country := queryValue(r, "country", "us")
-	query := url.Values{"term": {term}, "entity": {"podcast"}, "media": {"podcast"}, "country": {country}}
-	endpoint := h.endpoint("itunes") + "?" + query.Encode()
-	var response struct {
-		Results []map[string]any `json:"results"`
-	}
-	if err := h.getJSON(r.Context(), endpoint, &response); err != nil {
+	results, ok := h.itunesPodcasts(r.Context(), term, country)
+	if !ok {
 		writeJSON(w, http.StatusOK, []any{})
 		return
 	}
-	out := make([]map[string]any, 0, len(response.Results))
+	writeJSON(w, http.StatusOK, results)
+}
+
+// itunesPodcasts is iTunes.searchPodcasts (server/providers/iTunes.js:164-168):
+// the cleaned podcast results; country is left out of the query when empty.
+func (h *Handler) itunesPodcasts(ctx context.Context, term, country string) ([]any, bool) {
+	query := url.Values{"term": {term}, "entity": {"podcast"}, "media": {"podcast"}}
+	if country != "" {
+		query.Set("country", country)
+	}
+	var response struct {
+		Results []map[string]any `json:"results"`
+	}
+	if err := h.getJSON(ctx, h.endpoint("itunes")+"?"+query.Encode(), &response); err != nil {
+		return nil, false
+	}
+	out := make([]any, 0, len(response.Results))
 	for _, item := range response.Results {
 		description := stringField(item, "description")
 		out = append(out, map[string]any{"id": item["collectionId"], "artistId": nullAny(item["artistId"]), "title": item["collectionName"], "artistName": item["artistName"], "description": auth.SanitizeHTML(description), "descriptionPlain": stripHTML(description), "releaseDate": item["releaseDate"], "genres": valueArray(item["genres"]), "cover": itunesArtwork(item), "trackCount": item["trackCount"], "feedUrl": item["feedUrl"], "pageUrl": item["collectionViewUrl"], "explicit": stringField(item, "trackExplicitness") == "explicit"})
 	}
-	writeJSON(w, http.StatusOK, out)
+	return out, true
 }
 
 func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
