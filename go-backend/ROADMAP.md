@@ -144,6 +144,7 @@ L2, JWT issuing -> L1).
     F8e search, podcasts, OIDC, `/init`, public share and session URLs.
   - Done when: every client-used route in `contracts/client-usage.json` is
     reached by a journey step (OIDC through a test provider).
+  - F8b done (33 steps). Bug found and fixed: `GET /api/libraries/:id/series/:seriesId?include=rssfeed` omitted `rssFeed: null`.
 
 - [ ] F9: Socket.IO event checks in the Go journey
   - Prerequisite: F5b. Client approved 2026-11-03:
