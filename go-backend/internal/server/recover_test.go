@@ -87,15 +87,18 @@ func TestAccessLineIsDebugOnly(t *testing.T) {
 	serve := func() {
 		guardPanics(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/access-line-probe?token=x", nil), func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
 	}
+	// The default logger's ring buffer outlives the test (go test -count=N runs
+	// it again in the same process), so count lines added by this run only.
+	seen := count()
 	l.ChangeLevel(logging.LevelInfo)
 	serve()
-	if count() != 0 {
+	if count()-seen != 0 {
 		t.Fatal("access line logged at INFO")
 	}
 	l.ChangeLevel(logging.LevelDebug)
 	serve()
-	if count() != 1 {
-		t.Fatalf("access lines at DEBUG = %d, want 1", count())
+	if got := count() - seen; got != 1 {
+		t.Fatalf("access lines at DEBUG = %d, want 1", got)
 	}
 }
 
@@ -115,21 +118,27 @@ func TestLivenessProbesAreTraceOnly(t *testing.T) {
 	serve := func(path string) {
 		guardPanics(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil), func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) })
 	}
+	// The default logger's ring buffer outlives the test (go test -count=N runs
+	// it again in the same process), so count lines added by this run only.
+	seen := map[string]int{}
+	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping", "/other/request"} {
+		seen[path] = count(path)
+	}
 	l.ChangeLevel(logging.LevelDebug)
 	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
 		serve(path)
-		if count(path) != 0 {
+		if count(path)-seen[path] != 0 {
 			t.Fatalf("%s logged at DEBUG", path)
 		}
 	}
 	serve("/other/request")
-	if count("/other/request") != 1 {
-		t.Fatalf("other requests stay at DEBUG: %d", count("/other/request"))
+	if got := count("/other/request") - seen["/other/request"]; got != 1 {
+		t.Fatalf("other requests stay at DEBUG: %d", got)
 	}
 	l.ChangeLevel(logging.LevelTrace)
 	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
 		serve(path)
-		if count(path) != 1 {
+		if count(path)-seen[path] != 1 {
 			t.Fatalf("%s not logged at TRACE", path)
 		}
 	}

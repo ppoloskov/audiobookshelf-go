@@ -212,10 +212,11 @@ Conventions:
   - Change: Find the competing writer under a parallel `go test ./...` run and serialize it, or give the test its own database.
   - Done when: `go test -count=20 ./internal/podcasts` passes inside a full parallel `go test ./...` run.
 
-- [ ] C21: Make the server log-level tests independent of run order
+- [x] C21: Make the server log-level tests independent of run order
   - Files: `go-backend/internal/server/recover_test.go`
   - Change: `TestAccessLineIsDebugOnly` and `TestLivenessProbesAreTraceOnly` fail under `go test -count=3` because global log state leaks between runs; save and restore it in each test.
   - Done when: `go test -count=5 ./internal/server` passes.
+  - Result: the level was already restored by `t.Cleanup`; the leak was the default logger's `Recent()` ring buffer, which kept the probe lines of the previous run. Both tests now count only lines added by the current run (`go test -count=10 ./internal/server` passes).
 
 - [x] C22: Find nested queries that hold a cursor on the one-connection pool
   - Files: `go-backend/internal/**` (look for a query run inside a `rows.Next()` loop); test fixtures that open SQLite without `SetMaxOpenConns(1)` (`store`, `backup`, `bootstrap`, `dbtime`, podcasts `dbtime_write_errors_test.go`)
