@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 	"github.com/google/uuid"
 )
@@ -216,8 +218,8 @@ type row struct {
 	ebookProgress *float64
 	finishedAt    *time.Time
 	extra         map[string]json.RawMessage
-	createdAt     string
-	updatedAt     string
+	createdAt     any
+	updatedAt     any
 }
 
 // progress is the MediaProgress.progress getter (MediaProgress.js:176).
@@ -245,41 +247,29 @@ func (r *row) setExtraProgress(v float64) {
 }
 
 func loadRow(ctx context.Context, db *sql.DB, userID, mediaItemID string) (row, bool, error) {
-	var r row
-	var duration, ebookProgress sql.NullFloat64
-	var currentTime sql.NullFloat64
-	var location, finishedAt, extra, createdAt, updatedAt sql.NullString
-	var finished, hide sql.NullBool
-	err := db.QueryRowContext(ctx, `SELECT id,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,createdAt,updatedAt FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, userID, mediaItemID).
-		Scan(&r.id, &duration, &currentTime, &finished, &hide, &location, &ebookProgress, &finishedAt, &extra, &createdAt, &updatedAt)
+	m, err := sqlc.New(db).GetMediaProgressByUserItem(ctx, sqlc.GetMediaProgressByUserItemParams{UserID: store.Text(userID), MediaItemID: store.Text(mediaItemID)})
 	if errors.Is(err, sql.ErrNoRows) {
 		return row{}, false, nil
 	}
 	if err != nil {
 		return row{}, false, err
 	}
-	r.createdAt, r.updatedAt = createdAt.String, updatedAt.String
-	if duration.Valid {
-		r.duration = &duration.Float64
+	r := row{id: m.ID, createdAt: m.Createdat, updatedAt: m.Updatedat, currentTime: m.Currenttime.Float64,
+		isFinished: m.Isfinished.Int64 != 0, hide: m.Hidefromcontinuelistening.Int64 != 0}
+	if m.Duration.Valid {
+		r.duration = &m.Duration.Float64
 	}
-	r.currentTime = currentTime.Float64
-	r.isFinished = finished.Valid && finished.Bool
-	r.hide = hide.Valid && hide.Bool
-	if location.Valid {
-		r.ebookLocation = &location.String
+	if m.Ebooklocation.Valid {
+		r.ebookLocation = &m.Ebooklocation.String
 	}
-	if ebookProgress.Valid {
-		r.ebookProgress = &ebookProgress.Float64
+	if m.Ebookprogress.Valid {
+		r.ebookProgress = &m.Ebookprogress.Float64
 	}
-	if finishedAt.Valid {
-		if t, ok := dbtime.Parse(finishedAt.String); ok {
-			r.finishedAt = &t
-		}
+	if t := dbtime.Time(m.Finishedat); !t.IsZero() {
+		r.finishedAt = &t
 	}
 	r.extra = map[string]json.RawMessage{}
-	if extra.Valid {
-		_ = json.Unmarshal([]byte(extra.String), &r.extra)
-	}
+	_ = json.Unmarshal([]byte(m.Extradata.String), &r.extra)
 	return r, true, nil
 }
 
@@ -361,8 +351,13 @@ func createRow(ctx context.Context, db *sql.DB, userID string, t target, p Paylo
 	r.createdAt = dbtime.Format(createdAt)
 	r.updatedAt = dbtime.Format(now)
 	extra, _ := json.Marshal(r.extra)
-	_, err := db.ExecContext(ctx, `INSERT INTO mediaProgresses (id,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookLocation,ebookProgress,finishedAt,extraData,podcastId,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		r.id, t.mediaItemID, t.mediaItemType, duration, r.currentTime, r.isFinished, r.hide, r.ebookLocation, ebook, formatTime(r.finishedAt), string(extra), t.podcastID, userID, r.createdAt, r.updatedAt)
+	err := sqlc.New(db).InsertMediaProgress(ctx, sqlc.InsertMediaProgressParams{
+		ID: r.id, MediaItemID: store.Text(t.mediaItemID), MediaItemType: store.Text(t.mediaItemType),
+		Duration: store.Float(duration), CurrentPosition: store.Float(r.currentTime), IsFinished: store.Flag(r.isFinished),
+		HideFromContinueListening: store.Flag(r.hide), EbookLocation: store.TextPtr(r.ebookLocation), EbookProgress: store.Float(ebook),
+		FinishedAt: formatTime(r.finishedAt), ExtraData: store.Text(string(extra)), PodcastID: store.TextAny(t.podcastID),
+		UserID: store.Text(userID), CreatedAt: r.createdAt, UpdatedAt: r.updatedAt,
+	})
 	return r, err
 }
 
@@ -493,8 +488,11 @@ func updateRow(ctx context.Context, db *sql.DB, old row, p Payload) (row, error)
 	if changed {
 		r.updatedAt = dbtime.Format(now)
 		extra, _ := json.Marshal(r.extra)
-		if _, err := db.ExecContext(ctx, `UPDATE mediaProgresses SET duration=?,currentTime=?,isFinished=?,hideFromContinueListening=?,ebookLocation=?,ebookProgress=?,finishedAt=?,extraData=?,updatedAt=? WHERE id=?`,
-			r.duration, r.currentTime, r.isFinished, r.hide, r.ebookLocation, r.ebookProgress, formatTime(r.finishedAt), string(extra), r.updatedAt, r.id); err != nil {
+		if err := sqlc.New(db).UpdateMediaProgressState(ctx, sqlc.UpdateMediaProgressStateParams{
+			Duration: store.FloatPtr(r.duration), CurrentPosition: store.Float(r.currentTime), IsFinished: store.Flag(r.isFinished),
+			HideFromContinueListening: store.Flag(r.hide), EbookLocation: store.TextPtr(r.ebookLocation), EbookProgress: store.FloatPtr(r.ebookProgress),
+			FinishedAt: formatTime(r.finishedAt), ExtraData: store.Text(string(extra)), UpdatedAt: r.updatedAt, ID: r.id,
+		}); err != nil {
 			return row{}, err
 		}
 	}
@@ -502,7 +500,7 @@ func updateRow(ctx context.Context, db *sql.DB, old row, p Payload) (row, error)
 	if p.LastUpdate.truthy() {
 		if when, ok := p.LastUpdate.date(); ok {
 			r.updatedAt = dbtime.Format(when)
-			if _, err := db.ExecContext(ctx, `UPDATE mediaProgresses SET updatedAt=? WHERE id=?`, r.updatedAt, r.id); err != nil {
+			if err := sqlc.New(db).UpdateMediaProgressUpdatedAt(ctx, sqlc.UpdateMediaProgressUpdatedAtParams{Updatedat: r.updatedAt, ID: r.id}); err != nil {
 				return row{}, err
 			}
 		}
@@ -525,10 +523,10 @@ func toWire(r row, userID string, t target) wire.MediaProgress {
 		id := t.mediaItemID
 		out.EpisodeID = &id
 	}
-	if ms, ok := dbtime.ParseUnixMilli(r.updatedAt); ok {
+	if ms, ok := dbtime.Millis(r.updatedAt).(int64); ok {
 		out.LastUpdate = &ms
 	}
-	if ms, ok := dbtime.ParseUnixMilli(r.createdAt); ok {
+	if ms, ok := dbtime.Millis(r.createdAt).(int64); ok {
 		out.StartedAt = &ms
 	}
 	if r.finishedAt != nil {

@@ -214,11 +214,13 @@ L2, JWT issuing -> L1).
   - Done when: `identity` has no hand-written `rows.Scan` for users; CI fails
     if `sqlc generate` changes files.
 
-- [ ] L6: sqlc for progress, bookmarks and playback sessions
+- [x] L6: sqlc for progress, bookmarks and playback sessions
   - Files: `internal/db/queries/progress.sql`, `internal/userapi/`,
     `internal/playback/`, `internal/store/playbacksession.go`
   - Done when: those packages have no hand-written scans for `mediaProgresses`
     and `playbackSessions`; the persistence test (F5) passes.
+    (One exception: the sorted, filtered session list in `playback` keeps its
+    handwritten query and scan, because its ORDER BY is a whitelisted variable.)
 
 - [ ] L7: sqlc for collections, playlists, shares and feeds
   - Files: `internal/db/queries/lists.sql`, `internal/catalog/` (collections),

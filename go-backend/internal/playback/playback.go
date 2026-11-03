@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -601,16 +602,14 @@ func (h *Handler) readProgress(ctx context.Context, userID string, item *itemDat
 	if episodeID != "" {
 		mediaID, kind = episodeID, "podcastEpisode"
 	}
-	var current sql.NullFloat64
-	var finished int
-	err := h.db.QueryRowContext(ctx, `SELECT currentTime,isFinished FROM mediaProgresses WHERE userId=? AND mediaItemId=? AND mediaItemType=? LIMIT 1`, userID, mediaID, kind).Scan(&current, &finished)
+	pos, err := sqlc.New(h.db).GetMediaProgressPosition(ctx, sqlc.GetMediaProgressPositionParams{UserID: store.Text(userID), MediaItemID: store.Text(mediaID), MediaItemType: store.Text(kind)})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &progress{currentTime: current.Float64, finished: finished != 0}, nil
+	return &progress{currentTime: pos.Currenttime.Float64, finished: pos.Isfinished.Int64 != 0}, nil
 }
 
 func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexText string) {
@@ -829,7 +828,16 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	extra, _ := json.Marshal(map[string]any{"libraryItemId": s.LibraryItemID})
 	now := dbtime.Format(time.UnixMilli(s.UpdatedAt))
 	created := dbtime.Format(time.UnixMilli(s.StartedAt))
-	_, err = h.db.ExecContext(ctx, `INSERT INTO playbackSessions (id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,userId,deviceId,libraryId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET currentTime=excluded.currentTime,timeListening=excluded.timeListening,updatedAt=excluded.updatedAt,date=excluded.date,dayOfWeek=excluded.dayOfWeek,mediaMetadata=excluded.mediaMetadata`, s.ID, mediaID, kind, s.DisplayTitle, s.DisplayAuthor, s.Duration, s.PlayMethod, s.MediaPlayer, s.StartTime, s.CurrentTime, "2.37.2", s.CoverPath, s.TimeListening, string(metadata), s.Date, s.DayOfWeek, string(extra), s.UserID, store.NullIfEmpty(s.DeviceID), s.LibraryID, created, now)
+	err = sqlc.New(h.db).UpsertPlaybackSession(ctx, sqlc.UpsertPlaybackSessionParams{
+		ID: s.ID, MediaItemID: store.Text(mediaID), MediaItemType: store.Text(kind),
+		DisplayTitle: store.Text(s.DisplayTitle), DisplayAuthor: store.Text(s.DisplayAuthor),
+		Duration: store.Float(s.Duration), PlayMethod: store.Float(float64(s.PlayMethod)), MediaPlayer: store.Text(s.MediaPlayer),
+		StartTime: store.Float(s.StartTime), CurrentPosition: store.Float(s.CurrentTime), CoverPath: store.TextAny(s.CoverPath),
+		TimeListening: store.Float(s.TimeListening), MediaMetadata: store.Text(string(metadata)),
+		Date: store.Text(s.Date), DayOfWeek: store.Text(s.DayOfWeek), ExtraData: store.Text(string(extra)),
+		UserID: store.Text(s.UserID), DeviceID: store.TextOrNull(s.DeviceID), LibraryID: store.Text(s.LibraryID),
+		CreatedAt: created, UpdatedAt: now,
+	})
 	return err
 }
 
@@ -930,13 +938,12 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 		mediaID = s.EpisodeID
 	}
 	if lastUpdate != nil {
-		var updated any
-		err := h.db.QueryRowContext(ctx, `SELECT updatedAt FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, userID, mediaID).Scan(&updated)
+		prog, err := sqlc.New(h.db).GetMediaProgressByUserItem(ctx, sqlc.GetMediaProgressByUserItemParams{UserID: store.Text(userID), MediaItemID: store.Text(mediaID)})
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return false, err
 		}
 		if err == nil {
-			if stored, ok := dbtime.Millis(updated).(int64); ok && stored > *lastUpdate {
+			if stored, ok := dbtime.Millis(prog.Updatedat).(int64); ok && stored > *lastUpdate {
 				return false, nil
 			}
 		}
@@ -1005,8 +1012,8 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 		where = ` WHERE userId=?`
 		args = append(args, userFilter)
 	}
-	var total int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playbackSessions`+where, args...).Scan(&total); err != nil {
+	total, err := sqlc.New(h.db).CountPlaybackSessionsForUser(r.Context(), store.TextOrNull(userFilter))
+	if err != nil {
 		h.serverError(w, r, err)
 		return
 	}
@@ -1047,10 +1054,8 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 			return
 		}
 		obj := s.LegacyJSON(device)
-		var username sql.NullString
-		_ = h.db.QueryRowContext(r.Context(), `SELECT username FROM users WHERE id=?`, s.UserID.String).Scan(&username)
-		if username.Valid {
-			obj["user"] = map[string]any{"id": s.UserID.String, "username": username.String}
+		if u, err := sqlc.New(h.db).GetUserByID(r.Context(), s.UserID.String); err == nil && u.Username.Valid {
+			obj["user"] = map[string]any{"id": s.UserID.String, "username": u.Username.String}
 			wire.AddPlaybackSessionSpreadFields(obj)
 		}
 		result = append(result, obj)
@@ -1087,9 +1092,8 @@ func (h *Handler) OpenSessions() []map[string]any {
 	out := make([]map[string]any, 0, len(sessions))
 	for _, s := range sessions {
 		entry := s.openJSON()
-		var username string
-		_ = h.db.QueryRow(`SELECT username FROM users WHERE id=?`, s.UserID).Scan(&username)
-		entry["user"] = map[string]any{"id": s.UserID, "username": username}
+		u, _ := sqlc.New(h.db).GetUserByID(context.Background(), s.UserID)
+		entry["user"] = map[string]any{"id": s.UserID, "username": u.Username.String}
 		out = append(out, entry)
 	}
 	return out
@@ -1104,8 +1108,8 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "", 403)
 		return
 	}
-	var exists int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM playbackSessions WHERE id=?`, id).Scan(&exists); err != nil {
+	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)
+	if err != nil {
 		h.serverError(w, r, err)
 		return
 	}
@@ -1114,7 +1118,7 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 	h.removeOpenSession(id)
-	if _, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id=?`, id); err != nil {
+	if err := sqlc.New(h.db).DeletePlaybackSession(r.Context(), id); err != nil {
 		h.serverError(w, r, err)
 		return
 	}
@@ -1146,12 +1150,7 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request, user
 	for _, id := range body.Sessions {
 		h.removeOpenSession(id)
 	}
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(body.Sessions)), ",")
-	args := make([]any, len(body.Sessions))
-	for i, id := range body.Sessions {
-		args[i] = id
-	}
-	res, err := h.db.ExecContext(r.Context(), `DELETE FROM playbackSessions WHERE id IN (`+placeholders+`)`, args...)
+	res, err := sqlc.New(h.db).DeletePlaybackSessionsByIDs(r.Context(), body.Sessions)
 	if err != nil {
 		logging.RequestError(r, "Failed to remove sessions", err)
 		http.Error(w, "Failed to remove sessions", 500)
@@ -1283,8 +1282,7 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	// always replaces the client duration with the item's playback duration.
 	duration := item.Duration
 	day, weekday := time.UnixMilli(updated).Format("2006-01-02"), time.UnixMilli(updated).Weekday().String()
-	var existingSession int
-	_ = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM playbackSessions WHERE id=?`, id).Scan(&existingSession)
+	existingSession, _ := sqlc.New(h.db).CountPlaybackSessionByID(ctx, id)
 	if existingSession == 0 {
 		// A new local session is constructed from the client JSON
 		// (PlaybackSessionManager.js:182), keeping its date and dayOfWeek;

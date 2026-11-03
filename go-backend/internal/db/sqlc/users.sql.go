@@ -224,6 +224,21 @@ func (q *Queries) InsertRootUser(ctx context.Context, arg InsertRootUserParams) 
 	return err
 }
 
+const updateUserBookmarks = `-- name: UpdateUserBookmarks :exec
+UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?
+`
+
+type UpdateUserBookmarksParams struct {
+	Bookmarks sql.NullString
+	Updatedat any
+	ID        string
+}
+
+func (q *Queries) UpdateUserBookmarks(ctx context.Context, arg UpdateUserBookmarksParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserBookmarks, arg.Bookmarks, arg.Updatedat, arg.ID)
+	return err
+}
+
 const updateUserExtraData = `-- name: UpdateUserExtraData :exec
 UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?
 `

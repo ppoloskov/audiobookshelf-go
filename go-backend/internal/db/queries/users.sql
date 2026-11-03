@@ -44,6 +44,9 @@ UPDATE users SET permissions = ?, updatedAt = ? WHERE id = ?;
 -- name: UpdateUserExtraData :exec
 UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?;
 
+-- name: UpdateUserBookmarks :exec
+UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?;
+
 -- name: UpdateUserPassword :exec
 UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?;
 

@@ -6,13 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/wire"
 )
 
 // PlaybackSessionColumns is the column list ScanPlaybackSession expects, in
-// order. Use it as `SELECT ` + PlaybackSessionColumns + ` FROM playbackSessions`.
-const PlaybackSessionColumns = `id,userId,libraryId,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,date,dayOfWeek,timeListening,mediaMetadata,extraData,deviceId,createdAt,updatedAt`
+// the order of the sqlc model (the same list the playback.sql queries name).
+// Use it as `SELECT ` + PlaybackSessionColumns + ` FROM playbackSessions`.
+const PlaybackSessionColumns = `id,mediaItemId,mediaItemType,displayTitle,displayAuthor,duration,playMethod,mediaPlayer,startTime,currentTime,serverVersion,coverPath,timeListening,mediaMetadata,date,dayOfWeek,extraData,createdAt,updatedAt,userId,deviceId,libraryId`
 
 // PlaybackSessionRow is one playbackSessions row as stored. Every column but
 // id, createdAt and updatedAt is nullable in the pinned schema, and real
@@ -31,13 +33,31 @@ type PlaybackSessionRow struct {
 	CreatedAt, UpdatedAt                          any
 }
 
-// ScanPlaybackSession scans a row selected with PlaybackSessionColumns.
+// PlaybackSessionFromRow maps a playbackSessions row read by sqlc.
+func PlaybackSessionFromRow(r sqlc.Playbacksession) PlaybackSessionRow {
+	return PlaybackSessionRow{
+		ID: r.ID, UserID: r.Userid, LibraryID: r.Libraryid, MediaItemID: r.Mediaitemid, MediaItemType: r.Mediaitemtype,
+		DisplayTitle: r.Displaytitle, DisplayAuthor: r.Displayauthor,
+		Duration: r.Duration, PlayMethod: r.Playmethod, StartTime: r.Starttime, CurrentTime: r.Currenttime,
+		TimeListening: r.Timelistening,
+		MediaPlayer:   r.Mediaplayer, ServerVersion: r.Serverversion, CoverPath: r.Coverpath,
+		Date: r.Date, DayOfWeek: r.Dayofweek,
+		MediaMetadata: r.Mediametadata, ExtraData: r.Extradata,
+		DeviceID:  r.Deviceid,
+		CreatedAt: r.Createdat, UpdatedAt: r.Updatedat,
+	}
+}
+
+// ScanPlaybackSession scans a row selected with PlaybackSessionColumns. Only
+// the dynamic, sorted session list in playback uses it: sqlc cannot express a
+// variable ORDER BY.
 func ScanPlaybackSession(rows *sql.Rows) (PlaybackSessionRow, error) {
-	var s PlaybackSessionRow
-	err := rows.Scan(&s.ID, &s.UserID, &s.LibraryID, &s.MediaItemID, &s.MediaItemType, &s.DisplayTitle, &s.DisplayAuthor,
-		&s.Duration, &s.PlayMethod, &s.MediaPlayer, &s.StartTime, &s.CurrentTime, &s.ServerVersion, &s.CoverPath,
-		&s.Date, &s.DayOfWeek, &s.TimeListening, &s.MediaMetadata, &s.ExtraData, &s.DeviceID, &s.CreatedAt, &s.UpdatedAt)
-	return s, err
+	var r sqlc.Playbacksession
+	err := rows.Scan(&r.ID, &r.Mediaitemid, &r.Mediaitemtype, &r.Displaytitle, &r.Displayauthor,
+		&r.Duration, &r.Playmethod, &r.Mediaplayer, &r.Starttime, &r.Currenttime, &r.Serverversion, &r.Coverpath,
+		&r.Timelistening, &r.Mediametadata, &r.Date, &r.Dayofweek, &r.Extradata, &r.Createdat, &r.Updatedat,
+		&r.Userid, &r.Deviceid, &r.Libraryid)
+	return PlaybackSessionFromRow(r), err
 }
 
 func millisOf(v any) (int64, bool) {

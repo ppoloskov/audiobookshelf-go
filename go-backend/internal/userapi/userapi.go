@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -252,7 +253,7 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
 	parts := strings.Split(tail, "/")
 	if len(parts) == 2 && parts[1] == "remove-from-continue-listening" && r.Method == http.MethodGet {
-		res, err := h.db.ExecContext(r.Context(), `UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?`, dbtime.Now(), parts[0], user.ID)
+		res, err := sqlc.New(h.db).HideMediaProgressFromContinueListening(r.Context(), sqlc.HideMediaProgressFromContinueListeningParams{UpdatedAt: dbtime.Now(), ID: parts[0], UserID: store.Text(user.ID)})
 		if err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
@@ -299,7 +300,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			httputil.SendStatus(w, 404)
 			return
 		}
-		res, err := h.db.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE id = ? AND userId = ?`, parts[0], user.ID)
+		res, err := sqlc.New(h.db).DeleteMediaProgressForUser(r.Context(), sqlc.DeleteMediaProgressForUserParams{ID: parts[0], UserID: store.Text(user.ID)})
 		if err != nil {
 			logging.RequestError(r, "database write failed", err)
 			http.Error(w, "database write failed", 500)
@@ -484,7 +485,7 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 	if err != nil {
 		return err
 	}
-	_, err = h.db.ExecContext(ctx, `UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?`, string(encoded), dbtime.Now(), userID)
+	err = sqlc.New(h.db).UpdateUserBookmarks(ctx, sqlc.UpdateUserBookmarksParams{Bookmarks: store.Text(string(encoded)), Updatedat: dbtime.Now(), ID: userID})
 	return err
 }
 
@@ -774,7 +775,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			return
 		}
 		sessionsUpdated := int64(0)
-		if res, execErr := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET userId = NULL WHERE userId = ?`, id); execErr != nil {
+		if res, execErr := sqlc.New(tx).DetachPlaybackSessionsFromUser(r.Context(), store.Text(id)); execErr != nil {
 			logging.RequestError(r, "database write failed", execErr)
 			http.Error(w, "database write failed", 500)
 			return

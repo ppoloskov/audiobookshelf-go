@@ -258,13 +258,13 @@ type Playbacksession struct {
 	Displaytitle  sql.NullString
 	Displayauthor sql.NullString
 	Duration      sql.NullFloat64
-	Playmethod    sql.NullInt64
+	Playmethod    sql.NullFloat64
 	Mediaplayer   sql.NullString
 	Starttime     sql.NullFloat64
 	Currenttime   sql.NullFloat64
 	Serverversion sql.NullString
 	Coverpath     sql.NullString
-	Timelistening sql.NullInt64
+	Timelistening sql.NullFloat64
 	Mediametadata sql.NullString
 	Date          sql.NullString
 	Dayofweek     sql.NullString
