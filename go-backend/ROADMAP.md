@@ -239,7 +239,7 @@ creates them.
   - Change: Delete the copies and call `httputil`.
   - Done when: ratchet `writeJSON-style copies` goes from 8 to <= 5.
 
-- [ ] K4: Move the last `writeJSON` copies in `userapi` and `adminops` to `httputil`
+- [x] K4: Move the last `writeJSON` copies in `userapi` and `adminops` to `httputil`
   - Files: `go-backend/internal/userapi/userapi.go` (`writeJSON` line 2511,
     `writeJSONKeys` line 2524); `go-backend/internal/adminops/handler.go`
     (`writeJSON` line 938, `writeJSONStatus` line 942)

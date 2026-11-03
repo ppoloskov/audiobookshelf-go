@@ -24,7 +24,13 @@ func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
 		_ = json.NewEncoder(w).Encode(value)
 		return
 	}
-	data, err := json.Marshal(value)
+	var data []byte
+	var err error
+	if o.keys != nil {
+		data, err = marshalOrdered(value, o.keys)
+	} else {
+		data, err = json.Marshal(value)
+	}
 	if err != nil {
 		logging.Errorf("[httputil] WriteJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -38,4 +44,33 @@ func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
 	if !o.head() {
 		_, _ = w.Write(data)
 	}
+}
+
+func marshalOrdered(value any, keys []string) ([]byte, error) {
+	values, ok := value.(map[string]any)
+	if !ok {
+		return json.Marshal(value)
+	}
+	data := make([]byte, 0, 256)
+	data = append(data, '{')
+	first := true
+	for _, key := range keys {
+		item, ok := values[key]
+		if !ok {
+			continue
+		}
+		if !first {
+			data = append(data, ',')
+		}
+		first = false
+		name, _ := json.Marshal(key)
+		encoded, err := json.Marshal(item)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, name...)
+		data = append(data, ':')
+		data = append(data, encoded...)
+	}
+	return append(data, '}'), nil
 }

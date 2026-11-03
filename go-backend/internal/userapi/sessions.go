@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -24,7 +25,7 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		perPage = 1
 	}
 	if user.Type == "guest" {
-		writeJSON(w, 200, map[string]any{"sessions": []any{}, "total": 0, "numPages": 0, "page": page, "itemsPerPage": perPage})
+		httputil.WriteJSON(w, 200, map[string]any{"sessions": []any{}, "total": 0, "numPages": 0, "page": page, "itemsPerPage": perPage})
 		return
 	}
 	var total int
@@ -59,7 +60,7 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
+	httputil.WriteJSON(w, 200, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
 }
 
 func refreshTokenFromRequest(r *http.Request) string {

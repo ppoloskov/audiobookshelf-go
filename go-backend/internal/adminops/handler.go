@@ -3,6 +3,7 @@ package adminops
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -182,7 +183,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 			return
 		}
 	}
-	writeJSON(w, map[string]any{"serverSettings": h.browserSettings(m)})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)}, httputil.Streamed())
 }
 func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) {
 	if !admin(u) {
@@ -274,7 +275,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 				return
 			}
 		}
-		writeJSON(w, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
 		return
 	}
 	out := map[string]any{}
@@ -284,7 +285,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 		}
 	}
 	out["authOpenIDSamplePermissions"] = samplePermissions
-	writeJSON(w, out)
+	httputil.WriteJSON(w, http.StatusOK, out, httputil.Streamed())
 }
 func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !admin(u) {
@@ -352,7 +353,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 			}
 		}
 	}
-	writeJSON(w, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
 }
 func prefix(title string, prefixes []string) string {
 	t := strings.ToLower(title)
@@ -385,7 +386,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 		w.WriteHeader(403)
 		return
 	}
-	writeJSON(w, logging.Default().LoggerData())
+	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData(), httputil.Streamed())
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) {
@@ -451,7 +452,7 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.Us
 		http.Error(w, "Internal server error", 500)
 		return
 	}
-	writeJSON(w, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}}, httputil.Streamed())
 }
 
 func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -520,7 +521,7 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.U
 	if column == "tags" {
 		sort.Slice(values, func(i, j int) bool { return strings.ToLower(values[i]) < strings.ToLower(values[j]) })
 	}
-	writeJSON(w, map[string]any{column: values})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{column: values}, httputil.Streamed())
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) {
 	if !admin(u) {
@@ -599,7 +600,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 			}
 		}
 	}
-	writeJSON(w, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed}, httputil.Streamed())
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) {
 	if !admin(u) {
@@ -671,7 +672,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 			}
 		}
 	}
-	writeJSON(w, map[string]any{"numItemsUpdated": changed})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed}, httputil.Streamed())
 }
 func contains(a []string, s string) bool {
 	for _, v := range a {
@@ -784,7 +785,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			}
 		}
 	}
-	writeJSON(w, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")}, httputil.Streamed())
 }
 
 // orderedTimes is a JS object used as a map: keys keep first-insertion
@@ -852,7 +853,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 			dirs = append(dirs, map[string]any{"path": filepath.ToSlash(full), "dirname": entry.Name(), "level": level})
 		}
 	}
-	writeJSON(w, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs}, httputil.Streamed())
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !canUpload(u) {
@@ -864,7 +865,12 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		FolderPath string `json:"folderPath"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Directory == "" || p.FolderPath == "" {
-		writeJSONStatus(w, 400, map[string]any{"error": "Invalid request body"})
+		// The status is written before any header is set, so this response
+		// carries no JSON Content-Type (net/http sniffs text/plain), unlike
+		// upstream's res.status(400).json(...). Kept as is; WriteJSON would
+		// add the header.
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "Invalid request body"})
 		return
 	}
 	var libraryID string
@@ -885,7 +891,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		return
 	}
 	if _, e = os.Stat(target); e == nil {
-		writeJSON(w, map[string]any{"exists": true})
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true}, httputil.Streamed())
 		return
 	}
 	cleaned := filepath.ToSlash(filepath.Clean(p.Directory))
@@ -902,11 +908,11 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		}
 		var title sql.NullString
 		if h.db.QueryRowContext(r.Context(), `SELECT title FROM libraryItems WHERE path IN (`+marks+`) LIMIT 1`, args...).Scan(&title) == nil {
-			writeJSON(w, map[string]any{"exists": true, "libraryItemTitle": title.String})
+			httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true, "libraryItemTitle": title.String}, httputil.Streamed())
 			return
 		}
 	}
-	writeJSON(w, map[string]any{"exists": false})
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false}, httputil.Streamed())
 }
 func canUpload(u store.User) bool {
 	var p map[string]any
@@ -934,14 +940,6 @@ func canAccessLibrary(u store.User, id string) bool {
 		}
 	}
 	return false
-}
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
-}
-func writeJSONStatus(w http.ResponseWriter, status int, v any) {
-	w.WriteHeader(status)
-	writeJSON(w, v)
 }
 
 func containsAny(a []any, s string) bool {

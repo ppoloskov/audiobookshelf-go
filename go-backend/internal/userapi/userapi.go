@@ -25,6 +25,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
@@ -142,7 +143,7 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User)
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	writeJSON(w, 200, serialized)
+	httputil.WriteJSON(w, 200, serialized)
 }
 
 func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
@@ -157,7 +158,7 @@ func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
 	if h.openSessions != nil {
 		sessions = h.openSessions()
 	}
-	writeJSON(w, 200, map[string]any{"usersOnline": users, "openSessions": sessions})
+	httputil.WriteJSON(w, 200, map[string]any{"usersOnline": users, "openSessions": sessions})
 }
 
 func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -205,7 +206,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		return
 	}
 	if refreshToken != "" && r.Header.Get("x-refresh-token") != "" {
-		writeJSON(w, 200, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
+		httputil.WriteJSON(w, 200, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
 		return
 	}
 	if refreshToken != "" && h.setRefreshCookie != nil {
@@ -221,13 +222,13 @@ func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user st
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"mediaProgress": progress})
+	httputil.WriteJSON(w, 200, map[string]any{"mediaProgress": progress})
 }
 
 func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user store.User, libraryItemID string) {
 	bookmarks := jsonArray(user.Bookmarks)
 	if libraryItemID == "" {
-		writeJSON(w, 200, map[string]any{"bookmarks": bookmarks})
+		httputil.WriteJSON(w, 200, map[string]any{"bookmarks": bookmarks})
 		return
 	}
 	access, err := h.canAccessItem(r.Context(), user, libraryItemID)
@@ -250,7 +251,7 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 			filtered = append(filtered, bm)
 		}
 	}
-	writeJSON(w, 200, map[string]any{"bookmarks": filtered})
+	httputil.WriteJSON(w, 200, map[string]any{"bookmarks": filtered})
 }
 
 func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
@@ -274,7 +275,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			http.Error(w, "database read failed", 500)
 			return
 		}
-		writeJSON(w, 200, payload)
+		httputil.WriteJSON(w, 200, payload)
 		return
 	}
 	switch r.Method {
@@ -297,7 +298,7 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user st
 			sendStatus(w, 404)
 			return
 		}
-		writeJSON(w, 200, p)
+		httputil.WriteJSON(w, 200, p)
 	case http.MethodDelete:
 		if len(parts) != 1 {
 			sendStatus(w, 404)
@@ -451,7 +452,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 		}
 		user.Bookmarks, _ = json.Marshal(bookmarks)
 		h.emitUserUpdate(r.Context(), user)
-		writeJSON(w, 200, entry)
+		httputil.WriteJSON(w, 200, entry)
 	case http.MethodDelete:
 		if len(parts) != 3 {
 			sendStatus(w, 404)
@@ -518,7 +519,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"users": users})
+	httputil.WriteJSON(w, 200, map[string]any{"users": users})
 }
 
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) {
@@ -621,7 +622,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	if h.emit != nil {
 		h.emit("admin", "user_added", serialized)
 	}
-	writeJSON(w, 200, map[string]any{"user": serialized})
+	httputil.WriteJSON(w, 200, map[string]any{"user": serialized})
 }
 
 func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current store.User, tail string) {
@@ -730,7 +731,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			http.Error(w, "database read failed", 500)
 			return
 		}
-		writeJSON(w, 200, serialized)
+		httputil.WriteJSON(w, 200, serialized)
 		return
 	}
 	if r.Method == http.MethodDelete {
@@ -792,7 +793,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if h.emit != nil {
 			h.emit("admin", "user_removed", browserUser(u, []any{}, jsonArray(u.Bookmarks)))
 		}
-		writeJSON(w, 200, map[string]any{"success": true})
+		httputil.WriteJSON(w, 200, map[string]any{"success": true})
 		return
 	}
 	if r.Method == http.MethodPatch {
@@ -959,7 +960,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if h.emit != nil {
 			h.emit(current.ID, "user_updated", serialized)
 		}
-		writeJSON(w, 200, map[string]any{"success": true, "user": serialized})
+		httputil.WriteJSON(w, 200, map[string]any{"success": true, "user": serialized})
 		return
 	}
 	writeNotImplemented(w)
@@ -978,7 +979,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			http.Error(w, "database read failed", 500)
 			return
 		}
-		writeJSON(w, 200, map[string]any{"apiKeys": keys})
+		httputil.WriteJSON(w, 200, map[string]any{"apiKeys": keys})
 		return
 	}
 	if id == "" && r.Method == http.MethodPost {
@@ -1049,7 +1050,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		delete(entry, "permissions")
 		delete(entry, "createdByUser")
 		entry["apiKey"] = token
-		writeJSON(w, 200, map[string]any{"apiKey": entry})
+		httputil.WriteJSON(w, 200, map[string]any{"apiKey": entry})
 		return
 	}
 	if id == "" {
@@ -1142,7 +1143,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		// createdByUser field, and lastUsedAt is the value as-loaded (the auth
 		// usage that happened between operations does not refresh it).
 		delete(key, "createdByUser")
-		writeJSON(w, 200, map[string]any{"apiKey": key})
+		httputil.WriteJSON(w, 200, map[string]any{"apiKey": key})
 		return
 	}
 	sendStatus(w, 404)
@@ -1233,7 +1234,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 					out = append(out, dto)
 				}
 			}
-			writeJSON(w, 200, map[string]any{"collections": out})
+			httputil.WriteJSON(w, 200, map[string]any{"collections": out})
 			return true
 		case http.MethodPost:
 			h.createCollection(w, r, user)
@@ -1268,7 +1269,7 @@ func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user s
 					dto["rssFeed"] = feed
 				}
 			}
-			writeJSON(w, 200, dto)
+			httputil.WriteJSON(w, 200, dto)
 			return true
 		case http.MethodPatch:
 			return h.updateCollection(w, r, user, id)
@@ -1399,7 +1400,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user 
 	if h.emit != nil {
 		h.emit("*", "collection_added", dto)
 	}
-	writeJSON(w, 200, dto)
+	httputil.WriteJSON(w, 200, dto)
 }
 
 func collectionDescriptionForDB(description string) any {
@@ -1569,7 +1570,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	if changed && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	writeJSON(w, 200, dto)
+	httputil.WriteJSON(w, 200, dto)
 	return true
 }
 
@@ -1802,7 +1803,7 @@ func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Reque
 	if changed && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	writeJSONKeys(w, 200, dto, []string{"id", "libraryId", "name", "userId", "description", "lastUpdate", "createdAt", "books"})
+	httputil.WriteJSON(w, 200, dto, httputil.OrderedKeys([]string{"id", "libraryId", "name", "userId", "description", "lastUpdate", "createdAt", "books"}))
 	return true
 }
 
@@ -1868,7 +1869,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user
 	if h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	writeJSON(w, 200, dto)
+	httputil.WriteJSON(w, 200, dto)
 	return true
 }
 
@@ -1945,7 +1946,7 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, u
 	if removed > 0 && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	writeJSON(w, 200, dto)
+	httputil.WriteJSON(w, 200, dto)
 	return true
 }
 
@@ -2280,7 +2281,7 @@ func validStringArray(value any) bool {
 	}
 }
 func writeNotImplemented(w http.ResponseWriter) {
-	writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {
@@ -2508,49 +2509,7 @@ func writeError(w http.ResponseWriter, err error) {
 	logging.Errorf("[userapi] request failed: %v", err)
 	http.Error(w, "database write failed", 500)
 }
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	data, e := json.Marshal(v)
-	if e != nil {
-		logging.Errorf("[userapi] writeJSON: internal server error: %v", e)
-		http.Error(w, "internal server error", 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.WriteHeader(status)
-	_, _ = w.Write(data)
-}
 
-func writeJSONKeys(w http.ResponseWriter, status int, values map[string]any, keys []string) {
-	data := make([]byte, 0, 256)
-	data = append(data, '{')
-	first := true
-	for _, key := range keys {
-		value, ok := values[key]
-		if !ok {
-			continue
-		}
-		if !first {
-			data = append(data, ',')
-		}
-		first = false
-		name, _ := json.Marshal(key)
-		encoded, err := json.Marshal(value)
-		if err != nil {
-			logging.Errorf("[userapi] writeJSONKeys: internal server error: %v", err)
-			http.Error(w, "internal server error", 500)
-			return
-		}
-		data = append(data, name...)
-		data = append(data, ':')
-		data = append(data, encoded...)
-	}
-	data = append(data, '}')
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.WriteHeader(status)
-	_, _ = w.Write(data)
-}
 func sendStatus(w http.ResponseWriter, status int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	body := http.StatusText(status)

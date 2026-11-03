@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -133,7 +134,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	if v, present := r.URL.Query()["filter"]; present {
 		payload.FilterBy = &v[0]
 	}
-	writeJSON(w, 200, payload)
+	httputil.WriteJSON(w, 200, payload)
 }
 
 // libraryPlaylists serves GET /api/libraries/:id/playlists
@@ -173,7 +174,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	for _, p := range paginate(playlists, limit, page) {
 		results = append(results, p.dto)
 	}
-	writeJSON(w, 200, wire.LibraryPlaylistsPage{Results: results, Total: len(playlists), Limit: limit, Page: page})
+	httputil.WriteJSON(w, 200, wire.LibraryPlaylistsPage{Results: results, Total: len(playlists), Limit: limit, Page: page})
 }
 
 // queryIDs materializes a single-column id query and closes the cursor before

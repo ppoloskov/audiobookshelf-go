@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -124,7 +125,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 		http.Error(w, "database read failed", 500)
 		return
 	}
-	writeJSON(w, 200, payload)
+	httputil.WriteJSON(w, 200, payload)
 }
 
 func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -219,7 +220,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	if len(result) > limit {
 		result = result[:limit]
 	}
-	writeJSON(w, 200, map[string]any{"libraryItems": result})
+	httputil.WriteJSON(w, 200, map[string]any{"libraryItems": result})
 }
 
 func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -310,7 +311,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	if h.emit != nil {
 		h.emit(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
 	}
-	writeJSON(w, 200, map[string]any{"ereaderDevices": visible})
+	httputil.WriteJSON(w, 200, map[string]any{"ereaderDevices": visible})
 }
 
 func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user store.User, rawYear string) {
@@ -464,7 +465,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 			booksWithCoversSet[itemID] = true
 		}
 	}
-	writeJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
+	httputil.WriteJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
 }
 
 // parseTime accepts every stored DATETIME spelling, including upstream's

@@ -79,3 +79,15 @@ func TestWriteJSONMarshalFailureIsPlain500(t *testing.T) {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}
 }
+
+func TestWriteJSONOrderedKeys(t *testing.T) {
+	rec := httptest.NewRecorder()
+	value := map[string]any{"b": 2, "a": nil, "z": "dropped", "c": []int{1}}
+	WriteJSON(rec, http.StatusOK, value, OrderedKeys([]string{"c", "a", "missing", "b"}))
+	if got, want := rec.Body.String(), `{"c":[1],"a":null,"b":2}`; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+	if got, want := rec.Header().Get("Content-Length"), "24"; got != want {
+		t.Fatalf("Content-Length = %q, want %q", got, want)
+	}
+}

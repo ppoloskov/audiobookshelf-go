@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -52,7 +53,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 		}
 		results = append(results, row)
 	}
-	writeJSON(w, 200, map[string]any{"total": len(sessions), "numPages": int(math.Ceil(float64(len(sessions)) / float64(perPage))), "page": page, "itemsPerPage": perPage, "sessions": results})
+	httputil.WriteJSON(w, 200, map[string]any{"total": len(sessions), "numPages": int(math.Ceil(float64(len(sessions)) / float64(perPage))), "page": page, "itemsPerPage": perPage, "sessions": results})
 }
 
 func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, userID string) {
@@ -118,7 +119,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		}
 	}
 	stats["recentSessions"] = recent
-	writeJSON(w, 200, stats)
+	httputil.WriteJSON(w, 200, stats)
 }
 
 func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]store.PlaybackSessionRow, error) {

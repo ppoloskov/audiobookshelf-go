@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
 
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -64,7 +65,7 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 			sort.SliceStable(out, func(i, j int) bool {
 				return textsort.LocaleCompare(stringValue(out[i]["name"]), stringValue(out[j]["name"])) < 0
 			})
-			writeJSON(w, 200, map[string]any{"playlists": out})
+			httputil.WriteJSON(w, 200, map[string]any{"playlists": out})
 			return true
 		case http.MethodPost:
 			h.createPlaylist(w, r, user)
@@ -95,7 +96,7 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 				http.Error(w, "database read failed", 500)
 				return true
 			}
-			writeJSON(w, 200, item)
+			httputil.WriteJSON(w, 200, item)
 			return true
 		case http.MethodPatch:
 			h.updatePlaylist(w, r, id, user)
@@ -333,7 +334,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 	if h.emit != nil {
 		h.emit(user.ID, "playlist_added", item)
 	}
-	writeJSON(w, 200, item)
+	httputil.WriteJSON(w, 200, item)
 }
 
 func nullableStringForDB(s string) any {
@@ -513,7 +514,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 	if (changed || itemsChanged) && h.emit != nil {
 		h.emit(user.ID, "playlist_updated", item)
 	}
-	writeJSON(w, 200, item)
+	httputil.WriteJSON(w, 200, item)
 }
 
 func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request, id string, user store.User) {
@@ -685,7 +686,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 	if changed && h.emit != nil {
 		h.emit(user.ID, "playlist_updated", item)
 	}
-	writeJSONKeys(w, 200, item, []string{"id", "name", "libraryId", "userId", "description", "lastUpdate", "createdAt", "items"})
+	httputil.WriteJSON(w, 200, item, httputil.OrderedKeys([]string{"id", "name", "libraryId", "userId", "description", "lastUpdate", "createdAt", "items"}))
 }
 
 func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, id string, user store.User) {
@@ -844,7 +845,7 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 		}
 		h.emit(user.ID, event, finalDTO)
 	}
-	writeJSON(w, 200, finalDTO)
+	httputil.WriteJSON(w, 200, finalDTO)
 }
 
 func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Request, user store.User, collectionID string) {
@@ -910,5 +911,5 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if h.emit != nil {
 		h.emit(user.ID, "playlist_added", item)
 	}
-	writeJSON(w, 200, item)
+	httputil.WriteJSON(w, 200, item)
 }

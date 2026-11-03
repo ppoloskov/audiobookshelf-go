@@ -15,6 +15,7 @@ import (
 
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -112,7 +113,7 @@ func TestPlaylistBatchAddMissingLibraryItemUsesLegacyError(t *testing.T) {
 func TestBatchResponseTopLevelKeyOrder(t *testing.T) {
 	for _, keys := range [][]string{{"id", "libraryId", "name", "userId", "description", "lastUpdate", "createdAt", "books"}, {"id", "name", "libraryId", "userId", "description", "lastUpdate", "createdAt", "items"}} {
 		w := httptest.NewRecorder()
-		writeJSONKeys(w, 200, map[string]any{"id": "c1", "libraryId": "lib1", "name": "Shelf", "userId": "u1", "description": nil, "lastUpdate": 1, "createdAt": 2, "books": []any{}, "items": []any{}}, keys)
+		httputil.WriteJSON(w, 200, map[string]any{"id": "c1", "libraryId": "lib1", "name": "Shelf", "userId": "u1", "description": nil, "lastUpdate": 1, "createdAt": 2, "books": []any{}, "items": []any{}}, httputil.OrderedKeys(keys))
 		prefix := `{"id":"c1","libraryId":"lib1"`
 		if keys[1] == "name" {
 			prefix = `{"id":"c1","name":"Shelf","libraryId":"lib1"`
