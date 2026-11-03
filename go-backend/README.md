@@ -62,7 +62,7 @@ make ratchet              # handwritten-code/complexity metrics and tools/dbnest
 
 Correctness is proven by contract tests (fields and types clients read),
 persistence tests (Go reads TS databases; TS v2.37.2 reopens databases Go
-wrote) and functional journeys (ROADMAP F4-F6). Until those land and ROADMAP
+wrote) and functional journeys (ROADMAP F4-F7). Until those land and ROADMAP
 V1 is done, CI also runs the Node differential harness against upstream
 (`make parity`, `make parity-replacement`, `make parity-scan`,
 `make route-probe`; Node 22 and `npm ci && npm run build:server` needed), and

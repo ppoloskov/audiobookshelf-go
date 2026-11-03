@@ -68,34 +68,49 @@ L2, JWT issuing -> L1).
     the generator reproduces it; routes with no client caller are listed
     separately.
 
-- [ ] F4: Contract-test harness in Go
-  - Files: new `internal/contracttest/` (test-only), one seeded fixture
-    database built from the pinned TS fresh-init schema
-  - Change: A test helper that starts the Go server on a copy of the fixture,
-    calls a route as a client would, and asserts fields and JSON types
-    (including required `null`s) from a small per-route spec. No upstream
-    process, no byte comparison.
-  - Done when: specs for login, `/api/me`, `/api/libraries`, a library items
-    page, an item, `/api/me/progress`, `/api/session/local` and
-    `/api/authorize` pass under `go test ./...`.
+- [ ] F4: Contract fixture: a TS-created install, booted in-process
+  - Files: new `tools/contractfixture/build.cjs` (Node, run by hand once),
+    new `internal/contracttest/` (`fixture.go`, `testdata/install/`)
+  - Change: `build.cjs` reuses `seedInstallation` from
+    `tools/parity/replacement-trial.cjs` to create the realistic install with
+    TS v2.37.2 (database, metadata, generated media) and copies it into
+    `testdata/install/` (size budget 10 MB). `contracttest.Boot(t)` copies it
+    to a temp dir, rewrites the absolute paths stored in the database (every
+    TEXT column, generic `replace()` over all tables, JSON included), starts
+    `server.NewRuntime` behind `httptest.NewServer`, and returns a client with
+    `Login(user, pass)` and `Do(method, path, body)`.
+  - Done when: a test boots the fixture and `GET /api/libraries` as the
+    listener returns the seeded library, with no Node process.
 
-- [ ] F5: Persistence tests
-  - Files: `internal/contracttest/`, a checked-in TS-created fixture database
-  - Change: (a) Go opens and reads a database created by TS v2.37.2 and
-    exercised by its clients; (b) after Go writes progress, sessions, items,
-    users and settings, the pinned TS server opens the file and reads the
-    same values (the rollback check, kept as a CI job with Node).
-  - Done when: both directions pass in CI; (b) is the only CI job that still
-    starts Node.
+- [ ] F5: Response shapes recorded from TS v2.37.2
+  - Files: new `tools/shapes/` (Go generator), `contracts/shapes/journey.json`
+  - Change: Run the replacement trial once; read `journey-upstream.json`
+    (TS responses per journey step). For each step write status, content type
+    and a type skeleton: objects map keys to skeletons; arrays merge their
+    elements' skeletons; a key seen as `null` in any sample is nullable; a key
+    missing from some samples is optional. Add `Conforms(skeleton, value)`:
+    every required key present, types equal (or `null` where nullable), extra
+    keys allowed. Non-JSON bodies check status and content type only.
+  - Done when: the generator reproduces the committed file and
+    `Conforms` has table tests.
 
-- [ ] F6: Functional journeys in Go
-  - Files: `internal/contracttest/journeys_test.go`
-  - Change: Port the replacement-trial journey (web and mobile: login, browse,
-    play, sync progress, local sessions, downloads, collections, playlists,
-    search, scan new content, metadata edit, podcasts, OIDC) as Go tests that
-    assert outcomes, not upstream bytes.
-  - Done when: the journeys pass in `go test ./...` and cover every
-    client-used route in F3.
+- [ ] F6: The journey in Go, checked against the shapes
+  - Files: `internal/contracttest/journey_test.go`
+  - Change: Port `journeySteps` from `replacement-trial.cjs` step by step (same
+    step ids, users, bodies, captured values). Each step asserts the recorded
+    status and `Conforms` to its shape. Runs in `go test ./...` on F4's fixture.
+  - Done when: every journey step passes and covers every client-used route in
+    `contracts/client-usage.json` that the journey reaches; a list of
+    client-used routes the journey misses is added to this task.
+
+- [ ] F7: Persistence in both directions
+  - Files: `internal/contracttest/persistence_test.go`, the CI rollback job
+  - Change: (a) Go reads the TS-created fixture's users, progress, sessions,
+    bookmarks and items with the values TS wrote (asserted from the fixture's
+    rows). (b) Keep the rollback check (TS v2.37.2 reopens a database Go
+    wrote and reads progress and bookmarks) as its own CI job; it is the only
+    job that still starts Node after V1.
+  - Done when: (a) passes in `go test ./...`; (b) runs as a separate CI job.
 
 ## Phase L: approved libraries
 
@@ -374,10 +389,10 @@ L2, JWT issuing -> L1).
 ## Phase V: verification moves off the Node differential
 
 - [ ] V1: Make the differential jobs non-blocking in CI
-  - Prerequisite: F4-F6 green.
+  - Prerequisite: F4-F7 green.
   - Files: `.github/workflows/docker-go.yml` (`parity` job)
   - Change: Core differential, replacement and scan trials run as an optional
-    job; F4-F6 and the rollback check (F5b) gate the image.
+    job; F4-F7 gate the image (F7b is the rollback check).
   - Done when: an image publishes with the differential job allowed to fail.
 
 - [ ] V2: Retire the byte-parity harness
@@ -396,6 +411,6 @@ L2, JWT issuing -> L1).
   record the result here.
 - [ ] O5: Approve or reject further libraries when a task proposes one.
 
-Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F5b) stays; the differential stays blocking until F4-F6; mobile coverage comes from the owner testing with the real apps and sharing logs.
+Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F5b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
 
 Model policy: expensive models plan, design and review; cheap models do mass edits and coding from a written spec.

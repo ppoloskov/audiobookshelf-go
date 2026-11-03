@@ -30,7 +30,7 @@ installation, with clients, books and progress, using simple, clear, fast Go.
 | 1 | Builds, vets, tests pass | `cd go-backend && go build ./... && go vet ./... && go test ./...` |
 | 2 | Lint and dependency rules | `golangci-lint run --config=../.golangci.yml ./...` |
 | 3 | Ratchet: no metric rises; lower the baseline when one falls | `make ratchet` |
-| 4 | Contract, persistence and functional tests pass (part of check 1 once ROADMAP F4-F6 land) | `go test ./...` |
+| 4 | Contract, persistence and functional tests pass (part of check 1 once ROADMAP F4-F7 land) | `go test ./...` |
 | 5 | Rollback: TS v2.37.2 reopens a database Go wrote | the CI rollback job |
 | 6 | Until ROADMAP V1: the replacement and scan trials pass | `make parity-replacement`, `make parity-scan` |
 | 7 | Generated code is current | `make sqlc` leaves no diff (after ROADMAP L5) |
