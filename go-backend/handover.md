@@ -1,6 +1,6 @@
 # Go backend handover
 
-Updated 2026-11-04. Current implementation is in
+Updated 2026-11-05. Current implementation is in
 `/private/tmp/abs-books-domain-20261104`, branch `codex/books-domain-batching`,
 based on `48c10a6a`, remote `https://github.com/ppoloskov/audiobookshelf-go`.
 The original checkout remains on master with its unrelated dirty work intact.
@@ -136,3 +136,12 @@ retain their separate decisions.
 - Expensive architect plans/reviews; cheap built-in workers implemented this
   feature. OpenCode Flash source export remains rejected for its external
   provider; no bypass or external-provider permission assumed.
+
+## Continuation — explicit completion tracking
+
+B01–B09 and I01 are now explicitly checked DONE on their individual ROADMAP
+cards, with delivery `d2ec8d9` and scoped test/full-suite distinction. Owner
+requires checkbox updates on every completion in the same implementation
+commit; this is enforced by AGENTS. I02 is unchecked IN PROGRESS; I03 onward
+remain unchecked PLANNED. Cheap worker owns books batch implementation/tests;
+architect owns review, roadmap, handover, baseline decisions and publication.

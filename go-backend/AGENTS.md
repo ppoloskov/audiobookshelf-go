@@ -48,6 +48,12 @@ clients, books and progress, using simple, clear, fast Go.
 
 ## One current execution record
 
+Every implementation card in `ROADMAP.md` must have an explicit `- [ ]`
+status checkbox. On acceptance, change it to `- [x] DONE` in the **same commit**
+as the completed work, with actual check results and unresolved limitations.
+A status paragraph or summary table alone does not mark a task done. Pending
+and in-progress cards stay unchecked. Reconcile this before every commit/push.
+
 `ROADMAP.md` is the active task queue; update status, actual validation,
 remaining risks and next action there and in `handover.md` after each packet.
 Update README and this guide when their statements change. Documentation is
