@@ -744,19 +744,26 @@ func valueOrNull(s string) any {
 	return s
 }
 func (h *Handler) titlePrefix(ctx context.Context, title string) string {
-	prefixes := []string{"the", "a"}
 	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err == nil {
-		if values, ok := decodeObject(raw)["sortingPrefixes"].([]any); ok {
-			prefixes = make([]string, 0, len(values))
-			for _, value := range values {
-				if text, ok := value.(string); ok {
-					prefixes = append(prefixes, text)
-				}
-			}
+	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
+		raw = nil
+	}
+	return catalogTitlePrefixAtEnd(title, sortingPrefixesFromJSON(raw))
+}
+
+func sortingPrefixesFromJSON(raw []byte) []string {
+	prefixes := []string{"the", "a"}
+	values, ok := decodeObject(raw)["sortingPrefixes"].([]any)
+	if !ok {
+		return prefixes
+	}
+	prefixes = make([]string, 0, len(values))
+	for _, value := range values {
+		if text, ok := value.(string); ok {
+			prefixes = append(prefixes, text)
 		}
 	}
-	return catalogTitlePrefixAtEnd(title, prefixes)
+	return prefixes
 }
 
 func (h *Handler) bookTitlePrefix(ctx context.Context, title *string) *string {
@@ -2165,6 +2172,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	}
 	collapse := r.URL.Query().Get("collapseseries") == "1"
 	include := normalizedInclude(r)
+	batchBookPage := mediaType == "book" && !collapse && include == ""
 	ignorePrefix := false
 	var settingsJSON []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsJSON); err == nil {
@@ -2268,6 +2276,21 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
+	var pageBooks map[string]bookdomain.Book
+	var pagePrefixes []string
+	if batchBookPage {
+		bookIDs := make([]string, 0, len(items))
+		for _, row := range items {
+			bookIDs = append(bookIDs, row.mediaID)
+		}
+		pageBooks, err = bookdomain.LoadMany(r.Context(), h.db, bookIDs)
+		if err != nil {
+			logging.RequestError(r, "database read failed", err)
+			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
+			return
+		}
+		pagePrefixes = sortingPrefixesFromJSON(settingsJSON)
+	}
 	results := make([]map[string]any, 0, len(items))
 	for _, row := range items {
 		delete(row.item, "lastScan")
@@ -2275,13 +2298,30 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		delete(row.item, "libraryFiles")
 		var media map[string]any
 		if mediaType == "book" {
-			book, bookErr := bookdomain.Load(r.Context(), h.db, row.mediaID)
-			err = bookErr
-			if bookErr == nil {
-				media, projectionErr := book.Minified(h.bookTitlePrefix(r.Context(), book.Title()))
+			var book bookdomain.Book
+			if batchBookPage {
+				var ok bool
+				book, ok = pageBooks[row.mediaID]
+				if !ok {
+					err = sql.ErrNoRows
+				}
+			} else {
+				book, err = bookdomain.Load(r.Context(), h.db, row.mediaID)
+			}
+			if err == nil {
+				var titlePrefix *string
+				if batchBookPage {
+					if title := book.Title(); title != nil {
+						value := catalogTitlePrefixAtEnd(*title, pagePrefixes)
+						titlePrefix = &value
+					}
+				} else {
+					titlePrefix = h.bookTitlePrefix(r.Context(), book.Title())
+				}
+				bookMedia, projectionErr := book.Minified(titlePrefix)
 				err = projectionErr
-				if projectionErr == nil {
-					row.item["media"] = media
+				if err == nil {
+					row.item["media"] = bookMedia
 				}
 			}
 		} else {

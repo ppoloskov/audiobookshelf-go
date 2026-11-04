@@ -66,8 +66,8 @@ and actual verification are recorded in ROADMAP/handover. The stateless reader
 object was removed; use plain `books.Load(ctx, db, id)`.
 
 Actual outcome: production lines −1, complexity −11, maps −2. No thousands-of-
-lines claim. Next is I02 LoadMany, then I03 prefix batching, I04 pages, I05
-shelves and I06 item rows. List migration and all device/removal decisions stay
+lines claim. I02 LoadMany, I03 prefix snapshots and I04 ordinary book pages are now
+checked DONE; next are I05 shelves and I06 item rows. List migration and all device/removal decisions stay
 open. Full test suite still has the five pre-existing local WebP encoder
 failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
 
@@ -89,3 +89,8 @@ Remaining audit limitations: selected files, not exhaustive operation coverage;
 Socket.IO package-version/lockfile reconciliation; AudioBooth actual media
 range path; six-client HLS/download/cover formats; full auth-refresh/version
 branches; unresolved dynamic registrations; all real-device acceptance.
+
+2026-11-05 follow-up: each B01–B09 and I01–I04 card has an explicit checked
+DONE status. The page regression proves 43/203 -> 7/7 reads for 10/50 actual
+returned books; feature source cost is +139 lines / +31 complexity / +2 []any,
+explicitly reviewed and baselined. No new runtime dependency or guard removal.

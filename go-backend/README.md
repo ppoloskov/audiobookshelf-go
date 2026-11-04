@@ -146,8 +146,8 @@ ratchet still enforces limits pending the proposed Q1 policy change.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 Book reads and projections are implemented in `internal/books`; B01–B09 and
-test-only query instrumentation I01 are reviewed. Production source is nearly
-flat (−1 line), complexity −11, dynamic maps −2. Batching I02–I06, list migration,
+test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
+flat (−1 line), complexity −11, dynamic maps −2. The subsequent I02–I04 wave is also complete (see below). I05/I06, list migration,
 book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
 gives exact scopes/dependencies/tests; this feature does not claim all domains
 complete or constant query counts yet.
@@ -156,3 +156,16 @@ Local test prerequisite: FFmpeg must support WebP encoding (`libwebp`). The
 installed Homebrew build here lacks it: five pre-existing journey image tests
 fail on both base and feature. The final suite has no additional failures;
 this is not a clean full-suite or deployment acceptance claim.
+
+## Batched book pages (I02–I04)
+
+`books.LoadMany` replaces singleton SQL with three reads per 250 unique IDs;
+empty input performs none. Ordinary noncollapsed/no-include book pages use
+batch hydration and reuse their existing settings snapshot. The regression
+fixture returns actual 10/50 filtered books in both envelope variants: prior
+43/203 reads, now 7/7. Order, ACL, pagination, prefixes and nullable values pass.
+Collapsed/include/podcast paths, shelves and other consumers remain open.
+
+This performance feature adds 139 production lines and 31 complexity points;
+the explicit baseline exception is recorded in ROADMAP/handover, with strict
+guards retained. Query counts improved; latency/RSS were not benchmarked.

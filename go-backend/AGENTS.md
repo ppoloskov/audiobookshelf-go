@@ -25,8 +25,8 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- Book-read B01–B09 and query instrumentation I01 are implemented/reviewed.
-  Next: I02 batched book reads, then I03–I06 and L01 onward. Dispatch one card, not
+- Book-read B01–B09 and I01–I04 are checked DONE with scoped evidence.
+  Next: I05 book shelves, then I06 and L01 onward. Dispatch one card, not
   the whole epic. Relevant compatibility checks accompany each slice; no
   requirement to complete unrelated client research first.
 - Give each worker one task ID, exact read/write scope, fixed contracts,

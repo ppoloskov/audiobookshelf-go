@@ -189,7 +189,7 @@ feature batch (B02–B07), running card checks as it goes; final code review is
 once the batch is ready. Avoid creating and deleting temporary APIs merely to
 publish intermediate cards. Worker completion means awaiting review, not push.
 
-#### Current execution status — book reads DONE; batching in progress
+#### Current execution status — B01–B09 and I01–I04 DONE
 
 Feature worktree `/private/tmp/abs-books-domain-20261104`, branch
 `codex/books-domain-batching`, base `48c10a6a`; delivery is to this fork branch,
@@ -201,14 +201,15 @@ not default/master. Documentation baseline is `d64aa599`.
 | B02–B07 | DONE (`d2ec8d9`) as one coherent wave: `books.Load(ctx, db, id)` and `Book.Full/Minified/Expanded`; no transitional metadata exports or production catalog builders |
 | B08/B09 | DONE (`d2ec8d9`): shared persisted JSON normalization; deleted stateless DB wrapper and redundant numeric conversion |
 | I01 | DONE (`d2ec8d9`): test-only SQL query counter, direct + prepared execution verified |
-| I02 | IN PROGRESS: batched book reads; no caller migration yet |
-| I03–I06, lists | PLANNED; no item row or list migration claimed complete |
+| I02 | DONE: bounded LoadMany; scalar Load delegates; 0/3/6 read boundary proofs |
+| I03/I04 | DONE: one settings snapshot + ordinary page batch; actual 10/50 returned books use 7/7 reads |
+| I05/I06, lists | PLANNED; no shelf/item row/list migration claimed complete |
 
-Actual metrics versus 48c10a6a: **44,585 production Go lines (−1)**,
+Book feature d2ec8d9 snapshot metrics versus 48c10a6a: **44,585 production Go lines (−1)**,
 **complexity 10,840 (−11)**, **991 dynamic maps (−2)**. This is a boundary and
 duplication improvement with essentially flat source size, not a large deletion.
-Ratchet baselines were only lowered; no guard was weakened. No performance or
-constant-query-count improvement is claimed before I02–I05.
+Those d2ec8d9 baselines were only lowered. The following performance wave has
+a separate, explicitly reviewed source-cost adjustment; enforcement remains strict.
 
 Build, vet, dependency lint (0 issues), dbnest, ratchet and Linux/arm64
 CGO-disabled build PASS. Final full `go test ./...` exits 1 for the exact five
@@ -217,14 +218,24 @@ affected package tests and persisted JSON tables pass. Feature scope reviewed;
 **full release acceptance remains incomplete** on this host. No encoder shim,
 test deletion or blanket baseline raise was used. Details: handover.
 
-Next implementation card: **I02**, now that I01 is available. Use plain
-`books.LoadMany(ctx, db, ids)`; do not reintroduce a Reader object. Full mobile
-research continues separately. Route removal/device/cutover decisions unchanged.
+I02–I04 performance-wave metrics versus ef4d14e: **44,724 production Go lines
+(+139)**, **complexity 10,871 (+31)**, `[]any` **325 (+2)**; dynamic maps 991
+and high-complexity function count 178 unchanged. This is new bounded batch
+capability, not source-code reduction. Architect accepted the measured source
+cost for 43/203 -> 7/7 endpoint reads, one read owner, and deletion of replaced
+singleton SQL; no generic repository/framework/dependency or source packing.
+The three baseline values were explicitly adjusted in this feature commit;
+Q1 was not implemented and no guard was removed. Future growth still needs
+measured benefit and review; reduction remains a project goal.
+
+Next implementation card: **I05**, book shelves; then I06 common item rows.
+Podcasts, collapsed/include paths and other consumers remain open; no whole
+P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
-Completed read spine: `B01–B09` plus independent `I01`. Next dependency spine:
-`I02 -> I03 -> I04 -> I05 -> I06`. Only I02 is currently dispatchable there.
+Completed read spine: `B01–B09`, `I01–I04`. Remaining dependency spine:
+`I05 -> I06`. I05 is the next dispatchable card.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -329,30 +340,36 @@ finished by this milestone. All route removals and real-device gates stay intact
 
 ##### I02 · Batch books and their relations
 
-- [ ] **IN PROGRESS** — cheap worker implementing batched book reads (2026-11-05).
+- [x] **DONE** — implemented and architect-reviewed 2026-11-05; delivered with this code commit. Scoped checks and measured query counts below; global WebP baseline remains unresolved.
 
-- **Depends:** I01. **Write only:** `internal/books/batch.go`, `batch_test.go` (new); `reader.go` shares scans only.
+- **Depends:** I01. **Write only:** `internal/books/batch.go`, `reader.go`; `internal/catalog/book_reader_test.go` reuses the real SQLite fixture/counter.
 - **Do:** Add books.LoadMany(ctx, db, bookIDs) -> map[string]Book using book rows + author links + series links, one query per kind per bounded chunk (250 unique IDs maximum per chunk). Reuse Load row decoding; implement books.Load via books.LoadMany if that removes duplication while retaining sql.ErrNoRows. Deduplicate lookup IDs, retain per-book createdAt ordering, close each Rows before the next query; no SQL per book.
-- **Check (from go-backend):** `go test ./internal/books -run 'TestLoadManyBookValues|TestLoadManyBookChunkBoundary|TestLoadBookNullsAndRelationOrder' -count=1`.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'LoadMany|LoadBook|BookProjection|BookItemSerializers|ItemGolden|QueryCounter' -count=1`.
 - **Done:** Tests compare independent known multi-book/null/order values and 0/1/250/251 IDs, missing IDs absent from map, canceled context propagated. No table/schema changes; query-count assertion comes through I04 integration counter.
+
+
+Actual: 0 IDs -> 0 reads; 1/10/50/250 unique IDs -> 3; 251 -> 6. Missing IDs (including orphan associations) omitted; scalar ErrNoRows, cancellation and no partial error result pass. Old scalar SQL/relation implementation deleted.
 
 ##### I03 · Read title-prefix settings once per book batch
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — implemented and architect-reviewed 2026-11-05; delivered with this code commit. Scoped checks and measured query counts below; global WebP baseline remains unresolved.
 
-- **Depends:** I02. **Write only:** `internal/catalog/book_batch.go`, `book_batch_test.go` (new); `handler.go` titlePrefix helper extraction only.
-- **Do:** Add a catalog-local batch assembly helper for already-loaded book item envelopes/media IDs. Load sortingPrefixes once, call books.LoadMany with bounded chunks, and project full/minified/expanded values in the caller input order. Share existing catalogTitlePrefixAtEnd logic; preserve default the/a and empty/null title behavior. No cross-request cache or podcast changes.
-- **Check (from go-backend):** `go test ./internal/catalog -run 'TestBatchBookProjectionValues|TestBookProjectionValues|TestItemGolden' -count=1`.
-- **Done:** TestBatchBookProjectionValues proves order/duplicates, each media view, custom/default prefixes and missing-book error behavior matching single reads. The helper only assembles; it does not add an HTTP route or change item selection/ACL.
+- **Depends:** I02. **Write only:** `internal/catalog/book_batch_test.go` (new); `handler.go` titlePrefix/settings helper extraction; a separate helper file only if needed.
+- **Do:** Extract the existing sorting-prefix read into a small helper reused by titlePrefix and the batch page. Load it once per batch, apply existing pure catalogTitlePrefixAtEnd and books projections to selected rows. Preserve default the/a, configured empty prefixes, nullable/blank title behavior and existing wire views. Do not add a batch service or universal response DTO. No cross-request cache or podcast changes.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'BookPageQueryCount|BookProjectionValues|BookItemSerializersMatchPinnedSourceGolden|ItemGolden' -count=1`.
+- **Done:** TestBookPageQueryCountIndependentOfPageSize covers actual batched responses across default/custom/mixed/empty prefix updates and nullable titles; original full/minified/expanded goldens remain green. Reuses the page settings snapshot, no added settings query or batch service.
 
 ##### I04 · Batch the ordinary book library page
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — implemented and architect-reviewed 2026-11-05; delivered with this code commit. Scoped checks and measured query counts below; global WebP baseline remains unresolved.
 
 - **Depends:** I03. **Write only:** `internal/catalog/handler.go:libraryItems`, `query_count_test.go`, `handler_test.go`.
 - **Do:** After collecting and closing libraryItems Rows, assemble book media through I03 instead of calling each book serializer. Scope ordinary noncollapsed book page, no includes first; leave podcast/collapsed/include branches unchanged and name their follow-up. Keep SQL filters, total, pagination, selected IDs, ACL and ordering unchanged.
 - **Check (from go-backend):** `go test ./internal/catalog -run 'TestBookPageQueryCountIndependentOfPageSize|TestBookProgressFiltersAndSortUseCurrentUser|TestBookProjectionValues|TestItemGolden' -count=1`.
 - **Done:** New TestBookPageQueryCountIndependentOfPageSize checks 10/50 books have equal read count with identical options, and correct IDs/order/values. Full vs minified query variants each tested. Counter validates actual endpoint path, not just loader.
+
+
+Actual endpoint proof: read-only archived ef4d14e + the same test gave 43/203 reads for 10/50 returned genre/ACL-filtered books; current path gives 7/7, ordinary and minified envelopes. Every returned ID/order, pagination, explicit ACL exclusion, total/flags and null/prefix values asserted. Above 250 book IDs, hydration adds 3 reads per chunk; no claim of unbounded constant work or measured wall-clock/RSS improvement.
 
 ##### I05 · Batch book shelf hydration
 
@@ -548,7 +565,7 @@ and prerequisites; this table deliberately is not authorization to code.
 
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
-Next implementation card: I02 (batched book reads), after reviewed B01–B09/I01. In parallel,
+Next implementation card: I05 (book shelf hydration), after reviewed B01–B09/I01–I04. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
-Full mobile research is not a prerequisite for I02 book-read batching. Architect dispatches
+Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

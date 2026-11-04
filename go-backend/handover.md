@@ -10,12 +10,13 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
-## Completed feature scope
+## Completed book-domain feature — d2ec8d9 snapshot
 
 B01–B09 book-read/projection outcomes and I01 query instrumentation are
 implemented and architect-reviewed after the cheap workers finished:
 
-- `internal/books/reader.go`: plain `books.Load(ctx, db, id)` owns book reads
+- `internal/books/batch.go`: plain `books.Load(ctx, db, id)` delegates to
+  bounded LoadMany, owning book reads
   and ordered author/series links. No stateless Reader object or duplicate DB
   handle. Nullable title is exposed narrowly; source fields remain private.
 - `metadata.go` / `projection.go`: full, minified and expanded media remain
@@ -35,7 +36,7 @@ implemented and architect-reviewed after the cheap workers finished:
 - Test-only SQL instrumentation sees direct and prepared reads. No production
   tracing hook, new library, schema change, route change or write change.
 
-Actual global metrics versus the base:
+Initial book-domain metrics versus the base (historical snapshot):
 
 | Metric | Before | After | Delta |
 |---|---:|---:|---:|
@@ -43,9 +44,10 @@ Actual global metrics versus the base:
 | Cyclomatic complexity | 10,851 | 10,840 | −11 |
 | Dynamic map uses | 993 | 991 | −2 |
 
-No ratchet baseline was raised. This is a domain-boundary/duplication improvement
-with nearly flat source size, not a large code deletion. No constant-query-count
-or latency win is claimed yet; book loading still performs individual reads.
+The initial d2ec8d9 baseline only fell. That was a boundary/duplication
+improvement with nearly flat source size. Current I02–I04 query results and
+reviewed source-cost adjustment are recorded below; wall-clock latency and
+RSS remain unmeasured.
 
 ## Review findings and resolution
 
@@ -99,14 +101,12 @@ images on verify+rollback; parity is advisory since V1.
 
 ## Next executable work
 
-**I02:** implement `books.LoadMany(ctx, db, ids)` using bounded batched rows and
-ordered association queries; preserve single Load not-found behavior. Then I03
-prefix batching, I04 ordinary book pages, I05 shelves and I06 common item rows.
-Use I01 instrumentation to prove actual query counts and meaningful values.
-Migrate one consumer family at a time. Lists/people/progress remain later tasks;
-no “finish catalog” assignment or universal DTO. Owner authorized implementation
-and pushing reviewed ready features; route removals/new libraries/live cutover
-retain their separate decisions.
+**I05:** reuse LoadMany for book-shelf hydration, preserving selected ID order,
+per-user values/ACL, includes and row closure. I02/I03/I04 are checked DONE;
+use I01 query instrumentation to prove shelf query counts and actual values.
+Then I06 common item rows. Lists/people/progress remain later tasks; no
+"finish catalog" assignment or universal DTO. Separate route removal, new
+library and live-cutover decisions still apply.
 
 ## Gotchas and preserved work
 
@@ -137,11 +137,58 @@ retain their separate decisions.
   feature. OpenCode Flash source export remains rejected for its external
   provider; no bypass or external-provider permission assumed.
 
-## Continuation — explicit completion tracking
+## Explicit completion tracking
 
-B01–B09 and I01 are now explicitly checked DONE on their individual ROADMAP
-cards, with delivery `d2ec8d9` and scoped test/full-suite distinction. Owner
-requires checkbox updates on every completion in the same implementation
-commit; this is enforced by AGENTS. I02 is unchecked IN PROGRESS; I03 onward
-remain unchecked PLANNED. Cheap worker owns books batch implementation/tests;
-architect owns review, roadmap, handover, baseline decisions and publication.
+The owner correction was pushed as ef4d14e: B01–B09 and I01 have individual
+[x] DONE markers. I02–I04 now carry the same explicit checked status in their
+implementation commit. AGENTS requires this for every accepted task, alongside
+actual test results and unresolved limitations. I05 onward stay unchecked;
+summary paragraphs alone never mark a task complete.
+
+## I02–I04 delivery — 2026-11-05
+
+All three cards are explicitly **[x] DONE in the same code commit**. Completion
+tracking correction B01–B09/I01 was already pushed as ef4d14e. Future completion
+commits must check the individual card, not rely on summary prose.
+
+LoadMany deduplicates, chunks by 250 and closes rows between book/author/series
+reads. No missing book is synthesized from orphan links. Errors/cancellation
+return no partial successful result; scalar Load retains sql.ErrNoRows. The
+old single-book SQL/relations are deleted. Uses stdlib slices.Chunk, bound SQL
+arguments and concrete types; no new service/DB interface/dependency.
+
+Ordinary noncollapsed/no-includes book pages batch selected media IDs after
+closing item rows, project in row order and reuse the settings snapshot for
+prefixes. Other branches retain their prior behavior. Schema, writes, auth,
+selection joins, pagination and client response contracts are unchanged.
+
+Evidence: tests use real SQLite and query instrumentation. LoadMany reads:
+0 input -> 0, 1/10/50/250 unique -> 3, 251 -> 6. Endpoint test was run red
+against read-only git archive ef4d14e with the same corrected test copied in:
+43/203 reads for 10/50 actual returned filtered rows (not just requested limits).
+Green is 7/7 for ordinary/minified envelopes. Tests assert every ID/order,
+genre and explicit ACL filtering, pagination, totals, null titles/descriptions
+and fresh default/custom/mixed/empty prefix settings through real responses.
+Initial draft fixture returned 5/25 rows; that evidence was corrected before
+acceptance. No old working-tree code was reverted to manufacture red results.
+
+Source-cost decision versus ef4d14e: lines 44,585 -> 44,724 (+139), complexity
+10,840 -> 10,871 (+31), []any 323 -> 325 (+2); maps 991 and functions >15 at
+178 unchanged. Architect accepts bounded loading and cursor/error handling
+for this measured query reduction, with one read implementation and no source
+packing. The three baseline values were explicitly adjusted, not mislabeled
+as reductions or a green ratchet before adjustment. Strict ratchet policy
+remains unchanged; Q1 is still separate. This does not waive the simplification
+and deletion goals on future tasks.
+
+Final checks: focused query/value/golden tests PASS; build, vet, lint (0 issues),
+dbnest and Linux/arm64 CGO=0 build PASS. Full native go test ./... exits 1 with
+only the same five pre-existing WebP TestJourney failures; no new failing
+cases. FFmpeg probe still lacks libwebp. Final ratchet and documentation/scope
+checks run after explicit baseline and completion-marker integration.
+Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
+No Node rollback, device acceptance, latency/RSS benchmark or deployment.
+
+**Next: I05** book shelf hydration, then I06 item rows. I05/I06 and list cards
+remain unchecked. I02–I04 do not complete all of S13/P2/P3 or all client/media
+paths. Future API uses plain LoadMany, not the removed stateless Reader.

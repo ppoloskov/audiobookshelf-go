@@ -150,7 +150,8 @@ playback/progress to `progress`. Media domains supply data, not user-specific
 shelf/list/playback orchestration.
 
 Book reads/projections now live in `internal/books`: plain
-`Load(ctx, db, bookID)` plus `Book.Full/Minified/Expanded`, returning existing
+`Load(ctx, db, bookID)` and bounded `LoadMany(ctx, db, ids)` plus
+`Book.Full/Minified/Expanded`, returning existing
 `wire.Book*` response types. No stateless Reader/extra DB wrapper is needed. Do
 not move every wire type, add a generic repository, or invent a universal DTO.
 The `items` coordinator may consume `books` data; `books` must never import
@@ -297,8 +298,11 @@ byte-level normalizations are not a spec.
 
 ## Shared item data
 
-A small authoritative typed loader should obtain underlying item data in
-batches. Detail, shelf, playlist and playback responses retain explicit,
+Book loading now has one typed batched implementation (250 unique IDs per
+SQL chunk, three sequential reads); scalar Load delegates to it. Ordinary
+noncollapsed book pages with no includes reuse that loader and their existing
+settings snapshot. The measured 10/50-result fixture uses seven total reads.
+Other media/callers and per-item enrichment still need migration. Detail, shelf, playlist and playback responses retain explicit,
 consumer-specific projections. Do not force one universal DTO. Query-count
 and value/ACL regressions accompany S13 + P2/P3 before cosmetic domain moves.
 sqlc supports this where static queries benefit; no call-site conversion quota.
