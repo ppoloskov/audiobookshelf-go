@@ -1,0 +1,523 @@
+# Roadmap
+
+Ordered, atomic tasks toward the North Star in
+[ARCHITECTURE.md](ARCHITECTURE.md): the SQLite database and the client
+protocols are fixed contracts; everything between them is replaceable; the Go
+code is simple, clear and fast. Required checks are in [AGENTS.md](AGENTS.md).
+
+Conventions:
+
+- One task is one commit by one agent. Tick the box in that commit.
+- Every code task reports in its commit message the change in handwritten Go
+  lines and cyclomatic complexity (`make ratchet` prints both once F2 lands).
+- "Done when" is the acceptance check. Paths are relative to `go-backend/`.
+- Work the phases in order; tasks inside a phase may run in parallel unless one
+  names another as a prerequisite.
+
+Baseline at `768f131`: 44,326 handwritten non-test Go lines; `map[string]any`
+1,003; `[]any` 313; `Handle` routers 13; `Set*` injectors 18; ~590 raw
+`Query/Exec` call sites.
+
+## Priority and target (owner, 2026-11-03)
+
+Order work by handwritten lines removed per task. Target: **-30% handwritten
+Go lines by the end of Phase S (44,326 at the start of Phase F -> about
+31,000)**, reported in every status update.
+
+1. L6, L7, then L8 (catalog on sqlc), with S1-S4 (routers on ServeMux) in
+   parallel where packages do not overlap.
+2. V2 (approved): once L6-L8 are merged, delete the Node byte-parity harness,
+   keeping only the rollback check.
+3. S9 (drop Express emulation), then S10-S16 (domains, typed items).
+4. Remaining C tasks in parallel; P after S.
+
+## Done so far
+
+- Every upstream API, public and HLS route answers (route probe, empty
+  allowlist); the replacement and scan trials pass against upstream v2.37.2.
+- Production fixes from the first deployment: NULL-safe session rows, OIDC
+  redirect URI, gzip podcast feeds, OIDC login hang, old-user-id auth hang,
+  `tools/dbnest` guard against nested queries on the one-connection pool.
+- Consolidation: one JSON/text/error writer (`httputil`), one null helper
+  family (`store`), one time parser (`dbtime`), one event emitter (`events`),
+  one ID generator (`ids`), one cron parser (`cronspec`), one Levenshtein
+  (`textdist`), `[]any` counted by the ratchet, item JSON golden captured
+  (`catalog/testdata/item-golden.json`).
+
+Superseded by the new North Star and removed from this list: byte-equality
+tasks (zip directory entries, `metadata.json` bytes, Express key order and
+ETags), the `wire.Optional` decision, file-splitting tasks (replaced by domain
+carve-outs), and tasks absorbed by a library (sanitizer -> L3, rate buckets ->
+L2, JWT issuing -> L1).
+
+## Phase F: foundations (before any refactor)
+
+- [x] F1: Move to the latest stable Go
+  - Files: `go.mod` (`go 1.24.0`), `Dockerfile.go` (builder image),
+    `.github/workflows/docker-go.yml`, `.github/workflows/go-backend.yml`
+  - Change: `go 1.27` with the current toolchain (1.27.3 on 2026-11-03);
+    `go mod tidy`; update the builder image and `golangci-lint` to versions that
+    support it.
+  - Done when: CI is green on the new toolchain and `go version` in the image
+    build log shows 1.27.
+
+- [x] F2: Measure handwritten code and complexity in the ratchet
+  - Files: `tools/ratchet/`, `ratchet-baseline.json`
+  - Change: Add metrics: handwritten non-test Go lines (skip files with a
+    `// Code generated` header), total cyclomatic complexity, and the count of
+    functions above 15 (go/ast, no new dependency). Print the delta against the
+    baseline on every run.
+  - Done when: `go run ./tools/ratchet` prints the three metrics and fails when
+    any of them rises.
+
+- [x] F3: Inventory the routes and events clients use
+  - Files: new `contracts/client-usage.json`, a generator under `tools/`
+  - Change: Extract every API path, method and Socket.IO event used by the web
+    client (`client/`: `$axios` calls, `$socket` emits/listeners), add the
+    mobile apps' calls (from the replacement trial's journey and production
+    logs; the app repos are not in this workspace) and the public URLs
+    (shares, feeds, HLS, covers). Map each to its Go handler.
+  - Done when: the file lists every client-used route with its Go handler and
+    the generator reproduces it; routes with no client caller are listed
+    separately.
+
+- [x] F4: Contract fixture: a TS-created install, booted in-process
+  - Files: new `tools/contractfixture/build.cjs` (Node, run by hand once),
+    new `internal/contracttest/` (`fixture.go`, `testdata/install/`)
+  - Change: `build.cjs` reuses `seedInstallation` from
+    `tools/parity/replacement-trial.cjs` to create the realistic install with
+    TS v2.37.2 (database, metadata, generated media) and copies it into
+    `testdata/install/` (size budget 10 MB). `contracttest.Boot(t)` copies it
+    to a temp dir, rewrites the absolute paths stored in the database (every
+    TEXT column, generic `replace()` over all tables, JSON included), starts
+    `server.NewRuntime` behind `httptest.NewServer`, and returns a client with
+    `Login(user, pass)` and `Do(method, path, body)`.
+  - Done when: a test boots the fixture and `GET /api/libraries` as the
+    listener returns the seeded library, with no Node process.
+
+- [x] F5: Response shapes recorded from TS v2.37.2
+  - Files: new `tools/shapes/` (Go generator; deleted by F5b), `contracts/shapes/journey.json` (regenerated by F5b)
+  - Change: Run the replacement trial once; read `journey-upstream.json`
+    (TS responses per journey step). For each step write status, content type
+    and a type skeleton: objects map keys to skeletons; arrays merge their
+    elements' skeletons; a key seen as `null` in any sample is nullable; a key
+    missing from some samples is optional. Add `Conforms(skeleton, value)`:
+    every required key present, types equal (or `null` where nullable), extra
+    keys allowed. Non-JSON bodies check status and content type only.
+  - Done when: the generator reproduces the committed file and
+    `Conforms` has table tests.
+
+- [x] F6: The journey in Go, checked against the shapes
+  - Files: `internal/contracttest/journey*_test.go`
+  - Change: Port `journeySteps` from `replacement-trial.cjs` step by step (same
+    step ids, users, bodies, captured values). Each step asserts the recorded
+    status and `Conforms` to its shape. Runs in `go test ./...` on F4's fixture.
+  - Done when: every journey step passes and covers every client-used route in
+    `contracts/client-usage.json` that the journey reaches; a list of
+    client-used routes the journey misses is added to this task.
+  - Not reached by the journey (112 of 201 client routes in
+    `contracts/client-usage.json`): GET /api/api-keys, POST /api/api-keys, DELETE /api/api-keys/:id, PATCH /api/api-keys/:id, GET /api/auth-settings, PATCH /api/auth-settings, GET /api/backups, POST /api/backups, DELETE /api/backups/:id, GET /api/backups/:id/apply, GET /api/backups/:id/download, PATCH /api/backups/path, POST /api/backups/upload, POST /api/cache/items/purge, POST /api/cache/purge, POST /api/collections, DELETE /api/collections/:id, POST /api/collections/:id/batch/add, POST /api/collections/:id/batch/remove, POST /api/collections/:id/book, DELETE /api/collections/:id/book/:bookId, GET /api/custom-metadata-providers, DELETE /api/custom-metadata-providers/:id, POST /api/emails/ereader-devices, POST /api/emails/send-ebook-to-device, GET /api/emails/settings, PATCH /api/emails/settings, POST /api/emails/test, GET /api/filesystem, POST /api/filesystem/pathexists, GET /api/genres, DELETE /api/genres/:genre, POST /api/genres/rename, DELETE /api/items/:id, POST /api/items/:id/chapters, DELETE /api/items/:id/cover, PATCH /api/items/:id/cover, POST /api/items/:id/cover, GET /api/items/:id/download, PATCH /api/items/:id/ebook/:fileid/status, GET /api/items/:id/ffprobe/:fileid, DELETE /api/items/:id/file/:fileid, GET /api/items/:id/file/:fileid/download, GET /api/items/:id/metadata-object, POST /api/items/:id/scan, PATCH /api/items/:id/tracks, POST /api/items/batch/scan, POST /api/libraries, DELETE /api/libraries/:id, GET /api/libraries/:id/filterdata, DELETE /api/libraries/:id/issues, DELETE /api/libraries/:id/narrators/:narratorId, PATCH /api/libraries/:id/narrators/:narratorId, POST /api/libraries/:id/scan, GET /api/libraries/:id/series/:seriesId, POST /api/libraries/order, GET /api/logger-data, POST /api/me/ereader-devices, PATCH /api/me/password, DELETE /api/me/progress/:id, GET /api/me/series/:id/readd-to-continue-listening, GET /api/me/series/:id/remove-from-continue-listening, GET /api/me/sessions, DELETE /api/me/sessions/:id, GET /api/notifications, PATCH /api/notifications, POST /api/notifications, DELETE /api/notifications/:id, PATCH /api/notifications/:id, GET /api/notifications/:id/test, GET /api/notifications/test, DELETE /api/playlists/:id, PATCH /api/playlists/:id, POST /api/playlists/:id/batch/add, POST /api/playlists/:id/batch/remove, POST /api/playlists/collection/:collectionId, POST /api/podcasts/:id/match-episodes, POST /api/podcasts/opml/create, GET /api/search/authors, GET /api/search/books, GET /api/search/chapters, GET /api/search/covers, GET /api/search/providers, DELETE /api/sessions/:id, POST /api/sessions/batch/delete, GET /api/sessions/open, PATCH /api/settings, PATCH /api/sorting-prefixes, GET /api/tags, DELETE /api/tags/:tag, POST /api/tags/rename, GET /api/tasks, POST /api/tools/batch/embed-metadata, POST /api/tools/item/:id/embed-metadata, DELETE /api/tools/item/:id/encode-m4b, POST /api/tools/item/:id/encode-m4b, POST /api/upload, POST /api/users, DELETE /api/users/:id, PATCH /api/users/:id, GET /api/users/:id/listening-stats, PATCH /api/users/:id/openid-unlink, POST /api/validate-cron, GET /auth/openid, GET /auth/openid/callback, GET /auth/openid/config, GET /auth/openid/mobile-redirect, POST /init, GET /public/session/:id/track/:index, GET /public/share/:slug/cover, GET /public/share/:slug/download, PATCH /public/share/:slug/progress.
+  - Journey gaps, as recorded: 37 steps check status and shape, then skip
+    their Socket.IO events (no client in the module). Five id-keyed maps are
+    not shape-checked (listening-stats, podcast and legacy listening-stats,
+    fs.items.files, fs.items.metadata.json). journey.json says string for
+    timestamps the trial normalized to placeholders (recordingArtifact).
+
+- [x] F5b: Record shapes from Go journey steps against TS, without normalization
+  - Files: `internal/contracttest/` (recorder mode), `tools/contractfixture/`
+    (a script that boots TS v2.37.2 on a copy of the fixture),
+    `internal/contracttest/shape/`, `contracts/shapes/journey.json`
+  - Change: The Go journey becomes the single source of steps. With
+    `-record -upstream=<url>` the runner sends its steps to a TS server booted
+    on a fresh copy of the same fixture and writes the skeletons from raw
+    (un-normalized) bodies. `Infer` learns a `map` kind: an object whose keys
+    are all UUIDs (or item ids) is a map of value skeletons. Then delete the
+    `recordingArtifact` timestamp rule and the id-keyed skips in the runner.
+    The JS trial is no longer needed to record.
+  - Done when: `journey.json` is regenerated by the Go recorder, timestamps are
+    numbers where TS sends numbers, the five id-keyed steps are shape-checked,
+    and the two workarounds are gone.
+  - Decision: content type is checked only for successful responses with a
+    body; error and empty responses are free framing (six TS/Go differences
+    on 401/403/204 were headers only).
+
+- [x] F8: Journey steps for client routes the journey misses (112, listed in F6)
+  - Prerequisite: F5b (new steps are recorded against TS by the Go recorder).
+  - Layout: each domain is its own test (`TestJourneyAdmin`, ...) in its own
+    file, on its own fresh fixture, recorded into its own
+    `contracts/shapes/<domain>.json`, so domains run and record independently.
+  - Change: Add steps, one domain per commit: F8a admin (api-keys,
+    auth-settings, backups, cache, emails, notifications, settings,
+    sorting-prefixes, tasks, tools, users, logger-data, validate-cron,
+    filesystem, upload); F8b libraries (CRUD, order, scan, issues, narrators,
+    genres, tags, filterdata, series by id); F8c items (delete, chapters,
+    cover, downloads, ebook status, ffprobe, files, metadata-object, scan,
+    tracks, batch scan); F8d lists and me (collections, playlists, sessions,
+    progress delete, continue-listening series, password, ereader devices);
+    F8e search, podcasts, OIDC, `/init`, public share and session URLs.
+  - Done when: every client-used route in `contracts/client-usage.json` is
+    reached by a journey step (OIDC through a test provider).
+  - F8b done (33 steps). Bug found and fixed: `GET /api/libraries/:id/series/:seriesId?include=rssfeed` omitted `rssFeed: null`.
+  - F8a done (66 steps). Bugs found and fixed: api-key `createdAt`/`updatedAt` sent as Unix milliseconds (TS: ISO strings); `PATCH /api/users/:id` stored `""` for a null email (TS: NULL); `GET`/`DELETE /api/backups` sent `null` for an empty list; embed passed the item folder to ffmpeg (path read from the wrong level) and put `-c copy`/`-f` before the cover input. Checker compares content type only for JSON, image, audio and video.
+  - F8c done (37 steps). Bug found and fixed: `PATCH /api/items/:id/ebook/:fileid/status` left `ebookFile.ebookFormat` and `media.ebookFormat` null (TS: the extension without its dot). Not changed: `PATCH /api/items/:id/tracks` returns the expanded item where TS returns `toOldJSON()`; the client ignores the body and extra keys are allowed.
+  - F8d done (58 steps). Bugs found and fixed: `POST /api/me/ereader-devices` answered 500 when the `email-settings` row was missing (TS creates it on write); `GET /api/sessions/open` omitted the `PlaybackSession.toJSON` fields (`mediaMetadata`, `chapters`, `deviceInfo`, `duration`, `date`, ...).
+  - F8e done (72 steps: misc 66, init 6). Bugs found and fixed: `GET /api/search/books` with an unknown `id` answered 200 (TS 404); `GET /api/search/authors` without `q` answered 500 (TS 400); `GET /api/search/chapters` without `asin` answered 500 (TS 200 Invalid ASIN); podcast feeds ignored `SSRF_REQUEST_FILTER_WHITELIST`, so `POST /api/podcasts/:id/match-episodes` answered 500 for a whitelisted local feed (TS 200); the login `serverSettings` omitted `authOpenIDTokenURL` on a fresh install (TS: null); `POST /init` stored the root email as `''` (TS: NULL). Not verified: audible results ordered by the item's duration (needs the internet); the same missing `authOpenIDTokenURL` on `PATCH /api/settings` of a fresh install (adminops reads the same row).
+  - F8 coverage after F8e: 199 of 201 client-used routes are reached. Not reached: `POST /api/emails/send-ebook-to-device` (an F8a email route the journey never sends) and `GET /api/items/:id/ebook/:fileid` (the readers send a file id; the journey sends `GET /api/items/:id/ebook` only).
+  - F8 closed (+5 steps: admin 4 (admin 70), items 1 (items 38)). The send step runs against a local SMTP server the test starts; it checks one message to the device with the ebook as attachment. The item step reads the ebook by its library file's inode, as the readers do. No bugs: Go matched TS on both. Route coverage: 201 of 201 client-used routes are reached. The ebook step checks status and content type only, not the body.
+
+- [x] F9: Socket.IO event checks in the Go journey
+  - Prerequisite: F5b.
+  - Client: a small test-only Engine.IO v4 client on golang.org/x/net/websocket (the approved v3 client needs a newer quic-go that breaks engine.io v2.3.3).
+  - Change: The 37 steps that expect events assert event names, recipients and
+    payload shapes (recorded like HTTP shapes).
+  - Done when: no journey step skips its event check.
+
+- [x] F7: Persistence in both directions
+  - Files: `internal/contracttest/persistence_test.go`, the CI rollback job
+  - Change: (a) Go reads the TS-created fixture's users, progress, sessions,
+    bookmarks and items with the values TS wrote (asserted from the fixture's
+    rows). (b) Keep the rollback check (TS v2.37.2 reopens a database Go
+    wrote and reads progress and bookmarks) as its own CI job; it is the only
+    job that still starts Node after V1.
+  - Done when: (a) passes in `go test ./...`; (b) runs as a separate CI job.
+
+## Phase L: approved libraries
+
+- [x] L1: JWT with `golang-jwt/jwt/v5`
+  - Files: `internal/auth/token.go`, `internal/identity/identity.go` (`sign`),
+    `internal/userapi/userapi.go` (`signToken`, dead `tokenSecret` branch)
+  - Change: `auth` issues and verifies all tokens through the library with the
+    same claims, secret and expiry as today. Existing tokens keep working.
+  - Done when: `grep -rln 'hmac.New' internal --include=*.go | grep -v _test`
+    lists nothing in auth paths; tokens issued by the TS server still verify
+    (test with a fixture token).
+
+- [x] L2: Rate limiting with `golang.org/x/time/rate`
+  - Files: `internal/identity/identity.go` (`rateBuckets` and their updates)
+  - Change: Per-IP `rate.Limiter` with idle-entry pruning; same limits as today.
+  - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
+    shows the limit trips and resets.
+
+- [x] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
+  - Files: `internal/auth/sanitize.go` (`SanitizeHTML`),
+    `internal/catalog/handler.go` (`stripHTML`),
+    `internal/providers/builtin_search.go` (`stripHTML`),
+    `internal/podcasts/rss.go` (`sanitizeHTML`); new `internal/textclean`
+  - Change: One package with `Sanitize` (allowed tags/attributes as today) and
+    `Strip` (plain text), both on the tokenizer. Apostrophes stay `'`.
+  - Done when: the four functions are gone, table tests cover descriptions from
+    the fixtures and real feeds.
+
+- [x] L4: Parse podcast feeds with `gofeed`
+  - Files: `internal/podcasts/rss.go` (`parseFeed`, `encoding/xml` mapping)
+  - Change: Parse with `gofeed` (including the iTunes extension) and map to the
+    podcast/episode fields Go stores and returns. Keep the gzip handling.
+  - Done when: `parseFeed` uses gofeed, the RSS tests pass with the current
+    fixture feeds plus the production feeds that broke before
+    (megaphone, simplecast, audioboom samples), and handwritten lines in
+    `rss.go` drop.
+
+- [x] L5: sqlc setup and pilot on users and sessions
+  - Files: new `internal/db/` (`sqlc.yaml`, `schema.sql` dumped from the
+    pinned fresh-init DB, `queries/users.sql`, generated `sqlc/`), callers in
+    `internal/identity/`
+  - Change: Generate typed queries for user lookup by id/username/email/
+    OIDC sub/token and session reads/writes; replace the hand-written scans in
+    `identity`. `make sqlc` regenerates; CI checks the generated code is current.
+  - Done when: `identity` has no hand-written `rows.Scan` for users; CI fails
+    if `sqlc generate` changes files.
+
+- [x] L6: sqlc for progress, bookmarks and playback sessions
+  - Files: `internal/db/queries/progress.sql`, `internal/userapi/`,
+    `internal/playback/`, `internal/store/playbacksession.go`
+  - Done when: those packages have no hand-written scans for `mediaProgresses`
+    and `playbackSessions`; the persistence test (F5) passes.
+    (One exception: the sorted, filtered session list in `playback` keeps its
+    handwritten query and scan, because its ORDER BY is a whitelisted variable.)
+
+- [x] L7: sqlc for collections, playlists, shares and feeds
+  - Files: `internal/db/queries/lists.sql`, `internal/catalog/` (collections),
+    `internal/userapi/playlist.go`, `internal/sharing/`
+  - Done when: no hand-written scans remain for those tables.
+
+- [ ] L8: sqlc for libraries, items, books, podcasts, authors and series (static queries)
+  - Files: `internal/db/queries/catalog.sql`, `internal/catalog/`,
+    `internal/scanner/`, `internal/podcasts/`
+  - Change: Static queries move to sqlc. The library page filter/sort builder
+    stays handwritten in one file.
+  - Done when: raw `QueryContext/QueryRowContext/ExecContext` call sites outside
+    `internal/db` and the filter builder drop below 100.
+
+## Phase C: correctness
+
+- [ ] C1: Close a share when it expires, without waiting for a request
+  - Files: `internal/sharing/shares.go`
+  - Change: Timer per share with an `expiresAt`, started on create and at
+    boot; emits `share_closed` to admins. Keep the request-time check.
+  - Done when: `TestShareClosesAtExpiryWithoutRequest` passes.
+
+- [ ] C2: Reschedule podcast auto-download after `PATCH` media
+  - Files: `internal/catalog/writes.go`, `internal/podcasts/podcasts.go`,
+    `internal/server/runtime.go`
+  - Done when: `TestPatchAutoDownloadScheduleReschedules` passes.
+
+- [ ] C3: `POST /api/watcher/update` handles only the changed path
+  - Files: `internal/scanner/scanner.go` (`UpdateWatchedPath` ends in a full
+    `ScanForce`)
+  - Done when: `TestUpdateWatchedPathDoesNotScanLibrary` passes.
+
+- [ ] C4: Match-all honors cancel
+  - Files: `internal/catalog/quickmatch.go`, `internal/scanner/scanner.go`
+  - Done when: `TestMatchAllStopsOnCancel` passes.
+
+- [x] C5: Socket.IO `search_covers` and `cancel_cover_search`
+  - Files: `internal/server/runtime.go` (dispatcher has no case),
+    `internal/realtime/hub.go`, `internal/providers/handler.go`
+  - Change: The web client's cover tab uses this (`client/components/modals/item/tabs/Cover.vue`).
+    Emit `cover_search_result`/`cover_search_error` with the request id.
+  - Done when: a realtime test receives `cover_search_result`.
+
+- [ ] C7: Author last-first sort breaks ties by title
+  - Files: `internal/catalog/handler.go` (`orderClause`)
+  - Done when: `TestAuthorNameLFSortTieBreaksByTitle` passes.
+
+- [ ] C8: Scanner uses `nameparse` for last-first names
+  - Files: `internal/scanner/files.go` (`lastFirst`)
+  - Change: Stored `lastFirst` must match what TS derives (data semantics).
+  - Done when: `func lastFirst` is gone from `scanner` and a table test passes.
+
+- [ ] C11: Close a series' feeds when the scanner removes the series
+  - Files: `internal/scanner/scanner.go`, `internal/catalog/library_issues.go`
+  - Done when: `TestRemovingSeriesClosesItsFeeds` passes.
+
+- [ ] C12: Tag permission rules, one tested definition
+  - Files: `internal/playback/playback.go` (`canAccess`),
+    `internal/emailapi/handler.go`, `internal/userapi/userapi.go`
+    (`canAccessTags`)
+  - Change: Test each rule (any-tag vs every-tag) against what upstream
+    stores and means; fix divergent paths. Prerequisite for S6.
+  - Done when: `go test ./... -run TagACL` passes.
+
+- [ ] C13: `-race` test for podcast download task state
+  - Files: `internal/podcasts/downloads.go`
+  - Done when: `CGO_ENABLED=1 go test -race -run TestDownloadTaskState ./internal/podcasts` passes.
+
+- [ ] C15: No discarded JSON errors in request paths
+  - Files: `internal/userapi/userapi.go`, `internal/identity/identity.go`,
+    `internal/identity/oidc.go`
+  - Done when: `grep -rn '_ = json.Unmarshal' internal/userapi internal/identity` is empty.
+
+- [ ] C16: Email attachments are not silently truncated
+  - Files: `internal/emailapi/handler.go`
+  - Done when: a test sends an oversized attachment and gets an error.
+
+- [ ] C18: Stop tracking `final-go-tests.txt`
+  - Done when: `git ls-files | grep -c final-go-tests` prints 0.
+
+- [ ] C19: Race detector in CI
+  - Files: `.github/workflows/docker-go.yml`
+  - Done when: a `CGO_ENABLED=1 go test -race ./...` step is green.
+
+- [ ] C23: Expired session cleanup
+  - Files: `internal/identity/identity.go` (session rows), `internal/server/`
+  - Change: A reaper started by `Start`, stopped by `Close`.
+  - Done when: a test shows expired sessions are deleted without a request.
+
+- [x] C24: Encode to M4B succeeds with a cover
+  - Files: `internal/audiotools/tools.go` (merge argv near line 556: `-f mp4`
+    before the cover input, the bug class fixed for embed in 03982a4)
+  - Change: Put every input before output options; add a journey step that
+    runs `POST /api/tools/item/:id/encode-m4b` to completion and checks the
+    new `.m4b` file exists and plays (ffprobe duration > 0).
+  - Done when: the step passes on Go and on the TS recording.
+
+- [x] C25: Intermittent Socket.IO connect/auth failure
+  - Evidence: CI run 41652302211 (core differential: "notification socket probe
+    timed out"); the F9 work saw about 1 in 4 test connects never reach the
+    server's connection handler until `auth` was re-sent; production logs show
+    "Cannot validate socket - token expired" followed by ping timeouts.
+  - Files: `internal/realtime/hub.go`, `internal/server/runtime.go` (Engine.IO
+    path matching), the engine.io/socket.io v2 setup
+  - Change: Reproduce with a loop of 200 connects (websocket transport, both
+    the legacy and `/audiobookshelf` paths), find why some never get an
+    `init`, fix it.
+  - Done when: 1,000 consecutive connect+auth cycles succeed in a test, and
+    the F9 auth re-send workaround is removed.
+  - Done (owner option C): cause was zishang520/socket.io v2.3.8 writing the
+    CONNECT ack before registering the socket and our handlers. Replaced by an
+    in-repo Socket.IO v4 server (`internal/realtime/eio.go`, `sio.go`,
+    websocket transport only) that registers the socket first. Regression test:
+    `internal/server/socket_connect_test.go`.
+
+- [x] C26: TestJourneyLibrary flaked once under full-suite load
+  - Evidence: failed once in `go test ./...` while merging L3+L4 (2026-11-03),
+    passed alone 3x and on the next full run. Likely the library-scan wait.
+  - Files: `internal/contracttest/journey_library_test.go`
+  - Change: Wait on the scan's completion event (the F9 socket client) instead
+    of polling `GET /api/tasks`; log the failing step on timeout.
+  - Done when: `go test -count=10 -run TestJourneyLibrary ./internal/contracttest`
+    passes while `go test ./...` runs in parallel.
+
+## Phase R: routes clients need (needs F3)
+
+- [ ] R1: Mark every handler client-required, admin-UI, or unused
+  - Files: `contracts/client-usage.json`
+  - Done when: every Go route has one of the three labels.
+
+- [ ] R2: Owner reviews the unused list
+  - Done when: the owner records keep/remove per route in this task.
+
+- [ ] R3: Remove the routes the owner approved for removal
+  - Done when: they return 404, handlers and tests are deleted, and the
+    handwritten line count drops.
+
+## Phase S: simplify structure
+
+- [ ] S1: Routes on `ServeMux` for `sharing`, `notifications`, `emailapi`
+  - Files: their `Handle` chains, `internal/server/runtime.go`
+  - Done when: ratchet `Handle` routers drops from 13 to <= 10 and the
+    contract tests for those routes pass.
+
+- [x] S2: Routes on `ServeMux` for `adminops`, `audiotools`, `backup`, `providers`
+  - Done when: `Handle` routers drop by 4 (13 -> 9 when done before S1).
+
+- [ ] S3: Routes on `ServeMux` for `podcasts`, `playback`, `scanner`
+  - Done when: `Handle` routers <= 3.
+
+- [ ] S4: Routes on `ServeMux` for `identity`, `userapi`; delete the legacy
+  chain and catch-all in `runtime.go`
+  - Done when: `Handle` routers is 0.
+
+- [ ] S5: Constructor injection instead of `Set*`
+  - Files: `adminops`, `backup`, `scanner`, `catalog`, `identity`,
+    `providers`, `podcasts`, `userapi`, `realtime` (18 methods)
+  - Change: One package per commit is fine; tick when all are done.
+  - Done when: ratchet `Set*` injectors is 0.
+
+- [ ] S6: One permission package
+  - Files: `isAdmin` and `canAccessLibrary` copies in `providers`, `realtime`,
+    `playback`, `userapi`, `podcasts`, `adminops`; tag rules from C12
+  - Done when: those functions exist only in `internal/auth` (or `authz`) and
+    a permission matrix test passes.
+
+- [ ] S7: One ffmpeg/ffprobe runner
+  - Files: `catalog/batch_chapters.go`, `catalog/cover.go`,
+    `playback/playback.go`, `podcasts/downloads.go`, `scanner/files.go`,
+    `audiotools/tools.go`
+  - Done when: no `exec.Command` for ffmpeg/ffprobe outside `internal/media`.
+
+- [ ] S8: One user-agent parser
+  - Files: `playback/playback.go` (`parseUA`), `userapi/sessions.go` (`parseUA`)
+  - Change: Exact upstream output is no longer required; keep the device
+    fields clients display (`osName`, `osVersion`, `browserName`,
+    `deviceType`).
+  - Done when: one `parseUA` remains and the session contract tests pass.
+
+- [ ] S9: Drop Express emulation clients do not need
+  - Files: `internal/httputil/` (`OrderedKeys`, `ExpressETag`, HTML-escaping
+    options, `WithoutContentLength`, `Streamed`), their callers
+  - Change: Remove each option whose only purpose was byte parity, after F4
+    contract tests cover the affected routes. Keep anything a client needs
+    (name the client in a comment).
+  - Done when: `httputil` has no Express-only options and its line count drops.
+
+- [ ] S10: Carve the `people` domain (authors, series, narrators)
+  - Files: `internal/catalog/authors.go`, `series_routes.go`,
+    `collapse_series*.go`, narrator handlers; new `internal/people`
+  - Change: Move with typed request/response structs (no key-order
+    constraint now); queries through sqlc where done.
+  - Done when: `catalog` no longer contains author/series/narrator handlers and
+    their contract tests pass.
+
+- [ ] S11: Carve the `lists` domain (collections, playlists)
+  - Files: collection code in `catalog`, `userapi/playlist.go`
+  - Done when: both live in `internal/lists` with typed DTOs.
+
+- [ ] S12: Carve the `progress` domain (progress, bookmarks, sessions, playback, HLS)
+  - Files: `internal/playback/`, progress parts of `internal/userapi/`,
+    `internal/progressdto/`, `internal/store/playbacksession.go`
+  - Done when: one package owns them; `progressdto` is gone.
+
+- [ ] S13: Typed item responses
+  - Files: `internal/catalog/book_wire.go` and `ItemJSON`/`ItemMinifiedJSON`
+    consumers (catalog, userapi playlists, personalized, playback, realtime,
+    scanner); `internal/items/`
+  - Change: `items.Reader` returns typed structs. Use the T1 golden decoded
+    (not as bytes) to prove the same fields and values.
+  - Done when: `items.Reader` has no `map[string]any` in its signatures.
+
+- [ ] S14: Carve `library` and `items` domains from what remains of `catalog`
+  - Done when: `internal/catalog` is gone.
+
+- [ ] S15: Fold `userapi`, `identity` and `adminops` into `users`, `auth` and `admin`
+  - Done when: those three packages are gone.
+
+- [ ] S16: Remaining `map[string]any` and `[]any`
+  - Done when: both ratchet counts are under 100, each remaining use is opaque
+    JSON pass-through with a comment.
+
+## Phase P: performance
+
+- [ ] P1: Read server settings once, cache and invalidate on write
+  - Files: `internal/store/store.go`, settings writers in `adminops`, about 35
+    call sites (`grep -rn 'server-settings' internal`)
+  - Done when: `TestSettingsReadOncePerRequest` passes.
+
+- [ ] P2: Item pages in a constant number of queries
+  - Files: `internal/catalog/handler.go` (`ItemJSON`, `ItemMinifiedJSON`),
+    `internal/catalog/personalized.go`
+  - Done when: `TestItemPageQueryCountIndependentOfPageSize` passes (10 and 50
+    items issue the same number of queries).
+
+- [ ] P3: Personalized shelves use the P2 loader
+  - Done when: no per-item `ItemJSON` call in `personalized*.go`.
+
+- [ ] P4: Concurrent reads, one writer
+  - Files: `internal/store/store.go`, `internal/store/open_write.go`,
+    `tools/dbnest`
+  - Change: A read pool plus one write connection, rollback-journal mode
+    kept. `dbnest` keeps guarding the writer. Audit read-modify-write paths
+    with `-race` tests first.
+  - Done when: a test shows reads do not wait for a write and the persistence
+    tests pass.
+
+- [ ] P5: Patch filter data on tag, genre and author edits instead of rebuilding
+  - Files: `internal/filterdata/`, `internal/catalog/writes.go`, `batch.go`
+  - Done when: `TestTagEditPatchesFilterData` counts zero full rebuilds.
+
+- [ ] P6: Benchmark the client-critical calls
+  - Files: `tools/parity/bench.cjs` (or a Go replacement)
+  - Change: p50/p95 for login, personalized, library page, item, play, progress
+    sync, search; memory; cold start. Record the result in this task.
+  - Done when: the numbers are recorded and each call slower than TS v2.37.2
+    has a follow-up task.
+
+## Phase V: verification moves off the Node differential
+
+- [x] V1: Make the differential jobs non-blocking in CI
+  - Prerequisite: F4-F7 green.
+  - Files: `.github/workflows/docker-go.yml` (`parity` job)
+  - Change: Core differential, replacement and scan trials run as an optional
+    job; F4-F7 gate the image (F7b is the rollback check).
+  - Done when: an image publishes with the differential job allowed to fail.
+
+- [ ] V2: Retire the byte-parity harness
+  - Files: `tools/parity/` (keep only what F7b needs), `contracts/parity/`,
+    `Makefile` parity targets, `STATUS.md` generator
+  - Done when: `tools/parity` holds only the rollback check and its line count
+    drops by most of its 11k lines.
+
+## Owner decisions
+
+- [ ] O1: Run `ANALYZE` at boot? (upstream does; it is a DB write at boot)
+- [ ] O2: Port upstream's boot cleanup `Database.cleanDatabase`? (deletes
+  sessions with `timeListening <= 3`, orphaned list entries, empty series,
+  duplicate progress)
+- [ ] O4: Run the real iOS and Android apps against a swapped-in install and
+  record the result here.
+- [ ] O5: Approve or reject further libraries when a task proposes one.
+  Approved 2026-11-03: `github.com/zishang520/socket.io/clients/socket/v3` for tests (F9).
+
+Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F7b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
+
+Model policy: expensive models plan, design and review; cheap models do mass edits and coding from a written spec.

@@ -1,523 +1,457 @@
 # Roadmap
 
-Ordered, atomic tasks toward the North Star in
-[ARCHITECTURE.md](ARCHITECTURE.md): the SQLite database and the client
-protocols are fixed contracts; everything between them is replaceable; the Go
-code is simple, clear and fast. Required checks are in [AGENTS.md](AGENTS.md).
-
-Conventions:
-
-- One task is one commit by one agent. Tick the box in that commit.
-- Every code task reports in its commit message the change in handwritten Go
-  lines and cyclomatic complexity (`make ratchet` prints both once F2 lands).
-- "Done when" is the acceptance check. Paths are relative to `go-backend/`.
-- Work the phases in order; tasks inside a phase may run in parallel unless one
-  names another as a prerequisite.
-
-Baseline at `768f131`: 44,326 handwritten non-test Go lines; `map[string]any`
-1,003; `[]any` 313; `Handle` routers 13; `Set*` injectors 18; ~590 raw
-`Query/Exec` call sites.
-
-## Priority and target (owner, 2026-11-03)
-
-Order work by handwritten lines removed per task. Target: **-30% handwritten
-Go lines by the end of Phase S (44,326 at the start of Phase F -> about
-31,000)**, reported in every status update.
-
-1. L6, L7, then L8 (catalog on sqlc), with S1-S4 (routers on ServeMux) in
-   parallel where packages do not overlap.
-2. V2 (approved): once L6-L8 are merged, delete the Node byte-parity harness,
-   keeping only the rollback check.
-3. S9 (drop Express emulation), then S10-S16 (domains, typed items).
-4. Remaining C tasks in parallel; P after S.
-
-## Done so far
-
-- Every upstream API, public and HLS route answers (route probe, empty
-  allowlist); the replacement and scan trials pass against upstream v2.37.2.
-- Production fixes from the first deployment: NULL-safe session rows, OIDC
-  redirect URI, gzip podcast feeds, OIDC login hang, old-user-id auth hang,
-  `tools/dbnest` guard against nested queries on the one-connection pool.
-- Consolidation: one JSON/text/error writer (`httputil`), one null helper
-  family (`store`), one time parser (`dbtime`), one event emitter (`events`),
-  one ID generator (`ids`), one cron parser (`cronspec`), one Levenshtein
-  (`textdist`), `[]any` counted by the ratchet, item JSON golden captured
-  (`catalog/testdata/item-golden.json`).
-
-Superseded by the new North Star and removed from this list: byte-equality
-tasks (zip directory entries, `metadata.json` bytes, Express key order and
-ETags), the `wire.Optional` decision, file-splitting tasks (replaced by domain
-carve-outs), and tasks absorbed by a library (sanitizer -> L3, rate buckets ->
-L2, JWT issuing -> L1).
-
-## Phase F: foundations (before any refactor)
-
-- [x] F1: Move to the latest stable Go
-  - Files: `go.mod` (`go 1.24.0`), `Dockerfile.go` (builder image),
-    `.github/workflows/docker-go.yml`, `.github/workflows/go-backend.yml`
-  - Change: `go 1.27` with the current toolchain (1.27.3 on 2026-11-03);
-    `go mod tidy`; update the builder image and `golangci-lint` to versions that
-    support it.
-  - Done when: CI is green on the new toolchain and `go version` in the image
-    build log shows 1.27.
-
-- [x] F2: Measure handwritten code and complexity in the ratchet
-  - Files: `tools/ratchet/`, `ratchet-baseline.json`
-  - Change: Add metrics: handwritten non-test Go lines (skip files with a
-    `// Code generated` header), total cyclomatic complexity, and the count of
-    functions above 15 (go/ast, no new dependency). Print the delta against the
-    baseline on every run.
-  - Done when: `go run ./tools/ratchet` prints the three metrics and fails when
-    any of them rises.
-
-- [x] F3: Inventory the routes and events clients use
-  - Files: new `contracts/client-usage.json`, a generator under `tools/`
-  - Change: Extract every API path, method and Socket.IO event used by the web
-    client (`client/`: `$axios` calls, `$socket` emits/listeners), add the
-    mobile apps' calls (from the replacement trial's journey and production
-    logs; the app repos are not in this workspace) and the public URLs
-    (shares, feeds, HLS, covers). Map each to its Go handler.
-  - Done when: the file lists every client-used route with its Go handler and
-    the generator reproduces it; routes with no client caller are listed
-    separately.
-
-- [x] F4: Contract fixture: a TS-created install, booted in-process
-  - Files: new `tools/contractfixture/build.cjs` (Node, run by hand once),
-    new `internal/contracttest/` (`fixture.go`, `testdata/install/`)
-  - Change: `build.cjs` reuses `seedInstallation` from
-    `tools/parity/replacement-trial.cjs` to create the realistic install with
-    TS v2.37.2 (database, metadata, generated media) and copies it into
-    `testdata/install/` (size budget 10 MB). `contracttest.Boot(t)` copies it
-    to a temp dir, rewrites the absolute paths stored in the database (every
-    TEXT column, generic `replace()` over all tables, JSON included), starts
-    `server.NewRuntime` behind `httptest.NewServer`, and returns a client with
-    `Login(user, pass)` and `Do(method, path, body)`.
-  - Done when: a test boots the fixture and `GET /api/libraries` as the
-    listener returns the seeded library, with no Node process.
-
-- [x] F5: Response shapes recorded from TS v2.37.2
-  - Files: new `tools/shapes/` (Go generator; deleted by F5b), `contracts/shapes/journey.json` (regenerated by F5b)
-  - Change: Run the replacement trial once; read `journey-upstream.json`
-    (TS responses per journey step). For each step write status, content type
-    and a type skeleton: objects map keys to skeletons; arrays merge their
-    elements' skeletons; a key seen as `null` in any sample is nullable; a key
-    missing from some samples is optional. Add `Conforms(skeleton, value)`:
-    every required key present, types equal (or `null` where nullable), extra
-    keys allowed. Non-JSON bodies check status and content type only.
-  - Done when: the generator reproduces the committed file and
-    `Conforms` has table tests.
-
-- [x] F6: The journey in Go, checked against the shapes
-  - Files: `internal/contracttest/journey*_test.go`
-  - Change: Port `journeySteps` from `replacement-trial.cjs` step by step (same
-    step ids, users, bodies, captured values). Each step asserts the recorded
-    status and `Conforms` to its shape. Runs in `go test ./...` on F4's fixture.
-  - Done when: every journey step passes and covers every client-used route in
-    `contracts/client-usage.json` that the journey reaches; a list of
-    client-used routes the journey misses is added to this task.
-  - Not reached by the journey (112 of 201 client routes in
-    `contracts/client-usage.json`): GET /api/api-keys, POST /api/api-keys, DELETE /api/api-keys/:id, PATCH /api/api-keys/:id, GET /api/auth-settings, PATCH /api/auth-settings, GET /api/backups, POST /api/backups, DELETE /api/backups/:id, GET /api/backups/:id/apply, GET /api/backups/:id/download, PATCH /api/backups/path, POST /api/backups/upload, POST /api/cache/items/purge, POST /api/cache/purge, POST /api/collections, DELETE /api/collections/:id, POST /api/collections/:id/batch/add, POST /api/collections/:id/batch/remove, POST /api/collections/:id/book, DELETE /api/collections/:id/book/:bookId, GET /api/custom-metadata-providers, DELETE /api/custom-metadata-providers/:id, POST /api/emails/ereader-devices, POST /api/emails/send-ebook-to-device, GET /api/emails/settings, PATCH /api/emails/settings, POST /api/emails/test, GET /api/filesystem, POST /api/filesystem/pathexists, GET /api/genres, DELETE /api/genres/:genre, POST /api/genres/rename, DELETE /api/items/:id, POST /api/items/:id/chapters, DELETE /api/items/:id/cover, PATCH /api/items/:id/cover, POST /api/items/:id/cover, GET /api/items/:id/download, PATCH /api/items/:id/ebook/:fileid/status, GET /api/items/:id/ffprobe/:fileid, DELETE /api/items/:id/file/:fileid, GET /api/items/:id/file/:fileid/download, GET /api/items/:id/metadata-object, POST /api/items/:id/scan, PATCH /api/items/:id/tracks, POST /api/items/batch/scan, POST /api/libraries, DELETE /api/libraries/:id, GET /api/libraries/:id/filterdata, DELETE /api/libraries/:id/issues, DELETE /api/libraries/:id/narrators/:narratorId, PATCH /api/libraries/:id/narrators/:narratorId, POST /api/libraries/:id/scan, GET /api/libraries/:id/series/:seriesId, POST /api/libraries/order, GET /api/logger-data, POST /api/me/ereader-devices, PATCH /api/me/password, DELETE /api/me/progress/:id, GET /api/me/series/:id/readd-to-continue-listening, GET /api/me/series/:id/remove-from-continue-listening, GET /api/me/sessions, DELETE /api/me/sessions/:id, GET /api/notifications, PATCH /api/notifications, POST /api/notifications, DELETE /api/notifications/:id, PATCH /api/notifications/:id, GET /api/notifications/:id/test, GET /api/notifications/test, DELETE /api/playlists/:id, PATCH /api/playlists/:id, POST /api/playlists/:id/batch/add, POST /api/playlists/:id/batch/remove, POST /api/playlists/collection/:collectionId, POST /api/podcasts/:id/match-episodes, POST /api/podcasts/opml/create, GET /api/search/authors, GET /api/search/books, GET /api/search/chapters, GET /api/search/covers, GET /api/search/providers, DELETE /api/sessions/:id, POST /api/sessions/batch/delete, GET /api/sessions/open, PATCH /api/settings, PATCH /api/sorting-prefixes, GET /api/tags, DELETE /api/tags/:tag, POST /api/tags/rename, GET /api/tasks, POST /api/tools/batch/embed-metadata, POST /api/tools/item/:id/embed-metadata, DELETE /api/tools/item/:id/encode-m4b, POST /api/tools/item/:id/encode-m4b, POST /api/upload, POST /api/users, DELETE /api/users/:id, PATCH /api/users/:id, GET /api/users/:id/listening-stats, PATCH /api/users/:id/openid-unlink, POST /api/validate-cron, GET /auth/openid, GET /auth/openid/callback, GET /auth/openid/config, GET /auth/openid/mobile-redirect, POST /init, GET /public/session/:id/track/:index, GET /public/share/:slug/cover, GET /public/share/:slug/download, PATCH /public/share/:slug/progress.
-  - Journey gaps, as recorded: 37 steps check status and shape, then skip
-    their Socket.IO events (no client in the module). Five id-keyed maps are
-    not shape-checked (listening-stats, podcast and legacy listening-stats,
-    fs.items.files, fs.items.metadata.json). journey.json says string for
-    timestamps the trial normalized to placeholders (recordingArtifact).
-
-- [x] F5b: Record shapes from Go journey steps against TS, without normalization
-  - Files: `internal/contracttest/` (recorder mode), `tools/contractfixture/`
-    (a script that boots TS v2.37.2 on a copy of the fixture),
-    `internal/contracttest/shape/`, `contracts/shapes/journey.json`
-  - Change: The Go journey becomes the single source of steps. With
-    `-record -upstream=<url>` the runner sends its steps to a TS server booted
-    on a fresh copy of the same fixture and writes the skeletons from raw
-    (un-normalized) bodies. `Infer` learns a `map` kind: an object whose keys
-    are all UUIDs (or item ids) is a map of value skeletons. Then delete the
-    `recordingArtifact` timestamp rule and the id-keyed skips in the runner.
-    The JS trial is no longer needed to record.
-  - Done when: `journey.json` is regenerated by the Go recorder, timestamps are
-    numbers where TS sends numbers, the five id-keyed steps are shape-checked,
-    and the two workarounds are gone.
-  - Decision: content type is checked only for successful responses with a
-    body; error and empty responses are free framing (six TS/Go differences
-    on 401/403/204 were headers only).
-
-- [x] F8: Journey steps for client routes the journey misses (112, listed in F6)
-  - Prerequisite: F5b (new steps are recorded against TS by the Go recorder).
-  - Layout: each domain is its own test (`TestJourneyAdmin`, ...) in its own
-    file, on its own fresh fixture, recorded into its own
-    `contracts/shapes/<domain>.json`, so domains run and record independently.
-  - Change: Add steps, one domain per commit: F8a admin (api-keys,
-    auth-settings, backups, cache, emails, notifications, settings,
-    sorting-prefixes, tasks, tools, users, logger-data, validate-cron,
-    filesystem, upload); F8b libraries (CRUD, order, scan, issues, narrators,
-    genres, tags, filterdata, series by id); F8c items (delete, chapters,
-    cover, downloads, ebook status, ffprobe, files, metadata-object, scan,
-    tracks, batch scan); F8d lists and me (collections, playlists, sessions,
-    progress delete, continue-listening series, password, ereader devices);
-    F8e search, podcasts, OIDC, `/init`, public share and session URLs.
-  - Done when: every client-used route in `contracts/client-usage.json` is
-    reached by a journey step (OIDC through a test provider).
-  - F8b done (33 steps). Bug found and fixed: `GET /api/libraries/:id/series/:seriesId?include=rssfeed` omitted `rssFeed: null`.
-  - F8a done (66 steps). Bugs found and fixed: api-key `createdAt`/`updatedAt` sent as Unix milliseconds (TS: ISO strings); `PATCH /api/users/:id` stored `""` for a null email (TS: NULL); `GET`/`DELETE /api/backups` sent `null` for an empty list; embed passed the item folder to ffmpeg (path read from the wrong level) and put `-c copy`/`-f` before the cover input. Checker compares content type only for JSON, image, audio and video.
-  - F8c done (37 steps). Bug found and fixed: `PATCH /api/items/:id/ebook/:fileid/status` left `ebookFile.ebookFormat` and `media.ebookFormat` null (TS: the extension without its dot). Not changed: `PATCH /api/items/:id/tracks` returns the expanded item where TS returns `toOldJSON()`; the client ignores the body and extra keys are allowed.
-  - F8d done (58 steps). Bugs found and fixed: `POST /api/me/ereader-devices` answered 500 when the `email-settings` row was missing (TS creates it on write); `GET /api/sessions/open` omitted the `PlaybackSession.toJSON` fields (`mediaMetadata`, `chapters`, `deviceInfo`, `duration`, `date`, ...).
-  - F8e done (72 steps: misc 66, init 6). Bugs found and fixed: `GET /api/search/books` with an unknown `id` answered 200 (TS 404); `GET /api/search/authors` without `q` answered 500 (TS 400); `GET /api/search/chapters` without `asin` answered 500 (TS 200 Invalid ASIN); podcast feeds ignored `SSRF_REQUEST_FILTER_WHITELIST`, so `POST /api/podcasts/:id/match-episodes` answered 500 for a whitelisted local feed (TS 200); the login `serverSettings` omitted `authOpenIDTokenURL` on a fresh install (TS: null); `POST /init` stored the root email as `''` (TS: NULL). Not verified: audible results ordered by the item's duration (needs the internet); the same missing `authOpenIDTokenURL` on `PATCH /api/settings` of a fresh install (adminops reads the same row).
-  - F8 coverage after F8e: 199 of 201 client-used routes are reached. Not reached: `POST /api/emails/send-ebook-to-device` (an F8a email route the journey never sends) and `GET /api/items/:id/ebook/:fileid` (the readers send a file id; the journey sends `GET /api/items/:id/ebook` only).
-  - F8 closed (+5 steps: admin 4 (admin 70), items 1 (items 38)). The send step runs against a local SMTP server the test starts; it checks one message to the device with the ebook as attachment. The item step reads the ebook by its library file's inode, as the readers do. No bugs: Go matched TS on both. Route coverage: 201 of 201 client-used routes are reached. The ebook step checks status and content type only, not the body.
-
-- [x] F9: Socket.IO event checks in the Go journey
-  - Prerequisite: F5b.
-  - Client: a small test-only Engine.IO v4 client on golang.org/x/net/websocket (the approved v3 client needs a newer quic-go that breaks engine.io v2.3.3).
-  - Change: The 37 steps that expect events assert event names, recipients and
-    payload shapes (recorded like HTTP shapes).
-  - Done when: no journey step skips its event check.
-
-- [x] F7: Persistence in both directions
-  - Files: `internal/contracttest/persistence_test.go`, the CI rollback job
-  - Change: (a) Go reads the TS-created fixture's users, progress, sessions,
-    bookmarks and items with the values TS wrote (asserted from the fixture's
-    rows). (b) Keep the rollback check (TS v2.37.2 reopens a database Go
-    wrote and reads progress and bookmarks) as its own CI job; it is the only
-    job that still starts Node after V1.
-  - Done when: (a) passes in `go test ./...`; (b) runs as a separate CI job.
-
-## Phase L: approved libraries
-
-- [x] L1: JWT with `golang-jwt/jwt/v5`
-  - Files: `internal/auth/token.go`, `internal/identity/identity.go` (`sign`),
-    `internal/userapi/userapi.go` (`signToken`, dead `tokenSecret` branch)
-  - Change: `auth` issues and verifies all tokens through the library with the
-    same claims, secret and expiry as today. Existing tokens keep working.
-  - Done when: `grep -rln 'hmac.New' internal --include=*.go | grep -v _test`
-    lists nothing in auth paths; tokens issued by the TS server still verify
-    (test with a fixture token).
-
-- [x] L2: Rate limiting with `golang.org/x/time/rate`
-  - Files: `internal/identity/identity.go` (`rateBuckets` and their updates)
-  - Change: Per-IP `rate.Limiter` with idle-entry pruning; same limits as today.
-  - Done when: `grep -n rateBuckets internal/identity/*.go` is empty and a test
-    shows the limit trips and resets.
-
-- [x] L3: Clean metadata text with the `golang.org/x/net/html` tokenizer
-  - Files: `internal/auth/sanitize.go` (`SanitizeHTML`),
-    `internal/catalog/handler.go` (`stripHTML`),
-    `internal/providers/builtin_search.go` (`stripHTML`),
-    `internal/podcasts/rss.go` (`sanitizeHTML`); new `internal/textclean`
-  - Change: One package with `Sanitize` (allowed tags/attributes as today) and
-    `Strip` (plain text), both on the tokenizer. Apostrophes stay `'`.
-  - Done when: the four functions are gone, table tests cover descriptions from
-    the fixtures and real feeds.
-
-- [x] L4: Parse podcast feeds with `gofeed`
-  - Files: `internal/podcasts/rss.go` (`parseFeed`, `encoding/xml` mapping)
-  - Change: Parse with `gofeed` (including the iTunes extension) and map to the
-    podcast/episode fields Go stores and returns. Keep the gzip handling.
-  - Done when: `parseFeed` uses gofeed, the RSS tests pass with the current
-    fixture feeds plus the production feeds that broke before
-    (megaphone, simplecast, audioboom samples), and handwritten lines in
-    `rss.go` drop.
-
-- [x] L5: sqlc setup and pilot on users and sessions
-  - Files: new `internal/db/` (`sqlc.yaml`, `schema.sql` dumped from the
-    pinned fresh-init DB, `queries/users.sql`, generated `sqlc/`), callers in
-    `internal/identity/`
-  - Change: Generate typed queries for user lookup by id/username/email/
-    OIDC sub/token and session reads/writes; replace the hand-written scans in
-    `identity`. `make sqlc` regenerates; CI checks the generated code is current.
-  - Done when: `identity` has no hand-written `rows.Scan` for users; CI fails
-    if `sqlc generate` changes files.
-
-- [x] L6: sqlc for progress, bookmarks and playback sessions
-  - Files: `internal/db/queries/progress.sql`, `internal/userapi/`,
-    `internal/playback/`, `internal/store/playbacksession.go`
-  - Done when: those packages have no hand-written scans for `mediaProgresses`
-    and `playbackSessions`; the persistence test (F5) passes.
-    (One exception: the sorted, filtered session list in `playback` keeps its
-    handwritten query and scan, because its ORDER BY is a whitelisted variable.)
-
-- [x] L7: sqlc for collections, playlists, shares and feeds
-  - Files: `internal/db/queries/lists.sql`, `internal/catalog/` (collections),
-    `internal/userapi/playlist.go`, `internal/sharing/`
-  - Done when: no hand-written scans remain for those tables.
-
-- [ ] L8: sqlc for libraries, items, books, podcasts, authors and series (static queries)
-  - Files: `internal/db/queries/catalog.sql`, `internal/catalog/`,
-    `internal/scanner/`, `internal/podcasts/`
-  - Change: Static queries move to sqlc. The library page filter/sort builder
-    stays handwritten in one file.
-  - Done when: raw `QueryContext/QueryRowContext/ExecContext` call sites outside
-    `internal/db` and the filter builder drop below 100.
-
-## Phase C: correctness
-
-- [ ] C1: Close a share when it expires, without waiting for a request
-  - Files: `internal/sharing/shares.go`
-  - Change: Timer per share with an `expiresAt`, started on create and at
-    boot; emits `share_closed` to admins. Keep the request-time check.
-  - Done when: `TestShareClosesAtExpiryWithoutRequest` passes.
-
-- [ ] C2: Reschedule podcast auto-download after `PATCH` media
-  - Files: `internal/catalog/writes.go`, `internal/podcasts/podcasts.go`,
-    `internal/server/runtime.go`
-  - Done when: `TestPatchAutoDownloadScheduleReschedules` passes.
-
-- [ ] C3: `POST /api/watcher/update` handles only the changed path
-  - Files: `internal/scanner/scanner.go` (`UpdateWatchedPath` ends in a full
-    `ScanForce`)
-  - Done when: `TestUpdateWatchedPathDoesNotScanLibrary` passes.
-
-- [ ] C4: Match-all honors cancel
-  - Files: `internal/catalog/quickmatch.go`, `internal/scanner/scanner.go`
-  - Done when: `TestMatchAllStopsOnCancel` passes.
-
-- [x] C5: Socket.IO `search_covers` and `cancel_cover_search`
-  - Files: `internal/server/runtime.go` (dispatcher has no case),
-    `internal/realtime/hub.go`, `internal/providers/handler.go`
-  - Change: The web client's cover tab uses this (`client/components/modals/item/tabs/Cover.vue`).
-    Emit `cover_search_result`/`cover_search_error` with the request id.
-  - Done when: a realtime test receives `cover_search_result`.
-
-- [ ] C7: Author last-first sort breaks ties by title
-  - Files: `internal/catalog/handler.go` (`orderClause`)
-  - Done when: `TestAuthorNameLFSortTieBreaksByTitle` passes.
-
-- [ ] C8: Scanner uses `nameparse` for last-first names
-  - Files: `internal/scanner/files.go` (`lastFirst`)
-  - Change: Stored `lastFirst` must match what TS derives (data semantics).
-  - Done when: `func lastFirst` is gone from `scanner` and a table test passes.
-
-- [ ] C11: Close a series' feeds when the scanner removes the series
-  - Files: `internal/scanner/scanner.go`, `internal/catalog/library_issues.go`
-  - Done when: `TestRemovingSeriesClosesItsFeeds` passes.
-
-- [ ] C12: Tag permission rules, one tested definition
-  - Files: `internal/playback/playback.go` (`canAccess`),
-    `internal/emailapi/handler.go`, `internal/userapi/userapi.go`
-    (`canAccessTags`)
-  - Change: Test each rule (any-tag vs every-tag) against what upstream
-    stores and means; fix divergent paths. Prerequisite for S6.
-  - Done when: `go test ./... -run TagACL` passes.
-
-- [ ] C13: `-race` test for podcast download task state
-  - Files: `internal/podcasts/downloads.go`
-  - Done when: `CGO_ENABLED=1 go test -race -run TestDownloadTaskState ./internal/podcasts` passes.
-
-- [ ] C15: No discarded JSON errors in request paths
-  - Files: `internal/userapi/userapi.go`, `internal/identity/identity.go`,
-    `internal/identity/oidc.go`
-  - Done when: `grep -rn '_ = json.Unmarshal' internal/userapi internal/identity` is empty.
-
-- [ ] C16: Email attachments are not silently truncated
-  - Files: `internal/emailapi/handler.go`
-  - Done when: a test sends an oversized attachment and gets an error.
-
-- [ ] C18: Stop tracking `final-go-tests.txt`
-  - Done when: `git ls-files | grep -c final-go-tests` prints 0.
-
-- [ ] C19: Race detector in CI
-  - Files: `.github/workflows/docker-go.yml`
-  - Done when: a `CGO_ENABLED=1 go test -race ./...` step is green.
-
-- [ ] C23: Expired session cleanup
-  - Files: `internal/identity/identity.go` (session rows), `internal/server/`
-  - Change: A reaper started by `Start`, stopped by `Close`.
-  - Done when: a test shows expired sessions are deleted without a request.
-
-- [x] C24: Encode to M4B succeeds with a cover
-  - Files: `internal/audiotools/tools.go` (merge argv near line 556: `-f mp4`
-    before the cover input, the bug class fixed for embed in 03982a4)
-  - Change: Put every input before output options; add a journey step that
-    runs `POST /api/tools/item/:id/encode-m4b` to completion and checks the
-    new `.m4b` file exists and plays (ffprobe duration > 0).
-  - Done when: the step passes on Go and on the TS recording.
-
-- [x] C25: Intermittent Socket.IO connect/auth failure
-  - Evidence: CI run 41652302211 (core differential: "notification socket probe
-    timed out"); the F9 work saw about 1 in 4 test connects never reach the
-    server's connection handler until `auth` was re-sent; production logs show
-    "Cannot validate socket - token expired" followed by ping timeouts.
-  - Files: `internal/realtime/hub.go`, `internal/server/runtime.go` (Engine.IO
-    path matching), the engine.io/socket.io v2 setup
-  - Change: Reproduce with a loop of 200 connects (websocket transport, both
-    the legacy and `/audiobookshelf` paths), find why some never get an
-    `init`, fix it.
-  - Done when: 1,000 consecutive connect+auth cycles succeed in a test, and
-    the F9 auth re-send workaround is removed.
-  - Done (owner option C): cause was zishang520/socket.io v2.3.8 writing the
-    CONNECT ack before registering the socket and our handlers. Replaced by an
-    in-repo Socket.IO v4 server (`internal/realtime/eio.go`, `sio.go`,
-    websocket transport only) that registers the socket first. Regression test:
-    `internal/server/socket_connect_test.go`.
-
-- [x] C26: TestJourneyLibrary flaked once under full-suite load
-  - Evidence: failed once in `go test ./...` while merging L3+L4 (2026-11-03),
-    passed alone 3x and on the next full run. Likely the library-scan wait.
-  - Files: `internal/contracttest/journey_library_test.go`
-  - Change: Wait on the scan's completion event (the F9 socket client) instead
-    of polling `GET /api/tasks`; log the failing step on timeout.
-  - Done when: `go test -count=10 -run TestJourneyLibrary ./internal/contracttest`
-    passes while `go test ./...` runs in parallel.
-
-## Phase R: routes clients need (needs F3)
-
-- [ ] R1: Mark every handler client-required, admin-UI, or unused
-  - Files: `contracts/client-usage.json`
-  - Done when: every Go route has one of the three labels.
-
-- [ ] R2: Owner reviews the unused list
-  - Done when: the owner records keep/remove per route in this task.
-
-- [ ] R3: Remove the routes the owner approved for removal
-  - Done when: they return 404, handlers and tests are deleted, and the
-    handwritten line count drops.
-
-## Phase S: simplify structure
-
-- [ ] S1: Routes on `ServeMux` for `sharing`, `notifications`, `emailapi`
-  - Files: their `Handle` chains, `internal/server/runtime.go`
-  - Done when: ratchet `Handle` routers drops from 13 to <= 10 and the
-    contract tests for those routes pass.
-
-- [x] S2: Routes on `ServeMux` for `adminops`, `audiotools`, `backup`, `providers`
-  - Done when: `Handle` routers drop by 4 (13 -> 9 when done before S1).
-
-- [ ] S3: Routes on `ServeMux` for `podcasts`, `playback`, `scanner`
-  - Done when: `Handle` routers <= 3.
-
-- [ ] S4: Routes on `ServeMux` for `identity`, `userapi`; delete the legacy
-  chain and catch-all in `runtime.go`
-  - Done when: `Handle` routers is 0.
-
-- [ ] S5: Constructor injection instead of `Set*`
-  - Files: `adminops`, `backup`, `scanner`, `catalog`, `identity`,
-    `providers`, `podcasts`, `userapi`, `realtime` (18 methods)
-  - Change: One package per commit is fine; tick when all are done.
-  - Done when: ratchet `Set*` injectors is 0.
-
-- [ ] S6: One permission package
-  - Files: `isAdmin` and `canAccessLibrary` copies in `providers`, `realtime`,
-    `playback`, `userapi`, `podcasts`, `adminops`; tag rules from C12
-  - Done when: those functions exist only in `internal/auth` (or `authz`) and
-    a permission matrix test passes.
-
-- [ ] S7: One ffmpeg/ffprobe runner
-  - Files: `catalog/batch_chapters.go`, `catalog/cover.go`,
-    `playback/playback.go`, `podcasts/downloads.go`, `scanner/files.go`,
-    `audiotools/tools.go`
-  - Done when: no `exec.Command` for ffmpeg/ffprobe outside `internal/media`.
-
-- [ ] S8: One user-agent parser
-  - Files: `playback/playback.go` (`parseUA`), `userapi/sessions.go` (`parseUA`)
-  - Change: Exact upstream output is no longer required; keep the device
-    fields clients display (`osName`, `osVersion`, `browserName`,
-    `deviceType`).
-  - Done when: one `parseUA` remains and the session contract tests pass.
-
-- [ ] S9: Drop Express emulation clients do not need
-  - Files: `internal/httputil/` (`OrderedKeys`, `ExpressETag`, HTML-escaping
-    options, `WithoutContentLength`, `Streamed`), their callers
-  - Change: Remove each option whose only purpose was byte parity, after F4
-    contract tests cover the affected routes. Keep anything a client needs
-    (name the client in a comment).
-  - Done when: `httputil` has no Express-only options and its line count drops.
-
-- [ ] S10: Carve the `people` domain (authors, series, narrators)
-  - Files: `internal/catalog/authors.go`, `series_routes.go`,
-    `collapse_series*.go`, narrator handlers; new `internal/people`
-  - Change: Move with typed request/response structs (no key-order
-    constraint now); queries through sqlc where done.
-  - Done when: `catalog` no longer contains author/series/narrator handlers and
-    their contract tests pass.
-
-- [ ] S11: Carve the `lists` domain (collections, playlists)
-  - Files: collection code in `catalog`, `userapi/playlist.go`
-  - Done when: both live in `internal/lists` with typed DTOs.
-
-- [ ] S12: Carve the `progress` domain (progress, bookmarks, sessions, playback, HLS)
-  - Files: `internal/playback/`, progress parts of `internal/userapi/`,
-    `internal/progressdto/`, `internal/store/playbacksession.go`
-  - Done when: one package owns them; `progressdto` is gone.
-
-- [ ] S13: Typed item responses
-  - Files: `internal/catalog/book_wire.go` and `ItemJSON`/`ItemMinifiedJSON`
-    consumers (catalog, userapi playlists, personalized, playback, realtime,
-    scanner); `internal/items/`
-  - Change: `items.Reader` returns typed structs. Use the T1 golden decoded
-    (not as bytes) to prove the same fields and values.
-  - Done when: `items.Reader` has no `map[string]any` in its signatures.
-
-- [ ] S14: Carve `library` and `items` domains from what remains of `catalog`
-  - Done when: `internal/catalog` is gone.
-
-- [ ] S15: Fold `userapi`, `identity` and `adminops` into `users`, `auth` and `admin`
-  - Done when: those three packages are gone.
-
-- [ ] S16: Remaining `map[string]any` and `[]any`
-  - Done when: both ratchet counts are under 100, each remaining use is opaque
-    JSON pass-through with a comment.
-
-## Phase P: performance
-
-- [ ] P1: Read server settings once, cache and invalidate on write
-  - Files: `internal/store/store.go`, settings writers in `adminops`, about 35
-    call sites (`grep -rn 'server-settings' internal`)
-  - Done when: `TestSettingsReadOncePerRequest` passes.
-
-- [ ] P2: Item pages in a constant number of queries
-  - Files: `internal/catalog/handler.go` (`ItemJSON`, `ItemMinifiedJSON`),
-    `internal/catalog/personalized.go`
-  - Done when: `TestItemPageQueryCountIndependentOfPageSize` passes (10 and 50
-    items issue the same number of queries).
-
-- [ ] P3: Personalized shelves use the P2 loader
-  - Done when: no per-item `ItemJSON` call in `personalized*.go`.
-
-- [ ] P4: Concurrent reads, one writer
-  - Files: `internal/store/store.go`, `internal/store/open_write.go`,
-    `tools/dbnest`
-  - Change: A read pool plus one write connection, rollback-journal mode
-    kept. `dbnest` keeps guarding the writer. Audit read-modify-write paths
-    with `-race` tests first.
-  - Done when: a test shows reads do not wait for a write and the persistence
-    tests pass.
-
-- [ ] P5: Patch filter data on tag, genre and author edits instead of rebuilding
-  - Files: `internal/filterdata/`, `internal/catalog/writes.go`, `batch.go`
-  - Done when: `TestTagEditPatchesFilterData` counts zero full rebuilds.
-
-- [ ] P6: Benchmark the client-critical calls
-  - Files: `tools/parity/bench.cjs` (or a Go replacement)
-  - Change: p50/p95 for login, personalized, library page, item, play, progress
-    sync, search; memory; cold start. Record the result in this task.
-  - Done when: the numbers are recorded and each call slower than TS v2.37.2
-    has a follow-up task.
-
-## Phase V: verification moves off the Node differential
-
-- [x] V1: Make the differential jobs non-blocking in CI
-  - Prerequisite: F4-F7 green.
-  - Files: `.github/workflows/docker-go.yml` (`parity` job)
-  - Change: Core differential, replacement and scan trials run as an optional
-    job; F4-F7 gate the image (F7b is the rollback check).
-  - Done when: an image publishes with the differential job allowed to fail.
-
-- [ ] V2: Retire the byte-parity harness
-  - Files: `tools/parity/` (keep only what F7b needs), `contracts/parity/`,
-    `Makefile` parity targets, `STATUS.md` generator
-  - Done when: `tools/parity` holds only the rollback check and its line count
-    drops by most of its 11k lines.
-
-## Owner decisions
-
-- [ ] O1: Run `ANALYZE` at boot? (upstream does; it is a DB write at boot)
-- [ ] O2: Port upstream's boot cleanup `Database.cleanDatabase`? (deletes
-  sessions with `timeListening <= 3`, orphaned list entries, empty series,
-  duplicate progress)
-- [ ] O4: Run the real iOS and Android apps against a swapped-in install and
-  record the result here.
-- [ ] O5: Approve or reject further libraries when a task proposes one.
-  Approved 2026-11-03: `github.com/zishang520/socket.io/clients/socket/v3` for tests (F9).
-
-Owner answers 2026-11-03: in-use libraries confirmed; the Node rollback job (F7b) stays; the differential stays blocking until F4-F7; mobile coverage comes from the owner testing with the real apps and sharing logs.
-
-Model policy: expensive models plan, design and review; cheap models do mass edits and coding from a written spec.
+Updated 2026-11-04. **Owner authorized implementation with cheap workers,
+review after completed batches, and pushing ready features to the fork.**
+No default-branch merge, deployment, new library or route-removal approval
+is implied. Record actual completed cards and tests; do not mark plans done. [ARCHITECTURE.md](ARCHITECTURE.md) owns permanent
+contracts; [AGENTS.md](AGENTS.md) owns worker/check policy.
+
+## Direction and current evidence
+
+Preserve SQLite/persisted meaning and real client protocols. Simplify the Go
+implementation between them. Prioritize client risk and measured cost, then
+remove duplicate responsibilities. sqlc is query safety, not the principal
+line-saving strategy. The former 30% target is aspirational, with no proven
+13k-line deletion inventory. Package moves are not savings by themselves.
+
+At takeover HEAD `48c10a6a`, recorded baseline: 44,586 handwritten Go lines,
+10,851 complexity, 178 functions over 15, 993 map uses, 9 legacy routers,
+18 setters. These are baseline-file values, not a new measurement. Supplied
+review reports L5 −58 and L6 −4 lines; not independently remeasured here.
+
+Completed: F1–F9 (including F5b/F8 extensions), L1–L7, S2, C5, C24–C26, V1.
+These preserve historical completion claims, not a fresh all-tests-pass claim.
+The 201-route figure means the recorded web/log/trial route set is reached,
+not that mobile behavior is verified. Inventory still has one unmatched
+pattern and nine unresolved dynamic call sites. Real-device O4 remains open.
+V1 made parity advisory; image CI gates on `verify` and `rollback`.
+
+Historical task detail/acceptance and earlier owner decisions are preserved
+in [the pre-takeover roadmap](archive/reviews/2026-11-04-roadmap-before-takeover.md).
+The [audit brief](archive/reviews/2026-11-04-mobile-audit-brief.md) specifies
+A–G deliverables; the [review](archive/reviews/2026-11-04-simplification-review.md)
+is input evidence, not an automatic statement of current runtime behavior.
+
+## Execution conventions
+
+- Follow dependencies, not old alphabetical phases. One bounded task per
+  worker; split L tasks further if their write scopes become broad.
+- Expensive architect plans/reviews. Cheap workers research/code/test within
+  written scopes. Each accepted packet updates this queue and handover.
+- State: planned / in progress / awaiting review / accepted / blocked. Record
+  actual commands, exits/skips, evidence, measured benefit and next action.
+  A written test plan is not a passing test.
+- All tests listed below are **proposed unless marked existing**. Commands
+  using new test names become meaningful only after those tests are added;
+  verify they executed (no empty regex match or skipped integration).
+- Keep fixed contracts, read-only upstream and unrelated dirty work in every
+  packet. No dependency, removal, publication or live cutover approval implied.
+- Finish with applicable AGENTS checks. Metrics are review signals; current
+  tool enforcement stays strict until Q1. Node-tool deletion does not reduce
+  the handwritten-Go metric.
+
+## 1. Compatibility evidence — alongside domain migration
+
+### MC-A · Commit-pinned client audit (P0, M; documentation)
+
+Intent: establish actual obligations before changing protocols or deleting
+routes. Scope: `contracts/mobile-client-audit.md`, gap/test plans, route/event
+decision evidence; six clients named in the audit brief. No runtime edits.
+Prerequisite: public source access; pin the default-branch SHA and retrieval
+time for each. Distinguish confirmed/inferred/not found/not investigated.
+
+Acceptance: each verified client × operation has a SHA permalink, headers/
+payload/transport expectations, Go path, named test or MISSING, evidence
+status and priority; all six review statuses and protocol matrix are explicit.
+Unknowns produce investigation tasks, never unsupported-feature decisions.
+Check every evidence link and source span; review auth, WS-only, progress,
+range, cache, HLS/offline, cover format and version branches. Do not call a
+partial inspection an exhaustive operation inventory. Done when A/C/D/G of
+the brief are complete or precisely marked open with executable follow-ups.
+Approval: audit authorized now; follow-up source research stays read-only.
+
+### MC-B / R1 · Reproducible inventory and route decisions (P0, M)
+
+Intent: prevent demonstrated mobile endpoints being removed as “unused”.
+Scope: `tools/clientusage/main.go`, its tests, a checked external-evidence
+manifest under `contracts/`, generated `contracts/client-usage.json` and a
+route/event decision table. Prerequisite: the relevant confirmed MC-A evidence, with remaining audit
+unknowns carried forward. No route deletion.
+Smallest proposed change: merge pinned external operation records into the
+existing generator with provenance; keep unresolved call sites visible and
+classify actual Go registrations as well as upstream inventory entries.
+
+Acceptance: `GET /api/me/progress`, `/api/playlists`, `/api/collections` are
+protected, as is source-confirmed iOS `POST /api/session/local-all`;
+every route gets exactly one KEEP /
+SIMPLIFY / REMOVE CANDIDATE / INVESTIGATE with evidence and approval status.
+Do not hand-edit generated JSON. Proposed `TestExternalClientEvidence` and
+`TestInventoryDeterministic` in `tools/clientusage/main_test.go`; run
+`cd go-backend && go test ./tools/clientusage`, then root `make client-usage`
+twice and compare outputs. Use existing `TestOutputIsCurrent` as the non-writing
+freshness check; no new check flag is needed. Done when external evidence is reproducible,
+all dynamic unknowns remain visible, and no web-only absence implies removal.
+Approval: queue approval to implement; per-route R2 approval remains separate.
+
+### MC-C · Socket.IO contract and resource tests (P0, M)
+
+Intent: protect auth/live progress and bound the in-repo protocol maintenance
+risk. Scope: `internal/realtime/{eio,sio,hub}.go`, tests,
+`internal/server/socket_connect_test.go`, CI interop setup only as needed.
+Prerequisite: relevant MC-A source rows; reproduce suspected differences first.
+Keep Engine.IO v4, default namespace and both legacy/prefixed paths; do not
+replace the subsystem or add polling/binary support without demonstrated need.
+
+Acceptance: use an actual Socket.IO v4 library to test auth→init, invalid and
+expired token expectations (including `invalid_token` vs `auth_failed`),
+re-authentication, reconnect, recipients and acknowledgements on both paths.
+Existing `TestSocketIO4WebsocketAuthAndPrefixedPath` skips without the JS
+library: ensure it executes in required CI, not just in advisory parity.
+Test malformed frames, the actual library frame cap and fragmented-message
+limits against client payload needs, heartbeat, queue pressure and cleanup.
+The advertised Engine.IO `maxPayload` alone does not specify a WS frame cap. Proposed `TestInboundPayloadLimit`,
+`TestSocketReauthentication`, `TestSocketReconnectDelivery` in realtime.
+Commands from `go-backend`: `go test -v ./internal/realtime ./internal/server
+-run 'Socket|Packet|Ping|Buffer|Payload|HubClose'` with the pinned JS client
+available, then `CGO_ENABLED=1 go test -race ./internal/realtime` and full
+gates. Done when required cases execute and any reproduced gap has a narrow
+regression/fix; no claim of unknown transports supported. Size excludes a
+new transport implementation. Approval: queue; approve provisioning the existing JS `socket.io-client@4.8.1`
+probe in required verify CI (currently installed only in advisory parity).
+The historical Go v3 test-client approval is a different dependency.
+
+### MC-D · REST/media/offline value regressions (P0, M)
+
+Intent: test client-required behavior beyond structural shapes. Scope:
+`internal/contracttest/`, focused tests beside `catalog`, `playback`,
+`userapi`, `httputil`; runtime fixes only for reproduced failures.
+Prerequisite: relevant MC-A rows. Preserve headers' semantics, playback and
+persisted state; no Express byte formatting requirement or artwork conversion.
+
+Acceptance: seeded-user tests assert ETag conditional GET→304 with empty body;
+byte/suffix/invalid/unsatisfiable ranges with 206/416, exact bytes and
+Content-Range; direct audio and HLS play/session URLs and MIME types;
+`/api/session/local` AND `/api/session/local-all`, then query progress/session
+values and reopen persistence; representative decoder values/ordering/ACLs;
+actual cover parameters and decodable format while retaining original art.
+Proposed `mobile_protocol_test.go`: `TestMobileConditionalGET`,
+`TestMobileMediaRanges`, `TestMobilePlayback`, `TestMobileOfflinePersistence`,
+`TestMobileCoverParameters`. Run `cd go-backend && go test -v
+./internal/contracttest -run 'TestMobile'`, affected package tests and full
+checks. Done when all source-confirmed P0/P1 behaviors have meaningful passing
+assertions or a separately approved, explicit unresolved blocker.
+Approval: queue; contract/persistence changes beyond repair remain prohibited.
+
+### MC-E / O4 · Device acceptance (P0, S; owner/device time)
+
+Prerequisites: MC-C/D passing for relevant cases; preserve copy-only isolation.
+Scope: `contracts/mobile-client-audit.md` and handover evidence, no live swap
+by a worker. Owner tests official iOS/Android plus affected third-party apps
+on a disposable initialized install: existing token login/refresh, browse,
+seek, download, offline sync, reconnect and progress on a second client.
+Record app/server versions, platform, procedure, results and safe logs.
+Done when explicit results support the declared client scope; source and
+simulator tests cannot substitute. Approval: owner arranges device access and
+any live cutover separately. Blocks R3 and final retirement of diagnostics.
+
+## 2. Domain migration and measured simplification
+
+### Dispatch policy: small cards, not whole epics
+
+Owner follow-up, 2026-11-04: explicitly include the **books domain** and make
+work concrete for cheap models. Implementation is now authorized; the preceding request only planned these cards. S13/P2/P3 and S11 below are epics,
+not single worker assignments. Compatibility MC tasks remain necessary for
+the operations they affect; do not wait for the entire six-client census
+before a behavior-preserving book extraction with relevant passing tests.
+
+Cards below are **PLANNED, size S** unless the execution status records otherwise (one narrow result, normally at most
+four production files plus tests). Paths are relative to go-backend. New paths
+and tests are marked `new`. A dependency means its implementation is reviewed
+and integrated, not merely that its plan exists. Do not dispatch blocked cards.
+
+Worker gets only: common rules + its card + named source/test snippets. Do not
+load the entire roadmap, all skills or previous chats. Preserve SQLite/JSON/
+protocol meaning, row closure, owner work and immutable goldens. No dependencies,
+schema/route/auth changes, unrelated SQL conversions, commits or baseline edits.
+If scope expands beyond the card, return the blocker to the architect; do not
+invent an abstraction. Report changed paths, exact test results/skips, measured
+query/complexity change if applicable, and remaining issue in at most 12 lines.
+
+Each card's command below is the targeted worker check, not the whole release
+gate. Before accepting an integration wave run applicable AGENTS build/vet/full
+tests/lint/ratchet checks once on the integrated tree; record card results and
+wave validation separately. Never call a card fully verified before its gates.
+The architect owns architecture/documentation integration. Per the latest
+owner instruction, a worker may complete sequential cards as one coherent
+feature batch (B02–B07), running card checks as it goes; final code review is
+once the batch is ready. Avoid creating and deleting temporary APIs merely to
+publish intermediate cards. Worker completion means awaiting review, not push.
+
+#### First milestone: explicit book reads + book-page batching (S13/P2/P3)
+
+Dependency spine: `B01 -> B02 -> B03 -> B04 -> B05 -> B06 -> B07`, then
+`I01 -> I02 -> I03 -> I04 -> I05 -> I06`. Only B01 is dispatchable initially.
+Book metadata/chapter writes and complete mixed-media migration are not claimed
+finished by this milestone. All route removals and real-device gates stay intact.
+
+##### B01 · Pin book projection values
+
+- **Depends:** none. **Write only:** Tests only: `internal/catalog/handler_test.go`, `item_golden_test.go`.
+- **Do:** Add `TestBookProjectionValues` using existing `catalogFixture`/golden fixture. Assert missing vs empty descriptions, [] relation arrays, null series sequence, track/item IDs, excluded-file counts and source audio order for all three book views. Existing `TestBookItemSerializersMatchPinnedSourceGolden` and `TestItemGolden` stay independent; do not regenerate goldens.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** Named assertions execute on current code; record observed baseline. No production edits; a discovered failure becomes a separate reproducer/fix card.
+
+##### B02 · Move single-book reads into books
+
+- **Depends:** B01. **Write only:** `internal/books/reader.go` and `reader_test.go` (new); `internal/catalog/book_wire.go`, `handler.go`, related `handler_test.go`.
+- **Do:** Create concrete `books.Reader` over the existing *sql.DB and typed `books.Book` data. Move loadBookRow/loadBookSource and bookRelations SQL/decoding into Reader.Load(ctx, bookID). Return typed author/series slices ordered by existing association createdAt ASC, preserving nullable sequence. Catalog calls Load; it no longer performs these book reads or converts relation maps back into wire types. Keep projection implementation and existing wire declarations in place. Do not introduce a callback from books to catalog.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** New TestLoadBookNullsAndRelationOrder exercises real SQLite nulls/order/not-found. Remove old scans and bookRelations implementation, adapt its test without making the expected result call the new implementation. All Rows close before the next query.
+
+##### B03 · Give book metadata projection one owner
+
+- **Depends:** B02. **Write only:** `internal/books/metadata.go`, `metadata_test.go` (new); `internal/catalog/book_wire.go`.
+- **Do:** Move fullMetadata/minifiedMetadata/expandedMetadata, authorNames/seriesName/descriptionPlain to books using Book data. Title-ignore-prefix is passed as a precomputed nullable value; retain catalog titlePrefix/settings ownership. Existing catalog builders call these functions temporarily until B04-B06. No new settings cache, prefix policy or people-domain dependency.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookMetadataValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** New TestBookMetadataValues checks nil/blank descriptions, author/series order and sequence, title prefix and plain description. Delete duplicate helpers in catalog; temporary exported metadata helpers have B07 removal condition.
+
+##### B04 · Move full book media projection
+
+- **Depends:** B03. **Write only:** `internal/books/projection.go`, `projection_test.go` (new); `internal/catalog/book_wire.go`.
+- **Do:** Move bookFull assembly to Book.Full(itemID), returning existing wire.BookFull. Move bookEbook/encodeJSON only with their consumers; catalog can forward to the single owner until B07. Keep opaque nested source JSON behavior and concrete wire value inside outer item map.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookFullValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** TestBookFullValues checks decoded fields/null/arrays and libraryItemId. Old Handler.bookFull may be forwarding-only until B07, with no duplicate assembly.
+
+##### B05 · Move minified book media projection
+
+- **Depends:** B04. **Write only:** `internal/books/projection.go`, `projection_test.go`; `internal/catalog/book_wire.go`, `handler.go` only for book-specific count/size helpers.
+- **Do:** Move bookMinified assembly to Book.Minified(titlePrefix). Move includedAudioCount/audioSize into books when their production callers are book-only; keep test oracle calculations independent. Catalog computes title prefix as before and delegates. Do not change settings queries yet.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookMinifiedValues|TestBookProjectionValues|TestSeriesBooksUseMinifiedBookMediaShape|TestItemGolden' -count=1`.
+- **Done:** TestBookMinifiedValues covers track count vs files, chapters, ebook size/format, null vs zero duration. No duplicate minified implementation; forwarding adapter ends in B07.
+
+##### B06 · Move expanded book media projection
+
+- **Depends:** B05. **Write only:** `internal/books/projection.go`, `projection_test.go`; `internal/catalog/book_wire.go`, `handler.go` for makeTracks only.
+- **Do:** Move bookExpanded to Book.Expanded(itemID, titlePrefix), including ordered track URL/offset construction. Move makeTracks if book-only; leave number/fileType helpers shared by podcast paths alone. Keep wire.BookExpanded, existing route URLs, units and RawMessage behavior.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookExpandedTrackValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** TestBookExpandedTrackValues uses hand-calculated offsets/order/item IDs and skipped-file case. Catalog has no expanded assembly beyond forwarding; no playback/session changes.
+
+##### B07 · Remove book migration adapters
+
+- **Depends:** B06. **Write only:** `internal/catalog/book_wire.go`, `handler.go`, `batch_chapters.go`; `internal/books/metadata.go` visibility only.
+- **Do:** Call the new Book projection methods directly from ItemJSON/ItemMinifiedJSON/expandedBookItem. Delete obsolete forwarding builders/types/helpers; retain stringPointerValue in its actual remaining owner (batch_chapters) if still needed. Make metadata helpers private when catalog no longer calls them. Keep HTTP orchestration in catalog for now.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog ./internal/items -count=1`.
+- **Done:** rg confirms no catalog loadBookRow/loadBookSource/bookRelations or duplicate bookFull/bookMinified/bookExpanded assembly; books imports no catalog/items/server. Book read/projection extraction complete, book writes explicitly still unmigrated.
+
+##### I01 · Add test-only SQL query counter
+
+- **Depends:** B07. **Write only:** `internal/catalog/query_count_test.go` (new), fixture setup in `handler_test.go` only if needed.
+- **Do:** Use a test-only database/sql/driver wrapper around the installed modernc SQLite driver, forwarding supported context/prepare/transaction interfaces. There is no Store query hook today: do not add a production observer or repository interface. Reset count after seeding; count direct/prepared reads consistently. Add TestQueryCounterIncludesPreparedReads to prove the counter sees both.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'TestQueryCounterIncludesPreparedReads|TestBookProjectionValues' -count=1`.
+- **Done:** Actual SQL reads are counted and instrumentation does not change results/connection behavior. Record current 10/50-book page counts as baseline, not a fixed-count PASS. No runtime instrumentation.
+
+##### I02 · Batch books and their relations
+
+- **Depends:** I01. **Write only:** `internal/books/batch.go`, `batch_test.go` (new); `reader.go` shares scans only.
+- **Do:** Add Reader.LoadMany(ctx, bookIDs) -> map[string]Book using book rows + author links + series links, one query per kind per bounded chunk (250 unique IDs maximum per chunk). Reuse Load row decoding; implement Load via LoadMany if that removes duplication while retaining sql.ErrNoRows. Deduplicate lookup IDs, retain per-book createdAt ordering, close each Rows before the next query; no SQL per book.
+- **Check (from go-backend):** `go test ./internal/books -run 'TestLoadManyBookValues|TestLoadManyBookChunkBoundary|TestLoadBookNullsAndRelationOrder' -count=1`.
+- **Done:** Tests compare independent known multi-book/null/order values and 0/1/250/251 IDs, missing IDs absent from map, canceled context propagated. No table/schema changes; query-count assertion comes through I04 integration counter.
+
+##### I03 · Read title-prefix settings once per book batch
+
+- **Depends:** I02. **Write only:** `internal/catalog/book_batch.go`, `book_batch_test.go` (new); `handler.go` titlePrefix helper extraction only.
+- **Do:** Add a catalog-local batch assembly helper for already-loaded book item envelopes/media IDs. Load sortingPrefixes once, call books.LoadMany once per chunk, and project full/minified/expanded values in the caller input order. Share existing catalogTitlePrefixAtEnd logic; preserve default the/a and empty/null title behavior. No cross-request cache or podcast changes.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'TestBatchBookProjectionValues|TestBookProjectionValues|TestItemGolden' -count=1`.
+- **Done:** TestBatchBookProjectionValues proves order/duplicates, each media view, custom/default prefixes and missing-book error behavior matching single reads. The helper only assembles; it does not add an HTTP route or change item selection/ACL.
+
+##### I04 · Batch the ordinary book library page
+
+- **Depends:** I03. **Write only:** `internal/catalog/handler.go:libraryItems`, `query_count_test.go`, `handler_test.go`.
+- **Do:** After collecting and closing libraryItems Rows, assemble book media through I03 instead of calling each book serializer. Scope ordinary noncollapsed book page, no includes first; leave podcast/collapsed/include branches unchanged and name their follow-up. Keep SQL filters, total, pagination, selected IDs, ACL and ordering unchanged.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'TestBookPageQueryCountIndependentOfPageSize|TestBookProgressFiltersAndSortUseCurrentUser|TestBookProjectionValues|TestItemGolden' -count=1`.
+- **Done:** New TestBookPageQueryCountIndependentOfPageSize checks 10/50 books have equal read count with identical options, and correct IDs/order/values. Full vs minified query variants each tested. Counter validates actual endpoint path, not just loader.
+
+##### I05 · Batch book shelf hydration
+
+- **Depends:** I04. **Write only:** `internal/catalog/personalized.go:personalizedItems`, `query_count_test.go`, `handler_test.go`.
+- **Do:** Collect all IDs, check Rows.Err and explicitly close Rows before hydration. For book shelves load common libraryItems envelopes in one query per chunk, then use I03. Preserve shelf order, per-user progress/ACL and error behavior. Podcast hydration and per-item includes stay explicit follow-ups, never label all shelves batched.
+- **Check (from go-backend):** `go test ./internal/catalog -run 'TestBookShelfQueryCountIndependentOfSize|TestPersonalizedBookShelvesUsePerUserProgress|TestItemGolden' -count=1`.
+- **Done:** New TestBookShelfQueryCountIndependentOfSize compares 10/50 book IDs without includes and asserts same counts/correct user progress/order; no per-ID ItemMinifiedJSON on the migrated path. No nested pool reads with open Rows.
+
+##### I06 · Extract common item row decoding
+
+- **Depends:** I05. **Write only:** `internal/items/row.go`, `row_test.go` (new); `internal/catalog/handler.go:scanItemRow/loadItem`.
+- **Do:** Define typed items.Record and common row decode/ID batch load; keep books/podcast-specific projection outside the row type. Move generic field/time/file normalization from scanItemRow using existing dbtime parser, and have catalog adapt the record to the established outer JSON map. Reuse I05 envelope batch SQL. Do not expand items.Reader or migrate every consumer in this card.
+- **Check (from go-backend):** `go test ./internal/items ./internal/catalog -run 'TestItemRowValues|TestBookProjectionValues|TestPodcastItemDetailSerializesEpisodeAndTrack|TestItemGolden' -count=1`.
+- **Done:** New TestItemRowValues asserts ID/mediaID separation, dbtime milliseconds, optional scan/size fields, file classification and malformed date failure. One row decoder; wire map adapters remain explicitly until mixed-media contracts are migrated.
+
+#### Next domain milestone: lists (S11), not one mass move
+
+These cards start after the book-read milestone and relevant list contract
+baselines. They preserve current podcast list behavior; book-only batching
+never justifies filtering out podcast entries. S11 completes only after the
+final wiring/removal card and integration gates. Later domains get equally
+small cards only when this milestone is reached; do not prepay an exhaustive
+implementation plan for untouched packages.
+
+##### L01 · Pin list reads/permissions
+
+- **Depends:** I06. **Write only:** Tests only: `internal/userapi/userapi_test.go`, `playlist_collection_regression_test.go`, `playlist_order_test.go`.
+- **Do:** Add TestListReadValuesAndPermissions for GET /api/collections, /api/playlists and detail using owner/other-user/no-library cases, real IDs/order/null description, book + podcast episode entries. Reuse existing fixture and keep existing playlist/order/regression tests.
+- **Check:** `go test ./internal/userapi -run 'TestListReadValuesAndPermissions|TestPlaylistCreateListAndOwnerRestriction|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
+- **Done:** Independent semantic/ACL baseline exists before ownership changes; no production edits.
+
+##### L02 · Extract playlist read data
+
+- **Depends:** L01. **Write only:** `internal/lists/reader.go`, `reader_test.go` (new); `internal/userapi/playlist.go`.
+- **Do:** Move GetPlaylist/ListPlaylistMediaItems use and playlist metadata/entry read assembly from ownedPlaylist/playlistJSON into a concrete lists.Reader. Keep existing item-reader dependency passed to the constructor and existing response map as a temporary boundary; do not move writes/routes or change orphan/error handling in this card. Lists never imports userapi/catalog.
+- **Check:** `go test ./internal/lists ./internal/userapi -run 'TestPlaylistReadValues|TestListReadValuesAndPermissions|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
+- **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retains a forwarding adapter until L05.
+
+##### L03 · Extract collection read data
+
+- **Depends:** L02. **Write only:** `internal/lists/collections.go`, `reader_test.go` (new/existing); collection read functions in `internal/userapi/userapi.go`, `library_lists.go`.
+- **Do:** Move collection SELECT and response assembly only, from collectionRoute/collectionDTO (userapi.go) and libraryCollections (library_lists.go); keep HTTP/writes where they are. Pass a small constructor callback `func(context.Context, store.User, string) (bool, error)` for existing per-item visibility; userapi adapts canAccessItem without importing userapi from lists. Keep filtering semantics in the same call order. Reuse list Reader and existing item serialization. No giant userapi rewrite or import from lists back to userapi.
+- **Check:** `go test ./internal/lists ./internal/userapi -run 'TestCollectionReadValues|TestListReadValuesAndPermissions|TestCollectionDescriptionDBValueMatchesLegacyNullCoercion|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
+- **Done:** New TestCollectionReadValues asserts list/detail/order/library visibility and values; old duplicate reads removed, forwarding endpoints preserved. If extraction needs >4 production files, return exact dependency list for split.
+
+##### L04 · Plan list write seams from actual callers
+
+- **Depends:** L03. **Write only:** Documentation only: update this ROADMAP card into individually scoped write/route cards; read `userapi/playlist.go`, collection paths in `userapi.go`, `collection_feed.go` and runtime wiring.
+- **Do:** Produce separate cards for playlist create/update, membership mutation, collection create/update, collection membership, delete/cleanup/feed, route mounting. Each must name actual functions/deps and a persisted-state/event regression. This is bounded deferred decomposition, not authorization for a worker to improvise all writes.
+- **Check:** `git diff --check`.
+- **Done:** All newly dispatchable write cards have exact files/commands/deps and no domain cycles. Architect review required; no claim S11 is complete.
+
+##### L05 · Lists route wiring/removal — blocked template
+
+- **Depends:** all concrete write/route cards created by L04. **Write only:** BLOCKED until L04 fills exact lists handler/constructor and `internal/server/runtime.go` scopes.
+- **Do:** Architect must replace this template with small route-family cards and a final removal card after read/write ownership is complete. Do not dispatch this heading to a simple model.
+- **Check:** `not runnable until replacement cards are reviewed`.
+- **Done:** Every list route uses lists owner, userapi forwarding/duplicate code removed, mixed-media values/ACL/persistence/events pass and route generator is refreshed. No route deletion implied.
+
+#### Scope still open after these milestones
+
+S13/P2/P3 are not marked complete until podcast projections, mixed-media
+batching, includes/collapsed paths and each remaining playlist/progress/playback/
+scanner consumer are migrated with their own tests. Book metadata/chapter
+writes need separate state/event contracts. No worker receives “finish items”
+or “move all catalog” as a task. Architect decomposes only the next slice.
+Domain order after books/items reads and lists: people (S10), progress (S12),
+then library/items HTTP and remaining users/auth/admin (S14/S15). Relevant
+compatibility tests are prerequisites per slice, not a global audit freeze.
+
+### L8a–c · Selective domain-owned sqlc (P2, S each)
+
+Replaces L8's arbitrary “under 100 raw call sites” gate. Prerequisite: choose
+queries actually touched by the accepted loader/domain packet; MC-D for its
+outputs. L8a catalog static reads (`queries/catalog.sql`, catalog); L8b scanner
+static writes/reads (new `queries/scanner.sql`, scanner); L8c podcast static
+queries (new `queries/podcasts.sql`, podcasts). Dynamic filter/sort SQL stays
+handwritten. No schema, DTO or lifecycle redesign in these tasks.
+Acceptance per slice: named old query/scans removed, typed generated query
+used, equivalent NULL/time/order/error semantics tested. Root `make sqlc`,
+check tracked + untracked generated files, affected package/persistence tests
+and full gates. Done when selected queries and measured delta are recorded;
+no conversion quota or invented savings. Defer slices with no clear benefit.
+Approval: queue; sqlc itself already approved.
+
+### R2/R3 · Owner-approved behavior removal (P2, S per approved group)
+
+Prerequisites: MC-B complete decision table, MC-E and relevant regressions;
+no unresolved dynamic callers for the candidate. R2 records owner KEEP/REMOVE
+per operation. R3 changes only explicitly approved handlers/registrations and
+obsolete tests, then proves 404 where approved and remaining clients green.
+Exact files/tests must be filled from MC-B **before dispatch**; do not give a
+worker the whole inventory to delete. Commands: affected package tests,
+`make client-usage`, contract suite, full gates. Done when each deletion has
+approval, evidence and measured removed implementation. Approval: individual
+removal required; no candidates approved by this takeover.
+
+### S9 · Simplify framing, keep HTTP semantics (P2, S)
+
+Prerequisites: MC-B/D, affected cache/range/cover tests. Scope:
+`internal/httputil/` Express-only ordering/escaping/framing options and callers.
+No removal of ETag/If-None-Match/304, Range/206/416, cache behavior or required
+MIME negotiation. First name each unnecessary option and prove no client
+requirement; remove it and tests of byte-only details. Run
+`cd go-backend && go test ./internal/httputil ./internal/contracttest` and full
+gates. Done when supported HTTP semantics pass and obsolete paths disappear.
+Approval: queue; any externally observable semantic removal goes through R2.
+
+### V2a/V2b · Extract reusable tooling, then retire diagnostics (P2, M/S)
+
+V2a scope: `tools/contractfixture/build.cjs`, `tools/clientusage/`, route
+inventory producer, shared seed/args modules, shape/benchmark/browser tooling,
+Makefile and CI rollback imports. Prerequisite: MC-B design; not L8 completion.
+Keep rollback operational. Inventory all inbound dependencies before deletion.
+Extract fixture seed and route evidence into standalone owners and prove
+fixture generation and `make client-usage` work without removable modules.
+Use a disposable checkout for destructive regeneration comparisons; compare
+logical fixture data and repeat generator output, not nondeterministic DB bytes.
+
+V2b depends on V2a, MC-E and owner acceptance of retained evidence. Delete
+only unreferenced differential infrastructure, preserve rollback and required
+browser/benchmark/shape inputs. Run post-removal fixture regeneration,
+`make client-usage`, Go contract/persistence tests and CI rollback equivalent
+`node go-backend/tools/parity/replacement-trial.cjs --rollback-only --work
+<disposable-dir>` (update this command if extraction moves its entrypoint).
+Done when generators and rollback work from a clean checkout after removal;
+record Node lines separately from handwritten-Go metrics. Approval: revised
+retirement boundary before V2b; prior approval never authorizes broken generators.
+
+### Q1 · Make size metrics review signals (P2, S)
+
+Prerequisite: owner approves proposed policy. Scope: `tools/ratchet/`, tests,
+CI/Makefile only as needed. Report line/complexity/map deltas without failing
+solely on justified growth; retain hard correctness/dependency/nested-query
+checks. Proposed `TestMetricGrowthReported` and existing guard tests; run
+`cd go-backend && go test ./tools/ratchet ./tools/dbnest`, `make ratchet`, full
+gates. Done when useful regression signals survive and documentation matches
+tool enforcement. Approval: explicit policy approval; no tool changed here.
+
+## 3. Deferred work and investigations — do not dispatch vague tasks
+
+Preserve these IDs and their historical acceptance in the archived roadmap.
+Before execution, architect supplies current file scope, regression, benefit
+and prerequisites; this table deliberately is not authorization to code.
+
+| IDs | Priority / reason / release condition |
+|---|---|
+| C1–C4, C7/C8/C11 | P1 suspected/known share, podcast schedule, watcher, cancel, sort/name/feed behaviors; reproduce with named historical regression before fix; do not prescribe timer architecture without review. |
+| C12 → S6 | P0 permission-equivalence investigation before consolidation; matrix tests for library/tag/explicit/admin rules, then one definition. |
+| C13/C19, C23 | P1 download/session lifecycle and race CI; focused ownership/race evidence first. |
+| C15/C16 | P1 request JSON error handling and attachment truncation; targeted failure reproduction, security review if exposure changes. |
+| C18 | P2 tracked test-log cleanup; small documentation/housekeeping packet only. |
+| S1/S3/S4 | P2 routing migration after protocol coverage, package by package; preserve route precedence/method/base-path semantics. Untracked identity routes must be reconciled first. |
+| S5/S7/S8 | P2 constructor/process-runner/UA duplication; do only alongside touched consumers with measurable ownership benefit. |
+| S10/S12/S14/S15 | Domain migration follows the books/items/lists milestones above; decompose per handler family before dispatch. S11 is active planning above, not deferred. |
+| S16 | P2 maps where known shape causes risk; drop arbitrary under-100 quota as acceptance. |
+| P1/P4/P5 | P2 settings cache, read pool, filter-data updates; benchmark first, audit transaction/lifecycle correctness; rollback-journal invariant stays. |
+| P6 | P1 baseline client-critical benchmark accompanies S13/P2/P3; detach tool dependency in V2a, no new benchmark framework. |
+| Cover cache/format standardization | P2 investigate six-client format parameters/decoders first; preserve original artwork and persisted layout. No WebP-only approval. |
+| Polling/binary Socket.IO support | INVESTIGATE only where client evidence requires it; no whole-subsystem replacement proposed. |
+
+## Decisions needed
+
+1. Books/items reads and lists are now explicit migration milestones. Implement
+   them alongside affected compatibility tests; no full audit freeze or blanket
+   L8 conversion prerequisite. Runtime dispatch approval is not inferred from
+   a planning document; the latest owner message authorizes implementation.
+2. Approve aspirational reduction target and Q1 review-signal policy; strict
+   ratchet tooling remains unchanged until Q1 is implemented.
+3. Accept the supported-client scope after MC-A; unknown evidence stays open.
+4. R2 approves removals individually; O4 requires real-device evidence.
+5. O1 (`ANALYZE` at boot), O2 (destructive TS cleanup) and O5 (new libraries)
+   remain undecided. Defaults: no new boot writes/deletes/dependencies.
+6. External Flash provider use must be allowed to receive repository material.
+   This session's automatic review rejected that transfer; built-in cheap
+   workers were used instead. No provider-access approval assumed.
+
+## Takeover validation and next action
+
+Documentation/audit evidence and commands actually executed are recorded in
+[handover.md](handover.md). Implementation and device tests are not implied.
+Next implementation card: B01 (tests only), then B02 book reads. In parallel,
+continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
+Full mobile research is not a prerequisite for B01/B02. Architect dispatches
+one card at a time to a cheap worker and reviews it before dependent work.

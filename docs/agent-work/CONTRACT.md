@@ -18,10 +18,16 @@ clear and fast.
    auth flows, and the Socket.IO events, that the bundled web client, the iOS
    and Android apps and documented-API clients rely on.
 
-**Not contract:** code structure, SQL text, HTTP framing (ETags, header order,
-compression, `Content-Length`), JSON key order and whitespace, error text no
+**Not contract:** code structure, SQL text, HTTP framing representation where client semantics are preserved (ETag style,
+header order, compression), JSON key order and whitespace, error text no
 client parses, log text, and routes no client calls (removed only with owner
 approval, ROADMAP R2).
+
+Conditional caching (ETag/If-None-Match/304), byte ranges (206/416 and
+Content-Range), required MIME formats and observable media/auth semantics are
+part of the fixed client contract. The old web/log/trial inventory alone does
+not establish absence of callers. Removal requires multi-client evidence and
+per-operation owner approval.
 
 **Reference:** upstream `advplyr/audiobookshelf` v2.37.2,
 `edb1f7efc92ecacdef51aafb4d9d5054ce10604f` (`server/`, `client/`, `docs/`),

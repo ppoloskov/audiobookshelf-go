@@ -25,10 +25,10 @@ acknowledgement callback, and a streaming `Reply` callback. The transport
 enforces admin checks for `cancel_scan`, `set_log_listener`, and
 `message_all_users`; it checks authentication for cover search and cancellation.
 The runtime's dispatcher handles `cancel_scan`, `set_log_listener`,
-`remove_log_listener` and `disconnect`; other actions return no result. With no
-dispatcher installed, cover search reports `cover_search_error`. Cover search is
-not wired in the runtime yet (ROADMAP C5), so a socket search currently returns
-nothing.
+`remove_log_listener`, `disconnect`, `search_covers` and `cancel_cover_search`.
+C5 wired cover search through providers; the contract suite has
+`TestCoverSearchSocket` and `TestCoverSearchCancel`. Without a dispatcher,
+cover search reports `cover_search_error`.
 
 On successful auth the adapter updates `users.lastSeen` and `users.updatedAt`
 using Sequelize-compatible SQLite date text before emitting `init`. The
@@ -46,3 +46,14 @@ the prefixed mount, install Socket.IO client 4.x and set `NODE_PATH`:
 npm install --prefix /tmp/realtime-node-probe --no-audit --no-fund socket.io-client@4.8.1
 NODE_PATH=/tmp/realtime-node-probe/node_modules CGO_ENABLED=0 go test -v ./internal/realtime
 ```
+
+Compatibility audit status (2026-11-04): the existing real JS integration tests
+successful auth, acknowledgements and recipient filtering, but can skip when
+its dependency is absent. MC-C plans mandatory execution plus invalid/expired
+token, re-authentication, reconnect and resource-limit assertions. Go currently
+emits `auth_failed`; mobile `invalid_token` handling needs source comparison
+before a change. `eio.go` does not configure `MaxPayloadBytes`: the pinned
+x/net/websocket library supplies a 32 MiB default frame cap, so the reader is
+not literally unbounded. Test the appropriate client-compatible cap and
+fragmented messages; the Engine.IO `maxPayload` field alone is not proof of
+a WebSocket-frame requirement. No hardening change has been made by this audit.

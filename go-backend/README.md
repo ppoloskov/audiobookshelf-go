@@ -24,9 +24,9 @@ fast Go.
 | Agent rules and the required checks per packet | [AGENTS.md](AGENTS.md) |
 | North Star, contracts, target structure, libraries, metrics | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Ordered list of atomic tasks, with done checks | [ROADMAP.md](ROADMAP.md) |
-| Last differential run (generated; diagnostic until ROADMAP V1) | [STATUS.md](STATUS.md) |
+| Last recorded differential run (generated; advisory since V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
-| Node differential harness (diagnostic until ROADMAP V1) | [tools/parity/README.md](tools/parity/README.md) |
+| Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
 
@@ -60,13 +60,20 @@ cd go-backend && go build ./... && go vet ./... && go test ./...
 make ratchet              # handwritten-code/complexity metrics and tools/dbnest
 ```
 
-Correctness is proven by contract tests (fields and types clients read),
-persistence tests (Go reads TS databases; TS v2.37.2 reopens databases Go
-wrote) and functional journeys (ROADMAP F4-F7). Until those land and ROADMAP
-V1 is done, CI also runs the Node differential harness against upstream
-(`make parity`, `make parity-replacement`, `make parity-scan`,
-`make route-probe`; Node 22 and `npm ci && npm run build:server` needed), and
-every upstream route currently answers.
+Contract shapes, meaningful value/state assertions, persistence/rollback and
+functional journeys are complementary evidence. Foundations F4–F9 and V1 are
+recorded complete. The generated 201-route web/log/trial inventory is not
+complete mobile compatibility proof: one unmatched pattern and nine dynamic
+calls remain, and six-client source/device coverage is incomplete.
+See the [mobile audit](contracts/mobile-client-audit.md),
+[gap/test plan](contracts/mobile-compat-gaps.md) and revised
+[execution queue](ROADMAP.md). The compact [decision report](contracts/takeover-decision-report.md)
+records findings, risks and choices. Owner has authorized roadmap implementation and feature-branch pushes after review.
+
+Node differential commands remain advisory diagnostics (`make parity`,
+`make parity-replacement`, `make parity-scan`, `make route-probe`; Node 22 and
+`npm ci && npm run build:server`). V2 cannot remove their shared seed/inventory
+inputs before regeneration is independent. The TS rollback check remains required.
 
 `cmd/abs-compat` compares GET/HEAD responses of two running servers ad hoc.
 
@@ -77,13 +84,14 @@ an alpine image with ffmpeg, tzdata and tini. The runtime contract matches the
 upstream image: `PORT=80`, `CONFIG_PATH=/config`, `METADATA_PATH=/metadata`,
 `SOURCE=docker`; the client lives in `/app/client/dist` (`ABS_GO_CLIENT_PATH`).
 The image has a `HEALTHCHECK` on `/healthcheck`. CI
-(`.github/workflows/docker-go.yml`) runs three jobs in order:
+(`.github/workflows/docker-go.yml`) has these gates:
 
-1. `verify`: build, vet, test, the ratchet, dependency boundaries, and an arm64 build.
-2. `parity`: the Node differential (core, replacement trial, scan trial, route probe) against upstream v2.37.2; blocking until ROADMAP V1.
-3. `image`: publishes `ghcr.io/<owner>/audiobookshelf-go` for `linux/amd64` and
-   `linux/arm64`, tagged `latest` (from `master`), `sha-<short>` and version
-   tags. Pull requests build the image but do not push it.
+1. `verify`: build, vet, test, sqlc freshness, ratchet, dependency boundaries,
+   and an arm64 build.
+2. After verify, `rollback` proves TS reopens Go-written data; `parity` runs
+   independently as an advisory diagnostic (`continue-on-error: true`).
+3. `image` depends on verify + rollback, publishes amd64/arm64 tags for pushes;
+   pull requests build without pushing. Parity does not block publication.
 
 Build locally with `docker build -f Dockerfile.go -t audiobookshelf-go .`.
 
@@ -125,4 +133,19 @@ and Kubernetes' default `imagePullPolicy: IfNotPresent`, a node keeps the
 ## Known limits
 
 Open work, including known gaps (share expiry timer, podcast schedule after a
-`PATCH`, Socket.IO cover search), is in [ROADMAP.md](ROADMAP.md).
+`PATCH`, mobile verification), is in [ROADMAP.md](ROADMAP.md).
+
+## Development ownership
+
+The architect owns design, task scopes and review. Cheap capable workers own
+bounded execution; prefer permitted OpenCode Flash models, with built-in cheap
+workers as fallback. Keep README, AGENTS, ROADMAP and handover current with
+each accepted packet. The [skill review](SKILL-REVIEW.md) records overrides to
+excessive generic parity/ledger processes. Metrics guide review; the current
+ratchet still enforces limits pending the proposed Q1 policy change.
+
+Domain migration now has explicit `books`, `items` and `podcasts` ownership.
+The [roadmap](ROADMAP.md) breaks the first milestone into B01–B07 book-read
+cards, I01–I06 batch/item cards, then small lists cards. Each gives exact
+scope/dependencies/tests/removal criteria. These are planned tasks, not shipped
+domains; book writes and mixed-media migration remain separately tracked.

@@ -20,7 +20,12 @@
 
 This checkout also contains an experimental Go rewrite of the server, targeting
 drop-in replacement of pinned v2.37.2. See [go-backend/README.md](go-backend/README.md);
-agents start at [agents.md](agents.md).
+agents start at [agents.md](agents.md). The current
+[roadmap](go-backend/ROADMAP.md) proposes compatibility-first work; the
+[handover](go-backend/handover.md) records actual checks and open risks.
+Architecture/planning/review belong to the architect; bounded execution goes
+to cheap capable workers. Preserve database/rollback and real client semantics;
+byte parity and a numerical line-reduction target are not product gates.
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 

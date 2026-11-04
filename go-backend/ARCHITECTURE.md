@@ -40,8 +40,10 @@ In practice:
    [Metrics](#metrics)).
 2. **Compatible, not identical.** A response is correct when every field a
    client reads is present with the right JSON type and meaning. Key order,
-   whitespace, ETag style, `Content-Length`, error wording that no client
-   parses, and log wording are free.
+   whitespace and ETag representation may differ when client semantics stay
+   intact. Preserve conditional requests (ETag/If-None-Match/304), byte ranges
+   (206/416 and Content-Range), MIME/format requirements, and headers clients
+   rely on. Unparsed error/log wording is free.
 3. **The database is sacred.** Same tables, columns, column formats (DATETIME
    text, JSON columns, ID formats), and the same meaning of every value. No
    schema change, no implicit migration. A row written by Go must read
@@ -87,8 +89,9 @@ In practice:
 
 ### Free
 
-Package structure, SQL text and query plans, HTTP framing (ETag style,
-compression, header order, `Content-Length`), JSON key order and whitespace,
+Package structure, SQL text and query plans, HTTP framing representation
+where client semantics are preserved (ETag style, header order, compression),
+JSON key order and whitespace,
 error message text that no client parses, log text and levels, internal
 caches, goroutines, and anything a client cannot observe.
 
@@ -111,11 +114,12 @@ internal/
   textclean   HTML sanitize/strip (x/net/html tokenizer)
 
   library     libraries, folders, filter data, search, stats
-  items       library items, books, podcasts, files, covers, chapters
+  items       common library-item identity, files, covers, media dispatch
+  books       book metadata, author/series links, chapters, book projections
   people      authors, series, narrators
   lists       collections, playlists
   progress    media progress, bookmarks, listening sessions, playback, HLS
-  podcasts    feeds (gofeed), episode downloads, auto-download schedule
+  podcasts    podcast metadata/episodes/projections, feeds, downloads, schedules
   scanner     scan, watcher, metadata extraction
   users       users, settings, API keys, tasks visible to clients
   sharing     shares, RSS feeds out
@@ -128,13 +132,44 @@ This is a direction, not a big-bang rename. Domains are carved out as the
 roadmap touches them; current packages (`catalog`, `userapi`, `identity`,
 `adminops`, ...) shrink until they disappear.
 
+### Books, items and podcasts
+
+`books` is an explicit domain, not hidden inside a generic item service.
+It owns book records, book metadata/author-series links and chapter meaning,
+and the full/minified/expanded book projections. `people` owns the author and
+series entities and their CRUD; book association reads do not transfer that
+ownership. The first milestone extracts reads/projections only; metadata and
+chapter writes remain in their current owners until separately scoped packets.
+
+`items` owns library-item identity/common fields, file/cover access, batch
+ordering and media dispatch. `podcasts` owns podcast/episode data and its
+projections, feeds/download lifecycle. Generic `/api/items/...` HTTP paths stay
+unchanged; a books domain does not introduce `/api/books` or change storage.
+Library browsing/filtering/shelves belong to `library`, lists to `lists`, and
+playback/progress to `progress`. Media domains supply data, not user-specific
+shelf/list/playback orchestration.
+
+Start with concrete book reads and existing `wire.Book*` response types. Do
+not move every wire type, add a generic repository, or invent a universal DTO.
+The `items` coordinator may consume `books` data; `books` must never import
+`items`, `catalog`, `library`, `lists`, `playback` or `server`. A temporary
+podcast adapter is supplied at composition time while podcast reads still
+live in catalog; it must not create an `items -> catalog` dependency.
+
+Migrate one projection/caller per packet; keep every intermediate tree
+buildable. Named forwarding adapters may survive only until the specified
+removal packet. Relevant contract tests accompany each domain migration;
+unrelated unfinished mobile research is not a global refactor blocker.
+
 Rules:
 
 - `httpx`, `dbtime`, `events`, `media`, `textclean` import only the standard
   library and approved libraries. Domains may import them, `db`, `auth`,
   `config`.
-- Domains do not import each other's internals. Cross-domain reads go through a
-  small interface or a shared query in `db`.
+- Domains do not import another domain's handler implementation. Item
+  composition may depend on explicit books/podcasts read data; other
+  cross-domain reads use a small consumer interface or shared query in `db`.
+  Keep the graph acyclic; no domain reaches back into its orchestrator.
 - Routes are registered on `net/http.ServeMux` with method patterns by each
   domain (`Routes(mux)`). The router base path is stripped once in `server`.
 - Collaborators arrive through constructor arguments. No `Set*` injectors, no
@@ -161,8 +196,9 @@ Rules:
 
 ## HTTP and JSON
 
-- Requests and responses are typed structs. `map[string]any` is allowed only
-  for opaque JSON stored in a column and passed through.
+- Requests and responses are typed structs. `map[string]any` is the exception
+  for opaque JSON; existing dynamic boundaries are migrated when a named
+  consumer and measurable correctness/simplicity benefit justify it.
 - `null` vs absent matters only where a client checks it; use `*T` for nullable
   and `omitempty` for optional, and stop there.
 - Slices that clients iterate marshal as `[]`, not `null`.
@@ -185,25 +221,31 @@ it with what it replaces (lines, risk) and its maintenance status.
 | Library | Use | Replaces |
 |---------|-----|----------|
 | `modernc.org/sqlite` | pure-Go SQLite driver | (in use) |
-| `github.com/sqlc-dev/sqlc` (build-time tool) | typed queries from SQL | ~590 hand-written `Query/Exec` call sites and their row scanning |
+| `github.com/sqlc-dev/sqlc` (build-time tool) | typed queries from SQL | selected static query execution/scanning; typing and query checking, not a promised line reduction |
 | `github.com/golang-jwt/jwt/v5` | JWT sign/verify | hand-rolled HMAC JWT in `auth`, `identity`, `userapi` |
 | `golang.org/x/time/rate` | login/API rate limiting | custom buckets in `identity` |
 | `golang.org/x/net/html` (tokenizer) | clean text and sanitize metadata HTML | `auth/sanitize.go`, three `stripHTML`/`sanitizeHTML` copies |
 | `github.com/mmcdole/gofeed` | podcast RSS/Atom parsing | `podcasts/rss.go` XML mapping |
 | `github.com/coreos/go-oidc/v3` | OIDC | (in use) |
-| `golang.org/x/net/websocket` | WebSocket framing for the in-repo Socket.IO v4 server: `internal/realtime`, websocket transport only (no polling; clients use `transports: ['websocket']`) | the zishang520 Socket.IO library (ROADMAP C25) |
+| `golang.org/x/net/websocket` | WebSocket framing for the in-repo Socket.IO v4 server: `internal/realtime`, websocket transport only, no polling; supported-client requirements are tracked in the mobile audit | the zishang520 Socket.IO library (ROADMAP C25) |
 | `github.com/fsnotify/fsnotify` | library watcher | (in use) |
 | `github.com/robfig/cron/v3` | schedules | (in use) |
 | `github.com/google/uuid` | UUIDv4 | (in use) |
 | `golang.org/x/crypto`, `golang.org/x/text` | bcrypt; text normalization | (in use) |
 
-The Go toolchain follows the latest stable release (`go` directive in
-`go.mod`), so libraries can use current language features.
+The toolchain is pinned in `go.mod` (`go 1.27`, suggested toolchain 1.27.3).
+Change it only in a scoped, validated upgrade; do not silently upgrade during
+unrelated work. Libraries may use features supported by that declared version.
 
 ## Metrics
 
 `make ratchet` (`tools/ratchet`, baseline `ratchet-baseline.json`) fails when a
-metric rises. When a metric falls, lower the baseline in the same commit.
+metric rises today. The proposed policy is to use size/complexity as review
+signals and justify meaningful increases (ROADMAP Q1); tool behavior has not
+yet changed. The 30% handwritten-Go reduction is aspirational, not an
+acceptance condition. Retain the nested-query/dependency correctness gates.
+Record actual per-packet deltas; do not count Node deletions as Go savings.
+Until Q1, use a reviewed explicit baseline adjustment for justified growth.
 
 Primary (simplification):
 
@@ -226,9 +268,13 @@ memory, cold start); the roadmap names the calls to beat.
 Three kinds of test gate a change. None compares bytes with upstream.
 
 1. **Contract tests**: for each route and Socket.IO event a client uses, the
-   response has the fields the client reads, with the right types and
-   nullability. Source of truth: the client code (`client/`), the mobile apps'
-   observed calls, and `docs/openapi.json`. Written as Go tests against a
+   response has the fields the client reads, with the right types,
+   nullability and meaningful values/state transitions. Shape-only coverage
+   proves structure, not ordering, permissions, progress, URLs or persistence.
+   Source of truth: client code (`client/`), commit-pinned mobile
+   source/observed calls ([audit](contracts/mobile-client-audit.md)), and
+   `docs/openapi.json`. The generated web/log/trial inventory is incomplete
+   external-client evidence, not permission to remove routes. Tests use a
    seeded database.
 2. **Persistence tests**: Go reads databases created by TS v2.37.2; TS v2.37.2
    reads databases Go wrote (rollback check); `metadata.json` and image files
@@ -239,8 +285,28 @@ Three kinds of test gate a change. None compares bytes with upstream.
 
 The Node differential harness (`tools/parity/`) is kept as an optional,
 non-blocking diagnostic until the three suites above cover the same journeys;
-then it is retired (ROADMAP V-tasks). Its byte-level normalizations are not a
-spec.
+then it is retired only after reusable fixture/route/shape/benchmark inputs
+are independent and mobile acceptance is recorded (ROADMAP V2a/V2b). V1 is
+complete: parity is already advisory; rollback remains an image gate. Its
+byte-level normalizations are not a spec.
+
+## Shared item data
+
+A small authoritative typed loader should obtain underlying item data in
+batches. Detail, shelf, playlist and playback responses retain explicit,
+consumer-specific projections. Do not force one universal DTO. Query-count
+and value/ACL regressions accompany S13 + P2/P3 before cosmetic domain moves.
+sqlc supports this where static queries benefit; no call-site conversion quota.
+
+## Realtime support and proof
+
+C25 replaced the old dependency with in-repo Engine.IO v4/Socket.IO v4,
+WebSocket transport, default namespace, JSON events/acks. Polling and binary
+packets are not supported. This records implementation, not six-client
+acceptance. Keep the working transport while testing real-library interop,
+auth failures/re-auth/reconnect, recipients, limits and cleanup. Native packet
+tests alone are insufficient; the existing JS integration can skip without
+its dependency. Unknown client requirements remain investigations.
 
 ## Open decisions
 

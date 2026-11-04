@@ -1,10 +1,10 @@
-> **Status (2026-11-03):** under the current North Star
-> ([ARCHITECTURE.md](../../ARCHITECTURE.md)) this Node differential harness is a
-> diagnostic, not the definition of correct. It stays in CI until Go contract,
-> persistence and functional tests cover the same journeys (ROADMAP F4-F6), then
-> becomes non-blocking (V1) and is reduced to the rollback check (V2). Byte-level
-> normalizations here are not a spec; differences in "free" areas (bytes, key
-> order, headers, error text no client parses) may be normalized with a reason.
+> **Status (2026-11-04):** this differential harness is advisory since V1;
+> contract/value/state tests and rollback are the required gates. Byte-level
+> normalizations are diagnostic, not a spec. V2a must extract reusable fixture,
+> route, shape, browser, benchmark and rollback dependencies before V2b removes
+> unreferenced tooling; real-device acceptance remains open. See the current
+> [ROADMAP](../../ROADMAP.md) and [North Star](../../ARCHITECTURE.md).
+> HTTP cache/range/format semantics remain contracts even when representation differs.
 
 # Upstream parity fixtures
 

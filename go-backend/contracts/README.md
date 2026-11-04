@@ -1,7 +1,8 @@
-> **Status (2026-11-03):** historical inventory of upstream source. The
-> contracts that bind the Go server are the SQLite database and the client
-> protocols ([ARCHITECTURE.md](../ARCHITECTURE.md)); the client-usage inventory
-> replaces this as the route denominator (ROADMAP F3).
+> **Status (2026-11-04):** historical upstream source inventory below.
+> The [mobile audit](mobile-client-audit.md), [gap/test plan](mobile-compat-gaps.md)
+> and [route decisions](mobile-route-decisions.md) qualify the generated
+> web/log/trial inventory: source/shape coverage is not behavioral acceptance.
+> No removal is authorized by web-only caller absence. MC-A/MC-B remain open.
 
 # Legacy source compatibility inventory
 
