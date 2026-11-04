@@ -12,3 +12,6 @@ state; see [../README.md](../README.md) for the document map.
 - `reviews/2026-11-04-mobile-audit-brief.md` and
   `reviews/2026-11-04-simplification-review.md`: supplied inputs, preserved
   verbatim; current findings/decisions belong in active docs.
+
+- `handover-before-books-2026-11-04.md`: takeover/planning state before the first
+  implemented book-domain feature; superseded by the active handover.

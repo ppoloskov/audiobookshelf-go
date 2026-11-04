@@ -166,8 +166,10 @@ before a behavior-preserving book extraction with relevant passing tests.
 
 Cards below are **PLANNED, size S** unless the execution status records otherwise (one narrow result, normally at most
 four production files plus tests). Paths are relative to go-backend. New paths
-and tests are marked `new`. A dependency means its implementation is reviewed
-and integrated, not merely that its plan exists. Do not dispatch blocked cards.
+and tests are marked `new`. A dependency means implemented/tested predecessor code, not merely a plan.
+Cross-worker reuse requires reviewed integration; an explicitly authorized
+single-worker feature batch may validate sequential cards before its final
+review. Do not dispatch blocked cards.
 
 Worker gets only: common rules + its card + named source/test snippets. Do not
 load the entire roadmap, all skills or previous chats. Preserve SQLite/JSON/
@@ -187,10 +189,41 @@ feature batch (B02–B07), running card checks as it goes; final code review is
 once the batch is ready. Avoid creating and deleting temporary APIs merely to
 publish intermediate cards. Worker completion means awaiting review, not push.
 
+#### Current execution status — book read feature reviewed
+
+Feature worktree `/private/tmp/abs-books-domain-20261104`, branch
+`codex/books-domain-batching`, base `48c10a6a`; delivery is to this fork branch,
+not default/master. Documentation baseline is `d64aa599`.
+
+| Cards | State / actual implementation |
+|---|---|
+| B01 | Implemented/reviewed: independent catalog value assertions and unchanged source goldens |
+| B02–B07 | Implemented/reviewed as one coherent wave: `books.Load(ctx, db, id)` and `Book.Full/Minified/Expanded`; no transitional metadata exports or production catalog builders |
+| B08/B09 | Implemented/reviewed: shared persisted JSON normalization; deleted stateless DB wrapper and redundant numeric conversion |
+| I01 | Implemented/reviewed: test-only SQL query counter, direct + prepared execution verified |
+| I02–I06, lists | Planned; no batching, item row or list migration claimed complete |
+
+Actual metrics versus 48c10a6a: **44,585 production Go lines (−1)**,
+**complexity 10,840 (−11)**, **991 dynamic maps (−2)**. This is a boundary and
+duplication improvement with essentially flat source size, not a large deletion.
+Ratchet baselines were only lowered; no guard was weakened. No performance or
+constant-query-count improvement is claimed before I02–I05.
+
+Build, vet, dependency lint (0 issues), dbnest, ratchet and Linux/arm64
+CGO-disabled build PASS. Final full `go test ./...` exits 1 for the exact five
+pre-existing native FFmpeg/libwebp TestJourney cases, with no new failures;
+affected package tests and persisted JSON tables pass. Feature scope reviewed;
+**full release acceptance remains incomplete** on this host. No encoder shim,
+test deletion or blanket baseline raise was used. Details: handover.
+
+Next implementation card: **I02**, now that I01 is available. Use plain
+`books.LoadMany(ctx, db, ids)`; do not reintroduce a Reader object. Full mobile
+research continues separately. Route removal/device/cutover decisions unchanged.
+
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
-Dependency spine: `B01 -> B02 -> B03 -> B04 -> B05 -> B06 -> B07`, then
-`I01 -> I02 -> I03 -> I04 -> I05 -> I06`. Only B01 is dispatchable initially.
+Completed read spine: `B01–B09` plus independent `I01`. Next dependency spine:
+`I02 -> I03 -> I04 -> I05 -> I06`. Only I02 is currently dispatchable there.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -203,38 +236,38 @@ finished by this milestone. All route removals and real-device gates stay intact
 
 ##### B02 · Move single-book reads into books
 
-- **Depends:** B01. **Write only:** `internal/books/reader.go` and `reader_test.go` (new); `internal/catalog/book_wire.go`, `handler.go`, related `handler_test.go`.
-- **Do:** Create concrete `books.Reader` over the existing *sql.DB and typed `books.Book` data. Move loadBookRow/loadBookSource and bookRelations SQL/decoding into Reader.Load(ctx, bookID). Return typed author/series slices ordered by existing association createdAt ASC, preserving nullable sequence. Catalog calls Load; it no longer performs these book reads or converts relation maps back into wire types. Keep projection implementation and existing wire declarations in place. Do not introduce a callback from books to catalog.
+- **Depends:** B01. **Write only:** `internal/books/reader.go`; reader integration tests in `internal/catalog/book_reader_test.go`; `internal/catalog/book_wire.go`, `handler.go`, related `handler_test.go`.
+- **Do:** Implement plain `books.Load(ctx, db, bookID)` returning typed `books.Book` data; B09 removed the initially proposed stateless Reader wrapper. Move loadBookRow/loadBookSource and bookRelations SQL/decoding into the books.Load function. Return typed author/series slices ordered by existing association createdAt ASC, preserving nullable sequence. Catalog calls Load; it no longer performs these book reads or converts relation maps back into wire types. Keep projection implementation and existing wire declarations in place. Do not introduce a callback from books to catalog.
 - **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
 - **Done:** New TestLoadBookNullsAndRelationOrder exercises real SQLite nulls/order/not-found. Remove old scans and bookRelations implementation, adapt its test without making the expected result call the new implementation. All Rows close before the next query.
 
 ##### B03 · Give book metadata projection one owner
 
-- **Depends:** B02. **Write only:** `internal/books/metadata.go`, `metadata_test.go` (new); `internal/catalog/book_wire.go`.
-- **Do:** Move fullMetadata/minifiedMetadata/expandedMetadata, authorNames/seriesName/descriptionPlain to books using Book data. Title-ignore-prefix is passed as a precomputed nullable value; retain catalog titlePrefix/settings ownership. Existing catalog builders call these functions temporarily until B04-B06. No new settings cache, prefix policy or people-domain dependency.
-- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookMetadataValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
-- **Done:** New TestBookMetadataValues checks nil/blank descriptions, author/series order and sequence, title prefix and plain description. Delete duplicate helpers in catalog; temporary exported metadata helpers have B07 removal condition.
+- **Depends:** B02. **Write only:** `internal/books/metadata.go`; shared catalog value tests; `internal/catalog/book_wire.go`.
+- **Do:** Move fullMetadata/minifiedMetadata/expandedMetadata, authorNames/seriesName/descriptionPlain to books using Book data. Title-ignore-prefix is passed as a precomputed nullable value; retain catalog titlePrefix/settings ownership. The completed wave calls private metadata helpers from books projections directly; no intermediate exported adapters were published. No new settings cache, prefix policy or people-domain dependency.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** Shared TestBookProjectionValues checks nil/blank descriptions, author/series order and sequence, title prefix and plain description. Delete duplicate helpers in catalog; all metadata helpers are private after B07.
 
 ##### B04 · Move full book media projection
 
-- **Depends:** B03. **Write only:** `internal/books/projection.go`, `projection_test.go` (new); `internal/catalog/book_wire.go`.
+- **Depends:** B03. **Write only:** `internal/books/projection.go`; shared catalog value tests; `internal/catalog/book_wire.go`.
 - **Do:** Move bookFull assembly to Book.Full(itemID), returning existing wire.BookFull. Move bookEbook/encodeJSON only with their consumers; catalog can forward to the single owner until B07. Keep opaque nested source JSON behavior and concrete wire value inside outer item map.
-- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookFullValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
-- **Done:** TestBookFullValues checks decoded fields/null/arrays and libraryItemId. Old Handler.bookFull may be forwarding-only until B07, with no duplicate assembly.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** TestBookProjectionValues checks decoded fields/null/arrays and libraryItemId. Old Handler.bookFull may be forwarding-only until B07, with no duplicate assembly.
 
 ##### B05 · Move minified book media projection
 
-- **Depends:** B04. **Write only:** `internal/books/projection.go`, `projection_test.go`; `internal/catalog/book_wire.go`, `handler.go` only for book-specific count/size helpers.
+- **Depends:** B04. **Write only:** `internal/books/projection.go`; shared catalog value tests; `internal/catalog/book_wire.go`, `handler.go` only for book-specific count/size helpers.
 - **Do:** Move bookMinified assembly to Book.Minified(titlePrefix). Move includedAudioCount/audioSize into books when their production callers are book-only; keep test oracle calculations independent. Catalog computes title prefix as before and delegates. Do not change settings queries yet.
-- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookMinifiedValues|TestBookProjectionValues|TestSeriesBooksUseMinifiedBookMediaShape|TestItemGolden' -count=1`.
-- **Done:** TestBookMinifiedValues covers track count vs files, chapters, ebook size/format, null vs zero duration. No duplicate minified implementation; forwarding adapter ends in B07.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** TestBookProjectionValues covers track count vs files, chapters, ebook size/format, null vs zero duration. No duplicate minified implementation; forwarding adapter ends in B07.
 
 ##### B06 · Move expanded book media projection
 
-- **Depends:** B05. **Write only:** `internal/books/projection.go`, `projection_test.go`; `internal/catalog/book_wire.go`, `handler.go` for makeTracks only.
+- **Depends:** B05. **Write only:** `internal/books/projection.go`; shared catalog value tests; `internal/catalog/book_wire.go`, `handler.go` for makeTracks only.
 - **Do:** Move bookExpanded to Book.Expanded(itemID, titlePrefix), including ordered track URL/offset construction. Move makeTracks if book-only; leave number/fileType helpers shared by podcast paths alone. Keep wire.BookExpanded, existing route URLs, units and RawMessage behavior.
-- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestBookExpandedTrackValues|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
-- **Done:** TestBookExpandedTrackValues uses hand-calculated offsets/order/item IDs and skipped-file case. Catalog has no expanded assembly beyond forwarding; no playback/session changes.
+- **Check (from go-backend):** `go test ./internal/books ./internal/catalog -run 'TestLoadBookNullsAndRelationOrder|TestBookProjectionValues|TestBookItemSerializersMatchPinnedSourceGolden|TestItemGolden' -count=1`.
+- **Done:** TestBookProjectionValues uses hand-calculated offsets/order/item IDs and skipped-file case. Catalog has no expanded assembly beyond forwarding; no playback/session changes.
 
 ##### B07 · Remove book migration adapters
 
@@ -242,6 +275,29 @@ finished by this milestone. All route removals and real-device gates stay intact
 - **Do:** Call the new Book projection methods directly from ItemJSON/ItemMinifiedJSON/expandedBookItem. Delete obsolete forwarding builders/types/helpers; retain stringPointerValue in its actual remaining owner (batch_chapters) if still needed. Make metadata helpers private when catalog no longer calls them. Keep HTTP orchestration in catalog for now.
 - **Check (from go-backend):** `go test ./internal/books ./internal/catalog ./internal/items -count=1`.
 - **Done:** rg confirms no catalog loadBookRow/loadBookSource/bookRelations or duplicate bookFull/bookMinified/bookExpanded assembly; books imports no catalog/items/server. Book read/projection extraction complete, book writes explicitly still unmigrated.
+
+##### B08 · Share persisted JSON normalization (review follow-up)
+
+- **Depends:** B07. **Write only:** `internal/store/json.go`, `json_test.go`;
+  catalog decoder definitions in `handler.go`; book reader decoder calls.
+- **Do:** one lenient persisted-JSON slice decoder (strings + object arrays)
+  and one object decoder, reused across catalog and books. Preserve non-null
+  empty containers, whitespace/null and partial type-error semantics. These
+  helpers are not HTTP request validators; book empty-ebook normalization stays.
+- **Check:** `go test ./internal/store ./internal/catalog ./internal/books -run 'JSON|BookProjection|LoadBook|ItemGolden|BookItemSerializers' -count=1`.
+- **Done:** duplicate decode bodies removed, behavior tables pass, measured
+  code/complexity recorded. Completed and reviewed with the book feature.
+
+##### B09 · Remove stateless read wrapper (review follow-up)
+
+- **Depends:** B08. **Write only:** books reader/metadata/projection files;
+  their catalog call sites and tests.
+- **Do:** use `books.Load(ctx, db, id)` rather than a Reader object duplicating
+  the DB handle already in catalog. Delete the wrapper/constructor/extra field.
+  Reuse JSON numeric conversion and keep name projection helpers in metadata.
+- **Check:** the same focused tests as B08, dependency lint and `make ratchet`.
+- **Done:** one explicit DB dependency, no wrapper or duplicate numeric helper;
+  no source packing/baseline raises to claim reduction. Completed.
 
 ##### I01 · Add test-only SQL query counter
 
@@ -253,14 +309,14 @@ finished by this milestone. All route removals and real-device gates stay intact
 ##### I02 · Batch books and their relations
 
 - **Depends:** I01. **Write only:** `internal/books/batch.go`, `batch_test.go` (new); `reader.go` shares scans only.
-- **Do:** Add Reader.LoadMany(ctx, bookIDs) -> map[string]Book using book rows + author links + series links, one query per kind per bounded chunk (250 unique IDs maximum per chunk). Reuse Load row decoding; implement Load via LoadMany if that removes duplication while retaining sql.ErrNoRows. Deduplicate lookup IDs, retain per-book createdAt ordering, close each Rows before the next query; no SQL per book.
+- **Do:** Add books.LoadMany(ctx, db, bookIDs) -> map[string]Book using book rows + author links + series links, one query per kind per bounded chunk (250 unique IDs maximum per chunk). Reuse Load row decoding; implement books.Load via books.LoadMany if that removes duplication while retaining sql.ErrNoRows. Deduplicate lookup IDs, retain per-book createdAt ordering, close each Rows before the next query; no SQL per book.
 - **Check (from go-backend):** `go test ./internal/books -run 'TestLoadManyBookValues|TestLoadManyBookChunkBoundary|TestLoadBookNullsAndRelationOrder' -count=1`.
 - **Done:** Tests compare independent known multi-book/null/order values and 0/1/250/251 IDs, missing IDs absent from map, canceled context propagated. No table/schema changes; query-count assertion comes through I04 integration counter.
 
 ##### I03 · Read title-prefix settings once per book batch
 
 - **Depends:** I02. **Write only:** `internal/catalog/book_batch.go`, `book_batch_test.go` (new); `handler.go` titlePrefix helper extraction only.
-- **Do:** Add a catalog-local batch assembly helper for already-loaded book item envelopes/media IDs. Load sortingPrefixes once, call books.LoadMany once per chunk, and project full/minified/expanded values in the caller input order. Share existing catalogTitlePrefixAtEnd logic; preserve default the/a and empty/null title behavior. No cross-request cache or podcast changes.
+- **Do:** Add a catalog-local batch assembly helper for already-loaded book item envelopes/media IDs. Load sortingPrefixes once, call books.LoadMany with bounded chunks, and project full/minified/expanded values in the caller input order. Share existing catalogTitlePrefixAtEnd logic; preserve default the/a and empty/null title behavior. No cross-request cache or podcast changes.
 - **Check (from go-backend):** `go test ./internal/catalog -run 'TestBatchBookProjectionValues|TestBookProjectionValues|TestItemGolden' -count=1`.
 - **Done:** TestBatchBookProjectionValues proves order/duplicates, each media view, custom/default prefixes and missing-book error behavior matching single reads. The helper only assembles; it does not add an HTTP route or change item selection/ACL.
 
@@ -451,7 +507,7 @@ and prerequisites; this table deliberately is not authorization to code.
 
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
-Next implementation card: B01 (tests only), then B02 book reads. In parallel,
+Next implementation card: I02 (batched book reads), after reviewed B01–B09/I01. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
-Full mobile research is not a prerequisite for B01/B02. Architect dispatches
+Full mobile research is not a prerequisite for I02 book-read batching. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

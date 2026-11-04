@@ -610,3 +610,10 @@ func floatValue(value any) float64 {
 		return 0
 	}
 }
+
+func stringPointerValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}

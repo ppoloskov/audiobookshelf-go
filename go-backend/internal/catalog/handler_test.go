@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,10 +16,12 @@ import (
 	"testing"
 	"time"
 
+	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/wire"
 	_ "modernc.org/sqlite"
 )
 
@@ -303,6 +306,168 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 	}
 }
 
+func TestBookProjectionValues(t *testing.T) {
+	db := catalogFixture(t)
+	defer db.Close()
+	if _, err := db.Exec(itemGoldenExtraFixtures); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE books SET description='' WHERE id='b1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE books SET ebookFile='{}' WHERE id='b1'`); err != nil {
+		t.Fatal(err)
+	}
+	var audioJSON string
+	if err := db.QueryRow(`SELECT audioFiles FROM books WHERE id='b2'`).Scan(&audioJSON); err != nil {
+		t.Fatal(err)
+	}
+	var audio []map[string]any
+	if err := json.Unmarshal([]byte(audioJSON), &audio); err != nil {
+		t.Fatal(err)
+	}
+	audio[1]["exclude"] = true
+	audioJSONBytes, err := json.Marshal(audio)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE books SET audioFiles=? WHERE id='b2'`, string(audioJSONBytes)); err != nil {
+		t.Fatal(err)
+	}
+	h := New(db, config.Config{}, nil)
+	normalize := func(value any) map[string]any {
+		t.Helper()
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded map[string]any
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		return decoded
+	}
+
+	for _, tc := range []struct {
+		id, description string
+		nilDescription  bool
+		wantAuthors     int
+		wantSeries      int
+	}{
+		{id: "i2", nilDescription: true, wantAuthors: 2, wantSeries: 2},
+		{id: "i3", description: "Plain text", wantAuthors: 0, wantSeries: 0},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			for _, view := range []struct {
+				name string
+				load func() (map[string]any, error)
+			}{
+				{"full", func() (map[string]any, error) { return h.ItemJSON(t.Context(), tc.id, false) }},
+				{"minified", func() (map[string]any, error) { return h.ItemMinifiedJSON(t.Context(), tc.id) }},
+				{"expanded", func() (map[string]any, error) { return h.ItemJSON(t.Context(), tc.id, true) }},
+			} {
+				t.Run(view.name, func(t *testing.T) {
+					itemValue, err := view.load()
+					if err != nil {
+						t.Fatal(err)
+					}
+					item := normalize(itemValue)
+					if item["id"] != tc.id {
+						t.Fatalf("item id=%v, want %s", item["id"], tc.id)
+					}
+					media := item["media"].(map[string]any)
+					metadata := media["metadata"].(map[string]any)
+					if tc.nilDescription {
+						if metadata["description"] != nil {
+							t.Errorf("description=%#v, want null", metadata["description"])
+						}
+					} else if metadata["description"] != tc.description {
+						t.Errorf("description=%#v, want %q", metadata["description"], tc.description)
+					}
+					if view.name == "full" {
+						if got := len(metadata["authors"].([]any)); got != tc.wantAuthors {
+							t.Errorf("authors=%d, want %d", got, tc.wantAuthors)
+						}
+						if got := len(metadata["series"].([]any)); got != tc.wantSeries {
+							t.Errorf("series=%d, want %d", got, tc.wantSeries)
+						}
+					}
+					if view.name == "expanded" {
+						if media["libraryItemId"] != tc.id {
+							t.Errorf("libraryItemId=%v, want %s", media["libraryItemId"], tc.id)
+						}
+						if got := media["numTracks"]; got == nil {
+							t.Error("expanded projection omitted numTracks")
+						}
+						if _, ok := media["tracks"].([]any); !ok {
+							t.Errorf("tracks=%T, want array", media["tracks"])
+						}
+					}
+				})
+			}
+		})
+	}
+
+	// The source fixture pins a SQL NULL sequence independently from the empty
+	// sequence on i2; preserve that distinction in the full book projection.
+	fullValue, err := h.ItemJSON(t.Context(), "i1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := normalize(fullValue)
+	series := full["media"].(map[string]any)["metadata"].(map[string]any)["series"].([]any)
+	if got := series[1].(map[string]any)["sequence"]; got != nil {
+		t.Errorf("nullable series sequence=%#v, want null", got)
+	}
+	if got := series[0].(map[string]any)["sequence"]; got != "1" {
+		t.Errorf("first series sequence=%#v, want %q", got, "1")
+	}
+	if got := full["media"].(map[string]any)["metadata"].(map[string]any)["description"]; got != "" {
+		t.Errorf("empty description=%#v, want empty string distinct from null", got)
+	}
+	if got := full["media"].(map[string]any)["ebookFile"]; got != nil {
+		t.Errorf("full empty ebook object=%#v, want null", got)
+	}
+	expandedI1Value, err := h.ItemJSON(t.Context(), "i1", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := normalize(expandedI1Value)["media"].(map[string]any)["ebookFile"]; got != nil {
+		t.Errorf("expanded empty ebook object=%#v, want null", got)
+	}
+
+	for _, view := range []struct {
+		name string
+		load func() (map[string]any, error)
+	}{
+		{"full", func() (map[string]any, error) { return h.ItemJSON(t.Context(), "i2", false) }},
+		{"minified", func() (map[string]any, error) { return h.ItemMinifiedJSON(t.Context(), "i2") }},
+		{"expanded", func() (map[string]any, error) { return h.ItemJSON(t.Context(), "i2", true) }},
+	} {
+		itemValue, err := view.load()
+		if err != nil {
+			t.Fatalf("%s: %v", view.name, err)
+		}
+		item := normalize(itemValue)
+		media := item["media"].(map[string]any)
+		if view.name == "full" {
+			audio := media["audioFiles"].([]any)
+			if len(audio) != 2 || audio[0].(map[string]any)["ino"] != "audio-2a" || audio[1].(map[string]any)["ino"] != "audio-2b" {
+				t.Errorf("full source audio order=%#v, want audio-2a then audio-2b", audio)
+			}
+		}
+		if view.name == "expanded" {
+			if media["numAudioFiles"] != float64(2) || media["numTracks"] != float64(1) {
+				t.Errorf("expanded audio counts: files=%v tracks=%v, want 2 and 1 after exclusion", media["numAudioFiles"], media["numTracks"])
+			}
+			tracks := media["tracks"].([]any)
+			if len(tracks) != 1 || tracks[0].(map[string]any)["ino"] != "audio-2a" {
+				t.Errorf("expanded tracks=%#v, want only included audio-2a in source order", tracks)
+			}
+		}
+	}
+}
+
 func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (map[string]any, error) {
 	t.Helper()
 	media, err := h.bookJSON(t.Context(), bookID, itemID, false)
@@ -351,6 +516,148 @@ func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (m
 	}
 	media["tracks"] = makeTracks(itemID, audio)
 	return media, nil
+}
+
+// Independent pre-extraction read oracle. These helpers live in tests only;
+// production book reads and projections are owned by internal/books.
+type bookRow struct {
+	id, title, subtitle, year, publishedDate, publisher sql.NullString
+	description, isbn, asin, language, coverPath        sql.NullString
+	explicit, abridged                                  int64
+	duration                                            any
+	narrators, audio, ebook, chapters                   []byte
+	tags, genres                                        []byte
+}
+
+func (h *Handler) loadBookRow(ctx context.Context, bookID string) (bookRow, error) {
+	var row bookRow
+	err := h.db.QueryRowContext(ctx, `SELECT id,title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres FROM books WHERE id=?`, bookID).
+		Scan(&row.id, &row.title, &row.subtitle, &row.year, &row.publishedDate, &row.publisher, &row.description, &row.isbn, &row.asin, &row.language, &row.explicit, &row.abridged, &row.coverPath, &row.duration, &row.narrators, &row.audio, &row.ebook, &row.chapters, &row.tags, &row.genres)
+	return row, err
+}
+
+func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[string]any, []map[string]any, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC`, bookID)
+	if err != nil {
+		return nil, nil, err
+	}
+	authors := make([]map[string]any, 0)
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		authors = append(authors, map[string]any{"id": id, "name": name})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, err
+	}
+	rows, err = h.db.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC`, bookID)
+	if err != nil {
+		return nil, nil, err
+	}
+	series := make([]map[string]any, 0)
+	for rows.Next() {
+		var id, name string
+		var sequence sql.NullString
+		if err := rows.Scan(&id, &name, &sequence); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		series = append(series, map[string]any{"id": id, "name": name, "sequence": store.NullString(sequence)})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, err
+	}
+	return authors, series, nil
+}
+
+func (h *Handler) bookFull(ctx context.Context, bookID, itemID string) (wire.BookFull, error) {
+	book, err := bookdomain.Load(ctx, h.db, bookID)
+	if err != nil {
+		return wire.BookFull{}, err
+	}
+	return book.Full(itemID)
+}
+
+func (h *Handler) bookMinified(ctx context.Context, bookID, itemID string) (wire.BookMinified, error) {
+	book, err := bookdomain.Load(ctx, h.db, bookID)
+	if err != nil {
+		return wire.BookMinified{}, err
+	}
+	return book.Minified(h.bookTitlePrefix(ctx, book.Title()))
+}
+
+func (h *Handler) bookExpanded(ctx context.Context, bookID, itemID string) (wire.BookExpanded, error) {
+	book, err := bookdomain.Load(ctx, h.db, bookID)
+	if err != nil {
+		return wire.BookExpanded{}, err
+	}
+	return book.Expanded(itemID, h.bookTitlePrefix(ctx, book.Title()))
+}
+
+func includedAudioCount(audio []map[string]any) int {
+	n := 0
+	for _, file := range audio {
+		if file["exclude"] != true {
+			n++
+		}
+	}
+	return n
+}
+
+func audioSize(audio []map[string]any, ebook map[string]any) int64 {
+	var size int64
+	for _, file := range audio {
+		if metadata, ok := file["metadata"].(map[string]any); ok {
+			size += number(metadata["size"])
+		}
+	}
+	if metadata, ok := ebook["metadata"].(map[string]any); ok {
+		size += number(metadata["size"])
+	}
+	return size
+}
+
+func makeTracks(itemID string, audio []map[string]any) []map[string]any {
+	tracks := make([]map[string]any, 0)
+	var offset float64
+	for _, file := range audio {
+		if file["exclude"] == true {
+			continue
+		}
+		track := map[string]any{}
+		for key, value := range file {
+			track[key] = value
+		}
+		metadata, _ := file["metadata"].(map[string]any)
+		track["title"], track["startOffset"] = metadata["filename"], offset
+		track["contentUrl"] = "/api/items/" + itemID + "/file/" + url.PathEscape(stringValue(file["ino"]))
+		offset += floating(file["duration"])
+		tracks = append(tracks, track)
+	}
+	return tracks
+}
+
+func floating(value any) float64 {
+	switch number := value.(type) {
+	case float64:
+		return number
+	case int64:
+		return float64(number)
+	case int:
+		return float64(number)
+	}
+	return 0
 }
 
 // bookJSON is the pre-pilot map builder, retained only in tests so each typed

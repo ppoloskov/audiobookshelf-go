@@ -94,6 +94,8 @@ linters:
             - "**/internal/audiotools/**/*.go"
             - "**/internal/realtime/*.go"
             - "**/internal/realtime/**/*.go"
+            - "**/internal/books/*.go"
+            - "**/internal/books/**/*.go"
           deny:
             - pkg: audiobookshelf-compat/internal/catalog$
             - pkg: audiobookshelf-compat/internal/userapi$
@@ -109,4 +111,15 @@ linters:
             - pkg: audiobookshelf-compat/internal/backup$
             - pkg: audiobookshelf-compat/internal/audiotools$
             - pkg: audiobookshelf-compat/internal/realtime$
+        books-no-orchestrator-imports:
+          list-mode: lax
+          files:
+            - '!**/*_test.go'
+            - "**/internal/books/*.go"
+            - "**/internal/books/**/*.go"
+          deny:
+            - pkg: audiobookshelf-compat/internal/items$
+            - pkg: audiobookshelf-compat/internal/library$
+            - pkg: audiobookshelf-compat/internal/lists$
+            - pkg: audiobookshelf-compat/internal/server$
 

@@ -145,7 +145,14 @@ excessive generic parity/ledger processes. Metrics guide review; the current
 ratchet still enforces limits pending the proposed Q1 policy change.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
-The [roadmap](ROADMAP.md) breaks the first milestone into B01–B07 book-read
-cards, I01–I06 batch/item cards, then small lists cards. Each gives exact
-scope/dependencies/tests/removal criteria. These are planned tasks, not shipped
-domains; book writes and mixed-media migration remain separately tracked.
+Book reads and projections are implemented in `internal/books`; B01–B09 and
+test-only query instrumentation I01 are reviewed. Production source is nearly
+flat (−1 line), complexity −11, dynamic maps −2. Batching I02–I06, list migration,
+book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
+gives exact scopes/dependencies/tests; this feature does not claim all domains
+complete or constant query counts yet.
+
+Local test prerequisite: FFmpeg must support WebP encoding (`libwebp`). The
+installed Homebrew build here lacks it: five pre-existing journey image tests
+fail on both base and feature. The final suite has no additional failures;
+this is not a clean full-suite or deployment acceptance claim.

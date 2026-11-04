@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
@@ -82,53 +83,6 @@ func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
 		item["size"] = size
 	}
 	return item, mediaID.String, nil
-}
-
-func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[string]any, []map[string]any, error) {
-	aRows, err := h.db.QueryContext(ctx, `SELECT a.id,a.name,ba.createdAt FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC`, bookID)
-	if err != nil {
-		return nil, nil, err
-	}
-	authors := make([]map[string]any, 0)
-	for aRows.Next() {
-		var id, name string
-		var created any
-		if err := aRows.Scan(&id, &name, &created); err != nil {
-			aRows.Close()
-			return nil, nil, err
-		}
-		authors = append(authors, map[string]any{"id": id, "name": name})
-	}
-	if err := aRows.Err(); err != nil {
-		aRows.Close()
-		return nil, nil, err
-	}
-	if err := aRows.Close(); err != nil {
-		return nil, nil, err
-	}
-	sRows, err := h.db.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence,bs.createdAt FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC`, bookID)
-	if err != nil {
-		return nil, nil, err
-	}
-	series := make([]map[string]any, 0)
-	for sRows.Next() {
-		var id, name string
-		var sequence sql.NullString
-		var created any
-		if err := sRows.Scan(&id, &name, &sequence, &created); err != nil {
-			sRows.Close()
-			return nil, nil, err
-		}
-		series = append(series, map[string]any{"id": id, "name": name, "sequence": store.NullString(sequence)})
-	}
-	if err := sRows.Err(); err != nil {
-		sRows.Close()
-		return nil, nil, err
-	}
-	if err := sRows.Close(); err != nil {
-		return nil, nil, err
-	}
-	return authors, series, nil
 }
 
 // podcastBase builds the keys shared by every upstream Podcast serializer
@@ -346,7 +300,11 @@ func episodesSize(episodes []map[string]any) int64 {
 }
 
 func (h *Handler) expandedBookItem(ctx context.Context, item map[string]any, bookID, itemID string) (map[string]any, error) {
-	media, err := h.bookExpanded(ctx, bookID, itemID)
+	book, err := bookdomain.Load(ctx, h.db, bookID)
+	if err != nil {
+		return nil, err
+	}
+	media, err := book.Expanded(itemID, h.bookTitlePrefix(ctx, book.Title()))
 	if err != nil {
 		return nil, err
 	}
@@ -764,34 +722,13 @@ func userCanListLibrary(user store.User, id string) bool {
 	return false
 }
 func decodeObject(raw []byte) map[string]any {
-	v := map[string]any{}
-	if len(raw) > 0 && string(raw) != "null" {
-		_ = json.Unmarshal(raw, &v)
-	}
-	if v == nil {
-		return map[string]any{}
-	}
-	return v
+	return store.DecodeJSONObject(raw)
 }
 func decodeArray(raw []byte) []map[string]any {
-	v := make([]map[string]any, 0)
-	if len(raw) > 0 && string(raw) != "null" {
-		_ = json.Unmarshal(raw, &v)
-	}
-	if v == nil {
-		return make([]map[string]any, 0)
-	}
-	return v
+	return store.DecodeJSONSlice[map[string]any](raw)
 }
 func decodeStrings(raw []byte) []string {
-	v := make([]string, 0)
-	if len(raw) > 0 && string(raw) != "null" {
-		_ = json.Unmarshal(raw, &v)
-	}
-	if v == nil {
-		return make([]string, 0)
-	}
-	return v
+	return store.DecodeJSONSlice[string](raw)
 }
 func deref(n *int64) any {
 	if n == nil {
@@ -822,6 +759,14 @@ func (h *Handler) titlePrefix(ctx context.Context, title string) string {
 	return catalogTitlePrefixAtEnd(title, prefixes)
 }
 
+func (h *Handler) bookTitlePrefix(ctx context.Context, title *string) *string {
+	if title == nil {
+		return nil
+	}
+	prefix := h.titlePrefix(ctx, *title)
+	return &prefix
+}
+
 // seriesPrefixFreeName is the nameIgnorePrefix of Series.toOldJSON
 // (Series.js:172): getTitlePrefixAtEnd of the name, not the stored column,
 // which a rename (PATCH /api/series/:id) leaves unchanged.
@@ -848,27 +793,6 @@ func catalogTitlePrefixAtEnd(title string, prefixes []string) string {
 // lastFirst is Author.getLastFirst for a non-empty name
 // (server/models/Author.js:33-36, parseNameString.nameToLastFirst).
 func lastFirst(name string) string { return nameparse.ToLastFirst(name) }
-func includedAudioCount(a []map[string]any) int {
-	n := 0
-	for _, f := range a {
-		if f["exclude"] != true {
-			n++
-		}
-	}
-	return n
-}
-func audioSize(audio []map[string]any, ebook map[string]any) int64 {
-	var n int64
-	for _, f := range audio {
-		if m, ok := f["metadata"].(map[string]any); ok {
-			n += number(m["size"])
-		}
-	}
-	if m, ok := ebook["metadata"].(map[string]any); ok {
-		n += number(m["size"])
-	}
-	return n
-}
 func number(v any) int64 {
 	switch n := v.(type) {
 	case float64:
@@ -877,37 +801,6 @@ func number(v any) int64 {
 		return n
 	case int:
 		return int64(n)
-	}
-	return 0
-}
-func makeTracks(itemID string, audio []map[string]any) []map[string]any {
-	out := make([]map[string]any, 0)
-	var offset float64
-	for _, f := range audio {
-		if f["exclude"] == true {
-			continue
-		}
-		track := map[string]any{}
-		for k, v := range f {
-			track[k] = v
-		}
-		meta, _ := f["metadata"].(map[string]any)
-		track["title"] = meta["filename"]
-		track["startOffset"] = offset
-		track["contentUrl"] = "/api/items/" + itemID + "/file/" + url.PathEscape(stringValue(f["ino"]))
-		offset += floating(f["duration"])
-		out = append(out, track)
-	}
-	return out
-}
-func floating(v any) float64 {
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int:
-		return float64(n)
-	case int64:
-		return float64(n)
 	}
 	return 0
 }
@@ -2382,10 +2275,14 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		delete(row.item, "libraryFiles")
 		var media map[string]any
 		if mediaType == "book" {
-			book, bookErr := h.bookMinified(r.Context(), row.mediaID, row.item["id"].(string))
+			book, bookErr := bookdomain.Load(r.Context(), h.db, row.mediaID)
 			err = bookErr
 			if bookErr == nil {
-				row.item["media"] = book
+				media, projectionErr := book.Minified(h.bookTitlePrefix(r.Context(), book.Title()))
+				err = projectionErr
+				if projectionErr == nil {
+					row.item["media"] = media
+				}
 			}
 		} else {
 			media, err = h.podcastListJSON(r.Context(), row.mediaID, row.item)
@@ -2585,7 +2482,11 @@ func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (m
 		if expanded {
 			return h.expandedBookItem(ctx, item, mediaID, itemID)
 		}
-		media, err := h.bookFull(ctx, mediaID, itemID)
+		book, err := bookdomain.Load(ctx, h.db, mediaID)
+		if err != nil {
+			return nil, err
+		}
+		media, err := book.Full(itemID)
 		if err != nil {
 			return nil, err
 		}
@@ -2621,7 +2522,11 @@ func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[stri
 	delete(item, "libraryFiles")
 	var media any
 	if item["mediaType"] == "book" {
-		media, err = h.bookMinified(ctx, mediaID, itemID)
+		book, loadErr := bookdomain.Load(ctx, h.db, mediaID)
+		err = loadErr
+		if loadErr == nil {
+			media, err = book.Minified(h.bookTitlePrefix(ctx, book.Title()))
+		}
 	} else if item["mediaType"] == "podcast" {
 		media, err = h.podcastMinifiedJSON(ctx, mediaID)
 	} else {

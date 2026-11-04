@@ -149,12 +149,17 @@ Library browsing/filtering/shelves belong to `library`, lists to `lists`, and
 playback/progress to `progress`. Media domains supply data, not user-specific
 shelf/list/playback orchestration.
 
-Start with concrete book reads and existing `wire.Book*` response types. Do
+Book reads/projections now live in `internal/books`: plain
+`Load(ctx, db, bookID)` plus `Book.Full/Minified/Expanded`, returning existing
+`wire.Book*` response types. No stateless Reader/extra DB wrapper is needed. Do
 not move every wire type, add a generic repository, or invent a universal DTO.
 The `items` coordinator may consume `books` data; `books` must never import
 `items`, `catalog`, `library`, `lists`, `playback` or `server`. A temporary
 podcast adapter is supplied at composition time while podcast reads still
 live in catalog; it must not create an `items -> catalog` dependency.
+
+Persisted JSON container normalization is shared in `store` for the existing
+lenient column semantics; it is not HTTP request validation.
 
 Migrate one projection/caller per packet; keep every intermediate tree
 buildable. Named forwarding adapters may survive only until the specified

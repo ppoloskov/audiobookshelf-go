@@ -58,23 +58,18 @@ claimed. The gap/test plan and task queue define how to close the remainder.
 - External Flash delegation was automatically rejected for private-code export;
   built-in cheap workers were used. No external-provider permission assumed.
 
-## Next five worker cards (updated after owner domain follow-up)
+## Implementation follow-up
 
-| Order | ID / size | Dependency | Concrete result |
-|---|---|---|---|
-| 1 | B01 / S | none | Book field/null/track/count baselines in existing catalog tests |
-| 2 | B02 / S | B01 reviewed | Single-book typed read and ordered associations owned by books |
-| 3 | B03 / S | B02 reviewed | One owner for book metadata projection helpers |
-| 4 | B04 / S | B03 reviewed | Full book projection owned by books, old assembly removed |
-| 5 | B05 / S | B04 reviewed | Minified book projection owned by books, values unchanged |
+B01–B09 book read/projection outcomes and I01 query instrumentation are now
+implemented/reviewed on `codex/books-domain-batching`; individual card checks
+and actual verification are recorded in ROADMAP/handover. The stateless reader
+object was removed; use plain `books.Load(ctx, db, id)`.
 
-B06/B07 finish expanded projection and remove migration adapters; I01–I06 add
-query-count proof and book batching; L01 onward begins lists. All are planned,
-not implemented. Exact file/test/acceptance scopes live only in ROADMAP.
-MC-A/MC-B and relevant MC-C/MC-D run alongside these cards in disjoint scopes;
-unrelated audit unknowns do not block the entire migration. O4 still blocks
-route deletion and final diagnostic retirement. Later write domains are
-incrementally decomposed rather than handed to a worker as a whole-package move.
+Actual outcome: production lines −1, complexity −11, maps −2. No thousands-of-
+lines claim. Next is I02 LoadMany, then I03 prefix batching, I04 pages, I05
+shelves and I06 item rows. List migration and all device/removal decisions stay
+open. Full test suite still has the five pre-existing local WebP encoder
+failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
 
 ## Changes and verification
 

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
@@ -277,7 +278,11 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 	}
 	rows.Close()
 	for i, b := range books {
-		media, err := h.bookMinified(ctx, bookIDs[i], b.itemID)
+		book, err := bookdomain.Load(ctx, h.db, bookIDs[i])
+		if err != nil {
+			return nil, false, err
+		}
+		media, err := book.Minified(h.bookTitlePrefix(ctx, book.Title()))
 		if err != nil {
 			return nil, false, err
 		}
