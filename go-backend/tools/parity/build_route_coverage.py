@@ -22,6 +22,7 @@ GO_SOURCES = {
     "catalog": ROOT / "go-backend/internal/catalog/handler.go",
     "emailapi": ROOT / "go-backend/internal/emailapi/handler.go",
     "identity": ROOT / "go-backend/internal/identity/identity.go",
+    "lists": ROOT / "go-backend/internal/lists/routes.go",
     "notifications": ROOT / "go-backend/internal/notifications/handler.go",
     "podcasts": ROOT / "go-backend/internal/podcasts/podcasts.go",
     "providers": ROOT / "go-backend/internal/providers/handler.go",
@@ -87,7 +88,10 @@ def owner_for(route: dict) -> str | None:
         return "adminops"
     if p.startswith("/public/share") or p.startswith("/shares") or p.startswith("/feed"):
         return "sharing"
-    if p.startswith("/me") or p.startswith("/users") or p.startswith("/api-keys") or p.startswith("/collections") or p.startswith("/playlists"):
+    if (p.startswith("/collections") or p.startswith("/playlists")
+            or re.fullmatch(r"/libraries/:[^/]+/(collections|playlists)", p)):
+        return "lists"
+    if p.startswith("/me") or p.startswith("/users") or p.startswith("/api-keys"):
         return "userapi"
     if p.startswith("/session") or p.startswith("/sessions") or p.startswith("/items/:id/play"):
         return "playback"

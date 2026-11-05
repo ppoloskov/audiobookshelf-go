@@ -7,11 +7,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"html"
 	"math"
 	"net/http"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +20,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	listdomain "audiobookshelf-compat/internal/lists"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -119,12 +116,6 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	case strings.HasPrefix(path, "/users/"):
 		tail := strings.TrimPrefix(path, "/users/")
 		h.handleUser(w, r, user, tail)
-	case strings.HasPrefix(path, "/collections") || strings.HasPrefix(path, "/playlists"):
-		return h.collectionPlaylist(w, r, user, path)
-	case strings.HasPrefix(path, "/libraries/") && strings.HasSuffix(path, "/collections") && r.Method == http.MethodGet && strings.Count(path, "/") == 3:
-		h.libraryCollections(w, r, user, strings.Split(path, "/")[2])
-	case strings.HasPrefix(path, "/libraries/") && strings.HasSuffix(path, "/playlists") && r.Method == http.MethodGet && strings.Count(path, "/") == 3:
-		h.libraryPlaylists(w, r, user, strings.Split(path, "/")[2])
 	default:
 		return false
 	}
@@ -167,7 +158,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		httputil.SendStatus(w, 403)
 		return
 	}
-	body, err := decodeBody(r)
+	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
 		http.Error(w, "Missing or invalid password or new password", 400)
 		return
@@ -386,7 +377,7 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return wire.MediaProgress{}, err
 	}
-	if libraryID != "" && !canAccessLibrary(permissions(user), libraryID) {
+	if libraryID != "" && !canAccessLibrary(store.DecodeJSONObject(user.Permissions), libraryID) {
 		return wire.MediaProgress{}, &progressdto.StatusError{Status: http.StatusForbidden, Message: "Forbidden"}
 	}
 	return progressdto.Apply(ctx, h.db, user.ID, p)
@@ -420,7 +411,7 @@ func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user st
 			httputil.SendStatus(w, 404)
 			return
 		}
-		body, err := decodeBody(r)
+		body, err := httputil.DecodeObjectRequest(r)
 		if err != nil {
 			http.Error(w, "Invalid request body", 400)
 			return
@@ -530,7 +521,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		httputil.SendStatus(w, 403)
 		return
 	}
-	body, err := decodeBody(r)
+	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
 		httputil.SendText(w, 400, "Username and password are required")
 		return
@@ -823,7 +814,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 			httputil.SendStatus(w, 403)
 			return
 		}
-		body, err := decodeBody(r)
+		body, err := httputil.DecodeObjectRequest(r)
 		if err != nil {
 			http.Error(w, "Invalid request", 400)
 			return
@@ -910,7 +901,7 @@ func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current sto
 		if active, ok := body["isActive"].(bool); ok {
 			u.IsActive = active
 		}
-		perms := permissions(u)
+		perms := store.DecodeJSONObject(u.Permissions)
 		if patch, ok := body["permissions"].(map[string]any); ok {
 			defaults := defaultPermissions(u.Type)
 			for key, value := range patch {
@@ -991,7 +982,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		return
 	}
 	if id == "" && r.Method == http.MethodPost {
-		body, err := decodeBody(r)
+		body, err := httputil.DecodeObjectRequest(r)
 		if err != nil {
 			httputil.SendStatus(w, 400)
 			return
@@ -1101,7 +1092,7 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 			httputil.SendStatus(w, 403)
 			return
 		}
-		body, err := decodeBody(r)
+		body, err := httputil.DecodeObjectRequest(r)
 		if err != nil {
 			httputil.SendStatus(w, 400)
 			return
@@ -1160,730 +1151,6 @@ func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current 
 		return
 	}
 	httputil.SendStatus(w, 404)
-}
-
-var stripMarkup = regexp.MustCompile(`<[^>]*>`)
-
-func stringValue(value any) string {
-	text, _ := value.(string)
-	return text
-}
-
-func jsTruthy(value any) bool {
-	switch v := value.(type) {
-	case nil:
-		return false
-	case bool:
-		return v
-	case string:
-		return v != ""
-	case float64:
-		return v != 0
-	case int:
-		return v != 0
-	case int64:
-		return v != 0
-	default:
-		return true
-	}
-}
-
-func cleanName(value string) string {
-	return html.UnescapeString(stripMarkup.ReplaceAllString(value, ""))
-}
-
-func (h *Handler) collectionPlaylist(w http.ResponseWriter, r *http.Request, user store.User, path string) bool {
-	if strings.HasPrefix(path, "/collections") {
-		return h.collectionRoute(w, r, user, strings.TrimPrefix(path, "/collections"))
-	}
-	if strings.HasPrefix(path, "/playlists") {
-		return h.playlistRoute(w, r, user, strings.TrimPrefix(path, "/playlists"))
-	}
-	return false
-}
-
-func (h *Handler) collectionRoute(w http.ResponseWriter, r *http.Request, user store.User, tail string) bool {
-	if tail == "" || tail == "/" {
-		switch r.Method {
-		case http.MethodGet:
-			// One-connection pool: the ids are read whole before collectionDTO
-			// opens its own queries.
-			ids, err := h.queries().ListCollectionIDs(r.Context())
-			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			out := make([]any, 0)
-			for _, id := range ids {
-				dto, libraryID, hasVisible, err := h.collectionDTO(r.Context(), id, user)
-				if errors.Is(err, sql.ErrNoRows) {
-					continue
-				}
-				if err != nil {
-					logging.RequestError(r, "database read failed", err)
-					http.Error(w, "database read failed", 500)
-					return true
-				}
-				if canAccessLibrary(permissions(user), libraryID) && hasVisible {
-					out = append(out, dto)
-				}
-			}
-			httputil.WriteJSON(w, 200, map[string]any{"collections": out})
-			return true
-		case http.MethodPost:
-			h.createCollection(w, r, user)
-			return true
-		default:
-			return false
-		}
-	}
-	parts := strings.Split(strings.TrimPrefix(tail, "/"), "/")
-	if len(parts) == 1 {
-		id := parts[0]
-		switch r.Method {
-		case http.MethodGet:
-			dto, libraryID, hasVisible, err := h.collectionDTO(r.Context(), id, user)
-			if errors.Is(err, sql.ErrNoRows) || (!canAccessLibrary(permissions(user), libraryID) && err == nil) || !hasVisible {
-				sendEntityNotFound(w, "Collection not found")
-				return true
-			}
-			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
-				feed, err := h.collectionRSSFeed(r, id)
-				if err != nil {
-					logging.RequestError(r, "database read failed", err)
-					http.Error(w, "database read failed", 500)
-					return true
-				}
-				if feed != nil {
-					dto["rssFeed"] = feed
-				}
-			}
-			httputil.WriteJSON(w, 200, dto)
-			return true
-		case http.MethodPatch:
-			return h.updateCollection(w, r, user, id)
-		case http.MethodDelete:
-			libraryID, err := h.collectionLibraryID(r.Context(), id)
-			if errors.Is(err, sql.ErrNoRows) {
-				sendEntityNotFound(w, "Collection not found")
-				return true
-			} else if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return true
-			}
-			if !canAccessLibrary(permissions(user), libraryID) {
-				sendEntityNotFound(w, "Collection not found")
-				return true
-			}
-			if !boolValue(permissions(user)["delete"]) {
-				httputil.SendStatus(w, 403)
-				return true
-			}
-			dto, _, _, _ := h.collectionDTO(r.Context(), id, user)
-			if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-			if h.emit != nil {
-				h.emit("*", "collection_removed", dto)
-			}
-			httputil.SendStatus(w, 200)
-			return true
-		}
-	}
-	if len(parts) == 2 && parts[1] == "book" && r.Method == http.MethodPost {
-		return h.addCollectionBook(w, r, user, parts[0])
-	}
-	if len(parts) == 3 && parts[1] == "book" && r.Method == http.MethodDelete {
-		return h.removeCollectionBook(w, r, user, parts[0], parts[2])
-	}
-	if len(parts) == 3 && parts[1] == "batch" && r.Method == http.MethodPost {
-		switch parts[2] {
-		case "add":
-			return h.batchCollectionBooks(w, r, user, parts[0], true)
-		case "remove":
-			return h.batchCollectionBooks(w, r, user, parts[0], false)
-		}
-	}
-	return false
-}
-
-func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request, user store.User) {
-	if !boolValue(permissions(user)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
-	}
-	body, err := decodeBody(r)
-	if err != nil {
-		httputil.SendText(w, 400, "Invalid collection data")
-		return
-	}
-	name, _ := body["name"].(string)
-	name = cleanName(name)
-	libraryID, _ := body["libraryId"].(string)
-	description, descOK := body["description"].(string)
-	if name == "" || libraryID == "" {
-		httputil.SendText(w, 400, "Invalid collection data")
-		return
-	}
-	if jsTruthy(body["description"]) && !descOK {
-		http.Error(w, "Invalid collection description", 400)
-		return
-	}
-	// Collection.create persists `description || null` upstream; an empty
-	// string therefore round-trips as JSON null, not as an empty string
-	// (store.TextOrNull writes NULL for it).
-	if !canAccessLibrary(permissions(user), libraryID) {
-		httputil.SendStatus(w, 403)
-		return
-	}
-	bookIDs := stringSlice(body["books"])
-	if len(bookIDs) == 0 {
-		http.Error(w, "Invalid collection data. No books", 400)
-		return
-	}
-	mediaIDs := make([]string, len(bookIDs))
-	for i, itemID := range bookIDs {
-		var mediaID, mediaType, lib string
-		err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType,libraryId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType, &lib)
-		if err != nil || mediaType != "book" || lib != libraryID {
-			http.Error(w, "Invalid collection data. Invalid books", 400)
-			return
-		}
-		mediaIDs[i] = mediaID
-	}
-	id, err := ids.New()
-	if err != nil {
-		logging.RequestError(r, "Failed to create collection", err)
-		http.Error(w, "Failed to create collection", 500)
-		return
-	}
-	now := dbtime.Now()
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		logging.RequestError(r, "Failed to create collection", err)
-		http.Error(w, "Failed to create collection", 500)
-		return
-	}
-	defer tx.Rollback()
-	q := sqlc.New(tx)
-	if err = q.InsertCollection(r.Context(), sqlc.InsertCollectionParams{ID: id, Name: name, Description: store.TextOrNull(description), LibraryID: libraryID, Createdat: now, Updatedat: now}); err != nil {
-		logging.RequestError(r, "Failed to create collection", err)
-		http.Error(w, "Failed to create collection", 500)
-		return
-	}
-	for i, bookID := range mediaIDs {
-		entryID, genErr := ids.New()
-		if genErr != nil {
-			logging.RequestError(r, "Failed to create collection", genErr)
-			http.Error(w, "Failed to create collection", 500)
-			return
-		}
-		if err = q.InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: bookID, Position: int64(i + 1), Createdat: now}); err != nil {
-			logging.RequestError(r, "Failed to create collection", err)
-			http.Error(w, "Failed to create collection", 500)
-			return
-		}
-	}
-	if err = tx.Commit(); err != nil {
-		logging.RequestError(r, "Failed to create collection", err)
-		http.Error(w, "Failed to create collection", 500)
-		return
-	}
-	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
-	}
-	if h.emit != nil {
-		h.emit("*", "collection_added", dto)
-	}
-	httputil.WriteJSON(w, 200, dto)
-}
-
-// collectionLibraryID is the library of a collection; sql.ErrNoRows when the
-// collection does not exist.
-func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, error) {
-	libraryID, err := h.queries().GetCollectionLibraryID(ctx, id)
-	return libraryID.String, err
-}
-
-func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User) (map[string]any, string, bool, error) {
-	dto, libraryID, err := listdomain.Collection(ctx, h.db, h.items, id, func(ctx context.Context, itemID string) (bool, error) {
-		access, err := h.canAccessItem(ctx, user, itemID)
-		return access.allowed, err
-	})
-	return dto, libraryID, err == nil, err
-}
-
-func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
-	c, err := h.queries().GetCollection(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404)
-		return true
-	} else if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	libraryID, name, desc := c.Libraryid.String, c.Name.String, c.Description
-	if !canAccessLibrary(permissions(user), libraryID) {
-		httputil.SendStatus(w, 404)
-		return true
-	}
-	if !boolValue(permissions(user)["update"]) {
-		httputil.SendStatus(w, 403)
-		return true
-	}
-	oldName, oldDesc := name, desc
-	body, err := decodeBody(r)
-	if err != nil {
-		http.Error(w, "Invalid request", 400)
-		return true
-	}
-	if val, ok := body["description"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			desc = sql.NullString{String: s, Valid: true}
-		} else {
-			logging.RequestDebug(r, "responding 500: description is not a string")
-			http.Error(w, "database write failed", 500)
-			return true
-		}
-	} else if _, ok := body["description"]; ok {
-		desc = sql.NullString{}
-	}
-	if val, ok := body["name"].(string); ok {
-		name = cleanName(val)
-	}
-	changed := name != oldName || desc != oldDesc
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	defer tx.Rollback()
-	if books := stringSlice(body["books"]); len(books) > 0 {
-		linkRows, err := sqlc.New(tx).ListCollectionBookLinks(r.Context(), id)
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return true
-		}
-		type collectionLink struct {
-			linkID, itemID string
-			order          int
-		}
-		links := make([]collectionLink, 0, len(linkRows))
-		for _, row := range linkRows {
-			links = append(links, collectionLink{linkID: row.LinkID, itemID: row.ItemID, order: int(row.Position.Int64)})
-		}
-		indexOf := func(item string) int {
-			for i, wanted := range books {
-				if wanted == item {
-					return i
-				}
-			}
-			return -1
-		}
-		sort.SliceStable(links, func(i, j int) bool { return indexOf(links[i].itemID) < indexOf(links[j].itemID) })
-		for i, link := range links {
-			if link.order != i+1 {
-				if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(i + 1), ID: link.linkID}); err != nil {
-					logging.RequestError(r, "database write failed", err)
-					http.Error(w, "database write failed", 500)
-					return true
-				}
-				changed = true
-			}
-		}
-	}
-	if changed {
-		if err := sqlc.New(tx).UpdateCollection(r.Context(), sqlc.UpdateCollectionParams{Name: name, Description: desc, Updatedat: dbtime.Now(), ID: id}); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return true
-		}
-	}
-	if err = tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if changed && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
-	}
-	httputil.WriteJSON(w, 200, dto)
-	return true
-}
-
-// batchCollectionBooks mirrors the legacy batch endpoints. Invalid identifiers
-// are filtered before the query; adding a batch with no valid books is an
-// error, while removing unknown books is an idempotent no-op.
-func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request, user store.User, id string, add bool) bool {
-	libraryID, err := h.collectionLibraryID(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	} else if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if !canAccessLibrary(permissions(user), libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	}
-	if !boolValue(permissions(user)["update"]) {
-		httputil.SendStatus(w, 403)
-		return true
-	}
-	body, err := decodeBody(r)
-	if err != nil {
-		if add {
-			httputil.SendText(w, 400, "Invalid request body")
-		} else {
-			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
-			http.Error(w, "Invalid request body", 500)
-		}
-		return true
-	}
-	itemIDs := validCollectionBookIDs(body["books"])
-	if len(itemIDs) == 0 {
-		if add {
-			httputil.SendText(w, 400, "Invalid request body")
-		} else {
-			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
-			http.Error(w, "Invalid request body", 500)
-		}
-		return true
-	}
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(itemIDs)), ",")
-	args := make([]any, 0, len(itemIDs)+2)
-	for _, itemID := range itemIDs {
-		args = append(args, itemID)
-	}
-	query := `SELECT id,mediaId FROM libraryItems WHERE id IN (` + placeholders + `) AND mediaType='book'`
-	if add {
-		query += ` AND libraryId=?`
-		args = append(args, libraryID)
-	}
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	mediaByItem := make(map[string]string)
-	mediaSet := make(map[string]bool)
-	for rows.Next() {
-		var itemID, mediaID string
-		if err := rows.Scan(&itemID, &mediaID); err != nil {
-			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return true
-		}
-		mediaByItem[itemID] = mediaID
-		mediaSet[mediaID] = true
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	rows.Close()
-	if add && len(mediaByItem) == 0 {
-		httputil.SendText(w, 400, "Invalid request body. No valid books")
-		return true
-	}
-	if add {
-		count, err := h.queries().CountCollectionBooks(r.Context(), id)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return true
-		}
-		order := int(count)
-		members, err := h.queries().ListCollectionBookMediaIDs(r.Context(), id)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return true
-		}
-		existing := map[string]bool{}
-		for _, m := range members {
-			existing[m.String] = true
-		}
-		tx, err := h.db.BeginTx(r.Context(), nil)
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return true
-		}
-		defer tx.Rollback()
-		changed := false
-		for _, itemID := range itemIDs {
-			mediaID := mediaByItem[itemID]
-			if mediaID == "" || existing[mediaID] {
-				continue
-			}
-			order++
-			changed = true
-			existing[mediaID] = true
-			entryID, err := ids.New()
-			if err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-			if err := sqlc.New(tx).InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: int64(order), Createdat: dbtime.Now()}); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-		}
-		if err := tx.Commit(); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return true
-		}
-		return h.writeCollectionAfterBatch(w, r, user, id, changed)
-	}
-
-	entries, err := h.queries().ListCollectionBooks(r.Context(), id)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	type link struct {
-		id, mediaID string
-		order       int
-	}
-	links := make([]link, 0, len(entries))
-	for _, e := range entries {
-		links = append(links, link{id: e.ID, mediaID: e.Bookid.String, order: int(e.Order.Int64)})
-	}
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	defer tx.Rollback()
-	changed, order := false, 1
-	for _, entry := range links {
-		if mediaSet[entry.mediaID] {
-			if err := sqlc.New(tx).DeleteCollectionBook(r.Context(), entry.id); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-			changed = true
-			continue
-		}
-		if entry.order != order {
-			if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(order), ID: entry.id}); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return true
-			}
-			changed = true
-		}
-		order++
-	}
-	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	return h.writeCollectionAfterBatch(w, r, user, id, changed)
-}
-
-// validCollectionBookIDs matches CollectionController.addBatch: accept only
-// non-empty string IDs, ignoring malformed entries in the submitted array.
-func validCollectionBookIDs(raw any) []string {
-	values, _ := raw.([]any)
-	ids := make([]string, 0, len(values))
-	for _, value := range values {
-		if id, ok := value.(string); ok && id != "" {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
-func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Request, user store.User, id string, changed bool) bool {
-	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if changed && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
-	}
-	httputil.WriteJSON(w, 200, dto)
-	return true
-}
-
-func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
-	libraryID, err := h.collectionLibraryID(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	}
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if !canAccessLibrary(permissions(user), libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	}
-	if !boolValue(permissions(user)["update"]) {
-		httputil.SendStatus(w, 403)
-		return true
-	}
-	body, err := decodeBody(r)
-	if err != nil {
-		httputil.SendStatus(w, 400)
-		return true
-	}
-	itemID, _ := body["id"].(string)
-	var mediaID, mediaType, lib string
-	err = h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType,libraryId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType, &lib)
-	if err != nil {
-		http.Error(w, "Book not found", 404)
-		return true
-	}
-	if lib != libraryID {
-		http.Error(w, "Book in different library", 400)
-		return true
-	}
-	if mediaType != "book" {
-		http.Error(w, "Book not found", 404)
-		return true
-	}
-	count, _ := h.queries().CountCollectionBooks(r.Context(), id)
-	exists, _ := h.queries().CountCollectionBook(r.Context(), sqlc.CountCollectionBookParams{CollectionID: id, BookID: mediaID})
-	if exists > 0 {
-		http.Error(w, "Book already in collection", 400)
-		return true
-	}
-	now := dbtime.Now()
-	entryID, err := ids.New()
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	if err = h.queries().InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: count + 1, Createdat: now}); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if h.emit != nil {
-		h.emit("*", "collection_updated", dto)
-	}
-	httputil.WriteJSON(w, 200, dto)
-	return true
-}
-
-func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request, user store.User, id, itemID string) bool {
-	libraryID, err := h.collectionLibraryID(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	}
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if !canAccessLibrary(permissions(user), libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return true
-	}
-	if !boolValue(permissions(user)["update"]) {
-		httputil.SendStatus(w, 403)
-		return true
-	}
-	var mediaID string
-	err = h.db.QueryRowContext(r.Context(), `SELECT mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID)
-	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404)
-		return true
-	}
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	defer tx.Rollback()
-	q := sqlc.New(tx)
-	res, err := q.DeleteCollectionBookByMediaID(r.Context(), sqlc.DeleteCollectionBookByMediaIDParams{CollectionID: id, BookID: mediaID})
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	removed, _ := res.RowsAffected()
-	entries, err := q.ListCollectionBooks(r.Context(), id)
-	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	for seq, e := range entries {
-		_ = q.UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(seq + 1), ID: e.ID})
-	}
-	if err = tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return true
-	}
-	dto, _, _, err := h.collectionDTO(r.Context(), id, user)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if removed > 0 && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
-	}
-	httputil.WriteJSON(w, 200, dto)
-	return true
 }
 
 func (h *Handler) apiKeys(ctx context.Context) ([]map[string]any, error) {
@@ -1998,6 +1265,17 @@ func (h *Handler) signToken(payload map[string]any) (string, error) {
 
 type itemAccess struct{ exists, allowed bool }
 
+// CanReadItem exposes the existing per-user item ACL decision to the list route owner.
+func (h *Handler) CanReadItem(ctx context.Context, user store.User, itemID string) (bool, error) {
+	access, err := h.canAccessItem(ctx, user, itemID)
+	return access.allowed, err
+}
+
+// AllowsLibrary exposes the existing library ACL decision to the list route owner.
+func (h *Handler) AllowsLibrary(user store.User, libraryID string) bool {
+	return canAccessLibrary(store.DecodeJSONObject(user.Permissions), libraryID)
+}
+
 func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID string) (itemAccess, error) {
 	var libraryID, mediaType string
 	var explicit int
@@ -2009,7 +1287,7 @@ func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID str
 	if err != nil {
 		return itemAccess{}, err
 	}
-	perms := permissions(user)
+	perms := store.DecodeJSONObject(user.Permissions)
 	if !canAccessLibrary(perms, libraryID) {
 		return itemAccess{exists: true}, nil
 	}
@@ -2131,8 +1409,8 @@ func int64Pointer(value any) *int64 {
 func isAdmin(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
 
 func minimalBrowserUser(user store.User, hideRootToken bool) map[string]any {
-	permissionsMap := permissions(user)
-	libraries, tags := stringSlice(permissionsMap["librariesAccessible"]), stringSlice(permissionsMap["itemTagsSelected"])
+	permissionsMap := store.DecodeJSONObject(user.Permissions)
+	libraries, tags := jsonvalue.Strings(permissionsMap["librariesAccessible"]), jsonvalue.Strings(permissionsMap["itemTagsSelected"])
 	if libraries == nil {
 		libraries = []string{}
 	}
@@ -2204,8 +1482,8 @@ func browserUser(user store.User, progress []any, bookmarks []any) map[string]an
 	}
 	// User.js:604-606/629-630: librariesAccessible and itemTagsSelected are
 	// always serialized as arrays.
-	libraries := stringSlice(permissionsMap["librariesAccessible"])
-	tags := stringSlice(permissionsMap["itemTagsSelected"])
+	libraries := jsonvalue.Strings(permissionsMap["librariesAccessible"])
+	tags := jsonvalue.Strings(permissionsMap["itemTagsSelected"])
 	if libraries == nil {
 		libraries = []string{}
 	}
@@ -2233,19 +1511,11 @@ func jsonArray(raw json.RawMessage) []any {
 	}
 	return out
 }
-func permissions(user store.User) map[string]any {
-	var out map[string]any
-	_ = json.Unmarshal(user.Permissions, &out)
-	if out == nil {
-		out = map[string]any{}
-	}
-	return out
-}
 func canAccessLibrary(p map[string]any, id string) bool {
 	if boolValue(p["accessAllLibraries"]) {
 		return true
 	}
-	for _, lib := range stringSlice(p["librariesAccessible"]) {
+	for _, lib := range jsonvalue.Strings(p["librariesAccessible"]) {
 		if lib == id {
 			return true
 		}
@@ -2256,7 +1526,7 @@ func canAccessTags(p map[string]any, tags []string) bool {
 	if boolValue(p["accessAllTags"]) {
 		return true
 	}
-	selected := stringSlice(p["itemTagsSelected"])
+	selected := jsonvalue.Strings(p["itemTagsSelected"])
 	inverted := boolValue(p["selectedTagsNotAccessible"])
 	if len(tags) == 0 {
 		return inverted
@@ -2279,20 +1549,6 @@ func canAccessTags(p map[string]any, tags []string) bool {
 		}
 	}
 	return false
-}
-func stringSlice(v any) []string {
-	var out []string
-	switch a := v.(type) {
-	case []string:
-		return a
-	case []any:
-		for _, x := range a {
-			if s, ok := x.(string); ok {
-				out = append(out, s)
-			}
-		}
-	}
-	return out
 }
 func boolValue(v any) bool { b, _ := v.(bool); return b }
 func jsonNumber(v any) (float64, bool) {
@@ -2318,47 +1574,6 @@ func number(v any, fallback float64) float64 {
 func finiteNumber(v any) (float64, bool) {
 	n, ok := jsonNumber(v)
 	return n, ok && !math.IsNaN(n) && !math.IsInf(n, 0)
-}
-func decodeBody(r *http.Request) (map[string]any, error) {
-	defer r.Body.Close()
-	var out map[string]any
-	d := json.NewDecoder(r.Body)
-	d.UseNumber()
-	if err := d.Decode(&out); err != nil {
-		return nil, err
-	}
-	if out == nil {
-		return nil, errors.New("body must be an object")
-	}
-	return out, nil
-}
-
-// sendEntityNotFound mirrors the upstream collection/playlist middleware 404:
-// Express res.status(404).send('…') sends the message with Content-Type
-// text/html; charset=utf-8 (CollectionController/PlaylistController middleware).
-func sendEntityNotFound(w http.ResponseWriter, message string) {
-	sendEntityNotFoundStatus(w, http.StatusNotFound, message)
-}
-
-// sendEntityNotFoundStatus is Express res.status(status).send(message) for a
-// string message.
-func sendEntityNotFoundStatus(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(message)))
-	w.Header().Set("ETag", httputil.ExpressETag([]byte(message)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(message))
-}
-
-// respondPlaylistError keeps owner-mismatch 403s as express sendStatus
-// equivalents while playlist-missing/inaccessible 404s use the upstream
-// 'Playlist not found' HTML body (PlaylistController.js:575-593).
-func respondPlaylistError(w http.ResponseWriter, code int) {
-	if code == http.StatusNotFound {
-		sendEntityNotFound(w, "Playlist not found")
-		return
-	}
-	httputil.SendStatus(w, code)
 }
 
 func bookmarkIndex(bookmarks []any, item string, t float64) int {

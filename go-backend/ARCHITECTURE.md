@@ -38,6 +38,11 @@ In practice:
 1. **Simplicity is a requirement.** Each change should leave less handwritten
    code or less complexity, or justify why not. Measured by the ratchet (see
    [Metrics](#metrics)).
+   Before another domain extraction, establish its end-to-end deletion case:
+   exact old bodies, replacement cost, client obligations, tests and net
+   savings. Moving lines between packages is not a reduction. The next stage
+   is a deletion feasibility audit and a reviewed 1,000-line reduction wave;
+   optional feature removals still require individual owner decisions.
 2. **Compatible, not identical.** A response is correct when every field a
    client reads is present with the right JSON type and meaning. Key order,
    whitespace and ETag representation may differ when client semantics stay
@@ -327,16 +332,17 @@ Catalog retains recordToMap and a thin scalar adapter for existing consumers;
 the old scanner/classifier and shelf/scalar SQL copies are deleted. Book
 selection, ACL/progress, includes and podcast orchestration remain in catalog.
 
-List reads now live in `internal/lists/reader.go`: plain Playlist/Collection
-functions take DB and item-reader dependencies; Collection also takes the
-request user's visibility callback. No Reader object, constructor or extra
-Handler field. Userapi keeps HTTP/ownership/library checks, writes/events,
-feed includes and pagination. PR07 removed the trivial playlistJSON forwarder;
-its eight callers use lists.Playlist directly. collectionDTO still adapts the
-request user's ACL and old result contract until its callers migrate. Old
-read bodies, entry-copy slice and redundant visibility
-counter are deleted; all-filtered same-library collections still return empty
-books successfully. This read milestone does not complete lists routing/writes.
+Lists HTTP, writes/events, library pagination and collection feed projection
+now live in `internal/lists.Handler`, constructed once and mounted by Runtime.
+Plain `Playlist`/`Collection` read functions remain in `reader.go`; there is no
+stateless Reader object. The authenticated principal comes from request context.
+Runtime supplies the existing userapi item/library ACL decisions through
+`CanReadItem`/`AllowsLibrary`; C12 policy consolidation is separate work.
+The old userapi list files, collection dispatch/bodies and redundant bool-result
+adapter are deleted. An ACL-aware collection helper remains as real orchestration;
+all-filtered same-library collections still return successful empty books.
+Request object decoding has one owner in httputil; string/array/truth coercions
+have one owner in jsonvalue, preserving existing boundary behavior.
 
 ## Realtime support and proof
 

@@ -78,11 +78,15 @@ RO02/S9a/PR01–PR04/PR07 now delete 158 production lines and 46 complexity poin
 the playlist forwarder is gone. Strict baselines were lowered, not raised.
 An isolated signed-source FFmpeg/libwebp build makes the full local clean-source
 suite pass. Restricted HTTP remains active and is retained; its prefix copies
-are deleted. collectionDTO's per-user ACL adaptation still has real callers.
+are deleted. At that read milestone collectionDTO still adapted real callers;
 PR06/PR05 are now accepted too: 74 more production lines removed, complexity
-−25. MC-05/S9b is next, then L04 scopes remaining list writes/routes. Q1 requires
-explicit growth review; client caching must be distinguished from mandatory
-validator support before adding runtime behavior.
+−25. MC-05/F1 and S9b-R1 subsequently completed; optional no-ETag 200 responses
+are accepted by Lissen, and advertised validators are protected. L04/L05 now
+remove the obsolete userapi list ownership/adapter with 29 fewer lines and
+23 fewer complexity points after full gates. D01 records 4,607 conditional
+feature-removal candidates, not guaranteed savings. D02 owner decisions and
+replacement-cost proof precede more extraction. See [the current deletion
+audit](../DELETION-FEASIBILITY.md) and ROADMAP; Q1 strict growth review remains.
 All device/route-removal decisions stay
 open. Initial acceptance had five local WebP encoder failures; the isolated
 native FFmpeg fix now makes the integrated full suite pass. Build/vet/lint/

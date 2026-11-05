@@ -173,7 +173,7 @@ func listReadUser(t *testing.T, db *sql.DB, id, permissions string) store.User {
 	return store.User{ID: id, Username: username, Type: "user", IsActive: true, Permissions: json.RawMessage(permissions), Bookmarks: json.RawMessage(`[]`)}
 }
 
-func getListReadJSON(t *testing.T, h *Handler, user store.User, path string, status int) map[string]any {
+func getListReadJSON(t *testing.T, h *userAPIForTest, user store.User, path string, status int) map[string]any {
 	t.Helper()
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodGet, path, nil), user) || w.Code != status {

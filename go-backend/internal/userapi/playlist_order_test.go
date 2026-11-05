@@ -26,7 +26,7 @@ import (
 var playlistOrderNames = []string{"b", "B", "a", "A", "Á", "á", "10", "9", "Zoe", "zoe", "Éclair", "eclair", "_x", "-x", "Commute"}
 var playlistOrderWant = []string{"_x", "-x", "10", "9", "a", "A", "á", "Á", "b", "B", "Commute", "eclair", "Éclair", "zoe", "Zoe"}
 
-func playlistOrderFixture(t *testing.T) (*sql.DB, *Handler, store.User) {
+func playlistOrderFixture(t *testing.T) (*sql.DB, *userAPIForTest, store.User) {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:playlist-order-"+t.Name()+"?mode=memory&cache=shared")
 	if err != nil {

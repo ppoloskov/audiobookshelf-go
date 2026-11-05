@@ -1,8 +1,10 @@
 package httputil
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -77,5 +79,34 @@ func TestWriteJSONMarshalFailureIsPlain500(t *testing.T) {
 	WriteJSON(rec, http.StatusOK, map[string]any{"c": make(chan int)})
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+}
+
+type closeReader struct {
+	*strings.Reader
+	closed bool
+}
+
+func (r *closeReader) Close() error { r.closed = true; return nil }
+
+func TestDecodeObjectRequest(t *testing.T) {
+	body := &closeReader{Reader: strings.NewReader(`{"n":12345678901234567890} trailing`)}
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Body = body
+	got, err := DecodeObjectRequest(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := got["n"].(json.Number); !ok {
+		t.Fatalf("number type = %T, want json.Number", got["n"])
+	}
+	if !body.closed {
+		t.Fatal("request body was not closed")
+	}
+	for _, raw := range []string{"null", "[]"} {
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(raw))
+		if _, err := DecodeObjectRequest(req); err == nil {
+			t.Errorf("DecodeObjectRequest(%s) succeeded, want error", raw)
+		}
 	}
 }

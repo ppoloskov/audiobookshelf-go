@@ -1,4 +1,4 @@
-package userapi
+package lists
 
 import (
 	"database/sql"
@@ -12,8 +12,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/lists"
-	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
@@ -25,14 +24,13 @@ import (
 // page must be non-negative integers. It reports false after writing an
 // error response.
 func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) (limit, page int, ok bool) {
-	if !canAccessLibrary(permissions(user), libraryID) {
+	if !h.canAccessLibrary(user, libraryID) {
 		httputil.SendStatus(w, http.StatusForbidden)
 		return 0, 0, false
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, libraryID).Scan(&exists); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
+		writeInternalError(w, r, "database read failed", err)
 		return 0, 0, false
 	}
 	if exists == 0 {
@@ -92,31 +90,25 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	}
 	ids, err := h.queries().ListLibraryCollectionIDs(r.Context(), libraryID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
+		writeInternalError(w, r, "database read failed", err)
 		return
 	}
 	collections := make([]any, 0, len(ids))
 	for _, id := range ids {
-		dto, _, hasVisible, err := h.collectionDTO(r.Context(), id, user)
+		dto, _, err := h.collection(r.Context(), id, user)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
+			writeInternalError(w, r, "database read failed", err)
 			return
-		}
-		if !hasVisible {
-			continue
 		}
 		// Collection.getOldCollectionsJsonExpanded attaches the full feed
 		// (feed.toOldJSON), not the minified one.
 		if slices.Contains(include, "rssfeed") {
 			feed, err := h.collectionRSSFeed(r, id)
 			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
+				writeInternalError(w, r, "database read failed", err)
 				return
 			}
 			if feed != nil {
@@ -148,8 +140,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	}
 	ids, err := h.queries().ListUserLibraryPlaylistIDs(r.Context(), sqlc.ListUserLibraryPlaylistIDsParams{UserID: user.ID, LibraryID: libraryID})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
+		writeInternalError(w, r, "database read failed", err)
 		return
 	}
 	type namedPlaylist struct {
@@ -158,16 +149,15 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	}
 	playlists := make([]namedPlaylist, 0, len(ids))
 	for _, id := range ids {
-		item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
+		item, _, err := Playlist(r.Context(), h.db, h.items, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
+			writeInternalError(w, r, "database read failed", err)
 			return
 		}
-		playlists = append(playlists, namedPlaylist{name: stringValue(item["name"]), dto: item})
+		playlists = append(playlists, namedPlaylist{name: jsonvalue.String(item["name"]), dto: item})
 	}
 	// Playlist.getOldPlaylistsForUserAndLibrary sorts by name.localeCompare
 	// (server/models/Playlist.js:85); V8's sort is stable.

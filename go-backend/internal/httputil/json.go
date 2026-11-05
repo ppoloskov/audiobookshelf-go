@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -38,4 +39,19 @@ func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
 	if !o.head() {
 		_, _ = w.Write(data)
 	}
+}
+
+// DecodeObjectRequest decodes one JSON object from a request body.
+func DecodeObjectRequest(r *http.Request) (map[string]any, error) {
+	defer r.Body.Close()
+	var out map[string]any
+	d := json.NewDecoder(r.Body)
+	d.UseNumber()
+	if err := d.Decode(&out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		return nil, errors.New("body must be an object")
+	}
+	return out, nil
 }

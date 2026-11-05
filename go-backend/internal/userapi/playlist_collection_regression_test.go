@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 )
 
@@ -56,13 +55,10 @@ func TestCreatePlaylistFromCollectionPersistsExpandedBookItems(t *testing.T) {
 	}
 	var eventUser, eventName string
 	var eventPayload map[string]any
-	h, err := New(db, []byte("userapi-test-secret"), func(userID, event string, payload any) {
+	h := newUserAPIForTest(db, config.Config{}, func(userID, event string, payload any) {
 		eventUser, eventName = userID, event
 		eventPayload, _ = payload.(map[string]any)
-	}, catalog.New(db, config.Config{}, nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/playlists/collection/c1", strings.NewReader(`{}`))
 	if !h.Handle(w, r, user) || w.Code != http.StatusOK {

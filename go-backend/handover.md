@@ -10,7 +10,59 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
-## Active approved sequence
+## Current accepted state and next decision
+
+L04/L05 and D01 are accepted and ready for master delivery. The prior published
+HEAD is `7c08c25b`. Lists owns HTTP/CRUD/events/feed/pagination; the old userapi
+playlist/library-list/feed files and collection bodies/dispatch are deleted.
+Required ACL composition remains; no obsolete read/bool-result bridge survives.
+Shared request/coercion helpers each have one implementation, including the
+string-array converter whose accidental duplication caused two extra `[]any` uses.
+
+Final metrics: 44,674 production lines (−29), complexity 10,809 (−23), maps 990
+(−2), high functions 178 (−1), `[]any` 326 unchanged; no metric increases.
+The first +178-line move and +54-line repair were rejected. R2 removed routing
+wrappers/alias registry, duplicate error pairs and array conversion; negative
+POST regressions catch the accidental extra playlist actions. The baseline was
+lowered with the existing tool in the exact shipping snapshot, then reviewed
+and copied. The small reduction closes this in-flight stage, not a large-wave claim.
+
+Clean snapshot `/tmp/abs-pr06-pr05-20261105/l04c-final` excludes inherited
+`.codemap`, TODO and uncompilable `identity/routes.go`. Build/vet/full native-
+codec suite count=1/lint2.15 zero issues/Linux arm64 CGO0/ratchet+dbnest PASS;
+sqlc1.31.1 regeneration preserves all nine generated files, including untracked
+output identity. Canonical source/artifact/baseline matches the tested snapshot
+for 25 paths. The worker's temporary wire/shelves.go formatting experiment was
+identified and returned to HEAD; no unrelated semantic edit was observed.
+
+Route evidence: 226 ordered inventory records, 21 lists owners, 0 verified /
+226 unverified; client usage 201 routes and 25 unused keys unchanged, 18 owner
+paths refreshed. Both generated artifacts must update after route ownership
+changes; the first full suite correctly rejected stale client usage. Another
+failed retry omitted FFMPEG_PATH and hit five WebP failures. The corrected full
+run passed with the documented native PATH **and** FFMPEG_PATH; no waiver.
+Logs `/tmp/abs-pr06-pr05-20261105/l04c-full-test-ffmpeg.log`, `l04c-lint-final.log`,
+`l04c-vet.log`, `l04c-linux-arm64.log`; failed attempts retained. No local TS
+rollback, device acceptance, benchmark or deployment was run. SQL/schema and
+stored meaning did not change.
+
+D01 source audit is in [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md): 4,607
+nonoverlapping conditional candidate lines with 174 exact AST function ranges.
+They are active product features, not proven-dead code. Native operation use is
+unknown. Core audit found no credible behavior-preserving 1,000-line wave.
+Generated shapes are separate: 108,510 JSON lines / 3,414,049 bytes, not Go savings.
+
+Next: D02a owner KEEP/REMOVE decisions for server-managed backups/restore and
+manual audio conversion/embedding, then D02b replacement-cost proof. Proposed
+first wave is 1,535 gross lines, ≤250 replacement/retained-target budget and a
+1,285 net target; this is a budget, not measured savings. Manager helpers are
+outside gross and are not subtracted twice. Runtime callbacks, empty task DTO,
+auth/admin checks, existing files, playback FFmpeg and TS rollback must remain
+accounted for. No feature removal is authorized. No S10–S15/domain extraction
+until its end-to-end deletion case is established. Do not restart completed
+list/pruning work or turn unknown client usage into absence evidence.
+
+## Earlier accepted milestones
 
 PR06 -> PR05 -> MC-05/F1 -> S9b-R1 -> L04 list work is the accepted sequence.
 PR06/PR05 are now
@@ -29,8 +81,7 @@ lowered by existing tool; final ratchet PASS. Source: 24d199e6 archive plus
 exact scanner/sharing/playback/deviceinfo and dependency-rule overlays. Logs
 under /tmp/abs-pr06-pr05-20261105; no Node rollback/device/latency run or SQL
 generation change. MC-05/F1 and S9b-R1 are now accepted; current next work is
-L04 list-write characterization/planning, followed by separately reviewed
-implementation packets.
+D02 owner decisions and replacement-cost proof; lists and D01 are accepted.
 
 MC-05, MC-05/F1 and S9b-R1 are DONE after source, contract, craft and full
 integration gates. Pinned
@@ -56,8 +107,7 @@ no option was deleted. Whole S9b deletion remains pending until a family has
 safe-equivalence evidence and net source reduction. This bounded review closes
 the immediate MC-05/S9b evidence milestone and does not block independent
 L04/list work. Physical-device/full mobile acceptance and MC-A/B/C/D/E remain
-open. L04 characterization/planning is in progress; no list implementation
-has started from it.
+open. L04/L05 and D01 are DONE; D02 product decisions remain open.
 
 ## Prior cleanup checkpoint closed — acceptance at 24d199e6
 
@@ -122,7 +172,7 @@ metrics-before-lowering.log, final-ratchet.log, baseline-full-test.log,
 journey-verbose.log and BUILD_NOTES.md. Docs/format/scope checks accompany push.
 At this historical checkpoint, S9b needed the mobile validator matrix and
 PR06/PR05 still required equivalence/net-savings proof. Current status above
-supersedes that note. L04/L05 and list writes remain pending.
+supersedes that note. At that checkpoint L04/L05 and list writes were pending.
 
 ## Historical pruning plan at c4cf90a9
 
@@ -475,8 +525,8 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next:** L04 list-write characterization/planning, then reviewed
-L04/L05 implementation packets. PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are
-DONE; whole S9b deletion and L04 implementation remain pending. I01–I06 do not complete all of
+**Current next:** D02a product decisions, then D02b replacement-cost proof.
+L04 planning, PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE;
+whole S9b deletion remains pending. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

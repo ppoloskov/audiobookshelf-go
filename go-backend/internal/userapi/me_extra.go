@@ -15,6 +15,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/jsonvalue"
 
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -89,7 +90,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	if extra == nil {
 		extra = map[string]any{}
 	}
-	ids := stringSlice(extra["seriesHideFromContinueListening"])
+	ids := jsonvalue.Strings(extra["seriesHideFromContinueListening"])
 	seen := false
 	filtered := make([]string, 0, len(ids)+1)
 	for _, id := range ids {
@@ -210,7 +211,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 }
 
 func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, user store.User) {
-	body, err := decodeBody(r)
+	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
 		http.Error(w, "Invalid payload. ereaderDevices array required", 400)
 		return
@@ -222,7 +223,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	}
 	for _, raw := range provided {
 		d, ok := raw.(map[string]any)
-		if !ok || !jsTruthy(d["name"]) || !jsTruthy(d["email"]) {
+		if !ok || !jsonvalue.Truthy(d["name"]) || !jsonvalue.Truthy(d["email"]) {
 			http.Error(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
 			return
 		}
@@ -273,7 +274,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	names := map[string]bool{}
 	for _, entry := range combined {
 		d, _ := entry.(map[string]any)
-		name := stringValue(d["name"])
+		name := jsonvalue.String(d["name"])
 		if names[name] {
 			http.Error(w, `Invalid payload. Duplicate "name" field found.`, 400)
 			return
@@ -357,7 +358,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		_ = json.Unmarshal(metaRaw, &m)
 		for _, x := range anyArray(m["authors"]) {
 			a, _ := x.(map[string]any)
-			authors[stringValue(a["name"])] += secs
+			authors[jsonvalue.String(a["name"])] += secs
 		}
 		for _, x := range anyArray(m["narrators"]) {
 			n, _ := x.(string)

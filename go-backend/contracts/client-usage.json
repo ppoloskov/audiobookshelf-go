@@ -2,7 +2,7 @@
   "generatedFrom": {
     "routeCoverage": {
       "path": "go-backend/contracts/parity/route-coverage.json",
-      "sha256": "8bedff2b83a7a4eb208487a003f4efb82d4967094c1880f9d59f276fd77080c5"
+      "sha256": "db273a429342b49061fdfbf9ac6d91fb541affb606be748f45477cbc88e9461a"
     },
     "replacementTrial": {
       "path": "go-backend/tools/parity/replacement-trial.cjs",
@@ -353,7 +353,7 @@
       "callers": [
         "client/components/modals/collections/AddCreateModal.vue:221"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:146"
     },
     {
@@ -366,7 +366,7 @@
         "client/components/modals/collections/EditModal.vue:111",
         "client/pages/collection/_id.vue:193"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:150"
     },
     {
@@ -378,7 +378,7 @@
       "callers": [
         "client/pages/collection/_id.vue:54"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:148"
     },
     {
@@ -391,7 +391,7 @@
         "client/components/modals/collections/EditModal.vue:139",
         "client/components/tables/CollectionBooksTable.vue:75"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:149"
     },
     {
@@ -403,7 +403,7 @@
       "callers": [
         "client/components/modals/collections/AddCreateModal.vue:181"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:153"
     },
     {
@@ -415,7 +415,7 @@
       "callers": [
         "client/components/modals/collections/AddCreateModal.vue:149"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:154"
     },
     {
@@ -427,7 +427,7 @@
       "callers": [
         "client/components/modals/collections/AddCreateModal.vue:195"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:151"
     },
     {
@@ -440,7 +440,7 @@
         "client/components/modals/collections/AddCreateModal.vue:162",
         "client/components/tables/collection/BookTableRow.vue:202"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:152"
     },
     {
@@ -1110,7 +1110,7 @@
         "client/components/app/LazyBookshelf.vue:343",
         "client/components/modals/collections/AddCreateModal.vue:128"
       ],
-      "goHandler": "go-backend/internal/catalog/handler.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:80"
     },
     {
@@ -1265,7 +1265,7 @@
         "client/components/app/LazyBookshelf.vue:343",
         "client/components/modals/playlists/AddCreateModal.vue:125"
       ],
-      "goHandler": "go-backend/internal/catalog/handler.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:81"
     },
     {
@@ -1759,7 +1759,7 @@
       "callers": [
         "client/components/modals/playlists/AddCreateModal.vue:185"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:159"
     },
     {
@@ -1772,7 +1772,7 @@
         "client/components/modals/playlists/EditModal.vue:91",
         "client/pages/playlist/_id.vue:126"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:163"
     },
     {
@@ -1784,7 +1784,7 @@
       "callers": [
         "client/pages/playlist/_id.vue:47"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:161"
     },
     {
@@ -1797,7 +1797,7 @@
         "client/components/modals/playlists/EditModal.vue:119",
         "client/components/tables/PlaylistItemsTable.vue:89"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:162"
     },
     {
@@ -1809,7 +1809,7 @@
       "callers": [
         "client/components/modals/playlists/AddCreateModal.vue:160"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:166"
     },
     {
@@ -1821,7 +1821,7 @@
       "callers": [
         "client/components/modals/playlists/AddCreateModal.vue:143"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:167"
     },
     {
@@ -1833,7 +1833,7 @@
       "callers": [
         "client/components/tables/playlist/ItemTableRow.vue:210"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:165"
     },
     {
@@ -1845,7 +1845,7 @@
       "callers": [
         "client/pages/collection/_id.vue:160"
       ],
-      "goHandler": "go-backend/internal/userapi/userapi.go",
+      "goHandler": "go-backend/internal/lists/routes.go",
       "upstream": "server/routers/ApiRouter.js:168"
     },
     {
@@ -3093,7 +3093,7 @@
     {
       "method": "GET",
       "path": "/api/collections",
-      "goHandler": "go-backend/internal/userapi/userapi.go"
+      "goHandler": "go-backend/internal/lists/routes.go"
     },
     {
       "method": "GET",
@@ -3118,12 +3118,12 @@
     {
       "method": "GET",
       "path": "/api/playlists",
-      "goHandler": "go-backend/internal/userapi/userapi.go"
+      "goHandler": "go-backend/internal/lists/routes.go"
     },
     {
       "method": "POST",
       "path": "/api/playlists/:id/item",
-      "goHandler": "go-backend/internal/userapi/userapi.go"
+      "goHandler": "go-backend/internal/lists/routes.go"
     },
     {
       "method": "GET",

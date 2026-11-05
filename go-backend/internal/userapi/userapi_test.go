@@ -15,16 +15,58 @@ import (
 
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
 
-func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
-	h, err := New(db, []byte("userapi-test-secret"), emit, catalog.New(db, cfg, nil))
+type userAPIForTest struct {
+	*Handler
+	routes *http.ServeMux
+}
+
+func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
+	if _, pattern := h.routes.Handler(r); pattern != "" {
+		h.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+		return true
+	}
+	return h.Handler.Handle(w, r, user)
+}
+
+func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
+	itemReader := catalog.New(db, cfg, nil)
+	h, err := New(db, []byte("userapi-test-secret"), emit, itemReader)
 	if err != nil {
 		panic(err)
 	}
-	return h
+	routes := http.NewServeMux()
+	listHandler := lists.New(db, itemReader, func(userID, event string, payload any) {
+		if h.emit != nil {
+			h.emit(userID, event, payload)
+		}
+	}, h.CanReadItem, h.AllowsLibrary)
+	listHandler.Routes(routes)
+	return &userAPIForTest{Handler: h, routes: routes}
+}
+
+func TestPlaylistRejectsWrongAddShapes(t *testing.T) {
+	for _, path := range []string{"/api/playlists/list/add", "/api/playlists/list/batch/item"} {
+		t.Run(path, func(t *testing.T) {
+			db, user := userFixture(t)
+			defer db.Close()
+			h := newUserAPIForTest(db, config.Config{}, nil)
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"items":[]}`))
+			r.Header.Set("Content-Type", "application/json")
+			if !h.Handle(w, r, user) {
+				httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+			}
+			if w.Code != http.StatusNotImplemented {
+				t.Fatalf("POST %s status=%d body=%s, want 501", path, w.Code, w.Body.String())
+			}
+		})
+	}
 }
 
 func userFixture(t *testing.T) (*sql.DB, store.User) {

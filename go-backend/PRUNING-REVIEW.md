@@ -5,6 +5,11 @@ inspected dead code and duplicates; architect checked bodies/references and
 replacement semantics. The source locations/estimates below preserve that
 historical audit, not a claim that removed functions still exist.
 
+Current larger audit: [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md).
+PR01–PR07 and L04/L05 are accepted. MC-05/S9b evidence review is complete;
+remaining framing options stay KEEP without caller-specific equivalence proof.
+This file preserves the earlier small-pruning evidence, not the next queue.
+
 ## Delivery status
 
 PR01–PR04 are now DONE: actual net physical production savings 44/22/18/4
@@ -17,7 +22,7 @@ nullable SQL semantics; no routes, security checks or stored formats removed.
 
 The read-only HTTP implementation was audited separately and is active via
 ABS_GO_READ_ONLY; its behavior is retained. PR05/PR06 are accepted in the
-subsequent wave below; wider framing still needs mobile cache-validator evidence.
+subsequent wave below; the later MC-05/S9b decision is recorded in its evidence report.
 See ROADMAP for actual DONE markers and TESTING.md for the fixed environment.
 
 Subsequent PR06/PR05 wave is now DONE: 35 and 39 additional production lines

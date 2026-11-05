@@ -27,7 +27,8 @@ fast Go.
 | Last recorded differential run (generated; advisory since V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
 | Clean-source validation and native FFmpeg/WebP setup | [TESTING.md](TESTING.md) |
-| Reviewed deletion/duplication candidates, not yet implemented | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
+| Earlier pruning review (PR01–PR07 implemented) | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
+| Reviewed large deletion candidates and first-wave decisions | [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md) |
 | Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
@@ -151,6 +152,12 @@ ratchet still enforces limits. Q1 requires explicit growth budgets, actual
 architect review and a cleanup checkpoint before another expansion; its former
 soft-metrics proposal has been superseded.
 
+Current priority: D02 owner decisions and replacement-cost proof for the first
+substantive reduction wave; lists completion and the D01 audit are accepted.
+No new domain extraction starts without its end-to-end deletion case. The audit
+separates proven consolidation from optional product cuts, which need owner
+approval; generated shape snapshots do not count as production Go savings.
+
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
 sequence has completed I01–I06 and lists L01–L03. The cleanup checkpoint also
@@ -161,8 +168,12 @@ lines and 25 complexity points removed; integrated full suite and guards PASS.
 MC-05/F1 and the S9b-R1 evidence review are DONE. Whole S9b framing deletion
 remains pending under KEEP decisions. Lissen conditional-cache evidence and
 gate results are in [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md). Full mobile
-audit and device acceptance remain open. L04 list-write characterization is
-in progress; implementation awaits exact reviewed packets.
+audit and device acceptance remain open. L04/L05 are DONE: lists now owns its
+HTTP/writes/feed/pagination; old userapi bodies are deleted. Full gates pass;
+production lines fall 29, complexity 23, maps two, with no metric increases.
+D01 identifies 4,607 conditional candidate lines, not safe deletions. The first
+proposed wave targets backup management and manual audio tools (1,535 gross);
+feature removal needs owner approval. See the deletion feasibility report.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
@@ -202,14 +213,15 @@ the integrated full suite/build/vet/lint/dbnest/arm64 pass. All I cards are DONE
 
 L01–L03 are also checked DONE: full-schema list/permission baseline and plain
 lists.Playlist/Collection read functions. Old userapi read bodies, redundant
-entry copy and visibility counter are removed. Thin adapters remain for route
-and write/event callers at delivery. PR07 has now deleted the playlist forwarder;
-collection ACL adaptation remains until scoped caller migration. This extraction costs 29 production lines,
+entry copy and visibility counter were removed. Thin adapters remained at that
+read milestone; L04/L05 have now removed the obsolete userapi list ownership
+and bool-result adapter. That initial extraction cost 29 production lines,
 complexity unchanged; explicit baseline exception, no reduction/speed claim.
 The following deletion wave removes 158 lines overall, leaving a net 36-line
 increase since pre-I05 and 23 fewer complexity points. Baselines were lowered
 with the existing tool; strict guards remain. S9a drops only ordered-key JSON
 scaffolding after real mutation-response tests; cache/range/MIME options remain.
 The restricted read-only HTTP mode was audited and is active, so its behavior
-is retained while duplicate prefix methods are gone. L04 list-write
-characterization/planning is in progress; implementation has not started.
+is retained while duplicate prefix methods are gone. L04/L05 now complete list
+HTTP ownership with another 29-line reduction; none of this proves a large
+consolidation wave. D01/D02 gates apply before further extraction.

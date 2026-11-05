@@ -22,6 +22,7 @@ import (
 	"audiobookshelf-compat/internal/emailapi"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/notifications"
 	"audiobookshelf-compat/internal/playback"
@@ -116,6 +117,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
+	listHandler := lists.New(db, catalogHandler, hub.Emit, userapiHandler.CanReadItem, userapiHandler.AllowsLibrary)
 	rt := &Runtime{
 		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
 		catalog:       catalogHandler,
@@ -130,6 +132,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),
 	}
 	rt.routes = http.NewServeMux()
+	listHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.audiotools.Routes(rt.routes)
@@ -375,13 +378,43 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 // answer it with a redirect.
 func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	if r.URL.Path != pathpkg.Clean(r.URL.Path) {
-		return false
+		canonical, ok := rt.listPathAlias(r.URL.Path)
+		if !ok {
+			return false
+		}
+		r = withPath(r, canonical)
 	}
 	if _, pattern := rt.routes.Handler(r); pattern == "" {
 		return false
 	}
 	rt.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 	return true
+}
+
+func (rt *Runtime) listPathAlias(path string) (string, bool) {
+	canonical := path
+	switch path {
+	case "/api/collections//":
+		canonical = "/api/collections"
+	case "/api/playlists//":
+		canonical = "/api/playlists"
+	default:
+		if !strings.HasSuffix(path, "/") || strings.HasSuffix(path, "//") {
+			return "", false
+		}
+		canonical = strings.TrimSuffix(path, "/")
+	}
+	if pathpkg.Clean(canonical) != canonical || !listRoutePath(canonical) {
+		return "", false
+	}
+	return canonical, true
+}
+
+func listRoutePath(path string) bool {
+	return path == "/api/collections" || strings.HasPrefix(path, "/api/collections/") ||
+		path == "/api/playlists" || strings.HasPrefix(path, "/api/playlists/") ||
+		strings.HasPrefix(path, "/api/libraries/") &&
+			(strings.HasSuffix(path, "/collections") || strings.HasSuffix(path, "/playlists"))
 }
 
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }

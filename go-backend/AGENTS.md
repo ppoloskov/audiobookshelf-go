@@ -25,27 +25,26 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- Book-read B01–B09, I01–I06 and L01–L03 are accepted. Current owner priority
-  is the cleanup checkpoint: audit restricted HTTP reachability, remove only
-  proven duplication/representation scaffolding (RO02/S9a and PR cards), repair
-  the FFmpeg test environment, and tighten final deletion/growth review.
-  The bounded checkpoint is now closed with 158 lines removed and a full native-
-  codec suite PASS. PR06/PR05 are accepted in the subsequent paired cleanup;
-  S9b evidence review is recorded, but no framing-option removal has a
-  safe-equivalence proof. Net production source must fall in deletion
-  work without a baseline increase. L05 still waits for exact
-  write/route scopes and zero leftover replacement bodies. Each stage
-  names old bodies to delete and any adapter's consumers/removal condition.
-  Dispatch one card, not
-  the whole epic. Relevant compatibility checks accompany each slice; no
-  requirement to complete unrelated client research first.
-- Latest approved sequence: PR06 -> PR05 -> MC-05/F1 -> S9b-R1 -> L04 list work.
-  PR06/PR05 are now accepted in one reviewed deletion commit (−74 production
-  lines/−25 complexity); MC-05, MC-05/F1 and S9b-R1 are DONE after full gates.
-  Whole S9b deletion remains pending with KEEP decisions; no option was
-  removed. L04 list-write characterization/planning is now in progress, while
-  implementation waits for exact reviewed packets. No speculative cache
-  layer or list framework is authorized by a missing test alone.
+- Current owner priority: D02's first substantive reduction wave after the
+  accepted L04/L05 cohort and D01 audit, **before
+  S10–S15 or another domain extraction**. Inventory at least 3,000 candidate
+  production lines with exact bodies, client evidence, replacements, net
+  estimates, tests and owner decisions. A 1,000-line wave needs actual deletion
+  targets, not relocated lines. Unknown client usage is not proof of absence.
+- Book reads B01–B09, I01–I06, L01–L03, PR01–PR07, MC-05/F1 and S9b-R1 are
+  accepted. S9b options remain KEEP pending caller-specific removal proof.
+  L04/L05 are accepted: R2 resolves the rejected growth, leaving 29 fewer
+  production lines/23 fewer complexity points with all gates passing. D01
+  records 4,607 conditional feature-removal candidates, zero proven-dead core
+  code, and the proposed backup/manual-audio first wave. D02 still requires
+  owner decisions and a replacement-cost proof; no product cut is approved. Every stage names the old bodies it
+  deletes and any bridge's consumers/removal condition.
+- No new domain extraction until its end-to-end deletion case is established.
+  Route/optional-feature removals still require explicit owner decisions;
+  the deletion audit authorizes investigation, not product narrowing. Production
+  Go savings and generated snapshot/repository-size savings are separate.
+  Relevant compatibility checks accompany each slice; unrelated unfinished
+  mobile research is not a blanket blocker for behavior-preserving work.
 - Give each worker one task ID, exact read/write scope, fixed contracts,
   dependencies, named tests/commands and a short completion format. Workers
   do not change architecture, expand scope, commit, publish or deploy.

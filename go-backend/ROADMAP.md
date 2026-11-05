@@ -8,6 +8,11 @@ Manual deployment, new libraries and route removals retain separate approval.
 Record actual completed cards and tests; do not mark plans done. [ARCHITECTURE.md](ARCHITECTURE.md) owns permanent
 contracts; [AGENTS.md](AGENTS.md) owns worker/check policy.
 
+Current acceptance: L04/L05 and D01 DONE; D02 decisions/design next. Full
+native-codec suite and all gates PASS. Completed cards preserve delivery-time
+evidence; earlier five-WebP failures were resolved by FF01 and are not current
+failures. Historical intermediate growth is not the final accepted delta.
+
 ## Direction and current evidence
 
 Preserve SQLite/persisted meaning and real client protocols. Simplify the Go
@@ -34,7 +39,106 @@ The [audit brief](archive/reviews/2026-11-04-mobile-audit-brief.md) specifies
 A–G deliverables; the [review](archive/reviews/2026-11-04-simplification-review.md)
 is input evidence, not an automatic statement of current runtime behavior.
 
-## Owner cleanup priorities — 2026-11-05
+## Current owner direction — deletion feasibility before more extraction
+
+L04/L05 and D01 are accepted. Prioritize D02 decisions and cost proof over
+S10–S15 or any new domain extraction. Do not count
+package moves, generated JSON or test deletion as production savings.
+
+### D01 · Deletion feasibility inventory
+
+- [x] DONE — architect-reviewed [inventory](DELETION-FEASIBILITY.md): 4,607
+  unique conditional production lines, exact AST manifest of 174 functions,
+  positive web consumers and explicit unknown mobile use. Zero proven-dead
+  core code; no credible behavior-preserving 1,000-line wave. Source/count/
+  test-name/nonoverlap checks and diff check pass; no audit runtime changes.
+- **Output:** one `DELETION-FEASIBILITY.md` with nonoverlapping exact files,
+  functions, line bounds/counts, actual bundled/iOS/Android client evidence
+  (unknowns explicit), category, gross deletion, replacement cost, estimated
+  net savings, retained-behavior tests and owner decisions for every target.
+- Investigate at least 3,000 unique candidate production lines. This is an
+  inventory target, never permission to invent savings or classify essential
+  code as removable. Report any shortfall and distinguish proven redundancy,
+  replacement candidates, optional features and essential implementations.
+- Cover catalog hydration/writes, user/list orchestration, playback, scanner,
+  server-managed backups, conversion tools and metadata providers. Preserve
+  playback FFmpeg, auth/path/SSRF guards, storage meaning and rollback assets.
+  Measure shape-snapshot storage separately from production Go.
+- **Check:** source/count/consumer citations, nonoverlap, net-cost arithmetic,
+  explicit uncertainty and `git diff --check`. No runtime deletion in this card.
+
+### D02 · First substantive wave — backup management and manual audio tools
+
+- [ ] WAITING FOR OWNER DECISIONS — F1/F2 in the reviewed inventory identify
+  **1,535 gross production lines**. Proposed total replacement/retained-target
+  cap: **250 lines**, giving a **1,285-line net target**, not measured savings.
+  Existing manager helpers are outside gross; do not subtract them twice.
+  A 1,000-net wave requires total replacement/retained target cost ≤535.
+- No implementation is dispatched until product decisions and the concrete
+  replacement design are accepted. No new domain extraction without its
+  end-to-end deletion case. No provider/search or ebook removal is selected.
+
+#### D02a · Decide the two feature boundaries
+
+- [ ] OWNER DECISION — separately KEEP/REMOVE server backup creation/schedules,
+  upload/apply/restore/list/delete/path management; and manual M4B conversion,
+  embedding, batch queue/cancel. Both removals are needed for this combined
+  first-wave target. Web controls would report unsupported operations; native
+  usage is unknown. No bundled-client edit, data deletion or migration implied.
+- Keep ordinary playback/HLS/FFmpeg, scans, metadata search, authentication,
+  persisted config/metadata, existing archives/source media and TS rollback.
+
+#### D02b · Specify disabled operations and prove replacement cost
+
+- [ ] PLANNED — after D02a. Write only the route/retained-flow test plan and
+  bounded replacement design in the existing deletion report before coding.
+- Account for Runtime construction/settings/notification/close hooks and all
+  seven backup/four mutating-tool routes. Preserve auth/admin denial; approved
+  disabled operations answer 501. `GET /api/tasks` remains 200 with empty
+  `tasks`, plus empty `queuedTaskData.embedMetadata` only for `include=queue`.
+- Freeze retained playback/range/progress/scan/search/setting formats and prove
+  existing archive/media files are untouched. No dangling callback or duplicate
+  implementation. Produce exact source scope and tests; if the 250-line cap is
+  implausible return to architect before worker dispatch, not baseline growth.
+
+#### D02c · Remove backup management and its now-unused callbacks
+
+- [ ] PLANNED — depends on D02a/b. Source scope: delete
+  `internal/backup/backup.go`; remove Runtime backup construction, reload,
+  notification, route and close hooks in `internal/server/runtime.go`;
+  remove only proven-unused restore callbacks/types/helpers in `manager.go`.
+  Reuse the existing server route owner for approved disabled responses.
+- Gross credit: 803 lines only. Manager cleanup is uncredited until measured.
+  New/retained target code budget ≤120 lines; all other final metrics must not
+  increase. No retained ingest path may lose archive/path/SQLite guards.
+  Tests assert denial/501, config round trips and unchanged on-disk archives.
+  Do not touch schema, store startup validation or the TS rollback harness.
+
+#### D02d · Remove manual conversion/embedding task implementation
+
+- [ ] PLANNED — depends on D02a/b; same final feature batch as D02c.
+  Delete `internal/audiotools/tools.go`; remove Runtime construction/close/hooks;
+  retain approved disabled routes and the precise empty task DTO. No new
+  service/layer or processing flag. Source gross 732; new/retained target code
+  budget ≤130 lines, shared replacement counted once (combined cap 250).
+- Keep playback/scanner FFmpeg, chapters and original media. Tests assert
+  disabled queue/cancel/embed/encode operations create no tasks or file changes;
+  normal direct/transcoded playback and scans still work. Delete obsolete
+  implementation tests only with the feature and replacement contracts.
+
+#### D02e · Review the complete reduction wave
+
+- [ ] PLANNED — review one coherent final tree; no partially broken push.
+  Measure actual production gross/replacement/net and every ratchet metric.
+  Require at least 1,000 net lines removed; target 1,285 under the proposed
+  budget. Never count moved, generated or test lines as savings.
+- Full build/vet/native-codec suite/lint/ratchet/dbnest/arm64, affected auth and
+  retained journeys, generated query identity if callers change, route/client
+  inventory regeneration with explicit approved capability losses, and
+  unchanged DB/files/rollback evidence. Update README/AGENTS/handover/report
+  and mark every accepted card DONE in the code commit before master push.
+
+## Earlier owner cleanup priorities — 2026-11-05
 
 Latest approved sequence: **PR06 -> PR05 -> MC-05/F1 -> S9b-R1 -> L04 list work**.
 PR06/PR05 execute sequentially as one coherent deletion wave; review and full
@@ -43,8 +147,8 @@ Source/client research for later stages may proceed read-only in parallel.
 MC-05 and F1 are accepted after source, contract, craft and full integration
 gates. The source review found no requirement for a global cache layer. S9b-R1
 records KEEP for the five framing-option families; S9b deletion remains
-pending. L04 list-write characterization/planning is now in progress and must
-produce exact write/route/deletion packets before implementation.
+pending. L04/L05 are accepted after R2 and full gates; D01/D02 supersede
+further extraction as the current priority.
 
 I05/I06 and L01–L03 already landed before this priority update. Do not restart
 them or expand into more domains. **This bounded cleanup checkpoint is CLOSED**
@@ -479,14 +583,15 @@ ownership and temporary forwarding boundaries, with no stateless Reader or
 new dependency. Old read bodies, mediaRef/refs and visible counter are deleted;
 this package extraction is not a net source reduction or a speed claim.
 Focused/full lists+userapi, build/vet/lint (0), dbnest/arm64 and final ratchet
-PASS. sqlc v1.31.1 regeneration is byte-identical including the schema copy;
-no new generated output. Full suite exits 1 only for the same five native WebP
+PASS. The following is historical I05/I06 delivery evidence, superseded by
+FF01 and the final successful L05 gates: sqlc v1.31.1 generation was identical;
+no new generated output. That full suite exited 1 only for five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next work: **L04 list-write characterization/planning**; MC-05/F1 and S9b-R1 are DONE, while whole S9b deletion remains pending. PR01–PR07 are DONE. L04 write decomposition is in progress,
-then its reviewed packets and final L05
-wiring. Each stage must name the old
+Next work: **D02 product decisions and replacement-cost proof**;
+L04 planning, MC-05/F1, S9b-R1 and PR01–PR07 are DONE. Whole S9b deletion
+remains pending. Each stage names the old
 code it deletes, any necessary
 adapter consumers and the exact later removal condition.
 Podcasts, collapsed/include paths and other consumers remain open; no whole
@@ -494,8 +599,8 @@ P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
-Completed read spine: `B01–B09`, `I01–I06`. Next dependency spine:
-`L01 -> L02 -> L03`. Mixed-media consumer migration remains separate.
+Completed spine: `B01–B09`, `I01–I06`, `L01–L05`. D01 is accepted and D02
+product decisions/design come next. Mixed-media consumer migration remains separate.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -731,45 +836,196 @@ cannot complete S11. No more list write migration while cleanup is open.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestCollectionReadValues|TestListReadValuesAndPermissions|TestCollectionDescriptionDBValueMatchesLegacyNullCoercion|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
 - **Done:** New TestCollectionReadValues asserts list/detail/order/library visibility and values; old duplicate reads removed, forwarding endpoints preserved. If extraction needs >4 production files, return exact dependency list for split.
 
-##### L04 · Plan list write seams from actual callers
+##### L04 · Plan and characterize final list ownership
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] DONE — architect-reviewed four-card plan below is based on actual
+  callers and exact old owners. It closes planning only; it does not mark S11
+  complete or authorize changes outside these cards. MC-05/F1 is published.
 
-- **Depends:** L03. **Write only:** Documentation only: update this ROADMAP card into individually scoped write/route cards; read `userapi/playlist.go`, collection paths in `userapi.go`, `collection_feed.go` and runtime wiring.
-- **Do:** Produce separate cards for playlist create/update, membership mutation, collection create/update, collection membership, delete/cleanup/feed, route mounting. Each must name actual functions/deps and a persisted-state/event regression. This is bounded deferred decomposition, not authorization for a worker to improvise all writes.
-- **Check:** `git diff --check`.
-- **Done:** All newly dispatchable write cards have exact files/commands/deps and no domain cycles. Architect review required; no claim S11 is complete.
+The implementation cards below form one final feature batch on `master`.
+Execute them in dependency order and keep intermediate work buildable; do not
+push an intermediate state that leaves duplicate/removed routes or a broken
+tree. Review and publish the accepted final cohort once the cards and L05 gates
+pass. No branches, production bridges, schema changes, or new dependencies.
 
-Source-mapped removal inventory for that decomposition (planning input, not
-dispatchable implementation cards yet). Each replacement must delete the old
-body in the same packet; retaining a forwarding signature never permits a
-second implementation. Regression names below are **proposed**, not executed.
+##### L04a · Characterize existing list routes and write outcomes
 
-| Next write stage | Existing body to replace/remove | Required state/event proof |
-|---|---|---|
-| Playlist metadata | playlist.go:createPlaylist and metadata branch of updatePlaylist; retain items/reorder branch until its own packet | TestPlaylistMetadataWritePersistsAndEmits: null/empty fields, stored rows, playlist_added/updated recipient/payload |
-| Playlist add | playlist.go:addPlaylistItem single/batch branches | TestPlaylistAddBookAndEpisodePersistsOrderAndEvent: book/episode parent validation, duplicates, library ACL, persisted order/event |
-| Playlist remove/reorder | playlist.go:updatePlaylist items branch, removePlaylistItems, removePlaylistItem, deletePlaylistMediaIDs | TestPlaylistRemovalReordersAndDeletesEmpty: transaction/order compaction, empty-delete and updated/removed event |
-| Playlist delete | playlist.go:deletePlaylist | TestPlaylistDeletePersistsAndEmits: owner/library status order, membership/playlist deletion and removal payload |
-| Collection metadata | userapi.go:createCollection, updateCollection | TestCollectionMetadataWritePersistsNullAndEvents: permissions, description coercion, stored values and broadcast payload |
-| Collection membership | userapi.go:batchCollectionBooks, writeCollectionAfterBatch, addCollectionBook, removeCollectionBook | TestCollectionMembershipWritesPersistOrderAndEmit: add/remove/batch order, duplicates, ACL, transaction/event and empty visible DTO |
-| Collection-to-playlist | playlist.go:createPlaylistFromCollection | Existing TestCreatePlaylistFromCollectionPersistsExpandedBookItems plus denied/missing/empty cases |
-| Collection delete/feed boundary | userapi.go:collectionRoute DELETE branch; collection_feed.go:collectionRSSFeed remains read orchestration until its own scope | New state/event regression; preserve existing DB cleanup behavior. Feed writes are in sharing/feeds.go, so do not invent cleanup or move them incidentally |
-| Final routes/adapters | userapi Handle/collectionPlaylist/libraryCollections/libraryPlaylists plus runtime composition; remaining collectionDTO adaptation (playlistJSON already assigned PR07) | Route method/base-path/auth/status matrix and existing L01/regression suites; remove each remaining adapter after its real consumers/responsibility switch |
+- [x] DONE — test-only baseline accepted on clean `7c08c25b` plus the two
+  test overlays. Worker owns
+  `internal/contracttest/lists_routes_test.go` and may add only the specific
+  existing userapi state/event assertions needed to close a discovered gap.
+- **Depends:** L03 and existing accepted read/write fixtures. Freeze behavior
+  through `Runtime.ServeHTTP` before changing routing. Cover default and
+  `/audiobookshelf` router base paths; root, ID and nested collection/playlist paths;
+  supported GET/POST/PATCH/DELETE, plus OPTIONS, HEAD and unsupported methods or
+  subpaths. Assert exact legacy status/body/Content-Type/auth behavior, no
+  redirects, and one- versus two-terminal-slash cases. In particular, measure
+  whether `//` at the root is accepted; do not assume it is rejected. Keep
+  the current 501 fallback for unsupported methods/paths.
+- **Writes to characterize:** persisted values/order, cleanup, ACL/status
+  precedence, and event names/recipients/payloads for existing playlist and
+  collection mutations, using current userapi tests and fixtures. Add only
+  missing state/event assertions. Do not change production code in L04a.
+- **Check:** focused contract and existing userapi tests. **Done:** the matrix
+  and state/event outcomes pass against the current implementation; no
+  production modifications. `TestListsRouteBaseline` and full `userapi` PASS,
+  format/diff checks clean. Roots accept `//`; IDs/nested routes reject it.
+  Single trailing slash remains accepted; unsupported verbs stay 501.
 
-L04 still must select exact target functions/files/dependencies and split large
-mutation branches before any of these rows is dispatchable. Existing raw
-read adapters are not permission to improvise a generic list service or copy
-handlers wholesale. This planning gap does not block the accepted read wave.
+##### L04b · Consolidate shared request/value helpers
 
-##### L05 · Lists route wiring/removal — blocked template
+- [x] DONE — helper moves accepted as preparation within the final cohort;
+  +1 production line, −2 complexity, −3 maps; all other metrics flat.
+  Affected tests/build/lint0/dbnest PASS on clean `7c08c25b` plus eight overlays
+  (`/tmp/abs-pr06-pr05-20261105/l04b`). Exact old definitions removed, all current
+  callers updated; part of the final cohort, not an independently published
+  behavior change.
+- **Write only:** `internal/httputil/json.go` and its tests;
+  new `internal/jsonvalue/value.go` and tests;
+  `internal/userapi/userapi.go`, `internal/userapi/me_extra.go`, and exact
+  existing callsites found by repository-wide reference search.
+- Move the object request decoder to `httputil.DecodeObjectRequest`, preserving
+  `UseNumber`, body close and object-only behavior; update all callers and
+  delete old `decodeBody`. Move the exact existing `jsTruthy` and
+  `stringValue` bodies to tiny `internal/jsonvalue` `Truthy` and `String`
+  functions; update every current caller and delete the old definitions. Keep
+  the `json.Number` conversion quirk. Replace the userapi permissions map
+  decoder with `store.DecodeJSONObject` at all current userapi references and
+  delete its wrapper.
+- **Pre-dispatch budget:** at most +20 physical production lines; all other
+  ratchet metrics must not increase. Benefit: one existing request decoder and
+  shared coercions with exact legacy semantics, without duplicates or domain
+  cycles. The smaller alternative of keeping duplicate helpers is rejected.
+  This preparation is not separately publishable; L04c must recover its cost
+  and deliver a net decrease in every ratchet metric before L05. Namespace
+  overhead counts. No baseline increase or cross-packet offset.
+- **Check:** decoder and jsonvalue focused tables plus affected userapi tests.
+  Preparatory budget: at most +20 production lines; all other metrics must
+  not increase. Shared primitives avoid duplicated semantics and domain cycles;
+  the four old helper bodies disappear. This card is not separately published
+  or accepted against a raised baseline. L04c must recover this preparation
+  cost and reduce the final cohort's net lines, with all metrics nonincreasing.
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+##### L04c · Move list HTTP ownership as one cohort
 
-- **Depends:** all concrete write/route cards created by L04. **Write only:** BLOCKED until L04 fills exact lists handler/constructor and `internal/server/runtime.go` scopes.
-- **Do:** Architect must replace this template with small route-family cards and a final removal card after read/write ownership is complete. Do not dispatch this heading to a simple model.
-- **Check:** `not runnable until replacement cards are reviewed`.
-- **Done:** Every list route uses lists owner, userapi forwarding/duplicate code removed, mixed-media values/ACL/persistence/events pass and route generator is refreshed. No route deletion implied.
+- [x] DONE — atomic production ownership move after L04a evidence and L04b
+  helper availability. No temporary production bridge: old and new list HTTP
+  owners must not coexist.
+- **Write only:** new `internal/lists/routes.go`,
+  `internal/lists/playlist_http.go`, `internal/lists/collection_http.go`;
+  `internal/lists/handler.go` only if the established composition requires
+  its single constructor; `internal/server/runtime.go`;
+  `internal/userapi/userapi.go`; delete `internal/userapi/playlist.go`,
+  `internal/userapi/library_lists.go`, and `internal/userapi/collection_feed.go`.
+- Compose one `lists.Handler` from `db`, `items.Reader`, `emit`,
+  `canView(ctx, store.User, itemID)` and
+  `canAccessLibrary(store.User, libraryID)`, with `Routes(*http.ServeMux)`.
+  Runtime constructs and mounts it. `userapi` exports `CanReadItem` and
+  `AllowsLibrary` delegates to existing `canAccessItem` and
+  `canAccessLibrary`; do not consolidate/change policy. Resolve the principal
+  with `store.UserFromContext` after runtime authentication. Use
+  `store.DecodeJSONObject` for permission JSON.
+- Move list CRUD/read, library list and collection feed HTTP bodies once into
+  `lists`. Move list-only `stripMarkup`, `cleanName`,
+  `sendEntityNotFound`, `sendEntityNotFoundStatus` and
+  `respondPlaylistError` after reference checks; keep their behavior. Do not
+  substitute `textclean.Strip`. Delete the old collection dispatch/branches
+  and userapi list methods with the move. Remove the always-success boolean
+  adapter and protect an empty-but-visible collection as HTTP 200 in tests.
+  Keep the actual ACL-aware collection helper if still used; it is distinct
+  from the redundant boolean adapter.
+- Preserve exact path/method dispatch, including 501 behavior. Use method
+  ServeMux registrations with one HEAD rejection guard, so GET's implicit
+  HEAD matching retains legacy 501. The first methodless-wrapper design was
+  rejected for +178 lines/+12 complexity/+2 `[]any`; no baseline was raised.
+  Change `serveRoute` only as
+  needed to accept the exact measured trailing-slash cases for lists; no
+  redirect or global path normalization. Preserve observed root `//` behavior.
+- **Exact old ownership to remove:** `userapi.Handle` list dispatch;
+  `userapi/playlist.go` playlist read/write/feed-to-playlist bodies;
+  `userapi/library_lists.go` library list handlers;
+  `userapi/collection_feed.go` collection RSS handler; collection handlers
+  in `userapi.go` including `collectionRoute`, CRUD/membership branches and
+  list helper methods. Move each body once. Retain no redundant bool/error
+  adapter or duplicate transaction/query implementation.
+- **Check:** `go test ./internal/lists ./internal/userapi ./internal/server`,
+  build, vet, full suite with the documented native FFmpeg, lint, ratchet
+  (all metrics nonincreasing, including dbnest), sqlc regeneration with
+  generated-directory identity, Linux/arm64 CGO-disabled build, and the route
+  coverage generator. No metric baseline increase or cross-packet offset.
+
+##### L04c-R1 · Remove the first routing implementation's overhead
+
+- [x] DONE — same L04c files and original nonincrease budget. Replace
+  per-route verb wrappers and the playlist tail parser with direct method
+  registrations and one HEAD guard. A single two-segment POST handles the
+  overlapping collection-to-playlist/item paths without a second router.
+- Delete alias pattern registries, fake probe requests, duplicate request
+  cloning and the unused runtime lists field; reuse `withPath`. Preserve the
+  measured slash matrix using only scoped list path normalization.
+- The temporary typed-map slice experiment was discarded; R2 instead removes
+  duplicated string-array conversion and identical internal-error pairs. No
+  aliases, counter changes, source packing or SQL/transaction change.
+- Check affected packages, L04a routes, build and metrics on the exact clean
+  shipping tree before full gates. Rejected growth is not an accepted stage.
+
+##### L04c-R2 · Delete duplicate internal-error pairs and root adapters
+
+- [x] DONE — architect-directed repair after R1 remained +54 lines
+  and +2 `[]any`; complexity/maps fell. The original final budget is unchanged.
+- In the same lists files, parameterize the existing read-error writer with
+  its constant message; replace only identical log/error pairs (same message,
+  error value, status 500). Delete replaced pairs and unused logging imports.
+  Keep transaction/return sequencing and client error bodies unchanged.
+- Bind collection/playlist root GET/POST directly to native HTTP entry methods;
+  remove the second root-method dispatcher. No extra handler framework.
+- Correct playlist action routing: two-segment conversion/item paths and
+  three-segment batch paths must remain distinct. Add negative POST cases for
+  `/{id}/add` and `/{id}/batch/item`; both must remain 501 without mutation.
+- Diagnose the extra slice uses from actual source evidence; no aliases,
+  counter changes, arbitrary source packing or baseline increases. Repeat
+  affected tests, original route baseline, build and metrics before acceptance.
+- Confirmed cause: create/update collection copied the old shared string-array
+  conversion. Extend this repair only to move userapi's exact `stringSlice`
+  body once into `jsonvalue.Strings`, update existing userapi callers and use
+  it for the two list callers; delete the duplicated loops/old helper. Preserve
+  empty strings and typed-slice behavior; batch empty-ID filtering stays intact.
+
+##### L04d · Refresh route ownership evidence
+
+- [x] DONE — prepare the producer mapping alongside L04c, then generate
+  evidence after the ownership move. Update `tools/parity/build_route_coverage.py` ownership mapping
+  for collection/playlist routes and `GO_SOURCES` to `internal/lists/routes.go`;
+  regenerate/review `contracts/parity/route-coverage.json`. Preserve route
+  provenance; do not alter source inventory unless router source changed.
+- **Check:** rerun generator and verify the checked-in evidence exactly matches
+  output. **Done:** all existing list route cases are assigned once to lists,
+  no stale userapi route ownership remains.
+
+##### L05 · Final list-cohort acceptance
+
+Accepted source: clean `7c08c25b` plus exact approved overlays/deletions.
+Actual final metrics: **44,674 lines (−29), complexity 10,809 (−23), maps 990
+(−2), high-complexity functions 178 (−1), `[]any` 326 (flat)**; other metrics
+flat. Build/vet/full native-codec suite/lint0/arm64/ratchet+dbnest PASS; sqlc
+1.31.1 nine-file generated identity PASS. Lower-only baseline accepted.
+226 ordered upstream routes/21 lists owners and 201 client routes preserved;
+coverage remains 0 verified/226 unverified. Both generated inventories refreshed.
+Logs: `/tmp/abs-pr06-pr05-20261105/l04c-*`; final source/artifact/baseline identity
+checked for 25 paths. Earlier stale-inventory and wrong-FFmpeg runs failed;
+both corrected before the passing run. No local TS rollback/device/bench run;
+SQL/storage semantics unchanged. See handover for environment/WIP boundaries.
+
+- [x] DONE — final review card, executed only when L04a–L04d are ready.
+- **Check:** all L04a state/event/route tests, L04c focused and full checks,
+  L04d route evidence, and final `git diff --check`; review no stale userapi
+  handlers/adapters/references, one route owner per path, and net source
+  reduction. Confirm every ratchet metric is nonincreasing against the
+  recorded baseline: 44,703 lines, 10,832 complexity, 992 maps, 326 `[]any`,
+  179 high-complexity functions. Shared-helper growth is not accepted until
+  the complete cohort meets the budget. **Done:** architect accepts the
+  tested final tree; no route removal is implied. L04/L05 do not complete all
+  of S11 or the broader mobile audit.
 
 #### Scope still open after these milestones
 
@@ -778,8 +1034,9 @@ batching, includes/collapsed paths and each remaining playlist/progress/playback
 scanner consumer are migrated with their own tests. Book metadata/chapter
 writes need separate state/event contracts. No worker receives “finish items”
 or “move all catalog” as a task. Architect decomposes only the next slice.
-Domain order after books/items reads and lists: people (S10), progress (S12),
-then library/items HTTP and remaining users/auth/admin (S14/S15). Relevant
+Tentative domain order after books/items reads and lists: people (S10), progress (S12),
+then library/items HTTP and remaining users/auth/admin (S14/S15), gated by D01/D02
+and an end-to-end deletion case for each extraction. Relevant
 compatibility tests are prerequisites per slice, not a global audit freeze.
 
 ### L8a–c · Selective domain-owned sqlc (P2, S each)
@@ -1004,8 +1261,8 @@ separate PR01–PR07 cards completed and were accepted; those are not attributed
 to G01/G02.
 Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
 PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE. Whole S9b deletion remains
-pending under KEEP decisions. L04 list-write characterization/planning is in
-progress; implementation still needs exact reviewed packets. In parallel,
+pending under KEEP decisions. L04/L05 and D01 are DONE; D02 awaits the two
+feature decisions and replacement-cost proof. No new extraction is dispatched. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.
