@@ -154,7 +154,8 @@ soft-metrics proposal has been superseded.
 
 Current priority: behavior-preserving simplification. E01 source review is
 complete in [the deletion review](DELETION-FEASIBILITY.md); no thousand-line
-wave is established. Next are E02 source/adapter proofs and bounded E03 cleanup;
+wave is established. The owner retains the current custom Engine.IO/Socket.IO
+framing and cancelled library replacement. Next is the bounded E03 cleanup;
 source relocation and feature loss are excluded from savings. Backup/restore
 and manual audio conversion/embedding remain supported. The D02 removal proposal and
 uncommitted implementation were withdrawn before publication. Lists completion
@@ -230,4 +231,4 @@ scaffolding after real mutation-response tests; cache/range/MIME options remain.
 The restricted read-only HTTP mode was audited and is active, so its behavior
 is retained while duplicate prefix methods are gone. L04/L05 now complete list
 HTTP ownership with another 29-line reduction; none of this proves a large
-consolidation wave. E01–E03 evidence and an end-to-end deletion case gate further extraction.
+consolidation wave. E01/E03 evidence and an end-to-end deletion case gate further extraction.

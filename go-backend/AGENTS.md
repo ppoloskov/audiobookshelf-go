@@ -25,10 +25,12 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- E01 source audit is complete; no thousand-line wave is established. Next:
-  E02 exact Socket.IO ordering/adapter proofs, then separately scoped E03
-  cleanup. Cheap workers own bounded research/execution; architect reviews
-  alternatives, counts and contracts. No feature footprint/relocation credit.
+- E01 source audit is complete; no thousand-line wave is established. The
+  owner retains current custom Engine.IO/Socket.IO framing and cancelled the
+  library-replacement initiative. Next is the separately scoped E03 cleanup;
+  ordinary transport fixes and contract tests remain allowed. Cheap workers
+  own bounded work; architect reviews alternatives, counts and contracts.
+  No feature footprint/relocation credit.
 - **Preserve functionality.** The owner clarified that backup/restore and
   manual conversion/embedding remain supported, including their web UI flows.
   D02's feature-removal proposal was withdrawn; its uncommitted implementation

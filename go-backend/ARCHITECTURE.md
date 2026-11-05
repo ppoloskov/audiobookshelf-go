@@ -101,6 +101,9 @@ report the shortfall rather than inventing savings or cutting features.
   types, including `null` where a client checks for it.
 - Socket.IO v4 on the legacy and `/audiobookshelf` Engine.IO paths: event
   names, payload fields, and which users receive each event.
+- Retain the current in-repo Engine.IO/Socket.IO framing. The owner has
+  cancelled the library-replacement initiative; this does not prohibit
+  ordinary transport fixes or contract tests that preserve the protocol.
 - `ROUTER_BASE_PATH` behavior, `/healthcheck`, `/ping`, `/status`, the served
   web client and the public share/feed/HLS URLs.
 - Proof: contract tests (request/response field and type checks per route a

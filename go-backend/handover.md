@@ -14,7 +14,7 @@ logs and recovery chronology are in the
 
 ## Current state and next action
 
-Last runtime commit **82110311**, published documentation **d1b67033**.
+Last runtime commit **82110311**, preceding audit documentation commit **2fb4cde9**.
 B01–B09, I01–I06, L01–L05, PR01–PR07, MC-05/F1, S9b-R1 and D01 are accepted.
 Lists HTTP/write/feed ownership is complete; do not restart L04. Wider
 book writes/mixed-media/people/progress work remains. S9b deletion and full
@@ -27,12 +27,12 @@ to reach a line target. Restored backup/audiotools and manager restore/rollback
 tests passed at `/tmp/abs-d02-rollback-verify-20261105`.
 
 E01 source research is completed in [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md).
-It did **not** establish a thousand-line wave. Mechanical candidates total less
-than 200 estimated net; larger alternatives remain conditional, led by possible
-Socket.IO library reuse. No E01 runtime code/dependency changes or runtime tests.
-Next: E02a exact old library ordering proof, E02b complete adapter/dependency
-cost; only then consider an owner-approved dependency trial. E03 describes the
-small cleanup separately, with finite tests and deletion scopes. No new domain
+It did **not** establish a thousand-line wave. A–D total 174–184 estimated net;
+F–H add 70–126 conditionally. No E01 runtime code/dependency changes or runtime
+tests. The owner retains current custom Engine.IO/Socket.IO framing and cancelled
+the library-replacement initiative (E02a–c). C25 documents the earlier
+auth-before-ACK race. Ordinary transport fixes and contract tests remain
+in scope. Next is E03, the bounded behavior-preserving cleanup. No new domain
 extraction is dispatched. Roadmap cards own status; estimates are not delivery.
 
 ## Last runtime acceptance
