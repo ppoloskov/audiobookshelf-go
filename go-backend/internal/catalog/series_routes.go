@@ -171,7 +171,7 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 		}
 		detail.RSSFeed = raw
 	}
-	writeExpressJSON(w, http.StatusOK, detail)
+	writeJSONWithETag(w, r, http.StatusOK, detail)
 }
 
 // seriesUpdate is SeriesController.update (SeriesController.js:70-87): only
@@ -231,5 +231,5 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 	if len(changes.columns) > 0 && h.emit != nil {
 		h.emit("*", "series_updated", oldJSON)
 	}
-	writeExpressJSON(w, http.StatusOK, oldJSON)
+	writeJSONWithETag(w, r, http.StatusOK, oldJSON)
 }

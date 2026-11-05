@@ -295,7 +295,7 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) {
 		}
 		detail.LibraryItems = &items
 	}
-	writeExpressJSON(w, http.StatusOK, detail)
+	writeJSONWithETag(w, r, http.StatusOK, detail)
 }
 
 func sliceHas(list []string, v string) bool {
@@ -596,7 +596,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 		h.authorServerError(w, r, "database read failed", err)
 		return
 	}
-	writeExpressJSON(w, http.StatusOK, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
+	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
 }
 
 // authorMerge is the merge branch of AuthorController.update
@@ -691,7 +691,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		h.emit("*", "author_updated", expanded)
 	}
 	merged := true
-	writeExpressJSON(w, http.StatusOK, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
+	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
 }
 
 // purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
@@ -920,7 +920,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	writeExpressJSON(w, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 // jsString is how a JavaScript template literal renders a JSON value.
@@ -982,7 +982,7 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) {
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	writeExpressJSON(w, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
@@ -1061,7 +1061,7 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 		h.authorServerError(w, r, "database read failed", err)
 		return
 	}
-	writeExpressJSON(w, http.StatusOK, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
+	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
 }
 
 func firstNonEmpty(values ...string) string {

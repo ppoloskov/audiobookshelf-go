@@ -36,13 +36,15 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ## Owner cleanup priorities — 2026-11-05
 
-Latest approved sequence: **PR06 -> PR05 -> MC-05/S9b -> finish lists**.
+Latest approved sequence: **PR06 -> PR05 -> MC-05/F1 -> S9b-R1 -> L04 list work**.
 PR06/PR05 execute sequentially as one coherent deletion wave; review and full
 integration gates run once before both DONE markers land in the code commit.
 Source/client research for later stages may proceed read-only in parallel.
-MC-05 must distinguish optional client caching from required validator
-semantics before any new runtime cache layer is proposed. L04 must produce
-exact write/route/deletion packets before continuing list implementation.
+MC-05 and F1 are accepted after source, contract, craft and full integration
+gates. The source review found no requirement for a global cache layer. S9b-R1
+records KEEP for the five framing-option families; S9b deletion remains
+pending. L04 list-write characterization/planning is now in progress and must
+produce exact write/route/deletion packets before implementation.
 
 I05/I06 and L01–L03 already landed before this priority update. Do not restart
 them or expand into more domains. **This bounded cleanup checkpoint is CLOSED**
@@ -53,7 +55,7 @@ cuts are explicitly pending; no new domain migration was started.
 |---|---|
 | 1 | I05/I06 DONE (+165 production lines/+23 complexity); L reads DONE (+29/flat). Cleanup now removes 158 lines/46 complexity: 44,760 lines/10,848 complexity. All required checks pass; remaining adapters have named consumers/exit tasks. Net since pre-I05 is still +36 lines, complexity −23; no full-growth recovery claim. |
 | 2 | RO01 audited the read-only HTTP path. It is active via ABS_GO_READ_ONLY=1, so retain it; remove proven duplication via RO02. Absence from CI does not make opt-in behavior unused. |
-| 3 | S9a DONE: ordered-key serializer deleted after both real mutation-response field/value/header contracts pass, plus cache/range/HEAD regressions. S9b remains gated on the mobile validator endpoint matrix; no blanket framing-option removal. |
+| 3 | S9a DONE: ordered-key serializer deleted after both real mutation-response field/value/header contracts pass, plus cache/range/HEAD regressions. MC-05/F1 and S9b-R1 DONE; whole S9b deletion remains pending with KEEP decisions. |
 | 4 | L02 already landed. Strengthened final-deletion criteria now apply before more writers; PR07 has deleted the pure playlist forwarder. |
 | 5 | Branch docs point to canonical master. FF01 DONE: real isolated native libwebp FFmpeg, baseline and integrated full suites PASS with count=1; no codec shim/test weakening. TESTING.md records the environment and rebuild details. |
 | 6 | Q1 now requires explicit growth review and strict ratchet. No baseline increase during cleanup. |
@@ -139,10 +141,12 @@ cuts are explicitly pending; no new domain migration was started.
   production lines. Analyzer exit 1 reflects its 12 findings; no code removed
   or deletion tests executed. Conditional candidates are excluded from 81.
 
-### Small pruning packets — planned, no runtime removals yet
+### Small pruning packets — PR01–PR07, MC-05 and S9b-R1 accepted
 
 I01–I06, L01–L03 and PR01–PR07 are complete. PR06/PR05 passed their conditional
-equivalence/net-savings proof. S9b still needs its client-validator evidence.
+equivalence/net-savings proof. MC-05/F1 and S9b-R1 passed source/HTTP review
+and final integration gates. Whole S9b deletion remains pending; L04
+characterization/planning is current.
 No new domain
 expansion occurred during the completed cleanup checkpoint. PR01–PR04 were independent;
 execute sequentially on master because some files overlap. Preserve contracts,
@@ -480,7 +484,7 @@ no new generated output. Full suite exits 1 only for the same five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next work: **MC-05/S9b** client/HTTP contracts; PR01–PR07 are DONE. L04 write decomposition remains future work,
+Next work: **L04 list-write characterization/planning**; MC-05/F1 and S9b-R1 are DONE, while whole S9b deletion remains pending. PR01–PR07 are DONE. L04 write decomposition is in progress,
 then its reviewed packets and final L05
 wiring. Each stage must name the old
 code it deletes, any necessary
@@ -836,18 +840,20 @@ removal required; no candidates approved by this takeover.
 - Verify httputil/userapi plus named catalog cache/range regressions; final
   AGENTS gates. Expected tens of production lines removed; report actual net.
 
-#### S9b · Validator-sensitive framing — gated
+#### S9b · Validator-sensitive framing — deletion pending
 
-- [ ] PLANNED, not dispatchable for deletion yet. ContentType has four provider
-  error callers; no-length/no-ETag options have many more. Preserve MIME and
-  stream buffering behavior. MC-05 still lacks the exact Lissen cacheable-
-  endpoint/If-None-Match/304 matrix. Lack of explicit 304 source text is not
-  proof of missing behavior: http.ServeContent handles conditionals internally.
+- [ ] DELETION PENDING — no framing option deletion authorized. `ContentType`
+  has four provider error callers; `WithoutETag`, `WithoutContentLength`,
+  `Streamed`, and `ForRequest` are also used. Counts establish scope only.
+  KEEP means safe equivalence has not been proven; it does not mean every
+  option/header is mandatory. See bounded S9b-R1 review and
+  [evidence](MC05-S9B-EVIDENCE.md). No growth budget is approved; any later
+  deletion card must name exact old code/tests and reduce net production lines.
 - First protect affected endpoint status/body/MIME/auth/cache/HEAD and actual
   client usage. Then scope one caller family, with measured replacement cost;
   do not globally delete ForRequest, Streamed, WithoutETag or length handling.
 
-Prerequisites: MC-B/D, affected cache/range/cover tests. Scope:
+Prerequisites: MC-05 evidence review and affected cache/range/cover tests. Scope:
 `internal/httputil/` Express-only ordering/escaping/framing options and callers.
 No removal of ETag/If-None-Match/304, Range/206/416, cache behavior or required
 MIME negotiation. First name each unnecessary option and prove no client
@@ -855,6 +861,52 @@ requirement; remove it and tests of byte-only details. Run
 `cd go-backend && go test ./internal/httputil ./internal/contracttest` and full
 gates. Done when supported HTTP semantics pass and obsolete paths disappear.
 Approval: queue; any externally observable semantic removal goes through R2.
+
+#### MC-05 · Lissen typed-JSON behavior characterization
+
+- [x] DONE — pinned Lissen source and 12 typed-JSON route cases are
+  characterized. A successful 200 body without ETag is accepted; the client
+  caches only when ETag exists, so the server does not need a global cache
+  layer or mandatory ETag generation. The per-route contract also requires
+  304 only when the response advertises a validator, with auth before 304.
+  Bounded scope only: MC-A/B/C/D/E and full mobile/device audit remain open.
+  Evidence: [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md).
+
+#### MC-05/F1 · Lissen conditional typed-JSON correction
+
+- [x] DONE — preserve the 12 typed-JSON routes in
+  `TestMobileConditionalGET` and the separate original/resized cover and
+  width-only author image cases in `TestMobileCoverParameters`, both in
+  `internal/contracttest/mobile_protocol_test.go`. Pinned
+  Lissen accepts a successful 200 body without ETag and caches only when ETag
+  exists; absent ETag therefore does not require a server cache layer or
+  conditional 304. When a validator is advertised, matching If-None-Match
+  must yield an empty 304; auth must precede 304. `author_items` previously
+  returned 200 despite an advertised ETag; F1 replaces the old producer with
+  a request-aware replacement at 14 callsites. Budget: at most +20 physical production lines and
+  +12 complexity, with maps/`[]any`/high-complexity-function counts not
+  increasing. Required benefit: the replacement handles conditional
+  semantics; leaving it untouched retains the author_items mismatch. F1
+  measured +17 lines/+9 complexity; JSON-writer style count 1→2 is a rename
+  of the same writer, accepted as +1 after review, not a second implementation.
+  No schema, dependency, route or global cache layer. Verify focused mobile
+  contract rows, freshness/auth/raw and width-only image cases,
+  catalog/userapi/httputil packages, and all integration gates PASS.
+  Acceptance log: `/tmp/abs-pr06-pr05-20261105/mc05-f1/verification`.
+  No SQL inputs or callers changed; rollback, real-device and benchmark suites
+  were not rerun. Root adjusted three baseline values in the same code commit.
+
+#### S9b-R1 · Review evidence and decide whether to retain option families
+
+- [x] DONE — bounded evidence review only. Review current
+  caller evidence and MC-05 findings, then record KEEP for ContentType,
+  WithoutETag, WithoutContentLength, Streamed, and ForRequest until a specific
+  family has a safe-equivalence proof. Call counts do not establish necessity.
+  Focused `httputil` and contract tests plus MC-05/F1 final integration gates
+  PASS. R1 deletes no caller or option. It closes this review milestone while
+  S9b deletion remains pending; unproven optional cleanup does not block
+  independent L04 characterization/planning or list implementation. MC-A/B/C/D/E
+  and full mobile/device acceptance remain open.
 
 ### V2a/V2b · Extract reusable tooling, then retire diagnostics (P2, M/S)
 
@@ -947,10 +999,13 @@ and prerequisites; this table deliberately is not authorization to code.
 
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
-G01/G02 completed consolidation + analysis only; no standalone pruning executed.
+G01/G02 were consolidation/analysis only and executed no pruning. Later,
+separate PR01–PR07 cards completed and were accepted; those are not attributed
+to G01/G02.
 Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
-PR01–PR07 are DONE. MC-05/S9b source/HTTP proof is next before its framing
-decisions; L04 write decomposition remains future work. In parallel,
+PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE. Whole S9b deletion remains
+pending under KEEP decisions. L04 list-write characterization/planning is in
+progress; implementation still needs exact reviewed packets. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

@@ -12,7 +12,8 @@ is history; generated STATUS is a dated sampled differential, not live acceptanc
 
 ## Active approved sequence
 
-PR06 -> PR05 -> MC-05/S9b -> finishing lists is approved. PR06/PR05 are now
+PR06 -> PR05 -> MC-05/F1 -> S9b-R1 -> L04 list work is the accepted sequence.
+PR06/PR05 are now
 accepted in one code commit with individual DONE markers. PR06 removes 35
 production lines; same metadata/filename/date assertions now hit active code.
 PR05 removes 39 production lines after new package/import overhead. Both old
@@ -27,13 +28,36 @@ dbnest/Linux arm64 build/full native-codec suite count=1 all PASS. Baselines
 lowered by existing tool; final ratchet PASS. Source: 24d199e6 archive plus
 exact scanner/sharing/playback/deviceinfo and dependency-rule overlays. Logs
 under /tmp/abs-pr06-pr05-20261105; no Node rollback/device/latency run or SQL
-generation change. Next: MC-05/S9b, then bounded list writes/routes.
+generation change. MC-05/F1 and S9b-R1 are now accepted; current next work is
+L04 list-write characterization/planning, followed by separately reviewed
+implementation packets.
 
-MC-05 research has identified pinned Lissen typed-JSON Cacheable calls, while
-artwork calls are binary and not Cacheable. Before declaring a server bug or
-adding a cache layer, verify the client's successful-200/no-ETag fallback and
-the live endpoints. No runtime conditional-cache change is accepted yet.
-List finishing is still in source/dependency planning until this gate clears.
+MC-05, MC-05/F1 and S9b-R1 are DONE after source, contract, craft and full
+integration gates. Pinned
+Lissen accepts a typed JSON 200 without ETag and caches only when one exists.
+Twelve typed-JSON route cases are covered by `TestMobileConditionalGET`; the
+separate `TestMobileCoverParameters` covers width-only image cases.
+`author_items` had the concrete mismatch: 200 with ETag but no matching-
+validator 304. F1 replaces the previous producer with request-aware writing
+at 14 callsites. Cost is +17 lines/+9 complexity;
+the style metric +1 is an accepted detector artifact from renaming the same
+writer. This correction is not netted against PR05. The root updated three
+baseline values in the same code commit; no dependency/schema/route wiring or
+SQL-input change; the 14 writer callsites changed as described. No global
+cache layer. Build, vet, tests, arm64 build, ratchet
+(including dbnest) and golangci-lint 2.15.0 (built with Go 1.27.0, zero issues)
+all PASS. Logs: `/tmp/abs-pr06-pr05-20261105/mc05-f1/verification`. Rollback,
+real-device and benchmark suites were not rerun. See
+[MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md).
+
+S9b-R1 records KEEP for ContentType, WithoutETag, WithoutContentLength,
+Streamed and ForRequest. Call counts define scope but do not prove necessity;
+no option was deleted. Whole S9b deletion remains pending until a family has
+safe-equivalence evidence and net source reduction. This bounded review closes
+the immediate MC-05/S9b evidence milestone and does not block independent
+L04/list work. Physical-device/full mobile acceptance and MC-A/B/C/D/E remain
+open. L04 characterization/planning is in progress; no list implementation
+has started from it.
 
 ## Prior cleanup checkpoint closed — acceptance at 24d199e6
 
@@ -96,8 +120,9 @@ and identity.go/oidc.go, excluding owner routes. Logs under
 `/private/tmp/abs-cleanup-checkpoint-20261105`: integrated-full-test.log,
 metrics-before-lowering.log, final-ratchet.log, baseline-full-test.log,
 journey-verbose.log and BUILD_NOTES.md. Docs/format/scope checks accompany push.
-Remaining: S9b needs the mobile cacheable-endpoint validator matrix; PR06/PR05
-need their equivalence/net-savings proof. L04/L05 and list writes remain pending.
+At this historical checkpoint, S9b needed the mobile validator matrix and
+PR06/PR05 still required equivalence/net-savings proof. Current status above
+supersedes that note. L04/L05 and list writes remain pending.
 
 ## Historical pruning plan at c4cf90a9
 
@@ -450,8 +475,8 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next:** MC-05/S9b source/HTTP proof, then finish lists under L04/L05.
-PR01–PR07 are DONE; S9b and L04 onward remain
-unchecked. I01–I06 do not complete all of
+**Current next:** L04 list-write characterization/planning, then reviewed
+L04/L05 implementation packets. PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are
+DONE; whole S9b deletion and L04 implementation remain pending. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

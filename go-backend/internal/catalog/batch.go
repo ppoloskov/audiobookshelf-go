@@ -305,5 +305,5 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	h.checkRemoveEmptySeries(ctx, seriesRemoved)
 	h.checkRemoveAuthorsWithNoBooks(ctx, authorsRemoved)
-	writeExpressJSON(w, http.StatusOK, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
+	writeJSONWithETag(w, r, http.StatusOK, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
 }

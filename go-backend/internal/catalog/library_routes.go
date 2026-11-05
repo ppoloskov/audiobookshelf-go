@@ -207,7 +207,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	}
 	if len(paths) == 0 {
 		logging.Infof("[LibraryController] No %s files found to remove", filename)
-		writeExpressJSON(w, http.StatusOK, struct {
+		writeJSONWithETag(w, r, http.StatusOK, struct {
 			Found int `json:"found"`
 		}{0})
 		return
@@ -226,7 +226,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 		}
 		removed++
 	}
-	writeExpressJSON(w, http.StatusOK, struct {
+	writeJSONWithETag(w, r, http.StatusOK, struct {
 		Found   int `json:"found"`
 		Removed int `json:"removed"`
 	}{len(paths), removed})

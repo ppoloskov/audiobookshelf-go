@@ -1070,7 +1070,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 		return
 	}
 	if currentCover.Valid && currentCover.String == body.Cover {
-		writeExpressJSON(w, http.StatusOK, struct {
+		writeJSONWithETag(w, r, http.StatusOK, struct {
 			Success bool   `json:"success"`
 			Cover   string `json:"cover"`
 		}{true, body.Cover})
@@ -1150,7 +1150,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request, user store
 			}
 		}
 	}
-	writeExpressJSON(w, http.StatusOK, struct {
+	writeJSONWithETag(w, r, http.StatusOK, struct {
 		Success bool   `json:"success"`
 		Cover   string `json:"cover"`
 	}{true, coverPath})

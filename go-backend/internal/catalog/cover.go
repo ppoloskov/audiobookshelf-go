@@ -7,7 +7,6 @@
 package catalog
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -36,22 +35,40 @@ func (h *Handler) coverCachePath() string {
 	return filepath.Join(h.cfg.MetadataPath, "cache", "covers")
 }
 
-// writeExpressJSON mirrors Express res.json for small buffered JSON replies.
-func writeExpressJSON(w http.ResponseWriter, status int, value any) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
-		logging.Errorf("[catalog] writeExpressJSON: internal error: %v", err)
+// writeJSONWithETag writes a JSON response with the existing Express validator.
+func writeJSONWithETag(w http.ResponseWriter, r *http.Request, status int, value any) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		logging.Errorf("[catalog] writeJSONWithETag: internal error: %v", err)
 		httputil.WriteError(w, http.StatusInternalServerError, "")
 		return
 	}
-	body := bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'})
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", httputil.ExpressETag(body))
+	etag := httputil.ExpressETag(body)
+	w.Header().Set("ETag", etag)
+	if status == http.StatusOK && (r.Method == http.MethodGet || r.Method == http.MethodHead) && ifNoneMatch(etag, strings.Join(r.Header.Values("If-None-Match"), ",")) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	w.WriteHeader(status)
-	_, _ = w.Write(body)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(body)
+	}
+}
+
+func ifNoneMatch(etag, header string) bool {
+	header = strings.TrimSpace(header)
+	if header == "*" {
+		return true
+	}
+	weakETag := strings.TrimPrefix(etag, "W/")
+	for _, candidate := range strings.Split(header, ",") {
+		if strings.TrimPrefix(strings.TrimSpace(candidate), "W/") == weakETag {
+			return true
+		}
+	}
+	return false
 }
 
 // expressFileETag mirrors the file-derived weak ETag of express 'send':

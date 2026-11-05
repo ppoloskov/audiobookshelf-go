@@ -28,6 +28,7 @@ fast Go.
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
 | Clean-source validation and native FFmpeg/WebP setup | [TESTING.md](TESTING.md) |
 | Reviewed deletion/duplication candidates, not yet implemented | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
+| Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
@@ -154,10 +155,14 @@ Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
 sequence has completed I01–I06 and lists L01–L03. The cleanup checkpoint also
 completed RO02, S9a, PR01–PR04 and PR07: **158 fewer production lines, 46 fewer
-complexity points**, no metric growth. Latest approved sequence is PR06 ->
-PR05 -> MC-05/S9b -> finishing lists. PR06/PR05 are now DONE: 74 more production
+complexity points**, no metric growth. Latest sequence is PR06 -> PR05 ->
+MC-05/F1 -> S9b-R1 -> L04 list work. PR06/PR05 are now DONE: 74 more production
 lines and 25 complexity points removed; integrated full suite and guards PASS.
-MC-05/S9b is next. No later domain migration has started.
+MC-05/F1 and the S9b-R1 evidence review are DONE. Whole S9b framing deletion
+remains pending under KEEP decisions. Lissen conditional-cache evidence and
+gate results are in [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md). Full mobile
+audit and device acceptance remain open. L04 list-write characterization is
+in progress; implementation awaits exact reviewed packets.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
@@ -206,4 +211,5 @@ increase since pre-I05 and 23 fewer complexity points. Baselines were lowered
 with the existing tool; strict guards remain. S9a drops only ordered-key JSON
 scaffolding after real mutation-response tests; cache/range/MIME options remain.
 The restricted read-only HTTP mode was audited and is active, so its behavior
-is retained while duplicate prefix methods are gone. L04 remains future planning.
+is retained while duplicate prefix methods are gone. L04 list-write
+characterization/planning is in progress; implementation has not started.
