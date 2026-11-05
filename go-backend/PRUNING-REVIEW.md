@@ -86,8 +86,14 @@ No dependency installation, code deletion, package test or runtime experiment
 was performed for this review. Worker reports are under
 `/tmp/abs-master-consolidation-20261105/{dead-code,duplicates}.md`.
 
-Owner sequencing update: complete I01–I06, then start lists L01 onward before
-standalone pruning. The candidates above remain unimplemented. When dispatched,
+Sequencing correction after completed I01–I06 and L01–L03: PR01–PR04 are now
+next, before further migration/L04 planning. Candidates remain unimplemented;
+their next acceptance requires measured net source reduction, no baseline raise.
+PR07 also deletes the trivial playlist forwarder now rather than waiting for
+L05 (about two more net lines; eight direct callers, one new import). Current
+f466e36e source recheck confirms PR01's six definition-only names and PR06's
+test-only callers. PR06/PR05 follow only with equivalent behavior and measured net savings.
+When dispatched,
 use implementation-scope-control/minimal-implementation-ladder for the named
 PR cards in ROADMAP; go-behaviour-tests for PR05/PR06. All work stays on master,
 one bounded worker packet at a time. Each card names affected package checks;

@@ -319,9 +319,10 @@ List reads now live in `internal/lists/reader.go`: plain Playlist/Collection
 functions take DB and item-reader dependencies; Collection also takes the
 request user's visibility callback. No Reader object, constructor or extra
 Handler field. Userapi keeps HTTP/ownership/library checks, writes/events,
-feed includes and pagination. Its playlistJSON/collectionDTO methods are thin
-adapters for current route and mutation/event callers, removed after L05 moves
-those consumers. Old read bodies, entry-copy slice and redundant visibility
+feed includes and pagination. playlistJSON is a trivial forwarder removable
+now via PR07; it need not wait for writes/L05. collectionDTO still adapts the
+request user's ACL and old result contract until its callers migrate. Old
+read bodies, entry-copy slice and redundant visibility
 counter are deleted; all-filtered same-library collections still return empty
 books successfully. This read milestone does not complete lists routing/writes.
 

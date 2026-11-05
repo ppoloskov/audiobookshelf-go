@@ -10,6 +10,31 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
+## Next: code deletion before more migration
+
+The prior waves added 194 production lines; moving old bodies did not deliver
+net reduction. The concrete pruning plan existed but was wrongly left deferred.
+Current next work is PR01–PR04 (six dead functions, three membership loops,
+three nullable helpers and identity text wrapper; ~81 estimated net lines),
+then PR07 (eight direct callers and deletion of playlistJSON; ~2 net lines).
+Recheck current references and run named checks. The deletion wave must lower
+net production source; no new layers or baseline increases. Mark each card
+DONE only with its actual delta and validation in the implementation commit.
+
+Current source recheck at f466e36e confirms all six PR01 names are definitions
+only. playlistJSON is a pure three-line forwarder with an unused user parameter:
+seven callers in playlist.go, one in library_lists.go. Direct lists.Playlist
+calls preserve existing guards/orchestration, so PR07 does not depend on L05.
+collectionDTO still performs real per-user ACL/result adaptation; retain it
+until a scoped caller migration replaces that responsibility.
+
+PR06 (~31 lines) then PR05 (~30) are conditional on preserved assertions,
+equivalent behavior and measured net savings. groupKey and guarded routes are
+not approved cuts. These estimates do not promise to recover all 194 lines.
+L04/write/route migration follows the deletion wave; it remains planned.
+This update changes documentation only: references/source reviewed and
+git diff --check checked; no runtime removals or test runs claimed.
+
 ## Accepted L01–L03 read wave
 
 L01's full-schema/live-catalog baseline ran before ownership moved. L02/L03
@@ -31,7 +56,7 @@ Retained adapters and exact removal conditions:
 - playlistJSON: global/library playlist lists, ownedPlaylist and its detail/
   mutation users, create/update/add/remove response/event builders and
   createPlaylistFromCollection. Keep only its single forwarding call. Delete
-  after those consumers switch under the reviewed write/route packets and L05.
+  now through PR07's direct calls; waiting for write migration/L05 is unnecessary.
 - collectionDTO: global/library collection lists/detail/delete, create/update,
   batch/add/remove readback/events and collection-to-playlist conversion. Keep
   only the per-user visibility callback and old result contract. Delete after
@@ -61,10 +86,10 @@ Logs: `/tmp/abs-i05-i06-20261105/l01-userapi.log`, l03-full.log and
 lists-full-test.log. No schema, dependency, write, event or route changes;
 rollback/device/latency suites not rerun. No live deployment acceptance.
 
-Next L04 must turn the source-mapped write-removal inventory into exact small
+After the deletion wave, L04 must turn the source-mapped write-removal inventory into exact small
 cards. Its inventory is planning input, not dispatch permission; L04/L05 and
 list writes/routes remain unchecked. Current request's I01–I06 completion and
-start of L work are fulfilled; standalone PR cards have not been executed.
+start of L work are fulfilled; standalone PR cards are now next, not executed.
 
 ## Accepted I05–I06 wave
 
@@ -227,7 +252,7 @@ images on verify+rollback; parity is advisory since V1.
 
 ## Next executable work
 
-**Standalone PR01–PR04 deferred:** remove six uncalled functions and substitute
+**Next PR01–PR04:** remove six uncalled functions and substitute
 equivalent existing helpers (~81 production lines). See the
 [pruning review](PRUNING-REVIEW.md) and exact ROADMAP cards. G02 is completed
 analysis only: no runtime removal or deletion tests. PR05/PR06 are conditional
@@ -236,11 +261,11 @@ on a clean master archive reported 12 findings (exit 1), including genuine
 test/tool callers; warnings were classified rather than blindly deleted.
 This documentation packet ran consistency/link review and git diff --check;
 runtime tests were not rerun because production source was unchanged.
-Latest owner instruction now authorizes I05 -> I06 -> L01 onward first,
-with explicit old-code removal plans for every stage; see ROADMAP's removal
-contract. I01–I04 stay completed, not reimplemented.
+That requested I05 -> I06 -> L01 start is complete. Do the actual deletion
+wave next before further migration; see ROADMAP's removal contract.
+I01–I06 and L01–L03 stay completed, not reimplemented.
 
-**Next L04:** turn the named write-removal inventory into exact bounded
+**After pruning, L04:** turn the named write-removal inventory into exact bounded
 packets. I01–I06 and L01–L03 are checked DONE with named removal evidence;
 no need to reimplement them. People/progress remain later tasks; no
 "finish catalog" assignment or universal DTO. Separate route removal, new
@@ -335,7 +360,7 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next: L04** after accepted I05/I06 and L01–L03. The standalone
-PR01–PR04 deletion wave waits. L04 onward remain unchecked. I01–I06 do not complete all of
+**Current next: PR01–PR04**, then PR07 and proven PR06/PR05, before L04.
+These deletion cards and L04 onward remain unchecked. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

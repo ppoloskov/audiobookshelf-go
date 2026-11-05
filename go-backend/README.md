@@ -149,8 +149,9 @@ ratchet still enforces limits pending the proposed Q1 policy change.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
-sequence has completed I01–I06 and lists L01–L03; L04 write decomposition is next;
-standalone pruning candidates wait behind this work.
+sequence has completed I01–I06 and lists L01–L03. Next is actual pruning
+PR01–PR04 (~81 estimated lines), then the removable playlist forwarder and
+proven conditional candidates, before more domain migration/L04 planning.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
@@ -190,7 +191,9 @@ packages pass. All I cards are checked DONE.
 L01–L03 are also checked DONE: full-schema list/permission baseline and plain
 lists.Playlist/Collection read functions. Old userapi read bodies, redundant
 entry copy and visibility counter are removed. Thin adapters remain for route
-and write/event callers until L05. This extraction costs 29 production lines,
+and write/event callers. PR07 can delete the trivial playlist forwarder now;
+collection ACL adaptation remains until scoped caller migration. This extraction costs 29 production lines,
 complexity unchanged; explicit baseline exception, no reduction/speed claim.
 Affected tests and integration checks pass apart from the same five native
-WebP journey failures. Next L04 scopes writes/routes with named old-body removal.
+WebP journey failures. The next deletion wave must show net source reduction;
+L04 then scopes writes/routes with named old-body removal.

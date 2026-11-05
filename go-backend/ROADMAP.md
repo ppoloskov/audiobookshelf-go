@@ -75,13 +75,20 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ### Small pruning packets — planned, no runtime removals yet
 
-Owner sequencing update (2026-11-05): complete I01–I06, then start L01 onward.
-PR01–PR04 are deferred behind that requested sequence. They are independent;
+**Next execution is code removal:** I01–I06 and the L01–L03 start are complete.
+Run PR01–PR04 before further domain extraction or L04 write planning; then
+PR07, PR06 and PR05 where their proof holds. The earlier deferral is ended.
+PR01–PR04 are independent;
 execute sequentially on master because some files overlap. Preserve contracts,
 owner WIP, test assertions and neighboring live helpers. No new dependencies,
 generic framework, route deletion or baseline increases. Run targeted commands
 below, then the AGENTS integration gates once on the reviewed wave. Measure
 actual production/complexity deltas; check each card DONE in its code commit.
+Acceptance for this deletion wave: net handwritten production lines must fall;
+do not raise its baseline, add a new layer, or count moved code as a saving.
+Record old definitions removed, replacement overhead and net delta per card.
+Conditional work that cannot prove equivalent behavior and net reduction stays
+pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR01 · Delete six uncalled private functions
 
@@ -140,6 +147,23 @@ actual production/complexity deltas; check each card DONE in its code commit.
 - Verify: `go test ./internal/scanner ./internal/sharing`, including metadata
   precedence and filename track/disc tests. groupKey/cdDirectory are excluded
   until real grouping-path coverage is established.
+
+#### PR07 · Remove the now-unnecessary playlistJSON forwarder
+
+- [ ] PLANNED, after PR01–PR04; depends only on completed L02, not L05.
+  Write only internal/userapi/playlist.go and internal/userapi/library_lists.go.
+- Replace each h.playlistJSON(r,id,user) call with
+  lists.Playlist(r.Context(),h.db,h.items,id); its user parameter is unused.
+  Add the lists import where needed and delete the forwarding method entirely.
+  Keep ownedPlaylist authorization before its read, all status/error branches,
+  list sorting and mutation/event payload sequencing. No writer/route move.
+- Verify: `go test ./internal/lists ./internal/userapi`; existing L01 mixed-media/
+  ACL, playlist sorting and collection-conversion tests must execute. Reference
+  search must find no playlistJSON definition or caller. Expect only a small
+  net saving of about two lines after the one new import; measure it.
+- collectionDTO remains for its real per-user ACL adaptation and old error/
+  visibility contract. Its removal needs the scoped caller migration in L04/L05;
+  do not duplicate its callback at every callsite merely to delete a function.
 
 ## 1. Compatibility evidence — alongside domain migration
 
@@ -348,7 +372,8 @@ no new generated output. Full suite exits 1 only for the same five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next planning card: **L04**, then its reviewed write packets and final L05
+Next execution: **PR01–PR04**, then PR07 and proven PR06/PR05. L04 write
+decomposition follows that deletion wave, then its reviewed packets and final L05
 wiring. Each stage must name the old
 code it deletes, any necessary
 adapter consumers and the exact later removal condition.
@@ -373,7 +398,7 @@ finished by this milestone. All route removals and real-device gates stay intact
 | I05 (DONE) | Per-ID book/no-includes hydration replaced; podcast/includes fallback retained. Temporary common-envelope SQL removed by I06 in the same wave. |
 | I06 (DONE) | catalog scanItemRow deleted entirely; scalar loadItem SQL, I05 envelope query/stringsToArgs and local fileType switch deleted. items owns shared row projection/scanner/loader/classifier; recordToMap and thin loadItem remain for page/detail/shelf consumers until mixed-media projection migration. |
 | L01 (DONE) | Tests only, no production deletion. Independent full-schema/live-reader assertions and existing regressions retained. |
-| L02 (DONE) | playlistJSON SELECT/media-entry body and redundant mediaRef/refs copy deleted. ownedPlaylist retains pre-hydration authorization; adapter consumers/removal condition recorded in handover until L05. |
+| L02 (DONE) | playlistJSON SELECT/media-entry body and redundant mediaRef/refs copy deleted. ownedPlaylist retains pre-hydration authorization; the now-trivial forwarder is removed in PR07 without waiting for writers/L05. |
 | L03 (DONE) | collectionDTO SELECT/item-loop/assembly and redundant visible counter deleted. HTTP/error/feed/pagination orchestration stays. Thin per-user adapter preserves old four-value contract until all consumers migrate in L05. |
 | L04 | Documentation only: each write/route packet names original functions to delete; L05 removes all now-unreferenced forwarding adapters after final wiring. |
 
@@ -567,7 +592,7 @@ implementation plan for untouched packages.
 - **Depends:** L01. **Write only:** `internal/lists/reader.go`, `reader_test.go` (new); `internal/userapi/playlist.go`.
 - **Do:** Move playlistJSON's GetPlaylist/ListPlaylistMediaItems and metadata/entry assembly into plain lists.Playlist(ctx, db, itemReader, id). Explicit dependencies match books; no stateless Reader object/constructor/extra Handler field. Keep existing response map as a temporary boundary. ownedPlaylist retains its authorization SELECT before hydration; preserve status/order and orphan/error handling. Do not move writes/routes. Lists never imports userapi/catalog.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestPlaylistReadValues|TestListReadValuesAndPermissions|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
-- **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retains a forwarding adapter until L05.
+- **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retained the thin forwarding adapter at delivery; PR07 now removes it directly without waiting for L05.
 
 ##### L03 · Extract collection read data
 
@@ -605,7 +630,7 @@ second implementation. Regression names below are **proposed**, not executed.
 | Collection membership | userapi.go:batchCollectionBooks, writeCollectionAfterBatch, addCollectionBook, removeCollectionBook | TestCollectionMembershipWritesPersistOrderAndEmit: add/remove/batch order, duplicates, ACL, transaction/event and empty visible DTO |
 | Collection-to-playlist | playlist.go:createPlaylistFromCollection | Existing TestCreatePlaylistFromCollectionPersistsExpandedBookItems plus denied/missing/empty cases |
 | Collection delete/feed boundary | userapi.go:collectionRoute DELETE branch; collection_feed.go:collectionRSSFeed remains read orchestration until its own scope | New state/event regression; preserve existing DB cleanup behavior. Feed writes are in sharing/feeds.go, so do not invent cleanup or move them incidentally |
-| Final routes/adapters | userapi Handle/collectionPlaylist/libraryCollections/libraryPlaylists plus runtime composition; playlistJSON and collectionDTO forwarders | Route method/base-path/auth/status matrix and existing L01/regression suites; delete adapters only after all read/write/event consumers switch |
+| Final routes/adapters | userapi Handle/collectionPlaylist/libraryCollections/libraryPlaylists plus runtime composition; remaining collectionDTO adaptation (playlistJSON already assigned PR07) | Route method/base-path/auth/status matrix and existing L01/regression suites; remove each remaining adapter after its real consumers/responsibility switch |
 
 L04 still must select exact target functions/files/dependencies and split large
 mutation branches before any of these rows is dispatchable. Existing raw
@@ -744,8 +769,8 @@ and prerequisites; this table deliberately is not authorization to code.
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
 G01/G02 completed consolidation + analysis only; no standalone pruning executed.
-Current owner sequence: I01–I06 and L01–L03 accepted; L04 write decomposition next.
-PR01–PR04 wait behind that sequence. In parallel,
+Current sequence: I01–I06 and L01–L03 accepted; PR01–PR04 code deletion next,
+then PR07 and proven PR06/PR05, before L04 write decomposition. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.
