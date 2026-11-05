@@ -61,13 +61,14 @@ claimed. The gap/test plan and task queue define how to close the remainder.
 ## Implementation follow-up
 
 B01–B09 book read/projection outcomes and I01 query instrumentation are now
-implemented/reviewed on `codex/books-domain-batching`; individual card checks
+implemented/reviewed and integrated into `master` on 2026-11-05; individual card checks
 and actual verification are recorded in ROADMAP/handover. The stateless reader
 object was removed; use plain `books.Load(ctx, db, id)`.
 
 Actual outcome: production lines −1, complexity −11, maps −2. No thousands-of-
 lines claim. I02 LoadMany, I03 prefix snapshots and I04 ordinary book pages are now
-checked DONE; next are I05 shelves and I06 item rows. List migration and all device/removal decisions stay
+checked DONE; the new pruning review proposes PR01–PR04 before I05 shelves
+and I06 item rows. List migration and all device/removal decisions stay
 open. Full test suite still has the five pre-existing local WebP encoder
 failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
 

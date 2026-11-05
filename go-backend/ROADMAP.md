@@ -2,8 +2,10 @@
 
 Updated 2026-11-05. **Owner authorized implementation with cheap workers,
 review after completed batches, and pushing ready features to the fork.**
-No default-branch merge, deployment, new library or route-removal approval
-is implied. Record actual completed cards and tests; do not mark plans done. [ARCHITECTURE.md](ARCHITECTURE.md) owns permanent
+All development is on `master`; do not create development branches. Existing
+branch commits are integrated and reviewed ready work is pushed to master.
+Manual deployment, new libraries and route removals retain separate approval.
+Record actual completed cards and tests; do not mark plans done. [ARCHITECTURE.md](ARCHITECTURE.md) owns permanent
 contracts; [AGENTS.md](AGENTS.md) owns worker/check policy.
 
 ## Direction and current evidence
@@ -45,10 +47,98 @@ is input evidence, not an automatic statement of current runtime behavior.
   using new test names become meaningful only after those tests are added;
   verify they executed (no empty regex match or skipped integration).
 - Keep fixed contracts, read-only upstream and unrelated dirty work in every
-  packet. No dependency, removal, publication or live cutover approval implied.
+  packet. Existing reviewed-push authorization applies; new dependencies,
+  route removals and live cutover retain separate decisions.
 - Finish with applicable AGENTS checks. Metrics are review signals; current
   tool enforcement stays strict until Q1. Node-tool deletion does not reduce
   the handwritten-Go metric.
+
+## Master consolidation and pruning review — 2026-11-05
+
+### G01 · Consolidate development on master
+
+- [x] DONE. Fast-forwarded and pushed master to `948f6a15`; no conflicts.
+  Local and remote branch inventories contain only master. Deleted integrated
+  feature refs and the remote replacement-trial ref (zero unique commits).
+  Preserved inherited untracked work and a verified stash/bundle; removed only
+  the clean feature worktree and orphaned packet-worktree metadata. The packet
+  directory itself remains preserved because Git could not establish status.
+  Recovery details: [handover](handover.md#master-consolidation-and-recovery).
+
+### G02 · Review tracked dead code and duplication
+
+- [x] DONE. Cheap-worker audits plus independent architect source/reference
+  review at `948f6a15`; [findings](PRUNING-REVIEW.md). Six uncalled private
+  functions and equivalent helper replacements offer approximately 81 direct
+  production lines. Analyzer exit 1 reflects its 12 findings; no code removed
+  or deletion tests executed. Conditional candidates are excluded from 81.
+
+### Small pruning packets — planned, no runtime removals yet
+
+PR01–PR04 form the next proposed reduction wave before I05. They are independent;
+execute sequentially on master because some files overlap. Preserve contracts,
+owner WIP, test assertions and neighboring live helpers. No new dependencies,
+generic framework, route deletion or baseline increases. Run targeted commands
+below, then the AGENTS integration gates once on the reviewed wave. Measure
+actual production/complexity deltas; check each card DONE in its code commit.
+
+#### PR01 · Delete six uncalled private functions
+
+- [ ] PLANNED. Write only catalog/batch_chapters.go (anyStrings),
+  providers/book_finder.go (levenshteinSimilarity), scanner/files.go (sameBytes,
+  parseSequence), userapi/userapi.go (nullNumber, timestampString).
+- Recheck whole-module references; delete definitions only, remove imports
+  only if compiler confirms unused. Estimated −41 lines. Verify from go-backend:
+  `go test ./internal/catalog ./internal/providers ./internal/scanner ./internal/userapi`.
+  Repeat unused analysis and classify remaining warnings; do not expand scope.
+
+#### PR02 · Replace three membership loops with slices.Contains
+
+- [ ] PLANNED. Write only playback/playback.go, adminops/handler.go,
+  realtime/hub.go; replace contains calls and delete local loops. Keep all
+  permission conditions/negations and MIME logic. Estimated net −21 lines.
+- Verify: `go test ./internal/playback ./internal/adminops ./internal/realtime`;
+  ensure TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent and
+  TestDirectPlaybackRangeOwnershipAndProgressPersistence execute.
+
+#### PR03 · Reuse existing nullable-value helpers
+
+- [ ] PLANNED. Write only catalog/quickmatch.go (nullValue -> store.NullString),
+  scanner/metadata.go (nullDBString -> store.NullString), catalog/authors.go
+  (valueOrNil -> store.StringPtrValue). Delete local bodies; add required store
+  imports. Invalid/nil stays nil; valid empty string stays a string. Net ~−16.
+- Verify: `go test ./internal/catalog ./internal/scanner ./internal/store`.
+  Inspect series sequence writes, author updates and metadata nullability.
+
+#### PR04 · Reuse store.Text for identity SQL parameters
+
+- [ ] PLANNED. Write only identity/identity.go: text -> store.Text; delete
+  helper/comment. Empty text must remain Valid=true; never use TextOrNull.
+  Estimated −3 lines. Verify: `go test ./internal/identity ./internal/store`.
+  Preserve inherited untracked identity/routes.go without staging it.
+
+#### PR05 · Share the equivalent playback/sharing UA parser (S8 subset)
+
+- [ ] PLANNED, after PR01–PR04. Write only playback/playback.go,
+  sharing/sharedevice.go and new deviceinfo/ua.go + ua_test.go. Characterize
+  both tuple parsers first, including precedence/case/marker/delimiter cases
+  in the review. Extract one leaf function, delete both replaced copies;
+  leave userapi's different parser intact. Target ~−30 net lines; measure
+  package/import overhead before accepting a new package.
+- Verify: `go test ./internal/deviceinfo ./internal/playback ./internal/sharing ./internal/userapi`.
+  Retain device-row and absent-field assertions; no UA recognition expansion.
+
+#### PR06 · Point legacy-helper tests at production implementations
+
+- [ ] PLANNED, conditional. Write only scanner/files.go + scanner_test.go and
+  sharing/handler.go + handler_test.go. Redirect mergeBookMetadata tests to
+  mergeBookMetadataWithABS with hasABS=false; filename wrapper test to
+  filenameNumbers with identical empty arguments; sharing sqlDate setup to
+  dbtime.Format. Delete only these replaced wrappers/bodies (~31 production
+  lines). Keep all assertions; no test-only copy of removed production logic.
+- Verify: `go test ./internal/scanner ./internal/sharing`, including metadata
+  precedence and filename track/disc tests. groupKey/cdDirectory are excluded
+  until real grouping-path coverage is established.
 
 ## 1. Compatibility evidence — alongside domain migration
 
@@ -191,9 +281,11 @@ publish intermediate cards. Worker completion means awaiting review, not push.
 
 #### Current execution status — B01–B09 and I01–I04 DONE
 
-Feature worktree `/private/tmp/abs-books-domain-20261104`, branch
-`codex/books-domain-batching`, base `48c10a6a`; delivery is to this fork branch,
-not default/master. Documentation baseline is `d64aa599`.
+Canonical checkout: `/Users/paul/projects/audiobookshelf-go`, `master`.
+All four book/documentation commits from base `48c10a6a` through `948f6a15`
+were fast-forwarded and pushed to master on 2026-11-05. The merged feature
+branch/worktree and already-integrated `replacement-trial` remote were retired.
+Documentation baseline is `d64aa599`.
 
 | Cards | State / actual implementation |
 |---|---|
@@ -228,14 +320,15 @@ The three baseline values were explicitly adjusted in this feature commit;
 Q1 was not implemented and no guard was removed. Future growth still needs
 measured benefit and review; reduction remains a project goal.
 
-Next implementation card: **I05**, book shelves; then I06 common item rows.
+Next domain implementation card: **I05**, book shelves; then I06 common item rows.
+The current pruning review proposes PR01–PR04 first to deliver measured deletion.
 Podcasts, collapsed/include paths and other consumers remain open; no whole
 P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
 Completed read spine: `B01–B09`, `I01–I04`. Remaining dependency spine:
-`I05 -> I06`. I05 is the next dispatchable card.
+`I05 -> I06`. I05 is the next dispatchable domain card after the pruning wave.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -537,7 +630,7 @@ and prerequisites; this table deliberately is not authorization to code.
 | C15/C16 | P1 request JSON error handling and attachment truncation; targeted failure reproduction, security review if exposure changes. |
 | C18 | P2 tracked test-log cleanup; small documentation/housekeeping packet only. |
 | S1/S3/S4 | P2 routing migration after protocol coverage, package by package; preserve route precedence/method/base-path semantics. Untracked identity routes must be reconciled first. |
-| S5/S7/S8 | P2 constructor/process-runner/UA duplication; do only alongside touched consumers with measurable ownership benefit. |
+| S5/S7/S8 | P2 constructor/process-runner duplication remains deferred; the equivalent playback/sharing UA subset is scoped as PR05. userapi UA semantics remain separate. |
 | S10/S12/S14/S15 | Domain migration follows the books/items/lists milestones above; decompose per handler family before dispatch. S11 is active planning above, not deferred. |
 | S16 | P2 maps where known shape causes risk; drop arbitrary under-100 quota as acceptance. |
 | P1/P4/P5 | P2 settings cache, read pool, filter-data updates; benchmark first, audit transaction/lifecycle correctness; rollback-journal invariant stays. |
@@ -565,7 +658,8 @@ and prerequisites; this table deliberately is not authorization to code.
 
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
-Next implementation card: I05 (book shelf hydration), after reviewed B01–B09/I01–I04. In parallel,
+Current request completed consolidation + analysis only; no pruning executed.
+Next proposed implementation: PR01–PR04, then I05 (book shelf hydration), after reviewed B01–B09/I01–I04. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

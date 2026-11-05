@@ -26,6 +26,7 @@ fast Go.
 | Ordered list of atomic tasks, with done checks | [ROADMAP.md](ROADMAP.md) |
 | Last recorded differential run (generated; advisory since V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
+| Reviewed deletion/duplication candidates, not yet implemented | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
@@ -68,7 +69,9 @@ calls remain, and six-client source/device coverage is incomplete.
 See the [mobile audit](contracts/mobile-client-audit.md),
 [gap/test plan](contracts/mobile-compat-gaps.md) and revised
 [execution queue](ROADMAP.md). The compact [decision report](contracts/takeover-decision-report.md)
-records findings, risks and choices. Owner has authorized roadmap implementation and feature-branch pushes after review.
+records findings, risks and choices. Owner has authorized roadmap implementation
+and reviewed pushes to `master`. All development stays on `master`; no new
+development branches. CI publication and live cutover have distinct acceptance.
 
 Node differential commands remain advisory diagnostics (`make parity`,
 `make parity-replacement`, `make parity-scan`, `make route-probe`; Node 22 and
@@ -154,7 +157,8 @@ complete or constant query counts yet.
 
 Local test prerequisite: FFmpeg must support WebP encoding (`libwebp`). The
 installed Homebrew build here lacks it: five pre-existing journey image tests
-fail on both base and feature. The final suite has no additional failures;
+fail on both the pre-feature base and integrated master. The recorded final
+suite has no additional failures;
 this is not a clean full-suite or deployment acceptance claim.
 
 ## Batched book pages (I02–I04)

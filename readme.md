@@ -26,6 +26,7 @@ agents start at [agents.md](agents.md). The current
 Architecture/planning/review belong to the architect; bounded execution goes
 to cheap capable workers. Preserve database/rollback and real client semantics;
 byte parity and a numerical line-reduction target are not product gates.
+All development is on `master`; reviewed ready commits are pushed to this fork.
 
 Audiobookshelf is a self-hosted audiobook and podcast server.
 

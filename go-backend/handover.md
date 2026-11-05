@@ -1,14 +1,37 @@
 # Go backend handover
 
-Updated 2026-11-05. Current implementation is in
-`/private/tmp/abs-books-domain-20261104`, branch `codex/books-domain-batching`,
-based on `48c10a6a`, remote `https://github.com/ppoloskov/audiobookshelf-go`.
-The original checkout remains on master with its unrelated dirty work intact.
-Use this worktree/branch for continuation. No default-branch merge or deployment.
+Updated 2026-11-05. Canonical checkout:
+`/Users/paul/projects/audiobookshelf-go`, branch `master`, remote
+`https://github.com/ppoloskov/audiobookshelf-go`. Book/documentation commits
+through `948f6a15` are integrated and pushed. **All further development is on
+master; do not create development branches.** Live cutover remains separate.
 
 Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
+
+## Master consolidation and recovery
+
+Owner changed workflow to master-only on 2026-11-05. All four feature commits
+were fast-forwarded to master and pushed; no conflicts. Local and remote
+branch inventories now contain only master. The feature branch/worktree and
+already-integrated replacement-trial remote were removed after ancestry checks.
+The latter had zero unique commits and was 177 commits behind the old master.
+
+Before consolidation, the dirty original checkout was saved as stash
+`aeedc216bc2cee564d4c48b9470bf9e3139a744d`. Recovery files live in
+`/tmp/abs-master-consolidation-20261105/`: `MANIFEST.md`, full original status,
+tracked patch and verified `original-stash.bundle`. The stash and bundle are
+retained; no stash pop/drop or blanket clean/reset occurred. The newer merged
+documentation was kept; only unique inherited `.codemap/` (33 files), TODO
+and identity/routes.go were restored as untracked, unstaged work.
+
+The old `/private/tmp/audiobookshelf-packet1-88db` directory remains intact.
+Its recorded detached commit `88db747b` was already in master, but `.git` is
+missing, so Git could not verify file status. Only orphaned Git metadata was
+pruned; do not delete its physical contents without inspecting/recovering them.
+Temporary recovery files are local safeguards, not remote backups; keep the
+retained stash until inherited work is explicitly reconciled.
 
 ## Completed book-domain feature — d2ec8d9 snapshot
 
@@ -101,7 +124,17 @@ images on verify+rollback; parity is advisory since V1.
 
 ## Next executable work
 
-**I05:** reuse LoadMany for book-shelf hydration, preserving selected ID order,
+**PR01–PR04 proposed first:** remove six uncalled functions and substitute
+equivalent existing helpers (~81 production lines). See the
+[pruning review](PRUNING-REVIEW.md) and exact ROADMAP cards. G02 is completed
+analysis only: no runtime removal or deletion tests. PR05/PR06 are conditional
+follow-ups; userapi UA and permission semantics stay separate. unused analysis
+on a clean master archive reported 12 findings (exit 1), including genuine
+test/tool callers; warnings were classified rather than blindly deleted.
+This documentation packet ran consistency/link review and git diff --check;
+runtime tests were not rerun because production source is unchanged.
+
+**Next domain card I05:** reuse LoadMany for book-shelf hydration, preserving selected ID order,
 per-user values/ACL, includes and row closure. I02/I03/I04 are checked DONE;
 use I01 query instrumentation to prove shelf query counts and actual values.
 Then I06 common item rows. Lists/people/progress remain later tasks; no
@@ -110,9 +143,9 @@ library and live-cutover decisions still apply.
 
 ## Gotchas and preserved work
 
-- Original checkout's `.codemap/`, `go-backend/TODO.md` and untracked
-  `internal/identity/routes.go` were excluded from this branch. Do not reset,
-  stage or absorb them. TODO only gained a historical banner in the original.
+- `.codemap/`, `go-backend/TODO.md` and `internal/identity/routes.go` are
+  preserved inherited untracked work in the canonical master checkout. Do not
+  reset, stage or absorb them. TODO only gained a historical banner earlier.
 - Never run TS and Go on the same writable database/metadata. Use isolated
   consistent SQLite/config/media snapshots. No migrations or boot deletions.
 - One SQLite connection: close Rows/Tx before another pool query. Preserve
@@ -189,6 +222,7 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Next: I05** book shelf hydration, then I06 item rows. I05/I06 and list cards
+**Next domain: I05** book shelf hydration, then I06 item rows, after the proposed
+PR01–PR04 deletion wave. I05/I06 and list cards
 remain unchecked. I02–I04 do not complete all of S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

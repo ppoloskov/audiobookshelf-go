@@ -17,7 +17,7 @@ clients, books and progress, using simple, clear, fast Go.
   `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`; never copy its architecture by default.
 - Never run TS and Go on the same writable database or metadata tree.
 
-## Architect and worker policy (owner, 2026-11-04)
+## Architect and worker policy (owner, updated 2026-11-05)
 
 - Expensive models own architecture, planning, review and final acceptance.
   Delegate bounded source research, implementation and mechanical edits to
@@ -26,7 +26,8 @@ clients, books and progress, using simple, clear, fast Go.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
 - Book-read B01–B09 and I01–I04 are checked DONE with scoped evidence.
-  Next: I05 book shelves, then I06 and L01 onward. Dispatch one card, not
+  G01/G02 consolidation/pruning review are DONE; PR01–PR04 are the next proposed
+  reduction wave, then I05 book shelves, I06 and L01 onward. Dispatch one card, not
   the whole epic. Relevant compatibility checks accompany each slice; no
   requirement to complete unrelated client research first.
 - Give each worker one task ID, exact read/write scope, fixed contracts,
@@ -36,9 +37,12 @@ clients, books and progress, using simple, clear, fast Go.
   or all-skill loading. Parallelize only non-overlapping work with a clear gain.
 - The architect reviews the diff and behavioral evidence before acceptance.
   Reuse worker validation logs; rerun checks when evidence or code changed.
-- Current authorization (2026-11-04): implement the roadmap using cheap
+- Current authorization: implement the roadmap using cheap
   workers, review completed batches and push reviewed ready features to the
-  fork. Use a feature branch; no default-branch merge/deployment implied.
+  fork. **All development is on `master`; do not create development branches
+  or branch-based implementation worktrees.** Coordinate non-overlapping file
+  ownership in the shared checkout. Reviewed ready commits are pushed to master;
+  manual deployment/cutover remains separately authorized.
   Route removals, new libraries and live acceptance/cutover retain separate
   owner decisions. Do not infer those approvals from implementation authority.
 - Owner requested review after workers finish. Sequential cards may form one
