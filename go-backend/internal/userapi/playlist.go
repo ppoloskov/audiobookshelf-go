@@ -34,7 +34,7 @@ func (h *Handler) playlistRoute(w http.ResponseWriter, r *http.Request, user sto
 			}
 			out := make([]map[string]any, 0, len(ids))
 			for _, id := range ids {
-				item, libraryID, err := h.playlistJSON(r, id, user)
+				item, libraryID, err := lists.Playlist(r.Context(), h.db, h.items, id)
 				if errors.Is(err, sql.ErrNoRows) || (err == nil && !canAccessLibrary(permissions(user), libraryID)) {
 					continue
 				}
@@ -133,12 +133,8 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 	if !canAccessLibrary(permissions(user), libraryID) {
 		return nil, "", http.StatusNotFound, nil
 	}
-	item, _, err := h.playlistJSON(r, id, user)
+	item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 	return item, libraryID, 0, err
-}
-
-func (h *Handler) playlistJSON(r *http.Request, id string, _ store.User) (map[string]any, string, error) {
-	return lists.Playlist(r.Context(), h.db, h.items, id)
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user store.User) {
@@ -254,7 +250,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user st
 		http.Error(w, "Failed to create playlist", 500)
 		return
 	}
-	item, _, err := h.playlistJSON(r, id, user)
+	item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -410,7 +406,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request, id stri
 			}
 		}
 	}
-	item, _, err := h.playlistJSON(r, id, user)
+	item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -574,7 +570,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		count++
 		changed = true
 	}
-	item, _, err := h.playlistJSON(r, id, user)
+	item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)
@@ -600,7 +596,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 	if changed && h.emit != nil {
 		h.emit(user.ID, "playlist_updated", item)
 	}
-	httputil.WriteJSON(w, 200, item, httputil.OrderedKeys([]string{"id", "name", "libraryId", "userId", "description", "lastUpdate", "createdAt", "items"}))
+	httputil.WriteJSON(w, 200, item)
 }
 
 func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request, id string, user store.User) {
@@ -665,7 +661,7 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request, id 
 }
 
 func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request, id string, user store.User, remove map[string]bool) {
-	finalDTO, _, preErr := h.playlistJSON(r, id, user)
+	finalDTO, _, preErr := lists.Playlist(r.Context(), h.db, h.items, id)
 	if preErr != nil {
 		logging.RequestError(r, "database read failed", preErr)
 		http.Error(w, "database read failed", 500)
@@ -815,7 +811,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Failed to create playlist", 500)
 		return
 	}
-	item, _, err := h.playlistJSON(r, id, user)
+	item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 	if err != nil {
 		logging.RequestError(r, "database read failed", err)
 		http.Error(w, "database read failed", 500)

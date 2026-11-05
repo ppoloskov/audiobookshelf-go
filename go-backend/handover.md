@@ -10,11 +10,75 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
-## Next: code deletion before more migration
+## Cleanup checkpoint closed — current acceptance
+
+Current cleanup checkpoint (owner's six-priority update) is CLOSED. I05/I06 and
+L01–L03 are already complete; no new domain migration is underway. RO01 proved
+the restricted HTTP mode is active, so its flag/auth/routes/501 behavior stay.
+RO02 deletes its duplicated prefix methods via stdlib (−25 source lines), and
+PR02 deletes three membership helpers (−22). PR01, PR03, PR04, PR07 and S9a
+are also DONE with integrated acceptance. S9a removes only OrderedKeys
+after protecting the two actual mutation DTO field/value/header contracts;
+cache/range/MIME/streaming options remain. Other S9 work stays gated on evidence.
+
+Q1 now retains the strict ratchet and requires pre-dispatch growth budgets,
+actual architect acceptance, named deletions/adapter exits and a cleanup
+checkpoint before another expansion. The warning-only proposal is superseded.
+List final-deletion criteria now require old bodies removed with replacement,
+zero obsolete references at final wiring, original routes mounted once and
+value/ACL/persistence/event proof. This is applied after L02, which already
+landed; do not pretend the tighter gate preceded that work.
+
+FF01 DONE: isolated official FFmpeg 9.0.2/libwebp built from verified signed
+source; real encode/probe and full c4cf90a9 baseline suite PASS. Verbose journey
+log confirms all five formerly failing image cases pass. The final integrated
+cleanup suite with count=1 also PASS, exit 0. No global Homebrew changes or fake
+codec shim; default binary still lacks libwebp. TESTING.md records PATH plus
+FFMPEG_PATH, source hash/flags and rebuild notes. Branch docs remain master.
+
+New verification gotcha: untracked inherited internal/identity/routes.go refers
+to missing httputil.NotFound and prevents some canonical-worktree builds, not
+just metrics. Keep it untouched/unstaged. Test a clean tracked archive with
+exact approved source overlays; source edits still occur only on master.
+
+Reviewed net physical production lines by card: RO02 −25, S9a −42, PR01 −44,
+PR02 −22, PR03 −18, PR04 −4, PR07 −3. Total 44,918 -> **44,760 (−158)**;
+complexity 10,894 -> **10,848 (−46)**; maps 995 -> **993 (−2)**. []any 326,
+high functions 179 and all other metrics unchanged. Since pre-I05, lines are
+still +36 but complexity −23. No claim of complete growth recovery or 30% cuts.
+
+Contract review: complete actual POST playlist/collection fields, IDs/order/
+nulls/timestamps/status/type/length/ETag asserted before and after OrderedKeys
+removal; cache/range/HEAD and ACL regressions PASS. Nullable SQL bindings and
+OIDC callsites remain identical store.Text/NullString values. No schema, route,
+auth, event recipient or stored-format changes. Restricted HTTP behavior stays.
+Craft review: no new production abstraction/dependency; obsolete bodies and
+forwarder deleted. PR04 needed identity/oidc.go's seven additional callers;
+all 13 package calls now use store.Text. New tests protect real endpoints;
+two obsolete order-only helper tests were removed, not replaced with mirrors.
+
+Build/vet/lint (0), dbnest, pinned sqlc generation+directory equality, Linux
+arm64 CGO=0 build and full Go suite count=1 PASS on the shipping snapshot.
+Lower-only make ratchet-update lowered three values; final make ratchet PASS.
+The pre-update exit 1 meant counts were below baseline, not growth or a test
+failure. A worker's earlier raw counts included incomplete overlays; only the
+final tracked snapshot numbers above are acceptance evidence. Node rollback,
+real-device acceptance and latency were not run locally; no live deployment.
+
+Validation source: c4cf90a9 archive plus the exact approved changed packages
+adminops/catalog/httputil/playback/providers/realtime/scanner/server/userapi
+and identity.go/oidc.go, excluding owner routes. Logs under
+`/private/tmp/abs-cleanup-checkpoint-20261105`: integrated-full-test.log,
+metrics-before-lowering.log, final-ratchet.log, baseline-full-test.log,
+journey-verbose.log and BUILD_NOTES.md. Docs/format/scope checks accompany push.
+Remaining: S9b needs the mobile cacheable-endpoint validator matrix; PR06/PR05
+need their equivalence/net-savings proof. L04/L05 and list writes remain pending.
+
+## Historical pruning plan at c4cf90a9
 
 The prior waves added 194 production lines; moving old bodies did not deliver
 net reduction. The concrete pruning plan existed but was wrongly left deferred.
-Current next work is PR01–PR04 (six dead functions, three membership loops,
+The then-next work was PR01–PR04 (six dead functions, three membership loops,
 three nullable helpers and identity text wrapper; ~81 estimated net lines),
 then PR07 (eight direct callers and deletion of playlistJSON; ~2 net lines).
 Recheck current references and run named checks. The deletion wave must lower
@@ -32,8 +96,8 @@ PR06 (~31 lines) then PR05 (~30) are conditional on preserved assertions,
 equivalent behavior and measured net savings. groupKey and guarded routes are
 not approved cuts. These estimates do not promise to recover all 194 lines.
 L04/write/route migration follows the deletion wave; it remains planned.
-This update changes documentation only: references/source reviewed and
-git diff --check checked; no runtime removals or test runs claimed.
+That c4cf90a9 update was documentation only. The accepted cleanup above now
+supersedes its pending execution status.
 
 ## Accepted L01–L03 read wave
 
@@ -53,10 +117,10 @@ pre-hydration owner/library SELECT and status ordering remain explicit.
 
 Retained adapters and exact removal conditions:
 
-- playlistJSON: global/library playlist lists, ownedPlaylist and its detail/
+- playlistJSON (now deleted by PR07): global/library playlist lists, ownedPlaylist and its detail/
   mutation users, create/update/add/remove response/event builders and
   createPlaylistFromCollection. Keep only its single forwarding call. Delete
-  now through PR07's direct calls; waiting for write migration/L05 is unnecessary.
+  through PR07's direct calls; all eight now use lists.Playlist. No adapter remains.
 - collectionDTO: global/library collection lists/detail/delete, create/update,
   batch/add/remove readback/events and collection-to-playlist conversion. Keep
   only the per-user visibility callback and old result contract. Delete after
@@ -252,7 +316,8 @@ images on verify+rollback; parity is advisory since V1.
 
 ## Next executable work
 
-**Next PR01–PR04:** remove six uncalled functions and substitute
+**PR01–PR04 now DONE:** six uncalled functions removed and existing helpers reused.
+The original scope was to remove six uncalled functions and substitute
 equivalent existing helpers (~81 production lines). See the
 [pruning review](PRUNING-REVIEW.md) and exact ROADMAP cards. G02 is completed
 analysis only: no runtime removal or deletion tests. PR05/PR06 are conditional
@@ -360,7 +425,8 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next: PR01–PR04**, then PR07 and proven PR06/PR05, before L04.
-These deletion cards and L04 onward remain unchecked. I01–I06 do not complete all of
+**Current next:** prove PR06/PR05 and the S9b mobile cache matrix before their
+deletions. PR01–PR04/PR07 are DONE; conditional cuts and L04 onward remain
+unchecked. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

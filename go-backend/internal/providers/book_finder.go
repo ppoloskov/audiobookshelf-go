@@ -249,14 +249,6 @@ func removeMiddleInitials(s string) string {
 
 func levenshteinDistance(a, b string) int { return textdist.LevenshteinFold(a, b) }
 
-func levenshteinSimilarity(a, b string) float64 {
-	max := math.Max(float64(len([]rune(a))), float64(len([]rune(b))))
-	if max == 0 {
-		return 1
-	}
-	return 1 - float64(textdist.LevenshteinFold(a, b))/max
-}
-
 // filterSearchResults is BookFinder.filterSearchResults (BookFinder.js:41-100)
 // followed by the ascending total distance sort of getOpenLibResults.
 func filterSearchResults(books []wire.BookMatch, title, author string, maxTitleDistance, maxAuthorDistance int) []wire.BookMatch {

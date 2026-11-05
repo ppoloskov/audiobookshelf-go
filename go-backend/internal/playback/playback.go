@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1760,7 +1761,7 @@ func canAccess(user store.User, item *itemData) bool {
 		return false
 	}
 	all, _ := p["accessAllLibraries"].(bool)
-	if !all && !contains(stringSlice(p["librariesAccessible"]), item.LibraryID) {
+	if !all && !slices.Contains(stringSlice(p["librariesAccessible"]), item.LibraryID) {
 		return false
 	}
 	if item.Explicit {
@@ -1780,14 +1781,14 @@ func canAccess(user store.User, item *itemData) bool {
 	}
 	if selectedNot {
 		for _, t := range item.Tags {
-			if contains(selected, t) {
+			if slices.Contains(selected, t) {
 				return false
 			}
 		}
 		return true
 	}
 	for _, t := range item.Tags {
-		if contains(selected, t) {
+		if slices.Contains(selected, t) {
 			return true
 		}
 	}
@@ -2106,19 +2107,11 @@ func allSupported(files []audioFile, supported []string) bool {
 		return false
 	}
 	for _, f := range files {
-		if !contains(supported, f.MimeType) {
+		if !slices.Contains(supported, f.MimeType) {
 			return false
 		}
 	}
 	return true
-}
-func contains(values []string, want string) bool {
-	for _, v := range values {
-		if v == want {
-			return true
-		}
-	}
-	return false
 }
 func nowMS() int64 { return time.Now().UnixMilli() }
 func segmentNumber(name string) (int, bool) {

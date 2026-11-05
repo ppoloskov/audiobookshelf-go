@@ -593,7 +593,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			if err != nil {
 				return store.User{}, err
 			}
-			if err := h.queries().UpdateUserExtraData(ctx, sqlc.UpdateUserExtraDataParams{Extradata: text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID}); err != nil {
+			if err := h.queries().UpdateUserExtraData(ctx, sqlc.UpdateUserExtraDataParams{Extradata: store.Text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID}); err != nil {
 				return store.User{}, err
 			}
 			user.ExtraData = encoded
@@ -747,7 +747,7 @@ func (h *Handler) userByOIDCSub(ctx context.Context, sub string) (store.User, er
 }
 
 func (h *Handler) userByEmail(ctx context.Context, email string) (store.User, error) {
-	return userResult(h.queries().GetUserByEmail(ctx, text(strings.ToLower(email))))
+	return userResult(h.queries().GetUserByEmail(ctx, store.Text(strings.ToLower(email))))
 }
 
 func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (store.User, error) {
@@ -765,7 +765,7 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	var email sql.NullString // NULL unless the email is verified, as before
 	if verified, _ := info["email_verified"].(bool); verified {
 		address, _ := info["email"].(string)
-		email = text(address)
+		email = store.Text(address)
 	}
 	id, err := ids.New()
 	if err != nil {
@@ -779,8 +779,8 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	extra := map[string]any{"authOpenIDSub": sub, "seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
 	err = h.queries().InsertOIDCUser(ctx, sqlc.InsertOIDCUserParams{
-		ID: id, Username: text(username), Email: email, Token: text(token),
-		Permissions: text(mustJSON(permissions)), Extradata: text(mustJSON(extra)), Createdat: now, Updatedat: now,
+		ID: id, Username: store.Text(username), Email: email, Token: store.Text(token),
+		Permissions: store.Text(mustJSON(permissions)), Extradata: store.Text(mustJSON(extra)), Createdat: now, Updatedat: now,
 	})
 	if err != nil {
 		return store.User{}, err
@@ -818,7 +818,7 @@ func (h *Handler) applyOIDCGroups(ctx context.Context, cfg oidcConfig, user stor
 		return nil
 	}
 	if user.Type != role {
-		return h.queries().UpdateUserType(ctx, sqlc.UpdateUserTypeParams{Type: text(role), Updatedat: sqlDate(time.Now()), ID: user.ID})
+		return h.queries().UpdateUserType(ctx, sqlc.UpdateUserTypeParams{Type: store.Text(role), Updatedat: sqlDate(time.Now()), ID: user.ID})
 	}
 	return nil
 }
@@ -862,7 +862,7 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 	if err != nil {
 		return err
 	}
-	return h.queries().UpdateUserPermissions(ctx, sqlc.UpdateUserPermissionsParams{Permissions: text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID})
+	return h.queries().UpdateUserPermissions(ctx, sqlc.UpdateUserPermissionsParams{Permissions: store.Text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID})
 }
 
 func (h *Handler) pruneOIDCState(now time.Time) {

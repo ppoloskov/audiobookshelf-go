@@ -25,12 +25,15 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- Book-read B01–B09 and I01–I06 are checked DONE with scoped evidence.
-  G01/G02 consolidation/pruning review are DONE. Latest owner sequence:
-  L01–L03 are accepted. **Next is PR01–PR04 actual code deletion**, then PR07
-  and proven PR06/PR05, before more domain moves/L04 planning. The deletion
-  wave must reduce net production source with no baseline increase. L05 still
-  waits for exact write/route scopes. Each stage
+- Book-read B01–B09, I01–I06 and L01–L03 are accepted. Current owner priority
+  is the cleanup checkpoint: audit restricted HTTP reachability, remove only
+  proven duplication/representation scaffolding (RO02/S9a and PR cards), repair
+  the FFmpeg test environment, and tighten final deletion/growth review.
+  The bounded checkpoint is now closed with 158 lines removed and a full native-
+  codec suite PASS. PR06/PR05 and validator-sensitive S9b remain pending;
+  do not infer their proofs from S9a. Net production source must fall in deletion
+  work without a baseline increase. L05 still waits for exact
+  write/route scopes and zero leftover replacement bodies. Each stage
   names old bodies to delete and any adapter's consumers/removal condition.
   Dispatch one card, not
   the whole epic. Relevant compatibility checks accompany each slice; no
@@ -84,6 +87,16 @@ Documentation-only packets: check links, task dependencies, contradictory
 claims, generated-file boundaries and `git diff --check`. Runtime suites are
 not required for prose-only edits; disclose what was not run.
 
+Inherited untracked identity/routes.go currently does not compile (it refers
+to absent httputil.NotFound). Preserve it as owner WIP. Acceptance uses a clean
+tracked-source archive plus the exact approved changed/new files; never hide
+the issue by staging/fixing that file or resetting the checkout. Development
+still occurs only on canonical master; a validation snapshot is not a branch.
+Use [TESTING.md](TESTING.md) for the verified native FFmpeg PATH/FFMPEG_PATH;
+the default global binary still lacks libwebp. Ratchet requires lowered
+baselines after cuts too: run the existing lower-only update in the exact
+shipping-source snapshot, review decreases, then rerun the gate.
+
 For code packets, begin with the named regression and affected packages;
 then run the required integration checks before marking the packet accepted:
 
@@ -101,11 +114,16 @@ CI currently gates images on `verify` and `rollback`. The Node `parity` job is
 advisory since V1; do not make byte differences blocking. Keep diagnostic
 inputs reproducible until V2 extraction and acceptance finish.
 
-Metrics are review signals, not a product outcome; 30% fewer handwritten Go
-lines is aspirational. **The existing ratchet still rejects increases.** Until
-Q1 changes it, a justified increase needs an explicit baseline edit, measured
-deltas and review in the same packet. Never silently weaken a correctness or
-security guard, or claim a proposed policy is already implemented.
+The 30% reduction target is aspirational; **the strict ratchet still rejects
+increases**. Q1's soft-metrics proposal is replaced by explicit growth review:
+before dispatch, record a bounded per-metric budget, required benefit, smaller
+alternatives, exact old-code deletions, adapter exit tasks and checks in the
+existing card. Workers never edit baselines. Actual growth needs architect
+acceptance against that budget and a narrow baseline edit in the same commit;
+budget overruns return for review. No cross-packet offsets or blanket allowance.
+Close the cleanup checkpoint after a growth wave before another ownership
+expansion. Deletion packets must reduce net production code. Never weaken a
+correctness/security guard or call an unimplemented policy machine-enforced.
 
 ## Code rules
 

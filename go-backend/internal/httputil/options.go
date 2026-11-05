@@ -19,7 +19,6 @@ type options struct {
 	contentType     string
 	streamed        bool
 	request         *http.Request
-	keys            []string
 }
 
 func apply(opts []Option) options {
@@ -48,11 +47,5 @@ func Streamed() Option { return func(o *options) { o.streamed = true } }
 // ForRequest makes a HEAD request receive the headers of the GET response
 // without a body.
 func ForRequest(r *http.Request) Option { return func(o *options) { o.request = r } }
-
-// OrderedKeys writes a map[string]any value as a JSON object whose keys appear
-// in the given order (keys missing from the map are skipped, keys not listed
-// are dropped), matching the property order of the upstream response. Other
-// value types are marshaled normally.
-func OrderedKeys(keys []string) Option { return func(o *options) { o.keys = keys } }
 
 func (o options) head() bool { return o.request != nil && o.request.Method == http.MethodHead }

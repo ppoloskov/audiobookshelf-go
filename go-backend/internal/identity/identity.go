@@ -575,8 +575,8 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
 	now := sqlDate(time.Now())
 	err = sqlc.New(tx).InsertRootUser(r.Context(), sqlc.InsertRootUserParams{
-		ID: id, Username: text(username), Pash: text(passwordHash), Token: text(legacyToken),
-		Permissions: text(mustJSON(permissions)), Extradata: text(mustJSON(extra)), Createdat: now, Updatedat: now,
+		ID: id, Username: store.Text(username), Pash: store.Text(passwordHash), Token: store.Text(legacyToken),
+		Permissions: store.Text(mustJSON(permissions)), Extradata: store.Text(mustJSON(extra)), Createdat: now, Updatedat: now,
 	})
 	if err == nil {
 		err = tx.Commit()
@@ -604,7 +604,7 @@ func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Re
 	}
 	now := time.Now().UTC()
 	err = h.queries().InsertSession(ctx, sqlc.InsertSessionParams{
-		ID: id, Ipaddress: text(clientIP(r)), Useragent: text(r.UserAgent()), Refreshtoken: refresh,
+		ID: id, Ipaddress: store.Text(clientIP(r)), Useragent: store.Text(r.UserAgent()), Refreshtoken: refresh,
 		Expiresat: sqlDate(now.Add(h.refreshTTL)), Createdat: sqlDate(now), Updatedat: sqlDate(now), Userid: user.ID,
 	})
 	if err != nil {
@@ -628,7 +628,7 @@ func (h *Handler) rotateSession(ctx context.Context, s session) (string, string,
 	}
 	now := time.Now().UTC()
 	result, err := h.queries().RotateSession(ctx, sqlc.RotateSessionParams{
-		NewRefreshToken: newRefresh, ExpiresAt: sqlDate(now.Add(h.refreshTTL)), LastRefreshToken: text(s.refreshToken),
+		NewRefreshToken: newRefresh, ExpiresAt: sqlDate(now.Add(h.refreshTTL)), LastRefreshToken: store.Text(s.refreshToken),
 		LastRefreshTokenExpiresAt: sqlDate(now.Add(h.refreshGrace)), UpdatedAt: sqlDate(now), ID: s.id, CurrentRefreshToken: s.refreshToken,
 	})
 	if err != nil {
@@ -862,7 +862,7 @@ func (h *Handler) loadSettings(ctx context.Context, key string) (map[string]any,
 }
 
 func (h *Handler) userByUsername(ctx context.Context, username string) (store.User, error) {
-	return userResult(h.queries().GetUserByUsername(ctx, text(username)))
+	return userResult(h.queries().GetUserByUsername(ctx, store.Text(username)))
 }
 
 func (h *Handler) userByID(ctx context.Context, id string) (store.User, error) {
@@ -893,10 +893,6 @@ func userResult(row sqlc.User, err error) (store.User, error) {
 	}
 	return store.UserFromRow(row)
 }
-
-// text is a non-NULL TEXT parameter. An empty string is stored as empty text,
-// as TS writes it, so Valid is always true.
-func text(s string) sql.NullString { return sql.NullString{String: s, Valid: true} }
 
 func requireColumns(db *sql.DB, table string, required []string) error {
 	rows, err := db.Query(`PRAGMA table_info("` + table + `")`)
@@ -1240,7 +1236,7 @@ func (h *Handler) ChangePassword(ctx context.Context, userID, password, newPassw
 		}
 		encoded = string(hash)
 	}
-	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: text(encoded), Updatedat: sqlDate(time.Now()), ID: userID})
+	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: store.Text(encoded), Updatedat: sqlDate(time.Now()), ID: userID})
 }
 
 // SetRefreshTokenCookie writes the standard refresh cookie used by login,

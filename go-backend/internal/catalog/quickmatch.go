@@ -22,6 +22,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -647,7 +648,7 @@ func (h *Handler) quickMatchSeries(ctx context.Context, tx *sql.Tx, item quickMa
 		if existing != nil {
 			// existingSeries.bookSeries.sequence !== seriesMatchItem.sequence
 			if existing.sequence != sequence {
-				if _, err := tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=?`, nullValue(sequence), item.mediaID, existing.id); err != nil {
+				if _, err := tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=?`, store.NullString(sequence), item.mediaID, existing.id); err != nil {
 					return false, err
 				}
 				existing.sequence = sequence
@@ -668,7 +669,7 @@ func (h *Handler) quickMatchSeries(ctx context.Context, tx *sql.Tx, item quickMa
 			} else if err != nil {
 				return false, err
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, makeUUID(), item.mediaID, id, nullValue(sequence), clock.now()); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, makeUUID(), item.mediaID, id, store.NullString(sequence), clock.now()); err != nil {
 				return false, err
 			}
 			logging.Infof(`[Scanner] quickMatchBookBuildUpdatePayload: Added series "%s" to "%s"`, entry.name, storedText(item.media.get("title")))
@@ -698,13 +699,6 @@ func (h *Handler) quickMatchSeries(ctx context.Context, tx *sql.Tx, item quickMa
 		current = keep
 	}
 	return changed, nil
-}
-
-func nullValue(s sql.NullString) any {
-	if !s.Valid {
-		return nil
-	}
-	return s.String
 }
 
 func dbTimeMillis(value string) int64 {

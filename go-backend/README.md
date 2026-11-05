@@ -26,6 +26,7 @@ fast Go.
 | Ordered list of atomic tasks, with done checks | [ROADMAP.md](ROADMAP.md) |
 | Last recorded differential run (generated; advisory since V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
+| Clean-source validation and native FFmpeg/WebP setup | [TESTING.md](TESTING.md) |
 | Reviewed deletion/duplication candidates, not yet implemented | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
@@ -145,13 +146,16 @@ bounded execution; prefer permitted OpenCode Flash models, with built-in cheap
 workers as fallback. Keep README, AGENTS, ROADMAP and handover current with
 each accepted packet. The [skill review](SKILL-REVIEW.md) records overrides to
 excessive generic parity/ledger processes. Metrics guide review; the current
-ratchet still enforces limits pending the proposed Q1 policy change.
+ratchet still enforces limits. Q1 requires explicit growth budgets, actual
+architect review and a cleanup checkpoint before another expansion; its former
+soft-metrics proposal has been superseded.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
-sequence has completed I01–I06 and lists L01–L03. Next is actual pruning
-PR01–PR04 (~81 estimated lines), then the removable playlist forwarder and
-proven conditional candidates, before more domain migration/L04 planning.
+sequence has completed I01–I06 and lists L01–L03. The cleanup checkpoint also
+completed RO02, S9a, PR01–PR04 and PR07: **158 fewer production lines, 46 fewer
+complexity points**, no metric growth. Conditional PR06/PR05 and validator-
+sensitive S9b remain pending; no further domain migration was started.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
@@ -161,11 +165,12 @@ book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
 gives exact scopes/dependencies/tests; this feature does not claim all domains
 complete or constant query counts yet.
 
-Local test prerequisite: FFmpeg must support WebP encoding (`libwebp`). The
-installed Homebrew build here lacks it: five pre-existing journey image tests
-fail on both the pre-feature base and integrated master. The recorded final
-suite has no additional failures;
-this is not a clean full-suite or deployment acceptance claim.
+Local tests require native WebP encoding (`libwebp`). An isolated verified
+FFmpeg build fixes the host's five image-journey failures; baseline and final
+integrated clean-source suites now pass with count=1. The global Homebrew
+binary remains unchanged and lacks that encoder. Follow [TESTING.md](TESTING.md)
+for PATH/FFMPEG_PATH and preserved untracked-work caveats. This is local Go
+acceptance, not device, Node rollback or live-deployment acceptance.
 
 ## Batched book pages (I02–I04)
 
@@ -184,16 +189,19 @@ I05/I06 add bounded common-item loading and typed items.Record. No-include
 book shelf hydration drops from 51/251 to 6/6 reads for 10/50 actual IDs.
 The old catalog scanner, scalar item SQL, local classifier and temporary shelf
 query are removed. This wave still adds 165 production lines / 23 complexity;
-the reviewed source-cost exception is explicit, not a reduction claim. Same
-five native WebP journey failures remain; build/vet/lint/dbnest/arm64 and affected
-packages pass. All I cards are checked DONE.
+the reviewed source-cost exception is explicit, not a reduction claim. Its
+original WebP environment gap is now fixed for the documented test invocation;
+the integrated full suite/build/vet/lint/dbnest/arm64 pass. All I cards are DONE.
 
 L01–L03 are also checked DONE: full-schema list/permission baseline and plain
 lists.Playlist/Collection read functions. Old userapi read bodies, redundant
 entry copy and visibility counter are removed. Thin adapters remain for route
-and write/event callers. PR07 can delete the trivial playlist forwarder now;
+and write/event callers at delivery. PR07 has now deleted the playlist forwarder;
 collection ACL adaptation remains until scoped caller migration. This extraction costs 29 production lines,
 complexity unchanged; explicit baseline exception, no reduction/speed claim.
-Affected tests and integration checks pass apart from the same five native
-WebP journey failures. The next deletion wave must show net source reduction;
-L04 then scopes writes/routes with named old-body removal.
+The following deletion wave removes 158 lines overall, leaving a net 36-line
+increase since pre-I05 and 23 fewer complexity points. Baselines were lowered
+with the existing tool; strict guards remain. S9a drops only ordered-key JSON
+scaffolding after real mutation-response tests; cache/range/MIME options remain.
+The restricted read-only HTTP mode was audited and is active, so its behavior
+is retained while duplicate prefix methods are gone. L04 remains future planning.

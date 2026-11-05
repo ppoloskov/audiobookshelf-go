@@ -12,6 +12,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -157,7 +158,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	}
 	playlists := make([]namedPlaylist, 0, len(ids))
 	for _, id := range ids {
-		item, _, err := h.playlistJSON(r, id, user)
+		item, _, err := lists.Playlist(r.Context(), h.db, h.items, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}

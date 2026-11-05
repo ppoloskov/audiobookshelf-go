@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -578,7 +579,7 @@ func payloadAccessible(user store.User, payload any) bool {
 		_ = json.Unmarshal(user.Permissions, &permissions)
 	}
 	if permissions == nil || !boolValue(permissions["accessAllLibraries"]) {
-		if !contains(stringsValue(permissions["librariesAccessible"]), libraryID) {
+		if !slices.Contains(stringsValue(permissions["librariesAccessible"]), libraryID) {
 			return false
 		}
 	}
@@ -604,7 +605,7 @@ func payloadAccessible(user store.User, payload any) bool {
 			return true
 		}
 		for _, tag := range itemTags {
-			if contains(userTags, tag) {
+			if slices.Contains(userTags, tag) {
 				return false
 			}
 		}
@@ -614,7 +615,7 @@ func payloadAccessible(user store.User, payload any) bool {
 		return false
 	}
 	for _, tag := range itemTags {
-		if contains(userTags, tag) {
+		if slices.Contains(userTags, tag) {
 			return true
 		}
 	}
@@ -733,15 +734,6 @@ func stringsValue(value any) []string {
 		return result
 	}
 	return nil
-}
-
-func contains(values []string, value string) bool {
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
 }
 
 func tokenType(token string) string {

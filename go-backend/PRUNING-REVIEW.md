@@ -1,9 +1,24 @@
 # Dead code and duplication review
 
-Reviewed 2026-11-05 against tracked master `948f6a15`. Cheap workers inspected
-dead code and duplicates; architect independently checked the named bodies,
-references, caller types and replacement semantics. This is an analysis, not
-an implementation or a passing deletion test. Runtime source change: zero.
+Original review: 2026-11-05 against tracked master `948f6a15`. Cheap workers
+inspected dead code and duplicates; architect checked bodies/references and
+replacement semantics. The source locations/estimates below preserve that
+historical audit, not a claim that removed functions still exist.
+
+## Delivery status
+
+PR01–PR04 are now DONE: actual net physical production savings 44/22/18/4
+lines, respectively (88 total). PR07 removes the playlist forwarder (3 more).
+RO02 removes duplicate prefix methods (25); S9a removes ordered-key JSON
+scaffolding (42). Combined measured source falls **158 lines** and complexity
+**46**, maps **2**; no metric rises. Lower-only baselines and integrated native-
+codec full Go suite PASS. Tests protect real response values/headers and old
+nullable SQL semantics; no routes, security checks or stored formats removed.
+
+The read-only HTTP implementation was audited separately and is active via
+ABS_GO_READ_ONLY; its behavior is retained. PR05/PR06 remain conditional, as
+do the wider framing removals that need mobile cache-validator evidence.
+See ROADMAP for actual DONE markers and TESTING.md for the fixed environment.
 
 Scope: handwritten production Go backend. Generated sqlc, pinned upstream,
 unchanged client, test-only serialization oracles and inherited untracked
@@ -75,7 +90,7 @@ inventory; it does not establish a path to a 30% reduction.
 - Untracked identity/routes.go is owner WIP, not dead shipped code. Preserve it
   and .codemap/TODO. Independent test oracles retain their value.
 
-## Verification and execution
+## Original audit method (historical)
 
 Observed: master SHA confirmed; clean archive; installed golangci-lint 2.15.0
 `run --no-config --enable-only=unused --tests=false ./...` returned exit 1,
@@ -86,19 +101,15 @@ No dependency installation, code deletion, package test or runtime experiment
 was performed for this review. Worker reports are under
 `/tmp/abs-master-consolidation-20261105/{dead-code,duplicates}.md`.
 
-Sequencing correction after completed I01–I06 and L01–L03: PR01–PR04 are now
-next, before further migration/L04 planning. Candidates remain unimplemented;
-their next acceptance requires measured net source reduction, no baseline raise.
-PR07 also deletes the trivial playlist forwarder now rather than waiting for
-L05 (about two more net lines; eight direct callers, one new import). Current
-f466e36e source recheck confirms PR01's six definition-only names and PR06's
-test-only callers. PR06/PR05 follow only with equivalent behavior and measured net savings.
-When dispatched,
+PR01–PR04/PR07 have since been implemented and verified as recorded above.
+The f466e36e recheck confirmed PR01's definition-only names and PR06's test-only
+callers before deletion. PR06/PR05 still require equivalent behavior and measured
+net savings. When dispatched,
 use implementation-scope-control/minimal-implementation-ladder for the named
 PR cards in ROADMAP; go-behaviour-tests for PR05/PR06. All work stays on master,
 one bounded worker packet at a time. Each card names affected package checks;
 the accepted wave then runs AGENTS integration gates and measures actual
-ratchet changes. Existing five native libwebp journey failures remain a known
-host limitation, not a waiver for additional failures.
+ratchet changes. The isolated native libwebp environment now makes all five
+former image failures pass; do not use the old host gap as a waiver.
 
-net: -81 estimated production lines possible in direct candidates
+net: -158 measured production lines delivered; conditional cuts remain unclaimed

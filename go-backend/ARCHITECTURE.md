@@ -246,12 +246,19 @@ unrelated work. Libraries may use features supported by that declared version.
 ## Metrics
 
 `make ratchet` (`tools/ratchet`, baseline `ratchet-baseline.json`) fails when a
-metric rises today. The proposed policy is to use size/complexity as review
-signals and justify meaningful increases (ROADMAP Q1); tool behavior has not
-yet changed. The 30% handwritten-Go reduction is aspirational, not an
-acceptance condition. Retain the nested-query/dependency correctness gates.
-Record actual per-packet deltas; do not count Node deletions as Go savings.
-Until Q1, use a reviewed explicit baseline adjustment for justified growth.
+metric rises. Q1 retains this enforcement and requires an explicit growth
+review: budget each metric before dispatch, state the necessary benefit and
+smaller alternatives, name deleted code/adapter exits, and review actual deltas
+before accepting a narrow baseline edit in the same commit. No warning-only
+mode or blanket growth allowance. A cleanup checkpoint follows each growth
+wave before further ownership expansion; deletion packets must shrink net
+production source. The 30% target remains aspirational. Keep correctness and
+dependency gates; Node deletions are not Go savings. The review is documented
+human acceptance, not new tool automation.
+
+The strict tool also rejects a stale higher baseline after reductions. Use
+the existing lower-only `make ratchet-update`, review/commit those decreases,
+then rerun `make ratchet`; this is not a growth exception.
 
 Primary (simplification):
 
@@ -319,8 +326,8 @@ List reads now live in `internal/lists/reader.go`: plain Playlist/Collection
 functions take DB and item-reader dependencies; Collection also takes the
 request user's visibility callback. No Reader object, constructor or extra
 Handler field. Userapi keeps HTTP/ownership/library checks, writes/events,
-feed includes and pagination. playlistJSON is a trivial forwarder removable
-now via PR07; it need not wait for writes/L05. collectionDTO still adapts the
+feed includes and pagination. PR07 removed the trivial playlistJSON forwarder;
+its eight callers use lists.Playlist directly. collectionDTO still adapts the
 request user's ACL and old result contract until its callers migrate. Old
 read bodies, entry-copy slice and redundant visibility
 counter are deleted; all-filtered same-library collections still return empty

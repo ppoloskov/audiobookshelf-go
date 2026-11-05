@@ -452,19 +452,12 @@ func (u *authorColumnUpdate) set(column string, current, next *string) bool {
 func (u *authorColumnUpdate) force(column string, next *string) {
 	for i, c := range u.columns {
 		if c == column {
-			u.values[i] = valueOrNil(next)
+			u.values[i] = store.StringPtrValue(next)
 			return
 		}
 	}
 	u.columns = append(u.columns, column)
-	u.values = append(u.values, valueOrNil(next))
-}
-
-func valueOrNil(s *string) any {
-	if s == nil {
-		return nil
-	}
-	return *s
+	u.values = append(u.values, store.StringPtrValue(next))
 }
 
 func (u *authorColumnUpdate) save(ctx context.Context, db ctxExecer, authorID string) error {

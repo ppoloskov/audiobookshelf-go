@@ -1,5 +1,5 @@
-// Package server implements the first, intentionally limited read-only HTTP
-// slice of the Audiobookshelf v2.37.2 server.
+// Package server composes the Audiobookshelf runtime and its restricted
+// read-only development HTTP surface.
 package server
 
 import (
@@ -59,11 +59,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	path, ok := h.routePath(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+	path := strings.TrimPrefix(r.URL.Path, h.Config.RouterBasePath)
 	switch {
 	case isGet(r) && path == "/ping":
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true}, httputil.ForRequest(r))
@@ -81,19 +77,6 @@ func (h *Handler) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.unsupported(w)
 	}
-}
-
-// Upstream prepends ROUTER_BASE_PATH to legacy unprefixed requests, while also
-// accepting requests that already include the prefix.
-func (h *Handler) routePath(path string) (string, bool) {
-	base := h.Config.RouterBasePath
-	if base == "" {
-		return path, true
-	}
-	if strings.HasPrefix(path, base) {
-		return strings.TrimPrefix(path, base), true
-	}
-	return path, true
 }
 
 func (h *Handler) status(w http.ResponseWriter, r *http.Request) {

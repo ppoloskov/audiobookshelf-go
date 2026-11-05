@@ -584,11 +584,6 @@ func truthy(value any) bool {
 	return b
 }
 
-func anyStrings(value any) []string {
-	values, _ := value.([]string)
-	return values
-}
-
 func placeholders(n int) string {
 	if n <= 0 {
 		return ""

@@ -287,7 +287,7 @@ func (rt *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	path := rt.stripBase(r.URL.Path)
+	path := strings.TrimPrefix(r.URL.Path, rt.cfg.RouterBasePath)
 	if path == "" {
 		path = "/"
 	}
@@ -382,14 +382,6 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store
 	}
 	rt.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 	return true
-}
-
-func (rt *Runtime) stripBase(path string) string {
-	base := rt.cfg.RouterBasePath
-	if base != "" && strings.HasPrefix(path, base) {
-		return strings.TrimPrefix(path, base)
-	}
-	return path
 }
 
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }

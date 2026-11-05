@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -579,11 +580,11 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 						if v == old {
 							continue
 						}
-						if !contains(out, v) {
+						if !slices.Contains(out, v) {
 							out = append(out, v)
 						}
 					}
-					if !contains(out, newv) {
+					if !slices.Contains(out, newv) {
 						out = append(out, newv)
 					}
 					items = append(items, item{id, out})
@@ -648,7 +649,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 				continue
 			}
 			var a []string
-			if json.Unmarshal(b, &a) == nil && contains(a, target) {
+			if json.Unmarshal(b, &a) == nil && slices.Contains(a, target) {
 				out := []string{}
 				for _, v := range a {
 					if v != target {
@@ -676,14 +677,6 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed}, httputil.Streamed())
-}
-func contains(a []string, s string) bool {
-	for _, v := range a {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 func sqlDate() string { return dbtime.Now() }
 func (h *Handler) changedItem(ctx context.Context, id string) error {

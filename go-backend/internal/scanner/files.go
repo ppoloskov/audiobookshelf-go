@@ -1715,7 +1715,6 @@ func mustJSON(v any) string {
 	}
 	return string(b)
 }
-func sameBytes(a, b []byte) bool { return string(a) == string(b) }
 func lastFirst(s string) string {
 	p := strings.Fields(s)
 	if len(p) < 2 {
@@ -1758,24 +1757,6 @@ func bookPathMetadata(p, root string, parseSubtitle ...bool) (title, author, ser
 	}
 	return
 }
-func parseSequence(s string) (string, string) { // Common upstream folder forms: "Book 2 - Title", "Title - Vol 2", "2. Title".
-	for _, sep := range []string{" - Vol ", " - vol ", " - Book ", " - book "} {
-		if i := strings.LastIndex(s, sep); i > 0 {
-			n := strings.TrimSpace(s[i+len(sep):])
-			if _, e := strconv.Atoi(n); e == nil {
-				return strings.TrimSpace(s[:i]), n
-			}
-		}
-	}
-	if i := strings.Index(s, ". "); i > 0 {
-		n := strings.TrimSpace(s[:i])
-		if _, e := strconv.Atoi(n); e == nil {
-			return strings.TrimSpace(s[i+2:]), n
-		}
-	}
-	return s, ""
-}
-
 func extractPublishedYear(s string) (string, string) {
 	re := regexp.MustCompile(`^ *\(?([0-9]{4})\)? * - *(.+)`)
 	m := re.FindStringSubmatch(s)

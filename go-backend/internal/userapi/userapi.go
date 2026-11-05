@@ -1740,7 +1740,7 @@ func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Reque
 	if changed && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	httputil.WriteJSON(w, 200, dto, httputil.OrderedKeys([]string{"id", "libraryId", "name", "userId", "description", "lastUpdate", "createdAt", "books"}))
+	httputil.WriteJSON(w, 200, dto)
 	return true
 }
 
@@ -2318,18 +2318,6 @@ func number(v any, fallback float64) float64 {
 func finiteNumber(v any) (float64, bool) {
 	n, ok := jsonNumber(v)
 	return n, ok && !math.IsNaN(n) && !math.IsInf(n, 0)
-}
-func nullNumber(n sql.NullFloat64) any {
-	if !n.Valid {
-		return nil
-	}
-	return n.Float64
-}
-func timestampString(v any, fallback string) any {
-	if n, ok := finiteNumber(v); ok {
-		return dbtime.Format(time.UnixMilli(int64(n)).UTC())
-	}
-	return fallback
 }
 func decodeBody(r *http.Request) (map[string]any, error) {
 	defer r.Body.Close()

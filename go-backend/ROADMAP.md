@@ -34,6 +34,64 @@ The [audit brief](archive/reviews/2026-11-04-mobile-audit-brief.md) specifies
 A–G deliverables; the [review](archive/reviews/2026-11-04-simplification-review.md)
 is input evidence, not an automatic statement of current runtime behavior.
 
+## Owner cleanup priorities — 2026-11-05
+
+I05/I06 and L01–L03 already landed before this priority update. Do not restart
+them or expand into more domains. **This bounded cleanup checkpoint is CLOSED**
+after RO02/S9a/PR01–PR04/PR07 and FF01 validation. Remaining S9b and conditional
+cuts are explicitly pending; no new domain migration was started.
+
+| Priority | Current action and exit |
+|---|---|
+| 1 | I05/I06 DONE (+165 production lines/+23 complexity); L reads DONE (+29/flat). Cleanup now removes 158 lines/46 complexity: 44,760 lines/10,848 complexity. All required checks pass; remaining adapters have named consumers/exit tasks. Net since pre-I05 is still +36 lines, complexity −23; no full-growth recovery claim. |
+| 2 | RO01 audited the read-only HTTP path. It is active via ABS_GO_READ_ONLY=1, so retain it; remove proven duplication via RO02. Absence from CI does not make opt-in behavior unused. |
+| 3 | S9a DONE: ordered-key serializer deleted after both real mutation-response field/value/header contracts pass, plus cache/range/HEAD regressions. S9b remains gated on the mobile validator endpoint matrix; no blanket framing-option removal. |
+| 4 | L02 already landed. Strengthened final-deletion criteria now apply before more writers; PR07 has deleted the pure playlist forwarder. |
+| 5 | Branch docs point to canonical master. FF01 DONE: real isolated native libwebp FFmpeg, baseline and integrated full suites PASS with count=1; no codec shim/test weakening. TESTING.md records the environment and rebuild details. |
+| 6 | Q1 now requires explicit growth review and strict ratchet. No baseline increase during cleanup. |
+
+### RO01 · Audit restricted read-only HTTP reachability
+
+- [x] DONE — source audit at c4cf90a9. Config.ReadOnly selects OpenReadOnly,
+  skips file-log initialization and constructs NewHandler in main. Its auth,
+  supported routes and 501 behavior differ from Runtime. All private helpers
+  are referenced; no whole unused HTTP implementation is proven removable.
+  Existing server/store/bootstrap tests protect parts of this path; no main
+  startup integration execution is claimed by this read-only audit.
+
+### RO02 · Remove duplicate base-prefix methods with stdlib
+
+- [x] DONE — source review, focused before/after tests and integrated gates PASS.
+  Two methods and the impossible branch deleted, net 25 production lines
+  removed (final physical-line measurement replaces the worker estimate).
+  Write only internal/server/server.go and runtime.go plus
+  affected existing server tests. Replace Handler.routePath and Runtime.stripBase
+  calls with strings.TrimPrefix using their existing configured base; delete
+  both methods and routePath's unreachable false-result branch. The bool was
+  always true. Preserve prefix matching, default paths and 501 behavior;
+  do not alter socket dispatch/auth/startup or introduce segment matching.
+- Budget: net lines/complexity fall; maps/[]any/high functions may not rise.
+  No new helper/layer/dependency/baseline increase. Two direct stdlib calls
+  suffice; replacing these methods with another wrapper is unnecessary.
+- Verify full internal/server tests and existing prefixed ping, health GET/HEAD
+  and runtime route regressions. Add a behavioral case only if current endpoint
+  coverage misses a preserved edge. Final wave uses full AGENTS gates.
+
+### FF01 · Restore real native WebP test capability
+
+- [x] DONE — isolated native FFmpeg 9.0.2 built from signature-verified official
+  source with libwebp; real encode/probe PASS. Full clean c4cf90a9 suite with
+  `-count=1` PASS, exit 0; verbose TestJourney confirms all five former failures
+  PASS. Final integrated cleanup suite also PASS, exit 0, with count=1.
+  Installed FFmpeg 9.0.2 and Cypress 4.4 both fail real libwebp
+  encoding; installed Homebrew WebP headers/libs are available. Build official
+  FFmpeg source into an isolated temporary prefix; no global brew replacement,
+  Go dependency, source-format change, test skip or cwebp masquerading shim.
+- Record source version/URL/archive hash/configure flags, actual encode exit,
+  deterministic PATH/FFMPEG_PATH test invocation and full-suite exit. Catalog
+  resolves ffmpeg by PATH; FFMPEG_PATH alone cannot fix its image tests.
+  Mark DONE only after a real encode and the required full suite execute.
+
 ## Execution conventions
 
 - Follow dependencies, not old alphabetical phases. One bounded task per
@@ -49,8 +107,8 @@ is input evidence, not an automatic statement of current runtime behavior.
 - Keep fixed contracts, read-only upstream and unrelated dirty work in every
   packet. Existing reviewed-push authorization applies; new dependencies,
   route removals and live cutover retain separate decisions.
-- Finish with applicable AGENTS checks. Metrics are review signals; current
-  tool enforcement stays strict until Q1. Node-tool deletion does not reduce
+- Finish with applicable AGENTS checks. Q1 requires explicit growth review;
+  strict tool enforcement stays in place. Node-tool deletion does not reduce
   the handwritten-Go metric.
 
 ## Master consolidation and pruning review — 2026-11-05
@@ -75,10 +133,10 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ### Small pruning packets — planned, no runtime removals yet
 
-**Next execution is code removal:** I01–I06 and the L01–L03 start are complete.
-Run PR01–PR04 before further domain extraction or L04 write planning; then
-PR07, PR06 and PR05 where their proof holds. The earlier deferral is ended.
-PR01–PR04 are independent;
+I01–I06, L01–L03 and PR01–PR04/PR07 are complete. PR06/PR05 are the remaining
+conditional pruning candidates; prove equivalence and net savings before
+dispatch. S9b separately needs its client-validator evidence. No new domain
+expansion occurred during the completed cleanup checkpoint. PR01–PR04 were independent;
 execute sequentially on master because some files overlap. Preserve contracts,
 owner WIP, test assertions and neighboring live helpers. No new dependencies,
 generic framework, route deletion or baseline increases. Run targeted commands
@@ -92,7 +150,8 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR01 · Delete six uncalled private functions
 
-- [ ] PLANNED. Write only catalog/batch_chapters.go (anyStrings),
+- [x] DONE — six definitions deleted, no replacement, net 44 production lines;
+  scoped packages and final integrated checks PASS. Write only catalog/batch_chapters.go (anyStrings),
   providers/book_finder.go (levenshteinSimilarity), scanner/files.go (sameBytes,
   parseSequence), userapi/userapi.go (nullNumber, timestampString).
 - Recheck whole-module references; delete definitions only, remove imports
@@ -102,7 +161,8 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR02 · Replace three membership loops with slices.Contains
 
-- [ ] PLANNED. Write only playback/playback.go, adminops/handler.go,
+- [x] DONE — three loops/helpers deleted, net 22 production lines; ACL/MIME
+  conditions unchanged. Scoped and integrated checks PASS. Write only playback/playback.go, adminops/handler.go,
   realtime/hub.go; replace contains calls and delete local loops. Keep all
   permission conditions/negations and MIME logic. Estimated net −21 lines.
 - Verify: `go test ./internal/playback ./internal/adminops ./internal/realtime`;
@@ -111,7 +171,8 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR03 · Reuse existing nullable-value helpers
 
-- [ ] PLANNED. Write only catalog/quickmatch.go (nullValue -> store.NullString),
+- [x] DONE — three helpers deleted, net 18 production lines;
+  catalog/scanner/store and integrated checks PASS. Write only catalog/quickmatch.go (nullValue -> store.NullString),
   scanner/metadata.go (nullDBString -> store.NullString), catalog/authors.go
   (valueOrNil -> store.StringPtrValue). Delete local bodies; add required store
   imports. Invalid/nil stays nil; valid empty string stays a string. Net ~−16.
@@ -120,7 +181,10 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR04 · Reuse store.Text for identity SQL parameters
 
-- [ ] PLANNED. Write only identity/identity.go: text -> store.Text; delete
+- [x] DONE — full identity/store and integrated checks PASS; 13 callers converted,
+  old helper deleted, net 4 lines. Necessary scope includes identity/oidc.go's
+  seven package-level callers, not just identity.go. Write only those two
+  files: text -> store.Text; delete
   helper/comment. Empty text must remain Valid=true; never use TextOrNull.
   Estimated −3 lines. Verify: `go test ./internal/identity ./internal/store`.
   Preserve inherited untracked identity/routes.go without staging it.
@@ -150,7 +214,8 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR07 · Remove the now-unnecessary playlistJSON forwarder
 
-- [ ] PLANNED, after PR01–PR04; depends only on completed L02, not L05.
+- [x] DONE — eight direct callers, forwarder deleted, net 3 production lines;
+  list/userapi and integrated checks PASS. Depends on completed L02, not L05.
   Write only internal/userapi/playlist.go and internal/userapi/library_lists.go.
 - Replace each h.playlistJSON(r,id,user) call with
   lists.Playlist(r.Context(),h.db,h.items,id); its user parameter is unused.
@@ -164,6 +229,24 @@ pending with its evidence; it does not justify another speculative rewrite.
 - collectionDTO remains for its real per-user ACL adaptation and old error/
   visibility contract. Its removal needs the scoped caller migration in L04/L05;
   do not duplicate its callback at every callsite merely to delete a function.
+
+#### Cleanup acceptance evidence
+
+All changes above share one reviewed code commit. Per-packet net physical
+production lines: RO02 −25, S9a −42, PR01 −44, PR02 −22, PR03 −18, PR04 −4,
+PR07 −3; total **−158**. Complexity 10,894 -> **10,848 (−46)**; maps 995 ->
+**993 (−2)**, []any 326 and high functions 179 unchanged. No metric increased.
+The existing lower-only make ratchet-update lowered the three baseline values;
+final make ratchet PASS. Before lowering, exit 1 requested matching the lower
+counts, not a growth exception. No ratchet implementation/gate was weakened.
+
+Exact tracked-source snapshot at c4cf90a9 plus approved source overlays:
+build/vet/lint (0 issues)/dbnest/Linux arm64 build PASS; pinned sqlc generation
+and generated-directory equality PASS. Full go test ./... -count=1 with the
+verified native FFmpeg PASS, exit 0. Scope, formatting, deleted-symbol checks
+and git diff --check PASS. Owner untracked identity routes remain untouched
+and excluded. Node rollback/device acceptance/latency were not run locally.
+Logs and the actual toolchain/environment are recorded in TESTING.md/handover.
 
 ## 1. Compatibility evidence — alongside domain migration
 
@@ -372,8 +455,9 @@ no new generated output. Full suite exits 1 only for the same five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next execution: **PR01–PR04**, then PR07 and proven PR06/PR05. L04 write
-decomposition follows that deletion wave, then its reviewed packets and final L05
+Next cleanup work: prove **PR06/PR05** and **S9b** prerequisites before those
+deletions. PR01–PR04/PR07 are DONE. L04 write decomposition remains future work,
+then its reviewed packets and final L05
 wiring. Each stage must name the old
 code it deletes, any necessary
 adapter consumers and the exact later removal condition.
@@ -398,7 +482,7 @@ finished by this milestone. All route removals and real-device gates stay intact
 | I05 (DONE) | Per-ID book/no-includes hydration replaced; podcast/includes fallback retained. Temporary common-envelope SQL removed by I06 in the same wave. |
 | I06 (DONE) | catalog scanItemRow deleted entirely; scalar loadItem SQL, I05 envelope query/stringsToArgs and local fileType switch deleted. items owns shared row projection/scanner/loader/classifier; recordToMap and thin loadItem remain for page/detail/shelf consumers until mixed-media projection migration. |
 | L01 (DONE) | Tests only, no production deletion. Independent full-schema/live-reader assertions and existing regressions retained. |
-| L02 (DONE) | playlistJSON SELECT/media-entry body and redundant mediaRef/refs copy deleted. ownedPlaylist retains pre-hydration authorization; the now-trivial forwarder is removed in PR07 without waiting for writers/L05. |
+| L02 (DONE) | playlistJSON SELECT/media-entry body and redundant mediaRef/refs copy deleted. ownedPlaylist retains pre-hydration authorization; PR07 has now deleted the forwarder and all eight callers use lists.Playlist directly. |
 | L03 (DONE) | collectionDTO SELECT/item-loop/assembly and redundant visible counter deleted. HTTP/error/feed/pagination orchestration stays. Thin per-user adapter preserves old four-value contract until all consumers migrate in L05. |
 | L04 | Documentation only: each write/route packet names original functions to delete; L05 removes all now-unreferenced forwarding adapters after final wiring. |
 
@@ -544,7 +628,7 @@ Actual endpoint proof: read-only archived ef4d14e + the same test gave 43/203 re
   books: 51/251 -> 6/6 reads through personalizedItems, not endpoint totals.
   I06 removed the temporary envelope SQL before acceptance.
 
-- **Depends:** I04. **Write only:** `internal/catalog/personalized.go:personalizedItems`, `query_count_test.go`, `handler_test.go`.
+- **Depends:** I04. **Write only:** `internal/catalog/personalized.go:personalizedItems`, new `shelf_batch_test.go`; reuse existing query counter and handler fixtures.
 - **Do:** Collect all IDs, check Rows.Err and explicitly close Rows before hydration. For book shelves load common libraryItems envelopes in one query per chunk, then use I03. Preserve shelf order, per-user progress/ACL and error behavior. Podcast hydration and per-item includes stay explicit follow-ups, never label all shelves batched.
 - **Check (from go-backend):** `go test ./internal/catalog -run 'TestBookShelfQueryCountIndependentOfSize|TestPersonalizedBookShelvesUsePerUserProgress|TestItemGolden' -count=1`.
 - **Done:** New TestBookShelfQueryCountIndependentOfSize compares 10/50 book IDs without includes and asserts same counts/correct user progress/order; no per-ID ItemMinifiedJSON on the migrated path. No nested pool reads with open Rows.
@@ -570,6 +654,19 @@ final wiring/removal card and integration gates. Later domains get equally
 small cards only when this milestone is reached; do not prepay an exhaustive
 implementation plan for untouched packages.
 
+**Final-deletion checkpoint (applied now; L02 already landed):** every later
+list packet must name the old functions/branches and remove their replaced
+bodies in that same commit. No second SELECT/DTO/transaction implementation
+may remain behind a forwarder. A bridge needs its exact consumers and a
+  concrete removal card; PR07 has removed playlistJSON. collectionDTO is retained
+only for request-user ACL/error adaptation until that responsibility moves.
+L05 acceptance requires no obsolete handlers/adapters or production references
+to them, all original routes mounted once by the new owner, mixed book/episode
+field/value/order/NULL and ACL/status regressions, unchanged DB write formats,
+transaction/order/cleanup and event recipient/payload tests, plus fresh route
+inventory and integrated metrics. A package move or unchecked removal template
+cannot complete S11. No more list write migration while cleanup is open.
+
 ##### L01 · Pin list reads/permissions
 
 - [x] **DONE** — architect-reviewed test baseline in this implementation wave.
@@ -592,7 +689,7 @@ implementation plan for untouched packages.
 - **Depends:** L01. **Write only:** `internal/lists/reader.go`, `reader_test.go` (new); `internal/userapi/playlist.go`.
 - **Do:** Move playlistJSON's GetPlaylist/ListPlaylistMediaItems and metadata/entry assembly into plain lists.Playlist(ctx, db, itemReader, id). Explicit dependencies match books; no stateless Reader object/constructor/extra Handler field. Keep existing response map as a temporary boundary. ownedPlaylist retains its authorization SELECT before hydration; preserve status/order and orphan/error handling. Do not move writes/routes. Lists never imports userapi/catalog.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestPlaylistReadValues|TestListReadValuesAndPermissions|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
-- **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retained the thin forwarding adapter at delivery; PR07 now removes it directly without waiting for L05.
+- **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retained the thin forwarding adapter at delivery; PR07 has since deleted it without waiting for L05.
 
 ##### L03 · Extract collection read data
 
@@ -686,6 +783,46 @@ removal required; no candidates approved by this takeover.
 
 ### S9 · Simplify framing, keep HTTP semantics (P2, S)
 
+- [ ] PARTIAL — no blanket option removal. Execute the bounded subcards below;
+  validators/ranges/MIME and remaining client evidence keep their own gates.
+
+#### S9a · Delete ordered-key JSON scaffolding
+
+- [x] DONE — net 42 production lines removed. Both actual POST-response tests
+  passed before and after; scoped cache/range/HEAD/ACL tests and integrated
+  native-codec full suite PASS. OrderedKeys and marshalOrdered have no Go refs.
+  Baseline tracked production source: 44,918 lines, 10,894
+  complexity, maps 995, []any 326, high functions 179. Budget: every metric
+  nonincreasing, net source reduction required, no new abstraction/dependency.
+- Write only httputil/json.go/options.go and their existing tests; the two
+  OrderedKeys arguments in userapi/playlist.go:addPlaylistItem and
+  userapi/userapi.go:writeCollectionAfterBatch; new focused mutation-response
+  test using existing full-schema fixture. No mutation implementation changes.
+- Before deletion, freeze complete response field sets, IDs/order/null values,
+  status, Content-Type and Content-Length versus body length for both POST
+  responses. lists.Playlist/Collection construct complete top-level maps;
+  their caller key lists omit no actual fields. Web client consumes parsed
+  JSON via Axios; architecture permits key-order changes. No GET cache or
+  byte-range implementation is touched. Existing field/ACL, 206/416, cache
+  and HEAD regressions accompany this slice; no device acceptance claim.
+- Delete OrderedKeys, options.keys, marshalOrdered and its WriteJSON branch
+  plus both caller options. Use encoding/json once. Remove the now-obsolete
+  byte-order/drop-unlisted-keys helper test only after actual response fields
+  are independently asserted. Keep all other framing options and safeguards.
+- Verify httputil/userapi plus named catalog cache/range regressions; final
+  AGENTS gates. Expected tens of production lines removed; report actual net.
+
+#### S9b · Validator-sensitive framing — gated
+
+- [ ] PLANNED, not dispatchable for deletion yet. ContentType has four provider
+  error callers; no-length/no-ETag options have many more. Preserve MIME and
+  stream buffering behavior. MC-05 still lacks the exact Lissen cacheable-
+  endpoint/If-None-Match/304 matrix. Lack of explicit 304 source text is not
+  proof of missing behavior: http.ServeContent handles conditionals internally.
+- First protect affected endpoint status/body/MIME/auth/cache/HEAD and actual
+  client usage. Then scope one caller family, with measured replacement cost;
+  do not globally delete ForRequest, Streamed, WithoutETag or length handling.
+
 Prerequisites: MC-B/D, affected cache/range/cover tests. Scope:
 `internal/httputil/` Express-only ordering/escaping/framing options and callers.
 No removal of ETag/If-None-Match/304, Range/206/416, cache behavior or required
@@ -716,15 +853,33 @@ Done when generators and rollback work from a clean checkout after removal;
 record Node lines separately from handwritten-Go metrics. Approval: revised
 retirement boundary before V2b; prior approval never authorizes broken generators.
 
-### Q1 · Make size metrics review signals (P2, S)
+### Q1 · Explicit growth review; retain strict ratchet
 
-Prerequisite: owner approves proposed policy. Scope: `tools/ratchet/`, tests,
-CI/Makefile only as needed. Report line/complexity/map deltas without failing
-solely on justified growth; retain hard correctness/dependency/nested-query
-checks. Proposed `TestMetricGrowthReported` and existing guard tests; run
-`cd go-backend && go test ./tools/ratchet ./tools/dbnest`, `make ratchet`, full
-gates. Done when useful regression signals survive and documentation matches
-tool enforcement. Approval: explicit policy approval; no tool changed here.
+- [x] DONE — policy adopted in this documentation commit at owner direction.
+  The proposed report-only/soft-metrics change is superseded. No ratchet,
+  correctness gate, baseline, CI or runtime code changes in this packet.
+- Before worker dispatch, the existing task card must record: tracked-source
+  baseline; maximum proposed line/complexity/map/[]any/high-function deltas;
+  concrete required behavior or measured benefit; smaller alternatives;
+  exact old symbols/files removed; any retained adapter's callers and removal
+  card; validation and cleanup-checkpoint condition. No separate ledger.
+- Architect reviews the actual diff and evidence against that budget. A
+  worker cannot edit baselines; exceeding budget returns to architecture
+  review instead of quietly raising it. Necessary growth needs a written
+  acceptance reason and actual per-metric deltas in the same code commit as
+  its narrowly scoped baseline edit. Existing dependency/route approval
+  boundaries still apply; this does not authorize either.
+- Ratchet remains failing on increases. No global allowance, warning-only
+  mode, cross-packet offset, source packing or Node-as-Go savings. A deletion
+  packet must be net negative and cannot raise its baseline.
+- After a growth-bearing migration wave, close a cleanup checkpoint before
+  dispatching another ownership expansion: measure integrated net cost,
+  identify/remove safe duplicates and dead code, give every retained bridge a
+  concrete removal task, record tests/limitations. A list of future cleanup
+  ideas alone does not close that checkpoint.
+- Checks for this prose-only policy: source/tool-rule consistency and
+  `git diff --check`; no runtime tests required or claimed. Tool automation
+  beyond the existing strict ratchet is not implied.
 
 ## 3. Deferred work and investigations — do not dispatch vague tasks
 
@@ -754,8 +909,8 @@ and prerequisites; this table deliberately is not authorization to code.
    them alongside affected compatibility tests; no full audit freeze or blanket
    L8 conversion prerequisite. Runtime dispatch approval is not inferred from
    a planning document; the latest owner message authorizes implementation.
-2. Approve aspirational reduction target and Q1 review-signal policy; strict
-   ratchet tooling remains unchanged until Q1 is implemented.
+2. The 30% target remains aspirational. Q1 now requires explicit budgeted growth
+   review and cleanup checkpoints; strict ratchet tooling remains unchanged.
 3. Accept the supported-client scope after MC-A; unknown evidence stays open.
 4. R2 approves removals individually; O4 requires real-device evidence.
 5. O1 (`ANALYZE` at boot), O2 (destructive TS cleanup) and O5 (new libraries)
@@ -769,8 +924,9 @@ and prerequisites; this table deliberately is not authorization to code.
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
 G01/G02 completed consolidation + analysis only; no standalone pruning executed.
-Current sequence: I01–I06 and L01–L03 accepted; PR01–PR04 code deletion next,
-then PR07 and proven PR06/PR05, before L04 write decomposition. In parallel,
+Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
+PR01–PR04/PR07 are DONE. PR06/PR05 and S9b require their named proof before
+further deletion; L04 write decomposition remains future work. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
-Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches
+Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

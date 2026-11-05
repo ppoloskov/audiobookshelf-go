@@ -15,7 +15,6 @@ import (
 
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -107,20 +106,6 @@ func TestPlaylistBatchAddMissingLibraryItemUsesLegacyError(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	if !h.Handle(w, r, user) || w.Code != http.StatusBadRequest || w.Body.String() != "Invalid request body items" || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != expressUserETag([]byte("Invalid request body items")) {
 		t.Fatalf("batch add missing item = %d %q", w.Code, w.Body.String())
-	}
-}
-
-func TestBatchResponseTopLevelKeyOrder(t *testing.T) {
-	for _, keys := range [][]string{{"id", "libraryId", "name", "userId", "description", "lastUpdate", "createdAt", "books"}, {"id", "name", "libraryId", "userId", "description", "lastUpdate", "createdAt", "items"}} {
-		w := httptest.NewRecorder()
-		httputil.WriteJSON(w, 200, map[string]any{"id": "c1", "libraryId": "lib1", "name": "Shelf", "userId": "u1", "description": nil, "lastUpdate": 1, "createdAt": 2, "books": []any{}, "items": []any{}}, httputil.OrderedKeys(keys))
-		prefix := `{"id":"c1","libraryId":"lib1"`
-		if keys[1] == "name" {
-			prefix = `{"id":"c1","name":"Shelf","libraryId":"lib1"`
-		}
-		if !strings.HasPrefix(w.Body.String(), prefix) {
-			t.Errorf("ordered response = %s", w.Body.String())
-		}
 	}
 }
 

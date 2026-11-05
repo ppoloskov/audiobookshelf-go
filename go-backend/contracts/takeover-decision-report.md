@@ -45,9 +45,10 @@ claimed. The gap/test plan and task queue define how to close the remainder.
 ## Decisions and recommended defaults
 
 - Domain-migration follow-up: explicit books/items/podcasts ownership and
-  small book-read/batch/list cards now lead the queue, accompanied by relevant
+  small book-read/batch/list cards were followed by the owner cleanup checkpoint, accompanied by relevant
   compatibility tests. No full mobile-audit freeze, schema change or live deployment.
-- Make 30% reduction aspirational; approve Q1 size metrics as review signals,
+- Make 30% reduction aspirational; Q1's original soft-review proposal is
+  superseded by the explicit budget/acceptance/checkpoint policy (2026-11-05),
   retaining correctness/dependency/dbnest gates. Ratchet code still strict today.
 - Provision the existing `socket.io-client@4.8.1` JS probe in required CI.
   Current advisory CI already installs it; the older Go v3 client approval is
@@ -73,12 +74,17 @@ old scanner/classifier/scalar+shelf SQL removed. Shelf helper reads 51/251 ->
 reviewed. L01–L03 list baseline/read extraction are accepted: old read bodies,
 entry copy and visibility counter removed; +29 production lines, complexity
 unchanged, two thin adapters retained for existing route/write/event callers.
-Next PR01–PR04 perform actual code deletion, then PR07 and proven conditional
-cuts, before L04 scopes writes. The trivial playlist forwarder need not wait
-for L05. collectionDTO's per-user ACL adaptation still has real callers.
+RO02/S9a/PR01–PR04/PR07 now delete 158 production lines and 46 complexity points;
+the playlist forwarder is gone. Strict baselines were lowered, not raised.
+An isolated signed-source FFmpeg/libwebp build makes the full local clean-source
+suite pass. Restricted HTTP remains active and is retained; its prefix copies
+are deleted. collectionDTO's per-user ACL adaptation still has real callers.
+Conditional PR06/PR05 and validator-sensitive S9b remain pending before broader
+cleanup; L04 still scopes future writes. Q1 now requires explicit growth review.
 All device/route-removal decisions stay
-open. Full test suite still has the five pre-existing local WebP encoder
-failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
+open. Initial acceptance had five local WebP encoder failures; the isolated
+native FFmpeg fix now makes the integrated full suite pass. Build/vet/lint/
+ratchet/dbnest/arm64 and affected package tests also pass.
 
 ## Changes and verification
 

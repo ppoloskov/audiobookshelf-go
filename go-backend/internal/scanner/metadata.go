@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/store"
 )
 
 // WriteItemMetadata writes the pinned v2.37.2 metadata.json sidecar shape from
@@ -101,15 +102,15 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 		if err := s.db.QueryRowContext(ctx, `SELECT title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,narrators,audioFiles,ebookFile,chapters,tags,genres FROM books WHERE id=?`, mediaID).Scan(&title, &subtitle, &year, &publishedDate, &publisher, &description, &isbn, &asin, &language, &explicit, &abridged, &narrators, &audio, &ebook, &chapters, &tags, &genres); err != nil {
 			return err
 		}
-		metadata["title"] = nullDBString(title)
-		metadata["subtitle"] = nullDBString(subtitle)
-		metadata["publishedYear"] = nullDBString(year)
-		metadata["publishedDate"] = nullDBString(publishedDate)
-		metadata["publisher"] = nullDBString(publisher)
-		metadata["description"] = nullDBString(description)
-		metadata["isbn"] = nullDBString(isbn)
-		metadata["asin"] = nullDBString(asin)
-		metadata["language"] = nullDBString(language)
+		metadata["title"] = store.NullString(title)
+		metadata["subtitle"] = store.NullString(subtitle)
+		metadata["publishedYear"] = store.NullString(year)
+		metadata["publishedDate"] = store.NullString(publishedDate)
+		metadata["publisher"] = store.NullString(publisher)
+		metadata["description"] = store.NullString(description)
+		metadata["isbn"] = store.NullString(isbn)
+		metadata["asin"] = store.NullString(asin)
+		metadata["language"] = store.NullString(language)
 		metadata["explicit"] = explicit != 0
 		metadata["abridged"] = abridged != 0
 		metadata["narrators"] = decodeJSONValue(narrators)
@@ -148,7 +149,7 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 				seriesRows.Close()
 				return err
 			}
-			series = append(series, map[string]any{"name": name.String, "sequence": nullDBString(sequence)})
+			series = append(series, map[string]any{"name": name.String, "sequence": store.NullString(sequence)})
 		}
 		if err := seriesRows.Err(); err != nil {
 			seriesRows.Close()
@@ -165,17 +166,17 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 		if err := s.db.QueryRowContext(ctx, `SELECT title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,tags,genres FROM podcasts WHERE id=?`, mediaID).Scan(&title, &author, &releaseDate, &feedURL, &imageURL, &description, &itunesPageURL, &itunesID, &itunesArtistID, &language, &podcastType, &explicit, &tags, &genres); err != nil {
 			return err
 		}
-		metadata["title"] = nullDBString(title)
-		metadata["author"] = nullDBString(author)
-		metadata["releaseDate"] = nullDBString(releaseDate)
-		metadata["feedURL"] = nullDBString(feedURL)
-		metadata["imageURL"] = nullDBString(imageURL)
-		metadata["description"] = nullDBString(description)
-		metadata["itunesPageURL"] = nullDBString(itunesPageURL)
-		metadata["itunesId"] = nullDBString(itunesID)
-		metadata["itunesArtistId"] = nullDBString(itunesArtistID)
-		metadata["language"] = nullDBString(language)
-		metadata["podcastType"] = nullDBString(podcastType)
+		metadata["title"] = store.NullString(title)
+		metadata["author"] = store.NullString(author)
+		metadata["releaseDate"] = store.NullString(releaseDate)
+		metadata["feedURL"] = store.NullString(feedURL)
+		metadata["imageURL"] = store.NullString(imageURL)
+		metadata["description"] = store.NullString(description)
+		metadata["itunesPageURL"] = store.NullString(itunesPageURL)
+		metadata["itunesId"] = store.NullString(itunesID)
+		metadata["itunesArtistId"] = store.NullString(itunesArtistID)
+		metadata["language"] = store.NullString(language)
+		metadata["podcastType"] = store.NullString(podcastType)
 		metadata["explicit"] = explicit != 0
 		metadata["genres"] = decodeJSONValue(genres)
 		media["tags"] = decodeJSONValue(tags)
@@ -193,12 +194,6 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 	return WriteItemMetadata(ctx, s.db, s.cfg, itemID, item, settings)
 }
 
-func nullDBString(value sql.NullString) any {
-	if !value.Valid {
-		return nil
-	}
-	return value.String
-}
 func decodeJSONValue(raw []byte) any {
 	if len(raw) == 0 || string(raw) == "null" {
 		return []any{}
