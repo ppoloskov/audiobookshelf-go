@@ -297,7 +297,7 @@ Documentation baseline is `d64aa599`.
 | I02 | DONE: bounded LoadMany; scalar Load delegates; 0/3/6 read boundary proofs |
 | I03/I04 | DONE: one settings snapshot + ordinary page batch; actual 10/50 returned books use 7/7 reads |
 | I05/I06 | DONE in this code commit: book shelf batch + shared item rows; 10/50 shelf hydration reads 6/6; replaced query/decoder/classifier bodies removed |
-| Lists | L01 next; no list ownership migration claimed complete yet |
+| Lists | L01–L03 DONE in this code commit: baseline + lists.Playlist/Collection; old userapi read bodies deleted, forwarding adapters retained for named consumers |
 
 Book feature d2ec8d9 snapshot metrics versus 48c10a6a: **44,585 production Go lines (−1)**,
 **complexity 10,840 (−11)**, **991 dynamic maps (−2)**. This is a boundary and
@@ -336,7 +336,20 @@ Full suite exits 1 only for the same five pre-existing libwebp journey cases;
 no additional failures. Tracked-source validation snapshot excludes inherited
 untracked WIP; see handover. Node rollback/device/latency tests not run.
 
-Next implementation card: **L01**, then L02/L03. Each stage must name the old
+L01–L03 accepted wave: **44,918 production lines (+29)** and maps **995 (+2)**
+versus `4d34d494`; complexity **10,894 unchanged**, high functions 179 and []any
+326 unchanged. Explicit architect-reviewed baseline exception for list read
+ownership and temporary forwarding boundaries, with no stateless Reader or
+new dependency. Old read bodies, mediaRef/refs and visible counter are deleted;
+this package extraction is not a net source reduction or a speed claim.
+Focused/full lists+userapi, build/vet/lint (0), dbnest/arm64 and final ratchet
+PASS. sqlc v1.31.1 regeneration is byte-identical including the schema copy;
+no new generated output. Full suite exits 1 only for the same five native WebP
+journey failures. No schema/write/event/route changes; rollback/device/bench
+not rerun. See handover for evidence and retained adapters.
+
+Next planning card: **L04**, then its reviewed write packets and final L05
+wiring. Each stage must name the old
 code it deletes, any necessary
 adapter consumers and the exact later removal condition.
 Podcasts, collapsed/include paths and other consumers remain open; no whole
@@ -359,9 +372,9 @@ finished by this milestone. All route removals and real-device gates stay intact
 | I04 (DONE) | Per-book scalar hydration removed from ordinary no-include/noncollapsed pages; podcast/includes/collapsed paths retain explicit fallback. |
 | I05 (DONE) | Per-ID book/no-includes hydration replaced; podcast/includes fallback retained. Temporary common-envelope SQL removed by I06 in the same wave. |
 | I06 (DONE) | catalog scanItemRow deleted entirely; scalar loadItem SQL, I05 envelope query/stringsToArgs and local fileType switch deleted. items owns shared row projection/scanner/loader/classifier; recordToMap and thin loadItem remain for page/detail/shelf consumers until mixed-media projection migration. |
-| L01 | Tests only, no production deletion. Preserve independent assertions and existing regressions. |
-| L02 | Delete SELECT/media-entry assembly from userapi playlistJSON. ownedPlaylist retains its pre-hydration owner/library authorization query; forwarding methods name exact consumers until final L05 removal. |
-| L03 | Delete moved collection SELECT/DTO bodies from userapi; preserve HTTP/error/feed/pagination orchestration. Thin adapters survive only for existing writers until L05. |
+| L01 (DONE) | Tests only, no production deletion. Independent full-schema/live-reader assertions and existing regressions retained. |
+| L02 (DONE) | playlistJSON SELECT/media-entry body and redundant mediaRef/refs copy deleted. ownedPlaylist retains pre-hydration authorization; adapter consumers/removal condition recorded in handover until L05. |
+| L03 (DONE) | collectionDTO SELECT/item-loop/assembly and redundant visible counter deleted. HTTP/error/feed/pagination orchestration stays. Thin per-user adapter preserves old four-value contract until all consumers migrate in L05. |
 | L04 | Documentation only: each write/route packet names original functions to delete; L05 removes all now-unreferenced forwarding adapters after final wiring. |
 
 Measure actual net lines/complexity at review; moving code alone is not a size
@@ -534,7 +547,11 @@ implementation plan for untouched packages.
 
 ##### L01 · Pin list reads/permissions
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — architect-reviewed test baseline in this implementation wave.
+  Focused named command and full userapi package PASS. Full-schema/live catalog
+  fixture covers ordered mixed media, null descriptions, owner/library/item
+  ACL, partial-library list filtering and all-filtered empty collections.
+  Tests only: no production deletion claimed. I05/I06 pushed as `4d34d494`.
 
 - **Depends:** I06. **Write only:** Tests only: new `internal/userapi/list_read_test.go`; existing `userapi_test.go`, `playlist_collection_regression_test.go`, `playlist_order_test.go` only if shared fixture changes are necessary.
 - **Do:** Add TestListReadValuesAndPermissions for GET /api/collections, /api/playlists and detail using owner/other-user/no-library cases, real IDs/order/null description, book + podcast episode entries. Reuse existing fixture and keep existing playlist/order/regression tests.
@@ -543,7 +560,9 @@ implementation plan for untouched packages.
 
 ##### L02 · Extract playlist read data
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — architect-reviewed in this code commit; focused/full lists+
+  userapi and wave gates above. Old playlistJSON read body and mediaRef/refs
+  copy deleted; thin adapter and pre-hydration authorization retained.
 
 - **Depends:** L01. **Write only:** `internal/lists/reader.go`, `reader_test.go` (new); `internal/userapi/playlist.go`.
 - **Do:** Move playlistJSON's GetPlaylist/ListPlaylistMediaItems and metadata/entry assembly into plain lists.Playlist(ctx, db, itemReader, id). Explicit dependencies match books; no stateless Reader object/constructor/extra Handler field. Keep existing response map as a temporary boundary. ownedPlaylist retains its authorization SELECT before hydration; preserve status/order and orphan/error handling. Do not move writes/routes. Lists never imports userapi/catalog.
@@ -552,10 +571,13 @@ implementation plan for untouched packages.
 
 ##### L03 · Extract collection read data
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — architect-reviewed in this code commit; ordered values,
+  nulls/times, callback order/failure, all-denied empty books and missing row
+  tests pass, alongside L01 HTTP baseline and wave gates. Old read body and
+  redundant visible counter deleted; per-user callback adapter retained.
 
-- **Depends:** L02. **Write only:** `internal/lists/collections.go`, `reader_test.go` (new/existing); collection read functions in `internal/userapi/userapi.go`, `library_lists.go`.
-- **Do:** Move collectionDTO SELECT/assembly into plain lists.Collection(ctx, db, itemReader, id, canView). Pass a per-call callback `func(context.Context, string) (bool, error)` that binds the request user and adapts canAccessItem. This avoids an otherwise stateless Reader/constructor and additional Handler wiring. Keep filtering/error order, map boundary and successful empty-collection visibility. Reuse existing item serialization. collectionRoute and internal/userapi/library_lists.go keep HTTP/list-ID selection/pagination/feed/ACL orchestration; no write or route move, no import back to userapi/catalog.
+- **Depends:** L02. **Write only:** append Collection to `internal/lists/reader.go` (same imports, small shared read file), `collections_test.go` (new); collectionDTO in `internal/userapi/userapi.go`. Library list/HTTP orchestration remains unchanged.
+- **Do:** Move collectionDTO SELECT/assembly into plain lists.Collection(ctx, db, itemReader, id, canView), returning map/libraryID/error. Pass a per-call callback `func(context.Context, string) (bool, error)` that binds the request user and adapts canAccessItem. Remove the redundant visible counter: its old predicate is always true on successful reads. The existing collectionDTO adapter returns hasVisible=(err==nil), preserving its error/status behavior and successful empty visibility. No stateless Reader/constructor/extra Handler field. Keep callback order, map boundary and item serialization. collectionRoute and internal/userapi/library_lists.go keep HTTP/list-ID selection/pagination/feed/ACL orchestration; no write/route move or import back to userapi/catalog.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestCollectionReadValues|TestListReadValuesAndPermissions|TestCollectionDescriptionDBValueMatchesLegacyNullCoercion|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
 - **Done:** New TestCollectionReadValues asserts list/detail/order/library visibility and values; old duplicate reads removed, forwarding endpoints preserved. If extraction needs >4 production files, return exact dependency list for split.
 
@@ -567,6 +589,28 @@ implementation plan for untouched packages.
 - **Do:** Produce separate cards for playlist create/update, membership mutation, collection create/update, collection membership, delete/cleanup/feed, route mounting. Each must name actual functions/deps and a persisted-state/event regression. This is bounded deferred decomposition, not authorization for a worker to improvise all writes.
 - **Check:** `git diff --check`.
 - **Done:** All newly dispatchable write cards have exact files/commands/deps and no domain cycles. Architect review required; no claim S11 is complete.
+
+Source-mapped removal inventory for that decomposition (planning input, not
+dispatchable implementation cards yet). Each replacement must delete the old
+body in the same packet; retaining a forwarding signature never permits a
+second implementation. Regression names below are **proposed**, not executed.
+
+| Next write stage | Existing body to replace/remove | Required state/event proof |
+|---|---|---|
+| Playlist metadata | playlist.go:createPlaylist and metadata branch of updatePlaylist; retain items/reorder branch until its own packet | TestPlaylistMetadataWritePersistsAndEmits: null/empty fields, stored rows, playlist_added/updated recipient/payload |
+| Playlist add | playlist.go:addPlaylistItem single/batch branches | TestPlaylistAddBookAndEpisodePersistsOrderAndEvent: book/episode parent validation, duplicates, library ACL, persisted order/event |
+| Playlist remove/reorder | playlist.go:updatePlaylist items branch, removePlaylistItems, removePlaylistItem, deletePlaylistMediaIDs | TestPlaylistRemovalReordersAndDeletesEmpty: transaction/order compaction, empty-delete and updated/removed event |
+| Playlist delete | playlist.go:deletePlaylist | TestPlaylistDeletePersistsAndEmits: owner/library status order, membership/playlist deletion and removal payload |
+| Collection metadata | userapi.go:createCollection, updateCollection | TestCollectionMetadataWritePersistsNullAndEvents: permissions, description coercion, stored values and broadcast payload |
+| Collection membership | userapi.go:batchCollectionBooks, writeCollectionAfterBatch, addCollectionBook, removeCollectionBook | TestCollectionMembershipWritesPersistOrderAndEmit: add/remove/batch order, duplicates, ACL, transaction/event and empty visible DTO |
+| Collection-to-playlist | playlist.go:createPlaylistFromCollection | Existing TestCreatePlaylistFromCollectionPersistsExpandedBookItems plus denied/missing/empty cases |
+| Collection delete/feed boundary | userapi.go:collectionRoute DELETE branch; collection_feed.go:collectionRSSFeed remains read orchestration until its own scope | New state/event regression; preserve existing DB cleanup behavior. Feed writes are in sharing/feeds.go, so do not invent cleanup or move them incidentally |
+| Final routes/adapters | userapi Handle/collectionPlaylist/libraryCollections/libraryPlaylists plus runtime composition; playlistJSON and collectionDTO forwarders | Route method/base-path/auth/status matrix and existing L01/regression suites; delete adapters only after all read/write/event consumers switch |
+
+L04 still must select exact target functions/files/dependencies and split large
+mutation branches before any of these rows is dispatchable. Existing raw
+read adapters are not permission to improvise a generic list service or copy
+handlers wholesale. This planning gap does not block the accepted read wave.
 
 ##### L05 · Lists route wiring/removal — blocked template
 
@@ -700,7 +744,7 @@ and prerequisites; this table deliberately is not authorization to code.
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
 G01/G02 completed consolidation + analysis only; no standalone pruning executed.
-Current owner sequence: I01–I06 reviewed DONE; start L01 onward.
+Current owner sequence: I01–I06 and L01–L03 accepted; L04 write decomposition next.
 PR01–PR04 wait behind that sequence. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches

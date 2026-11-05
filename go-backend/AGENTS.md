@@ -27,7 +27,9 @@ clients, books and progress, using simple, clear, fast Go.
   or a model name. Built-in cheap workers are the fallback.
 - Book-read B01–B09 and I01–I06 are checked DONE with scoped evidence.
   G01/G02 consolidation/pruning review are DONE. Latest owner sequence:
-  L01 onward after accepted I05/I06; standalone PR cards wait. Each stage
+  L01–L03 are accepted. Next is L04 write decomposition, then its reviewed
+  packets; L05 remains blocked until those exact scopes exist. Standalone PR
+  cards wait. Each stage
   names old bodies to delete and any adapter's consumers/removal condition.
   Dispatch one card, not
   the whole epic. Relevant compatibility checks accompany each slice; no

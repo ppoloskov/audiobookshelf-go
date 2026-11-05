@@ -10,9 +10,65 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
+## Accepted L01–L03 read wave
+
+L01's full-schema/live-catalog baseline ran before ownership moved. L02/L03
+now have architect-reviewed source and behavior, with individual DONE markers
+in this implementation commit. internal/lists/reader.go owns plain Playlist
+and Collection functions; no stateless service, new interface/dependency,
+constructor or extra Handler field. Production imports from lists into
+userapi/catalog are prohibited by the existing dependency rule's new file scope.
+
+Deleted: playlistJSON's GetPlaylist/ListPlaylistMediaItems/entry assembly,
+mediaRef/refs copy, collectionDTO's SELECT/item-loop/assembly and redundant
+visible counter. Collection returns three values; userapi's thin adapter
+supplies the old successful hasVisible=true/error=false contract. It still
+binds h.canAccessItem to the request user in the same order. ownedPlaylist's
+pre-hydration owner/library SELECT and status ordering remain explicit.
+
+Retained adapters and exact removal conditions:
+
+- playlistJSON: global/library playlist lists, ownedPlaylist and its detail/
+  mutation users, create/update/add/remove response/event builders and
+  createPlaylistFromCollection. Keep only its single forwarding call. Delete
+  after those consumers switch under the reviewed write/route packets and L05.
+- collectionDTO: global/library collection lists/detail/delete, create/update,
+  batch/add/remove readback/events and collection-to-playlist conversion. Keep
+  only the per-user visibility callback and old result contract. Delete after
+  every such caller migrates in L05; no old SELECT/assembly body remains.
+- recordToMap/loadItem: catalog page/detail/shelf consumers still need the
+  map boundary. Their later mixed-media projection migration removes these;
+  I06 is not permission to copy the old decoder/SQL back into catalog.
+
+Contract tests cover mixed book/podcast projections/order, nulls/timestamps,
+owner and partial/no-library access, explicit-item denial, all-filtered empty
+collections, orphan playlist records and collection callback order/failure.
+Craft review removed the redundant intermediate slice/counter and used one
+small read file with shared imports. No outstanding scoped review findings.
+
+Metrics versus 4d34d494: 44,889 -> 44,918 production lines (+29), maps 993 ->
+995 (+2), complexity 10,894 unchanged; high functions 179 and []any 326 unchanged.
+Architect explicitly accepts the two baseline edits for ownership/temporary
+adapters, not source reduction. Combined I05–I06 + L01–L03 cost versus 7105382c
+is +194 production lines / +23 complexity. No offset from unrelated pruning.
+
+Focused and full lists/userapi PASS; build/vet/lint (0), dbnest, Linux/arm64
+CGO=0 build and final ratchet PASS on the tracked-source validation snapshot.
+Pinned sqlc 1.31.1 regeneration and recursive generated-directory comparison
+PASS: identical files, including schema copy, no new output. Full suite exits
+1 only for the same five native WebP TestJourney cases; no new failure.
+Logs: `/tmp/abs-i05-i06-20261105/l01-userapi.log`, l03-full.log and
+lists-full-test.log. No schema, dependency, write, event or route changes;
+rollback/device/latency suites not rerun. No live deployment acceptance.
+
+Next L04 must turn the source-mapped write-removal inventory into exact small
+cards. Its inventory is planning input, not dispatch permission; L04/L05 and
+list writes/routes remain unchecked. Current request's I01–I06 completion and
+start of L work are fulfilled; standalone PR cards have not been executed.
+
 ## Accepted I05–I06 wave
 
-I05/I06 are architect-reviewed and checked DONE in this code commit.
+I05/I06 are architect-reviewed, checked DONE and pushed as `4d34d494`.
 personalizedItems no-includes book hydration is batched, with
 original selection/order/duplicates/error behavior retained. Other media and
 includes retain fallback. Corrected fixture tests actual 10/50 returned books,
@@ -54,7 +110,8 @@ will also count that WIP; do not delete it or absorb its metrics into baseline.
 Logs: full-test.log and i05-*.log in that temporary directory's parent. One
 initial ratchet invocation from repo root failed (wrong module directory); the
 correct snapshot go-backend invocation passed after explicit baseline update.
-Next: L01 baseline, then L02/L03 reads and L04 write-seam planning.
+The following L01–L03 read wave is now accepted above. L04 write-seam planning
+follows; no list write/route migration yet.
 
 ## Master consolidation and recovery
 
@@ -183,8 +240,8 @@ Latest owner instruction now authorizes I05 -> I06 -> L01 onward first,
 with explicit old-code removal plans for every stage; see ROADMAP's removal
 contract. I01–I04 stay completed, not reimplemented.
 
-**Next L01:** list values/permissions baseline, then L02 playlist reads and
-L03 collection reads. I01–I06 are checked DONE with named removal evidence;
+**Next L04:** turn the named write-removal inventory into exact bounded
+packets. I01–I06 and L01–L03 are checked DONE with named removal evidence;
 no need to reimplement them. People/progress remain later tasks; no
 "finish catalog" assignment or universal DTO. Separate route removal, new
 library and live-cutover decisions still apply.
@@ -201,11 +258,12 @@ library and live-cutover decisions still apply.
 - `items.Reader` is still the map-returning catalog interface. Typed book
   values inside outer maps are structs; existing access helpers/type assertions
   remain required. Full typed item/batched-consumer migration is not complete.
-- List extraction gotcha: current collectionDTO increments visible only when
-  appending books, then returns `visible > 0 || len(books) == 0`. Thus successful
+- List extraction gotcha: before L03, collectionDTO incremented visible only
+  when appending books, then returned `visible > 0 || len(books) == 0`. Thus successful
   reads retain a same-library collection even when every member is filtered
   out; library ACL still applies. Preserve observed behavior in L01/L03 rather
-  than silently changing it to hide the collection. Playlist ownership and
+  than silently changing it to hide the collection. L03 removes the counter
+  and preserves that result in its adapter. Playlist ownership and
   library-denial statuses differ and must remain separate.
 - Native FFMpeg must have libwebp for all journey image tests. Node reference
   tools need Node 22, built dist-server and disposable fixtures; run route-probe
@@ -277,7 +335,7 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next: L01** after accepted I05/I06. The standalone PR01–PR04 deletion
-wave waits. List cards remain unchecked. I01–I06 do not complete all of
+**Current next: L04** after accepted I05/I06 and L01–L03. The standalone
+PR01–PR04 deletion wave waits. L04 onward remain unchecked. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

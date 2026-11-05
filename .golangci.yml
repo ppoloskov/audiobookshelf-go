@@ -96,6 +96,8 @@ linters:
             - "**/internal/realtime/**/*.go"
             - "**/internal/books/*.go"
             - "**/internal/books/**/*.go"
+            - "**/internal/lists/*.go"
+            - "**/internal/lists/**/*.go"
           deny:
             - pkg: audiobookshelf-compat/internal/catalog$
             - pkg: audiobookshelf-compat/internal/userapi$

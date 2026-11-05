@@ -315,6 +315,16 @@ Catalog retains recordToMap and a thin scalar adapter for existing consumers;
 the old scanner/classifier and shelf/scalar SQL copies are deleted. Book
 selection, ACL/progress, includes and podcast orchestration remain in catalog.
 
+List reads now live in `internal/lists/reader.go`: plain Playlist/Collection
+functions take DB and item-reader dependencies; Collection also takes the
+request user's visibility callback. No Reader object, constructor or extra
+Handler field. Userapi keeps HTTP/ownership/library checks, writes/events,
+feed includes and pagination. Its playlistJSON/collectionDTO methods are thin
+adapters for current route and mutation/event callers, removed after L05 moves
+those consumers. Old read bodies, entry-copy slice and redundant visibility
+counter are deleted; all-filtered same-library collections still return empty
+books successfully. This read milestone does not complete lists routing/writes.
+
 ## Realtime support and proof
 
 C25 replaced the old dependency with in-repo Engine.IO v4/Socket.IO v4,

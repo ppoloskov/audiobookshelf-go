@@ -10,6 +10,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/lists"
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	itemapi "audiobookshelf-compat/internal/items"
@@ -136,65 +137,8 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 	return item, libraryID, 0, err
 }
 
-func (h *Handler) playlistJSON(r *http.Request, id string, user store.User) (map[string]any, string, error) {
-	playlist, err := h.queries().GetPlaylist(r.Context(), id)
-	if err != nil {
-		return nil, "", err
-	}
-	entries, err := h.queries().ListPlaylistMediaItems(r.Context(), id)
-	if err != nil {
-		return nil, "", err
-	}
-	type mediaRef struct{ id, typ string }
-	refs := make([]mediaRef, 0, len(entries))
-	for _, e := range entries {
-		refs = append(refs, mediaRef{id: e.Mediaitemid.String, typ: e.Mediaitemtype.String})
-	}
-	items := make([]any, 0, len(refs))
-	for _, ref := range refs {
-		var libraryItemID string
-		if ref.typ == "podcastEpisode" {
-			err = h.db.QueryRowContext(r.Context(), `SELECT li.id FROM podcastEpisodes pe JOIN libraryItems li ON li.mediaId=pe.podcastId AND li.mediaType='podcast' WHERE pe.id=?`, ref.id).Scan(&libraryItemID)
-		} else {
-			err = h.db.QueryRowContext(r.Context(), `SELECT id FROM libraryItems WHERE mediaId=? AND mediaType='book'`, ref.id).Scan(&libraryItemID)
-		}
-		if err != nil {
-			continue // upstream reconciliation removes orphaned playlist records
-		}
-		if ref.typ == "podcastEpisode" {
-			// Upstream playlist entries use libraryItem.toOldJSONExpanded() and
-			// episode.toOldJSONExpanded(libraryItem.id), so the embedded item is
-			// the expanded representation, not the minified one.
-			li, err := h.items.ItemJSON(r.Context(), libraryItemID, true)
-			if err != nil {
-				return nil, "", err
-			}
-			media, _ := li["media"].(map[string]any)
-			episodes, _ := media["episodes"].([]map[string]any)
-			var episode map[string]any
-			for _, candidate := range episodes {
-				if candidate["id"] == ref.id {
-					episode = candidate
-					break
-				}
-			}
-			if episode == nil {
-				continue
-			}
-			minified, err := h.items.ItemMinifiedJSON(r.Context(), libraryItemID)
-			if err != nil {
-				return nil, "", err
-			}
-			items = append(items, map[string]any{"episodeId": ref.id, "episode": episode, "libraryItemId": libraryItemID, "libraryItem": minified})
-		} else {
-			li, err := h.items.ItemJSON(r.Context(), libraryItemID, true)
-			if err != nil {
-				return nil, "", err
-			}
-			items = append(items, map[string]any{"libraryItemId": libraryItemID, "libraryItem": li})
-		}
-	}
-	return map[string]any{"id": id, "name": playlist.Name.String, "libraryId": playlist.Libraryid.String, "userId": playlist.Userid.String, "description": store.NullString(playlist.Description), "lastUpdate": dbtime.Millis(playlist.Updatedat), "createdAt": dbtime.Millis(playlist.Createdat), "items": items}, playlist.Libraryid.String, nil
+func (h *Handler) playlistJSON(r *http.Request, id string, _ store.User) (map[string]any, string, error) {
+	return lists.Playlist(r.Context(), h.db, h.items, id)
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request, user store.User) {

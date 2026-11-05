@@ -149,12 +149,13 @@ ratchet still enforces limits pending the proposed Q1 policy change.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
-sequence has completed I01–I06 and now starts lists L01 onward;
+sequence has completed I01–I06 and lists L01–L03; L04 write decomposition is next;
 standalone pruning candidates wait behind this work.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
-flat (−1 line), complexity −11, dynamic maps −2. I02–I06 are also complete (see below). List migration,
+flat (−1 line), complexity −11, dynamic maps −2. I02–I06 and L01–L03 list reads
+are also complete (see below). List writes/routes,
 book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
 gives exact scopes/dependencies/tests; this feature does not claim all domains
 complete or constant query counts yet.
@@ -184,4 +185,12 @@ The old catalog scanner, scalar item SQL, local classifier and temporary shelf
 query are removed. This wave still adds 165 production lines / 23 complexity;
 the reviewed source-cost exception is explicit, not a reduction claim. Same
 five native WebP journey failures remain; build/vet/lint/dbnest/arm64 and affected
-packages pass. All I cards are checked DONE; L01 is next.
+packages pass. All I cards are checked DONE.
+
+L01–L03 are also checked DONE: full-schema list/permission baseline and plain
+lists.Playlist/Collection read functions. Old userapi read bodies, redundant
+entry copy and visibility counter are removed. Thin adapters remain for route
+and write/event callers until L05. This extraction costs 29 production lines,
+complexity unchanged; explicit baseline exception, no reduction/speed claim.
+Affected tests and integration checks pass apart from the same five native
+WebP journey failures. Next L04 scopes writes/routes with named old-body removal.

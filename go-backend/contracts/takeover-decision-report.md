@@ -70,7 +70,11 @@ lines claim. I02 LoadMany, I03 prefix snapshots and I04 ordinary book pages are 
 checked DONE; I05 shelves and I06 item rows are now also reviewed DONE, with
 old scanner/classifier/scalar+shelf SQL removed. Shelf helper reads 51/251 ->
 6/6; this wave costs +165 production lines / +23 complexity, explicitly
-reviewed. Next: lists L01 onward. Standalone PR01–PR04 are deferred. All device/route-removal decisions stay
+reviewed. L01–L03 list baseline/read extraction are accepted: old read bodies,
+entry copy and visibility counter removed; +29 production lines, complexity
+unchanged, two thin adapters retained for existing route/write/event callers.
+Next L04 scopes those writes and final adapter removal.
+Standalone PR01–PR04 are deferred. All device/route-removal decisions stay
 open. Full test suite still has the five pre-existing local WebP encoder
 failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
 

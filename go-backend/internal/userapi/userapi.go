@@ -23,6 +23,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
+	listdomain "audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -1417,36 +1418,11 @@ func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, e
 }
 
 func (h *Handler) collectionDTO(ctx context.Context, id string, user store.User) (map[string]any, string, bool, error) {
-	c, err := h.queries().GetCollection(ctx, id)
-	if err != nil {
-		return nil, "", false, err
-	}
-	libraryID, name := c.Libraryid.String, c.Name.String
-	// Read the item IDs whole before the per-item queries below: the database
-	// pool allows a single connection, and nested queries while a cursor is
-	// open would deadlock waiting for a free connection.
-	itemIDs, err := h.queries().ListCollectionBookItemIDs(ctx, id)
-	if err != nil {
-		return nil, "", false, err
-	}
-	books := make([]any, 0)
-	visible := 0
-	for _, itemID := range itemIDs {
+	dto, libraryID, err := listdomain.Collection(ctx, h.db, h.items, id, func(ctx context.Context, itemID string) (bool, error) {
 		access, err := h.canAccessItem(ctx, user, itemID)
-		if err != nil {
-			return nil, "", false, err
-		}
-		if !access.allowed {
-			continue
-		}
-		item, err := h.items.ItemJSON(ctx, itemID, true)
-		if err != nil {
-			return nil, "", false, err
-		}
-		books = append(books, item)
-		visible++
-	}
-	return map[string]any{"id": id, "libraryId": libraryID, "name": name, "description": store.NullString(c.Description), "books": books, "lastUpdate": dbtime.Millis(c.Updatedat), "createdAt": dbtime.Millis(c.Createdat)}, libraryID, visible > 0 || len(books) == 0, nil
+		return access.allowed, err
+	})
+	return dto, libraryID, err == nil, err
 }
 
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) bool {
