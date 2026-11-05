@@ -6,6 +6,11 @@
 
 # Legacy source compatibility inventory
 
+The [test/oracle/corpus boundary review](../TEST-COMPATIBILITY-REVIEW.md)
+separates representation assertions from retained client/data contracts.
+Source-executed goldens are not automatically TS-only tests; preserve their
+provenance and useful value/type/nullability assertions.
+
 `source-inventory.json` is a reproducible, machine-readable index of syntax found in the upstream Node backend. Regenerate it from the repository root with:
 
 ```sh

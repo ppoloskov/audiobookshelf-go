@@ -20,6 +20,19 @@ Lists HTTP/write/feed ownership is complete; do not restart L04. Wider
 book writes/mixed-media/people/progress work remains. S9b deletion and full
 mobile/device acceptance remain open.
 
+TQ01 test/oracle/corpus review is complete in
+[TEST-COMPATIBILITY-REVIEW.md](TEST-COMPATIBILITY-REVIEW.md): three cheap built-in
+workers plus architect source checks extracted one standalone Express
+fingerprint test and eight assertion families. Tests/corpus/runtime/CI were not
+changed. Preserve mixed tests' useful assertions, parsed book/library goldens,
+lastFirst persisted derivations, HTTP/security and rollback. OPML double escaping,
+OIDC null/undefined redirects and exact ICU sorting need semantic decisions,
+not silent comparator normalization. Assertion-only R02/R03/R05 is a possible
+separate next packet; this review does not dispatch production changes.
+Image parity is advisory, but `go-backend.yml` has a separate failing equivalence
+job with no advisory setting. Branch protection was not inspected. Runtime
+acceptance below is historical; this review checked docs/source/counts only.
+
 **Preserve all functionality.** D02 backup/restore and manual audio-tool removal
 was discarded before publication. Those features, providers/matching and ebooks
 remain supported. Do not reuse `/tmp/abs-d02` removal snapshots or request cuts
@@ -86,7 +99,9 @@ standalone extraction and reproducible regeneration are proven.
 
 ## Documentation acceptance
 
-E01 records source/manifest/arithmetic/contract review, local-link checks and
+TQ01 records source/consumer/count/link/anchor review and `git diff --check`,
+with zero test or production code changes and no runtime suites. E01 records
+source/manifest/arithmetic/contract review, local-link checks and
 `git diff --check`; no Go suite is needed or claimed for prose-only changes.
 All completed cards need individual `[x] DONE` markers with actual validation
 in the same accepted commit. Keep README, AGENTS, roadmap and this handover

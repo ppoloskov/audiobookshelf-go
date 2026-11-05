@@ -30,6 +30,7 @@ fast Go.
 | Earlier pruning review (PR01–PR07 implemented) | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
 | Reviewed large deletion candidates and first-wave decisions | [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md) |
 | Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
+| TS-specific test assertions versus retained client/data contracts | [TEST-COMPATIBILITY-REVIEW.md](TEST-COMPATIBILITY-REVIEW.md) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
@@ -80,6 +81,12 @@ Node differential commands remain advisory diagnostics (`make parity`,
 `make parity-replacement`, `make parity-scan`, `make route-probe`; Node 22 and
 `npm ci && npm run build:server`). V2 cannot remove their shared seed/inventory
 inputs before regeneration is independent. The TS rollback check remains required.
+
+TQ01's [test/oracle/corpus review](TEST-COMPATIBILITY-REVIEW.md) extracts eight
+representation assertion families for separation; tests and runtime behavior
+are unchanged. Parsed book/library goldens and persisted name derivations stay.
+Image parity is advisory, but the separate `go-backend.yml` upstream-parity job
+still fails normally; that CI policy inconsistency remains unresolved.
 
 `cmd/abs-compat` compares GET/HEAD responses of two running servers ad hoc.
 

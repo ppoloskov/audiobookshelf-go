@@ -42,6 +42,23 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ## Current owner direction — preserve functionality while reducing code
 
+### TQ01 · Review tests, oracle and corpus for TS-only constraints
+
+- [x] DONE — 2026-11-06 review with three cheap built-in workers and architect
+  source reconciliation; [extraction manifest](TEST-COMPATIBILITY-REVIEW.md).
+  One standalone Express fingerprint test and eight mixed assertion families
+  identified; no test/production/CI changes. Book/library goldens and persisted
+  derivations retained; semantic quirks remain explicitly unapproved to change.
+- **Checks:** direct source/client evidence, JSON denominators, documentation
+  links/anchors and `git diff --check`. No runtime suites or regeneration run.
+  Production/test code delta zero; this is not V2a/V2b retirement acceptance.
+- **Next:** a separate assertion-only packet may split R02/R03/R05 with decoded
+  value checks and affected tests; retain length correctness/security. Other
+  families need caller-aware replacements; I01–I08 require semantic decisions.
+  No runtime simplification or CI change is dispatched by this review. Image
+  parity is advisory, but separate `go-backend.yml` equivalence still fails its
+  job normally; reconcile explicitly without weakening rollback/provenance.
+
 L04/L05 and D01 remain accepted. D02 feature cuts are WITHDRAWN: the owner
 requires preservation of functionality, including backup/restore and manual
 audio tools used by the web UI. The uncommitted removal wave was discarded;

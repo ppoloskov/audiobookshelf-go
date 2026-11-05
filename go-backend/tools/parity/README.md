@@ -6,6 +6,11 @@
 > [ROADMAP](../../ROADMAP.md) and [North Star](../../ARCHITECTURE.md).
 > HTTP cache/range/format semantics remain contracts even when representation differs.
 
+TQ01's [test/oracle/corpus review](../../TEST-COMPATIBILITY-REVIEW.md) extracts
+representation constraints without deleting tests or inputs. Image parity is
+advisory; the separate `go-backend.yml` upstream-parity job still fails normally
+and needs an explicit policy reconciliation. Oracle provenance and rollback stay.
+
 # Upstream parity fixtures
 
 The parity tools use a disposable database initialized by the actual pinned Node server. They do not install or migrate a Go schema.
@@ -62,7 +67,9 @@ node go-backend/tools/parity/differential.cjs \
   --out /tmp/abs-parity-fixture/report.json
 ```
 
-The core suite has 193 cases (see `STATUS.md` for the latest recorded run).
+The current core catalog has 168 request descriptors; ordered modules also
+execute cases, so this is not a suite execution total. See `STATUS.md` for the
+latest historical run rather than treating its count as the current catalog size.
 `go-backend/tools/parity/cases/core.json` is the core case catalog: executable request descriptors and the former registry's coverage metadata share one record per case. The older `go-backend/contracts/parity/differential-cases.json` remains as a historical contract artifact, but the runner no longer treats it as a second case source. Stateful ordered flows are named in `go-backend/tools/parity/cases/steps.json` and implemented in `go-backend/tools/parity/cases/steps/`. The differential engine rejects unknown selected IDs, reports zero executions as failure, writes its report before returning failure, and compares status, selected headers and normalized bodies without relaxing case contracts.
 
 The OIDC suite keeps its specialized provider and persistence checks in `oidc-differential.cjs`. Its stateful flow order is data-indexed in `cases/oidc-steps.json`, with named modules in `cases/steps/`; the compared result paths and case IDs are in `cases/oidc.json`. The full-suite runner enables the expiry pair so the committed OIDC golden's case set is exercised.

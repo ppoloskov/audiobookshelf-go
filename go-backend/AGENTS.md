@@ -124,6 +124,14 @@ CI currently gates images on `verify` and `rollback`. The Node `parity` job is
 advisory since V1; do not make byte differences blocking. Keep diagnostic
 inputs reproducible until V2 extraction and acceptance finish.
 
+TQ01's [test/oracle/corpus review](TEST-COMPATIBILITY-REVIEW.md) is an assertion
+extraction manifest, not authorization to delete whole mixed tests or alter
+production behavior. Preserve client fields/types/meaning, security, HTTP
+semantics and persisted derivations; exact Express fingerprints belong to
+diagnostic/implementation evidence. Keep oracle provenance checks while used.
+The separate `go-backend.yml` upstream-parity job lacks advisory handling;
+resolve that policy explicitly before claiming all parity CI is non-blocking.
+
 The 30% reduction target is aspirational; **the strict ratchet still rejects
 increases**. Q1's soft-metrics proposal is replaced by explicit growth review:
 before dispatch, record a bounded per-metric budget, required benefit, smaller
