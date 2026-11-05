@@ -67,8 +67,10 @@ object was removed; use plain `books.Load(ctx, db, id)`.
 
 Actual outcome: production lines −1, complexity −11, maps −2. No thousands-of-
 lines claim. I02 LoadMany, I03 prefix snapshots and I04 ordinary book pages are now
-checked DONE; the new pruning review proposes PR01–PR04 before I05 shelves
-and I06 item rows. List migration and all device/removal decisions stay
+checked DONE; I05 shelves and I06 item rows are now also reviewed DONE, with
+old scanner/classifier/scalar+shelf SQL removed. Shelf helper reads 51/251 ->
+6/6; this wave costs +165 production lines / +23 complexity, explicitly
+reviewed. Next: lists L01 onward. Standalone PR01–PR04 are deferred. All device/route-removal decisions stay
 open. Full test suite still has the five pre-existing local WebP encoder
 failures; build/vet/lint/ratchet/dbnest/arm64 and changed package tests pass.
 

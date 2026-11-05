@@ -35,54 +35,22 @@ import (
 	"audiobookshelf-compat/internal/wire"
 )
 
-func scanItemRow(rows *sql.Rows) (map[string]any, string, error) {
-	var id, ino, libraryID, folderID, itemPath, relPath, mediaType, mediaID sql.NullString
-	var isFile, missing, invalid int64
-	var mtime, ctime, birthtime, created, updated, size any
-	var extra, libraryFiles []byte
-	var lastScan any
-	var scanVersion sql.NullString
-	err := rows.Scan(&id, &ino, &libraryID, &folderID, &itemPath, &relPath, &isFile, &mtime, &ctime, &birthtime, &created, &updated, &lastScan, &scanVersion, &missing, &invalid, &mediaType, &size, &extra, &libraryFiles, &mediaID)
-	if err != nil {
-		return nil, "", err
-	}
-	extraData := decodeObject(extra)
-	oldID, _ := extraData["oldLibraryItemId"].(string)
+func recordToMap(record itemapi.Record) map[string]any {
 	item := map[string]any{
-		"id": id.String, "ino": store.NullString(ino), "oldLibraryItemId": valueOrNull(oldID),
-		"libraryId": libraryID.String, "folderId": store.NullString(folderID), "path": itemPath.String, "relPath": relPath.String,
-		"isFile": isFile != 0, "addedAt": nil, "updatedAt": nil, "isMissing": missing != 0, "isInvalid": invalid != 0,
-		"mediaType": mediaType.String,
+		"id": record.ID, "ino": store.NullString(record.Ino), "oldLibraryItemId": valueOrNull(record.OldLibraryItemID),
+		"libraryId": record.LibraryID, "folderId": store.NullString(record.FolderID), "path": record.Path, "relPath": record.RelPath,
+		"isFile": record.IsFile, "addedAt": deref(record.AddedAt), "updatedAt": deref(record.UpdatedAt), "isMissing": record.IsMissing, "isInvalid": record.IsInvalid,
+		"mediaType": record.MediaType, "scanVersion": store.NullString(record.ScanVersion), "libraryFiles": record.LibraryFiles, "numFiles": len(record.LibraryFiles),
 	}
-	for key, raw := range map[string]any{"mtimeMs": mtime, "ctimeMs": ctime, "birthtimeMs": birthtime, "addedAt": created, "updatedAt": updated} {
-		ms, err := dbtime.OptionalMillis(raw)
-		if err != nil {
-			return nil, "", err
-		}
-		if ms != nil {
-			item[key] = *ms
+	for key, value := range map[string]*int64{"mtimeMs": record.MTimeMS, "ctimeMs": record.CTimeMS, "birthtimeMs": record.BirthtimeMS, "lastScan": record.LastScan} {
+		if value != nil {
+			item[key] = *value
 		}
 	}
-	last, err := dbtime.OptionalMillis(lastScan)
-	if err != nil {
-		return nil, "", err
+	if record.Size != nil {
+		item["size"] = record.Size
 	}
-	if last != nil {
-		item["lastScan"] = *last
-	}
-	item["scanVersion"] = store.NullString(scanVersion)
-	files := decodeArray(libraryFiles)
-	for _, f := range files {
-		if meta, ok := f["metadata"].(map[string]any); ok {
-			f["fileType"] = fileType(meta["ext"])
-		}
-	}
-	item["libraryFiles"] = files
-	item["numFiles"] = len(files)
-	if size != nil {
-		item["size"] = size
-	}
-	return item, mediaID.String, nil
+	return item
 }
 
 // podcastBase builds the keys shared by every upstream Podcast serializer
@@ -810,22 +778,6 @@ func number(v any) int64 {
 		return int64(n)
 	}
 	return 0
-}
-func fileType(ext any) string {
-	s := strings.ToLower(strings.TrimPrefix(stringValue(ext), "."))
-	switch s {
-	case "mp3", "m4a", "m4b", "aac", "flac", "ogg", "opus", "wav", "wma", "aiff":
-		return "audio"
-	case "epub", "pdf", "mobi", "azw", "azw3", "cbz", "cbr":
-		return "ebook"
-	case "jpg", "jpeg", "png", "webp", "gif":
-		return "image"
-	case "txt", "md", "rtf":
-		return "text"
-	case "opf", "nfo", "json":
-		return "metadata"
-	}
-	return "unknown"
 }
 
 type emitFunc func(userID, event string, payload any)
@@ -2236,7 +2188,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 		return
 	}
-	query := `SELECT li.id,li.ino,li.libraryId,li.libraryFolderId,li.path,li.relPath,li.isFile,li.mtime,li.ctime,li.birthtime,li.createdAt,li.updatedAt,li.lastScan,li.lastScanVersion,li.isMissing,li.isInvalid,li.mediaType,li.size,li.extraData,li.libraryFiles,li.mediaId
+	query := `SELECT ` + itemapi.RowColumns + `
 	FROM libraryItems li JOIN ` + mediaTable + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?` + whereSQL + order
 	args := append([]any{libraryID, mediaType}, filterArgs...)
 	args = append(args, permissionArgs...)
@@ -2257,14 +2209,14 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	}
 	items := make([]libraryItemRow, 0)
 	for rows.Next() {
-		item, mediaID, err := scanItemRow(rows)
+		record, err := itemapi.ScanRecord(rows)
 		if err != nil {
 			rows.Close()
 			logging.RequestError(r, "database read failed", err)
 			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
 			return
 		}
-		items = append(items, libraryItemRow{item: item, mediaID: mediaID})
+		items = append(items, libraryItemRow{item: recordToMap(record), mediaID: record.MediaID})
 	}
 	if err := rows.Err(); err != nil {
 		logging.RequestError(r, "database read failed", err)
@@ -2582,23 +2534,15 @@ func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[stri
 }
 
 func (h *Handler) loadItem(ctx context.Context, itemID string) (map[string]any, string, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,li.ino,li.libraryId,li.libraryFolderId,li.path,li.relPath,li.isFile,li.mtime,li.ctime,li.birthtime,li.createdAt,li.updatedAt,li.lastScan,li.lastScanVersion,li.isMissing,li.isInvalid,li.mediaType,li.size,li.extraData,li.libraryFiles,li.mediaId FROM libraryItems li WHERE li.id=?`, itemID)
+	records, err := itemapi.LoadMany(ctx, h.db, []string{itemID})
 	if err != nil {
 		return nil, "", err
 	}
-	if !rows.Next() {
-		rows.Close()
+	record, ok := records[itemID]
+	if !ok {
 		return nil, "", sql.ErrNoRows
 	}
-	item, mediaID, err := scanItemRow(rows)
-	if err != nil {
-		rows.Close()
-		return nil, "", err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, "", err
-	}
-	return item, mediaID, nil
+	return recordToMap(record), record.MediaID, nil
 }
 
 func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.User, itemID, ino string, download bool) {
@@ -2683,7 +2627,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request, user store.U
 	target := ""
 	if fileID != "" {
 		for _, file := range decodeArray(raw) {
-			if stringValue(file["ino"]) == fileID && fileType(fileMetadataExt(file)) == "ebook" {
+			if stringValue(file["ino"]) == fileID && itemapi.FileType(fileMetadataExt(file)) == "ebook" {
 				target = filePath(file)
 				break
 			}

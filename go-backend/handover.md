@@ -10,6 +10,52 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
+## Accepted I05–I06 wave
+
+I05/I06 are architect-reviewed and checked DONE in this code commit.
+personalizedItems no-includes book hydration is batched, with
+original selection/order/duplicates/error behavior retained. Other media and
+includes retain fallback. Corrected fixture tests actual 10/50 returned books,
+explicit ACL exclusion and other-user-only progress among top-ranked rows,
+nullable titles, prefix values and missing/duplicate IDs. Helper-path reads:
+51/251 before, 6/6 after (not full personalized endpoint totals). Focused and
+full catalog tests passed; logs under `/tmp/abs-i05-i06-20261105/`.
+
+I06 deleted the temporary I05 envelope SQL, stringsToArgs, catalog scanItemRow,
+scalar item SELECT and fileType switch. items.Record/ScanRecord/LoadMany,
+RowColumns and FileType are the single owners. A wire-map adapter recordToMap
+remains for existing catalog page/detail/shelf consumers. It must not duplicate
+decoding. Thin loadItem remains for current catalog detail/shelf consumers;
+remove it only when those callers use the typed common record directly.
+Extra shelf lookup maps and the one-caller scan wrapper were rejected/deleted.
+
+Contract review: IDs/media IDs, order/duplicates, nullable/sparse times/size,
+strict malformed-date errors, file classification and missing/canceled loads
+preserved; includes fallback and book/podcast goldens remain passing.
+Craft review: concrete DB dependency, no service/interface/dependency added;
+single decoder/query/classifier, explicit cursor closure and no nested reads.
+
+Measured versus 7105382c: production lines 44,724 -> 44,889 (+165), complexity
+10,871 -> 10,894 (+23), maps 991 -> 993, []any 325 -> 326, high-complexity
+functions 178 -> 179. Architect accepts these five explicit baseline edits for
+new typed/bounded loading and measured query reduction; no source reduction
+claimed or strict guard relaxed. Final ratchet passes with reviewed baseline.
+
+Build, vet, lint (0 issues), dbnest, Linux/arm64 CGO=0 build PASS. Full suite
+exits 1 for only the same five native libwebp TestJourney cases; no new failures.
+Focused I01–I06 and full items/catalog packages PASS. Production source, schema,
+generated queries and dependencies outside the named files are unchanged.
+No rollback/device/latency tests run; no writes/schema/protocols changed.
+
+Validation snapshot `/tmp/abs-i05-i06-20261105/validation` uses tracked master
+plus the exact changed catalog/items files; inherited untracked identity routes
+are excluded from shipping metrics. Raw ratchet in the dirty owner checkout
+will also count that WIP; do not delete it or absorb its metrics into baseline.
+Logs: full-test.log and i05-*.log in that temporary directory's parent. One
+initial ratchet invocation from repo root failed (wrong module directory); the
+correct snapshot go-backend invocation passed after explicit baseline update.
+Next: L01 baseline, then L02/L03 reads and L04 write-seam planning.
+
 ## Master consolidation and recovery
 
 Owner changed workflow to master-only on 2026-11-05. All four feature commits
@@ -124,7 +170,7 @@ images on verify+rollback; parity is advisory since V1.
 
 ## Next executable work
 
-**PR01–PR04 proposed first:** remove six uncalled functions and substitute
+**Standalone PR01–PR04 deferred:** remove six uncalled functions and substitute
 equivalent existing helpers (~81 production lines). See the
 [pruning review](PRUNING-REVIEW.md) and exact ROADMAP cards. G02 is completed
 analysis only: no runtime removal or deletion tests. PR05/PR06 are conditional
@@ -132,12 +178,14 @@ follow-ups; userapi UA and permission semantics stay separate. unused analysis
 on a clean master archive reported 12 findings (exit 1), including genuine
 test/tool callers; warnings were classified rather than blindly deleted.
 This documentation packet ran consistency/link review and git diff --check;
-runtime tests were not rerun because production source is unchanged.
+runtime tests were not rerun because production source was unchanged.
+Latest owner instruction now authorizes I05 -> I06 -> L01 onward first,
+with explicit old-code removal plans for every stage; see ROADMAP's removal
+contract. I01–I04 stay completed, not reimplemented.
 
-**Next domain card I05:** reuse LoadMany for book-shelf hydration, preserving selected ID order,
-per-user values/ACL, includes and row closure. I02/I03/I04 are checked DONE;
-use I01 query instrumentation to prove shelf query counts and actual values.
-Then I06 common item rows. Lists/people/progress remain later tasks; no
+**Next L01:** list values/permissions baseline, then L02 playlist reads and
+L03 collection reads. I01–I06 are checked DONE with named removal evidence;
+no need to reimplement them. People/progress remain later tasks; no
 "finish catalog" assignment or universal DTO. Separate route removal, new
 library and live-cutover decisions still apply.
 
@@ -153,6 +201,12 @@ library and live-cutover decisions still apply.
 - `items.Reader` is still the map-returning catalog interface. Typed book
   values inside outer maps are structs; existing access helpers/type assertions
   remain required. Full typed item/batched-consumer migration is not complete.
+- List extraction gotcha: current collectionDTO increments visible only when
+  appending books, then returns `visible > 0 || len(books) == 0`. Thus successful
+  reads retain a same-library collection even when every member is filtered
+  out; library ACL still applies. Preserve observed behavior in L01/L03 rather
+  than silently changing it to hide the collection. Playlist ownership and
+  library-denial statuses differ and must remain separate.
 - Native FFMpeg must have libwebp for all journey image tests. Node reference
   tools need Node 22, built dist-server and disposable fixtures; run route-probe
   last. Preserve macOS /private path normalization and restat copied media inodes.
@@ -176,7 +230,8 @@ The owner correction was pushed as ef4d14e: B01–B09 and I01 have individual
 [x] DONE markers. I02–I04 now carry the same explicit checked status in their
 implementation commit. AGENTS requires this for every accepted task, alongside
 actual test results and unresolved limitations. I05 onward stay unchecked;
-summary paragraphs alone never mark a task complete.
+summary paragraphs alone never mark a task complete. I05/I06 now follow the
+same rule in their implementation commit.
 
 ## I02–I04 delivery — 2026-11-05
 
@@ -222,7 +277,7 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Next domain: I05** book shelf hydration, then I06 item rows, after the proposed
-PR01–PR04 deletion wave. I05/I06 and list cards
-remain unchecked. I02–I04 do not complete all of S13/P2/P3 or all client/media
+**Current next: L01** after accepted I05/I06. The standalone PR01–PR04 deletion
+wave waits. List cards remain unchecked. I01–I06 do not complete all of
+S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

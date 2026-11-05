@@ -86,7 +86,9 @@ No dependency installation, code deletion, package test or runtime experiment
 was performed for this review. Worker reports are under
 `/tmp/abs-master-consolidation-20261105/{dead-code,duplicates}.md`.
 
-Next: implementation-scope-control/minimal-implementation-ladder for the named
+Owner sequencing update: complete I01–I06, then start lists L01 onward before
+standalone pruning. The candidates above remain unimplemented. When dispatched,
+use implementation-scope-control/minimal-implementation-ladder for the named
 PR cards in ROADMAP; go-behaviour-tests for PR05/PR06. All work stays on master,
 one bounded worker packet at a time. Each card names affected package checks;
 the accepted wave then runs AGENTS integration gates and measures actual

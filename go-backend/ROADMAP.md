@@ -75,7 +75,8 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ### Small pruning packets — planned, no runtime removals yet
 
-PR01–PR04 form the next proposed reduction wave before I05. They are independent;
+Owner sequencing update (2026-11-05): complete I01–I06, then start L01 onward.
+PR01–PR04 are deferred behind that requested sequence. They are independent;
 execute sequentially on master because some files overlap. Preserve contracts,
 owner WIP, test assertions and neighboring live helpers. No new dependencies,
 generic framework, route deletion or baseline increases. Run targeted commands
@@ -279,7 +280,7 @@ feature batch (B02–B07), running card checks as it goes; final code review is
 once the batch is ready. Avoid creating and deleting temporary APIs merely to
 publish intermediate cards. Worker completion means awaiting review, not push.
 
-#### Current execution status — B01–B09 and I01–I04 DONE
+#### Current execution status — B01–B09 and I01–I06 DONE
 
 Canonical checkout: `/Users/paul/projects/audiobookshelf-go`, `master`.
 All four book/documentation commits from base `48c10a6a` through `948f6a15`
@@ -295,7 +296,8 @@ Documentation baseline is `d64aa599`.
 | I01 | DONE (`d2ec8d9`): test-only SQL query counter, direct + prepared execution verified |
 | I02 | DONE: bounded LoadMany; scalar Load delegates; 0/3/6 read boundary proofs |
 | I03/I04 | DONE: one settings snapshot + ordinary page batch; actual 10/50 returned books use 7/7 reads |
-| I05/I06, lists | PLANNED; no shelf/item row/list migration claimed complete |
+| I05/I06 | DONE in this code commit: book shelf batch + shared item rows; 10/50 shelf hydration reads 6/6; replaced query/decoder/classifier bodies removed |
+| Lists | L01 next; no list ownership migration claimed complete yet |
 
 Book feature d2ec8d9 snapshot metrics versus 48c10a6a: **44,585 production Go lines (−1)**,
 **complexity 10,840 (−11)**, **991 dynamic maps (−2)**. This is a boundary and
@@ -320,17 +322,50 @@ The three baseline values were explicitly adjusted in this feature commit;
 Q1 was not implemented and no guard was removed. Future growth still needs
 measured benefit and review; reduction remains a project goal.
 
-Next domain implementation card: **I05**, book shelves; then I06 common item rows.
-The current pruning review proposes PR01–PR04 first to deliver measured deletion.
+I05/I06 accepted wave: tracked-source metrics **44,889 lines (+165)**,
+**10,894 complexity (+23)**, maps **993 (+2)**, []any **326 (+1)**,
+high-complexity functions **179 (+1)** versus `7105382c`. Architect explicitly
+accepts the new bounded common-item loader and typed row boundary for measured
+51/251 -> 6/6 shelf hydration reads; this is a source-cost exception, not a
+reduction. The five baseline values are adjusted in this code commit, without
+weakening the strict ratchet or adding a dependency. Decoder/SQL/classifier
+duplication and extra shelf lookup maps are removed, not left as alternatives.
+
+Build/vet/lint (0 issues)/dbnest/arm64 build and affected packages PASS.
+Full suite exits 1 only for the same five pre-existing libwebp journey cases;
+no additional failures. Tracked-source validation snapshot excludes inherited
+untracked WIP; see handover. Node rollback/device/latency tests not run.
+
+Next implementation card: **L01**, then L02/L03. Each stage must name the old
+code it deletes, any necessary
+adapter consumers and the exact later removal condition.
 Podcasts, collapsed/include paths and other consumers remain open; no whole
 P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
-Completed read spine: `B01–B09`, `I01–I04`. Remaining dependency spine:
-`I05 -> I06`. I05 is the next dispatchable domain card after the pruning wave.
+Completed read spine: `B01–B09`, `I01–I06`. Next dependency spine:
+`L01 -> L02 -> L03`. Mixed-media consumer migration remains separate.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
+
+##### Stage-by-stage removal contract
+
+| Stage | Old code to remove / deliberate retention |
+|---|---|
+| I01 (DONE) | Test-only query instrumentation; no production code replaced or claimed deleted. |
+| I02 (DONE) | Old scalar book SELECT/relation reads deleted; Load delegates to one LoadMany implementation. |
+| I03 (DONE) | Repeated prefix-settings reads removed from batched book-page hydration; titlePrefix remains for named nonbatched callers. |
+| I04 (DONE) | Per-book scalar hydration removed from ordinary no-include/noncollapsed pages; podcast/includes/collapsed paths retain explicit fallback. |
+| I05 (DONE) | Per-ID book/no-includes hydration replaced; podcast/includes fallback retained. Temporary common-envelope SQL removed by I06 in the same wave. |
+| I06 (DONE) | catalog scanItemRow deleted entirely; scalar loadItem SQL, I05 envelope query/stringsToArgs and local fileType switch deleted. items owns shared row projection/scanner/loader/classifier; recordToMap and thin loadItem remain for page/detail/shelf consumers until mixed-media projection migration. |
+| L01 | Tests only, no production deletion. Preserve independent assertions and existing regressions. |
+| L02 | Delete SELECT/media-entry assembly from userapi playlistJSON. ownedPlaylist retains its pre-hydration owner/library authorization query; forwarding methods name exact consumers until final L05 removal. |
+| L03 | Delete moved collection SELECT/DTO bodies from userapi; preserve HTTP/error/feed/pagination orchestration. Thin adapters survive only for existing writers until L05. |
+| L04 | Documentation only: each write/route packet names original functions to delete; L05 removes all now-unreferenced forwarding adapters after final wiring. |
+
+Measure actual net lines/complexity at review; moving code alone is not a size
+reduction. No legacy implementation may coexist with its accepted replacement.
 
 ##### B01 · Pin book projection values
 
@@ -466,7 +501,10 @@ Actual endpoint proof: read-only archived ef4d14e + the same test gave 43/203 re
 
 ##### I05 · Batch book shelf hydration
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — implemented and architect-reviewed in this code commit.
+  Focused/full catalog and wave checks recorded above. 10/50 actual selected
+  books: 51/251 -> 6/6 reads through personalizedItems, not endpoint totals.
+  I06 removed the temporary envelope SQL before acceptance.
 
 - **Depends:** I04. **Write only:** `internal/catalog/personalized.go:personalizedItems`, `query_count_test.go`, `handler_test.go`.
 - **Do:** Collect all IDs, check Rows.Err and explicitly close Rows before hydration. For book shelves load common libraryItems envelopes in one query per chunk, then use I03. Preserve shelf order, per-user progress/ACL and error behavior. Podcast hydration and per-item includes stay explicit follow-ups, never label all shelves batched.
@@ -475,10 +513,13 @@ Actual endpoint proof: read-only archived ef4d14e + the same test gave 43/203 re
 
 ##### I06 · Extract common item row decoding
 
-- [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
+- [x] **DONE** — implemented and architect-reviewed in this code commit.
+  One items.Record/ScanRecord/LoadMany/RowColumns/FileType owner; old catalog
+  scanner/classifier/scalar SQL and I05 envelope SQL/argument helper deleted.
+  Boundary/value/date/cancellation/query-count tests and wave gates recorded above.
 
-- **Depends:** I05. **Write only:** `internal/items/row.go`, `row_test.go` (new); `internal/catalog/handler.go:scanItemRow/loadItem`.
-- **Do:** Define typed items.Record and common row decode/ID batch load; keep books/podcast-specific projection outside the row type. Move generic field/time/file normalization from scanItemRow using existing dbtime parser, and have catalog adapt the record to the established outer JSON map. Reuse I05 envelope batch SQL. Do not expand items.Reader or migrate every consumer in this card.
+- **Depends:** I05. **Write only:** `internal/items/row.go`, `row_test.go` (new); `internal/catalog/handler.go:scanItemRow/loadItem/fileType`; I05 envelope helper in `personalized.go` and tests in `shelf_batch_test.go`; `batch_chapters.go` only mechanical shared-classifier calls.
+- **Do:** Define typed items.Record and common row decode/ID batch load; keep books/podcast-specific projection outside the row type. Move generic field/time/file normalization from scanItemRow using existing dbtime parser, and have catalog adapt the record to the established outer JSON map. Absorb/delete I05 envelope batch SQL. Do not expand items.Reader or migrate every consumer in this card.
 - **Check (from go-backend):** `go test ./internal/items ./internal/catalog -run 'TestItemRowValues|TestBookProjectionValues|TestPodcastItemDetailSerializesEpisodeAndTrack|TestItemGolden' -count=1`.
 - **Done:** New TestItemRowValues asserts ID/mediaID separation, dbtime milliseconds, optional scan/size fields, file classification and malformed date failure. One row decoder; wire map adapters remain explicitly until mixed-media contracts are migrated.
 
@@ -495,7 +536,7 @@ implementation plan for untouched packages.
 
 - [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
 
-- **Depends:** I06. **Write only:** Tests only: `internal/userapi/userapi_test.go`, `playlist_collection_regression_test.go`, `playlist_order_test.go`.
+- **Depends:** I06. **Write only:** Tests only: new `internal/userapi/list_read_test.go`; existing `userapi_test.go`, `playlist_collection_regression_test.go`, `playlist_order_test.go` only if shared fixture changes are necessary.
 - **Do:** Add TestListReadValuesAndPermissions for GET /api/collections, /api/playlists and detail using owner/other-user/no-library cases, real IDs/order/null description, book + podcast episode entries. Reuse existing fixture and keep existing playlist/order/regression tests.
 - **Check:** `go test ./internal/userapi -run 'TestListReadValuesAndPermissions|TestPlaylistCreateListAndOwnerRestriction|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
 - **Done:** Independent semantic/ACL baseline exists before ownership changes; no production edits.
@@ -505,7 +546,7 @@ implementation plan for untouched packages.
 - [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
 
 - **Depends:** L01. **Write only:** `internal/lists/reader.go`, `reader_test.go` (new); `internal/userapi/playlist.go`.
-- **Do:** Move GetPlaylist/ListPlaylistMediaItems use and playlist metadata/entry read assembly from ownedPlaylist/playlistJSON into a concrete lists.Reader. Keep existing item-reader dependency passed to the constructor and existing response map as a temporary boundary; do not move writes/routes or change orphan/error handling in this card. Lists never imports userapi/catalog.
+- **Do:** Move playlistJSON's GetPlaylist/ListPlaylistMediaItems and metadata/entry assembly into plain lists.Playlist(ctx, db, itemReader, id). Explicit dependencies match books; no stateless Reader object/constructor/extra Handler field. Keep existing response map as a temporary boundary. ownedPlaylist retains its authorization SELECT before hydration; preserve status/order and orphan/error handling. Do not move writes/routes. Lists never imports userapi/catalog.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestPlaylistReadValues|TestListReadValuesAndPermissions|TestPlaylistListsSortByLocaleCompare|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
 - **Done:** New TestPlaylistReadValues covers book/episode entries/order/nulls; no duplicate read implementation. Userapi retains a forwarding adapter until L05.
 
@@ -514,7 +555,7 @@ implementation plan for untouched packages.
 - [ ] **PLANNED** — not completed; follow dependencies and acceptance below.
 
 - **Depends:** L02. **Write only:** `internal/lists/collections.go`, `reader_test.go` (new/existing); collection read functions in `internal/userapi/userapi.go`, `library_lists.go`.
-- **Do:** Move collection SELECT and response assembly only, from collectionRoute/collectionDTO (userapi.go) and libraryCollections (library_lists.go); keep HTTP/writes where they are. Pass a small constructor callback `func(context.Context, store.User, string) (bool, error)` for existing per-item visibility; userapi adapts canAccessItem without importing userapi from lists. Keep filtering semantics in the same call order. Reuse list Reader and existing item serialization. No giant userapi rewrite or import from lists back to userapi.
+- **Do:** Move collectionDTO SELECT/assembly into plain lists.Collection(ctx, db, itemReader, id, canView). Pass a per-call callback `func(context.Context, string) (bool, error)` that binds the request user and adapts canAccessItem. This avoids an otherwise stateless Reader/constructor and additional Handler wiring. Keep filtering/error order, map boundary and successful empty-collection visibility. Reuse existing item serialization. collectionRoute and internal/userapi/library_lists.go keep HTTP/list-ID selection/pagination/feed/ACL orchestration; no write or route move, no import back to userapi/catalog.
 - **Check:** `go test ./internal/lists ./internal/userapi -run 'TestCollectionReadValues|TestListReadValuesAndPermissions|TestCollectionDescriptionDBValueMatchesLegacyNullCoercion|TestCreatePlaylistFromCollectionPersistsExpandedBookItems' -count=1`.
 - **Done:** New TestCollectionReadValues asserts list/detail/order/library visibility and values; old duplicate reads removed, forwarding endpoints preserved. If extraction needs >4 production files, return exact dependency list for split.
 
@@ -658,8 +699,9 @@ and prerequisites; this table deliberately is not authorization to code.
 
 Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
-Current request completed consolidation + analysis only; no pruning executed.
-Next proposed implementation: PR01–PR04, then I05 (book shelf hydration), after reviewed B01–B09/I01–I04. In parallel,
+G01/G02 completed consolidation + analysis only; no standalone pruning executed.
+Current owner sequence: I01–I06 reviewed DONE; start L01 onward.
+PR01–PR04 wait behind that sequence. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a prerequisite for the next behavior-preserving shelf slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

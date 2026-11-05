@@ -307,6 +307,14 @@ consumer-specific projections. Do not force one universal DTO. Query-count
 and value/ACL regressions accompany S13 + P2/P3 before cosmetic domain moves.
 sqlc supports this where static queries benefit; no call-site conversion quota.
 
+No-include book shelf hydration also batches common item rows and books:
+10/50 selected IDs take six reads through personalizedItems (not an endpoint
+total). `items.Record`, ScanRecord and bounded LoadMany now own the shared
+21-column row projection, timestamp/file normalization and classification.
+Catalog retains recordToMap and a thin scalar adapter for existing consumers;
+the old scanner/classifier and shelf/scalar SQL copies are deleted. Book
+selection, ACL/progress, includes and podcast orchestration remain in catalog.
+
 ## Realtime support and proof
 
 C25 replaced the old dependency with in-repo Engine.IO v4/Socket.IO v4,

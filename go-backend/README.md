@@ -148,9 +148,13 @@ excessive generic parity/ledger processes. Metrics guide review; the current
 ratchet still enforces limits pending the proposed Q1 policy change.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
+All stages carry an explicit old-code removal plan in ROADMAP. Current owner
+sequence has completed I01–I06 and now starts lists L01 onward;
+standalone pruning candidates wait behind this work.
+
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
-flat (−1 line), complexity −11, dynamic maps −2. The subsequent I02–I04 wave is also complete (see below). I05/I06, list migration,
+flat (−1 line), complexity −11, dynamic maps −2. I02–I06 are also complete (see below). List migration,
 book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
 gives exact scopes/dependencies/tests; this feature does not claim all domains
 complete or constant query counts yet.
@@ -168,8 +172,16 @@ empty input performs none. Ordinary noncollapsed/no-include book pages use
 batch hydration and reuse their existing settings snapshot. The regression
 fixture returns actual 10/50 filtered books in both envelope variants: prior
 43/203 reads, now 7/7. Order, ACL, pagination, prefixes and nullable values pass.
-Collapsed/include/podcast paths, shelves and other consumers remain open.
+Collapsed/include/podcast paths and other consumers remain open.
 
 This performance feature adds 139 production lines and 31 complexity points;
 the explicit baseline exception is recorded in ROADMAP/handover, with strict
 guards retained. Query counts improved; latency/RSS were not benchmarked.
+
+I05/I06 add bounded common-item loading and typed items.Record. No-include
+book shelf hydration drops from 51/251 to 6/6 reads for 10/50 actual IDs.
+The old catalog scanner, scalar item SQL, local classifier and temporary shelf
+query are removed. This wave still adds 165 production lines / 23 complexity;
+the reviewed source-cost exception is explicit, not a reduction claim. Same
+five native WebP journey failures remain; build/vet/lint/dbnest/arm64 and affected
+packages pass. All I cards are checked DONE; L01 is next.

@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	itemapi "audiobookshelf-compat/internal/items"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -418,25 +420,85 @@ func (h *Handler) personalizedItems(r *http.Request, user store.User, query stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	ids := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return nil, err
 	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	includes := requestItemIncludes(r, user)
+	if includes == (itemIncludes{}) && len(ids) > 0 {
+		records, err := itemapi.LoadMany(r.Context(), h.db, ids)
+		if err != nil {
+			return nil, err
+		}
+		mediaIDs := make([]string, 0, len(records))
+		bookShelf := true
+		for _, record := range records {
+			if record.MediaType != "book" {
+				bookShelf = false
+				continue
+			}
+			mediaIDs = append(mediaIDs, record.MediaID)
+		}
+		if bookShelf {
+			for _, id := range ids {
+				if _, ok := records[id]; !ok {
+					return nil, sql.ErrNoRows
+				}
+			}
+			books, err := bookdomain.LoadMany(r.Context(), h.db, mediaIDs)
+			if err != nil {
+				return nil, err
+			}
+			var settings []byte
+			_ = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
+			prefixes := sortingPrefixesFromJSON(settings)
+			items := make([]map[string]any, 0, len(ids))
+			for _, id := range ids {
+				record := records[id]
+				book, ok := books[record.MediaID]
+				if !ok {
+					return nil, sql.ErrNoRows
+				}
+				var prefix *string
+				if title := book.Title(); title != nil {
+					value := catalogTitlePrefixAtEnd(*title, prefixes)
+					prefix = &value
+				}
+				media, err := book.Minified(prefix)
+				if err != nil {
+					return nil, err
+				}
+				item := recordToMap(record)
+				delete(item, "lastScan")
+				delete(item, "scanVersion")
+				delete(item, "libraryFiles")
+				item["media"] = media
+				items = append(items, item)
+			}
+			return items, nil
+		}
+	}
+
 	items := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
 		item, err := h.ItemMinifiedJSON(r.Context(), id)
 		if err != nil {
 			return nil, err
 		}
-		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
+		if err := h.attachItemIncludes(r.Context(), includes, id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

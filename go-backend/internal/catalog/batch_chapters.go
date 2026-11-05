@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	itemapi "audiobookshelf-compat/internal/items"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -523,7 +524,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 			break
 		}
 	}
-	if selected < 0 || fileType(fileMetadataExt(files[selected])) != "ebook" {
+	if selected < 0 || itemapi.FileType(fileMetadataExt(files[selected])) != "ebook" {
 		httputil.WriteError(w, http.StatusBadRequest, "Invalid ebook file id")
 		return
 	}
@@ -544,7 +545,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		primaryIno = stringValue(m["ino"])
 	}
 	for _, file := range files {
-		if fileType(fileMetadataExt(file)) == "ebook" {
+		if itemapi.FileType(fileMetadataExt(file)) == "ebook" {
 			file["isSupplementary"] = stringValue(file["ino"]) != primaryIno
 		}
 	}
