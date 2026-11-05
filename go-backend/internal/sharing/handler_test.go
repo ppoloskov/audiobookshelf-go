@@ -14,6 +14,7 @@ import (
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -29,7 +30,7 @@ func sharingFixture(t *testing.T) (*sql.DB, *Handler, store.User, string) {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { db.Close() })
-	now := sqlDate(time.Now())
+	now := dbtime.Format(time.Now())
 	user := store.User{ID: "u-admin", Type: "admin", IsActive: true, Permissions: []byte(`{"accessAllLibraries":true,"accessAllTags":true,"librariesAccessible":[],"itemTagsSelected":[]}`)}
 	if _, e = db.Exec(`INSERT INTO users(id,username,type,token,isActive,isLocked,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES(?,?,'admin','token',1,0,?,'[]','{}',?,?)`, user.ID, "admin", string(user.Permissions), now, now); e != nil {
 		t.Fatal(e)
@@ -85,7 +86,7 @@ func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 	}
 	// A refreshed feed must reflect newer library metadata while retaining the
 	// enclosure ID for the same audio path.
-	if _, e := db.Exec(`UPDATE books SET title='Renamed Book',updatedAt=? WHERE id='book-1'; UPDATE libraryItems SET updatedAt=? WHERE id='li-1'`, sqlDate(time.Now().Add(time.Minute)), sqlDate(time.Now().Add(time.Minute))); e != nil {
+	if _, e := db.Exec(`UPDATE books SET title='Renamed Book',updatedAt=? WHERE id='book-1'; UPDATE libraryItems SET updatedAt=? WHERE id='li-1'`, dbtime.Format(time.Now().Add(time.Minute)), dbtime.Format(time.Now().Add(time.Minute))); e != nil {
 		t.Fatal(e)
 	}
 	refresh := httptest.NewRecorder()
@@ -180,7 +181,7 @@ func emittingHandler(t *testing.T, h *Handler) *[]emitted {
 func TestOpenFeedKeepsNullColumnsNull(t *testing.T) {
 	db, h, admin, media := sharingFixture(t)
 	events := emittingHandler(t, h)
-	now := sqlDate(time.Now())
+	now := dbtime.Format(time.Now())
 	audio := `[{"index":1,"duration":12,"mimeType":"audio/mpeg","exclude":false,"metadata":{"path":"` + media + `","filename":"book.mp3","size":10}}]`
 	if _, e := db.Exec(`INSERT INTO books(id,title,explicit,duration,chapters,audioFiles,tags,genres,createdAt,updatedAt) VALUES('book-2','Bare Book',0,12,'[]',?,'[]','[]',?,?)`, audio, now, now); e != nil {
 		t.Fatal(e)

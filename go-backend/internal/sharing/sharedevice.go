@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/store"
 )
@@ -22,7 +23,7 @@ const serverVersion = "2.37.2"
 // and no user. The devices row is reused by deviceId, otherwise created with a
 // NULL userId. The returned map is DeviceInfo.toJSON, which drops null keys.
 func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSessionID string) (map[string]any, error) {
-	browser, browserVersion, osName, osVersion := parseUserAgent(r.UserAgent())
+	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(r.UserAgent())
 	const clientName = "Abs Web Share"
 	deviceName := ""
 	if osName != "" && browser != "" {
@@ -74,44 +75,4 @@ func clientIP(r *http.Request) string {
 		return host
 	}
 	return r.RemoteAddr
-}
-
-// parseUserAgent recognizes the common browsers and systems. It mirrors the
-// parser the playback package uses for its device rows; ua-parser-js
-// recognizes far more user agents, which stay unverified.
-func parseUserAgent(ua string) (browser, browserVersion, osName, osVersion string) {
-	after := func(marker string) string {
-		i := strings.Index(ua, marker)
-		if i < 0 {
-			return ""
-		}
-		v := ua[i+len(marker):]
-		if j := strings.IndexAny(v, " ;)"); j >= 0 {
-			v = v[:j]
-		}
-		return v
-	}
-	switch {
-	case strings.Contains(ua, "Firefox/"):
-		browser, browserVersion = "Firefox", after("Firefox/")
-	case strings.Contains(ua, "Edg/"):
-		browser, browserVersion = "Edge", after("Edg/")
-	case strings.Contains(ua, "Chrome/"):
-		browser, browserVersion = "Chrome", after("Chrome/")
-	case strings.Contains(ua, "Safari/"):
-		browser, browserVersion = "Safari", after("Version/")
-	}
-	switch {
-	case strings.Contains(ua, "Windows NT 10"):
-		osName, osVersion = "Windows", "10"
-	case strings.Contains(ua, "Mac OS X"):
-		osName, osVersion = "Mac OS", strings.ReplaceAll(after("Mac OS X "), "_", ".")
-	case strings.Contains(ua, "Android"):
-		osName, osVersion = "Android", after("Android ")
-	case strings.Contains(ua, "iPhone OS "):
-		osName, osVersion = "iOS", strings.ReplaceAll(after("iPhone OS "), "_", ".")
-	case strings.Contains(ua, "Linux"):
-		osName = "Linux"
-	}
-	return
 }

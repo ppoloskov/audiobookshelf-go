@@ -28,6 +28,8 @@ linters:
             - "**/internal/ids/**/*.go"
             - "**/internal/media/*.go"
             - "**/internal/media/**/*.go"
+            - "**/internal/deviceinfo/*.go"
+            - "**/internal/deviceinfo/**/*.go"
             - "**/internal/authz/*.go"
             - "**/internal/authz/**/*.go"
             - "**/internal/logging/*.go"

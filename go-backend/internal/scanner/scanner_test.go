@@ -144,12 +144,12 @@ func TestMetadataSourcesFollowConfiguredPrecedence(t *testing.T) {
 	st, _ := os.Stat(nfo)
 	g := &group{files: []file{{path: filepath.Join(dir, "audio.mp3")}}, companions: []file{{path: nfo, info: st}}}
 	order := []string{"folderStructure", "nfoFile", "audioMetatags"}
-	got := mergeBookMetadata("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"})
+	got := mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"}, bookMetadata{}, false)
 	if got.Title != "Audio Title" {
 		t.Fatalf("later audio source title=%q", got.Title)
 	}
 	order = []string{"audioMetatags", "nfoFile", "folderStructure"}
-	got = mergeBookMetadata("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"})
+	got = mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"}, bookMetadata{}, false)
 	if got.Title != "NFO Title" {
 		t.Fatalf("later NFO source title=%q", got.Title)
 	}
@@ -1121,7 +1121,7 @@ func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
 }
 
 func TestFilenameTrackDiscParsingMatchesUpstream(t *testing.T) {
-	track, disc := trackNumbersFromFilename("Author - Book CD2 - 003 Chapter.mp3")
+	track, disc := filenameNumbers("Author - Book CD2 - 003 Chapter.mp3", "", "", "", "", "")
 	if track != 3 || disc != 2 {
 		t.Fatalf("track/disc=%v/%v, want 3/2", track, disc)
 	}

@@ -3,7 +3,6 @@ package sharing
 
 import (
 	"archive/zip"
-	"audiobookshelf-compat/internal/dbtime"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -14,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
@@ -161,7 +159,6 @@ func libraryAccess(u store.User, id string) bool {
 	}
 	return false
 }
-func sqlDate(t time.Time) string { return dbtime.Format(t) }
 
 // hostPrefix is req.originalHostPrefix (server/Server.js:324): the request
 // origin, plus the router base path when the request URL carried it.

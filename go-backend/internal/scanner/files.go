@@ -725,34 +725,6 @@ func defaultMetadataPrecedence() []string {
 	return append([]string(nil), defaultMetadataSourceOrder...)
 }
 
-func mergeBookMetadata(title, author, series, sequence string, g *group, order []string, audioTags map[string]any) bookMetadata {
-	m := bookMetadata{Title: title, Authors: parseNameList(author)}
-	if series != "" {
-		m.Series = []seriesMetadata{{Name: series, Sequence: sequence}}
-	}
-	for _, source := range order {
-		switch source {
-		case "folderStructure":
-		case "audioMetatags":
-			if len(g.files) > 0 {
-				applyAudioMetadata(audioTags, &m)
-			}
-		case "nfoFile":
-			applyNFO(g, &m)
-		case "txtFiles":
-			applyTextFiles(g, &m)
-		case "opfFile":
-			applyOPFFiles(g, &m)
-		case "absMetadata":
-			// This compatibility helper has no external item ID; the integrated
-			// path uses mergeBookMetadataWithABS for the external fallback.
-		default:
-			// Unknown source names are intentionally ignored, like LibraryScanner's source dispatcher.
-		}
-	}
-	return m
-}
-
 func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, order []string, audioTags map[string]any, abs bookMetadata, hasABS bool) bookMetadata {
 	m := bookMetadata{Title: title, Authors: parseNameList(author)}
 	if series != "" {
@@ -1389,10 +1361,6 @@ func firstTrackNumber(value string) any {
 	}
 	return number
 }
-func trackNumbersFromFilename(filename string) (any, any) {
-	return filenameNumbers(filename, "", "", "", "", "")
-}
-
 func audioFilename(af map[string]any) string {
 	if meta, ok := af["metadata"].(map[string]any); ok {
 		if filename, ok := meta["filename"].(string); ok {

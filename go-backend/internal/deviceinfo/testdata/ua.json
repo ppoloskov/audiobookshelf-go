@@ -1,0 +1,82 @@
+[
+  {
+    "name": "browser precedence and OS precedence",
+    "ua": "Mozilla Firefox/12 Edg/13 Chrome/14 Safari/15 Version/16 Windows NT 10 Mac OS X 13_2 Android 9 iPhone OS 17_1 Linux",
+    "browser": "Firefox",
+    "browserVersion": "12",
+    "osName": "Windows",
+    "osVersion": "10"
+  },
+  {
+    "name": "substring and case sensitive markers",
+    "ua": "xFirefox/1x chrome/2 Linux",
+    "browser": "Firefox",
+    "browserVersion": "1x",
+    "osName": "Linux",
+    "osVersion": ""
+  },
+  {
+    "name": "first marker and delimiters",
+    "ua": "Edg/3;Edg/4 Chrome/5 Android 8;Android 9",
+    "browser": "Edge",
+    "browserVersion": "3",
+    "osName": "Android",
+    "osVersion": "8"
+  },
+  {
+    "name": "space delimiter and underscores",
+    "ua": "Version/17.2 Safari/605 Mac OS X 14_3_1",
+    "browser": "Safari",
+    "browserVersion": "17.2",
+    "osName": "Mac OS",
+    "osVersion": "14.3.1"
+  },
+  {
+    "name": "Safari missing Version marker",
+    "ua": "Safari/605 Linux",
+    "browser": "Safari",
+    "browserVersion": "",
+    "osName": "Linux",
+    "osVersion": ""
+  },
+  {
+    "name": "iPhone OS underscore conversion",
+    "ua": "iPhone OS 17_4_1",
+    "browser": "",
+    "browserVersion": "",
+    "osName": "iOS",
+    "osVersion": "17.4.1"
+  },
+  {
+    "name": "unrecognized and empty",
+    "ua": "",
+    "browser": "",
+    "browserVersion": "",
+    "osName": "",
+    "osVersion": ""
+  },
+  {
+    "name": "closing parenthesis delimiter and Chrome selection",
+    "ua": "Chrome/124.0) Android 14)",
+    "browser": "Chrome",
+    "browserVersion": "124.0",
+    "osName": "Android",
+    "osVersion": "14"
+  },
+  {
+    "name": "lowercase markers are unrecognized",
+    "ua": "firefox/1 edg/2 chrome/3 safari/4 version/5 android 14 linux",
+    "browser": "",
+    "browserVersion": "",
+    "osName": "",
+    "osVersion": ""
+  },
+  {
+    "name": "iPhone-like Mac substring keeps Mac precedence",
+    "ua": "Mac OS X) iPhone OS 17_4",
+    "browser": "",
+    "browserVersion": "",
+    "osName": "Mac OS",
+    "osVersion": ""
+  }
+]

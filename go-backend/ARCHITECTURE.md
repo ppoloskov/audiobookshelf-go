@@ -162,6 +162,11 @@ live in catalog; it must not create an `items -> catalog` dependency.
 Persisted JSON container normalization is shared in `store` for the existing
 lenient column semantics; it is not HTTP request validation.
 
+Playback and public-share device records reuse stdlib-only
+`deviceinfo.ParseUserAgent` for their identical four-field parser. Both old
+parsers are deleted. The richer userapi session parser remains separate;
+case sensitivity, marker/OS precedence and missing-field quirks are preserved.
+
 Migrate one projection/caller per packet; keep every intermediate tree
 buildable. Named forwarding adapters may survive only until the specified
 removal packet. Relevant contract tests accompany each domain migration;

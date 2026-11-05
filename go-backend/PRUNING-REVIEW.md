@@ -16,9 +16,16 @@ codec full Go suite PASS. Tests protect real response values/headers and old
 nullable SQL semantics; no routes, security checks or stored formats removed.
 
 The read-only HTTP implementation was audited separately and is active via
-ABS_GO_READ_ONLY; its behavior is retained. PR05/PR06 remain conditional, as
-do the wider framing removals that need mobile cache-validator evidence.
+ABS_GO_READ_ONLY; its behavior is retained. PR05/PR06 are accepted in the
+subsequent wave below; wider framing still needs mobile cache-validator evidence.
 See ROADMAP for actual DONE markers and TESTING.md for the fixed environment.
+
+Subsequent PR06/PR05 wave is now DONE: 35 and 39 additional production lines
+removed, respectively; complexity −25 and maps −1. Identical characterization
+cases passed both old UA parsers and the shared leaf; existing metadata,
+filename and date assertions now use active implementations. Full integrated
+checks PASS. Combined cleanup delivery is 232 production lines removed; the
+conditional descriptions below are historical proof obligations now resolved.
 
 Scope: handwritten production Go backend. Generated sqlc, pinned upstream,
 unchanged client, test-only serialization oracles and inherited untracked
@@ -112,4 +119,4 @@ the accepted wave then runs AGENTS integration gates and measures actual
 ratchet changes. The isolated native libwebp environment now makes all five
 former image failures pass; do not use the old host gap as a waiver.
 
-net: -158 measured production lines delivered; conditional cuts remain unclaimed
+net: -232 measured production lines delivered across both cleanup waves

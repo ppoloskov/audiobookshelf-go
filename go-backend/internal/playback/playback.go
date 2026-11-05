@@ -26,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -1809,7 +1810,7 @@ func cleanDevice(in map[string]any) map[string]any {
 func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Request, client map[string]any) (string, map[string]any, error) {
 	get := func(key string) string { v, _ := client[key].(string); return v }
 	ua := r.UserAgent()
-	browser, browserVersion, osName, osVersion := parseUA(ua)
+	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(ua)
 	clientVersion := get("clientVersion")
 	if clientVersion == "" {
 		clientVersion = "2.37.2"
@@ -1895,49 +1896,6 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	return dbID, info, nil
 }
 
-func parseUA(ua string) (browser, browserVersion, osName, osVersion string) {
-	if strings.Contains(ua, "Firefox/") {
-		browser = "Firefox"
-		browserVersion = after(ua, "Firefox/")
-	} else if strings.Contains(ua, "Edg/") {
-		browser = "Edge"
-		browserVersion = after(ua, "Edg/")
-	} else if strings.Contains(ua, "Chrome/") {
-		browser = "Chrome"
-		browserVersion = after(ua, "Chrome/")
-	} else if strings.Contains(ua, "Safari/") {
-		browser = "Safari"
-		browserVersion = after(ua, "Version/")
-	}
-	if strings.Contains(ua, "Windows NT 10") {
-		osName = "Windows"
-		osVersion = "10"
-	} else if strings.Contains(ua, "Mac OS X") {
-		osName = "Mac OS"
-		osVersion = after(ua, "Mac OS X ")
-		osVersion = strings.ReplaceAll(osVersion, "_", ".")
-	} else if strings.Contains(ua, "Android") {
-		osName = "Android"
-		osVersion = after(ua, "Android ")
-	} else if strings.Contains(ua, "iPhone OS ") {
-		osName = "iOS"
-		osVersion = after(ua, "iPhone OS ")
-		osVersion = strings.ReplaceAll(osVersion, "_", ".")
-	} else if strings.Contains(ua, "Linux") {
-		osName = "Linux"
-	}
-	return
-}
-func after(value, marker string) string {
-	if i := strings.Index(value, marker); i >= 0 {
-		v := value[i+len(marker):]
-		if j := strings.IndexAny(v, " ;)"); j >= 0 {
-			v = v[:j]
-		}
-		return v
-	}
-	return ""
-}
 func or(value, fallback string) string {
 	if value != "" {
 		return value

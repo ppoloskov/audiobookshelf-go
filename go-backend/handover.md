@@ -10,7 +10,32 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
-## Cleanup checkpoint closed — current acceptance
+## Active approved sequence
+
+PR06 -> PR05 -> MC-05/S9b -> finishing lists is approved. PR06/PR05 are now
+accepted in one code commit with individual DONE markers. PR06 removes 35
+production lines; same metadata/filename/date assertions now hit active code.
+PR05 removes 39 production lines after new package/import overhead. Both old
+parsers and the new leaf passed the same 10 expected cases, including case,
+priority, delimiters, missing Version and the preserved iPhone/Mac quirk.
+Old implementations/token helper are deleted; userapi's richer parser stays.
+No stateless service/interface/dependency was added. Owner WIP remains untouched.
+
+Final metrics: lines 44,760 -> 44,686 (−74), complexity 10,848 -> 10,823 (−25),
+maps 993 -> 992; []any 326 and high functions 179 unchanged. Build/vet/lint0,
+dbnest/Linux arm64 build/full native-codec suite count=1 all PASS. Baselines
+lowered by existing tool; final ratchet PASS. Source: 24d199e6 archive plus
+exact scanner/sharing/playback/deviceinfo and dependency-rule overlays. Logs
+under /tmp/abs-pr06-pr05-20261105; no Node rollback/device/latency run or SQL
+generation change. Next: MC-05/S9b, then bounded list writes/routes.
+
+MC-05 research has identified pinned Lissen typed-JSON Cacheable calls, while
+artwork calls are binary and not Cacheable. Before declaring a server bug or
+adding a cache layer, verify the client's successful-200/no-ETag fallback and
+the live endpoints. No runtime conditional-cache change is accepted yet.
+List finishing is still in source/dependency planning until this gate clears.
+
+## Prior cleanup checkpoint closed — acceptance at 24d199e6
 
 Current cleanup checkpoint (owner's six-priority update) is CLOSED. I05/I06 and
 L01–L03 are already complete; no new domain migration is underway. RO01 proved
@@ -425,8 +450,8 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next:** prove PR06/PR05 and the S9b mobile cache matrix before their
-deletions. PR01–PR04/PR07 are DONE; conditional cuts and L04 onward remain
+**Current next:** MC-05/S9b source/HTTP proof, then finish lists under L04/L05.
+PR01–PR07 are DONE; S9b and L04 onward remain
 unchecked. I01–I06 do not complete all of
 S13/P2/P3 or all client/media
 paths. Future API uses plain LoadMany, not the removed stateless Reader.

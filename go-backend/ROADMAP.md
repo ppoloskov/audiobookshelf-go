@@ -36,6 +36,14 @@ is input evidence, not an automatic statement of current runtime behavior.
 
 ## Owner cleanup priorities — 2026-11-05
 
+Latest approved sequence: **PR06 -> PR05 -> MC-05/S9b -> finish lists**.
+PR06/PR05 execute sequentially as one coherent deletion wave; review and full
+integration gates run once before both DONE markers land in the code commit.
+Source/client research for later stages may proceed read-only in parallel.
+MC-05 must distinguish optional client caching from required validator
+semantics before any new runtime cache layer is proposed. L04 must produce
+exact write/route/deletion packets before continuing list implementation.
+
 I05/I06 and L01–L03 already landed before this priority update. Do not restart
 them or expand into more domains. **This bounded cleanup checkpoint is CLOSED**
 after RO02/S9a/PR01–PR04/PR07 and FF01 validation. Remaining S9b and conditional
@@ -133,9 +141,9 @@ cuts are explicitly pending; no new domain migration was started.
 
 ### Small pruning packets — planned, no runtime removals yet
 
-I01–I06, L01–L03 and PR01–PR04/PR07 are complete. PR06/PR05 are the remaining
-conditional pruning candidates; prove equivalence and net savings before
-dispatch. S9b separately needs its client-validator evidence. No new domain
+I01–I06, L01–L03 and PR01–PR07 are complete. PR06/PR05 passed their conditional
+equivalence/net-savings proof. S9b still needs its client-validator evidence.
+No new domain
 expansion occurred during the completed cleanup checkpoint. PR01–PR04 were independent;
 execute sequentially on master because some files overlap. Preserve contracts,
 owner WIP, test assertions and neighboring live helpers. No new dependencies,
@@ -191,7 +199,11 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR05 · Share the equivalent playback/sharing UA parser (S8 subset)
 
-- [ ] PLANNED, after PR01–PR04. Write only playback/playback.go,
+- [x] DONE in this code commit after PR06 scoped verification: both old parsers
+  and playback's token helper deleted; one stdlib-only deviceinfo.ParseUserAgent
+  serves both callers. Ten identical expected cases pass both original parsers
+  in immutable 24d199e6 source and the new leaf; device-row assertions retained.
+  Net production −39 lines; full paired-wave checks PASS. Write only playback/playback.go,
   sharing/sharedevice.go and new deviceinfo/ua.go + ua_test.go. Characterize
   both tuple parsers first, including precedence/case/marker/delimiter cases
   in the review. Extract one leaf function, delete both replaced copies;
@@ -202,7 +214,10 @@ pending with its evidence; it does not justify another speculative rewrite.
 
 #### PR06 · Point legacy-helper tests at production implementations
 
-- [ ] PLANNED, conditional. Write only scanner/files.go + scanner_test.go and
+- [x] DONE in this code commit — all original assertions retained and redirected
+  to active functions; three obsolete production helpers deleted. Before/after
+  scanner/sharing and full paired-wave checks PASS; net 35 production lines
+  removed. Write only scanner/files.go + scanner_test.go and
   sharing/handler.go + handler_test.go. Redirect mergeBookMetadata tests to
   mergeBookMetadataWithABS with hasABS=false; filename wrapper test to
   filenameNumbers with identical empty arguments; sharing sqlDate setup to
@@ -211,6 +226,16 @@ pending with its evidence; it does not justify another speculative rewrite.
 - Verify: `go test ./internal/scanner ./internal/sharing`, including metadata
   precedence and filename track/disc tests. groupKey/cdDirectory are excluded
   until real grouping-path coverage is established.
+
+Paired PR06 -> PR05 acceptance at 24d199e6: production **44,760 -> 44,686
+(−74)**; complexity **10,848 -> 10,823 (−25)**; maps **993 -> 992 (−1)**.
+[]any 326, high functions 179 and other metrics unchanged. Build/vet/lint (0),
+dbnest, Linux/arm64 CGO=0 build and full native-codec Go suite count=1 PASS.
+Lower-only baseline update and final make ratchet PASS; no growth exception.
+No SQL generation input/caller, schema, protocol or persistence behavior changed.
+Original parser characterization used temporary package-local tests against the
+same retained fixture; no legacy parser oracle/framework is shipped. Owner
+untracked identity routes excluded from exact tracked-source validation.
 
 #### PR07 · Remove the now-unnecessary playlistJSON forwarder
 
@@ -455,8 +480,7 @@ no new generated output. Full suite exits 1 only for the same five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next cleanup work: prove **PR06/PR05** and **S9b** prerequisites before those
-deletions. PR01–PR04/PR07 are DONE. L04 write decomposition remains future work,
+Next work: **MC-05/S9b** client/HTTP contracts; PR01–PR07 are DONE. L04 write decomposition remains future work,
 then its reviewed packets and final L05
 wiring. Each stage must name the old
 code it deletes, any necessary
@@ -925,8 +949,8 @@ Documentation/audit evidence and commands actually executed are recorded in
 [handover.md](handover.md). Implementation and device tests are not implied.
 G01/G02 completed consolidation + analysis only; no standalone pruning executed.
 Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
-PR01–PR04/PR07 are DONE. PR06/PR05 and S9b require their named proof before
-further deletion; L04 write decomposition remains future work. In parallel,
+PR01–PR07 are DONE. MC-05/S9b source/HTTP proof is next before its framing
+decisions; L04 write decomposition remains future work. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

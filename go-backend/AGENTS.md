@@ -30,14 +30,19 @@ clients, books and progress, using simple, clear, fast Go.
   proven duplication/representation scaffolding (RO02/S9a and PR cards), repair
   the FFmpeg test environment, and tighten final deletion/growth review.
   The bounded checkpoint is now closed with 158 lines removed and a full native-
-  codec suite PASS. PR06/PR05 and validator-sensitive S9b remain pending;
-  do not infer their proofs from S9a. Net production source must fall in deletion
+  codec suite PASS. PR06/PR05 are accepted in the subsequent paired cleanup;
+  validator-sensitive S9b still needs its own proof. Net production source must fall in deletion
   work without a baseline increase. L05 still waits for exact
   write/route scopes and zero leftover replacement bodies. Each stage
   names old bodies to delete and any adapter's consumers/removal condition.
   Dispatch one card, not
   the whole epic. Relevant compatibility checks accompany each slice; no
   requirement to complete unrelated client research first.
+- Latest approved sequence: PR06 -> PR05 -> MC-05/S9b -> finishing lists.
+  PR06/PR05 are now accepted in one reviewed deletion commit (−74 production
+  lines/−25 complexity); MC-05/S9b is next. Later-stage source research is read-only
+  until its implementation predecessors are accepted. No speculative cache
+  layer or list framework is authorized by a missing test alone.
 - Give each worker one task ID, exact read/write scope, fixed contracts,
   dependencies, named tests/commands and a short completion format. Workers
   do not change architecture, expand scope, commit, publish or deploy.

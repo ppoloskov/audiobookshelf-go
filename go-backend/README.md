@@ -154,8 +154,10 @@ Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
 sequence has completed I01–I06 and lists L01–L03. The cleanup checkpoint also
 completed RO02, S9a, PR01–PR04 and PR07: **158 fewer production lines, 46 fewer
-complexity points**, no metric growth. Conditional PR06/PR05 and validator-
-sensitive S9b remain pending; no further domain migration was started.
+complexity points**, no metric growth. Latest approved sequence is PR06 ->
+PR05 -> MC-05/S9b -> finishing lists. PR06/PR05 are now DONE: 74 more production
+lines and 25 complexity points removed; integrated full suite and guards PASS.
+MC-05/S9b is next. No later domain migration has started.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly

@@ -79,8 +79,10 @@ the playlist forwarder is gone. Strict baselines were lowered, not raised.
 An isolated signed-source FFmpeg/libwebp build makes the full local clean-source
 suite pass. Restricted HTTP remains active and is retained; its prefix copies
 are deleted. collectionDTO's per-user ACL adaptation still has real callers.
-Conditional PR06/PR05 and validator-sensitive S9b remain pending before broader
-cleanup; L04 still scopes future writes. Q1 now requires explicit growth review.
+PR06/PR05 are now accepted too: 74 more production lines removed, complexity
+−25. MC-05/S9b is next, then L04 scopes remaining list writes/routes. Q1 requires
+explicit growth review; client caching must be distinguished from mandatory
+validator support before adding runtime behavior.
 All device/route-removal decisions stay
 open. Initial acceptance had five local WebP encoder failures; the isolated
 native FFmpeg fix now makes the integrated full suite pass. Build/vet/lint/
