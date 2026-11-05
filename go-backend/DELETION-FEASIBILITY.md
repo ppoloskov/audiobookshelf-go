@@ -1,4 +1,18 @@
-# Deletion feasibility and first-wave proposal
+# Deletion feasibility review — functionality retained
+
+## Current decision
+
+The owner clarified that functionality must not be dropped. F1/F2 backup and
+manual audio operations, and F3–F5 provider/matching operations, are **KEEP**.
+They have active web UI consumers. D02's product-cut proposal and uncommitted
+implementation were withdrawn before any commit or push; source and baseline
+were restored to `82110311`. No savings from that removal wave are retained.
+
+The inventory below is historical feasibility evidence: 4,607 feature-footprint
+lines are not 4,607 removable lines. The first-wave proposal below is withdrawn,
+not pending approval. No proven behavior-preserving 1,000-line wave was found.
+Future work must show actual duplication or smaller equivalent implementations
+and protect all retained behavior. Do not reuse discarded D02 snapshots/code.
 
 Architect-reviewed source audit, 2026-11-05, against `7c08c25b`. Candidate
 files below are unchanged by the subsequent lists completion. Counts are
@@ -18,11 +32,11 @@ to the repository root.
 
 | ID | Exact deletion surface | Gross lines | Classification / evidence |
 |---|---|---:|---|
-| F1 | `internal/backup/backup.go:1–803`, all declarations/functions | 803 | Optional only by product decision. Active web backup settings/table calls: `client/pages/config/backups.vue:157–206`, `client/components/tables/BackupsTable.vue:89–183`. Native use unknown. |
-| F2 | `internal/audiotools/tools.go:1–732`, all declarations/functions | 732 | Optional manual M4B/metadata-embedding tools; active `client/pages/audiobook/_id/manage.vue:340–390`, `Tools.vue:94–114`, batch embed `Appbar.vue:203`, task polling `layouts/default.vue:581`. Native use unknown. |
-| F3 | `internal/providers/author_match.go:1–92`, `book_finder.go:1–445`, `builtin_search.go:1–802`, `cover_search.go:1–150`, `custom_search.go:1–215`, `handler.go:1–356`, `podcast_finder.go:1–21` | 2,081 | Conditional whole provider/search/custom-administration removal. Active match/search/custom-provider UI; HTTP and realtime consumers, detailed below. Not authorized. |
-| F4 | `internal/catalog/quickmatch.go:1–916` | 916 | Conditional item/batch/library matching removal, not duplicate hydration. Direct search can remain if only this feature is removed. |
-| F5 | `internal/catalog/authors.go:991–1065`, `authorMatch` | 75 | Conditional author matching removal. Active AuthorCard, author EditModal and BookShelfToolbar callers. Shared author/ACL helpers stay. |
+| F1 — KEEP | `internal/backup/backup.go:1–803`, all declarations/functions | 803 | Optional only by product decision. Active web backup settings/table calls: `client/pages/config/backups.vue:157–206`, `client/components/tables/BackupsTable.vue:89–183`. Native use unknown. |
+| F2 — KEEP | `internal/audiotools/tools.go:1–732`, all declarations/functions | 732 | Optional manual M4B/metadata-embedding tools; active `client/pages/audiobook/_id/manage.vue:340–390`, `Tools.vue:94–114`, batch embed `Appbar.vue:203`, task polling `layouts/default.vue:581`. Native use unknown. |
+| F3 — KEEP | `internal/providers/author_match.go:1–92`, `book_finder.go:1–445`, `builtin_search.go:1–802`, `cover_search.go:1–150`, `custom_search.go:1–215`, `handler.go:1–356`, `podcast_finder.go:1–21` | 2,081 | Conditional whole provider/search/custom-administration removal. Active match/search/custom-provider UI; HTTP and realtime consumers, detailed below. Not authorized. |
+| F4 — KEEP | `internal/catalog/quickmatch.go:1–916` | 916 | Conditional item/batch/library matching removal, not duplicate hydration. Direct search can remain if only this feature is removed. |
+| F5 — KEEP | `internal/catalog/authors.go:991–1065`, `authorMatch` | 75 | Conditional author matching removal. Active AuthorCard, author EditModal and BookShelfToolbar callers. Shared author/ACL helpers stay. |
 | | **Unique conditional gross, F1–F5** | **4,607** | No overlap. No guaranteed net savings credited. |
 
 Provider/matching web consumers include `client/components/modals/item/tabs/Match.vue:426`,
@@ -39,7 +53,7 @@ path authorization and persisted ebook status. Manager restore helpers are
 listed below as dependency cleanup, not precredited savings. Shared manual
 metadata/ACL/image helpers outside F4/F5 are retained.
 
-## Proposed first wave: F1 + F2, awaiting owner decision
+## Withdrawn first-wave proposal: F1 + F2
 
 The concrete gross target is **1,535 lines**, not a package relocation.
 A proposed **250-line planning maximum** for replacement code plus retained lines from

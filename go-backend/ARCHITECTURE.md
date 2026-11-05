@@ -40,9 +40,8 @@ In practice:
    [Metrics](#metrics)).
    Before another domain extraction, establish its end-to-end deletion case:
    exact old bodies, replacement cost, client obligations, tests and net
-   savings. Moving lines between packages is not a reduction. The next stage
-   is a deletion feasibility audit and a reviewed 1,000-line reduction wave;
-   optional feature removals still require individual owner decisions.
+   savings. Moving lines between packages is not a reduction. Reductions must
+   preserve functionality; a numerical target never authorizes a feature cut.
 2. **Compatible, not identical.** A response is correct when every field a
    client reads is present with the right JSON type and meaning. Key order,
    whitespace and ETag representation may differ when client semantics stay
@@ -58,8 +57,23 @@ In practice:
    meaningful amount of code or risk, not for one helper.
 5. **Fast by default.** Constant query counts per page, no per-request settings
    reads, concurrent reads. Performance is measured, not assumed.
-6. **Remove what no client needs.** A route or behavior with no client caller
-   is a removal candidate. The owner approves each removal.
+6. **Preserve implemented functionality.** Remove proven redundant or dead
+   internals while retaining features, routes and observable behavior. Selected
+   client absence is not evidence that a feature can be dropped.
+
+## Functionality-preserving simplification
+
+Backup creation/scheduling/upload/restore/download/list/delete/path management
+and manual audio conversion/embedding/queue/cancel remain supported. They have
+active bundled web UI consumers. The D02 product-narrowing proposal and its
+uncommitted implementation were withdrawn after the owner's clarification;
+nothing from that removal wave was published. The SQLite/protocol contracts
+above include these features. Do not trade functionality for a LOC target.
+
+A credible reduction wave must identify actual duplicated implementations or
+smaller equivalent mechanisms, account for replacement cost, and protect the
+retained operations with tests. If a 1,000-line net reduction is not evidenced,
+report the shortfall rather than inventing savings or cutting features.
 
 ## Contracts in detail
 

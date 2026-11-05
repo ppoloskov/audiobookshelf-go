@@ -8,7 +8,8 @@ Manual deployment, new libraries and route removals retain separate approval.
 Record actual completed cards and tests; do not mark plans done. [ARCHITECTURE.md](ARCHITECTURE.md) owns permanent
 contracts; [AGENTS.md](AGENTS.md) owns worker/check policy.
 
-Current acceptance: L04/L05 and D01 DONE; D02 decisions/design next. Full
+Current acceptance: L04/L05 and D01 DONE; D02 is withdrawn. Preserve all
+implemented functionality; future reductions require proven equivalent code. Full
 native-codec suite and all gates PASS. Completed cards preserve delivery-time
 evidence; earlier five-WebP failures were resolved by FF01 and are not current
 failures. Historical intermediate growth is not the final accepted delta.
@@ -39,11 +40,13 @@ The [audit brief](archive/reviews/2026-11-04-mobile-audit-brief.md) specifies
 A–G deliverables; the [review](archive/reviews/2026-11-04-simplification-review.md)
 is input evidence, not an automatic statement of current runtime behavior.
 
-## Current owner direction — deletion feasibility before more extraction
+## Current owner direction — preserve functionality while reducing code
 
-L04/L05 and D01 are accepted. Prioritize D02 decisions and cost proof over
-S10–S15 or any new domain extraction. Do not count
-package moves, generated JSON or test deletion as production savings.
+L04/L05 and D01 remain accepted. D02 feature cuts are WITHDRAWN: the owner
+requires preservation of functionality, including backup/restore and manual
+audio tools used by the web UI. The uncommitted removal wave was discarded;
+published source remains `82110311`. Do not count feature removal, package
+moves, generated JSON or test deletion as behavior-preserving Go savings.
 
 ### D01 · Deletion feasibility inventory
 
@@ -67,76 +70,28 @@ package moves, generated JSON or test deletion as production savings.
 - **Check:** source/count/consumer citations, nonoverlap, net-cost arithmetic,
   explicit uncertainty and `git diff --check`. No runtime deletion in this card.
 
-### D02 · First substantive wave — backup management and manual audio tools
+### D02 · Withdrawn feature-removal proposal — do not dispatch
 
-- [ ] WAITING FOR OWNER DECISIONS — F1/F2 in the reviewed inventory identify
-  **1,535 gross production lines**. Proposed total replacement/retained-target
-  cap: **250 lines**, giving a **1,285-line net target**, not measured savings.
-  Existing manager helpers are outside gross; do not subtract them twice.
-  A 1,000-net wave requires total replacement/retained target cost ≤535.
-- No implementation is dispatched until product decisions and the concrete
-  replacement design are accepted. No new domain extraction without its
-  end-to-end deletion case. No provider/search or ebook removal is selected.
+- [ ] WITHDRAWN — backup/restore and manual audio conversion/embedding are
+  required functionality. The audit already showed active web UI consumers;
+  those footprints cannot be credited as safe code reductions.
+- The local D02 implementation, disabled-route responses, removed tests/shapes,
+  harness exceptions, generated annotations and lowered baseline were restored
+  to `82110311` before any commit/push. No functionality loss or Go savings
+  from that wave remain. D02a–e execution cards are superseded by this decision.
+- Keep all existing operations, settings, events, paths and persisted meaning.
+  Do not reopen a product-cut approval merely to hit a numerical line target.
 
-#### D02a · Decide the two feature boundaries
+### Next reduction planning gate
 
-- [ ] OWNER DECISION — separately KEEP/REMOVE server backup creation/schedules,
-  upload/apply/restore/list/delete/path management; and manual M4B conversion,
-  embedding, batch queue/cancel. Both removals are needed for this combined
-  first-wave target. Web controls would report unsupported operations; native
-  usage is unknown. No bundled-client edit, data deletion or migration implied.
-- Keep ordinary playback/HLS/FFmpeg, scans, metadata search, authentication,
-  persisted config/metadata, existing archives/source media and TS rollback.
-
-#### D02b · Specify disabled operations and prove replacement cost
-
-- [ ] PLANNED — after D02a. Write only the route/retained-flow test plan and
-  bounded replacement design in the existing deletion report before coding.
-- Account for Runtime construction/settings/notification/close hooks and all
-  seven backup/four mutating-tool routes. Preserve auth/admin denial; approved
-  disabled operations answer 501. `GET /api/tasks` remains 200 with empty
-  `tasks`, plus empty `queuedTaskData.embedMetadata` only for `include=queue`.
-- Freeze retained playback/range/progress/scan/search/setting formats and prove
-  existing archive/media files are untouched. No dangling callback or duplicate
-  implementation. Produce exact source scope and tests; if the 250-line cap is
-  implausible return to architect before worker dispatch, not baseline growth.
-
-#### D02c · Remove backup management and its now-unused callbacks
-
-- [ ] PLANNED — depends on D02a/b. Source scope: delete
-  `internal/backup/backup.go`; remove Runtime backup construction, reload,
-  notification, route and close hooks in `internal/server/runtime.go`;
-  remove only proven-unused restore callbacks/types/helpers in `manager.go`.
-  Reuse the existing server route owner for approved disabled responses.
-- Gross credit: 803 lines only. Manager cleanup is uncredited until measured.
-  New/retained target code budget ≤120 lines; all other final metrics must not
-  increase. No retained ingest path may lose archive/path/SQLite guards.
-  Tests assert denial/501, config round trips and unchanged on-disk archives.
-  Do not touch schema, store startup validation or the TS rollback harness.
-
-#### D02d · Remove manual conversion/embedding task implementation
-
-- [ ] PLANNED — depends on D02a/b; same final feature batch as D02c.
-  Delete `internal/audiotools/tools.go`; remove Runtime construction/close/hooks;
-  retain approved disabled routes and the precise empty task DTO. No new
-  service/layer or processing flag. Source gross 732; new/retained target code
-  budget ≤130 lines, shared replacement counted once (combined cap 250).
-- Keep playback/scanner FFmpeg, chapters and original media. Tests assert
-  disabled queue/cancel/embed/encode operations create no tasks or file changes;
-  normal direct/transcoded playback and scans still work. Delete obsolete
-  implementation tests only with the feature and replacement contracts.
-
-#### D02e · Review the complete reduction wave
-
-- [ ] PLANNED — review one coherent final tree; no partially broken push.
-  Measure actual production gross/replacement/net and every ratchet metric.
-  Require at least 1,000 net lines removed; target 1,285 under the proposed
-  budget. Never count moved, generated or test lines as savings.
-- Full build/vet/native-codec suite/lint/ratchet/dbnest/arm64, affected auth and
-  retained journeys, generated query identity if callers change, route/client
-  inventory regeneration with explicit approved capability losses, and
-  unchanged DB/files/rollback evidence. Update README/AGENTS/handover/report
-  and mark every accepted card DONE in the code commit before master push.
+- [ ] PLANNED — read-only, behavior-preserving feasibility work only. Name
+  exact duplicate implementations, actual retained callers, equivalent
+  replacements, gross/replacement/net counts and regression tests before
+  dispatch. No further domain extraction without that end-to-end case.
+- D01 found only small core consolidation hypotheses, with contract differences
+  still unresolved; no proven 1,000-line behavior-preserving wave exists yet.
+  Report that limitation honestly. Backup/audio/provider/ebook functionality
+  stays KEEP; no feature or route retirement is authorized.
 
 ## Earlier owner cleanup priorities — 2026-11-05
 
@@ -589,7 +544,7 @@ no new generated output. That full suite exited 1 only for five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next work: **D02 product decisions and replacement-cost proof**;
+Next work: **behavior-preserving deletion feasibility; D02 is withdrawn**;
 L04 planning, MC-05/F1, S9b-R1 and PR01–PR07 are DONE. Whole S9b deletion
 remains pending. Each stage names the old
 code it deletes, any necessary
@@ -600,7 +555,7 @@ P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
 Completed spine: `B01–B09`, `I01–I06`, `L01–L05`. D01 is accepted and D02
-product decisions/design come next. Mixed-media consumer migration remains separate.
+is withdrawn; behavior-preserving feasibility comes next. Mixed-media consumer migration remains separate.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -1261,8 +1216,8 @@ separate PR01–PR07 cards completed and were accepted; those are not attributed
 to G01/G02.
 Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
 PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE. Whole S9b deletion remains
-pending under KEEP decisions. L04/L05 and D01 are DONE; D02 awaits the two
-feature decisions and replacement-cost proof. No new extraction is dispatched. In parallel,
+pending under KEEP decisions. L04/L05 and D01 are DONE; D02 is withdrawn; future work must preserve functionality and prove real
+duplication before extraction. No new extraction is dispatched. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.

@@ -10,7 +10,29 @@ Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md) and
 [ROADMAP.md](ROADMAP.md). The [pre-feature handover](archive/handover-before-books-2026-11-04.md)
 is history; generated STATUS is a dated sampled differential, not live acceptance.
 
-## Current accepted state and next decision
+## Current correction — preserve functionality
+
+Runtime source is restored exactly to `82110311` (the last code commit).
+The correction that follows is documentation-only. The owner clarified:
+“We don't drop functionality.” Backup/restore and manual conversion/embedding
+remain KEEP, including their active web UI flows. D02's local removal wave was
+fully discarded before any commit/push: 30 tracked paths restored to HEAD and
+only our new disabled-feature test removed. Inherited .codemap/TODO/identity WIP
+and recovery stash were preserved. Do not reuse /tmp/abs-d02 removal snapshots.
+
+Production baseline remains 44,674 lines / 10,809 complexity. No D02 savings or
+feature losses were published. Restored backup/audiotools package tests and manager restore success/rollback
+tests PASS (exit 0), with logs in `/tmp/abs-d02-rollback-verify-20261105`.
+All eleven operation routes and fourteen shape records are present, and the
+226-route inventory contains no product-disabled metadata. Source is byte-
+identical to the already-tested published parent. Subsequent
+changes are documentation-only and establish functionality preservation as a
+firm constraint. D01's large feature footprints are KEEP, not deletion targets.
+No 1,000-line behavior-preserving wave is currently established; next work must
+prove real duplication/equivalent replacements before extraction. Do not ask
+again to remove these features merely to meet a LOC quota.
+
+## Previous accepted checkpoint
 
 L04/L05 and D01 are accepted and ready for master delivery. The prior published
 HEAD is `7c08c25b`. Lists owns HTTP/CRUD/events/feed/pagination; the old userapi
@@ -525,7 +547,7 @@ checks run after explicit baseline and completion-marker integration.
 Logs: /tmp/abs-takeover-20261104/i02-i04-full-test.log and i02-i04-metrics.log.
 No Node rollback, device acceptance, latency/RSS benchmark or deployment.
 
-**Current next:** D02a product decisions, then D02b replacement-cost proof.
+**Current next:** behavior-preserving deletion feasibility; D02 is withdrawn.
 L04 planning, PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE;
 whole S9b deletion remains pending. I01–I06 do not complete all of
 S13/P2/P3 or all client/media

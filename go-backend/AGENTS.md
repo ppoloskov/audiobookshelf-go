@@ -25,26 +25,23 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- Current owner priority: D02's first substantive reduction wave after the
-  accepted L04/L05 cohort and D01 audit, **before
-  S10–S15 or another domain extraction**. Inventory at least 3,000 candidate
-  production lines with exact bodies, client evidence, replacements, net
-  estimates, tests and owner decisions. A 1,000-line wave needs actual deletion
-  targets, not relocated lines. Unknown client usage is not proof of absence.
-- Book reads B01–B09, I01–I06, L01–L03, PR01–PR07, MC-05/F1 and S9b-R1 are
-  accepted. S9b options remain KEEP pending caller-specific removal proof.
-  L04/L05 are accepted: R2 resolves the rejected growth, leaving 29 fewer
-  production lines/23 fewer complexity points with all gates passing. D01
-  records 4,607 conditional feature-removal candidates, zero proven-dead core
-  code, and the proposed backup/manual-audio first wave. D02 still requires
-  owner decisions and a replacement-cost proof; no product cut is approved. Every stage names the old bodies it
-  deletes and any bridge's consumers/removal condition.
-- No new domain extraction until its end-to-end deletion case is established.
-  Route/optional-feature removals still require explicit owner decisions;
-  the deletion audit authorizes investigation, not product narrowing. Production
-  Go savings and generated snapshot/repository-size savings are separate.
-  Relevant compatibility checks accompany each slice; unrelated unfinished
-  mobile research is not a blanket blocker for behavior-preserving work.
+- **Preserve functionality.** The owner clarified that backup/restore and
+  manual conversion/embedding remain supported, including their web UI flows.
+  D02's feature-removal proposal was withdrawn; its uncommitted implementation
+  was fully discarded before publication. Do not reuse that discarded work.
+- Reduction means deleting proven dead/redundant internals or replacing actual
+  implementations with smaller equivalent code. Package moves and feature
+  removal are not behavior-preserving savings. Absence from selected client
+  calls or CI does not authorize dropping an implemented feature.
+- B01–B09, I01–I06, L01–L05, PR01–PR07, MC-05/F1, S9b-R1 and D01 remain
+  accepted at published `82110311`. Production baseline stays 44,674 lines /
+  10,809 complexity. D01's large feature footprints are KEEP under the clarified
+  requirement, not an available deletion wave. No safe 1,000-line consolidation
+  is currently established; do not force that number by removing functionality.
+- No new domain extraction until its end-to-end behavior-preserving deletion
+  case is established: exact duplicate bodies, retained consumers/contracts,
+  replacement cost, net savings and tests. No provider/ebook/admin feature cut
+  or route retirement is authorized. Keep the existing strict growth review.
 - Give each worker one task ID, exact read/write scope, fixed contracts,
   dependencies, named tests/commands and a short completion format. Workers
   do not change architecture, expand scope, commit, publish or deploy.

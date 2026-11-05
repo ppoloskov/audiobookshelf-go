@@ -152,8 +152,10 @@ ratchet still enforces limits. Q1 requires explicit growth budgets, actual
 architect review and a cleanup checkpoint before another expansion; its former
 soft-metrics proposal has been superseded.
 
-Current priority: D02 owner decisions and replacement-cost proof for the first
-substantive reduction wave; lists completion and the D01 audit are accepted.
+Current priority: behavior-preserving simplification. Backup/restore and manual
+audio conversion/embedding remain supported. The D02 removal proposal and
+uncommitted implementation were withdrawn before publication. Lists completion
+and D01 remain accepted; no safe 1,000-line consolidation wave is established.
 No new domain extraction starts without its end-to-end deletion case. The audit
 separates proven consolidation from optional product cuts, which need owner
 approval; generated shape snapshots do not count as production Go savings.
@@ -172,8 +174,9 @@ audit and device acceptance remain open. L04/L05 are DONE: lists now owns its
 HTTP/writes/feed/pagination; old userapi bodies are deleted. Full gates pass;
 production lines fall 29, complexity 23, maps two, with no metric increases.
 D01 identifies 4,607 conditional candidate lines, not safe deletions. The first
-proposed wave targets backup management and manual audio tools (1,535 gross);
-feature removal needs owner approval. See the deletion feasibility report.
+withdrawn proposal targeted backup management and manual audio tools (1,535 gross);
+those feature cuts are now withdrawn: their web UI functionality must remain.
+The deletion report records inspected footprints, not approved savings.
 
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
