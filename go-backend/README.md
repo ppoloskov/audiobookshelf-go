@@ -152,13 +152,16 @@ ratchet still enforces limits. Q1 requires explicit growth budgets, actual
 architect review and a cleanup checkpoint before another expansion; its former
 soft-metrics proposal has been superseded.
 
-Current priority: behavior-preserving simplification. Backup/restore and manual
-audio conversion/embedding remain supported. The D02 removal proposal and
+Current priority: behavior-preserving simplification. E01 source review is
+complete in [the deletion review](DELETION-FEASIBILITY.md); no thousand-line
+wave is established. Next are E02 source/adapter proofs and bounded E03 cleanup;
+source relocation and feature loss are excluded from savings. Backup/restore
+and manual audio conversion/embedding remain supported. The D02 removal proposal and
 uncommitted implementation were withdrawn before publication. Lists completion
-and D01 remain accepted; no safe 1,000-line consolidation wave is established.
-No new domain extraction starts without its end-to-end deletion case. The audit
-separates proven consolidation from optional product cuts, which need owner
-approval; generated shape snapshots do not count as production Go savings.
+and D01 remain accepted. No new domain extraction starts without its
+end-to-end deletion case. Generated shape snapshots do not count as
+production Go savings.
+No product cuts are proposed.
 
 Domain migration now has explicit `books`, `items` and `podcasts` ownership.
 All stages carry an explicit old-code removal plan in ROADMAP. Current owner
@@ -181,7 +184,7 @@ The deletion report records inspected footprints, not approved savings.
 Book reads and projections are implemented in `internal/books`; B01–B09 and
 test-only query instrumentation I01 are reviewed. That initial extraction kept source nearly
 flat (−1 line), complexity −11, dynamic maps −2. I02–I06 and L01–L03 list reads
-are also complete (see below). List writes/routes,
+are also complete (see below). List writes/routes are complete;
 book writes and mixed-media migration remain open. The [roadmap](ROADMAP.md)
 gives exact scopes/dependencies/tests; this feature does not claim all domains
 complete or constant query counts yet.
@@ -227,4 +230,4 @@ scaffolding after real mutation-response tests; cache/range/MIME options remain.
 The restricted read-only HTTP mode was audited and is active, so its behavior
 is retained while duplicate prefix methods are gone. L04/L05 now complete list
 HTTP ownership with another 29-line reduction; none of this proves a large
-consolidation wave. D01/D02 gates apply before further extraction.
+consolidation wave. E01–E03 evidence and an end-to-end deletion case gate further extraction.

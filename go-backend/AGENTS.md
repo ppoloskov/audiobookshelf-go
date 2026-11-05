@@ -17,7 +17,7 @@ clients, books and progress, using simple, clear, fast Go.
   `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`; never copy its architecture by default.
 - Never run TS and Go on the same writable database or metadata tree.
 
-## Architect and worker policy (owner, updated 2026-11-05)
+## Architect and worker policy (owner, updated 2026-11-06)
 
 - Expensive models own architecture, planning, review and final acceptance.
   Delegate bounded source research, implementation and mechanical edits to
@@ -25,6 +25,10 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
+- E01 source audit is complete; no thousand-line wave is established. Next:
+  E02 exact Socket.IO ordering/adapter proofs, then separately scoped E03
+  cleanup. Cheap workers own bounded research/execution; architect reviews
+  alternatives, counts and contracts. No feature footprint/relocation credit.
 - **Preserve functionality.** The owner clarified that backup/restore and
   manual conversion/embedding remain supported, including their web UI flows.
   D02's feature-removal proposal was withdrawn; its uncommitted implementation

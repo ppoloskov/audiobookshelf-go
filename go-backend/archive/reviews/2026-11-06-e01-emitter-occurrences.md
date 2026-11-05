@@ -1,0 +1,41 @@
+# Strict nil-emitter subset
+
+Eligible guard blocks have event arguments that are already identifiers/literals and no event-only loop or lazily computed payload. Each row gives enclosing function lines, guard block physical range, and emit call line. `nil-only` marks the 22 standalone 3-line guard blocks with 2 LOC removable; `conditional` marks the 15 other sites (condition retained, no physical LOC savings).
+
+- `go-backend/internal/adminops/handler.go` — `changedItem` (682-691); guard 687-689, call 688; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorMerge` (605-695); guard 681-683, call 682; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorMerge` (605-695); guard 690-692, call 691; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorDelete` (724-757); guard 752-754, call 753; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorUploadImage` (862-924); guard 920-922, call 921; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorDeleteImage` (951-986); guard 982-984, call 983; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/authors.go` — `authorMatch` (991-1065); guard 1050-1052, call 1051; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/batch.go` — `batchUpdate` (185-309); guard 301-303, call 302; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/batch_chapters.go` — `updateChapters` (136-241); guard 234-238, call 236; 5 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/batch_chapters.go` — `updateTracks` (402-488); guard 484-486, call 485; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/batch_chapters.go` — `updateEbookStatus` (490-580); guard 574-578, call 576; 5 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/cover.go` — `uploadCover` (387-537); guard 524-528, call 527; 5 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/library_extras.go` — `updateNarrator` (63-164); guard 160-162, call 161; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/library_issues.go` — `closeFeeds` (98-112); guard 108-110, call 109; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/library_writes.go` — `createLibrary` (39-208); guard 204-206, call 205; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/library_writes.go` — `updateLibrary` (221-492); guard 488-490, call 489; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/quickmatch.go` — `quickMatchLibraryItem` (223-405); guard 392-394, call 393; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/series_routes.go` — `seriesUpdate` (180-235); guard 231-233, call 232; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/writes.go` — `updateMedia` (46-130); guard 125-129, call 127; 5 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/catalog/writes.go` — `removeCover` (977-1013); guard 1006-1010, call 1008; 5 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/writes.go` — `updateCover` (1015-1157); guard 1147-1151, call 1149; 5 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/catalog/writes.go` — `deleteLibraryFile` (1159-1282); guard 1276-1280, call 1278; 5 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/lists/collection_http.go` — `createCollection` (19-105); guard 101-103, call 102; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/lists/collection_http.go` — `updateCollection` (109-208); guard 203-205, call 204; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/lists/collection_http.go` — `writeCollectionAfterBatch` (400-411); guard 406-408, call 407; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/lists/collection_http.go` — `addCollectionBook` (413-478); guard 473-475, call 474; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/lists/collection_http.go` — `removeCollectionBook` (480-544); guard 539-541, call 540; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/lists/handler.go` — `collectionID` (112-165); guard 160-162, call 161; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/notifications/handler.go` — `deliverActive` (392-427); guard 423-425, call 424; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/scanner/scanner.go` — `scanLibrary` (794-1080); guard 964-966, call 965; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/scanner/scanner.go` — `scanLibrary` (794-1080); guard 1043-1046, call 1044; 4 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/scanner/scanner.go` — `scanLibrary` (794-1080); guard 1048-1050, call 1049; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/scanner/watcher.go` — `scanFolderUpdates` (502-652); guard 602-604, call 603; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/scanner/watcher.go` — `scanFolderUpdates` (502-652); guard 639-641, call 640; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/scanner/watcher.go` — `rescanStoredItem` (678-719); guard 712-714, call 713; 3 guard LOC; conditional; no LOC saving.
+- `go-backend/internal/sharing/feeds.go` — `openFeed` (250-315); guard 311-313, call 312; 3 guard LOC; nil-only; saves 2 LOC.
+- `go-backend/internal/userapi/userapi.go` — `createUser` (519-625); guard 621-623, call 622; 3 guard LOC; nil-only; saves 2 LOC.

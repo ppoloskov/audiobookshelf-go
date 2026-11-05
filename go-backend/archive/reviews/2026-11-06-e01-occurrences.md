@@ -1,0 +1,62 @@
+# Exact adjacent error/log pairs
+
+AST-based scan of handwritten `internal/**/*.go` (excluding tests and sqlc). Each listed pair is two physical source lines; entries are exact 2-line ranges. 150 found, including the pre-existing shared lists helper at `lists/handler.go:189–190`; 149 call-site candidates remain.
+
+- `go-backend/internal/adminops/handler.go` — `patchSettings` function lines 144-193; 2 pair(s), ranges 170-171, 187-188.
+- `go-backend/internal/adminops/handler.go` — `authSettings` function lines 194-295; 2 pair(s), ranges 201-202, 279-280.
+- `go-backend/internal/adminops/handler.go` — `sortingPrefixes` function lines 296-366; 2 pair(s), ranges 323-324, 329-330.
+- `go-backend/internal/adminops/handler.go` — `purgeCache` function lines 400-434; 3 pair(s), ranges 415-416, 420-421, 427-428.
+- `go-backend/internal/adminops/handler.go` — `serverStats` function lines 436-464; 4 pair(s), ranges 443-444, 448-449, 454-455, 459-460.
+- `go-backend/internal/adminops/handler.go` — `updateWatchedPath` function lines 466-499; 1 pair(s), ranges 494-495.
+- `go-backend/internal/adminops/handler.go` — `renameTaxonomy` function lines 534-612; 1 pair(s), ranges 603-604.
+- `go-backend/internal/adminops/handler.go` — `deleteTaxonomy` function lines 613-680; 1 pair(s), ranges 671-672.
+- `go-backend/internal/adminops/upload.go` — `upload` function lines 18-98; 2 pair(s), ranges 42-43, 56-57.
+- `go-backend/internal/audiotools/tools.go` — `itemRoute` function lines 111-134; 1 pair(s), ranges 123-124.
+- `go-backend/internal/audiotools/tools.go` — `encode` function lines 277-300; 1 pair(s), ranges 294-295.
+- `go-backend/internal/audiotools/tools.go` — `batch` function lines 327-379; 1 pair(s), ranges 347-348.
+- `go-backend/internal/backup/backup.go` — `createRoute` function lines 246-253; 1 pair(s), ranges 248-249.
+- `go-backend/internal/backup/backup.go` — `upload` function lines 348-419; 6 pair(s), ranges 351-352, 357-358, 371-372, 379-380, 384-385, 398-399.
+- `go-backend/internal/backup/backup.go` — `updatePath` function lines 421-463; 2 pair(s), ranges 452-453, 458-459.
+- `go-backend/internal/backup/backup.go` — `apply` function lines 479-587; 9 pair(s), ranges 488-489, 495-496, 504-505, 509-510, 523-524, 564-565, 569-570, 575-576, 581-582.
+- `go-backend/internal/emailapi/handler.go` — `settings` function lines 100-148; 2 pair(s), ranges 103-104, 141-142.
+- `go-backend/internal/emailapi/handler.go` — `ereaderDevices` function lines 165-203; 2 pair(s), ranges 181-182, 194-195.
+- `go-backend/internal/emailapi/handler.go` — `sendTest` function lines 204-228; 1 pair(s), ranges 207-208.
+- `go-backend/internal/emailapi/handler.go` — `sendEbook` function lines 229-311; 2 pair(s), ranges 240-241, 292-293.
+- `go-backend/internal/lists/handler.go` — `writeInternalError` function lines 188-191; 1 pair(s), ranges 189-190.
+- `go-backend/internal/notifications/handler.go` — `get` function lines 88-100; 1 pair(s), ranges 91-92.
+- `go-backend/internal/notifications/handler.go` — `update` function lines 101-159; 2 pair(s), ranges 114-115, 153-154.
+- `go-backend/internal/notifications/handler.go` — `create` function lines 199-244; 3 pair(s), ranges 210-211, 216-217, 239-240.
+- `go-backend/internal/notifications/handler.go` — `delete` function lines 245-275; 2 pair(s), ranges 248-249, 270-271.
+- `go-backend/internal/notifications/handler.go` — `updateNotification` function lines 276-331; 2 pair(s), ranges 279-280, 324-325.
+- `go-backend/internal/notifications/handler.go` — `testEvent` function lines 332-342; 1 pair(s), ranges 335-336.
+- `go-backend/internal/notifications/handler.go` — `testNotification` function lines 362-391; 1 pair(s), ranges 365-366.
+- `go-backend/internal/playback/playback.go` — `handleBatchDelete` function lines 1130-1165; 1 pair(s), ranges 1157-1158.
+- `go-backend/internal/playback/playback.go` — `serverError` function lines 2100-2103; 1 pair(s), ranges 2101-2102.
+- `go-backend/internal/podcasts/library.go` — `handleLibrary` function lines 24-76; 2 pair(s), ranges 49-50, 69-70.
+- `go-backend/internal/podcasts/podcasts.go` — `Handle` function lines 84-302; 2 pair(s), ranges 169-170, 241-242.
+- `go-backend/internal/podcasts/podcasts.go` — `updateEpisode` function lines 321-426; 1 pair(s), ranges 415-416.
+- `go-backend/internal/podcasts/podcasts.go` — `removeEpisode` function lines 447-512; 4 pair(s), ranges 476-477, 495-496, 500-501, 506-507.
+- `go-backend/internal/podcasts/podcasts.go` — `checkNew` function lines 514-574; 1 pair(s), ranges 564-565.
+- `go-backend/internal/podcasts/podcasts.go` — `createPodcast` function lines 646-666; 1 pair(s), ranges 655-656.
+- `go-backend/internal/podcasts/podcasts.go` — `createFromOPML` function lines 835-880; 1 pair(s), ranges 861-862.
+- `go-backend/internal/scanner/scanner.go` — `Handle` function lines 383-496; 1 pair(s), ranges 483-484.
+- `go-backend/internal/server/server.go` — `api` function lines 136-190; 1 pair(s), ranges 155-156.
+- `go-backend/internal/userapi/listening.go` — `writeListeningSessions` function lines 18-57; 2 pair(s), ranges 21-22, 44-45.
+- `go-backend/internal/userapi/listening.go` — `writeListeningStats` function lines 59-123; 2 pair(s), ranges 62-63, 78-79.
+- `go-backend/internal/userapi/me_extra.go` — `getItemListeningSessions` function lines 24-70; 2 pair(s), ranges 32-33, 52-53.
+- `go-backend/internal/userapi/me_extra.go` — `updateSeriesContinueListening` function lines 72-131; 3 pair(s), ranges 80-81, 117-118, 126-127.
+- `go-backend/internal/userapi/me_extra.go` — `getItemsInProgress` function lines 133-211; 2 pair(s), ranges 140-141, 164-165.
+- `go-backend/internal/userapi/me_extra.go` — `updateEReaderDevices` function lines 213-311; 2 pair(s), ranges 244-245, 288-289.
+- `go-backend/internal/userapi/me_extra.go` — `getYearStats` function lines 313-434; 3 pair(s), ranges 326-327, 376-377, 404-405.
+- `go-backend/internal/userapi/sessions.go` — `getSessions` function lines 19-64; 4 pair(s), ranges 34-35, 40-41, 52-53, 59-60.
+- `go-backend/internal/userapi/sessions.go` — `deleteSession` function lines 76-97; 1 pair(s), ranges 87-88.
+- `go-backend/internal/userapi/userapi.go` — `getMe` function lines 125-139; 2 pair(s), ranges 128-129, 134-135.
+- `go-backend/internal/userapi/userapi.go` — `updatePassword` function lines 156-208; 1 pair(s), ranges 196-197.
+- `go-backend/internal/userapi/userapi.go` — `getAllProgress` function lines 210-218; 1 pair(s), ranges 213-214.
+- `go-backend/internal/userapi/userapi.go` — `getBookmarks` function lines 220-247; 1 pair(s), ranges 228-229.
+- `go-backend/internal/userapi/userapi.go` — `handleProgress` function lines 249-364; 5 pair(s), ranges 254-255, 266-267, 285-286, 301-302, 355-356.
+- `go-backend/internal/userapi/userapi.go` — `handleBookmark` function lines 386-477; 3 pair(s), ranges 395-396, 443-444, 467-468.
+- `go-backend/internal/userapi/userapi.go` — `listUsers` function lines 488-517; 3 pair(s), ranges 495-496, 505-506, 512-513.
+- `go-backend/internal/userapi/userapi.go` — `createUser` function lines 519-625; 7 pair(s), ranges 546-547, 578-579, 584-585, 600-601, 605-606, 611-612, 617-618.
+- `go-backend/internal/userapi/userapi.go` — `handleUser` function lines 627-966; 21 pair(s), ranges 642-643, 664-665, 681-682, 688-689, 712-713, 718-719, 723-724, 729-730, 747-748, 763-764, 769-770, 775-776, 782-783, 787-788, 809-810, 857-858, 868-869, 878-879, 937-938, 944-945, 955-956.
+- `go-backend/internal/userapi/userapi.go` — `handleAPIKeys` function lines 968-1154; 10 pair(s), ranges 977-978, 1002-1003, 1017-1018, 1032-1033, 1038-1039, 1044-1045, 1067-1068, 1087-1088, 1135-1136, 1141-1142.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-05. **Owner authorized implementation with cheap workers,
+Updated 2026-11-06. **Owner authorized implementation with cheap workers,
 review after completed batches, and pushing ready features to the fork.**
 All development is on `master`; do not create development branches. Existing
 branch commits are integrated and reviewed ready work is pushed to master.
@@ -50,7 +50,7 @@ moves, generated JSON or test deletion as behavior-preserving Go savings.
 
 ### D01 · Deletion feasibility inventory
 
-- [x] DONE — architect-reviewed [inventory](DELETION-FEASIBILITY.md): 4,607
+- [x] DONE — architect-reviewed [historical inventory](archive/reviews/2026-11-05-deletion-feasibility.md): 4,607
   unique conditional production lines, exact AST manifest of 174 functions,
   positive web consumers and explicit unknown mobile use. Zero proven-dead
   core code; no credible behavior-preserving 1,000-line wave. Source/count/
@@ -82,16 +82,140 @@ moves, generated JSON or test deletion as behavior-preserving Go savings.
 - Keep all existing operations, settings, events, paths and persisted meaning.
   Do not reopen a product-cut approval merely to hit a numerical line target.
 
-### Next reduction planning gate
+### E01 · Major behavior-preserving simplification audit
 
-- [ ] PLANNED — read-only, behavior-preserving feasibility work only. Name
-  exact duplicate implementations, actual retained callers, equivalent
-  replacements, gross/replacement/net counts and regression tests before
-  dispatch. No further domain extraction without that end-to-end case.
-- D01 found only small core consolidation hypotheses, with contract differences
-  still unresolved; no proven 1,000-line behavior-preserving wave exists yet.
-  Report that limitation honestly. Backup/audio/provider/ebook functionality
-  stays KEEP; no feature or route retirement is authorized.
+- [x] DONE — bounded source review, three cheap-worker streams, architect
+  review and [durable portfolio](DELETION-FEASIBILITY.md), 2026-11-06.
+  **Quantitative target unmet:** no credible 1,000-line wave/thousands-line
+  portfolio. No runtime changes, new dependency, feature cut or tests run.
+  Local source/count/manifest/arithmetic/contract/link checks and diff check.
+- Preserve all functionality; exact gross vs replacement/net, uncertainty and
+  finite proof per opportunity. Count adapters/callers/SQL/templates too.
+  Relocation, source packing, tests and generated snapshots are not Go savings.
+- Do not manufacture a wave by adding microhelpers or extracting domains.
+  E02 tests the largest structural hypothesis; E03 is a separate small cleanup.
+
+#### E01a · Repeated-mechanics census
+
+- [x] DONE — 148 eligible error/log pairs (150 found, two excluded), exact duplicate string conversion, rounding
+  loops and strict emitter subset inventoried. Architect increased HTTP helper
+  cost allowance and rejected nested emitter guards that protect lazy DB work.
+  No permission/truthiness/OS-stat consolidation or constructor no-op emitters.
+
+#### E01b · Data/model/algorithm alternatives
+
+- [x] DONE — reviewed author grouping, scanner sidecars, metadata patching,
+  series datasets, DTO sharing, SQL JSON and transaction boilerplate. Small
+  conditional reuse exists; no major equivalent deletion is established.
+  JSON key order is free; stored meaning/field/null/order contracts remain.
+
+#### E01c · HTTP/protocol/lifecycle alternatives
+
+- [x] DONE — full Runtime cannot replace restricted read-only initialization.
+  Shared status/media mechanics are small. Whole routing conversion has no
+  positive deletion case. Socket.IO middleware is a hypothesis, not adoption.
+  Preserve restore/close/auth/cache/range/frame/backpressure guarantees.
+
+#### E01d · Architect portfolio and execution gate
+
+- [x] DONE — ranked nonoverlapping candidates, reviewed leading source and C25
+  history; conservative helper costs and proof tasks recorded. No thousand-line
+  wave selected. The research card's completion does not meet the numerical
+  target or authorize a dependency/feature cut. Runtime baseline unchanged.
+
+### E02 · Prove or reject the largest structural alternative
+
+#### E02a · Exact Socket.IO ordering source proof
+
+- [ ] READY — cheap read-only worker; scope exact old pin
+  `github.com/zishang520/socket.io/v2 v2.3.8` and its Engine.IO dependency,
+  C25 `1ddb115a`, current realtime tests/transport. No go.mod edits/install,
+  prototype, alternate version or runtime changes. Read primary source;
+  record source/version/digest and function/line trace in the deletion review.
+- Show whether namespace middleware can install an active auth listener before
+  **any** CONNECT ACK write and before inbound event dispatch. Later v2.5.0
+  source/API existence is insufficient. If source cannot be obtained, record
+  unknown; if order fails, close this alternative without a library upgrade.
+- **Old-code removal case:** potentially 458 lines `realtime/eio.go` + `sio.go`;
+  keep Hub policy. **Done:** reproducible trace, supported/rejected/unknown
+  conclusion and precise remaining experiment. Source-only checks, no test claim.
+
+#### E02b · Complete adapter and dependency cost
+
+- [ ] PLANNED — after E02a supports the ordering hypothesis; cheap read-only
+  worker inventories every current Socket/Engine/Hub seam and old dependency
+  equivalent. Scope realtime, Runtime wiring, manager restore and module graph.
+  Output a mapping in the existing deletion review, not a new framework/doc queue.
+- Cost path/config setup, auth-before-ACK, event/ACK API, queue/backpressure,
+  limits/ping/close, recipient filtering and live-socket DB rebind. Report
+  dependency changes separately from handwritten Go. Keep all 778 Hub lines
+  unless exact redundant bodies are demonstrated; no whole-Hub deletion credit.
+- **Deletion gate:** replace both framing files in the same eventual packet;
+  80–160 replacement lines is an unproved estimate, not an allowed growth
+  budget. Reject or replan if adapter cost/complexity erases the benefit.
+  **Done:** exact method map, all costs, named test gaps and dependency decision.
+
+#### E02c · Conditional dependency trial and transport replacement
+
+- [ ] NOT DISPATCHABLE — needs E02a/b evidence and owner approval of the exact
+  new dependency/trial. Do not install/adopt based on roadmap authority.
+  Architect fills exact write scope and all metric budgets before dispatch.
+- Deterministic listener-before-ACK barrier, real Node immediate-auth 200
+  sequential + 10×20 concurrent on both paths, invalid/expired/re-auth, ACKs,
+  recipient ACLs, heartbeat/frame/backpressure/close and manager restore tests.
+  Real interop must execute, not skip. Polling rejection remains.
+- Develop only on canonical master; isolated validation snapshots allowed,
+  no branches/worktrees. **Done:** all named contract and AGENTS gates pass,
+  old framing deleted, actual net/complexity/dependencies accepted, baseline
+  lowered and docs updated. Stop on ordering/contract failure; no silent upgrade.
+
+### E03 · Small consolidation cohort, separately measured
+
+#### E03a · HTTP error response proof and common operation
+
+- [ ] READY FOR BOUNDED IMPLEMENTATION — after E02 source/cost verdict; no
+  dependency. Scope `internal/logging/http.go`, existing logging tests and
+  existing lists error helper only. One shared operation may call http.Error;
+  preserve log source depth, query redaction, nil request/error, distinct
+  log/response strings and response status/MIME/nosniff/newline. No universal
+  error type or middleware. Tests compare recorded behavior with current calls.
+- **Deletion:** replace existing lists helper's duplicated log+response body;
+  do not delete remaining 148 pairs until E03b. Shared helper/refactor expected
+  10–20 lines including comments/imports; temporary cohort growth bounded at
+  +20 lines/+5 complexity, maps/[]any/high-function counts nonincreasing.
+  Do not accept/push this intermediate alone. **Check:** logging/lists tests,
+  source attribution and recorder status/headers/body; E03b pays complete cost.
+
+#### E03b · Replace only manifested error pairs and duplicate coercion
+
+- [ ] PLANNED — after E03a tests. Cheap worker owns only 148 exact call-site
+  pairs in the strict archived edit manifest, `catalog.stringValues`/its caller/import and
+  `userapi.roundTimes`/`roundMonths` plus their callers. No handler ownership,
+  permission, transaction, status or early-return changes. Preserve evaluation
+  order; exclude any unsafe argument evaluation discovered during execution.
+- **Deletion:** 296 old pair lines replaced by 148 calls; delete the 14-line local
+  coercion using existing jsonvalue.Strings; replace two rounding bodies with
+  one concrete-key-generic function. Include E03a/helper/import/caller costs.
+  Estimated cohort net ~150–160 before emitter work, not a thousand-line wave.
+- **Check:** targeted logging/catalog/userapi/lists behavior tests plus AGENTS
+  integrated gates once E03a–c are ready. Every metric nonincreasing against
+  44,674/10,809/990 maps/326 []any/178 high functions; actual source net negative.
+  Architect owns lower-only baseline update. No baseline editing by worker.
+
+#### E03c · Strict nil-emitter subset, then cohort review
+
+- [ ] PLANNED — cheap worker uses only the 17 architect-reviewed standalone direct
+  guard sites in the strict deletion review edit manifest. Scope events.Emitter method,
+  necessary field-type/import edits and these exact guards. No nested guards,
+  payload/DB work, mixed conditions, loops or scanner buffer-reset changes.
+- **Deletion:** replace each eligible three-line nil-only direct call with one
+  nil-safe method call; count method/import/type costs. Verify nil no-op and
+  nonnil recipients/payload/order. Do not create a generic event bus/default
+  no-op constructor. Abort any site where argument evaluation changes.
+- Review whole E03 diff after workers finish, then integration gates; report
+  actual cohort net/complexity, lower baseline, mark individual cards DONE
+  and update docs in the same ready commit. No new domain extraction follows
+  automatically; the substantive deletion shortfall remains explicit.
 
 ## Earlier owner cleanup priorities — 2026-11-05
 
@@ -102,13 +226,13 @@ Source/client research for later stages may proceed read-only in parallel.
 MC-05 and F1 are accepted after source, contract, craft and full integration
 gates. The source review found no requirement for a global cache layer. S9b-R1
 records KEEP for the five framing-option families; S9b deletion remains
-pending. L04/L05 are accepted after R2 and full gates; D01/D02 supersede
+pending. L04/L05 are accepted after R2 and full gates; E01–E03 supersede
 further extraction as the current priority.
 
 I05/I06 and L01–L03 already landed before this priority update. Do not restart
 them or expand into more domains. **This bounded cleanup checkpoint is CLOSED**
-after RO02/S9a/PR01–PR04/PR07 and FF01 validation. Remaining S9b and conditional
-cuts are explicitly pending; no new domain migration was started.
+after RO02/S9a/PR01–PR04/PR07 and FF01 validation. Remaining S9b cleanup is pending; D02 cuts are withdrawn. No new
+domain migration was started.
 
 | Priority | Current action and exit |
 |---|---|
@@ -190,7 +314,7 @@ cuts are explicitly pending; no new domain migration was started.
   Preserved inherited untracked work and a verified stash/bundle; removed only
   the clean feature worktree and orphaned packet-worktree metadata. The packet
   directory itself remains preserved because Git could not establish status.
-  Recovery details: [handover](handover.md#master-consolidation-and-recovery).
+  Recovery details: [historical recovery](archive/reviews/2026-11-06-handover-before-e01.md#master-consolidation-and-recovery).
 
 ### G02 · Review tracked dead code and duplication
 
@@ -544,7 +668,8 @@ no new generated output. That full suite exited 1 only for five native WebP
 journey failures. No schema/write/event/route changes; rollback/device/bench
 not rerun. See handover for evidence and retained adapters.
 
-Next work: **behavior-preserving deletion feasibility; D02 is withdrawn**;
+Next work: **E02 exact Socket.IO source and adapter proofs**; E01 source
+review is DONE and D02 is withdrawn;
 L04 planning, MC-05/F1, S9b-R1 and PR01–PR07 are DONE. Whole S9b deletion
 remains pending. Each stage names the old
 code it deletes, any necessary
@@ -555,7 +680,8 @@ P2/P3/S13 completion claim. Full mobile research and owner decisions continue.
 #### First milestone: explicit book reads + book-page batching (S13/P2/P3)
 
 Completed spine: `B01–B09`, `I01–I06`, `L01–L05`. D01 is accepted and D02
-is withdrawn; behavior-preserving feasibility comes next. Mixed-media consumer migration remains separate.
+is withdrawn. E01 research is complete; E02/E03 own the next proofs and
+small cleanup. Mixed-media consumer migration remains separate.
 Book metadata/chapter writes and complete mixed-media migration are not claimed
 finished by this milestone. All route removals and real-device gates stay intact.
 
@@ -990,7 +1116,7 @@ scanner consumer are migrated with their own tests. Book metadata/chapter
 writes need separate state/event contracts. No worker receives “finish items”
 or “move all catalog” as a task. Architect decomposes only the next slice.
 Tentative domain order after books/items reads and lists: people (S10), progress (S12),
-then library/items HTTP and remaining users/auth/admin (S14/S15), gated by D01/D02
+then library/items HTTP and remaining users/auth/admin (S14/S15), gated by E01–E03 findings
 and an end-to-end deletion case for each extraction. Relevant
 compatibility tests are prerequisites per slice, not a global audit freeze.
 
@@ -1216,8 +1342,9 @@ separate PR01–PR07 cards completed and were accepted; those are not attributed
 to G01/G02.
 Current sequence: I01–I06/L01–L03 and the bounded cleanup are accepted;
 PR01–PR07, MC-05, MC-05/F1 and S9b-R1 are DONE. Whole S9b deletion remains
-pending under KEEP decisions. L04/L05 and D01 are DONE; D02 is withdrawn; future work must preserve functionality and prove real
-duplication before extraction. No new extraction is dispatched. In parallel,
+pending under KEEP decisions. L04/L05, D01 and E01 research are DONE; D02 is withdrawn. Next: E02 exact
+Socket.IO source/adapter proofs, then separately measured E03 cleanup. No
+thousand-line wave is established and no new extraction is dispatched. In parallel,
 continue MC-A/MC-B and source-confirmed MC-C/MC-D cases in disjoint files.
 Full mobile research is not a global prerequisite for an unrelated behavior-preserving slice. Architect dispatches
 one card at a time to a cheap worker and reviews it before dependent work.
