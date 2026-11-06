@@ -28,8 +28,9 @@ embedding. The proposed D02 feature cuts were withdrawn before publication. The 
 Architecture/planning/review belong to the architect; bounded execution goes
 to cheap capable workers. Preserve database/rollback and real client semantics;
 byte parity and a numerical line-reduction target are not product gates.
-The [test/oracle/corpus review](go-backend/TEST-COMPATIBILITY-REVIEW.md) identifies
-representation assertions to separate while retaining client and data checks.
+The [test/oracle/corpus implementation](go-backend/TEST-COMPATIBILITY-IMPLEMENTATION.md)
+separates representation diagnostics from client/data gates, with assertion-level
+traceability and explicit validation/skips. Production behavior is unchanged.
 All development is on `master`; reviewed ready commits are pushed to this fork.
 
 Audiobookshelf is a self-hosted audiobook and podcast server.

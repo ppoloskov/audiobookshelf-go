@@ -124,13 +124,16 @@ CI currently gates images on `verify` and `rollback`. The Node `parity` job is
 advisory since V1; do not make byte differences blocking. Keep diagnostic
 inputs reproducible until V2 extraction and acceptance finish.
 
-TQ01's [test/oracle/corpus review](TEST-COMPATIBILITY-REVIEW.md) is an assertion
-extraction manifest, not authorization to delete whole mixed tests or alter
-production behavior. Preserve client fields/types/meaning, security, HTTP
-semantics and persisted derivations; exact Express fingerprints belong to
-diagnostic/implementation evidence. Keep oracle provenance checks while used.
-The separate `go-backend.yml` upstream-parity job lacks advisory handling;
-resolve that policy explicitly before claiming all parity CI is non-blocking.
+TQ01's [implementation](TEST-COMPATIBILITY-IMPLEMENTATION.md) keeps decoded
+value/type/state/security/HTTP contracts in default tests and moves historical
+fingerprints to `//go:build tsdiagnostic` or the explicit Node sidecar. Run
+`make test-ts-diagnostics` separately; both diagnostic CI jobs are advisory.
+Preserve whole mixed tests' useful assertions and all oracle/rollback evidence.
+Keep [the assertion map](contracts/test-assertions.json), retained corpus hashes
+and external inventory reconciliation current when intentionally changing them;
+never edit external inventories or assertions to improve an implementation's
+score. Monstrobook's imports remain a separate pinned snapshot, not a claim
+that its full Go suites or scoring ran here. I01–I08 changes remain separate.
 
 The 30% reduction target is aspirational; **the strict ratchet still rejects
 increases**. Q1's soft-metrics proposal is replaced by explicit growth review:

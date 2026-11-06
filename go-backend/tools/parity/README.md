@@ -6,10 +6,20 @@
 > [ROADMAP](../../ROADMAP.md) and [North Star](../../ARCHITECTURE.md).
 > HTTP cache/range/format semantics remain contracts even when representation differs.
 
-TQ01's [test/oracle/corpus review](../../TEST-COMPATIBILITY-REVIEW.md) extracts
-representation constraints without deleting tests or inputs. Image parity is
-advisory; the separate `go-backend.yml` upstream-parity job still fails normally
-and needs an explicit policy reconciliation. Oracle provenance and rollback stay.
+TQ01's [implementation](../../TEST-COMPATIBILITY-IMPLEMENTATION.md) separates
+representation constraints without changing production behavior or inputs.
+Both upstream-parity and historical representation CI jobs are advisory.
+Oracle provenance, semantic checks and rollback stay required.
+
+For the two cover PATCH cases, the default comparator checks parsed values,
+required fields, status/MIME, captured response length and opaque ETag syntax.
+With a fresh fixture, add `--representation-diagnostics-out <sidecar.json>` to
+a **full** `run-local.cjs` invocation, then explicitly run
+`node go-backend/tools/parity/representation-diagnostic.cjs <sidecar.json>`
+from repository root for the old Express fingerprint. Normal reports omit
+these raw inputs. The new sidecar flag rejects `--cases` rather than silently
+omitting evidence. Diagnostic runner self-tests are separate in
+`test-representation-diagnostic.cjs`; Go diagnostics use `make test-ts-diagnostics`.
 
 # Upstream parity fixtures
 

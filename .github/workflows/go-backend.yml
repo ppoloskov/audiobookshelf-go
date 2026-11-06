@@ -37,6 +37,8 @@ jobs:
         run: python3 -m unittest -v go-backend/tools/parity/test_route_coverage.py
       - name: Check report and status integrity
         run: node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs
+      - name: Check assertion manifest and semantic PATCH comparison
+        run: node --test go-backend/tools/test-assertion-manifest.cjs go-backend/tools/parity/test-cover-patch-contract.cjs
       - name: Build, test, vet, and ratchet without CGO
         working-directory: go-backend
         env:
@@ -75,7 +77,24 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: go build -trimpath -o /tmp/audiobookshelf-go-${{ matrix.arch }} ./cmd/audiobookshelf-go
 
+  representation-diagnostics:
+    name: Historical representation diagnostics (advisory)
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-backend/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: make test-ts-diagnostics
+      - run: node --test go-backend/tools/parity/test-representation-diagnostic.cjs
+
   upstream-parity:
+    name: Upstream differential diagnostics (advisory)
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -52,12 +52,46 @@ is input evidence, not an automatic statement of current runtime behavior.
 - **Checks:** direct source/client evidence, JSON denominators, documentation
   links/anchors and `git diff --check`. No runtime suites or regeneration run.
   Production/test code delta zero; this is not V2a/V2b retirement acceptance.
-- **Next:** a separate assertion-only packet may split R02/R03/R05 with decoded
-  value checks and affected tests; retain length correctness/security. Other
-  families need caller-aware replacements; I01–I08 require semantic decisions.
-  No runtime simplification or CI change is dispatched by this review. Image
-  parity is advisory, but separate `go-backend.yml` equivalence still fails its
-  job normally; reconcile explicitly without weakening rollback/provenance.
+- **Follow-through:** R01–R08 were implemented in TQ01-I below after explicit
+  owner authorization, preserving length correctness/security. I01–I08 still
+  require semantic decisions. This review found a second ordinary equivalence
+  CI job despite the advisory policy; TQ01-I resolved its diagnostic handling
+  without changing required semantic verification, source or rollback gates.
+
+#### TQ01-I · Implement semantic assertions and diagnostic separation
+
+- [x] DONE — owner authorized implementation, 2026-11-06. Started with
+  R02/R03/R05; then handle R01/R04/R06/R07/R08 individually. Replace only
+  representation constraints with independent semantic assertions; retain
+  useful upstream fingerprints in opt-in, non-blocking diagnostics. No
+  production behavior, dependency, schema, persisted fixture or oracle-source
+  changes. Production metric budget: zero change in every metric.
+- [x] DONE R02/R03 — JSON values/types, single-document, actual length/HEAD and
+  framing checks; original encoding checks tagged separately. Focused suites PASS.
+- [x] DONE R05 — decoded ordered log records/client data and retained log
+  destinations/filtering. Default and diagnostic suites PASS.
+- [x] DONE R01 — opaque validators, obs-text grammar, unchanged/changed
+  representation replay and conditional/cache/range semantics. Focused tests PASS.
+- [x] DONE R04 — semantic error pages with security, hostile-path, public-error
+  redaction and HEAD/range protections. Focused/default/diagnostic checks PASS.
+- [x] DONE R06 — strict parsed OPML, retained decoded values and ACL/MIME;
+  structure/hidden-content negatives and formatting equivalence PASS.
+- [x] DONE R07 — four independent safe HTML token vectors; all original 59
+  source rows preserved, 55 other exact expectations retained. Both lanes PASS.
+- [x] DONE R08 — semantic PATCH comparison, captured response length and separate Node
+  representation diagnostics; preserve state/corpus/rollback source evidence.
+- [x] DONE Machine-readable assertion manifest + source-pinned reconciliation with
+  Monstrobook external inventories; never alter their score or test inputs.
+- [x] DONE Final affected/default/diagnostic suites and required integration gates,
+  exact failures/skips/unexecuted evidence, contract + simplicity review,
+  README/AGENTS/handover and reviewed publication. Validate in clean tracked
+  snapshot plus approved overlays; preserve inherited identity/routes.go WIP.
+  [Implementation/results](TEST-COMPATIBILITY-IMPLEMENTATION.md): build/vet/lint0,
+  454 top-level Go passes / 1,536 pass events / three documented skips, Node
+  semantic/harness 38/38, manifest+external snapshot 3/3, ten Go and two Node
+  diagnostic tests, live core 193/193 plus all state checks and standalone
+  pinned-TS rollback PASS. Every production metric delta zero. No Monstrobook
+  score/import change; no device/browser/race/benchmark/parity-full acceptance.
 
 L04/L05 and D01 remain accepted. D02 feature cuts are WITHDRAWN: the owner
 requires preservation of functionality, including backup/restore and manual

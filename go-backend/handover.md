@@ -20,18 +20,25 @@ Lists HTTP/write/feed ownership is complete; do not restart L04. Wider
 book writes/mixed-media/people/progress work remains. S9b deletion and full
 mobile/device acceptance remain open.
 
-TQ01 test/oracle/corpus review is complete in
-[TEST-COMPATIBILITY-REVIEW.md](TEST-COMPATIBILITY-REVIEW.md): three cheap built-in
-workers plus architect source checks extracted one standalone Express
-fingerprint test and eight assertion families. Tests/corpus/runtime/CI were not
-changed. Preserve mixed tests' useful assertions, parsed book/library goldens,
-lastFirst persisted derivations, HTTP/security and rollback. OPML double escaping,
-OIDC null/undefined redirects and exact ICU sorting need semantic decisions,
-not silent comparator normalization. Assertion-only R02/R03/R05 is a possible
-separate next packet; this review does not dispatch production changes.
-Image parity is advisory, but `go-backend.yml` has a separate failing equivalence
-job with no advisory setting. Branch protection was not inspected. Runtime
-acceptance below is historical; this review checked docs/source/counts only.
+TQ01-I implementation is complete in
+[TEST-COMPATIBILITY-IMPLEMENTATION.md](TEST-COMPATIBILITY-IMPLEMENTATION.md), with
+[assertion mapping](contracts/test-assertions.json), read-only Monstrobook
+reconciliation and machine-readable results. Default tests retain semantic
+values/types/state/security/HTTP behavior; historical encodings live behind
+`tsdiagnostic` or the explicit Node sidecar. Both diagnostic CI jobs are advisory;
+required semantic/source/rollback gates remain. No production behavior, schema,
+source fixture or external score/import changed. I01–I08 remain separate.
+
+TQ01-I acceptance: build/vet/lint0, full Go 454 top-level passes / 1,536 pass
+events, Node semantic/harness 38/38, manifest with actual external snapshot 3/3,
+ten Go/two Node diagnostic tests, fresh live core 193/193 with all state checks,
+and pinned TS reopening Go-written data PASS. Production metrics unchanged.
+Three Go tests remain unexecuted: two optional backup fixtures and an HLS test
+that hard-codes `/usr/bin/ffmpeg`. Socket.IO logging initially skipped, then
+executed/passed after exposing the installed client inside the snapshot. Raw
+logs/source overlay manifest are in `/private/tmp/tq01-implementation-20261106`.
+The report records recovered failures, including correcting the PATCH assertion
+to expect the validated metadata destination, not the submitted source path.
 
 **Preserve all functionality.** D02 backup/restore and manual audio-tool removal
 was discarded before publication. Those features, providers/matching and ebooks
@@ -99,8 +106,9 @@ standalone extraction and reproducible regeneration are proven.
 
 ## Documentation acceptance
 
-TQ01 records source/consumer/count/link/anchor review and `git diff --check`,
-with zero test or production code changes and no runtime suites. E01 records
+TQ01's original review was docs only; TQ01-I now has actual implementation,
+semantic/diagnostic suites, source provenance checks and explicit skipped tests.
+See its results above; no production code changed. E01 records
 source/manifest/arithmetic/contract review, local-link checks and
 `git diff --check`; no Go suite is needed or claimed for prose-only changes.
 All completed cards need individual `[x] DONE` markers with actual validation

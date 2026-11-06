@@ -15,6 +15,7 @@ const PREFIX = '/audiobookshelf'
 function validatedArgs() {
   const out = parseArgs()
   if (!out.fixture || !out['go-bin']) throw new Error('Usage: run-local.cjs --fixture <fixture-manifest.json> --go-bin <audiobookshelf-go> [--out <report.json>] [--cases <comma-separated-case-ids>]')
+  if (out.cases && out['representation-diagnostics-out']) throw new Error('representation diagnostic sidecars require a full run without --cases')
   return out
 }
 
@@ -57,7 +58,8 @@ async function main() {
     const run = spawnSync(process.execPath, [
       path.join(__dirname, 'differential.cjs'), '--node-url', nodeUrl, '--go-url', goUrl,
       '--fixture', fixturePath, '--out', output,
-      ...(args.cases ? ['--cases', args.cases] : [])
+      ...(args.cases ? ['--cases', args.cases] : []),
+      ...(args['representation-diagnostics-out'] ? ['--representation-diagnostics-out', args['representation-diagnostics-out']] : [])
     ], { cwd: ROOT, encoding: 'utf8' })
     process.stdout.write(run.stdout)
     process.stderr.write(run.stderr)

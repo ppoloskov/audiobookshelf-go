@@ -18,10 +18,10 @@ import (
 
 	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/wire"
+	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
 )
 
@@ -870,9 +870,10 @@ func TestMissingItemUsesSendStatusNotFound(t *testing.T) {
 			t.Fatalf("item %q route did not match", id)
 		}
 		const body = "Not Found"
-		if w.Code != http.StatusNotFound || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
+		if w.Code != http.StatusNotFound || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 			t.Fatalf("item %q status=%d headers=%v body=%q", id, w.Code, w.Header(), w.Body.String())
 		}
+		requireOpaqueETag(t, w.Header().Get("ETag"))
 	}
 }
 
@@ -889,9 +890,10 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 		t.Fatal("download route did not match")
 	}
 	const body = "Forbidden"
-	if w.Code != http.StatusForbidden || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
+	if w.Code != http.StatusForbidden || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
+	requireOpaqueETag(t, w.Header().Get("ETag"))
 }
 
 func TestLibraryJSONIncludesNullLastScanVersion(t *testing.T) {
@@ -1611,9 +1613,10 @@ func TestInvalidLibraryItemsPaginationUsesExpressSend(t *testing.T) {
 		t.Fatal("route did not match")
 	}
 	const body = "Invalid request. page must be a positive integer"
-	if w.Code != http.StatusBadRequest || w.Body.String() != body || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != httputil.ExpressETag([]byte(body)) {
+	if w.Code != http.StatusBadRequest || w.Body.String() != body || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
+	requireOpaqueETag(t, w.Header().Get("ETag"))
 }
 
 func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
@@ -1646,9 +1649,30 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantETag := `W/"` + strconv.FormatInt(info.Size(), 16) + `-` + strconv.FormatInt(info.ModTime().Round(time.Millisecond).UnixMilli(), 16) + `"`
-	if got := w.Header().Get("ETag"); got != wantETag {
-		t.Fatalf("valid range ETag=%q, want %q", got, wantETag)
+	etag := w.Header().Get("ETag")
+	requireOpaqueETag(t, etag)
+	if got := w.Header().Get("Content-Range"); got != "bytes 2-4/10" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+	for _, conditional := range []struct {
+		validator string
+		status    int
+	}{
+		{etag, http.StatusNotModified},
+		{`"different-representation"`, http.StatusOK},
+	} {
+		request := httptest.NewRequest(http.MethodGet, "/api/items/i1/file/audio-1", nil)
+		request.Header.Set("If-None-Match", conditional.validator)
+		response := httptest.NewRecorder()
+		if !h.Handle(response, request, u) || response.Code != conditional.status {
+			t.Fatalf("conditional file response = %d, want %d", response.Code, conditional.status)
+		}
+		if conditional.status == http.StatusNotModified && response.Body.Len() != 0 {
+			t.Fatalf("304 has body %q", response.Body.String())
+		}
+		if conditional.status == http.StatusOK && response.Body.String() != "0123456789" {
+			t.Fatalf("fresh file body = %q", response.Body.String())
+		}
 	}
 
 	invalid := httptest.NewRecorder()
@@ -1657,17 +1681,16 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	if !h.Handle(invalid, invalidRequest, u) {
 		t.Fatal("invalid-range route did not match")
 	}
-	wantBody := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Range Not Satisfiable</pre>\n</body>\n</html>\n"
-	if invalid.Code != http.StatusRequestedRangeNotSatisfiable || invalid.Body.String() != wantBody {
-		t.Fatalf("invalid range = %d %q, want upstream body %q", invalid.Code, invalid.Body.String(), wantBody)
+	if invalid.Code != http.StatusRequestedRangeNotSatisfiable || !strings.Contains(strings.ToLower(rangeErrorText(t, invalid.Body.String())), "range not satisfiable") || strings.Contains(invalid.Body.String(), "0123456789") {
+		t.Fatalf("invalid range = %d %q, want error without media contents", invalid.Code, invalid.Body.String())
 	}
 	for name, want := range map[string]string{
 		"Content-Type":   "text/html; charset=utf-8",
 		"Content-Range":  "bytes */10",
 		"Accept-Ranges":  "bytes",
-		"Content-Length": strconv.Itoa(len(wantBody)),
+		"Content-Length": strconv.Itoa(invalid.Body.Len()),
 		"Last-Modified":  info.ModTime().UTC().Format(http.TimeFormat),
-		"ETag":           wantETag,
+		"ETag":           etag,
 	} {
 		if got := invalid.Header().Get(name); got != want {
 			t.Errorf("invalid range %s=%q, want %q", name, got, want)
@@ -1682,8 +1705,23 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	if head.Code != http.StatusRequestedRangeNotSatisfiable || head.Body.Len() != 0 {
 		t.Fatalf("HEAD invalid range = %d with %d body bytes", head.Code, head.Body.Len())
 	}
-	if head.Header().Get("Content-Length") != strconv.Itoa(len(wantBody)) || head.Header().Get("ETag") != wantETag {
+	if head.Header().Get("Content-Length") != strconv.Itoa(invalid.Body.Len()) || head.Header().Get("ETag") != etag {
 		t.Fatalf("HEAD invalid range headers content-length=%q ETag=%q", head.Header().Get("Content-Length"), head.Header().Get("ETag"))
+	}
+	const changedMedia = "changed audio contents"
+	if err := os.WriteFile(mediaPath, []byte(changedMedia), 0600); err != nil {
+		t.Fatal(err)
+	}
+	changedRequest := httptest.NewRequest(http.MethodGet, "/api/items/i1/file/audio-1", nil)
+	changedRequest.Header.Set("If-None-Match", etag)
+	changed := httptest.NewRecorder()
+	if !h.Handle(changed, changedRequest, u) || changed.Code != http.StatusOK || changed.Body.String() != changedMedia {
+		t.Fatalf("changed file with old validator = %d %q", changed.Code, changed.Body.String())
+	}
+	newETag := changed.Header().Get("ETag")
+	requireOpaqueETag(t, newETag)
+	if newETag == etag {
+		t.Fatal("changed media reused the old representation's validator")
 	}
 	m4bPath := filepath.Join(root, "audio.m4b")
 	if err := os.WriteFile(m4bPath, []byte("m4b"), 0600); err != nil {
@@ -1715,6 +1753,38 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	if blocked.Code != http.StatusNotFound {
 		t.Fatalf("outside path status=%d", blocked.Code)
 	}
+}
+
+func rangeErrorText(t *testing.T, body string) string {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var text strings.Builder
+	var walk func(*html.Node, bool)
+	walk = func(n *html.Node, inBody bool) {
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "script", "iframe", "object", "embed", "style", "link":
+				t.Fatalf("active content in range error: %s", n.Data)
+			}
+			for _, attr := range n.Attr {
+				if strings.HasPrefix(attr.Key, "on") || attr.Key == "style" || attr.Key == "http-equiv" || attr.Key == "href" || attr.Key == "src" || attr.Key == "action" || attr.Key == "formaction" {
+					t.Fatalf("active attribute in range error: %s", attr.Key)
+				}
+			}
+		}
+		inBody = inBody || n.Type == html.ElementNode && n.Data == "body"
+		if inBody && n.Type == html.TextNode {
+			text.WriteString(n.Data)
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			walk(child, inBody)
+		}
+	}
+	walk(doc, false)
+	return text.String()
 }
 
 func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {

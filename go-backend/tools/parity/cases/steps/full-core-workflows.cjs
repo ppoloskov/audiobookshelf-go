@@ -5,6 +5,15 @@ const path = require('node:path')
 const { setTimeout: delay } = require('node:timers/promises')
 const { executeCaseGroup, executeNamedSteps } = require('../../lib/case-data.cjs')
 
+function coverPatchRepeatStateMatches(first, repeat, persistedPath, expectedPath) {
+  if (!first || !repeat || first.success !== true || repeat.success !== true) return false
+  if (typeof first.cover !== 'string' || typeof repeat.cover !== 'string') return false
+  if (typeof persistedPath !== 'string' || typeof expectedPath !== 'string') return false
+  if (path.resolve(first.cover) !== path.resolve(repeat.cover)) return false
+  return path.resolve(repeat.cover) === path.resolve(expectedPath) &&
+    path.resolve(persistedPath) === path.resolve(expectedPath)
+}
+
 module.exports = async function runFullCoreWorkflows({ context, runtime }) {
   const { caseFile, selectedRun, requestedCases, comparePair, bookLibraryId, bookItemId, audioFileId, audioFileIdGo, nodeLogin, goLogin, referenceAccessToken, referenceRefreshToken, readerAccessToken, results, compare, call, runStoredCase, node, go, fixture, ioClient, emailDevicesState: initialEmailDevicesState, startCoverSource, startSMTPFixture, startNotificationAppriseFixture, smtpMessageShape, readEmailDeviceState, readCoverDeleteState, PREFIX, socketNotificationProbe, socketAuthentication, socketUserUpdatedProbe, normalizeCase, deepSort } = runtime
   let emailDevicesState = initialEmailDevicesState
@@ -569,12 +578,21 @@ module.exports = async function runFullCoreWorkflows({ context, runtime }) {
       node: await readCoverDeleteState(fixture.directories.node, bookItemId),
       go: await readCoverDeleteState(fixture.directories.go, bookItemId)
     }
+    coverPatchState.responseRepeatStable = {
+      // The fixture stores covers in metadata; validation copies the source
+      // image there. The response/persisted path is not the submitted audio path.
+      node: coverPatchRepeatStateMatches(nodePatchSuccess.body, nodePatch.body, coverPatchState.node.coverPath,
+        path.join(fixture.directories.node, 'metadata', 'items', bookItemId, 'cover.png')),
+      go: coverPatchRepeatStateMatches(goPatchSuccess.body, goPatch.body, coverPatchState.go.coverPath,
+        path.join(fixture.directories.go, 'metadata', 'items', bookItemId, 'cover.png'))
+    }
     for (const [side, directory] of [['node', fixture.directories.node], ['go', fixture.directories.go]]) {
       const coverPath = coverPatchState[side].coverPath
       coverPatchState[side].coverPath = coverPath ? path.relative(path.join(directory, 'metadata'), coverPath) : null
     }
     coverPatchState.equal = coverPatchState.node.coverPath !== null &&
       coverPatchState.node.coverPath === coverPatchState.go.coverPath &&
+      coverPatchState.responseRepeatStable.node && coverPatchState.responseRepeatStable.go &&
       coverPatchState.node.cacheFiles.length === 0 && coverPatchState.go.cacheFiles.length === 0 &&
       coverPatchState.node.coverFiles.includes('cover.png') && coverPatchState.go.coverFiles.includes('cover.png') &&
       coverPatchState.node.coverFiles.includes('cover.svg') && coverPatchState.go.coverFiles.includes('cover.svg')
@@ -636,3 +654,5 @@ module.exports = async function runFullCoreWorkflows({ context, runtime }) {
 
   return { coverDelete: coverDeleteState, coverUpload: coverUploadState, coverPatch: coverPatchState, coverURLFailure: coverURLFailureState, coverURLRedirect: coverURLRedirectState, emailDevices: emailDevicesState }
 }
+
+module.exports.coverPatchRepeatStateMatches = coverPatchRepeatStateMatches

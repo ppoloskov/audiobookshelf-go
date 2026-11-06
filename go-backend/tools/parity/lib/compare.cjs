@@ -531,28 +531,26 @@ function compare(id, left, right, notes = []) {
   const expectedStatus = EXPECTED_STATUS[id]
   const leftHeaders = { ...left.headers }
   const rightHeaders = { ...right.headers }
-  let expressJSONHeadersMatch = true
-  if (id === 'cover-patch-success' || id === 'cover-patch-repeat') {
-    const validate = (response) => {
-      const body = Buffer.from(JSON.stringify(response.body))
-      const tag = `W/\"${body.length.toString(16)}-${crypto.createHash('sha1').update(body).digest('base64').replace(/=+$/, '')}\"`
-      return response.headers['content-type'] === 'application/json; charset=utf-8' &&
-        response.headers['content-length'] === String(body.length) && response.headers.etag === tag
-    }
-    expressJSONHeadersMatch = validate(left) && validate(right)
+  const semanticDifferences = []
+  if (COVER_PATCH_CASES.has(id)) {
+    semanticDifferences.push(...coverPatchResponseDifferences(left, FIXTURE_PATH_ROOTS?.node, 'reference'))
+    semanticDifferences.push(...coverPatchResponseDifferences(right, FIXTURE_PATH_ROOTS?.go, 'go'))
     for (const headers of [leftHeaders, rightHeaders]) {
-      headers['content-length'] = '<express-json-length-validated-per-side>'
-      headers.etag = '<express-etag-validated-per-side>'
+      delete headers['content-length']
+      delete headers.etag
+      if (isJSONContentType(headers['content-type'])) headers['content-type'] = 'application/json'
     }
-    notes.push('Content-Length and Express weak ETag are validated against each side’s exact JSON bytes; path-derived header values are normalized only after that check.')
+    notes.push('PATCH response values are compared as parsed JSON; present Content-Length is checked against captured wire bytes and advertised ETags are validated as opaque entity-tags.')
   }
-  const passed = expressJSONHeadersMatch && left.status === right.status && left.status === expectedStatus && JSON.stringify(leftHeaders) === JSON.stringify(rightHeaders) && JSON.stringify(leftNormalized) === JSON.stringify(rightNormalized)
+  const headersMatch = JSON.stringify(leftHeaders) === JSON.stringify(rightHeaders)
+  const bodiesMatch = JSON.stringify(leftNormalized) === JSON.stringify(rightNormalized)
+  const passed = left.status === right.status && left.status === expectedStatus && headersMatch && bodiesMatch && semanticDifferences.length === 0
   const differences = passed ? [] : differencePaths(left.status, right.status, leftHeaders, rightHeaders, leftNormalized, rightNormalized)
-  if (!expressJSONHeadersMatch) differences.push({ path: '$.headers', error: 'successful PATCH did not return matching Express JSON headers for its exact body' })
+  differences.push(...semanticDifferences)
   if (expectedStatus !== undefined && (left.status !== expectedStatus || right.status !== expectedStatus)) {
     differences.push({ path: '$.expectedStatus', expected: expectedStatus, reference: left.status, go: right.status })
   }
-  return {
+  const result = {
     id,
     expectedStatus,
     passed,
@@ -565,6 +563,16 @@ function compare(id, left, right, notes = []) {
     differences,
     notes
   }
+  if (COVER_PATCH_CASES.has(id)) {
+    Object.defineProperty(result, 'representationInputs', {
+      enumerable: false,
+      value: {
+        reference: { body: left.body, headers: { ...left.headers } },
+        go: { body: right.body, headers: { ...right.headers } }
+      }
+    })
+  }
+  return result
 }
 
 function preview(value) {
@@ -599,6 +607,56 @@ function differencePaths(leftStatus, rightStatus, leftHeaders, rightHeaders, lef
   }
   walk(left, right, '$')
   return diffs
+}
+
+const COVER_PATCH_CASES = new Set(['cover-patch-success', 'cover-patch-repeat'])
+const ENTITY_TAG = /^(?:W\/)?"[\x21\x23-\x7E\x80-\xFF]*"$/
+
+function isJSONContentType(value) {
+  if (typeof value !== 'string') return false
+  const parts = value.split(';')
+  if (parts.shift().trim().toLowerCase() !== 'application/json') return false
+  return parts.every((parameter) => {
+    const match = /^\s*charset\s*=\s*(?:"([^\"]*)"|([^;\s]*))\s*$/i.exec(parameter)
+    if (!match) return false
+    const charset = match[1] ?? match[2]
+    return charset.length > 0 && charset.toLowerCase() === 'utf-8'
+  })
+}
+
+function fixturePathIsValid(value, roots) {
+  if (typeof value !== 'string' || !roots) return false
+  return ['media', 'metadata'].some((key) => {
+    const root = roots[key]
+    if (typeof root !== 'string' || !path.isAbsolute(root)) return false
+    const relative = path.relative(path.resolve(root), path.resolve(value))
+    return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+  })
+}
+
+function coverPatchResponseDifferences(response, roots, side) {
+  const differences = []
+  const body = response.body
+  if (!isJSONContentType(response.headers?.['content-type'])) {
+    differences.push({ path: `${side}.headers.content-type`, error: 'successful PATCH response must use application/json with UTF-8 encoding' })
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    differences.push({ path: `${side}.body`, error: 'successful PATCH response must be a JSON object' })
+    return differences
+  }
+  if (body.success !== true) differences.push({ path: `${side}.body.success`, expected: true, actual: body.success })
+  if (!Object.hasOwn(body, 'cover') || !fixturePathIsValid(body.cover, roots)) {
+    differences.push({ path: `${side}.body.cover`, error: 'cover must be a string path rooted under this fixture media or metadata directory' })
+  }
+  const contentLength = response.headers?.['content-length']
+  if (contentLength !== undefined && (!/^\d+$/.test(contentLength) || !Number.isInteger(response.wireLength) || Number(contentLength) !== response.wireLength)) {
+    differences.push({ path: `${side}.headers.content-length`, expectedWireLength: response.wireLength, actual: contentLength })
+  }
+  const etag = response.headers?.etag
+  if (etag !== undefined && !ENTITY_TAG.test(etag)) {
+    differences.push({ path: `${side}.headers.etag`, error: 'advertised ETag must be a valid opaque entity-tag' })
+  }
+  return differences
 }
 
 module.exports = { configureComparison, compare, deepSort, normalizeCase }

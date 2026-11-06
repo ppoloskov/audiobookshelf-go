@@ -1,0 +1,565 @@
+{
+  "schemaVersion": 1,
+  "task": "TQ01-I",
+  "baseCommit": "fda317d123885d7a8f2accc20ca65d3cdc8210d8",
+  "date": "2026-11-06",
+  "scope": "Test, harness and diagnostic-lane changes; no production Go behavior, schema, fixture or external Monstrobook changes.",
+  "productionGoChanged": false,
+  "productionMetricsDelta": 0,
+  "snapshot": {
+    "path": "/private/tmp/tq01-implementation-20261106/shipping",
+    "excludedOwnerWIP": [
+      ".codemap/",
+      "go-backend/TODO.md",
+      "go-backend/internal/identity/routes.go"
+    ],
+    "dependencies": "Installed modules copied unchanged for TS compilation; snapshot client/node_modules exposes the existing Socket.IO client.",
+    "toolchain": "Go 1.27.0 GOTOOLCHAIN=local, CGO_ENABLED=0; Node 22.23.4; native FFmpeg/WebP prefix from TESTING.md."
+  },
+  "finalResults": {
+    "build": "PASS",
+    "vet": "PASS",
+    "lint": "PASS: direct installed golangci-lint 2.15.0, zero issues",
+    "ratchetAndDBNest": "PASS: 44,674 lines / 10,809 complexity; every production metric delta zero",
+    "go": {
+      "exitCode": 0,
+      "topLevelTestsPassed": 454,
+      "testAndSubtestPassEvents": 1536,
+      "packagesWithTestsPassed": 40,
+      "testFailures": 0,
+      "unexecutedTests": [
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestUpstreamCreatedBackupImports"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestExportNodeFixtureDatabaseForNodeImport"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/playback",
+          "test": "TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles"
+        }
+      ]
+    },
+    "nodeSemanticAndHarness": {
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0
+    },
+    "assertionManifest": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "externalSnapshotVerifiedReadOnly": true,
+      "withoutExternalEnvironment": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 1
+      },
+      "finalParentCheck": "3/3 PASS with actual read-only MONSTROBOOK_ROOT; also validated without env by worker."
+    },
+    "goDiagnosticLane": "PASS: final parent rerun after helper review, ten tagged tests across five packages.",
+    "nodeDiagnosticSelftests": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "liveCore": {
+      "exitCode": 0,
+      "summary": {
+        "total": 193,
+        "passed": 193,
+        "failed": 0,
+        "skipped": 0,
+        "executed": 193
+      },
+      "statefulChecksAllPassed": true,
+      "coverPatchRepeatStable": {
+        "node": true,
+        "go": true
+      },
+      "verification": {
+        "inputDigest": "93782c95059577f28ae11a9ec6cc24d6897bac3bdc7b3966200b635668c0bb79",
+        "completedInputDigest": "93782c95059577f28ae11a9ec6cc24d6897bac3bdc7b3966200b635668c0bb79"
+      }
+    },
+    "liveRepresentationDiagnostic": {
+      "exitCode": 0,
+      "checks": "Two cover PATCH cases, pinned TS and Go fingerprints each checked separately."
+    },
+    "rollback": {
+      "exitCode": 0,
+      "checks": [
+        "rollback.started",
+        "rollback.ping",
+        "rollback.login",
+        "rollback.libraries",
+        "rollback.bookItem"
+      ]
+    },
+    "workflowYAML": "PASS: parsed with Ruby stdlib YAML; both diagnostic jobs advisory."
+  },
+  "unexecuted": [
+    {
+      "test": "TestUpstreamCreatedBackupImports",
+      "reason": "ABS_BACKUP_NODE_ARCHIVE was not supplied."
+    },
+    {
+      "test": "TestExportNodeFixtureDatabaseForNodeImport",
+      "reason": "ABS_BACKUP_FIXTURE_DB, ABS_BACKUP_FIXTURE_METADATA and ABS_BACKUP_EXPORT_DIR were not supplied."
+    },
+    {
+      "test": "TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles",
+      "reason": "Existing test checks hard-coded /usr/bin/ffmpeg; macOS native FFmpeg is installed at the TESTING.md prefix, not /usr/bin/ffmpeg."
+    },
+    {
+      "suite": "Monstrobook scoring/imported implementation suites",
+      "reason": "Read-only inventory reconciliation only; no imports, inventories, scores or external server code changed."
+    },
+    {
+      "suite": "Race, browser/device, benchmark and broader parity-full suites",
+      "reason": "Not run for this test-only packet; live core and standalone rollback were run."
+    }
+  ],
+  "resolvedFailures": [
+    {
+      "area": "Initial Go baseline",
+      "failure": "Default Go cache write denied by sandbox before compilation.",
+      "resolution": "Temporary writable GOCACHE; clean baseline and shipping tests passed."
+    },
+    {
+      "area": "R06 test authoring",
+      "failure": "Expected root-user OPML incorrectly omitted the ordinary podcast.",
+      "resolution": "Independent expected document corrected to ordinary then explicit feed; source/ACL unchanged."
+    },
+    {
+      "area": "R07 test authoring",
+      "failure": "Independent vector initially counted three and tokens for a two-and input.",
+      "resolution": "Corrected manual expectation to andand; default and diagnostic suites passed."
+    },
+    {
+      "area": "R04 test authoring",
+      "failure": "Go status text says Requested Range Not Satisfiable; the existing error body says Range Not Satisfiable.",
+      "resolution": "Check decoded body information and retained status/range/security semantics; formatting stays diagnostic."
+    },
+    {
+      "area": "Node harness test environment",
+      "failure": "Loopback EPERM under the default sandbox.",
+      "resolution": "Authorized local loopback execution passed."
+    },
+    {
+      "area": "Lint environment",
+      "failure": "mise shim had no configured version in the archive snapshot.",
+      "resolution": "Direct installed golangci-lint 2.15.0 passed; no tool installation/config changes."
+    },
+    {
+      "area": "Reference build environment",
+      "failure": "TypeScript compiler Debug Failure with symlinked snapshot node_modules.",
+      "resolution": "Unchanged physical dependency copy; pinned-source rebuild and live core passed."
+    },
+    {
+      "area": "First live R08 run",
+      "failure": "193/193 API cases passed but new state check incorrectly required submitted source path instead of the validated metadata destination.",
+      "resolution": "Expected metadata/items/<id>/cover.png derived independently from fixture and pinned CoverManager behavior. Fresh final fixture: 193/193 plus state checks passed."
+    },
+    {
+      "area": "Manifest authoring",
+      "failure": "One copied hash typo and an incorrect local reconciliation field name; first parent aggregate had 40/41 passes.",
+      "resolution": "Computed hashes/field names corrected; default validator 2 passes + expected external skip, local external verification 3/3."
+    }
+  ],
+  "commandsAndExitCodes": [
+    {
+      "name": "build",
+      "argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping/go-backend",
+      "exitCode": 0,
+      "elapsedSeconds": 1.408,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/build.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/build.stderr"
+    },
+    {
+      "name": "vet",
+      "argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping/go-backend",
+      "exitCode": 0,
+      "elapsedSeconds": 3.516,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/vet.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/vet.stderr"
+    },
+    {
+      "name": "go-full",
+      "argv": [
+        "go",
+        "test",
+        "-json",
+        "./...",
+        "-count=1"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping/go-backend",
+      "exitCode": 0,
+      "elapsedSeconds": 28.117,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/go-full.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/go-full.stderr",
+      "testPassEvents": 1534,
+      "topLevelTestPassEvents": 452,
+      "packagePasses": 40,
+      "skips": [
+        {
+          "package": "audiobookshelf-compat/cmd/abs-compat",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/cmd/audiobookshelf-go",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/contracts/parity",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/books",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestUpstreamCreatedBackupImports"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestExportNodeFixtureDatabaseForNodeImport"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/db/sqlc",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/events",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/filterdata",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/progressdto",
+          "test": null
+        },
+        {
+          "package": "audiobookshelf-compat/internal/playback",
+          "test": "TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/server",
+          "test": "TestSetLogListenerDeliversLogEvents"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "name": "lint",
+      "argv": [
+        "golangci-lint",
+        "run",
+        "--config=../.golangci.yml",
+        "./..."
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping/go-backend",
+      "exitCode": 1,
+      "elapsedSeconds": 0.104,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/lint.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/lint.stderr"
+    },
+    {
+      "name": "ratchet",
+      "argv": [
+        "make",
+        "ratchet"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 0,
+      "elapsedSeconds": 1.498,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/ratchet.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/ratchet.stderr"
+    },
+    {
+      "name": "go-diagnostics",
+      "argv": [
+        "make",
+        "test-ts-diagnostics"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 0,
+      "elapsedSeconds": 1.858,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/go-diagnostics.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/go-diagnostics.stderr"
+    },
+    {
+      "name": "go-full-final",
+      "argv": [
+        "go",
+        "test",
+        "-json",
+        "./...",
+        "-count=1"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 27.645,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/go-full-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/go-full-final.stderr",
+      "testPassEvents": 1536,
+      "topLevelTestPassEvents": 454,
+      "packagePasses": 40,
+      "skips": [
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestUpstreamCreatedBackupImports"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/backup",
+          "test": "TestExportNodeFixtureDatabaseForNodeImport"
+        },
+        {
+          "package": "audiobookshelf-compat/internal/playback",
+          "test": "TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "name": "lint-final",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/golangci-lint/2.15.0/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+        "run",
+        "--config=../.golangci.yml",
+        "./..."
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.508,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/lint-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/lint-final.stderr"
+    },
+    {
+      "name": "live-build",
+      "argv": [
+        "go",
+        "build",
+        "-o",
+        "/private/tmp/tq01-implementation-20261106/audiobookshelf-go",
+        "./cmd/audiobookshelf-go"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping/go-backend",
+      "exitCode": 0,
+      "elapsedSeconds": 0.657,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-build.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-build.stderr"
+    },
+    {
+      "name": "source-library-oracle",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/test-library-oracle.cjs"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 0,
+      "elapsedSeconds": 0.065,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/source-library-oracle.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/source-library-oracle.stderr"
+    },
+    {
+      "name": "source-book-oracle",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/test-book-item-oracle.cjs"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 0,
+      "elapsedSeconds": 0.109,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/source-book-oracle.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/source-book-oracle.stderr"
+    },
+    {
+      "name": "live-fixture",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/create-fixture.cjs",
+        "/private/tmp/tq01-implementation-20261106/live-fixture"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 0,
+      "elapsedSeconds": 17.237,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-fixture.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-fixture.stderr"
+    },
+    {
+      "name": "live-core",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/run-local.cjs",
+        "--fixture",
+        "/private/tmp/tq01-implementation-20261106/live-fixture/fixture-manifest.json",
+        "--go-bin",
+        "/private/tmp/tq01-implementation-20261106/audiobookshelf-go",
+        "--out",
+        "/private/tmp/tq01-implementation-20261106/core-report.json",
+        "--representation-diagnostics-out",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs.json"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 1,
+      "elapsedSeconds": 3.223,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-core.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-core.stderr"
+    },
+    {
+      "name": "live-node-diagnostics",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/representation-diagnostic.cjs",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs.json"
+      ],
+      "cwd": "/private/tmp/tq01-implementation-20261106/shipping",
+      "exitCode": 1,
+      "elapsedSeconds": 0.041,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics.stderr"
+    },
+    {
+      "name": "live-core-retry",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/run-local.cjs",
+        "--fixture",
+        "/private/tmp/tq01-implementation-20261106/live-fixture/fixture-manifest.json",
+        "--go-bin",
+        "/private/tmp/tq01-implementation-20261106/audiobookshelf-go",
+        "--out",
+        "/private/tmp/tq01-implementation-20261106/core-report.json",
+        "--representation-diagnostics-out",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs.json"
+      ],
+      "exitCode": 1,
+      "elapsedSeconds": 55.617,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-core-retry.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-core-retry.stderr"
+    },
+    {
+      "name": "live-node-diagnostics-retry",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/representation-diagnostic.cjs",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.045,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics-retry.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics-retry.stderr"
+    },
+    {
+      "name": "live-fixture-final",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/create-fixture.cjs",
+        "/private/tmp/tq01-implementation-20261106/live-fixture-final"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 17.342,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-fixture-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-fixture-final.stderr"
+    },
+    {
+      "name": "live-core-final",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/run-local.cjs",
+        "--fixture",
+        "/private/tmp/tq01-implementation-20261106/live-fixture-final/fixture-manifest.json",
+        "--go-bin",
+        "/private/tmp/tq01-implementation-20261106/audiobookshelf-go",
+        "--out",
+        "/private/tmp/tq01-implementation-20261106/core-report-final.json",
+        "--representation-diagnostics-out",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs-final.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 55.782,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-core-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-core-final.stderr"
+    },
+    {
+      "name": "live-node-diagnostics-final",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/representation-diagnostic.cjs",
+        "/private/tmp/tq01-implementation-20261106/core-representation-inputs-final.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.051,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/live-node-diagnostics-final.stderr"
+    },
+    {
+      "name": "rollback-final",
+      "argv": [
+        "/Users/paul/.local/share/mise/installs/node/22.23.4/bin/node",
+        "go-backend/tools/parity/rollback-check.cjs",
+        "/private/tmp/tq01-implementation-20261106/live-fixture-final/fixture-manifest.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 15.941,
+      "stdout": "/private/tmp/tq01-implementation-20261106/logs/rollback-final.stdout",
+      "stderr": "/private/tmp/tq01-implementation-20261106/logs/rollback-final.stderr"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/snapshot.json",
+      "sha256": "f56692112f27cf53ebbeb3393ae20c651645fb57e6df05ed518506ac2fd9c52c"
+    },
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/core-report-final.json",
+      "sha256": "af20e5ebff477ebad6cd6c0c96bb348045ed65064955274c1b173180089287bb"
+    },
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/core-representation-inputs-final.json",
+      "sha256": "8ac267d85e0c2965f9b0731479bb81b5f25d5bed742a037ab05e20778151e6f0"
+    },
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/checks.json",
+      "sha256": "5d514ccf8f7eb116dda288391952302c448b6fd265b4386e99e73c6066934689"
+    },
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/final-checks.json",
+      "sha256": "f9b6efb7a03f8f1b8b291208ceb6f2a3b09ef8cdc78a29b3f0b71d6686544305"
+    },
+    {
+      "path": "/private/tmp/tq01-implementation-20261106/live-final-checks.json",
+      "sha256": "c2b9a7564a2cba70a197e38dfd26f18461981644f559fa4fefab3481574f1847"
+    }
+  ],
+  "sourcePreservation": "test-assertions.json sourceProvenance and retainedCorpusSpans validate original goldens, schema, source oracle and rollback evidence.",
+  "externalScoreChanged": false,
+  "assertionManifest": {
+    "originalAssertionGroups": 22,
+    "retainedControls": 12,
+    "families": [
+      "R01",
+      "R02",
+      "R03",
+      "R04",
+      "R05",
+      "R06",
+      "R07",
+      "R08"
+    ]
+  }
+}

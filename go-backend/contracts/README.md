@@ -6,8 +6,11 @@
 
 # Legacy source compatibility inventory
 
-The [test/oracle/corpus boundary review](../TEST-COMPATIBILITY-REVIEW.md)
-separates representation assertions from retained client/data contracts.
+The [test/oracle/corpus implementation](../TEST-COMPATIBILITY-IMPLEMENTATION.md)
+separates representation diagnostics from retained client/data gates. Its
+[assertion manifest](test-assertions.json),
+[external reconciliation](monstrobook-test-reconciliation.json) and
+[actual results](test-assertion-results.json) record scope and limitations.
 Source-executed goldens are not automatically TS-only tests; preserve their
 provenance and useful value/type/nullability assertions.
 

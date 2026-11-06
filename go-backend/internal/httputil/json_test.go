@@ -2,8 +2,10 @@ package httputil
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -17,12 +19,13 @@ func TestWriteJSONFramesLikeExpress(t *testing.T) {
 	if got, want := rec.Header().Get("Content-Type"), "application/json; charset=utf-8"; got != want {
 		t.Fatalf("Content-Type = %q, want %q", got, want)
 	}
-	body := rec.Body.String()
-	if want := `{"a":"\u003c\u0026\u003e","b":1}`; body != want {
-		t.Fatalf("body = %q, want %q", body, want)
+	var got map[string]any
+	decodeOneJSONDocument(t, rec.Body.String(), &got)
+	if len(got) != 2 || got["a"] != "<&>" || got["b"] != float64(1) {
+		t.Fatalf("decoded body = %#v, want a string and b number", got)
 	}
-	if got, want := rec.Header().Get("Content-Length"), "32"; got != want {
-		t.Fatalf("Content-Length = %q, want %q", got, want)
+	if got, want := rec.Header().Get("Content-Length"), strconv.Itoa(rec.Body.Len()); got != want {
+		t.Fatalf("Content-Length = %q, want emitted body length %q", got, want)
 	}
 }
 
@@ -33,23 +36,28 @@ func TestWriteJSONHeadKeepsHeadersAndDropsBody(t *testing.T) {
 	if rec.Body.Len() != 0 {
 		t.Fatalf("HEAD body = %q, want empty", rec.Body.String())
 	}
-	if got, want := rec.Header().Get("Content-Length"), "16"; got != want {
-		t.Fatalf("HEAD Content-Length = %q, want %q", got, want)
-	}
+	headLength := rec.Header().Get("Content-Length")
 
 	get := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rec = httptest.NewRecorder()
 	WriteJSON(rec, http.StatusOK, map[string]bool{"success": true}, ForRequest(get))
-	if got, want := rec.Body.String(), `{"success":true}`; got != want {
-		t.Fatalf("GET body = %q, want %q", got, want)
+	var got map[string]any
+	decodeOneJSONDocument(t, rec.Body.String(), &got)
+	if len(got) != 1 || got["success"] != true {
+		t.Fatalf("GET body = %#v, want success=true", got)
+	}
+	if want := strconv.Itoa(rec.Body.Len()); headLength != want {
+		t.Fatalf("HEAD Content-Length = %q, want GET body length %q", headLength, want)
 	}
 }
 
 func TestWriteJSONStreamedKeepsEncoderFraming(t *testing.T) {
 	rec := httptest.NewRecorder()
 	WriteJSON(rec, http.StatusOK, map[string]int{"a": 1}, Streamed())
-	if got, want := rec.Body.String(), "{\"a\":1}\n"; got != want {
-		t.Fatalf("body = %q, want %q", got, want)
+	var got map[string]any
+	decodeOneJSONDocument(t, rec.Body.String(), &got)
+	if len(got) != 1 || got["a"] != float64(1) {
+		t.Fatalf("decoded streamed body = %#v, want a=1", got)
 	}
 	if got := rec.Header().Get("Content-Length"); got != "" {
 		t.Fatalf("Content-Length = %q, want none", got)
@@ -69,8 +77,22 @@ func TestWriteJSONWithoutContentLength(t *testing.T) {
 	if got := rec.Header().Get("Content-Length"); got != "" {
 		t.Fatalf("Content-Length = %q, want none", got)
 	}
-	if got, want := rec.Body.String(), "[1]"; got != want {
-		t.Fatalf("body = %q, want %q", got, want)
+	var got []int
+	decodeOneJSONDocument(t, rec.Body.String(), &got)
+	if len(got) != 1 || got[0] != 1 {
+		t.Fatalf("decoded body = %v, want [1]", got)
+	}
+}
+
+func decodeOneJSONDocument(t *testing.T, body string, dst any) {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(body))
+	if err := dec.Decode(dst); err != nil {
+		t.Fatalf("decode JSON document: %v", err)
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		t.Fatalf("trailing JSON data: decode error = %v", err)
 	}
 }
 

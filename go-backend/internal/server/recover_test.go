@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -13,8 +14,19 @@ func TestGuardPanicsAnswersLikeExpressFinalhandlerAndLogsStack(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/api/items/abc?token=secret", nil)
 	guardPanics(w, r, func(http.ResponseWriter, *http.Request) { panic("boom") })
-	if w.Code != 500 || !strings.Contains(w.Body.String(), "<pre>Internal Server Error</pre>") {
+	if w.Code != 500 {
 		t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
+	}
+	if text := errorHTMLText(t, w.Body.String()); !strings.Contains(text, http.StatusText(http.StatusInternalServerError)) {
+		t.Fatalf("public error information = %q", text)
+	}
+	for _, private := range []string{"boom", "secret", "goroutine", "/api/items/abc"} {
+		if strings.Contains(w.Body.String(), private) {
+			t.Fatalf("private diagnostic %q leaked into public error", private)
+		}
+	}
+	if w.Header().Get("Content-Length") != strconv.Itoa(w.Body.Len()) {
+		t.Fatalf("panic error length = %q, body %d bytes", w.Header().Get("Content-Length"), w.Body.Len())
 	}
 	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
 		t.Fatalf("content-type %q", ct)

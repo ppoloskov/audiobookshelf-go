@@ -7,7 +7,14 @@ package textclean
 // escaper wrote &#39;). Inputs whose output deliberately changed are in the
 // *Differences tables, with the old and new values.
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
+)
 
 var sanitizeGolden = []struct{ in, want string }{
 	{"The second book of the saga, narrated slowly.", "The second book of the saga, narrated slowly."},
@@ -128,10 +135,168 @@ var stripGolden = []struct{ in, want string }{
 
 func TestSanitizeGolden(t *testing.T) {
 	for _, tc := range sanitizeGolden {
+		if isRepresentationOnlySanitizeCase(tc.in) {
+			continue
+		}
 		if got := Sanitize(tc.in); got != tc.want {
 			t.Errorf("Sanitize(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
+}
+
+func isRepresentationOnlySanitizeCase(input string) bool {
+	switch input {
+	case "one<br>two",
+		"Tom &amp; Jerry &lt;3 &quot;quoted&quot; &#39;apos&#39; &nbsp;x &copy; &#x2603;",
+		`It's the reader's "pick" - don't miss it`,
+		"<br/>and<BR>and<br />":
+		return true
+	default:
+		return false
+	}
+}
+
+func TestSanitizeGoldenMeaning(t *testing.T) {
+	cases := []struct {
+		name, input string
+		tokens      []string
+	}{
+		{
+			name:   "single line break",
+			input:  "one<br>two",
+			tokens: []string{"text:one", "void:br", "text:two"},
+		},
+		{
+			name:  "decoded entities",
+			input: "Tom &amp; Jerry &lt;3 &quot;quoted&quot; &#39;apos&#39; &nbsp;x &copy; &#x2603;",
+			tokens: []string{
+				"text:Tom & Jerry <3 \"quoted\" 'apos' \u00a0x © ☃",
+			},
+		},
+		{
+			name:   "visible quote characters",
+			input:  `It's the reader's "pick" - don't miss it`,
+			tokens: []string{`text:It's the reader's "pick" - don't miss it`},
+		},
+		{
+			name:   "mixed line break spellings",
+			input:  "<br/>and<BR>and<br />",
+			tokens: []string{"void:br", "text:and", "void:br", "text:and", "void:br"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := safeHTMLMeaning(Sanitize(tc.input))
+			if err != nil {
+				t.Fatalf("Sanitize output is not safe HTML: %v", err)
+			}
+			if !equalStrings(got, tc.tokens) {
+				t.Fatalf("meaning tokens = %q, want %q", got, tc.tokens)
+			}
+		})
+	}
+}
+
+func TestSafeHTMLMeaningAcceptsEquivalentEntityAndBreakSyntax(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"one<br>two", "one<BR/>two"},
+		{"Tom &amp; Jerry", "Tom &#38; Jerry"},
+	} {
+		got, err := safeHTMLMeaning(pair[0])
+		if err != nil {
+			t.Fatalf("safeHTMLMeaning(%q): %v", pair[0], err)
+		}
+		want, err := safeHTMLMeaning(pair[1])
+		if err != nil {
+			t.Fatalf("safeHTMLMeaning(%q): %v", pair[1], err)
+		}
+		if !equalStrings(got, want) {
+			t.Errorf("equivalent forms differ: %q = %#v, %q = %#v", pair[0], got, pair[1], want)
+		}
+	}
+}
+
+func TestSafeHTMLMeaningRejectsChangedTextAndUnsafeMarkup(t *testing.T) {
+	expected := htmlMeaning{"text:one", "void:br", "text:two"}
+	changed, err := safeHTMLMeaning("one<br>three")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if equalStrings(changed, expected) {
+		t.Fatal("changed visible text matched the independent expected meaning")
+	}
+
+	for _, output := range []string{
+		"<script>alert(1)</script>",
+		`<br onclick="alert(1)">`,
+		`<a href="javascript:alert(1)">link</a>`,
+		`one<em>markup</em>`,
+	} {
+		if _, err := safeHTMLMeaning(output); err == nil {
+			t.Errorf("unsafe output %q was accepted", output)
+		}
+	}
+
+	// A literal script string is rendered as text; turning it into an element
+	// changes the DOM and must fail the same semantic/safety comparison.
+	literal, err := safeHTMLMeaning("&lt;script&gt;x&lt;/script&gt;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(literal, []string{"text:<script>x</script>"}) {
+		t.Fatalf("literal markup meaning = %#v", literal)
+	}
+	if _, err := safeHTMLMeaning("<script>x</script>"); err == nil {
+		t.Fatal("executable script was accepted as literal text")
+	}
+}
+
+type htmlMeaning []string
+
+func safeHTMLMeaning(rendered string) (htmlMeaning, error) {
+	context := &html.Node{Type: html.ElementNode, Data: "div", DataAtom: atom.Div}
+	nodes, err := html.ParseFragment(strings.NewReader(rendered), context)
+	if err != nil {
+		return nil, fmt.Errorf("parse HTML fragment: %w", err)
+	}
+	var meaning htmlMeaning
+	var visit func(*html.Node) error
+	visit = func(node *html.Node) error {
+		if node.Type == html.TextNode {
+			if len(meaning) > 0 && strings.HasPrefix(meaning[len(meaning)-1], "text:") {
+				meaning[len(meaning)-1] += node.Data
+			} else {
+				meaning = append(meaning, "text:"+node.Data)
+			}
+			return nil
+		}
+		if node.Type != html.ElementNode || node.Data != "br" {
+			return fmt.Errorf("unexpected HTML node type %v, element <%s>", node.Type, node.Data)
+		}
+		if len(node.Attr) != 0 {
+			return fmt.Errorf("unexpected attributes on <br>: %v", node.Attr)
+		}
+		meaning = append(meaning, "void:br")
+		return nil
+	}
+	for _, node := range nodes {
+		if err := visit(node); err != nil {
+			return nil, err
+		}
+	}
+	return meaning, nil
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestStripGolden(t *testing.T) {

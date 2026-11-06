@@ -15,9 +15,18 @@ const { REPEATABILITY_POLICY } = require('./compare-reports.cjs')
 const { detectFFmpegProfile, webpExpectedStatus } = require('./lib/ffmpeg-profile.cjs')
 const casesPath = path.resolve(__dirname, 'cases/core.json')
 const PREFIX = '/audiobookshelf'
+const COVER_PATCH_CASES = new Set(['cover-patch-success', 'cover-patch-repeat'])
 
 function fullRunIsComplete(summary) {
   return summary.skipped === 0 && summary.executed === summary.total
+}
+
+function writeRepresentationDiagnostics(output, results) {
+  const cases = Object.fromEntries(results
+    .filter(result => COVER_PATCH_CASES.has(result.id) && result.representationInputs)
+    .map(result => [result.id, result.representationInputs]))
+  if (!Object.keys(cases).length) throw new Error('no cover PATCH responses were captured for representation diagnostics')
+  writeJSON(path.resolve(output), { cases }, { ensureDirectory: true })
 }
 
 const EXPECTED_STATUS = {
@@ -149,6 +158,7 @@ const EXPECTED_STATUS = {
 function validatedArgs() {
   const out = parseArgs()
   for (const key of ['node-url', 'go-url', 'fixture']) if (!out[key]) throw new Error(`missing --${key}`)
+  if (out.cases && out['representation-diagnostics-out']) throw new Error('representation diagnostic sidecars require a full run without --cases')
   return out
 }
 
@@ -181,7 +191,7 @@ async function call(server, route, options = {}) {
   })
   const raw = response.bytes
   let body
-  if ((response.headers.get('content-type') || '').includes('json')) {
+  if ((response.headers.get('content-type') || '').toLowerCase().includes('json')) {
     try { body = JSON.parse(raw.toString('utf8')) } catch { body = raw.toString('utf8') }
   } else {
     body = raw.toString('base64')
@@ -214,7 +224,7 @@ async function call(server, route, options = {}) {
     const value = response.headers.get(key)
     if (value !== null) headers[key] = value
   }
-  return { status: response.status, headers, body }
+  return { status: response.status, headers, body, wireLength: raw.length }
 }
 
 
@@ -420,6 +430,9 @@ async function main() {
     cases: reportCases
   }
   report.summary.executed = report.cases.filter(result => !result.skipped).length
+  if (args['representation-diagnostics-out']) {
+    writeRepresentationDiagnostics(args['representation-diagnostics-out'], report.cases)
+  }
   const output = path.resolve(args.out || 'parity-results.json')
   writeJSON(output, report)
   console.log(JSON.stringify({ output, summary: report.summary }, null, 2))
@@ -437,4 +450,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { fullRunIsComplete }
+module.exports = { fullRunIsComplete, call, writeRepresentationDiagnostics }

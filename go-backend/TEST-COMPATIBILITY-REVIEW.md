@@ -2,6 +2,12 @@
 
 TQ01 · 2026-11-06 · source reviewed at `68e302cf`.
 
+**Historical review:** R01–R08 are now implemented under owner authorization.
+See [implementation and actual results](TEST-COMPATIBILITY-IMPLEMENTATION.md)
+and [machine-readable assertion mapping](contracts/test-assertions.json).
+The text below preserves the original findings, source locations and decisions;
+its “no changes/tests run” statements describe the review packet only.
+
 ## Decision
 
 Preserve client protocols, functionality and persisted data/rollback. Upstream

@@ -2,10 +2,14 @@
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage ratchet ratchet-update sqlc status
+.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage ratchet ratchet-update sqlc status test-ts-diagnostics
 
 # sqlc v1.31.1 (build-time only; CI installs the same pinned release).
 SQLC ?= sqlc
+
+# Historical serializer/framework fingerprints, deliberately outside default Go tests.
+test-ts-diagnostics:
+	cd go-backend && go test -tags tsdiagnostic ./internal/httputil ./internal/logging ./internal/catalog ./internal/server ./internal/textclean -run '^(TestTSRepresentation|TestExpressETagMatchesExpress)' -count=1
 
 parity:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/suite-runner.cjs core

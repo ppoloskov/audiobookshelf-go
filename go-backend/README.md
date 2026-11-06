@@ -31,6 +31,8 @@ fast Go.
 | Reviewed large deletion candidates and first-wave decisions | [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md) |
 | Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
 | TS-specific test assertions versus retained client/data contracts | [TEST-COMPATIBILITY-REVIEW.md](TEST-COMPATIBILITY-REVIEW.md) |
+| Implemented semantic assertions, diagnostic lanes and actual results | [TEST-COMPATIBILITY-IMPLEMENTATION.md](TEST-COMPATIBILITY-IMPLEMENTATION.md) |
+| Machine-readable original/replacement/diagnostic assertion map | [contracts/test-assertions.json](contracts/test-assertions.json) |
 | Node differential harness (advisory since V1) | [tools/parity/README.md](tools/parity/README.md) |
 | Upstream source inventory (historical) | [contracts/README.md](contracts/README.md) |
 | Dated reviews and superseded status documents (evidence only) | [archive/](archive/) |
@@ -82,11 +84,13 @@ Node differential commands remain advisory diagnostics (`make parity`,
 `npm ci && npm run build:server`). V2 cannot remove their shared seed/inventory
 inputs before regeneration is independent. The TS rollback check remains required.
 
-TQ01's [test/oracle/corpus review](TEST-COMPATIBILITY-REVIEW.md) extracts eight
-representation assertion families for separation; tests and runtime behavior
-are unchanged. Parsed book/library goldens and persisted name derivations stay.
-Image parity is advisory, but the separate `go-backend.yml` upstream-parity job
-still fails normally; that CI policy inconsistency remains unresolved.
+TQ01's [implementation](TEST-COMPATIBILITY-IMPLEMENTATION.md) replaces the eight
+reviewed representation assertion families with semantic checks. Historical
+fingerprints run via `make test-ts-diagnostics` and the opt-in Node sidecar;
+both diagnostic CI jobs are advisory. Production behavior, source goldens and
+rollback evidence stay unchanged. The machine-readable assertion/reconciliation
+manifests preserve explicit denominators; Monstrobook imports and scores were
+not changed. See the implementation report for actual checks and three skips.
 
 `cmd/abs-compat` compares GET/HEAD responses of two running servers ad hoc.
 

@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"audiobookshelf-compat/internal/httputil"
 )
 
 func TestSniffCoverTypeMatchesPinnedImageTypeHeaders(t *testing.T) {
@@ -91,8 +89,20 @@ func TestWriteJSONWithETagSetsExpressHeaders(t *testing.T) {
 	if got := response.Header().Get("Content-Length"); got != strconv.Itoa(response.Body.Len()) {
 		t.Errorf("Content-Length = %q, want %d", got, response.Body.Len())
 	}
-	if got := response.Header().Get("ETag"); got != httputil.ExpressETag(response.Body.Bytes()) {
-		t.Errorf("ETag = %q, want %q", got, httputil.ExpressETag(response.Body.Bytes()))
+	requireOpaqueETag(t, response.Header().Get("ETag"))
+}
+
+// Entity tags are opaque validators; their hash algorithm is not a client contract.
+func requireOpaqueETag(t *testing.T, tag string) {
+	t.Helper()
+	value := strings.TrimPrefix(tag, "W/")
+	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
+		t.Fatalf("invalid entity tag %q", tag)
+	}
+	for _, b := range []byte(value[1 : len(value)-1]) {
+		if b < 0x21 || b == '"' || b == 0x7f {
+			t.Fatalf("invalid entity tag %q", tag)
+		}
 	}
 }
 
@@ -142,6 +152,34 @@ func TestWriteJSONWithETagConditionalRequests(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestWriteJSONWithETagChangedValueIsFresh(t *testing.T) {
+	value := map[string]string{"name": "Original series"}
+	initial := httptest.NewRecorder()
+	writeJSONWithETag(initial, httptest.NewRequest(http.MethodGet, "/api/series/s1", nil), http.StatusOK, value)
+	etag := initial.Header().Get("ETag")
+	requireOpaqueETag(t, etag)
+	changed := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/series/s1", nil)
+	request.Header.Set("If-None-Match", etag)
+	value["name"] = "Updated series"
+	writeJSONWithETag(changed, request, http.StatusOK, value)
+	var got map[string]string
+	if err := json.Unmarshal(changed.Body.Bytes(), &got); err != nil || changed.Code != http.StatusOK || got["name"] != "Updated series" {
+		t.Fatalf("changed representation = %d %q (decode %v)", changed.Code, changed.Body.String(), err)
+	}
+	newETag := changed.Header().Get("ETag")
+	requireOpaqueETag(t, newETag)
+	if newETag == etag {
+		t.Fatal("changed JSON reused the previous representation's validator")
+	}
+	request.Header.Set("If-None-Match", newETag)
+	cached := httptest.NewRecorder()
+	writeJSONWithETag(cached, request, http.StatusOK, value)
+	if cached.Code != http.StatusNotModified || cached.Body.Len() != 0 {
+		t.Fatalf("updated validator replay = %d %q", cached.Code, cached.Body.String())
 	}
 }
 

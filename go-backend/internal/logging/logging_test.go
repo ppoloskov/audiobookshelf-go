@@ -149,14 +149,12 @@ func TestDailyFileJSONLineShapeAndName(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("lines = %q", lines)
 	}
-	// Key order and exact bytes: {timestamp,source,message,levelName,level}.
-	re := regexp.MustCompile(`^\{"timestamp":"2026-03-04 05:06:07\.089","source":"logging_test\.go:\d+","message":"a <b> & c","levelName":"INFO","level":2\}$`)
-	if !re.MatchString(lines[0]) {
-		t.Fatalf("line = %s", lines[0])
-	}
 	var e wire.LogEntry
 	if err := json.Unmarshal([]byte(lines[0]), &e); err != nil || e.Level != 2 {
 		t.Fatalf("round trip: %v %+v", err, e)
+	}
+	if e.Timestamp != "2026-03-04 05:06:07.089" || !regexp.MustCompile(`^logging_test\.go:\d+$`).MatchString(e.Source) || e.Message != "a <b> & c" || e.LevelName != "INFO" || e.Level != 2 {
+		t.Fatalf("decoded log entry = %+v", e)
 	}
 }
 
@@ -284,8 +282,21 @@ func TestCrashLogReceivesFatalOnly(t *testing.T) {
 	l.Error("not a crash")
 	l.Fatal("boom")
 	lines := readLines(t, filepath.Join(dir, "logs", "crash_logs.txt"))
-	if len(lines) != 2 || !strings.Contains(lines[0], "before open") || !strings.Contains(lines[1], `"levelName":"FATAL","level":5`) {
-		t.Fatalf("crash log = %q", lines)
+	if len(lines) != 2 {
+		t.Fatalf("crash log lines = %q, want two fatal entries", lines)
+	}
+	wantMessages := []string{"before open", "boom"}
+	for i, line := range lines {
+		var entry wire.LogEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			t.Fatalf("decode crash log line %q: %v", line, err)
+		}
+		if entry.LevelName != "FATAL" || entry.Level != 5 {
+			t.Errorf("crash log contains non-fatal entry: %+v", entry)
+		}
+		if entry.Message != wantMessages[i] {
+			t.Errorf("crash log message[%d] = %q, want %q", i, entry.Message, wantMessages[i])
+		}
 	}
 	// Fatal lines also reach the daily log.
 	daily := readLines(t, filepath.Join(dir, "logs", "daily", "2026-03-04.txt"))
@@ -319,14 +330,29 @@ func TestBelowLevelNotWrittenToFile(t *testing.T) {
 func TestLoggerDataShape(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	b, _ := json.Marshal(l.LoggerData())
-	if string(b) != `{"currentDailyLogs":[]}` {
-		t.Fatalf("empty = %s", b)
+	var empty struct {
+		CurrentDailyLogs []wire.LogEntry `json:"currentDailyLogs"`
+	}
+	if err := json.Unmarshal(b, &empty); err != nil {
+		t.Fatalf("decode empty LoggerData %s: %v", b, err)
+	}
+	if empty.CurrentDailyLogs == nil || len(empty.CurrentDailyLogs) != 0 {
+		t.Fatalf("empty currentDailyLogs = %#v, want empty array", empty.CurrentDailyLogs)
 	}
 	l.Info("one")
 	b, _ = json.Marshal(l.LoggerData())
-	re := regexp.MustCompile(`^\{"currentDailyLogs":\[\{"timestamp":"[^"]+","source":"[^"]+","message":"one","levelName":"INFO","level":2\}\]\}$`)
-	if !re.Match(b) {
-		t.Fatalf("one = %s", b)
+	var nonempty struct {
+		CurrentDailyLogs []wire.LogEntry `json:"currentDailyLogs"`
+	}
+	if err := json.Unmarshal(b, &nonempty); err != nil {
+		t.Fatalf("decode nonempty LoggerData %s: %v", b, err)
+	}
+	if len(nonempty.CurrentDailyLogs) != 1 {
+		t.Fatalf("currentDailyLogs = %+v, want one entry", nonempty.CurrentDailyLogs)
+	}
+	e := nonempty.CurrentDailyLogs[0]
+	if e.Timestamp != "2026-03-04 05:06:07.089" || !regexp.MustCompile(`^logging_test\.go:\d+$`).MatchString(e.Source) || e.Message != "one" || e.LevelName != "INFO" || e.Level != 2 {
+		t.Fatalf("currentDailyLogs entry = %+v", e)
 	}
 }
 
