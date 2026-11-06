@@ -1,0 +1,11 @@
+{
+  "note": "Source checkouts the evidence files were extracted from. Regenerate with tools/clientaudit/build.py (see its header).",
+  "clients": [
+    {"key": "official-app", "name": "Audiobookshelf app (official)", "platform": "Android + iOS (Nuxt/Capacitor, Kotlin, Swift)", "repo": "https://github.com/advplyr/audiobookshelf-app", "sha": "609f9d644c8390fc662869e08ace18ce4a519b00", "checkout": "/home/user/advplyr/audiobookshelf-app"},
+    {"key": "lissen", "name": "Lissen", "platform": "Android (Kotlin)", "repo": "https://github.com/GrakovNe/lissen-android", "sha": "421288498f429f4c438528490807de86ec59f382", "checkout": "/home/user/grakovne/lissen-android", "pathPrefixes": {"P/": "app/src/main/kotlin/org/grakovne/lissen/channel/audiobookshelf/"}},
+    {"key": "audiobooth", "name": "AudioBooth", "platform": "iOS / watchOS (Swift)", "repo": "https://github.com/AudioBooth/AudioBooth", "sha": "3039270df3189435cb508797d6b5a0940a794640", "checkout": "/home/user/audiobooth/audiobooth"},
+    {"key": "absorb", "name": "Absorb", "platform": "Android + iOS (Flutter)", "repo": "https://github.com/pounat/absorb", "sha": "8411ffc75cb3c179ceb697d4fad605a8098ca74b", "checkout": "/home/user/pounat/absorb"},
+    {"key": "storii", "name": "Storii", "platform": "Android + iOS (Flutter)", "repo": "https://github.com/likhithpraveenk/storii", "sha": "b638fcd5f26deda17df7f22d04db90534b2c7f3b", "checkout": "/home/user/likhithpraveenk/storii"},
+    {"key": "yaabsa", "name": "yaabsa", "platform": "Android + iOS + Wear (Flutter)", "repo": "https://github.com/Vito0912/yaabsa", "sha": "6ff482e3febaaa1bffc5c6b757da241c9a1a3120", "checkout": "/home/user/vito0912/yaabsa"}
+  ]
+}
