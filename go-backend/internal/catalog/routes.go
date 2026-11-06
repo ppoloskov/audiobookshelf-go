@@ -3,6 +3,9 @@ package catalog
 import (
 	"context"
 	"net/http"
+
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/store"
 )
 
 // RouteDeps are the collaborators of the routes Routes registers. They are
@@ -21,8 +24,7 @@ type RouteDeps struct {
 // Routes registers the catalog routes that use method patterns on mux
 // (ARCHITECTURE.md "Routing"). The server authenticates a request and attaches
 // the user to its context before dispatching (store.ContextWithUser); the
-// public image read gets none. Routes that Handle still serves are not
-// registered here.
+// public image read gets none.
 func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	h.authorFinder = deps.Authors
 	h.finder = deps.Books
@@ -50,7 +52,64 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	mux.HandleFunc("GET /api/libraries/{id}/matchall", h.libraryMatchAll)
 	mux.HandleFunc("POST /api/items/batch/quickmatch", h.batchQuickMatch)
 	mux.HandleFunc("POST /api/items/{id}/match", h.itemMatch)
-	mux.HandleFunc("GET /api/libraries/{id}/opml", h.libraryOPML)
-	mux.HandleFunc("POST /api/libraries/{id}/remove-metadata", h.libraryRemoveMetadata)
-	mux.HandleFunc("GET /api/libraries/{id}/download", h.libraryDownload)
+	mux.Handle("GET /api/libraries/{id}/opml", httputil.Handler(h.libraryOPML))
+	mux.Handle("POST /api/libraries/{id}/remove-metadata", httputil.Handler(h.libraryRemoveMetadata))
+	mux.Handle("GET /api/libraries/{id}/download", httputil.Handler(h.libraryDownload))
+
+	// server/routers/ApiRouter.js:60-91 (LibraryController), Express GET covers HEAD.
+	mux.Handle("GET /api/libraries", httputil.Handler(h.libraries))
+	mux.Handle("POST /api/libraries", httputil.Handler(h.createLibrary))
+	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
+	mux.Handle("GET /api/libraries/{id}", httputil.Handler(h.library))
+	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
+	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
+	mux.Handle("GET /api/libraries/{id}/items", httputil.Handler(h.libraryItems))
+	mux.Handle("DELETE /api/libraries/{id}/issues", httputil.Handler(h.removeLibraryItemsWithIssues))
+	mux.Handle("GET /api/libraries/{id}/stats", httputil.Handler(h.libraryStats))
+	mux.Handle("GET /api/libraries/{id}/filterdata", httputil.Handler(h.libraryFilterData))
+	mux.Handle("GET /api/libraries/{id}/personalized", httputil.Handler(h.personalized))
+	mux.Handle("GET /api/libraries/{id}/authors", httputil.Handler(h.authors))
+	mux.Handle("GET /api/libraries/{id}/narrators", httputil.Handler(h.narrators))
+	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", httputil.Handler(h.updateNarrator))
+	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", httputil.Handler(h.updateNarrator))
+	mux.Handle("GET /api/libraries/{id}/podcast-titles", httputil.Handler(h.podcastTitles))
+	mux.Handle("GET /api/libraries/{id}/series", httputil.Handler(h.series))
+	mux.Handle("GET /api/libraries/{id}/series/{seriesId}", httputil.Handler(h.seriesByID))
+	mux.Handle("GET /api/libraries/{id}/search", httputil.Handler(h.search))
+
+	// server/routers/ApiRouter.js:92-130 (LibraryItemController). The handlers
+	// in batch.go, batch_chapters.go and writes.go still take the user and ids
+	// as arguments; byItem adapts them until they are converted.
+	mux.Handle("GET /api/items/{id}", httputil.Handler(h.item))
+	mux.Handle("DELETE /api/items/{id}", byItem(h.deleteItem))
+	mux.Handle("GET /api/items/{id}/download", httputil.Handler(h.itemDownload))
+	mux.Handle("GET /api/items/{id}/file/{ino}", httputil.Handler(h.mediaFile))
+	mux.Handle("GET /api/items/{id}/file/{ino}/download", httputil.Handler(h.mediaFile))
+	mux.HandleFunc("DELETE /api/items/{id}/file/{ino}", func(w http.ResponseWriter, r *http.Request) {
+		h.deleteLibraryFile(w, r, requestUser(r), r.PathValue("id"), r.PathValue("ino"))
+	})
+	mux.HandleFunc("GET /api/items/{id}/ffprobe/{ino}", func(w http.ResponseWriter, r *http.Request) {
+		h.ffprobe(w, r, requestUser(r), r.PathValue("id"), r.PathValue("ino"))
+	})
+	mux.HandleFunc("POST /api/items/batch/get", func(w http.ResponseWriter, r *http.Request) {
+		h.batchGet(w, r, requestUser(r))
+	})
+	mux.Handle("POST /api/items/{id}/chapters", byItem(h.updateChapters))
+	mux.Handle("PATCH /api/items/{id}/tracks", byItem(h.updateTracks))
+	mux.HandleFunc("PATCH /api/items/{id}/ebook/{ino}/status", func(w http.ResponseWriter, r *http.Request) {
+		h.updateEbookStatus(w, r, requestUser(r), r.PathValue("id"), r.PathValue("ino"))
+	})
+	mux.Handle("GET /api/items/{id}/metadata-object", byItem(h.metadataObject))
+	mux.Handle("PATCH /api/items/{id}/media", byItem(h.updateMedia))
+	mux.Handle("GET /api/items/{id}/ebook", httputil.Handler(h.ebookFile))
+	mux.Handle("GET /api/items/{id}/ebook/{fileId}", httputil.Handler(h.ebookFile))
+	mux.Handle("GET /api/items/{id}/cover", httputil.Handler(h.cover))
+	mux.Handle("POST /api/items/{id}/cover", httputil.Handler(h.uploadCover))
+	mux.Handle("PATCH /api/items/{id}/cover", byItem(h.updateCover))
+	mux.Handle("DELETE /api/items/{id}/cover", byItem(h.removeCover))
+}
+
+// byItem adapts a handler that takes the user and the {id} item id as arguments.
+func byItem(f func(http.ResponseWriter, *http.Request, store.User, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { f(w, r, requestUser(r), r.PathValue("id")) }
 }

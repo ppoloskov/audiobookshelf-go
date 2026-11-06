@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -380,109 +379,99 @@ func elapsedPretty(seconds float64) string {
 	return strings.Join(parts, " ")
 }
 
-func (s *Scanner) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	if r.Method != http.MethodPost {
-		return false
-	}
-	p := path.Clean(r.URL.Path)
-	if p == "/api/items/batch/scan" {
-		if user.Type != "root" && user.Type != "admin" {
+// Routes registers the admin scan endpoints (LibraryController.scan,
+// LibraryItemController.scan, batchScan).
+func (s *Scanner) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/items/batch/scan", adminOnly(s.batchScan))
+	mux.HandleFunc("POST /api/libraries/{id}/scan", adminOnly(s.scanLibraryRoute))
+	mux.HandleFunc("POST /api/items/{id}/scan", adminOnly(s.scanItemRoute))
+}
+
+func adminOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if user, _ := store.UserFromContext(r.Context()); user.Type != "root" && user.Type != "admin" {
 			http.Error(w, "Forbidden", http.StatusForbidden)
-			return true
+			return
 		}
-		var body struct {
-			LibraryItemIDs []string `json:"libraryItemIds"`
+		next(w, r)
+	}
+}
+
+func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		LibraryItemIDs []string `json:"libraryItemIds"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.LibraryItemIDs) == 0 {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	type itemRef struct {
+		ID, LibraryID string
+		IsFile        int
+	}
+	items := make([]itemRef, 0, len(body.LibraryItemIDs))
+	for _, id := range body.LibraryItemIDs {
+		var item itemRef
+		item.ID = id
+		if err := s.db.QueryRowContext(r.Context(), `SELECT id,libraryId,isFile FROM libraryItems WHERE id=?`, id).Scan(&item.ID, &item.LibraryID, &item.IsFile); err == nil {
+			items = append(items, item)
 		}
-		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.LibraryItemIDs) == 0 {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			return true
-		}
-		type itemRef struct {
-			ID, LibraryID string
-			IsFile        int
-		}
-		items := make([]itemRef, 0, len(body.LibraryItemIDs))
-		for _, id := range body.LibraryItemIDs {
-			var item itemRef
-			item.ID = id
-			if err := s.db.QueryRowContext(r.Context(), `SELECT id,libraryId,isFile FROM libraryItems WHERE id=?`, id).Scan(&item.ID, &item.LibraryID, &item.IsFile); err == nil {
-				items = append(items, item)
+	}
+	if len(items) == 0 {
+		http.Error(w, "Items not found", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	go func(items []itemRef) {
+		for _, item := range items {
+			if item.IsFile != 0 {
+				continue
 			}
+			_, _ = s.ScanItemForce(context.Background(), item.ID)
 		}
-		if len(items) == 0 {
-			http.Error(w, "Items not found", http.StatusBadRequest)
-			return true
-		}
-		w.WriteHeader(http.StatusOK)
-		go func(items []itemRef) {
-			for _, item := range items {
-				if item.IsFile != 0 {
-					continue
-				}
-				_, _ = s.ScanItemForce(context.Background(), item.ID)
-			}
-		}(items)
-		return true
-	}
-	if !strings.HasPrefix(p, "/api/libraries/") && !strings.HasPrefix(p, "/api/items/") {
-		return false
-	}
-	if strings.HasPrefix(p, "/api/libraries/") {
-		parts := strings.Split(strings.TrimPrefix(p, "/api/libraries/"), "/")
-		if len(parts) != 2 || parts[0] == "" || parts[1] != "scan" {
-			return false
-		}
-	} else {
-		parts := strings.Split(strings.TrimPrefix(p, "/api/items/"), "/")
-		if len(parts) != 2 || parts[0] == "" || parts[1] != "scan" {
-			return false
-		}
-	}
-	if user.Type != "root" && user.Type != "admin" {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return true
-	}
-	if strings.HasPrefix(p, "/api/libraries/") {
-		parts := strings.Split(strings.TrimPrefix(p, "/api/libraries/"), "/")
-		id, err := url.PathUnescape(parts[0])
-		if err != nil {
-			http.Error(w, "Bad library id", 400)
-			return true
-		}
-		if _, err := s.library(r.Context(), id); err != nil {
-			http.Error(w, "Library not found", 404)
-			return true
-		}
-		force := r.URL.Query().Get("force") == "1" || strings.EqualFold(r.URL.Query().Get("force"), "true")
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-		go func() {
-			if force {
-				_, _ = s.ScanForce(context.Background(), id)
-			} else {
-				_, _ = s.Scan(context.Background(), id)
-			}
-		}()
-		return true
-	}
-	parts := strings.Split(strings.TrimPrefix(p, "/api/items/"), "/")
-	var isFile int
-	err := s.db.QueryRowContext(r.Context(), `SELECT isFile FROM libraryItems WHERE id=?`, parts[0]).Scan(&isFile)
+	}(items)
+}
+
+func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) {
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
+		http.Error(w, "Bad library id", 400)
+		return
+	}
+	if _, err := s.library(r.Context(), id); err != nil {
+		http.Error(w, "Library not found", 404)
+		return
+	}
+	force := r.URL.Query().Get("force") == "1" || strings.EqualFold(r.URL.Query().Get("force"), "true")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK"))
+	go func() {
+		if force {
+			_, _ = s.ScanForce(context.Background(), id)
+		} else {
+			_, _ = s.Scan(context.Background(), id)
+		}
+	}()
+}
+
+func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var isFile int
+	if err := s.db.QueryRowContext(r.Context(), `SELECT isFile FROM libraryItems WHERE id=?`, id).Scan(&isFile); err != nil {
 		http.Error(w, "Item not found", 404)
-		return true
+		return
 	}
 	if isFile != 0 {
 		logging.RequestDebug(r, "responding 500: cannot scan a library file")
 		http.Error(w, "Cannot scan a library file", http.StatusInternalServerError)
-		return true
+		return
 	}
-	res, err := s.ScanItemForce(r.Context(), parts[0])
+	res, err := s.ScanItemForce(r.Context(), id)
 	if err != nil && !res.Canceled {
 		logging.RequestError(r, "internal error", err)
 		http.Error(w, err.Error(), 500)
-		return true
+		return
 	}
 	status := "UPTODATE"
 	if res.Added+res.Updated > 0 {
@@ -492,7 +481,6 @@ func (s *Scanner) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]string{"result": status})
-	return true
 }
 
 // Start initializes recursive filesystem watchers and per-library schedules.

@@ -53,40 +53,43 @@ type shareSession struct {
 }
 
 func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
-	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*shareSession{}}
+	h := &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*shareSession{}}
+	return h
 }
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) bool {
-	p := r.URL.Path
-	switch {
-	case p == "/api/feeds" && r.Method == http.MethodGet:
-		h.listFeeds(w, r, u)
-	case strings.HasPrefix(p, "/api/feeds/item/") && strings.HasSuffix(p, "/open") && r.Method == http.MethodPost:
-		h.openFeed(w, r, u, "libraryItem")
-	case strings.HasPrefix(p, "/api/feeds/collection/") && strings.HasSuffix(p, "/open") && r.Method == http.MethodPost:
-		h.openFeed(w, r, u, "collection")
-	case strings.HasPrefix(p, "/api/feeds/series/") && strings.HasSuffix(p, "/open") && r.Method == http.MethodPost:
-		h.openFeed(w, r, u, "series")
-	case strings.HasPrefix(p, "/api/feeds/") && strings.HasSuffix(p, "/close") && r.Method == http.MethodPost:
-		h.closeFeed(w, r, u)
-	case p == "/api/share/mediaitem" && r.Method == http.MethodPost:
-		h.createShare(w, r, u)
-	case strings.HasPrefix(p, "/api/share/mediaitem/") && r.Method == http.MethodDelete:
-		h.deleteShare(w, r, u)
-	case strings.HasPrefix(p, "/feed/") && r.Method == http.MethodGet:
-		h.publicFeed(w, r)
-	case strings.HasPrefix(p, "/public/share/") && r.Method == http.MethodGet:
-		if len(strings.Split(strings.Trim(p, "/"), "/")) == 3 {
-			h.publicShare(w, r)
-		} else {
-			h.publicShareFile(w, r)
+
+// Routes registers the feed and share routes. The /feed and /public/share
+// routes are public: the runtime mounts them without a user.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	authed := func(f func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			u, _ := store.UserFromContext(r.Context())
+			f(w, r, u)
 		}
-	case strings.HasPrefix(p, "/public/share/") && r.Method == http.MethodPatch:
-		h.shareProgress(w, r)
-	default:
-		return false
 	}
-	return true
+	open := func(entityType string) http.HandlerFunc {
+		return authed(func(w http.ResponseWriter, r *http.Request, u store.User) { h.openFeed(w, r, u, entityType) })
+	}
+	mux.HandleFunc("GET /api/feeds", authed(h.listFeeds))
+	mux.HandleFunc("POST /api/feeds/item/{id}/open", open("libraryItem"))
+	mux.HandleFunc("POST /api/feeds/collection/{id}/open", open("collection"))
+	mux.HandleFunc("POST /api/feeds/series/{id}/open", open("series"))
+	mux.HandleFunc("POST /api/feeds/{id}/close", authed(h.closeFeed))
+	mux.HandleFunc("POST /api/share/mediaitem", authed(h.createShare))
+	mux.HandleFunc("DELETE /api/share/mediaitem/{id}", authed(h.deleteShare))
+	h.publicRoutes(mux)
 }
+
+// publicRoutes registers the bearer-free routes.
+func (h *Handler) publicRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /feed/{slug}", h.publicFeed)
+	mux.HandleFunc("GET /feed/{slug}/{tail...}", h.publicFeed)
+	mux.HandleFunc("GET /public/share/{slug}", h.publicShare)
+	mux.HandleFunc("GET /public/share/{slug}/cover", h.shareCover)
+	mux.HandleFunc("GET /public/share/{slug}/track/{index}", h.shareTrack)
+	mux.HandleFunc("GET /public/share/{slug}/download", h.shareDownload)
+	mux.HandleFunc("PATCH /public/share/{slug}/progress", h.shareProgress)
+}
+
 func admin(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
 
 // oldBookMetadata is Book.oldMetadataToJSON (server/models/Book.js:550):
@@ -128,20 +131,6 @@ func (h *Handler) oldBookMetadata(ctx context.Context, id string) map[string]any
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
-}
-func routeID(path, suffix string) string {
-	p := strings.Split(strings.Trim(path, "/"), "/")
-	if suffix != "" {
-		for i, x := range p {
-			if x == suffix && i > 0 {
-				return p[i-1]
-			}
-		}
-	}
-	if len(p) > 0 {
-		return p[len(p)-1]
-	}
-	return ""
 }
 func libraryAccess(u store.User, id string) bool {
 	var p map[string]any

@@ -1846,3 +1846,15 @@ func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
 		t.Fatalf("episode shelf entity=%#v", entity)
 	}
 }
+
+// Handle serves r through the catalog routes as user and reports whether a
+// route matched, the way the runtime does for the mux.
+func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
+	mux := http.NewServeMux()
+	h.Routes(mux, RouteDeps{})
+	if _, pattern := mux.Handler(r); pattern == "" {
+		return false
+	}
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+	return true
+}

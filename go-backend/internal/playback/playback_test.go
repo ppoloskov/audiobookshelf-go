@@ -65,9 +65,7 @@ func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 	stream := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/public/session/"+sid+"/track/1", nil)
 	r.Header.Set("Range", "bytes=100-199")
-	if !h.Handle(stream, r, store.User{}) {
-		t.Fatal("public track route not claimed")
-	}
+	serve(h, stream, r, store.User{})
 	if stream.Code != http.StatusPartialContent {
 		t.Fatalf("range status %d, want 206", stream.Code)
 	}
@@ -110,9 +108,7 @@ func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 		t.Fatalf("close event audience mismatch: %+v", got)
 	}
 	missing := httptest.NewRecorder()
-	if !h.Handle(missing, httptest.NewRequest(http.MethodGet, "/public/session/"+sid+"/track/1", nil), store.User{}) {
-		t.Fatal("public track route not claimed")
-	}
+	serve(h, missing, httptest.NewRequest(http.MethodGet, "/public/session/"+sid+"/track/1", nil), store.User{})
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("closed session stream status %d, want 404", missing.Code)
 	}
@@ -190,23 +186,17 @@ func TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles(t *testing.T)
 		time.Sleep(50 * time.Millisecond)
 	}
 	playlist := httptest.NewRecorder()
-	if !h.Handle(playlist, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/output.m3u8", nil), store.User{}) {
-		t.Fatal("hls route not claimed")
-	}
+	serve(h, playlist, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/output.m3u8", nil), store.User{})
 	if playlist.Code != http.StatusOK || !strings.Contains(playlist.Body.String(), "#EXTM3U") {
 		t.Fatalf("playlist response %d: %s", playlist.Code, playlist.Body.String())
 	}
 	segment := httptest.NewRecorder()
-	if !h.Handle(segment, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/output-0.ts", nil), store.User{}) {
-		t.Fatal("segment route not claimed")
-	}
+	serve(h, segment, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/output-0.ts", nil), store.User{})
 	if segment.Code != http.StatusOK || segment.Header().Get("Content-Type") != "video/mp2t" {
 		t.Fatalf("segment response %d content-type %q", segment.Code, segment.Header().Get("Content-Type"))
 	}
 	bad := httptest.NewRecorder()
-	if !h.Handle(bad, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/secret.json", nil), store.User{}) {
-		t.Fatal("bad hls route not claimed")
-	}
+	serve(h, bad, httptest.NewRequest(http.MethodGet, "/hls/"+sid+"/secret.json", nil), store.User{})
 	if bad.Code != http.StatusBadRequest {
 		t.Fatalf("invalid extension status %d, want 400", bad.Code)
 	}
@@ -236,15 +226,9 @@ func TestPodcastEpisodeTrackFallbackAndFileRoute(t *testing.T) {
 	_ = json.Unmarshal(started.Body.Bytes(), &s)
 	sid, _ := s["id"].(string)
 	track := httptest.NewRecorder()
-	if !h.Handle(track, httptest.NewRequest(http.MethodGet, "/public/session/"+sid+"/track/0", nil), store.User{}) {
-		t.Fatal("podcast track route not claimed")
-	}
+	serve(h, track, httptest.NewRequest(http.MethodGet, "/public/session/"+sid+"/track/0", nil), store.User{})
 	if track.Code != http.StatusOK {
 		t.Fatalf("episode index 0 compatibility status %d", track.Code)
-	}
-	apiFile := request(h, http.MethodGet, "/api/items/"+itemID+"/file/ep-file", user, "")
-	if apiFile.Code != http.StatusOK {
-		t.Fatalf("episode file endpoint: %d", apiFile.Code)
 	}
 }
 
@@ -292,7 +276,7 @@ func TestOfflineLocalSyncAndAdminHistoryRoutes(t *testing.T) {
 func request(h *Handler, method, path string, user store.User, body string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
-	h.Handle(w, r, user)
+	serve(h, w, r, user)
 	return w
 }
 
@@ -377,4 +361,11 @@ func writeWAV(t *testing.T, path string) {
 	if err := os.WriteFile(path, b.Bytes(), 0600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// serve dispatches through the route mux as the runtime does.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, user store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 }

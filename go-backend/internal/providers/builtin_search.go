@@ -13,14 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
 )
 
-func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) error {
 	provider := queryValue(r, "provider", "google")
 	title, author := r.URL.Query().Get("title"), r.URL.Query().Get("author")
 	// The item match modal names the item it matches; TS (SearchController.fetchLibraryItem)
@@ -28,12 +27,10 @@ func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
 	if id := r.URL.Query().Get("id"); id != "" {
 		var found int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems WHERE id = ?`, id).Scan(&found); err != nil {
-			httputil.ErrorJSON(w, http.StatusInternalServerError, "Internal server error", httputil.Streamed())
-			return
+			return streamError(w, http.StatusInternalServerError, "Internal server error")
 		}
 		if found == 0 {
-			httputil.ErrorJSON(w, http.StatusNotFound, fmt.Sprintf(`library item "%s" not found`, id), httputil.Streamed())
-			return
+			return streamError(w, http.StatusNotFound, fmt.Sprintf(`library item "%s" not found`, id))
 		}
 	}
 	var results []map[string]any
@@ -54,7 +51,7 @@ func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) {
 			book["descriptionPlain"] = textclean.Strip(book["description"].(string))
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
+	return stream(w, http.StatusOK, results)
 }
 
 func (h *Handler) searchBuiltinBooks(ctx context.Context, provider, title, author, asin, region string) ([]map[string]any, error) {
@@ -275,29 +272,25 @@ func queryParamAsString(r *http.Request, name, fallback string, required bool) (
 
 // searchPodcasts is GET /api/search/podcast, SearchController.findPodcasts
 // (SearchController.js:141-156) over PodcastFinder and iTunes.searchPodcasts.
-func (h *Handler) searchPodcasts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) searchPodcasts(w http.ResponseWriter, r *http.Request) error {
 	term, err := queryParamAsString(r, "term", "", true)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()}, httputil.Streamed())
-		return
+		return streamError(w, http.StatusBadRequest, err.Error())
 	}
 	country, err := queryParamAsString(r, "country", "us", false)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()}, httputil.Streamed())
-		return
+		return streamError(w, http.StatusBadRequest, err.Error())
 	}
 	if term == "" {
-		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, nil)
 	}
 	results, ok := h.itunesPodcasts(r.Context(), term, country)
 	if !ok {
-		httputil.WriteJSON(w, http.StatusOK, []any{}, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, []any{})
 	}
-	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
+	return stream(w, http.StatusOK, results)
 }
 
 // itunesPodcasts is iTunes.searchPodcasts (server/providers/iTunes.js:164-168):
@@ -321,15 +314,13 @@ func (h *Handler) itunesPodcasts(ctx context.Context, term, country string) ([]a
 	return out, true
 }
 
-func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) error {
 	title := r.URL.Query().Get("title")
 	if _, exists := r.URL.Query()["title"]; !exists {
-		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: title"}, httputil.Streamed())
-		return
+		return stream(w, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: title"})
 	}
 	if title == "" {
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": nil}, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, map[string]any{"results": nil})
 	}
 	req := CoverRequest{Title: title, Author: r.URL.Query().Get("author"), Provider: queryValue(r, "provider", "google"), Podcast: r.URL.Query().Get("podcast") == "1"}
 	seen := map[string]bool{}
@@ -346,43 +337,38 @@ func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"results": covers}, httputil.Streamed())
+	return stream(w, http.StatusOK, map[string]any{"results": covers})
 }
 
-func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) error {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
 		// TS SearchController.findAuthor: a missing required parameter is a ValidationError, 400.
-		httputil.ErrorJSON(w, http.StatusBadRequest, `Query parameter "q" is required`, httputil.Streamed())
-		return
+		return streamError(w, http.StatusBadRequest, `Query parameter "q" is required`)
 	}
 	if name == "" {
-		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, nil)
 	}
 	results, err := h.findAuthorByName(r.Context(), name, queryValue(r, "region", ""))
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusOK, nil, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, nil)
 	}
-	httputil.WriteJSON(w, http.StatusOK, results, httputil.Streamed())
+	return stream(w, http.StatusOK, results)
 }
-func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) searchChapters(w http.ResponseWriter, r *http.Request) error {
 	// A missing asin is the same answer as an invalid one: TS findChapters turns the
 	// required-parameter ValidationError into the Invalid ASIN body with status 200.
 	asin := strings.ToUpper(r.URL.Query().Get("asin"))
 	if !validASIN(asin) {
-		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"}, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, map[string]string{"error": "Invalid ASIN", "stringKey": "MessageInvalidAsin"})
 	}
 	query := url.Values{"region": {strings.ToLower(queryValue(r, "region", "us"))}}
 	endpoint := strings.TrimRight(h.endpoint("audnexus"), "/") + "/books/" + url.PathEscape(asin) + "/chapters?" + query.Encode()
 	var result any
 	if err := h.getJSON(r.Context(), endpoint, &result); err != nil || result == nil {
-		httputil.WriteJSON(w, http.StatusOK, map[string]string{"error": "Chapters not found", "stringKey": "MessageChaptersNotFound"}, httputil.Streamed())
-		return
+		return stream(w, http.StatusOK, map[string]string{"error": "Chapters not found", "stringKey": "MessageChaptersNotFound"})
 	}
-	httputil.WriteJSON(w, http.StatusOK, result, httputil.Streamed())
+	return stream(w, http.StatusOK, result)
 }
 
 func (h *Handler) getJSON(ctx context.Context, endpoint string, target any) error {

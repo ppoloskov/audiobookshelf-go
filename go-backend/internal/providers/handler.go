@@ -59,35 +59,60 @@ func (h *Handler) endpoint(name string) string {
 // (store.ContextWithUser). The custom-provider routes answer 403 to a user who
 // is not an admin.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	admin := func(fn http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+	admin := func(fn httputil.Handler) httputil.Handler {
+		return func(w http.ResponseWriter, r *http.Request) error {
 			if user, _ := store.UserFromContext(r.Context()); !isAdmin(user) {
-				httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
-				return
+				return bare(w, http.StatusForbidden)
 			}
-			fn(w, r)
+			return fn(w, r)
 		}
 	}
-	mux.HandleFunc("GET /api/search/providers", h.getProviders)
-	mux.HandleFunc("GET /api/search/books", h.searchBooks)
-	mux.HandleFunc("GET /api/search/covers", h.searchCovers)
-	mux.HandleFunc("GET /api/search/podcast", h.searchPodcasts)
-	mux.HandleFunc("GET /api/search/authors", h.searchAuthor)
-	mux.HandleFunc("GET /api/search/chapters", h.searchChapters)
-	mux.HandleFunc("GET /api/custom-metadata-providers", admin(h.getCustomProviders))
-	mux.HandleFunc("POST /api/custom-metadata-providers", admin(h.createCustomProvider))
-	mux.HandleFunc("DELETE /api/custom-metadata-providers/{id}", admin(h.deleteCustomProviderRoute))
+	mux.Handle("GET /api/search/providers", httputil.Handler(h.getProviders))
+	mux.Handle("GET /api/search/books", httputil.Handler(h.searchBooks))
+	mux.Handle("GET /api/search/covers", httputil.Handler(h.searchCovers))
+	mux.Handle("GET /api/search/podcast", httputil.Handler(h.searchPodcasts))
+	mux.Handle("GET /api/search/authors", httputil.Handler(h.searchAuthor))
+	mux.Handle("GET /api/search/chapters", httputil.Handler(h.searchChapters))
+	mux.Handle("GET /api/custom-metadata-providers", admin(h.getCustomProviders))
+	mux.Handle("POST /api/custom-metadata-providers", admin(h.createCustomProvider))
+	mux.Handle("DELETE /api/custom-metadata-providers/{id}", admin(h.deleteCustomProviderRoute))
 }
 
 // deleteCustomProviderRoute answers 404 to an id with a slash (an escaped %2F):
 // the server never issues such an id.
-func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
 	if strings.Contains(id, "/") {
-		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return bare(w, http.StatusNotFound)
 	}
-	h.deleteCustomProvider(w, r, id)
+	return h.deleteCustomProvider(w, r, id)
+}
+
+// stream answers with Streamed JSON (newline-terminated, no ETag).
+func stream(w http.ResponseWriter, status int, v any) error {
+	httputil.WriteJSON(w, status, v, httputil.Streamed())
+	return nil
+}
+
+func streamError(w http.ResponseWriter, status int, message string) error {
+	return stream(w, status, map[string]string{"error": message})
+}
+
+// failJSON logs err and answers a 500 {"error": err}.
+func failJSON(w http.ResponseWriter, r *http.Request, err error) error {
+	logging.RequestError(r, "internal error", err)
+	return streamError(w, http.StatusInternalServerError, err.Error())
+}
+
+// bare is Express res.sendStatus(n) without Content-Length or ETag.
+func bare(w http.ResponseWriter, status int) error {
+	httputil.SendStatus(w, status, httputil.WithoutContentLength(), httputil.WithoutETag())
+	return nil
+}
+
+func badRequest(w http.ResponseWriter, message string) error {
+	httputil.SendText(w, http.StatusBadRequest, message, httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
+	return nil
 }
 
 func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
@@ -103,12 +128,10 @@ type customProvider struct {
 	UpdatedAt       string          `json:"updatedAt"`
 }
 
-func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) error {
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders ORDER BY createdAt ASC`)
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	defer rows.Close()
 	providers := []customProvider{}
@@ -117,9 +140,7 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		var authValue sql.NullString
 		var extra []byte
 		if err := rows.Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			logging.RequestError(r, "internal error", err)
-			httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-			return
+			return failJSON(w, r, err)
 		}
 		if authValue.Valid {
 			p.AuthHeaderValue = &authValue.String
@@ -132,30 +153,25 @@ func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) {
 		providers = append(providers, p)
 	}
 	if err := rows.Err(); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"providers": providers}, httputil.Streamed())
+	return stream(w, http.StatusOK, map[string]any{"providers": providers})
 }
 
-func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) error {
 	var request map[string]any
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
-		httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return badRequest(w, "Invalid request body")
 	}
 	name, _ := request["name"].(string)
 	rawURL, _ := request["url"].(string)
 	mediaType, _ := request["mediaType"].(string)
 	if name == "" || rawURL == "" || mediaType == "" {
-		httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return badRequest(w, "Invalid request body")
 	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Scheme == "" || parsed.Opaque != "" {
-		httputil.SendText(w, http.StatusBadRequest, "Invalid url", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return badRequest(w, "Invalid url")
 	}
 	if parsed.Host != "" && parsed.Path == "" {
 		parsed.Path = "/"
@@ -172,15 +188,12 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 	if extra != nil {
 		encoded, err := json.Marshal(extra)
 		if err != nil {
-			httputil.SendText(w, http.StatusBadRequest, "Invalid request body", httputil.ContentType("text/plain; charset=utf-8"), httputil.WithoutContentLength(), httputil.WithoutETag())
-			return
+			return badRequest(w, "Invalid request body")
 		}
 		extraValue = string(encoded)
 	}
 	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO customMetadataProviders(id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?)`, id, name, mediaType, normalized, authValue, extraValue, now, now); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	p := customProvider{ID: id, Name: name, MediaType: mediaType, URL: normalized, CreatedAt: isoDate(now), UpdatedAt: isoDate(now)}
 	if authValue != nil {
@@ -199,22 +212,19 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) {
 		customProvider
 		ExtraData json.RawMessage `json:"extraData,omitempty"`
 	}{customProvider: p, ExtraData: p.ExtraData}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"provider": created}, httputil.Streamed())
+	return stream(w, http.StatusOK, map[string]any{"provider": created})
 }
 
-func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, id string) error {
 	var p customProvider
 	var authValue sql.NullString
 	var extra []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders WHERE id=?`, id).Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return bare(w, http.StatusNotFound)
 	}
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	if authValue.Valid {
 		p.AuthHeaderValue = &authValue.String
@@ -222,45 +232,35 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	p.ExtraData = extra
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	defer tx.Rollback()
 	if _, err = tx.ExecContext(r.Context(), `DELETE FROM customMetadataProviders WHERE id=?`, id); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	fallback := "itunes"
 	if p.MediaType == "book" {
 		fallback = "google"
 	}
 	if _, err = tx.ExecContext(r.Context(), `UPDATE libraries SET provider=? WHERE provider=?`, fallback, "custom-"+id); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	if err = tx.Commit(); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	if h.emit != nil {
 		h.emit("*", "custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
 	}
-	httputil.SendStatus(w, http.StatusOK, httputil.WithoutContentLength(), httputil.WithoutETag())
+	return bare(w, http.StatusOK)
 }
 
 var bookProviderNames = map[string]string{"all": "All", "best": "Best", "google": "Google Books", "itunes": "iTunes", "openlibrary": "Open Library", "fantlab": "FantLab.ru", "audiobookcovers": "AudiobookCovers.com", "audible": "Audible.com", "audible.ca": "Audible.ca", "audible.uk": "Audible.co.uk", "audible.au": "Audible.com.au", "audible.fr": "Audible.fr", "audible.de": "Audible.de", "audible.jp": "Audible.co.jp", "audible.it": "Audible.it", "audible.in": "Audible.in", "audible.es": "Audible.es", "audnexus": "Audnexus"}
 var bookProviderValues = []string{"google", "itunes", "openlibrary", "fantlab", "audiobookcovers", "audible", "audible.ca", "audible.uk", "audible.au", "audible.fr", "audible.de", "audible.jp", "audible.it", "audible.in", "audible.es"}
 
-func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) error {
 	custom, err := h.customProviders(r.Context())
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.ErrorJSON(w, http.StatusInternalServerError, err.Error(), httputil.Streamed())
-		return
+		return failJSON(w, r, err)
 	}
 	bookCustom, podcastCustom := []map[string]string{}, []map[string]string{}
 	for _, p := range custom {
@@ -286,7 +286,7 @@ func (h *Handler) getProviders(w http.ResponseWriter, r *http.Request) {
 	covers = append(covers, providerObject("all"))
 	podcasts := []map[string]string{providerObject("itunes")}
 	podcasts = append(podcasts, podcastCustom...)
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"providers": map[string]any{"books": books, "booksCovers": covers, "podcasts": podcasts}}, httputil.Streamed())
+	return stream(w, http.StatusOK, map[string]any{"providers": map[string]any{"books": books, "booksCovers": covers, "podcasts": podcasts}})
 }
 
 func providerObject(value string) map[string]string {

@@ -10,17 +10,14 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
-func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request, userID, mediaID string, includeUser bool) {
+func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request, userID, mediaID string, includeUser bool) error {
 	sessions, err := h.listeningSessions(r, userID, mediaID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	page, perPage := queryInt(r, "page", 0), queryInt(r, "itemsPerPage", 10)
 	if perPage <= 0 {
@@ -41,9 +38,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 	for _, session := range sessions[start:end] {
 		row, err := h.listeningSessionJSON(r, session)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		if includeUser {
 			if u, err := sqlc.New(h.db).GetUserByID(r.Context(), session.UserID.String); err == nil && u.Username.Valid {
@@ -53,15 +48,13 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 		}
 		results = append(results, row)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"total": len(sessions), "numPages": int(math.Ceil(float64(len(sessions)) / float64(perPage))), "page": page, "itemsPerPage": perPage, "sessions": results})
+	return httputil.JSON(w, r, map[string]any{"total": len(sessions), "numPages": int(math.Ceil(float64(len(sessions)) / float64(perPage))), "page": page, "itemsPerPage": perPage, "sessions": results})
 }
 
-func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, userID string) {
+func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, userID string) error {
 	sessions, err := h.listeningSessions(r, userID, "")
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	stats := map[string]any{"totalTime": float64(0), "items": map[string]any{}, "days": map[string]any{}, "dayOfWeek": map[string]any{}, "today": float64(0), "recentSessions": []any{}}
 	items := stats["items"].(map[string]any)
@@ -75,9 +68,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		if index < 10 {
 			row, err := h.listeningSessionJSON(r, session)
 			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return
+				return writeInternalError(w, r, "database read failed", err)
 			}
 			recent = append(recent, row)
 		}
@@ -119,7 +110,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		}
 	}
 	stats["recentSessions"] = recent
-	httputil.WriteJSON(w, 200, stats)
+	return httputil.JSON(w, r, stats)
 }
 
 func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]store.PlaybackSessionRow, error) {

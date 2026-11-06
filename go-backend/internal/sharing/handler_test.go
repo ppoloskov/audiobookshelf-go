@@ -56,7 +56,8 @@ func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 	_ = db
 	req := httptest.NewRequest(http.MethodPost, "/api/feeds/item/li-1/open", strings.NewReader(`{"serverAddress":"https://abs.example","slug":"book-feed","metadataDetails":{"ownerName":"Owner","preventIndexing":false}}`))
 	w := httptest.NewRecorder()
-	if !h.Handle(w, req, admin) || w.Code != 200 {
+	serve(h, w, req, admin)
+	if w.Code != 200 {
 		t.Fatalf("open feed status %d %s", w.Code, w.Body.String())
 	}
 	var opened map[string]any
@@ -64,14 +65,14 @@ func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 		t.Fatal("bad open response")
 	}
 	got := httptest.NewRecorder()
-	h.Handle(got, httptest.NewRequest(http.MethodGet, "/api/feeds", nil), admin)
+	serve(h, got, httptest.NewRequest(http.MethodGet, "/api/feeds", nil), admin)
 	if got.Code != 200 || !strings.Contains(got.Body.String(), "book-feed") {
 		t.Fatalf("list status %d %s", got.Code, got.Body.String())
 	}
 	r := httptest.NewRequest(http.MethodGet, "/feed/book-feed", nil)
 	r.Host = "abs.example"
 	xml := httptest.NewRecorder()
-	h.Handle(xml, r, store.User{})
+	serve(h, xml, r, store.User{})
 	if xml.Code != 200 || !strings.Contains(xml.Body.String(), "<title>A Book</title>") || !strings.Contains(xml.Body.String(), "/feed/book-feed/item/") {
 		t.Fatalf("feed XML status=%d body=%s", xml.Code, xml.Body.String())
 	}
@@ -80,7 +81,7 @@ func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 		t.Fatal(e)
 	}
 	track := httptest.NewRecorder()
-	h.Handle(track, httptest.NewRequest(http.MethodGet, "/feed/book-feed/item/"+feedEpisode+"/media.mp3", nil), store.User{})
+	serve(h, track, httptest.NewRequest(http.MethodGet, "/feed/book-feed/item/"+feedEpisode+"/media.mp3", nil), store.User{})
 	if track.Code != 200 || track.Body.String() != "audio-data" {
 		t.Fatalf("track response %d %q path=%s", track.Code, track.Body.String(), media)
 	}
@@ -90,7 +91,7 @@ func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 		t.Fatal(e)
 	}
 	refresh := httptest.NewRecorder()
-	h.Handle(refresh, httptest.NewRequest(http.MethodGet, "/feed/book-feed", nil), store.User{})
+	serve(h, refresh, httptest.NewRequest(http.MethodGet, "/feed/book-feed", nil), store.User{})
 	if refresh.Code != 200 || !strings.Contains(refresh.Body.String(), "<title>Renamed Book</title>") {
 		t.Fatalf("refreshed feed status=%d body=%s", refresh.Code, refresh.Body.String())
 	}
@@ -103,14 +104,14 @@ func TestShareSessionProgressTrackAndDownload(t *testing.T) {
 	db, h, admin, _ := sharingFixture(t)
 	create := httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(`{"slug":"public-book","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1","isDownloadable":true}`))
 	created := httptest.NewRecorder()
-	h.Handle(created, create, admin)
+	serve(h, created, create, admin)
 	if created.Code != 201 {
 		t.Fatalf("create share status %d: %s", created.Code, created.Body.String())
 	}
 	r := httptest.NewRequest(http.MethodGet, "/public/share/public-book?t=4", nil)
 	r.Host = "abs.example"
 	w := httptest.NewRecorder()
-	h.Handle(w, r, store.User{})
+	serve(h, w, r, store.User{})
 	if w.Code != 200 {
 		t.Fatalf("get share status %d %s", w.Code, w.Body.String())
 	}
@@ -126,14 +127,14 @@ func TestShareSessionProgressTrackAndDownload(t *testing.T) {
 	progress := httptest.NewRequest(http.MethodPatch, "/public/share/public-book/progress", strings.NewReader(`{"currentTime":99}`))
 	progress.AddCookie(cookie)
 	pw := httptest.NewRecorder()
-	h.Handle(pw, progress, store.User{})
+	serve(h, pw, progress, store.User{})
 	if pw.Code != 204 {
 		t.Fatalf("progress status %d", pw.Code)
 	}
 	after := httptest.NewRequest(http.MethodGet, "/public/share/public-book", nil)
 	after.AddCookie(cookie)
 	aw := httptest.NewRecorder()
-	h.Handle(aw, after, store.User{})
+	serve(h, aw, after, store.User{})
 	var state map[string]any
 	_ = json.Unmarshal(aw.Body.Bytes(), &state)
 	if got := state["playbackSession"].(map[string]any)["currentTime"]; got != float64(12) {
@@ -142,7 +143,7 @@ func TestShareSessionProgressTrackAndDownload(t *testing.T) {
 	download := httptest.NewRequest(http.MethodGet, "/public/share/public-book/download", nil)
 	download.AddCookie(cookie)
 	dw := httptest.NewRecorder()
-	h.Handle(dw, download, store.User{})
+	serve(h, dw, download, store.User{})
 	if dw.Code != 200 || dw.Body.String() != "audio-data" {
 		t.Fatalf("download status %d body %q", dw.Code, dw.Body.String())
 	}
@@ -152,12 +153,12 @@ func TestShareRejectsExpiredAndDownloadDisabled(t *testing.T) {
 	_, h, admin, _ := sharingFixture(t)
 	create := httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(`{"slug":"expires","expiresAt":1,"mediaItemType":"book","mediaItemId":"book-1"}`))
 	w := httptest.NewRecorder()
-	h.Handle(w, create, admin)
+	serve(h, w, create, admin)
 	if w.Code != 201 {
 		t.Fatalf("create status %d %s", w.Code, w.Body.String())
 	}
 	public := httptest.NewRecorder()
-	h.Handle(public, httptest.NewRequest(http.MethodGet, "/public/share/expires", nil), store.User{})
+	serve(h, public, httptest.NewRequest(http.MethodGet, "/public/share/expires", nil), store.User{})
 	if public.Code != 404 {
 		t.Fatalf("expired share status %d", public.Code)
 	}
@@ -191,7 +192,8 @@ func TestOpenFeedKeepsNullColumnsNull(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/feeds/item/li-2/open", strings.NewReader(`{"serverAddress":"https://abs.example","slug":"bare","metadataDetails":{"ownerName":"","ownerEmail":42}}`))
 	w := httptest.NewRecorder()
-	if !h.Handle(w, req, admin) || w.Code != 200 {
+	serve(h, w, req, admin)
+	if w.Code != 200 {
 		t.Fatalf("open status %d %s", w.Code, w.Body.String())
 	}
 	var nullCols int
@@ -227,7 +229,7 @@ func TestShareDatesAreISOStrings(t *testing.T) {
 	events := emittingHandler(t, h)
 	create := func(body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(body)), admin)
+		serve(h, w, httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(body)), admin)
 		return w
 	}
 	iso := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`)
@@ -256,14 +258,14 @@ func TestShareDatesAreISOStrings(t *testing.T) {
 		t.Fatalf("stored expiresAt=%q isDownloadable=%v err=%v", stored, downloadable, e)
 	}
 	public := httptest.NewRecorder()
-	h.Handle(public, httptest.NewRequest(http.MethodGet, "/public/share/iso", nil), store.User{})
+	serve(h, public, httptest.NewRequest(http.MethodGet, "/public/share/iso", nil), store.User{})
 	var served map[string]any
 	_ = json.Unmarshal(public.Body.Bytes(), &served)
 	if s, _ := served["createdAt"].(string); !iso.MatchString(s) {
 		t.Fatalf("public share createdAt = %#v", served["createdAt"])
 	}
 	del := httptest.NewRecorder()
-	h.Handle(del, httptest.NewRequest(http.MethodDelete, "/api/share/mediaitem/"+share["id"].(string), nil), admin)
+	serve(h, del, httptest.NewRequest(http.MethodDelete, "/api/share/mediaitem/"+share["id"].(string), nil), admin)
 	if del.Code != 204 {
 		t.Fatalf("delete %d", del.Code)
 	}
@@ -289,4 +291,11 @@ func TestShareDatesAreISOStrings(t *testing.T) {
 	if e := db.QueryRow(`SELECT COUNT(*) FROM mediaItemShares`).Scan(&kept); e != nil || kept != 0 {
 		t.Fatalf("expired share kept: %d err=%v", kept, e)
 	}
+}
+
+// serve dispatches through the route mux as the runtime does, with user in the context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, user store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 }

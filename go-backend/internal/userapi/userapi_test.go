@@ -25,12 +25,14 @@ type userAPIForTest struct {
 	routes *http.ServeMux
 }
 
+// Handle serves r on the route mux as the runtime does and reports whether a
+// route matched; an unmatched request is the runtime's 404.
 func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	if _, pattern := h.routes.Handler(r); pattern != "" {
-		h.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
-		return true
+	if _, pattern := h.routes.Handler(r); pattern == "" {
+		return false
 	}
-	return h.Handler.Handle(w, r, user)
+	h.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+	return true
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
@@ -46,6 +48,7 @@ func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, 
 		}
 	}, h.CanReadItem, h.AllowsLibrary)
 	listHandler.Routes(routes)
+	h.Routes(routes)
 	return &userAPIForTest{Handler: h, routes: routes}
 }
 
@@ -245,7 +248,7 @@ func TestProgressReadAndUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := newUserAPIForTest(db, config.Config{}, nil)
-	r := httptest.NewRequest(http.MethodGet, "/me/progress", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 {
 		t.Fatalf("GET /me/progress: handled=%v status=%d body=%s", true, w.Code, w.Body.String())
@@ -257,7 +260,7 @@ func TestProgressReadAndUpdate(t *testing.T) {
 	if len(all["mediaProgress"]) != 1 || all["mediaProgress"][0]["libraryItemId"] != "li1" || all["mediaProgress"][0]["progress"] != 0.25 {
 		t.Fatalf("unexpected progress payload: %s", w.Body.String())
 	}
-	r = httptest.NewRequest(http.MethodPatch, "/me/progress/li1", strings.NewReader(`{"currentTime":95,"duration":100}`))
+	r = httptest.NewRequest(http.MethodPatch, "/api/me/progress/li1", strings.NewReader(`{"currentTime":95,"duration":100}`))
 	w = httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 {
 		t.Fatalf("PATCH /me/progress: status=%d body=%s", w.Code, w.Body.String())
@@ -348,7 +351,7 @@ func TestBookmarkCreateAndLibraryPermissionDenial(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := newUserAPIForTest(db, config.Config{}, nil)
-	r := httptest.NewRequest(http.MethodPost, "/me/item/li1/bookmark", strings.NewReader(`{"time":42,"title":"Chapter"}`))
+	r := httptest.NewRequest(http.MethodPost, "/api/me/item/li1/bookmark", strings.NewReader(`{"time":42,"title":"Chapter"}`))
 	w := httptest.NewRecorder()
 	if !h.Handle(w, r, user) || w.Code != 200 || !strings.Contains(w.Body.String(), `"title":"Chapter"`) {
 		t.Fatalf("create bookmark: status=%d body=%s", w.Code, w.Body.String())
@@ -362,7 +365,7 @@ func TestBookmarkCreateAndLibraryPermissionDenial(t *testing.T) {
 	}
 	denied := user
 	denied.Permissions = json.RawMessage(`{"accessAllLibraries":false,"librariesAccessible":[],"accessAllTags":true}`)
-	r = httptest.NewRequest(http.MethodPost, "/me/item/li1/bookmark", strings.NewReader(`{"time":43,"title":"No access"}`))
+	r = httptest.NewRequest(http.MethodPost, "/api/me/item/li1/bookmark", strings.NewReader(`{"time":43,"title":"No access"}`))
 	w = httptest.NewRecorder()
 	h.Handle(w, r, denied)
 	if w.Code != http.StatusForbidden {

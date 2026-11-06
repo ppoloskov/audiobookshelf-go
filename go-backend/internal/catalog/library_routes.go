@@ -29,27 +29,23 @@ type libraryRecord struct {
 	settings                      json.RawMessage
 }
 
-// libraryRequest is LibraryController.middleware (LibraryController.js:1475-1499):
+// libraryAccess is LibraryController.middleware (LibraryController.js:1475-1499):
 // 403 for a library the user cannot access, 404 'Library not found', and 400
 // when limit or page is not a non-negative integer.
-func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user store.User) (libraryRecord, bool) {
+func (h *Handler) libraryAccess(r *http.Request, user store.User) (libraryRecord, error) {
 	id := r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
 		logging.Warnf("[LibraryController] Library %s not accessible to user %s", id, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return libraryRecord{}, false
+		return libraryRecord{}, httputil.Status(http.StatusForbidden, "")
 	}
 	var library libraryRecord
 	var settings sql.NullString
 	err := h.db.QueryRowContext(r.Context(), `SELECT id,name,mediaType,provider,settings FROM libraries WHERE id=?`, id).Scan(&library.id, &library.name, &library.mediaType, &library.provider, &settings)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return library, false
+		return library, httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return library, false
+		return library, httputil.Internal("database read failed", err)
 	}
 	library.settings = json.RawMessage(settings.String)
 	for _, key := range []string{"limit", "page"} {
@@ -65,11 +61,20 @@ func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user st
 			}
 		}
 		if n != float64(int64(n)) || n < 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
-			return library, false
+			return library, httputil.Status(http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
 		}
 	}
-	return library, true
+	return library, nil
+}
+
+// libraryRequest answers libraryAccess's error itself, for handlers that do not
+// return one yet.
+func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user store.User) (libraryRecord, bool) {
+	library, err := h.libraryAccess(r, user)
+	if err != nil {
+		httputil.Fail(w, r, err)
+	}
+	return library, err == nil
 }
 
 // opmlEscape is escapeForXML (libs/xml/escapeForXML.js).
@@ -116,27 +121,23 @@ func generateOPML(podcasts []opmlPodcast) string {
 
 // libraryOPML is LibraryController.getOPMLFile (LibraryController.js:1306-1327):
 // the library's podcasts the user may see, as application/xml.
-func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	library, ok := h.libraryRequest(w, r, user)
-	if !ok {
-		return
+	library, err := h.libraryAccess(r, user)
+	if err != nil {
+		return err
 	}
 	permissionSQL, permissionArgs := userMediaClause(user, "podcast")
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	defer rows.Close()
 	var podcasts []opmlPodcast
 	for rows.Next() {
 		var p opmlPodcast
 		if err := rows.Scan(&p.title, &p.feedURL, &p.description, &p.language); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		podcasts = append(podcasts, p)
 	}
@@ -148,21 +149,21 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
 	}
+	return nil
 }
 
 // libraryRemoveMetadata is LibraryController.removeAllMetadataFiles
 // (LibraryController.js:1333-1375): admins delete the metadata.json (or, with
 // ext=abs, metadata.abs) file of every item whose library files list one.
-func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	library, ok := h.libraryRequest(w, r, user)
-	if !ok {
-		return
+	library, err := h.libraryAccess(r, user)
+	if err != nil {
+		return err
 	}
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-admin user "%s" attempted to remove all metadata files`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	ext := "json"
 	if r.URL.Query().Get("ext") == "abs" {
@@ -171,18 +172,14 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	filename := "metadata." + ext
 	rows, err := h.db.QueryContext(r.Context(), `SELECT libraryFiles FROM libraryItems WHERE libraryId=? AND (SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = ?) >= 1 ORDER BY rowid`, library.id, filename)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var paths []string
 	for rows.Next() {
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		var files []struct {
 			Metadata struct {
@@ -201,16 +198,14 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 		paths = append(paths, path)
 	}
 	if err := rows.Close(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(paths) == 0 {
 		logging.Infof("[LibraryController] No %s files found to remove", filename)
 		writeJSONWithETag(w, r, http.StatusOK, struct {
 			Found int `json:"found"`
 		}{0})
-		return
+		return nil
 	}
 	logging.Infof("[LibraryController] Found %d %s files to remove", len(paths), filename)
 	removed := 0
@@ -230,35 +225,32 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 		Found   int `json:"found"`
 		Removed int `json:"removed"`
 	}{len(paths), removed})
+	return nil
 }
 
 // libraryDownload is LibraryController.downloadMultiple
 // (LibraryController.js:1422-1465): the items named by ?ids (comma separated)
 // of this library as one zip, each item under its folder name (a single-file
 // item as that file), stored without compression.
-func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	library, ok := h.libraryRequest(w, r, user)
-	if !ok {
-		return
+	library, err := h.libraryAccess(r, user)
+	if err != nil {
+		return err
 	}
 	if !userAllows(user, "download") {
 		logging.Warnf(`User "%s" attempted to download without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	idsParam, present := r.URL.Query()["ids"]
 	if !present || len(idsParam) != 1 || idsParam[0] == "" {
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request. ids must be a string")
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid request. ids must be a string")
 	}
 	itemIDs := strings.Split(idsParam[0], ",")
 	ctx := r.Context()
 	found, err := h.itemsExpandedWhere(ctx, itemIDs)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var items []batchItem
 	for _, item := range found {
@@ -268,13 +260,10 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !allowed {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if len(items) < len(itemIDs) {
 		logging.Warnf(`[LibraryController] User "%s" requested %d items but only %d are in library "%s"`, user.Username, len(itemIDs), len(items), library.id)
@@ -283,8 +272,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("LibraryItems-%d.zip", time.Now().UnixMilli())
 	if len(items) == 0 {
 		logging.Warnf(`[LibraryController] No library items found for ids "%s"`, strings.Join(itemIDs, ","))
-		httputil.WriteError(w, http.StatusNotFound, "Library items not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library items not found")
 	}
 	isFile := map[string]bool{}
 	for _, item := range items {
@@ -317,6 +305,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = zw.Close()
 	logging.Infof(`[LibraryController] Downloaded %d items "%s"`, len(items), filename)
+	return nil
 }
 
 func zipHeader(name string, info fs.FileInfo) *zip.FileHeader {

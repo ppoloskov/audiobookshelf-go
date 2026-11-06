@@ -16,8 +16,6 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
 
 // audioMIMEType mirrors utils/constants.js AudioMimeType +
@@ -56,29 +54,25 @@ func audioMIMEType(ext string) string {
 // upstream messages: ENOENT → 404 'File not found', otherwise 500
 // 'Download failed' (LibraryItemController.js:152-160) — only until headers
 // are sent, exactly like the source.
-func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
+func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
+	user, itemID := requestUser(r), r.PathValue("id")
 	var libraryID, itemPath, relPath, mediaType, title string
 	var isFile int
 	title = ""
 	err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryId, li.path, li.relPath, COALESCE(li.isFile,0), li.mediaType, COALESCE(b.title, p.title) FROM libraryItems li LEFT JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book' LEFT JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast' WHERE li.id = ?`, itemID).Scan(&libraryID, &itemPath, &relPath, &isFile, &mediaType, &title)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			httputil.WriteError(w, http.StatusNotFound, "")
-			return
+			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 		}
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if !user.IsActive || permissions["download"] != true {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if isFile != 0 {
 		if mimeType := audioMIMEType(filepath.Ext(itemPath)); mimeType != "" {
@@ -88,7 +82,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 	itemPath = filepath.Clean(itemPath)
 	if _, statErr := os.Stat(itemPath); os.IsNotExist(statErr) {
 		sendDownloadText(w, http.StatusNotFound, "File not found")
-		return
+		return nil
 	}
 	if isFile != 0 {
 		name := filepath.Base(relPath)
@@ -101,7 +95,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 			w.Header().Set("Content-Type", mimeType)
 		}
 		http.ServeFile(w, r, itemPath)
-		return
+		return nil
 	}
 	name := title
 	if name == "" {
@@ -154,6 +148,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request, user stor
 		_ = walkErr
 	}
 	_ = zipWriter.Close()
+	return nil
 }
 
 // sendDownloadText matches res.status(...).send('...'), preserving a MIME type

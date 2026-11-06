@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/store"
 )
 
 // Regression for the craft-review MAJOR finding (craft 2026-10-30): the manual
@@ -37,7 +38,8 @@ func TestManualCheckNewReturns500WhenEpisodeCheckWriteFails(t *testing.T) {
 
 	item := podcastItem{ID: "pod-1", MediaID: "pod-1", FeedURL: sql.NullString{String: feed.URL + "/rss", Valid: true}}
 	w := httptest.NewRecorder()
-	h.checkNew(w, httptest.NewRequest(http.MethodGet, "/checknew?limit=3", nil), item)
+	r := httptest.NewRequest(http.MethodGet, "/checknew?limit=3", nil)
+	_ = h.checkNew(w, r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"})), item)
 	if w.Code == http.StatusOK {
 		t.Fatalf("checknew reported success despite failed lastEpisodeCheck write: %d %s", w.Code, w.Body.String())
 	}

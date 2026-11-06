@@ -635,9 +635,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	}
 	itemRes := httptest.NewRecorder()
 	itemReq := httptest.NewRequest(http.MethodPost, "/api/items/"+itemID+"/scan", nil)
-	if !s.Handle(itemRes, itemReq, store.User{Type: "root"}) {
-		t.Fatal("item scan route was not handled")
-	}
+	serveScan(s, itemRes, itemReq)
 	var itemScanResponse map[string]string
 	if err := json.Unmarshal(itemRes.Body.Bytes(), &itemScanResponse); err != nil {
 		t.Fatalf("item scan response %q: %v", itemRes.Body.String(), err)
@@ -1268,14 +1266,12 @@ func TestScanCancellationAndRouteOwnership(t *testing.T) {
 		path   string
 		want   bool
 		status int
-	}{{"/api/items/id/scan", true, http.StatusNotFound}, {"/api/items/id/progress", false, 0}, {"/api/libraries/lib-1/scan", true, http.StatusOK}} {
+	}{{"/api/items/id/scan", true, http.StatusNotFound}, {"/api/items/id/progress", false, http.StatusNotFound}, {"/api/libraries/lib-1/scan", true, http.StatusOK}} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPost, tc.path, nil)
-		if got := s.Handle(recorder, request, storeUserRoot()); got != tc.want {
-			t.Fatalf("Handle(%s) = %v, want %v", tc.path, got, tc.want)
-		}
-		if tc.want && tc.status != 0 && recorder.Code != tc.status {
-			t.Fatalf("Handle(%s) status = %d want %d", tc.path, recorder.Code, tc.status)
+		serveScan(s, recorder, request)
+		if recorder.Code != tc.status {
+			t.Fatalf("%s status = %d want %d", tc.path, recorder.Code, tc.status)
 		}
 		if tc.path == "/api/libraries/lib-1/scan" && (recorder.Body.String() != "OK" || recorder.Header().Get("Content-Type") != "text/plain; charset=utf-8") {
 			t.Fatalf("library scan response = %d %q %q", recorder.Code, recorder.Body.String(), recorder.Header().Get("Content-Type"))
@@ -1286,7 +1282,12 @@ func TestScanCancellationAndRouteOwnership(t *testing.T) {
 	}
 }
 
-func storeUserRoot() store.User { return store.User{Type: "root"} }
+// serveScan dispatches through the route mux as the root user.
+func serveScan(s *Scanner, w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	s.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "root"})))
+}
 
 func TestScannedFileRelPathsAreItemRelative(t *testing.T) {
 	ffprobe := filepath.Join(t.TempDir(), "ffprobe")

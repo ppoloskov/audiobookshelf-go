@@ -37,38 +37,30 @@ type Handler struct {
 func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
 	return &Handler{db: db, cfg: cfg, emit: emit}
 }
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, u store.User) bool {
-	switch {
-	case r.URL.Path == "/api/emails/settings" && r.Method == http.MethodGet:
-		if !admin(u) {
-			httputil.SendStatus(w, http.StatusNotFound)
-		} else {
-			h.settings(w, r, false)
+
+// Routes registers the email routes (server/routers/ApiRouter.js /emails). A
+// non-admin is answered 404 on the admin routes.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	adminOnly := func(f httputil.Handler) httputil.Handler {
+		return func(w http.ResponseWriter, r *http.Request) error {
+			if user, _ := store.UserFromContext(r.Context()); !admin(user) {
+				return httputil.Status(http.StatusNotFound, "")
+			}
+			return f(w, r)
 		}
-	case r.URL.Path == "/api/emails/settings" && r.Method == http.MethodPatch:
-		if !admin(u) {
-			httputil.SendStatus(w, http.StatusNotFound)
-		} else {
-			h.settings(w, r, true)
-		}
-	case r.URL.Path == "/api/emails/test" && r.Method == http.MethodPost:
-		if !admin(u) {
-			httputil.SendStatus(w, http.StatusNotFound)
-		} else {
-			h.sendTest(w, r)
-		}
-	case r.URL.Path == "/api/emails/ereader-devices" && r.Method == http.MethodPost:
-		if !admin(u) {
-			httputil.SendStatus(w, http.StatusNotFound)
-		} else {
-			h.ereaderDevices(w, r)
-		}
-	case r.URL.Path == "/api/emails/send-ebook-to-device" && r.Method == http.MethodPost:
-		h.sendEbook(w, r, u)
-	default:
-		return false
 	}
-	return true
+	mux.Handle("GET /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, false) }))
+	mux.Handle("PATCH /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, true) }))
+	mux.Handle("POST /api/emails/test", adminOnly(h.sendTest))
+	mux.Handle("POST /api/emails/ereader-devices", adminOnly(h.ereaderDevices))
+	mux.Handle("POST /api/emails/send-ebook-to-device", httputil.Handler(h.sendEbook))
+}
+
+// dbFail logs err and answers http.Error's plain-text 500 (not Express framing).
+func dbFail(w http.ResponseWriter, r *http.Request, err error) error {
+	logging.RequestError(r, "database error", err)
+	http.Error(w, "database error", http.StatusInternalServerError)
+	return nil
 }
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
@@ -97,19 +89,17 @@ func (h *Handler) save(ctx context.Context, m map[string]any) error {
 	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
 	return e
 }
-func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
+func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) error {
 	m, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e)
 	}
 	if patch {
 		before, _ := json.Marshal(m)
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil {
 			w.WriteHeader(400)
-			return
+			return nil
 		}
 		for _, k := range []string{"host", "port", "secure", "rejectUnauthorized", "user", "pass", "testAddress", "fromAddress", "ereaderDevices"} {
 			v, ok := p[k]
@@ -140,11 +130,12 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) {
 			if e = h.save(r.Context(), m); e != nil {
 				logging.RequestError(r, "database error", e)
 				http.Error(w, "database error", 500)
-				return
+				return nil
 			}
 		}
 	}
 	write(w, map[string]any{"settings": m})
+	return nil
 }
 func jsTruthy(v any) bool {
 	switch x := v.(type) {
@@ -162,25 +153,23 @@ func jsTruthy(v any) bool {
 		return true
 	}
 }
-func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	var p struct {
 		Devices []map[string]any `json:"ereaderDevices"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Devices == nil {
 		http.Error(w, "Invalid payload. ereaderDevices array required", 400)
-		return
+		return nil
 	}
 	for _, d := range p.Devices {
 		if !jsTruthy(d["name"]) || !jsTruthy(d["email"]) {
 			http.Error(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
-			return
+			return nil
 		}
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e)
 	}
 	provided := make([]any, len(p.Devices))
 	for i, device := range p.Devices {
@@ -193,24 +182,22 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) {
 		if e = h.save(r.Context(), m); e != nil {
 			logging.RequestError(r, "database error", e)
 			http.Error(w, "database error", 500)
-			return
+			return nil
 		}
 		if h.emit != nil {
 			h.emit("@admins", "ereader-devices-updated", map[string]any{"ereaderDevices": clean})
 		}
 	}
 	write(w, map[string]any{"ereaderDevices": clean})
+	return nil
 }
-func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) error {
 	m, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e)
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		httputil.SendText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
-		return
+		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 	}
 	to, _ := m["testAddress"].(string)
 	if to == "" {
@@ -221,55 +208,53 @@ func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) {
 		if message == "" {
 			message = "Failed to send test email"
 		}
-		httputil.SendText(w, http.StatusBadRequest, message)
-		return
+		return httputil.Status(http.StatusBadRequest, message)
 	}
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
-func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
+	u, _ := store.UserFromContext(r.Context())
 	var p struct {
 		LibraryItemID string `json:"libraryItemId"`
 		DeviceName    string `json:"deviceName"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.LibraryItemID == "" || p.DeviceName == "" {
 		w.WriteHeader(400)
-		return
+		return nil
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e)
 	}
 	device := device(m, p.DeviceName)
 	if device == nil {
 		http.Error(w, "Ereader device not found", 404)
-		return
+		return nil
 	}
 	if !deviceAllowed(device, u) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	var folder, mediaID, mediaType string
 	e = h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaId,mediaType FROM libraryItems WHERE id=?`, p.LibraryItemID).Scan(&folder, &mediaID, &mediaType)
 	if e != nil {
 		http.Error(w, "Library item not found", 404)
-		return
+		return nil
 	}
 	if !libraryAllowed(u, folder) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	if mediaType != "book" {
 		http.Error(w, "Ebook file not found", 404)
-		return
+		return nil
 	}
 	var explicit int
 	var tagsRaw, ebookRaw []byte
 	e = h.db.QueryRowContext(r.Context(), `SELECT explicit,tags,ebookFile FROM books WHERE id=?`, mediaID).Scan(&explicit, &tagsRaw, &ebookRaw)
 	if e != nil || !canAccessContent(u, explicit, tagsRaw) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	var ebook struct {
 		Metadata struct {
@@ -279,23 +264,22 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 	}
 	if json.Unmarshal(ebookRaw, &ebook) != nil || ebook.Metadata.Path == "" {
 		http.Error(w, "Ebook file not found", 404)
-		return
+		return nil
 	}
 	f, e := os.Open(ebook.Metadata.Path)
 	if e != nil {
 		http.Error(w, "Ebook file not found", 404)
-		return
+		return nil
 	}
 	defer f.Close()
 	data, e := io.ReadAll(io.LimitReader(f, 512<<20))
 	if e != nil {
 		logging.RequestError(r, "Failed to read ebook file", e)
 		http.Error(w, "Failed to read ebook file", 500)
-		return
+		return nil
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
-		httputil.SendText(w, http.StatusBadRequest, "Failed to verify SMTP connection configuration")
-		return
+		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 	}
 	from, _ := m["fromAddress"].(string)
 	if e = sendMail(r.Context(), m, device["email"].(string), "Here is your Ebook!", "", &attachment{name: ebook.Metadata.Filename, data: data}); e != nil {
@@ -303,11 +287,10 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request, u store.User
 		if message == "" {
 			message = "Failed to send ebook to device"
 		}
-		httputil.SendText(w, http.StatusBadRequest, message)
-		return
+		return httputil.Status(http.StatusBadRequest, message)
 	}
 	_ = from
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 type attachment struct {

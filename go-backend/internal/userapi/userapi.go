@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
@@ -64,85 +63,76 @@ func (h *Handler) SetOnlineData(users func() []map[string]any, sessions func() [
 	h.usersOnline, h.openSessions = users, sessions
 }
 
-// Handle handles implemented paths relative to /api and reports whether the
-// path belongs to this package. False leaves the route to the root 501 handler.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	path := strings.TrimSuffix(r.URL.Path, "/")
-	path = strings.TrimPrefix(path, "/api")
-	if path == "" {
-		path = "/"
+// Routes mounts the user-facing API (ApiRouter.js) on the runtime's mux.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	for pattern, fn := range map[string]func(http.ResponseWriter, *http.Request, store.User) error{
+		"GET /api/me":                                              h.getMe,
+		"GET /api/me/sessions":                                     h.getSessions,
+		"PATCH /api/me/password":                                   h.updatePassword,
+		"DELETE /api/me/sessions/{id}":                             h.deleteSession,
+		"GET /api/me/listening-sessions":                           h.ownListeningSessions,
+		"GET /api/me/item/listening-sessions/{id}":                 h.getItemListeningSessions,
+		"GET /api/me/item/listening-sessions/{id}/{episodeId}":     h.getItemListeningSessions,
+		"GET /api/me/listening-stats":                              h.ownListeningStats,
+		"GET /api/me/items-in-progress":                            h.getItemsInProgress,
+		"GET /api/me/series/{id}/{action}":                         h.updateSeriesContinueListening,
+		"GET /api/me/stats/year/{year}":                            h.getYearStats,
+		"POST /api/me/ereader-devices":                             h.updateEReaderDevices,
+		"GET /api/me/progress":                                     h.getAllProgress,
+		"GET /api/me/progress/{id}":                                h.getProgress,
+		"GET /api/me/progress/{id}/{episodeId}":                    h.getProgress,
+		"GET /api/me/progress/{id}/remove-from-continue-listening": h.removeFromContinueListening,
+		"DELETE /api/me/progress/{id}":                             h.deleteProgress,
+		"PATCH /api/me/progress/batch/update":                      h.batchUpdateProgress,
+		"PATCH /api/me/progress/{id}":                              h.updateOneProgress,
+		"PATCH /api/me/progress/{id}/{episodeId}":                  h.updateOneProgress,
+		"GET /api/me/bookmarks":                                    h.getBookmarks,
+		"GET /api/me/bookmarks/{id}":                               h.getBookmarks,
+		"POST /api/me/item/{id}/bookmark":                          h.saveBookmark,
+		"PATCH /api/me/item/{id}/bookmark":                         h.saveBookmark,
+		"DELETE /api/me/item/{id}/bookmark/{time}":                 h.deleteBookmark,
+		"GET /api/users/{id}/{kind}":                               h.userListening,
+	} {
+		mux.Handle(pattern, withUser(fn))
 	}
-	switch {
-	case path == "/me" && r.Method == http.MethodGet:
-		h.getMe(w, r, user)
-	case path == "/me/sessions" && r.Method == http.MethodGet:
-		h.getSessions(w, r, user)
-	case path == "/me/password" && r.Method == http.MethodPatch:
-		h.updatePassword(w, r, user)
-	case strings.HasPrefix(path, "/me/sessions/") && r.Method == http.MethodDelete:
-		h.deleteSession(w, r, user, strings.TrimPrefix(path, "/me/sessions/"))
-	case path == "/me/listening-sessions" && r.Method == http.MethodGet:
-		h.writeListeningSessions(w, r, user.ID, "", false)
-	case strings.HasPrefix(path, "/me/item/listening-sessions/") && r.Method == http.MethodGet:
-		h.getItemListeningSessions(w, r, user, strings.TrimPrefix(path, "/me/item/listening-sessions/"))
-	case path == "/me/listening-stats" && r.Method == http.MethodGet:
-		h.writeListeningStats(w, r, user.ID)
-	case path == "/me/items-in-progress" && r.Method == http.MethodGet:
-		h.getItemsInProgress(w, r, user)
-	case strings.HasPrefix(path, "/me/series/") && r.Method == http.MethodGet:
-		h.updateSeriesContinueListening(w, r, user, strings.TrimPrefix(path, "/me/series/"))
-	case strings.HasPrefix(path, "/me/stats/year/") && r.Method == http.MethodGet:
-		h.getYearStats(w, r, user, strings.TrimPrefix(path, "/me/stats/year/"))
-	case path == "/me/ereader-devices" && r.Method == http.MethodPost:
-		h.updateEReaderDevices(w, r, user)
-	case path == "/me/progress" && r.Method == http.MethodGet:
-		h.getAllProgress(w, r, user)
-	case strings.HasPrefix(path, "/me/progress/"):
-		h.handleProgress(w, r, user, strings.TrimPrefix(path, "/me/progress/"))
-	case path == "/me/bookmarks" && r.Method == http.MethodGet:
-		h.getBookmarks(w, r, user, "")
-	case strings.HasPrefix(path, "/me/bookmarks/") && r.Method == http.MethodGet:
-		h.getBookmarks(w, r, user, strings.TrimPrefix(path, "/me/bookmarks/"))
-	case strings.HasPrefix(path, "/me/item/") && strings.Contains(path, "/bookmark"):
-		h.handleBookmark(w, r, user, strings.TrimPrefix(path, "/me/item/"))
-	case path == "/api-keys" || strings.HasPrefix(path, "/api-keys/"):
-		h.handleAPIKeys(w, r, user, strings.TrimPrefix(path, "/api-keys"))
-	case path == "/users" && r.Method == http.MethodGet:
-		h.listUsers(w, r, user)
-	case path == "/users" && r.Method == http.MethodPost:
-		h.createUser(w, r, user)
-	case path == "/users/online" && r.Method == http.MethodGet:
-		h.getOnlineUsers(w, user)
-	case strings.HasPrefix(path, "/users/"):
-		tail := strings.TrimPrefix(path, "/users/")
-		h.handleUser(w, r, user, tail)
-	default:
-		return false
+	for pattern, fn := range map[string]func(http.ResponseWriter, *http.Request, store.User) error{
+		"GET /api/api-keys":                   h.listAPIKeys,
+		"POST /api/api-keys":                  h.createAPIKey,
+		"DELETE /api/api-keys/{id}":           h.deleteAPIKey,
+		"PATCH /api/api-keys/{id}":            h.updateAPIKey,
+		"GET /api/users":                      h.listUsers,
+		"POST /api/users":                     h.createUser,
+		"GET /api/users/online":               h.getOnlineUsers,
+		"GET /api/users/{id}":                 h.getUser,
+		"DELETE /api/users/{id}":              h.deleteUser,
+		"PATCH /api/users/{id}":               h.updateUser,
+		"PATCH /api/users/{id}/openid-unlink": h.openIDUnlink,
+	} {
+		mux.Handle(pattern, adminOnly(fn))
 	}
-	return true
 }
 
-func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) ownListeningSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
+	return h.writeListeningSessions(w, r, user.ID, "", false)
+}
+
+func (h *Handler) ownListeningStats(w http.ResponseWriter, r *http.Request, user store.User) error {
+	return h.writeListeningStats(w, r, user.ID)
+}
+
+func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User) error {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	serialized, err := h.browserUserDB(r.Context(), user, progress, jsonArray(user.Bookmarks))
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	httputil.WriteJSON(w, 200, serialized)
+	return httputil.JSON(w, r, serialized)
 }
 
-func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
-	if !isAdmin(user) {
-		httputil.SendStatus(w, 403)
-		return
-	}
+func (h *Handler) getOnlineUsers(w http.ResponseWriter, r *http.Request, _ store.User) error {
 	users, sessions := []map[string]any{}, []map[string]any{}
 	if h.usersOnline != nil {
 		users = h.usersOnline()
@@ -150,24 +140,21 @@ func (h *Handler) getOnlineUsers(w http.ResponseWriter, user store.User) {
 	if h.openSessions != nil {
 		sessions = h.openSessions()
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"usersOnline": users, "openSessions": sessions})
+	return httputil.JSON(w, r, map[string]any{"usersOnline": users, "openSessions": sessions})
 }
 
-func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user store.User) error {
 	if user.Type == "guest" {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		http.Error(w, "Missing or invalid password or new password", 400)
-		return
+		return plainError(w, "Missing or invalid password or new password", 400)
 	}
 	oldRaw, hasOld := body["password"]
 	newRaw, hasNew := body["newPassword"]
 	if !hasOld || !hasNew {
-		http.Error(w, "Missing or invalid password or new password", 400)
-		return
+		return plainError(w, "Missing or invalid password or new password", 400)
 	}
 	oldPassword, oldOK := oldRaw.(string)
 	newPassword, newOK := newRaw.(string)
@@ -178,64 +165,52 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		newOK = true
 	}
 	if !oldOK || !newOK {
-		http.Error(w, "Missing or invalid password or new password", 400)
-		return
+		return plainError(w, "Missing or invalid password or new password", 400)
 	}
 	if h.changePassword == nil || h.invalidateSessions == nil {
-		writeNotImplemented(w)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err := h.changePassword(r.Context(), user.ID, oldPassword, newPassword); err != nil {
 		logging.Errorf("[LocalAuth] User %q failed to change password: %v", user.Username, err) // LocalAuthStrategy.js:178
-		http.Error(w, err.Error(), 400)
-		return
+		return plainError(w, err.Error(), 400)
 	}
 	logging.Infof("[LocalAuth] User %q changed password", user.Username) // LocalAuthStrategy.js:173
 	accessToken, refreshToken, err := h.invalidateSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	if refreshToken != "" && r.Header.Get("x-refresh-token") != "" {
-		httputil.WriteJSON(w, 200, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
-		return
+		return httputil.JSON(w, r, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
 	}
 	if refreshToken != "" && h.setRefreshCookie != nil {
 		h.setRefreshCookie(w, r, refreshToken)
 	}
-	httputil.SendStatus(w, 200)
+	return httputil.OK(w, r)
 }
 
-func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"mediaProgress": progress})
+	return httputil.JSON(w, r, map[string]any{"mediaProgress": progress})
 }
 
-func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user store.User, libraryItemID string) {
+func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user store.User) error {
+	libraryItemID := r.PathValue("id")
 	bookmarks := jsonArray(user.Bookmarks)
 	if libraryItemID == "" {
-		httputil.WriteJSON(w, 200, map[string]any{"bookmarks": bookmarks})
-		return
+		return httputil.JSON(w, r, map[string]any{"bookmarks": bookmarks})
 	}
 	access, err := h.canAccessItem(r.Context(), user, libraryItemID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if !access.exists {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	if !access.allowed {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	filtered := make([]any, 0)
 	for _, entry := range bookmarks {
@@ -243,124 +218,86 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 			filtered = append(filtered, bm)
 		}
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"bookmarks": filtered})
+	return httputil.JSON(w, r, map[string]any{"bookmarks": filtered})
 }
 
-func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
-	parts := strings.Split(tail, "/")
-	if len(parts) == 2 && parts[1] == "remove-from-continue-listening" && r.Method == http.MethodGet {
-		res, err := sqlc.New(h.db).HideMediaProgressFromContinueListening(r.Context(), sqlc.HideMediaProgressFromContinueListeningParams{UpdatedAt: dbtime.Now(), ID: parts[0], UserID: store.Text(user.ID)})
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		n, _ := res.RowsAffected()
-		if n == 0 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		h.emitUserUpdate(r.Context(), user)
-		payload, err := h.userPayload(r.Context(), user)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		httputil.WriteJSON(w, 200, payload)
-		return
+func (h *Handler) removeFromContinueListening(w http.ResponseWriter, r *http.Request, user store.User) error {
+	res, err := sqlc.New(h.db).HideMediaProgressFromContinueListening(r.Context(), sqlc.HideMediaProgressFromContinueListeningParams{UpdatedAt: dbtime.Now(), ID: r.PathValue("id"), UserID: store.Text(user.ID)})
+	if err != nil {
+		return writeInternalError(w, r, "database write failed", err)
 	}
-	switch r.Method {
-	case http.MethodGet:
-		if len(parts) < 1 || len(parts) > 2 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		episodeID := ""
-		if len(parts) == 2 {
-			episodeID = parts[1]
-		}
-		p, err := progressdto.ReadOne(r.Context(), h.db, user.ID, parts[0], episodeID)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if p == nil {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		httputil.WriteJSON(w, 200, p)
-	case http.MethodDelete:
-		if len(parts) != 1 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		res, err := sqlc.New(h.db).DeleteMediaProgressForUser(r.Context(), sqlc.DeleteMediaProgressForUserParams{ID: parts[0], UserID: store.Text(user.ID)})
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		n, _ := res.RowsAffected()
-		if n == 0 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		httputil.SendStatus(w, 200)
-	case http.MethodPatch:
-		if len(parts) == 2 && parts[0] == "batch" && parts[1] == "update" {
-			var batch []progressdto.Payload
-			defer r.Body.Close()
-			if err := json.NewDecoder(r.Body).Decode(&batch); err != nil || len(batch) == 0 {
-				http.Error(w, "Missing request payload", 400)
-				return
-			}
-			updated := false
-			for _, payload := range batch {
-				if _, err := h.updateProgress(r.Context(), user, payload); err == nil {
-					updated = true
-				}
-			}
-			if updated {
-				h.emitUserUpdate(r.Context(), user)
-			}
-			httputil.SendStatus(w, 200)
-			return
-		}
-		if len(parts) < 1 || len(parts) > 2 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		// MeController.createUpdateMediaProgress (MeController.js:277): the
-		// body is spread first, so the URL's libraryItemId and (possibly
-		// absent) episodeId always win.
-		var payload progressdto.Payload
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "Invalid request body", 400)
-			return
-		}
-		payload.LibraryItemID, payload.EpisodeID = parts[0], ""
-		if len(parts) == 2 {
-			payload.EpisodeID = parts[1]
-		}
-		if _, err := h.updateProgress(r.Context(), user, payload); err != nil {
-			var refused *progressdto.StatusError
-			if errors.As(err, &refused) {
-				// Express res.status(n).send(string): text/html, no trailing newline.
-				httputil.SendText(w, refused.Status, refused.Message)
-				return
-			}
-			logging.RequestError(r, "request failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		h.emitUserUpdate(r.Context(), user)
-		httputil.SendStatus(w, 200)
-	default:
-		httputil.SendStatus(w, 404)
+	if n, _ := res.RowsAffected(); n == 0 {
+		return httputil.Status(404, "")
 	}
+	h.emitUserUpdate(r.Context(), user)
+	payload, err := h.userPayload(r.Context(), user)
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	return httputil.JSON(w, r, payload)
+}
+
+func (h *Handler) getProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
+	p, err := progressdto.ReadOne(r.Context(), h.db, user.ID, r.PathValue("id"), r.PathValue("episodeId"))
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if p == nil {
+		return httputil.Status(404, "")
+	}
+	return httputil.JSON(w, r, p)
+}
+
+func (h *Handler) deleteProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
+	res, err := sqlc.New(h.db).DeleteMediaProgressForUser(r.Context(), sqlc.DeleteMediaProgressForUserParams{ID: r.PathValue("id"), UserID: store.Text(user.ID)})
+	if err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return httputil.Status(404, "")
+	}
+	return httputil.OK(w, r)
+}
+
+func (h *Handler) batchUpdateProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
+	var batch []progressdto.Payload
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&batch); err != nil || len(batch) == 0 {
+		return plainError(w, "Missing request payload", 400)
+	}
+	updated := false
+	for _, payload := range batch {
+		if _, err := h.updateProgress(r.Context(), user, payload); err == nil {
+			updated = true
+		}
+	}
+	if updated {
+		h.emitUserUpdate(r.Context(), user)
+	}
+	return httputil.OK(w, r)
+}
+
+func (h *Handler) updateOneProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
+	// MeController.createUpdateMediaProgress (MeController.js:277): the
+	// body is spread first, so the URL's libraryItemId and (possibly
+	// absent) episodeId always win.
+	var payload progressdto.Payload
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return plainError(w, "Invalid request body", 400)
+	}
+	payload.LibraryItemID, payload.EpisodeID = r.PathValue("id"), r.PathValue("episodeId")
+	if _, err := h.updateProgress(r.Context(), user, payload); err != nil {
+		var refused *progressdto.StatusError
+		if errors.As(err, &refused) {
+			// Express res.status(n).send(string): text/html, no trailing newline.
+			return httputil.Status(refused.Status, refused.Message)
+		}
+		logging.RequestError(r, "request failed", err)
+		return plainError(w, "database write failed", 500)
+	}
+	h.emitUserUpdate(r.Context(), user)
+	return httputil.OK(w, r)
 }
 
 // updateProgress applies one progress payload for the user
@@ -383,97 +320,82 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 	return progressdto.Apply(ctx, h.db, user.ID, p)
 }
 
-func (h *Handler) handleBookmark(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
-	parts := strings.Split(tail, "/")
-	if len(parts) < 2 || parts[1] != "bookmark" {
-		httputil.SendStatus(w, 404)
-		return
-	}
-	itemID := parts[0]
-	access, err := h.canAccessItem(r.Context(), user, itemID)
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
-	}
-	if !access.exists {
-		httputil.SendStatus(w, 404)
-		return
-	}
-	if !access.allowed {
-		httputil.SendStatus(w, 403)
-		return
+// saveBookmark creates (POST) or retitles (PATCH) a bookmark of a library item.
+func (h *Handler) saveBookmark(w http.ResponseWriter, r *http.Request, user store.User) error {
+	itemID := r.PathValue("id")
+	if err := h.requireItemAccess(r, user, itemID); err != nil {
+		return err
 	}
 	bookmarks := jsonArray(user.Bookmarks)
-	switch r.Method {
-	case http.MethodPost, http.MethodPatch:
-		if len(parts) != 2 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		body, err := httputil.DecodeObjectRequest(r)
-		if err != nil {
-			http.Error(w, "Invalid request body", 400)
-			return
-		}
-		timeValue, ok := finiteNumber(body["time"])
-		if !ok {
-			http.Error(w, "Invalid time", 400)
-			return
-		}
-		title, ok := body["title"].(string)
-		if !ok || title == "" {
-			http.Error(w, "Invalid title", 400)
-			return
-		}
-		index := bookmarkIndex(bookmarks, itemID, timeValue)
-		if r.Method == http.MethodPatch && index < 0 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		var entry map[string]any
-		if index < 0 {
-			entry = map[string]any{"libraryItemId": itemID, "time": timeValue, "title": title, "createdAt": time.Now().UnixMilli()}
-			bookmarks = append(bookmarks, entry)
-		} else {
-			entry, _ = bookmarks[index].(map[string]any)
-			entry["title"] = title
-		}
-		if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		user.Bookmarks, _ = json.Marshal(bookmarks)
-		h.emitUserUpdate(r.Context(), user)
-		httputil.WriteJSON(w, 200, entry)
-	case http.MethodDelete:
-		if len(parts) != 3 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		timeValue, err := strconv.ParseFloat(parts[2], 64)
-		if err != nil || math.IsNaN(timeValue) || math.IsInf(timeValue, 0) {
-			http.Error(w, "Invalid time", 400)
-			return
-		}
-		index := bookmarkIndex(bookmarks, itemID, timeValue)
-		if index < 0 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		bookmarks = append(bookmarks[:index], bookmarks[index+1:]...)
-		if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		user.Bookmarks, _ = json.Marshal(bookmarks)
-		h.emitUserUpdate(r.Context(), user)
-		httputil.SendStatus(w, 200)
-	default:
-		httputil.SendStatus(w, 404)
+	body, err := httputil.DecodeObjectRequest(r)
+	if err != nil {
+		return plainError(w, "Invalid request body", 400)
 	}
+	timeValue, ok := finiteNumber(body["time"])
+	if !ok {
+		return plainError(w, "Invalid time", 400)
+	}
+	title, ok := body["title"].(string)
+	if !ok || title == "" {
+		return plainError(w, "Invalid title", 400)
+	}
+	index := bookmarkIndex(bookmarks, itemID, timeValue)
+	if r.Method == http.MethodPatch && index < 0 {
+		return httputil.Status(404, "")
+	}
+	var entry map[string]any
+	if index < 0 {
+		entry = map[string]any{"libraryItemId": itemID, "time": timeValue, "title": title, "createdAt": time.Now().UnixMilli()}
+		bookmarks = append(bookmarks, entry)
+	} else {
+		entry, _ = bookmarks[index].(map[string]any)
+		entry["title"] = title
+	}
+	if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	user.Bookmarks, _ = json.Marshal(bookmarks)
+	h.emitUserUpdate(r.Context(), user)
+	return httputil.JSON(w, r, entry)
+}
+
+func (h *Handler) deleteBookmark(w http.ResponseWriter, r *http.Request, user store.User) error {
+	itemID := r.PathValue("id")
+	if err := h.requireItemAccess(r, user, itemID); err != nil {
+		return err
+	}
+	bookmarks := jsonArray(user.Bookmarks)
+	timeValue, err := strconv.ParseFloat(r.PathValue("time"), 64)
+	if err != nil || math.IsNaN(timeValue) || math.IsInf(timeValue, 0) {
+		return plainError(w, "Invalid time", 400)
+	}
+	index := bookmarkIndex(bookmarks, itemID, timeValue)
+	if index < 0 {
+		return httputil.Status(404, "")
+	}
+	bookmarks = append(bookmarks[:index], bookmarks[index+1:]...)
+	if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	user.Bookmarks, _ = json.Marshal(bookmarks)
+	h.emitUserUpdate(r.Context(), user)
+	return httputil.OK(w, r)
+}
+
+// requireItemAccess answers 404 for a missing item and 403 for one the user
+// cannot read.
+func (h *Handler) requireItemAccess(r *http.Request, user store.User, itemID string) error {
+	access, err := h.canAccessItem(r.Context(), user, itemID)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if !access.exists {
+		return httputil.Status(404, "")
+	}
+	if !access.allowed {
+		return httputil.Status(403, "")
+	}
+	return nil
 }
 
 func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []any) error {
@@ -485,16 +407,13 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 	return err
 }
 
-func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current store.User) {
+func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current store.User) error {
 	if !isAdmin(current) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt FROM users`)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	defer rows.Close()
 	users := make([]any, 0)
@@ -502,54 +421,43 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		users = append(users, minimalBrowserUser(u, hideRootToken))
 	}
 	if err := rows.Err(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"users": users})
+	return httputil.JSON(w, r, map[string]any{"users": users})
 }
 
-func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) {
+func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) error {
 	if !isAdmin(current) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		httputil.SendText(w, 400, "Username and password are required")
-		return
+		return httputil.Status(400, "Username and password are required")
 	}
 	username, _ := body["username"].(string)
 	password, _ := body["password"].(string)
 	if username == "" || password == "" {
-		httputil.SendText(w, 400, "Username and password are required")
-		return
+		return httputil.Status(400, "Username and password are required")
 	}
 	typ, _ := body["type"].(string)
 	if typ == "" {
 		typ = "user"
 	}
 	if typ != "user" && typ != "admin" && typ != "guest" {
-		httputil.SendText(w, 400, "Invalid account type")
-		return
+		return httputil.Status(400, "Invalid account type")
 	}
 	var exists int
 	err = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username = ?`, username).Scan(&exists)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if exists > 0 {
-		httputil.SendText(w, 400, "Username already taken")
-		return
+		return httputil.Status(400, "Username already taken")
 	}
 	permissions := defaultPermissions(typ)
 	if reqPerms, ok := body["permissions"].(map[string]any); ok {
@@ -575,15 +483,11 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	encodedPerms, _ := json.Marshal(permissions)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
-		logging.RequestError(r, "Failed to save new user", err)
-		http.Error(w, "Failed to save new user", 500)
-		return
+		return writeInternalError(w, r, "Failed to save new user", err)
 	}
 	userID, err := ids.New()
 	if err != nil {
-		logging.RequestError(r, "Failed to save new user", err)
-		http.Error(w, "Failed to save new user", 500)
-		return
+		return writeInternalError(w, r, "Failed to save new user", err)
 	}
 	email, _ := body["email"].(string)
 	// Upstream user create via Sequelize omits undefined fields; an absent
@@ -597,560 +501,424 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	now := dbtime.Now()
 	token, err := h.signToken(map[string]any{"userId": userID, "username": username})
 	if err != nil {
-		logging.RequestError(r, "Failed to save new user", err)
-		http.Error(w, "Failed to save new user", 500)
-		return
+		return writeInternalError(w, r, "Failed to save new user", err)
 	}
 	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, string(encodedPerms), `[]`, `{"seriesHideFromContinueListening":[]}`, now, now); err != nil {
-		logging.RequestError(r, "Failed to save new user", err)
-		http.Error(w, "Failed to save new user", 500)
-		return
+		return writeInternalError(w, r, "Failed to save new user", err)
 	}
 	newUser, err := h.userByID(r.Context(), userID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	serialized, err := h.browserUserDB(r.Context(), newUser, []any{}, []any{})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("admin", "user_added", serialized)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"user": serialized})
+	return httputil.JSON(w, r, map[string]any{"user": serialized})
 }
 
-func (h *Handler) handleUser(w http.ResponseWriter, r *http.Request, current store.User, tail string) {
-	parts := strings.Split(tail, "/")
-	id := parts[0]
-	if id == "" {
-		return
+func (h *Handler) userListening(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id, kind := r.PathValue("id"), r.PathValue("kind")
+	if kind != "listening-sessions" && kind != "listening-stats" {
+		return httputil.Status(404, "")
 	}
-	if len(parts) == 2 && (parts[1] == "listening-sessions" || parts[1] == "listening-stats") && r.Method == http.MethodGet {
-		if !isAdmin(current) && current.ID != id {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		if _, err := h.userByID(r.Context(), id); errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
-		} else if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if parts[1] == "listening-stats" {
-			h.writeListeningStats(w, r, id)
-		} else {
-			h.writeListeningSessions(w, r, id, "", true)
-		}
-		return
+	if !isAdmin(current) && current.ID != id {
+		return httputil.Status(403, "")
 	}
-	if len(parts) == 2 && parts[1] == "openid-unlink" && r.Method == http.MethodPatch {
-		if !isAdmin(current) {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		u, err := h.userByID(r.Context(), id)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if u.Type == "root" && current.Type != "root" {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		var extra map[string]any
-		_ = json.Unmarshal(u.ExtraData, &extra)
-		if extra == nil || extra["authOpenIDSub"] == nil {
-			httputil.SendStatus(w, 200)
-			return
-		}
-		extra["authOpenIDSub"] = nil
-		encoded, _ := json.Marshal(extra)
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), id); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		u.ExtraData = encoded
-		serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if h.emit != nil {
-			h.emit(current.ID, "user_updated", serialized)
-		}
-		httputil.SendStatus(w, 200)
-		return
+	if _, err := h.targetUser(r.Context(), id); err != nil {
+		return err
 	}
-	if len(parts) != 1 {
-		return
+	if kind == "listening-stats" {
+		return h.writeListeningStats(w, r, id)
 	}
-	if r.Method == http.MethodGet {
-		if !isAdmin(current) {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		u, err := h.userByID(r.Context(), id)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		progress, err := h.progressRows(r.Context(), id)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		serialized, err := h.browserUserDB(r.Context(), u, progress, jsonArray(u.Bookmarks))
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		httputil.WriteJSON(w, 200, serialized)
-		return
+	return h.writeListeningSessions(w, r, id, "", true)
+}
+
+// targetUser loads the user an admin route addresses; a missing user is a 404.
+func (h *Handler) targetUser(ctx context.Context, id string) (store.User, error) {
+	u, err := h.userByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return u, httputil.Status(404, "")
 	}
-	if r.Method == http.MethodDelete {
-		if !isAdmin(current) {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		u, err := h.userByID(r.Context(), id)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if current.ID == id {
-			logging.Errorf("[UserController] User %s is attempting to delete self", current.Username) // UserController.js:367
-			httputil.SendStatus(w, 400)
-			return
-		}
-		if u.Type == "root" {
-			logging.Errorf("[UserController] Admin user %q attempted to delete root user", current.Username) // UserController.js:371
-			httputil.SendStatus(w, 403)
-			return
-		}
-		tx, err := h.db.BeginTx(r.Context(), nil)
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		defer tx.Rollback()
-		if err = sqlc.New(tx).DeleteUserPlaylists(r.Context(), id); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		sessionsUpdated := int64(0)
-		if res, execErr := sqlc.New(tx).DetachPlaybackSessionsFromUser(r.Context(), store.Text(id)); execErr != nil {
-			logging.RequestError(r, "database write failed", execErr)
-			http.Error(w, "database write failed", 500)
-			return
-		} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
-			sessionsUpdated = n
-		}
-		if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		if err = tx.Commit(); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
-		if h.emit != nil {
-			h.emit("admin", "user_removed", browserUser(u, []any{}, jsonArray(u.Bookmarks)))
-		}
-		httputil.WriteJSON(w, 200, map[string]any{"success": true})
-		return
+	if err != nil {
+		return u, httputil.Internal("database read failed", err)
 	}
-	if r.Method == http.MethodPatch {
-		if !isAdmin(current) {
-			httputil.SendStatus(w, 403)
-			return
+	return u, nil
+}
+
+func (h *Handler) openIDUnlink(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	u, err := h.targetUser(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if u.Type == "root" && current.Type != "root" {
+		return httputil.Status(403, "")
+	}
+	var extra map[string]any
+	_ = json.Unmarshal(u.ExtraData, &extra)
+	if extra == nil || extra["authOpenIDSub"] == nil {
+		return httputil.OK(w, r)
+	}
+	extra["authOpenIDSub"] = nil
+	encoded, _ := json.Marshal(extra)
+	if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), id); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	u.ExtraData = encoded
+	serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if h.emit != nil {
+		h.emit(current.ID, "user_updated", serialized)
+	}
+	return httputil.OK(w, r)
+}
+
+func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	u, err := h.targetUser(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	progress, err := h.progressRows(r.Context(), id)
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	serialized, err := h.browserUserDB(r.Context(), u, progress, jsonArray(u.Bookmarks))
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	return httputil.JSON(w, r, serialized)
+}
+
+func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	u, err := h.targetUser(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if current.ID == id {
+		logging.Errorf("[UserController] User %s is attempting to delete self", current.Username) // UserController.js:367
+		return httputil.Status(400, "")
+	}
+	if u.Type == "root" {
+		logging.Errorf("[UserController] Admin user %q attempted to delete root user", current.Username) // UserController.js:371
+		return httputil.Status(403, "")
+	}
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	defer tx.Rollback()
+	if err = sqlc.New(tx).DeleteUserPlaylists(r.Context(), id); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	sessionsUpdated := int64(0)
+	if res, execErr := sqlc.New(tx).DetachPlaybackSessionsFromUser(r.Context(), store.Text(id)); execErr != nil {
+		return writeInternalError(w, r, "database write failed", execErr)
+	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
+		sessionsUpdated = n
+	}
+	if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
+	if h.emit != nil {
+		h.emit("admin", "user_removed", browserUser(u, []any{}, jsonArray(u.Bookmarks)))
+	}
+	return httputil.JSON(w, r, map[string]any{"success": true})
+}
+
+func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	u, err := h.targetUser(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if u.Type == "root" && current.Type != "root" {
+		return httputil.Status(403, "")
+	}
+	body, err := httputil.DecodeObjectRequest(r)
+	if err != nil {
+		return plainError(w, "Invalid request", 400)
+	}
+	for _, key := range []string{"id", "pash", "token", "extraData", "bookmarks"} {
+		if _, ok := body[key]; ok {
+			return plainError(w, `Key "`+key+`" cannot be updated`, 400)
 		}
-		u, err := h.userByID(r.Context(), id)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
+	}
+	if value, exists := body["email"]; exists && value != nil && value != "" {
+		if _, ok := value.(string); !ok {
+			return httputil.Status(400, "Invalid email")
 		}
+	}
+	if value, exists := body["username"]; exists && value != nil && value != "" {
+		if _, ok := value.(string); !ok {
+			return httputil.Status(400, "Invalid username")
+		}
+	}
+	if value, exists := body["type"]; exists && value != nil && value != "" {
+		if _, ok := value.(string); !ok {
+			return httputil.Status(400, "Invalid account type")
+		}
+	}
+	if value, exists := body["permissions"]; exists && value != nil {
+		if _, ok := value.(map[string]any); !ok {
+			return httputil.Status(400, "Invalid permissions")
+		}
+	}
+	credentialsChanged := false
+	emailChanged := false
+	if name, ok := body["username"].(string); ok && name != "" && name != u.Username {
+		var exists int
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username=? AND id<>?`, name, id).Scan(&exists); err != nil {
+			return writeInternalError(w, r, "database read failed", err)
+		}
+		if exists != 0 {
+			return httputil.Status(400, "Username already taken")
+		}
+		u.Username = name
+		token, err := h.signToken(map[string]any{"userId": u.ID, "username": u.Username})
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
-		if u.Type == "root" && current.Type != "root" {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		body, err := httputil.DecodeObjectRequest(r)
+		u.Token = token
+		credentialsChanged = true
+	}
+	if password, ok := body["password"].(string); ok && password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 		if err != nil {
-			http.Error(w, "Invalid request", 400)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
-		for _, key := range []string{"id", "pash", "token", "extraData", "bookmarks"} {
-			if _, ok := body[key]; ok {
-				http.Error(w, `Key "`+key+`" cannot be updated`, 400)
-				return
-			}
+		u.Password = string(hash)
+		credentialsChanged = true
+	}
+	if email, ok := body["email"].(string); ok && email != "" {
+		u.Email = email
+		emailChanged = true
+	} else if email, exists := body["email"]; exists && (email == nil || email == "") {
+		// Upstream PATCH with null/empty email sets the column to SQL NULL
+		// (models/User.js); the browser DTO then serializes null.
+		u.Email = ""
+		emailChanged = true
+	}
+	if typ, ok := body["type"].(string); ok && typ != "" && u.Type != "root" {
+		if typ != "user" && typ != "admin" && typ != "guest" {
+			return httputil.Status(400, "Invalid account type")
 		}
-		if value, exists := body["email"]; exists && value != nil && value != "" {
-			if _, ok := value.(string); !ok {
-				httputil.SendText(w, 400, "Invalid email")
-				return
-			}
-		}
-		if value, exists := body["username"]; exists && value != nil && value != "" {
-			if _, ok := value.(string); !ok {
-				httputil.SendText(w, 400, "Invalid username")
-				return
-			}
-		}
-		if value, exists := body["type"]; exists && value != nil && value != "" {
-			if _, ok := value.(string); !ok {
-				httputil.SendText(w, 400, "Invalid account type")
-				return
-			}
-		}
-		if value, exists := body["permissions"]; exists && value != nil {
-			if _, ok := value.(map[string]any); !ok {
-				httputil.SendText(w, 400, "Invalid permissions")
-				return
-			}
-		}
-		credentialsChanged := false
-		emailChanged := false
-		if name, ok := body["username"].(string); ok && name != "" && name != u.Username {
-			var exists int
-			if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username=? AND id<>?`, name, id).Scan(&exists); err != nil {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-				return
-			}
-			if exists != 0 {
-				httputil.SendText(w, 400, "Username already taken")
-				return
-			}
-			u.Username = name
-			token, err := h.signToken(map[string]any{"userId": u.ID, "username": u.Username})
-			if err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return
-			}
-			u.Token = token
-			credentialsChanged = true
-		}
-		if password, ok := body["password"].(string); ok && password != "" {
-			hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
-			if err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return
-			}
-			u.Password = string(hash)
-			credentialsChanged = true
-		}
-		if email, ok := body["email"].(string); ok && email != "" {
-			u.Email = email
-			emailChanged = true
-		} else if email, exists := body["email"]; exists && (email == nil || email == "") {
-			// Upstream PATCH with null/empty email sets the column to SQL NULL
-			// (models/User.js); the browser DTO then serializes null.
-			u.Email = ""
-			emailChanged = true
-		}
-		if typ, ok := body["type"].(string); ok && typ != "" && u.Type != "root" {
-			if typ != "user" && typ != "admin" && typ != "guest" {
-				httputil.SendText(w, 400, "Invalid account type")
-				return
-			}
-			u.Type = typ
-		}
-		if active, ok := body["isActive"].(bool); ok {
-			u.IsActive = active
-		}
-		perms := store.DecodeJSONObject(u.Permissions)
-		if patch, ok := body["permissions"].(map[string]any); ok {
-			defaults := defaultPermissions(u.Type)
-			for key, value := range patch {
-				if _, allowed := defaults[key]; allowed {
-					if b, ok := value.(bool); ok {
-						perms[key] = b
-					}
-				}
-			}
-			for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
-				if val, ok := patch[key]; ok && validStringArray(val) {
-					perms[key] = val
+		u.Type = typ
+	}
+	if active, ok := body["isActive"].(bool); ok {
+		u.IsActive = active
+	}
+	perms := store.DecodeJSONObject(u.Permissions)
+	if patch, ok := body["permissions"].(map[string]any); ok {
+		defaults := defaultPermissions(u.Type)
+		for key, value := range patch {
+			if _, allowed := defaults[key]; allowed {
+				if b, ok := value.(bool); ok {
+					perms[key] = b
 				}
 			}
 		}
 		for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
-			if val, ok := body[key]; ok && validStringArray(val) {
+			if val, ok := patch[key]; ok && validStringArray(val) {
 				perms[key] = val
 			}
 		}
-		encoded, _ := json.Marshal(perms)
-		now := dbtime.Now()
-		var writeErr error
-		// The users row email must not be rewritten when the patch does not
-		// touch it: an absent-email row would otherwise flip SQL NULL to '':
-		// Sequelize update() only writes mutated attributes.
-		if emailChanged {
-			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, store.NullIfEmpty(u.Email), u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
-		} else {
-			_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
-		}
-		if writeErr != nil {
-			logging.RequestError(r, "database write failed", writeErr)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		if credentialsChanged && h.invalidateSessions != nil {
-			_, refresh, err := h.invalidateSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
-			if err != nil {
-				logging.RequestError(r, "database write failed", err)
-				http.Error(w, "database write failed", 500)
-				return
-			}
-			if refresh != "" && r.Header.Get("x-refresh-token") == "" && h.setRefreshCookie != nil {
-				h.setRefreshCookie(w, r, refresh)
-			}
-		}
-		u.Permissions = encoded
-		serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if h.emit != nil {
-			h.emit(current.ID, "user_updated", serialized)
-		}
-		httputil.WriteJSON(w, 200, map[string]any{"success": true, "user": serialized})
-		return
 	}
-	writeNotImplemented(w)
+	for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
+		if val, ok := body[key]; ok && validStringArray(val) {
+			perms[key] = val
+		}
+	}
+	encoded, _ := json.Marshal(perms)
+	now := dbtime.Now()
+	var writeErr error
+	// The users row email must not be rewritten when the patch does not
+	// touch it: an absent-email row would otherwise flip SQL NULL to '':
+	// Sequelize update() only writes mutated attributes.
+	if emailChanged {
+		_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, store.NullIfEmpty(u.Email), u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
+	} else {
+		_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
+	}
+	if writeErr != nil {
+		return writeInternalError(w, r, "database write failed", writeErr)
+	}
+	if credentialsChanged && h.invalidateSessions != nil {
+		_, refresh, err := h.invalidateSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
+		if err != nil {
+			return writeInternalError(w, r, "database write failed", err)
+		}
+		if refresh != "" && r.Header.Get("x-refresh-token") == "" && h.setRefreshCookie != nil {
+			h.setRefreshCookie(w, r, refresh)
+		}
+	}
+	u.Permissions = encoded
+	serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if h.emit != nil {
+		h.emit(current.ID, "user_updated", serialized)
+	}
+	return httputil.JSON(w, r, map[string]any{"success": true, "user": serialized})
 }
 
-func (h *Handler) handleAPIKeys(w http.ResponseWriter, r *http.Request, current store.User, tail string) {
-	if !isAdmin(current) {
-		httputil.SendStatus(w, 403)
-		return
+func (h *Handler) listAPIKeys(w http.ResponseWriter, r *http.Request, current store.User) error {
+	keys, err := h.apiKeys(r.Context())
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	id := strings.TrimPrefix(tail, "/")
-	if id == "" && r.Method == http.MethodGet {
-		keys, err := h.apiKeys(r.Context())
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		httputil.WriteJSON(w, 200, map[string]any{"apiKeys": keys})
-		return
+	return httputil.JSON(w, r, map[string]any{"apiKeys": keys})
+}
+
+func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
+	body, err := httputil.DecodeObjectRequest(r)
+	if err != nil {
+		return httputil.Status(400, "")
 	}
-	if id == "" && r.Method == http.MethodPost {
-		body, err := httputil.DecodeObjectRequest(r)
-		if err != nil {
-			httputil.SendStatus(w, 400)
-			return
+	name, _ := body["name"].(string)
+	userID, _ := body["userId"].(string)
+	if name == "" || userID == "" {
+		return httputil.Status(400, "")
+	}
+	target, err := h.userByID(r.Context(), userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return httputil.Status(400, "")
+	}
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if target.Type == "root" && current.Type != "root" {
+		return httputil.Status(403, "")
+	}
+	expiresIn := number(body["expiresIn"], 0)
+	if body["expiresIn"] != nil && (expiresIn <= 0) {
+		return httputil.Status(400, "")
+	}
+	keyID, err := ids.New()
+	if err != nil {
+		return writeInternalError(w, r, "API key creation failed", err)
+	}
+	now := time.Now().UTC()
+	var expires any
+	if expiresIn > 0 {
+		expires = dbtime.Format(now.Add(time.Duration(expiresIn * float64(time.Second))))
+	}
+	tokenClaims := map[string]any{"keyId": keyID, "name": name, "type": "api"}
+	if expiresIn > 0 {
+		tokenClaims["exp"] = now.Unix() + int64(expiresIn)
+	}
+	token, err := h.signToken(tokenClaims)
+	if err != nil {
+		return writeInternalError(w, r, "API key creation failed", err)
+	}
+	active, _ := body["isActive"].(bool)
+	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO apiKeys (id,name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, keyID, name, nil, expires, nil, active, nil, userID, current.ID, dbtime.Format(now), dbtime.Format(now)); err != nil {
+		return writeInternalError(w, r, "API key creation failed", err)
+	}
+	entry, err := h.apiKey(r.Context(), keyID)
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	// Upstream create spreads apiKey.toJSON() from a freshly built instance
+	// (ApiKeyController.js:100): unpersisted attributes (description,
+	// lastUsedAt, permissions) are undefined and dropped; createdByUserId
+	// and user remain. The plain instance JSON has no createdByUser field.
+	delete(entry, "description")
+	delete(entry, "lastUsedAt")
+	delete(entry, "permissions")
+	delete(entry, "createdByUser")
+	entry["apiKey"] = token
+	return httputil.JSON(w, r, map[string]any{"apiKey": entry})
+}
+
+func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	res, err := h.db.ExecContext(r.Context(), `DELETE FROM apiKeys WHERE id=?`, id)
+	if err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return httputil.Status(404, "")
+	}
+	return httputil.OK(w, r)
+}
+
+func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id := r.PathValue("id")
+	var ownerID, ownerType string
+	err := h.db.QueryRowContext(r.Context(), `SELECT u.id,u.type FROM apiKeys a JOIN users u ON u.id=a.userId WHERE a.id=?`, id).Scan(&ownerID, &ownerType)
+	if errors.Is(err, sql.ErrNoRows) {
+		return httputil.Status(404, "")
+	}
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if ownerType == "root" && current.Type != "root" {
+		return httputil.Status(403, "")
+	}
+	body, err := httputil.DecodeObjectRequest(r)
+	if err != nil {
+		return httputil.Status(400, "")
+	}
+	var newOwner any = ownerID
+	var active any
+	setActive := false
+	if val, ok := body["userId"]; ok {
+		newID, ok := val.(string)
+		if !ok {
+			return httputil.Status(400, "")
 		}
-		name, _ := body["name"].(string)
-		userID, _ := body["userId"].(string)
-		if name == "" || userID == "" {
-			httputil.SendStatus(w, 400)
-			return
-		}
-		target, err := h.userByID(r.Context(), userID)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 400)
-			return
-		}
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+		target, e := h.userByID(r.Context(), newID)
+		if e != nil {
+			return httputil.Status(400, "")
 		}
 		if target.Type == "root" && current.Type != "root" {
-			httputil.SendStatus(w, 403)
-			return
+			return httputil.Status(403, "")
 		}
-		expiresIn := number(body["expiresIn"], 0)
-		if body["expiresIn"] != nil && (expiresIn <= 0) {
-			httputil.SendStatus(w, 400)
-			return
-		}
-		keyID, err := ids.New()
-		if err != nil {
-			logging.RequestError(r, "API key creation failed", err)
-			http.Error(w, "API key creation failed", 500)
-			return
-		}
-		now := time.Now().UTC()
-		var expires any
-		if expiresIn > 0 {
-			expires = dbtime.Format(now.Add(time.Duration(expiresIn * float64(time.Second))))
-		}
-		tokenClaims := map[string]any{"keyId": keyID, "name": name, "type": "api"}
-		if expiresIn > 0 {
-			tokenClaims["exp"] = now.Unix() + int64(expiresIn)
-		}
-		token, err := h.signToken(tokenClaims)
-		if err != nil {
-			logging.RequestError(r, "API key creation failed", err)
-			http.Error(w, "API key creation failed", 500)
-			return
-		}
-		active, _ := body["isActive"].(bool)
-		if _, err = h.db.ExecContext(r.Context(), `INSERT INTO apiKeys (id,name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, keyID, name, nil, expires, nil, active, nil, userID, current.ID, dbtime.Format(now), dbtime.Format(now)); err != nil {
-			logging.RequestError(r, "API key creation failed", err)
-			http.Error(w, "API key creation failed", 500)
-			return
-		}
-		entry, err := h.apiKey(r.Context(), keyID)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		// Upstream create spreads apiKey.toJSON() from a freshly built instance
-		// (ApiKeyController.js:100): unpersisted attributes (description,
-		// lastUsedAt, permissions) are undefined and dropped; createdByUserId
-		// and user remain. The plain instance JSON has no createdByUser field.
-		delete(entry, "description")
-		delete(entry, "lastUsedAt")
-		delete(entry, "permissions")
-		delete(entry, "createdByUser")
-		entry["apiKey"] = token
-		httputil.WriteJSON(w, 200, map[string]any{"apiKey": entry})
-		return
+		newOwner = newID
 	}
-	if id == "" {
-		httputil.SendStatus(w, 404)
-		return
+	if val, ok := body["isActive"]; ok {
+		b, ok := val.(bool)
+		if !ok {
+			return httputil.Status(400, "")
+		}
+		active = b
+		setActive = true
 	}
-	if r.Method == http.MethodDelete {
-		res, err := h.db.ExecContext(r.Context(), `DELETE FROM apiKeys WHERE id=?`, id)
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		n, _ := res.RowsAffected()
-		if n == 0 {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		httputil.SendStatus(w, 200)
-		return
+	if setActive {
+		_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,isActive=?,updatedAt=? WHERE id=?`, newOwner, active, dbtime.Now(), id)
+	} else {
+		_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,updatedAt=? WHERE id=?`, newOwner, dbtime.Now(), id)
 	}
-	if r.Method == http.MethodPatch {
-		var ownerID, ownerType string
-		err := h.db.QueryRowContext(r.Context(), `SELECT u.id,u.type FROM apiKeys a JOIN users u ON u.id=a.userId WHERE a.id=?`, id).Scan(&ownerID, &ownerType)
-		if errors.Is(err, sql.ErrNoRows) {
-			httputil.SendStatus(w, 404)
-			return
-		}
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		if ownerType == "root" && current.Type != "root" {
-			httputil.SendStatus(w, 403)
-			return
-		}
-		body, err := httputil.DecodeObjectRequest(r)
-		if err != nil {
-			httputil.SendStatus(w, 400)
-			return
-		}
-		var newOwner any = ownerID
-		var active any
-		setActive := false
-		if val, ok := body["userId"]; ok {
-			newID, ok := val.(string)
-			if !ok {
-				httputil.SendStatus(w, 400)
-				return
-			}
-			target, e := h.userByID(r.Context(), newID)
-			if e != nil {
-				httputil.SendStatus(w, 400)
-				return
-			}
-			if target.Type == "root" && current.Type != "root" {
-				httputil.SendStatus(w, 403)
-				return
-			}
-			newOwner = newID
-		}
-		if val, ok := body["isActive"]; ok {
-			b, ok := val.(bool)
-			if !ok {
-				httputil.SendStatus(w, 400)
-				return
-			}
-			active = b
-			setActive = true
-		}
-		if setActive {
-			_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,isActive=?,updatedAt=? WHERE id=?`, newOwner, active, dbtime.Now(), id)
-		} else {
-			_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,updatedAt=? WHERE id=?`, newOwner, dbtime.Now(), id)
-		}
-		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
-		}
-		key, err := h.apiKey(r.Context(), id)
-		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
-		}
-		// Upstream update spreads apiKey.toJSON() from the instance it mutated
-		// (ApiKeyController.js:~100): the plain instance JSON has no
-		// createdByUser field, and lastUsedAt is the value as-loaded (the auth
-		// usage that happened between operations does not refresh it).
-		delete(key, "createdByUser")
-		httputil.WriteJSON(w, 200, map[string]any{"apiKey": key})
-		return
+	if err != nil {
+		return writeInternalError(w, r, "database write failed", err)
 	}
-	httputil.SendStatus(w, 404)
+	key, err := h.apiKey(r.Context(), id)
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	// Upstream update spreads apiKey.toJSON() from the instance it mutated
+	// (ApiKeyController.js:~100): the plain instance JSON has no
+	// createdByUser field, and lastUsedAt is the value as-loaded (the auth
+	// usage that happened between operations does not refresh it).
+	delete(key, "createdByUser")
+	return httputil.JSON(w, r, map[string]any{"apiKey": key})
 }
 
 func (h *Handler) apiKeys(ctx context.Context) ([]map[string]any, error) {
@@ -1458,9 +1226,39 @@ func validStringArray(value any) bool {
 		return false
 	}
 }
-// writeNotImplemented answers an unknown method or sub-path like Express: 404.
-func writeNotImplemented(w http.ResponseWriter) {
-	httputil.WriteError(w, http.StatusNotFound, "", httputil.ContentType("text/plain; charset=utf-8"))
+
+// writeInternalError answers a failed database operation with net/http's
+// plain-text 500 (the framing clients already see) and logs the cause. It
+// returns nil because the response is written.
+func writeInternalError(w http.ResponseWriter, r *http.Request, message string, err error) error {
+	logging.RequestError(r, message, err)
+	return plainError(w, message, http.StatusInternalServerError)
+}
+
+// plainError answers with net/http's text/plain framing, which the validation
+// messages of these routes have always used. It returns nil: the response is written.
+func plainError(w http.ResponseWriter, message string, status int) error {
+	http.Error(w, message, status)
+	return nil
+}
+
+func requestUser(r *http.Request) store.User {
+	user, _ := store.UserFromContext(r.Context())
+	return user
+}
+
+func withUser(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error { return fn(w, r, requestUser(r)) }
+}
+
+// adminOnly is withUser for routes only root and admin users may call.
+func adminOnly(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
+	return withUser(func(w http.ResponseWriter, r *http.Request, user store.User) error {
+		if !isAdmin(user) {
+			return httputil.Status(403, "")
+		}
+		return fn(w, r, user)
+	})
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {

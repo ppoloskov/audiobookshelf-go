@@ -7,7 +7,6 @@ import (
 	"html"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
@@ -39,11 +38,6 @@ func requestUser(r *http.Request) store.User {
 	return user
 }
 
-// notImplemented answers an unknown method or sub-path like Express: 404.
-func notImplemented(w http.ResponseWriter) {
-	httputil.WriteError(w, http.StatusNotFound, "", httputil.ContentType("text/plain; charset=utf-8"))
-}
-
 var stripMarkup = regexp.MustCompile(`<[^>]*>`)
 
 func cleanName(value string) string {
@@ -55,24 +49,11 @@ func boolValue(value any) bool {
 	return result
 }
 
-func sendEntityNotFound(w http.ResponseWriter, message string) {
-	sendEntityNotFoundStatus(w, http.StatusNotFound, message)
-}
-
-func sendEntityNotFoundStatus(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(message)))
-	w.Header().Set("ETag", httputil.ExpressETag([]byte(message)))
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(message))
-}
-
-func respondPlaylistError(w http.ResponseWriter, code int) {
+func playlistError(code int) error {
 	if code == http.StatusNotFound {
-		sendEntityNotFound(w, "Playlist not found")
-		return
+		return httputil.Status(code, "Playlist not found")
 	}
-	httputil.SendStatus(w, code)
+	return httputil.Status(code, "")
 }
 
 func (h *Handler) collection(ctx context.Context, id string, user store.User) (map[string]any, string, error) {
@@ -86,12 +67,11 @@ func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, e
 	return libraryID.String, err
 }
 
-func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	ids, err := h.queries().ListCollectionIDs(r.Context())
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	out := make([]any, 0)
 	for _, id := range ids {
@@ -100,93 +80,82 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		if h.canAccessLibrary(user, libraryID) {
 			out = append(out, dto)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"collections": out})
+	return httputil.JSON(w, r, map[string]any{"collections": out})
 }
 
-func (h *Handler) collectionID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	switch r.Method {
-	case http.MethodGet:
-		dto, libraryID, err := h.collection(r.Context(), id, user)
-		if errors.Is(err, sql.ErrNoRows) || err == nil && !h.canAccessLibrary(user, libraryID) {
-			sendEntityNotFound(w, "Collection not found")
-			return
-		}
-		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
-		}
-		if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
-			feed, err := h.collectionRSSFeed(r, id)
-			if err != nil {
-				writeInternalError(w, r, "database read failed", err)
-				return
-			}
-			if feed != nil {
-				dto["rssFeed"] = feed
-			}
-		}
-		httputil.WriteJSON(w, http.StatusOK, dto)
-	case http.MethodPatch:
-		h.updateCollection(w, r, user, id)
-	case http.MethodDelete:
-		libraryID, err := h.collectionLibraryID(r.Context(), id)
-		if errors.Is(err, sql.ErrNoRows) {
-			sendEntityNotFound(w, "Collection not found")
-			return
-		} else if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
-		}
-		if !h.canAccessLibrary(user, libraryID) {
-			sendEntityNotFound(w, "Collection not found")
-			return
-		}
-		if !boolValue(store.DecodeJSONObject(user.Permissions)["delete"]) {
-			httputil.SendStatus(w, http.StatusForbidden)
-			return
-		}
-		dto, _, _ := h.collection(r.Context(), id, user)
-		if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
-			writeInternalError(w, r, "database write failed", err)
-			return
-		}
-		if h.emit != nil {
-			h.emit("*", "collection_removed", dto)
-		}
-		httputil.SendStatus(w, http.StatusOK)
+	dto, libraryID, err := h.collection(r.Context(), id, user)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !h.canAccessLibrary(user, libraryID) {
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
+		feed, err := h.collectionRSSFeed(r, id)
+		if err != nil {
+			return writeInternalError(w, r, "database read failed", err)
+		}
+		if feed != nil {
+			dto["rssFeed"] = feed
+		}
+	}
+	return httputil.JSON(w, r, dto)
 }
 
-func (h *Handler) playlistID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	switch r.Method {
-	case http.MethodGet:
-		item, _, code, err := h.ownedPlaylist(r, id, user)
-		if code != 0 {
-			respondPlaylistError(w, code)
-			return
-		}
-		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
-		}
-		httputil.WriteJSON(w, http.StatusOK, item)
-	case http.MethodPatch:
-		h.updatePlaylist(w, r, id, user)
-	case http.MethodDelete:
-		h.deletePlaylist(w, r, id, user)
+	libraryID, err := h.collectionLibraryID(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return httputil.Status(http.StatusNotFound, "Collection not found")
+	} else if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
 	}
+	if !h.canAccessLibrary(user, libraryID) {
+		return httputil.Status(http.StatusNotFound, "Collection not found")
+	}
+	if !boolValue(store.DecodeJSONObject(user.Permissions)["delete"]) {
+		return httputil.Status(http.StatusForbidden, "")
+	}
+	dto, _, _ := h.collection(r.Context(), id, user)
+	if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
+		return writeInternalError(w, r, "database write failed", err)
+	}
+	if h.emit != nil {
+		h.emit("*", "collection_removed", dto)
+	}
+	return httputil.OK(w, r)
 }
 
-func writeInternalError(w http.ResponseWriter, r *http.Request, message string, err error) {
+func (h *Handler) getPlaylist(w http.ResponseWriter, r *http.Request) error {
+	item, _, code, err := h.ownedPlaylist(r, r.PathValue("id"), requestUser(r))
+	if code != 0 {
+		return playlistError(code)
+	}
+	if err != nil {
+		return writeInternalError(w, r, "database read failed", err)
+	}
+	return httputil.JSON(w, r, item)
+}
+
+// writeInternalError answers a failed database operation with net/http's
+// plain-text 500 (the framing clients already see) and logs the cause. It
+// returns nil because the response is written.
+func writeInternalError(w http.ResponseWriter, r *http.Request, message string, err error) error {
 	logging.RequestError(r, message, err)
-	http.Error(w, message, http.StatusInternalServerError)
+	return plainError(w, message, http.StatusInternalServerError)
+}
+
+// plainError answers with net/http's text/plain framing, which the validation
+// messages of these routes have always used. It returns nil: the response is written.
+func plainError(w http.ResponseWriter, message string, status int) error {
+	http.Error(w, message, status)
+	return nil
 }

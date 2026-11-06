@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -852,224 +851,33 @@ func (h *Handler) SetItemChanged(callback func(context.Context, string) error) {
 	h.itemChanged = callback
 }
 
-// Handle writes a response for a catalog route and returns true when matched.
-// Paths are unprefixed (/api/...) as received by the main server router.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	p := path.Clean(r.URL.Path)
-	switch {
-	case p == "/api/libraries":
-		if r.Method == http.MethodPost {
-			h.createLibrary(w, r, user)
-			return true
-		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			return false
-		}
-		h.libraries(w, r, user)
-		return true
-	case p == "/api/libraries/order" && r.Method == http.MethodPost:
-		h.reorderLibraries(w, r, user)
-		return true
-	case strings.HasPrefix(p, "/api/libraries/"):
-		parts := strings.Split(strings.TrimPrefix(p, "/api/libraries/"), "/")
-		if len(parts) == 1 && parts[0] != "" {
-			if r.Method == http.MethodPatch {
-				h.updateLibrary(w, r, user, parts[0])
-				h.resetIssues(r.Context(), parts[0]) // LibraryController.js:513
-				return true
-			}
-			if r.Method == http.MethodDelete {
-				h.deleteLibrary(w, r, user, parts[0])
-				h.filters.Invalidate(parts[0]) // LibraryController.js:591
-				return true
-			}
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				return false
-			}
-			h.library(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "items" {
-			h.libraryItems(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "issues" && r.Method == http.MethodDelete {
-			h.removeLibraryItemsWithIssues(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "stats" {
-			h.libraryStats(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "filterdata" {
-			h.libraryFilterData(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "personalized" {
-			h.personalized(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "authors" {
-			h.authors(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "narrators" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-			h.narrators(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 3 && parts[0] != "" && parts[1] == "narrators" && r.Method == http.MethodPatch {
-			h.updateNarrator(w, r, user, parts[0], parts[2], false)
-			return true
-		}
-		if len(parts) == 3 && parts[0] != "" && parts[1] == "narrators" && r.Method == http.MethodDelete {
-			h.updateNarrator(w, r, user, parts[0], parts[2], true)
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "podcast-titles" {
-			h.podcastTitles(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "series" {
-			h.series(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 3 && parts[0] != "" && parts[1] == "series" {
-			h.seriesByID(w, r, user, parts[0], parts[2])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "search" {
-			h.search(w, r, user, parts[0])
-			return true
-		}
-	case strings.HasPrefix(p, "/api/items/"):
-		parts := strings.Split(strings.TrimPrefix(p, "/api/items/"), "/")
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "download" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-			h.itemDownload(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 4 && parts[0] != "" && parts[1] == "file" && parts[3] == "download" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-			h.mediaFile(w, r, user, parts[0], parts[2], true)
-			return true
-		}
-		if len(parts) == 3 && parts[0] != "" && parts[1] == "ffprobe" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-			h.ffprobe(w, r, user, parts[0], parts[2])
-			return true
-		}
-		if len(parts) == 1 && parts[0] != "" && r.Method == http.MethodDelete {
-			h.deleteItem(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] == "batch" && parts[1] == "get" && r.Method == http.MethodPost {
-			h.batchGet(w, r, user)
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "chapters" && r.Method == http.MethodPost {
-			h.updateChapters(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "tracks" && r.Method == http.MethodPatch {
-			h.updateTracks(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 4 && parts[0] != "" && parts[1] == "ebook" && parts[3] == "status" && r.Method == http.MethodPatch {
-			h.updateEbookStatus(w, r, user, parts[0], parts[2])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "metadata-object" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-			h.metadataObject(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "media" && r.Method == http.MethodPatch {
-			h.updateMedia(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "cover" && r.Method == http.MethodDelete {
-			h.removeCover(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "cover" && r.Method == http.MethodPatch {
-			h.updateCover(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 1 && parts[0] != "" {
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				return false
-			}
-			h.item(w, r, user, parts[0])
-			return true
-		}
-		if len(parts) == 3 && parts[0] != "" && parts[1] == "file" {
-			if r.Method == http.MethodDelete {
-				h.deleteLibraryFile(w, r, user, parts[0], parts[2])
-				return true
-			}
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				return false
-			}
-			h.mediaFile(w, r, user, parts[0], parts[2], false)
-			return true
-		}
-		if (len(parts) == 2 || len(parts) == 3) && parts[0] != "" && parts[1] == "ebook" {
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				return false
-			}
-			fileID := ""
-			if len(parts) == 3 {
-				fileID = parts[2]
-			}
-			h.ebookFile(w, r, user, parts[0], fileID)
-			return true
-		}
-		if len(parts) == 2 && parts[0] != "" && parts[1] == "cover" {
-			if r.Method == http.MethodPost {
-				h.uploadCover(w, r, user, parts[0])
-				return true
-			}
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				return false
-			}
-			h.cover(w, r, parts[0])
-			return true
-		}
-	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return false
-	}
-	return false
-}
-
-func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, id).Scan(&mediaType); errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	} else if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	data, err := h.filterData(r.Context(), id, mediaType)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, data, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
-func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
+	user := requestUser(r)
 	var rows *sql.Rows
 	var err error
 	includeStats := strings.Contains(","+r.URL.Query().Get("include")+",", ",stats,")
 	rows, err = h.db.QueryContext(r.Context(), `SELECT id,name,displayOrder,icon,mediaType,provider,lastScan,lastScanVersion,settings,createdAt,updatedAt FROM libraries ORDER BY displayOrder ASC`)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type libraryRow struct {
 		id, name, icon, mediaType, provider, version sql.NullString
@@ -1082,9 +890,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 		var row libraryRow
 		if err := rows.Scan(&row.id, &row.name, &row.order, &row.icon, &row.mediaType, &row.provider, &row.lastScan, &row.version, &row.settings, &row.createdAt, &row.updatedAt); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if userCanListLibrary(user, row.id.String) {
 			selected = append(selected, row)
@@ -1092,14 +898,10 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if err := rows.Close(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type libraryJSON struct {
 		ID              string           `json:"id"`
@@ -1120,30 +922,22 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 	for _, row := range selected {
 		folders, err := h.libraryFolders(r.Context(), row.id.String)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		last, err := dbtime.OptionalMillis(row.lastScan)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if last != nil && *last == 0 {
 			last = nil // Library.toOldJSON emits lastScan?.valueOf() || null.
 		}
 		created, err := dbtime.OptionalMillis(row.createdAt)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		updated, err := dbtime.OptionalMillis(row.updatedAt)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		lib := libraryJSON{
 			ID: row.id.String, Name: row.name.String, Folders: folders, DisplayOrder: row.order.Int64,
@@ -1154,9 +948,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 		if includeStats {
 			stats, err := h.libraryStatsValue(r.Context(), row.id.String, row.mediaType.String)
 			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			lib.Stats = stats
 		}
@@ -1169,21 +961,20 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request, user store.U
 		Libraries []libraryJSON `json:"libraries"`
 	}{Libraries: out})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
 	}
+	return nil
 }
 
-func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var name, icon, mediaType, provider, version sql.NullString
 	var order sql.NullInt64
@@ -1192,40 +983,29 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 	err := h.db.QueryRowContext(r.Context(), `SELECT name,displayOrder,icon,mediaType,provider,lastScan,lastScanVersion,settings,createdAt,updatedAt FROM libraries WHERE id=?`, id).
 		Scan(&name, &order, &icon, &mediaType, &provider, &lastScan, &version, &rawSettings, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	folders, err := h.libraryFolders(r.Context(), id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	last, err := dbtime.OptionalMillis(lastScan)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if last != nil && *last == 0 {
 		last = nil
 	}
 	created, err := dbtime.OptionalMillis(createdAt)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	updated, err := dbtime.OptionalMillis(updatedAt)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	payload := map[string]any{
 		"id": id, "name": name.String, "folders": folders, "displayOrder": order.Int64,
@@ -1236,45 +1016,38 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, user store.Use
 	if strings.Contains(","+r.URL.Query().Get("include")+",", ",filterdata,") {
 		filterdata, err := h.filterData(r.Context(), id, mediaType.String)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		playlists, err := h.queries().CountUserLibraryPlaylists(r.Context(), sqlc.CountUserLibraryPlaylistsParams{UserID: user.ID, LibraryID: id})
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata["numIssues"], "numUserPlaylists": playlists, "library": payload}, httputil.Streamed(), httputil.ForRequest(r))
-		return
+		return nil
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
-func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var mediaType string
 	err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, id).Scan(&mediaType)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	stats, err := h.libraryStatsValue(r.Context(), id, mediaType)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, stats, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (map[string]any, error) {
@@ -1587,26 +1360,21 @@ func orString(s sql.NullString, fallback string) string {
 	return s.String
 }
 
-func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
+func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, libraryID).Scan(&exists); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if exists == 0 {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,asin,name,description,imagePath,libraryId,lastFirst,createdAt,updatedAt FROM authors WHERE libraryId=?`, libraryID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type authorRow struct {
 		id, libraryID                                 string
@@ -1619,17 +1387,13 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 		var a authorRow
 		if err := rows.Scan(&a.id, &a.asin, &a.name, &a.description, &a.imagePath, &a.libraryID, &a.lastFirst, &a.created, &a.updated); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		data = append(data, a)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
 	admin := user.Type == "root" || user.Type == "admin"
@@ -1640,9 +1404,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 		q := `SELECT COUNT(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id=ba.bookId WHERE ba.authorId=?` + where
 		params := append([]any{a.id}, args...)
 		if err := h.db.QueryRowContext(r.Context(), q, params...).Scan(&count); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		a.numBooks = count
 		if admin || count > 0 {
@@ -1705,21 +1467,17 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 	for _, a := range filtered {
 		created, e := dbtime.OptionalMillis(a.created)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		updated, e := dbtime.OptionalMillis(a.updated)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		authors = append(authors, map[string]any{"id": a.id, "asin": store.NullString(a.asin), "name": store.NullString(a.name), "description": store.NullString(a.description), "imagePath": store.NullString(a.imagePath), "libraryId": a.libraryID, "addedAt": deref(created), "updatedAt": deref(updated), "numBooks": a.numBooks, "lastFirst": store.NullString(a.lastFirst)})
 	}
 	if !paginated {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
-		return
+		return nil
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}
 	if sortBy != "" {
@@ -1732,6 +1490,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, user store.Use
 		payload["include"] = v
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func authorPagination(r *http.Request) (int, int, bool) {
@@ -1750,22 +1509,19 @@ func authorPagination(r *http.Request) (int, int, bool) {
 	return limit, page, true
 }
 
-func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
+func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var mediaType string
 	var settingsRaw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT mediaType,settings FROM libraries WHERE id=?`, libraryID).Scan(&mediaType, &settingsRaw)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	// A podcast library has no series rows, so the shared query below yields
 	// the empty list upstream returns (seriesFilters.getFilteredSeries).
@@ -1776,9 +1532,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 	hasPermissionFilter := permissionSQL != ""
 	rows, err := h.db.QueryContext(r.Context(), `SELECT s.id,s.name,s.nameIgnorePrefix,s.description,s.createdAt,s.updatedAt,s.libraryId,(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id) AS bookCount,(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS duration,(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS recent FROM series s WHERE s.libraryId=?`, libraryID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type seriesRow struct {
 		id, libraryID                 string
@@ -1792,17 +1546,13 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 		var s seriesRow
 		if err := rows.Scan(&s.id, &s.name, &s.nameIgnore, &s.description, &s.created, &s.updated, &s.libraryID, &s.count, &s.duration, &s.recent); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		all = append(all, s)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
 	if hideSingle || hasPermissionFilter {
@@ -1816,9 +1566,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 				query := `SELECT COUNT(*) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=?` + permissionSQL
 				args := append([]any{s.id}, permissionArgs...)
 				if err := h.db.QueryRowContext(r.Context(), query, args...).Scan(&visible); err != nil {
-					logging.RequestError(r, "database read failed", err)
-					httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-					return
+					return httputil.Internal("database read failed", err)
 				}
 				if visible == 0 {
 					continue
@@ -1833,9 +1581,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 		for _, s := range all {
 			ok, e := h.seriesMatchesFilter(r.Context(), s.id, filter, user)
 			if e != nil {
-				logging.RequestError(r, "database read failed", e)
-				httputil.WriteError(w, 500, "database read failed")
-				return
+				return httputil.Internal("database read failed", e)
 			}
 			if ok {
 				filtered = append(filtered, s)
@@ -1884,8 +1630,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 	total := len(all)
 	page, limit, err := pagination(r)
 	if err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, err.Error())
-		return
+		return httputil.Status(http.StatusBadRequest, err.Error())
 	}
 	if limit > 0 {
 		start := page * limit
@@ -1904,15 +1649,11 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 	for _, s := range all {
 		created, e := dbtime.OptionalMillis(s.created)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		updated, e := dbtime.OptionalMillis(s.updated)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		entry := map[string]any{"id": s.id, "name": store.NullString(s.name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), s.name), "description": store.NullString(s.description), "addedAt": deref(created), "updatedAt": deref(updated), "libraryId": s.libraryID}
 		if sortBy == "totalDuration" && s.duration != 0 {
@@ -1920,16 +1661,12 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 		}
 		books, err := h.seriesBooks(r.Context(), s.id, user)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		entry["books"] = books
 		if includeHas(r, "rssfeed") {
 			if feed, ok, e := h.feedMinified(r.Context(), "series", s.id); e != nil {
-				logging.RequestError(r, "database read failed", e)
-				httputil.WriteError(w, 500, "database read failed")
-				return
+				return httputil.Internal("database read failed", e)
 			} else if ok {
 				entry["rssFeed"] = feed
 			}
@@ -1944,6 +1681,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, user store.User
 		payload["sortBy"] = sortBy
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]map[string]any, error) {
@@ -1990,46 +1728,36 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 	return result, nil
 }
 
-func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.User, libraryID, seriesID string) {
+func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID, seriesID := requestUser(r), r.PathValue("id"), r.PathValue("seriesId")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var name, nameIgnore, description sql.NullString
 	var created, updated any
 	var lib string
 	err := h.db.QueryRowContext(r.Context(), `SELECT name,nameIgnorePrefix,description,createdAt,updatedAt,libraryId FROM series WHERE id=?`, seriesID).Scan(&name, &nameIgnore, &description, &created, &updated, &lib)
 	if errors.Is(err, sql.ErrNoRows) || lib != libraryID {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	visibleSQL, args := userMediaClause(user, "book")
 	var count int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=?`+visibleSQL, append([]any{seriesID}, args...)...).Scan(&count); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if count == 0 {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 	createdMs, e := dbtime.OptionalMillis(created)
 	if e != nil {
-		logging.RequestError(r, "database read failed", e)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", e)
 	}
 	updatedMs, e := dbtime.OptionalMillis(updated)
 	if e != nil {
-		logging.RequestError(r, "database read failed", e)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", e)
 	}
 	payload := map[string]any{"id": seriesID, "name": store.NullString(name), "nameIgnorePrefix": h.seriesPrefixFreeName(r.Context(), name), "description": store.NullString(description), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs), "libraryId": lib}
 	if includeHas(r, "rssfeed") {
@@ -2037,9 +1765,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		// when no feed is open.
 		payload["rssFeed"] = nil
 		if feed, ok, e := h.feedMinified(r.Context(), "series", seriesID); e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		} else if ok {
 			payload["rssFeed"] = feed
 		}
@@ -2047,9 +1773,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 	if includeHas(r, "progress") {
 		books, e := h.visibleSeriesItems(r.Context(), seriesID, user)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		ids := make([]string, 0, len(books))
 		finished := make([]string, 0)
@@ -2069,6 +1793,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, user store.
 		payload["progress"] = map[string]any{"libraryItemIds": ids, "libraryItemIdsFinished": finished, "isFinished": len(finished) >= len(ids)}
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func dateSortKey(v any) int64 {
@@ -2101,26 +1826,22 @@ func (h *Handler) libraryFolders(ctx context.Context, libraryID string) ([]map[s
 	return result, rows.Err()
 }
 
-func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
+func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var mediaType string
 	err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	page, limit, err := pagination(r)
 	if err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, err.Error())
-		return
+		return httputil.Status(http.StatusBadRequest, err.Error())
 	}
 	collapse := r.URL.Query().Get("collapseseries") == "1"
 	include := normalizedInclude(r)
@@ -2132,7 +1853,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	}
 	if seriesID, ok := collapseSubseriesFilter(r); ok {
 		h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
-		return
+		return nil
 	}
 	filterValue := r.URL.Query().Get("filter")
 	var order string
@@ -2142,8 +1863,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	} else {
 		order, orderArgs, err = orderClauseForRequest(r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1", ignorePrefix, mediaType, filterValue, user)
 		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, err.Error())
-			return
+			return httputil.Status(http.StatusBadRequest, err.Error())
 		}
 	}
 	var total int
@@ -2151,24 +1871,20 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	if mediaType == "podcast" {
 		mediaTable = "podcasts"
 	} else if mediaType != "book" {
-		httputil.WriteError(w, http.StatusNotImplemented, "unsupported library media type")
-		return
+		return httputil.Status(http.StatusNotImplemented, "unsupported library media type")
 	}
 	var filterSQL string
 	var filterArgs []any
 	if mediaType == "podcast" {
 		filterSQL, filterArgs = podcastFilterClause(filterValue)
 	} else if filterSQL, filterArgs, err = filterClause(filterValue, mediaType, user); err != nil {
-		httputil.WriteError(w, http.StatusNotImplemented, err.Error())
-		return
+		return httputil.Status(http.StatusNotImplemented, err.Error())
 	}
 	permissionSQL, permissionArgs := userMediaClause(user, mediaType)
 	var collapsed collapsedSeries
 	if collapse && mediaType == "book" {
 		if collapsed, err = h.collapseSeries(r.Context(), libraryID, filterValue, filterSQL, filterArgs, permissionSQL, permissionArgs); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if len(collapsed.excludeBookIDs) > 0 {
 			permissionSQL += ` AND b.id NOT IN (` + placeholders(len(collapsed.excludeBookIDs)) + `)`
@@ -2184,9 +1900,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	countArgs := append([]any{libraryID, mediaType}, filterArgs...)
 	countArgs = append(countArgs, permissionArgs...)
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems li JOIN `+mediaTable+` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?`+whereSQL, countArgs...).Scan(&total); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	query := `SELECT ` + itemapi.RowColumns + `
 	FROM libraryItems li JOIN ` + mediaTable + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?` + whereSQL + order
@@ -2199,9 +1913,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 	}
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type libraryItemRow struct {
 		item    map[string]any
@@ -2212,21 +1924,15 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		record, err := itemapi.ScanRecord(rows)
 		if err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		items = append(items, libraryItemRow{item: recordToMap(record), mediaID: record.MediaID})
 	}
 	if err := rows.Err(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if err := rows.Close(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var pageBooks map[string]bookdomain.Book
 	var pagePrefixes []string
@@ -2237,9 +1943,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		}
 		pageBooks, err = bookdomain.LoadMany(r.Context(), h.db, bookIDs)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		pagePrefixes = sortingPrefixesFromJSON(settingsJSON)
 	}
@@ -2280,24 +1984,18 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 			media, err = h.podcastListJSON(r.Context(), row.mediaID, row.item)
 		}
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if media != nil {
 			row.item["media"] = media
 		}
 		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), row.item["id"].(string), row.item["media"], func(k string, v any) { row.item[k] = v }); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if mediaType == "podcast" && includeHas(r, "numepisodesincomplete") {
 			incomplete, err := h.numEpisodesIncomplete(r.Context(), user.ID, row.mediaID)
 			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			if incomplete != 0 {
 				row.item["numEpisodesIncomplete"] = incomplete
@@ -2306,9 +2004,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		if collapse && mediaType == "book" {
 			series, err := h.collapsedSeriesJSON(r.Context(), row.mediaID, collapsed)
 			if err != nil {
-				logging.RequestError(r, "database read failed", err)
-				httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			if series != nil {
 				row.item["collapsedSeries"] = series
@@ -2329,35 +2025,31 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, user stor
 		payload["filterBy"] = v
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
-func (h *Handler) item(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
+func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
+	user, itemID := requestUser(r), r.PathValue("id")
 	item, err := h.ItemJSON(r.Context(), itemID, r.URL.Query().Get("expanded") == "1")
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, item["libraryId"].(string)) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if !userCanAccessItem(user, item) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if r.URL.Query().Get("expanded") == "1" {
 		if err := h.expandedItemIncludes(r, user, item); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, item, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 // expandedItemIncludes applies the include= entities of upstream
@@ -2545,22 +2237,20 @@ func (h *Handler) loadItem(ctx context.Context, itemID string) (map[string]any, 
 	return recordToMap(record), record.MediaID, nil
 }
 
-func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.User, itemID, ino string, download bool) {
+func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
+	download := strings.HasSuffix(r.Pattern, "/download")
+	user, itemID, ino := requestUser(r), r.PathValue("id"), r.PathValue("ino")
 	var libraryID string
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var target string
 	for _, file := range decodeArray(raw) {
@@ -2572,15 +2262,13 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 		}
 	}
 	if target == "" {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if download {
 		var permissions map[string]any
 		_ = json.Unmarshal(user.Permissions, &permissions)
 		if !user.IsActive || permissions["download"] != true {
-			httputil.SendStatus(w, http.StatusForbidden)
-			return
+			return httputil.Status(http.StatusForbidden, "")
 		}
 		if mimeType := audioMIMEType(filepath.Ext(target)); mimeType != "" {
 			w.Header().Set("Content-Type", mimeType)
@@ -2595,34 +2283,30 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request, user store.U
 					logging.RequestError(r, "Download failed", statErr)
 					sendDownloadText(w, http.StatusInternalServerError, "Download failed")
 				}
-				return
+				return nil
 			}
 		}
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if download {
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filepath.Base(target)}))
 	}
-	h.servePath(w, r, target)
+	return h.servePath(w, r, target)
 }
 
-func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request, user store.User, itemID, fileID string) {
+func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
+	user, itemID, fileID := requestUser(r), r.PathValue("id"), r.PathValue("fileId")
 	var libraryID, mediaType, mediaID string
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	target := ""
 	if fileID != "" {
@@ -2633,39 +2317,33 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request, user store.U
 			}
 		}
 		if target == "" {
-			httputil.WriteError(w, http.StatusBadRequest, "Invalid ebook file id")
-			return
+			return httputil.Status(http.StatusBadRequest, "Invalid ebook file id")
 		}
 	} else if mediaType == "book" {
 		var ebookRaw []byte
 		if err := h.db.QueryRowContext(r.Context(), `SELECT ebookFile FROM books WHERE id=?`, mediaID).Scan(&ebookRaw); err != nil {
-			httputil.WriteError(w, http.StatusNotFound, "")
-			return
+			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 		}
 		target = filePath(decodeObject(ebookRaw))
 	}
 	if target == "" {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 	if !h.pathAllowed(r.Context(), target, libraryID, false) {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
-	h.servePath(w, r, target)
+	return h.servePath(w, r, target)
 }
 
-func (h *Handler) cover(w http.ResponseWriter, r *http.Request, itemID string) {
+func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
+	itemID := r.PathValue("id")
 	var libraryID, mediaType, mediaID string
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if r.URL.Query().Get("ts") != "" {
 		// LibraryItemController.getCover sets the cache header before any
@@ -2680,17 +2358,16 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request, itemID string) {
 			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM podcasts WHERE id=?`, mediaID).Scan(&target)
 		}
 		if err != nil || target == "" {
-			httputil.SendStatus(w, http.StatusNotFound)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		if !h.pathAllowed(r.Context(), target, libraryID, true) {
-			httputil.SendStatus(w, http.StatusNotFound)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		h.coverRaw(w, r, target)
-		return
+		return nil
 	}
 	h.handleCoverCache(w, r, itemID)
+	return nil
 }
 
 func (h *Handler) pathAllowed(ctx context.Context, target, libraryID string, metadataOK bool) bool {
@@ -2733,27 +2410,21 @@ func (h *Handler) pathAllowed(ctx context.Context, target, libraryID string, met
 	return false
 }
 
-func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target string) {
+func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target string) error {
 	f, err := os.Open(target)
 	if err != nil {
 		if os.IsNotExist(err) {
-			httputil.WriteError(w, http.StatusNotFound, "File not found")
-		} else {
-			logging.RequestError(r, "File read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "File read failed")
+			return httputil.Status(http.StatusNotFound, "File not found")
 		}
-		return
+		return httputil.Internal("File read failed", err)
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		logging.RequestError(r, "File read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "File read failed")
-		return
+		return httputil.Internal("File read failed", err)
 	}
 	if !info.Mode().IsRegular() {
-		httputil.WriteError(w, http.StatusNotFound, "")
-		return
+		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 	ext := strings.ToLower(filepath.Ext(target))
 	media := map[string]string{".m4b": "audio/mp4", ".m4a": "audio/mp4", ".aac": "audio/aac", ".mp3": "audio/mpeg", ".flac": "audio/flac", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".wav": "audio/wav"}[ext]
@@ -2773,6 +2444,7 @@ func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target strin
 		etag:           fileETag,
 		lastModified:   info.ModTime().UTC().Format(http.TimeFormat),
 	}, r, filepath.Base(target), info.ModTime(), f)
+	return nil
 }
 
 const expressRangeNotSatisfiableBody = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Range Not Satisfiable</pre>\n</body>\n</html>\n"
@@ -2825,15 +2497,14 @@ func fileMetadataExt(file map[string]any) any {
 	return meta["ext"]
 }
 
-func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
+func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
-		httputil.WriteError(w, http.StatusBadRequest, `Invalid request. Query param "q" must be a string`)
-		return
+		return httputil.Status(http.StatusBadRequest, `Invalid request. Query param "q" must be a string`)
 	}
 	limit := 12
 	if raw := r.URL.Query().Get("limit"); raw != "" {
@@ -2843,15 +2514,13 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType); err != nil {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	table := "books"
 	if mediaType == "podcast" {
 		table = "podcasts"
 	} else if mediaType != "book" {
-		httputil.WriteError(w, http.StatusNotImplemented, "unsupported library media type")
-		return
+		return httputil.Status(http.StatusNotImplemented, "unsupported library media type")
 	}
 	permissionSQL, permissionArgs := userMediaClause(user, mediaType)
 	querySQL := `SELECT li.id FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND (lower(b.title) LIKE lower(?) OR `
@@ -2866,18 +2535,14 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 	args = append(args, permissionArgs...)
 	rows, err := h.db.QueryContext(r.Context(), querySQL, args...)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	ids := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		ids = append(ids, id)
 		if limit > 0 && len(ids) >= limit {
@@ -2885,17 +2550,13 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 		}
 	}
 	if err := rows.Close(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	items := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
 		item, e := h.ItemJSON(r.Context(), id, true)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		if mediaType == "podcast" {
 			m := item["media"].(map[string]any)
@@ -2907,45 +2568,34 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	tags, err := h.searchJSONValues(r.Context(), libraryID, table, "tags", query, limit)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	genres, err := h.searchJSONValues(r.Context(), libraryID, table, "genres", query, limit)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if mediaType == "podcast" {
 		episodes, err := h.searchEpisodes(r.Context(), libraryID, pattern, permissionSQL, permissionArgs, limit)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes}, httputil.Streamed(), httputil.ForRequest(r))
-		return
+		return nil
 	}
 	narrators, err := h.searchJSONValues(r.Context(), libraryID, table, "narrators", query, limit)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	authors, err := h.searchAuthors(r.Context(), libraryID, query, limit)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	series, err := h.searchSeries(r.Context(), libraryID, query, limit, user)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 // searchEpisodes is the episode half of libraryItemsPodcastFilters.search

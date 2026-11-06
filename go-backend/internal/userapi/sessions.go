@@ -8,7 +8,6 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -16,7 +15,7 @@ import (
 // version and variant bits are not constrained (the all-zero UUID is valid).
 var uuidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
 	page, perPage := queryInt(r, "page", 0), queryInt(r, "itemsPerPage", 10)
 	if page < 0 {
 		page = 0
@@ -25,21 +24,16 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		perPage = 1
 	}
 	if user.Type == "guest" {
-		httputil.WriteJSON(w, 200, map[string]any{"sessions": []any{}, "total": 0, "numPages": 0, "page": page, "itemsPerPage": perPage})
-		return
+		return httputil.JSON(w, r, map[string]any{"sessions": []any{}, "total": 0, "numPages": 0, "page": page, "itemsPerPage": perPage})
 	}
 	var total int
 	now := dbtime.Now()
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM sessions WHERE userId=? AND expiresAt>?`, user.ID, now).Scan(&total); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,ipAddress,userAgent,createdAt,updatedAt,refreshToken,lastRefreshToken FROM sessions WHERE userId=? AND expiresAt>? ORDER BY updatedAt DESC LIMIT ? OFFSET ?`, user.ID, now, perPage, perPage*page)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	defer rows.Close()
 	refresh := refreshTokenFromRequest(r)
@@ -49,18 +43,14 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		var ip, agent, token, last sql.NullString
 		var created, updated any
 		if err := rows.Scan(&id, &ip, &agent, &created, &updated, &token, &last); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": parseUA(agent.String), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
 	}
 	if err := rows.Err(); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
+	return httputil.JSON(w, r, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
 }
 
 func refreshTokenFromRequest(r *http.Request) string {
@@ -73,27 +63,23 @@ func refreshTokenFromRequest(r *http.Request) string {
 	return ""
 }
 
-func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user store.User) error {
+	id := r.PathValue("id")
 	if user.Type == "guest" {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	if !uuidPattern.MatchString(id) {
-		httputil.SendStatus(w, 400)
-		return
+		return httputil.Status(400, "")
 	}
 	res, err := h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id=? AND userId=?`, id, user.ID)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
-	httputil.SendStatus(w, 200)
+	return httputil.OK(w, r)
 }
 
 func parseUA(agent string) map[string]any {

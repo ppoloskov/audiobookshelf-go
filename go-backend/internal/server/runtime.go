@@ -137,12 +137,8 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.audiotools.Routes(rt.routes)
 	rt.providers.Routes(rt.routes)
-	// Feature packages migrated to method patterns expose Routes(mux) and are
-	// mounted here; the rest still answer through legacyChain (ADR-001).
-	for _, f := range rt.features() {
-		if m, ok := f.(interface{ Routes(*http.ServeMux) }); ok {
-			m.Routes(rt.routes)
-		}
+	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts} {
+		f.Routes(rt.routes)
 	}
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
@@ -304,9 +300,6 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if !rt.settingsAllowIframe() {
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
 	}
-	if (strings.HasPrefix(path, "/feed/") || strings.HasPrefix(path, "/public/share/")) && rt.sharing.Handle(w, withPath(r, path), store.User{}) {
-		return
-	}
 	if isGet(r) && path == "/ping" {
 		httputil.WriteJSON(w, 200, map[string]any{"success": true}, httputil.ForRequest(r))
 		return
@@ -327,15 +320,9 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.identity.Handle(w, withPath(r, path)) {
 		return
 	}
-	// Capability URLs and explicitly public images bypass API bearer auth.
-	if isPublicPlayback(path) {
-		if rt.playback.Handle(w, withPath(r, path), store.User{}) {
-			return
-		}
-	}
 	if !strings.HasPrefix(path, "/api/") && path != "/api" {
-		// Non-API patterns on the mux are public (feeds, shares, HLS,
-		// session tracks): they run with no user.
+		// Non-API patterns on the mux are public capability URLs (feeds,
+		// shares, HLS, session tracks), as in TS: they run with no user.
 		if rt.serveRoute(w, withPath(r, path), store.User{}) {
 			return
 		}
@@ -356,33 +343,9 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.serveRoute(w, withPath(r, path), user) {
 		return
 	}
-	if rt.legacyChain(w, withPath(r, path), user) {
-		return
-	}
 	// Express answers an unknown route 404; clients branch on it (Absorb
 	// falls back to older endpoints on 404).
 	httputil.Fail(w, r, httputil.Status(http.StatusNotFound, ""))
-}
-
-// legacyRouter is a feature package that still dispatches with a hand-rolled
-// Handle chain. Packages drop out of legacyChain by deleting Handle (ADR-001);
-// this adapter is removed with the last one.
-type legacyRouter interface {
-	Handle(http.ResponseWriter, *http.Request, store.User) bool
-}
-
-// features lists the feature packages in the legacy dispatch order.
-func (rt *Runtime) features() []any {
-	return []any{rt.catalog, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts}
-}
-
-func (rt *Runtime) legacyChain(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	for _, f := range rt.features() {
-		if h, ok := f.(legacyRouter); ok && h.Handle(w, r, user) {
-			return true
-		}
-	}
-	return false
 }
 
 // serveRoute dispatches a request to a handler registered on the route mux and
@@ -517,10 +480,6 @@ func isPublicAuthorImage(path string) bool {
 	p := strings.Split(strings.Trim(path, "/"), "/")
 	return len(p) == 4 && p[0] == "api" && p[1] == "authors" && p[3] == "image"
 }
-func isPublicPlayback(path string) bool {
-	return strings.HasPrefix(path, "/hls/") || strings.HasPrefix(path, "/public/")
-}
-
 func (rt *Runtime) serveClient(w http.ResponseWriter, r *http.Request, path string) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		writeClientNotFound(w, r)

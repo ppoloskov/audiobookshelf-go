@@ -185,33 +185,30 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) bool {
 	if base := h.cfg.RouterBasePath; base != "" && strings.HasPrefix(path, base+"/") {
 		path = strings.TrimPrefix(path, base)
 	}
-	switch {
-	case r.Method == http.MethodPost && path == "/login":
-		h.login(w, r)
-	case r.Method == http.MethodPost && path == "/auth/refresh":
-		h.refresh(w, r)
-	case r.Method == http.MethodPost && path == "/logout":
-		h.logout(w, r)
-	case r.Method == http.MethodPost && path == "/init":
-		h.initialize(w, r)
-	case r.Method == http.MethodGet && path == "/auth/openid":
-		h.oidcAuthorize(w, r)
-	case r.Method == http.MethodGet && path == "/auth/openid/mobile-redirect":
-		h.oidcMobileRedirect(w, r)
-	case r.Method == http.MethodGet && path == "/auth/openid/callback":
-		h.oidcCallback(w, r)
-	case r.Method == http.MethodGet && path == "/auth/openid/config":
-		h.oidcConfig(w, r)
-	case r.Method == http.MethodPost && path == "/api/authorize":
-		user, err := h.Authenticate(r)
-		if err != nil {
-			writePassportDenied(w)
-			return true
-		}
-		h.Authorize(w, r, user)
+	var run httputil.Handler
+	switch r.Method + " " + path {
+	case "POST /login":
+		run = h.login
+	case "POST /auth/refresh":
+		run = h.refresh
+	case "POST /logout":
+		run = h.logout
+	case "POST /init":
+		run = h.initialize
+	case "GET /auth/openid":
+		run = h.oidcAuthorize
+	case "GET /auth/openid/mobile-redirect":
+		run = h.oidcMobileRedirect
+	case "GET /auth/openid/callback":
+		run = h.oidcCallback
+	case "GET /auth/openid/config":
+		run = h.oidcConfig
+	case "POST /api/authorize":
+		run = h.authorize
 	default:
 		return false
 	}
+	run.ServeHTTP(w, r)
 	return true
 }
 
@@ -255,15 +252,18 @@ func (h *Handler) Authenticate(r *http.Request) (store.User, error) {
 	return user, nil
 }
 
-// Authorize writes the payload returned by the upstream /api/authorize route.
-func (h *Handler) Authorize(w http.ResponseWriter, r *http.Request, user store.User) {
+// authorize answers the upstream /api/authorize route.
+func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) error {
+	user, err := h.Authenticate(r)
+	if err != nil {
+		return writePassportDenied(w)
+	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
-		return
+		return writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
 	}
-	writeExpressJSON(w, http.StatusOK, payload)
+	return writeExpressJSON(w, http.StatusOK, payload)
 }
 
 // UserBrowser serializes a database user into the legacy browser DTO used by
@@ -314,21 +314,19 @@ func UserBrowser(user store.User, hideRootToken, minimal bool) map[string]any {
 	return result
 }
 
-func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
 	if !h.authMethodEnabled(r.Context(), "local") {
-		writePassportDenied(w)
-		return
+		return writePassportDenied(w)
 	}
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	var body struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if decodeBody(r, &body) != nil || body.Username == "" {
-		writePassportDenied(w)
-		return
+		return writePassportDenied(w)
 	}
 	user, err := h.userByUsername(r.Context(), strings.ToLower(body.Username))
 	if err != nil || !user.IsActive {
@@ -337,36 +335,30 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		} else {
 			h.logFailedLogin(r, body.Username, "User not found")
 		}
-		writePassportDenied(w)
-		return
+		return writePassportDenied(w)
 	}
 	if user.Type == "root" && user.Password == "" {
 		if body.Password != "" {
 			h.logFailedLogin(r, user.Username, "Root user has no password set")
-			writePassportDenied(w)
-			return
+			return writePassportDenied(w)
 		}
 	} else if user.Password == "" {
 		h.logFailedLogin(r, user.Username, "User has no password set. Might have been created with OpenID")
-		writePassportDenied(w)
-		return
+		return writePassportDenied(w)
 	} else if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)) != nil {
 		h.logFailedLogin(r, user.Username, "Invalid password")
-		writePassportDenied(w)
-		return
+		return writePassportDenied(w)
 	}
 	logging.Infof("[LocalAuth] User %q logged in from ip %s", user.Username, clientIP(r)) // LocalAuthStrategy.js:74,88
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to create session"})
-		return
+		return httputil.JSONStatus(w, r, http.StatusInternalServerError, map[string]string{"error": "Unable to create session"})
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
-		return
+		return httputil.JSONStatus(w, r, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 	}
 	responseUser := payload["user"].(map[string]any)
 	responseUser["refreshToken"] = nil
@@ -382,7 +374,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	if sessionCookie, cookieErr := h.freshSessionCookieValue(); cookieErr == nil {
 		setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
 	}
-	writeExpressJSON(w, http.StatusOK, payload)
+	return writeExpressJSON(w, http.StatusOK, payload)
 }
 
 // logFailedLogin is LocalAuthStrategy.logFailedLoginAttempt (LocalAuthStrategy.js:104).
@@ -390,9 +382,9 @@ func (h *Handler) logFailedLogin(r *http.Request, username, message string) {
 	logging.Errorf("[LocalAuth] Failed login attempt for username %q from ip %s (%s)", username, clientIP(r), message)
 }
 
-func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	refreshToken := ""
 	returnToken := false
@@ -403,8 +395,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	if refreshToken == "" {
 		logging.Error("[Auth] Failed to refresh token. No refresh token provided") // Auth.js:343
-		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
-		return
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
 	}
 	claims, err := auth.ValidateToken(refreshToken, h.secret, time.Now())
 	if err != nil {
@@ -416,36 +407,31 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 			logging.Errorf("[TokenManager] Invalid refresh token format: %v", err) // TokenManager.js:445
 			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		}
-		return
+		return nil
 	}
 	if claims.Type != "refresh" {
 		logging.Errorf("[TokenManager] Failed to refresh token. Invalid token type: %s", claims.Type) // TokenManager.js:356
-		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
-		return
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
 	}
 	s, err := h.sessionByToken(r.Context(), refreshToken)
 	if err != nil {
 		logging.Error("[TokenManager] Failed to refresh token. Session not found") // TokenManager.js:369
-		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
-		return
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 	}
 	grace := s.refreshToken != refreshToken
 	if grace {
 		if !s.lastRefreshTokenExpires.Valid || !s.lastRefreshTokenExpires.Time.After(time.Now()) {
-			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
-			return
+			return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		}
 	} else if !s.expiresAt.After(time.Now()) {
 		logging.Info("[TokenManager] Session expired in database, cleaning up") // TokenManager.js:391
 		_ = h.queries().DeleteSessionByID(r.Context(), s.id)
-		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
-		return
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Refresh token expired"})
 	}
 	user, err := h.userByID(r.Context(), claims.UserID)
 	if err != nil || !user.IsActive {
 		logging.Errorf("[TokenManager] Failed to refresh token. User not found or inactive for user id: %s", claims.UserID) // TokenManager.js:401
-		writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "User not found or inactive"})
-		return
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "User not found or inactive"})
 	}
 	var access, newRefresh string
 	if grace {
@@ -456,14 +442,12 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to rotate session"})
-		return
+		return writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to rotate session"})
 	}
 	payload, err := h.loginPayload(r.Context(), user)
 	if err != nil {
 		logging.RequestError(r, "error", err)
-		writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
-		return
+		return writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load login data"})
 	}
 	responseUser := payload["user"].(map[string]any)
 	responseUser["accessToken"] = access
@@ -472,10 +456,10 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		responseUser["refreshToken"] = newRefresh
 	}
 	setRefreshCookie(w, r, newRefresh, int(h.refreshTTL.Seconds()))
-	writeExpressJSON(w, http.StatusOK, payload)
+	return writeExpressJSON(w, http.StatusOK, payload)
 }
 
-func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) logout(w http.ResponseWriter, r *http.Request) error {
 	authMethod := cookieValue(r, "auth_method")
 	idToken := cookieValue(r, "openid_id_token")
 	refresh := ""
@@ -510,16 +494,15 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if sessionCookie, cookieErr := h.freshSessionCookieValue(); cookieErr == nil {
 		setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
 	}
-	writeExpressJSON(w, http.StatusOK, map[string]any{"redirect_url": logoutURL})
+	return writeExpressJSON(w, http.StatusOK, map[string]any{"redirect_url": logoutURL})
 }
 
-func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 	logging.Info("[Server] Initializing new server") // Server.js:486
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	defer tx.Rollback()
 	count, err := sqlc.New(tx).CountRootUsers(r.Context())
@@ -529,8 +512,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			logging.RequestError(r, "Internal Server Error", err)
 		}
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	var body struct {
 		NewRoot struct {
@@ -539,8 +521,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		} `json:"newRoot"`
 	}
 	if decodeBody(r, &body) != nil {
-		writePlain(w, http.StatusBadRequest, "Bad Request")
-		return
+		return writePlain(w, http.StatusBadRequest, "Bad Request")
 	}
 	username := body.NewRoot.Username
 	if username == "" {
@@ -554,22 +535,19 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 		hash, err := bcrypt.GenerateFromPassword([]byte(body.NewRoot.Password), 8)
 		if err != nil {
 			logging.RequestError(r, "Internal Server Error", err)
-			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-			return
+			return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		}
 		passwordHash = string(hash)
 	}
 	id, err := ids.New()
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	legacyToken, err := h.issueLegacyToken(id, username)
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	permissions := map[string]any{"download": true, "update": true, "delete": true, "upload": true, "createEreader": true, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
@@ -583,10 +561,9 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
-	writePlain(w, http.StatusOK, "OK")
+	return writePlain(w, http.StatusOK, "OK")
 }
 
 func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Request) (string, string, error) {
@@ -1125,37 +1102,39 @@ func mustJSON(value any) string {
 // body written by res.end, which carries Content-Length:12 and NO Content-Type.
 // A present nil header suppresses net/http's content-type sniffing while
 // retaining its buffered Content-Length calculation.
-func writePassportDenied(w http.ResponseWriter) {
+func writePassportDenied(w http.ResponseWriter) error {
 	w.Header()["Content-Type"] = nil
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte("Unauthorized"))
+	return nil
 }
 
-func writePlain(w http.ResponseWriter, status int, body string) {
+func writePlain(w http.ResponseWriter, status int, body string) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
+	return nil
 }
 
-func writeExpressText(w http.ResponseWriter, status int, body string) {
-	writeExpressBody(w, status, "text/html; charset=utf-8", []byte(body))
+func writeExpressText(w http.ResponseWriter, status int, body string) error {
+	return writeExpressBody(w, status, "text/html; charset=utf-8", []byte(body))
 }
 
-func writeExpressJSON(w http.ResponseWriter, status int, value any) {
+func writeExpressJSON(w http.ResponseWriter, status int, value any) error {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
 		logging.Errorf("[identity] writeExpressJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
+		return nil
 	}
 	body := bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'})
-	writeExpressBody(w, status, "application/json; charset=utf-8", body)
+	return writeExpressBody(w, status, "application/json; charset=utf-8", body)
 }
 
-func writeExpressBody(w http.ResponseWriter, status int, contentType string, body []byte) {
+func writeExpressBody(w http.ResponseWriter, status int, contentType string, body []byte) error {
 	digest := sha1.Sum(body)
 	etag := fmt.Sprintf(`W/"%x-%s"`, len(body), strings.TrimRight(base64.StdEncoding.EncodeToString(digest[:]), "="))
 	w.Header().Set("Content-Type", contentType)
@@ -1163,19 +1142,21 @@ func writeExpressBody(w http.ResponseWriter, status int, contentType string, bod
 	w.Header().Set("ETag", etag)
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+	return nil
 }
 
 func clearExpressCookie(w http.ResponseWriter, name string) {
 	w.Header().Add("Set-Cookie", name+"=; Path=/; Expires="+time.UnixMilli(1).UTC().Format(http.TimeFormat))
 }
 
-func redirectExpress(w http.ResponseWriter, status int, target string) {
+func redirectExpress(w http.ResponseWriter, status int, target string) error {
 	body := http.StatusText(status) + ". Redirecting to " + target
 	w.Header().Set("Location", target)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
+	return nil
 }
 
 // InvalidateUserSessions removes every refresh session for userID, preserving

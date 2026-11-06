@@ -27,7 +27,6 @@ import (
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
@@ -384,27 +383,23 @@ func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string,
 // the item's cached covers purged, media.coverPath persisted, the library item
 // updatedAt bumped, an item_updated event emitted after the commit, and the
 // {success, cover} JSON answer carrying an express-style weak ETag.
-func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store.User, itemID string) {
+func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
+	user, itemID := requestUser(r), r.PathValue("id")
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if !user.IsActive || permissions["upload"] != true {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var libraryID, itemPath, mediaType, mediaID string
 	var isFile int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId, path, mediaType, mediaId, COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &itemPath, &mediaType, &mediaID, &isFile); err != nil {
 		if err == sql.ErrNoRows {
-			httputil.WriteError(w, http.StatusNotFound, "")
-			return
+			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 		}
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var fileHeader *multipart.FileHeader
 	var coverURL string
@@ -429,7 +424,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 	}
 	if fileHeader == nil && coverURL == "" {
 		httputil.SendText(w, http.StatusBadRequest, "Invalid request no file or url")
-		return
+		return nil
 	}
 	var ext string
 	if fileHeader != nil {
@@ -437,7 +432,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		if ext == "" || !supportedImageTypes[ext] {
 			extension := filepath.Ext(strings.ToLower(fileHeader.Filename))
 			httputil.SendText(w, http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
-			return
+			return nil
 		}
 	}
 	var storeWithItem bool
@@ -457,7 +452,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 			message = "Failed to fetch image from url"
 		}
 		httputil.SendText(w, http.StatusBadRequest, message)
-		return
+		return nil
 	}
 	var coverFullPath string
 	if coverURL != "" {
@@ -466,31 +461,31 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		ext, message = downloadCoverFromURL(r.Context(), coverURL, tempPath)
 		if message != "" {
 			httputil.SendText(w, http.StatusBadRequest, message)
-			return
+			return nil
 		}
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		if err := os.Rename(tempPath, coverFullPath); err != nil {
 			httputil.SendText(w, http.StatusBadRequest, "Failed to fetch image from url")
-			return
+			return nil
 		}
 	} else {
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		source, err := fileHeader.Open()
 		if err != nil {
 			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return
+			return nil
 		}
 		target, err := os.Create(coverFullPath)
 		if err != nil {
 			source.Close()
 			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return
+			return nil
 		}
 		if _, err := io.Copy(target, source); err != nil {
 			target.Close()
 			source.Close()
 			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return
+			return nil
 		}
 		target.Close()
 		source.Close()
@@ -517,9 +512,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 		return tx.Commit()
 	}()
 	if writeErr != nil {
-		logging.RequestError(r, "database write failed", writeErr)
-		httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
-		return
+		return httputil.Internal("database write failed", writeErr)
 	}
 	if item, itemErr := h.ItemJSON(r.Context(), itemID, true); itemErr == nil && h.emit != nil {
 		// SocketAuthority.libraryItemEmitter filters per client; the hub applies
@@ -534,6 +527,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request, user store
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
 	}
+	return nil
 }
 
 // removeOldCovers mirrors CoverManager.removeOldCovers, which removes only

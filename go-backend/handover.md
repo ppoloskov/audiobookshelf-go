@@ -14,6 +14,14 @@ logs and recovery chronology are in the
 
 ## Current state and next action
 
+**ADR-001 (HTTP composition) milestone 1 landed**: see
+[docs/SIMPLIFICATION.md](docs/SIMPLIFICATION.md) for the ADR and the measured
+ledger. Every feature package now registers method patterns on one mux; the
+`Handle(w, r, user) bool` chains and the runtime's legacy adapter are gone
+(identity keeps its auth-ordered Handle). Next: one httputil error framing per
+Express/`http.Error` shape, which deletes the per-package write helpers, and the
+second catalog round (authors, batch, series, writes, quickmatch).
+
 Last runtime commit **82110311**, preceding audit documentation commit **2fb4cde9**.
 B01–B09, I01–I06, L01–L05, PR01–PR07, MC-05/F1, S9b-R1 and D01 are accepted.
 Lists HTTP/write/feed ownership is complete; do not restart L04. Wider

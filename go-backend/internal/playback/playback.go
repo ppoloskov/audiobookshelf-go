@@ -139,132 +139,58 @@ func (h *Handler) Close() {
 	}
 }
 
-// Handle reports whether this package owns the request path. Public audio and
-// HLS resources are bearer-free upstream capability URLs; API routes require
-// the authenticated user supplied by the server dispatcher.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	parts := splitPath(r.URL.Path)
-	if len(parts) == 0 {
-		return false
-	}
-	switch {
-	case parts[0] == "public" && len(parts) == 5 && parts[1] == "session" && parts[3] == "track":
-		h.handleTrack(w, r, parts[2], parts[4])
-		return true
-	case parts[0] == "hls" && len(parts) == 3:
-		h.handleHLS(w, r, parts[1], parts[2])
-		return true
-	case parts[0] == "api" && len(parts) >= 3 && parts[1] == "items":
-		if len(parts) == 4 && parts[3] == "play" {
-			h.handleStart(w, r, user, parts[2], "")
-			return true
-		}
-		if len(parts) == 5 && parts[3] == "play" {
-			h.handleStart(w, r, user, parts[2], parts[4])
-			return true
-		}
-		if len(parts) == 5 && parts[3] == "file" {
-			h.handleItemFile(w, r, user, parts[2], parts[4])
-			return true
-		}
-	case parts[0] == "api" && len(parts) >= 2 && parts[1] == "sessions":
-		if len(parts) == 2 && r.Method == http.MethodGet {
-			h.handleHistory(w, r, user)
-			return true
-		}
-		if len(parts) == 3 && parts[2] == "open" && r.Method == http.MethodGet {
-			h.handleOpenSessions(w, r, user)
-			return true
-		}
-		if len(parts) == 4 && parts[2] == "batch" && parts[3] == "delete" && r.Method == http.MethodPost {
-			h.handleBatchDelete(w, r, user)
-			return true
-		}
-		if len(parts) == 3 && r.Method == http.MethodDelete {
-			h.handleDeleteHistory(w, r, user, parts[2])
-			return true
-		}
-	case parts[0] == "api" && len(parts) >= 3 && parts[1] == "session":
-		if len(parts) == 3 && parts[2] == "local" && r.Method == http.MethodPost {
-			h.handleLocalSync(w, r, user, false)
-			return true
-		}
-		if len(parts) == 3 && parts[2] == "local-all" && r.Method == http.MethodPost {
-			h.handleLocalSync(w, r, user, true)
-			return true
-		}
-		if len(parts) == 3 && r.Method == http.MethodGet {
-			h.handleGetSession(w, r, user, parts[2])
-			return true
-		}
-		if len(parts) == 4 && parts[3] == "sync" && r.Method == http.MethodPost {
-			h.handleSync(w, r, user, parts[2], false)
-			return true
-		}
-		if len(parts) == 4 && parts[3] == "close" && r.Method == http.MethodPost {
-			h.handleSync(w, r, user, parts[2], true)
-			return true
-		}
-	}
-	return false
+// Routes registers the playback routes. Public audio and HLS resources are
+// bearer-free upstream capability URLs and run with no user; API routes carry
+// the authenticated user in the request context. The public routes accept any
+// method so a wrong one is answered 405 as before.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	mux.Handle("/public/session/{id}/track/{index}", httputil.Handler(h.handleTrack))
+	mux.Handle("/hls/{id}/{name}", httputil.Handler(h.handleHLS))
+	mux.Handle("POST /api/items/{id}/play", httputil.Handler(h.handleStart))
+	mux.Handle("POST /api/items/{id}/play/{episodeId}", httputil.Handler(h.handleStart))
+	mux.Handle("GET /api/sessions", httputil.Handler(h.handleHistory))
+	mux.Handle("GET /api/sessions/open", httputil.Handler(h.handleOpenSessions))
+	mux.Handle("POST /api/sessions/batch/delete", httputil.Handler(h.handleBatchDelete))
+	mux.Handle("DELETE /api/sessions/{id}", httputil.Handler(h.handleDeleteHistory))
+	mux.Handle("POST /api/session/local", httputil.Handler(h.handleLocalSync))
+	mux.Handle("POST /api/session/local-all", httputil.Handler(h.handleLocalSync))
+	mux.Handle("GET /api/session/{id}", httputil.Handler(h.handleGetSession))
+	mux.Handle("POST /api/session/{id}/sync", httputil.Handler(h.handleSync))
+	mux.Handle("POST /api/session/{id}/close", httputil.Handler(h.handleSync))
 }
 
-func splitPath(path string) []string {
-	trimmed := strings.Trim(path, "/")
-	if trimmed == "" {
-		return nil
-	}
-	parts := strings.Split(trimmed, "/")
-	for _, p := range parts {
-		if p == "" || p == "." || p == ".." {
-			return nil
-		}
-	}
-	return parts
-}
-
-func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store.User, itemID, episodeID string) {
-	if r.Method != http.MethodPost {
-		methodNotAllowed(w)
-		return
-	}
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
+	itemID, episodeID := r.PathValue("id"), r.PathValue("episodeId")
 	item, err := h.loadItem(r.Context(), itemID, episodeID)
 	if errors.Is(err, sql.ErrNoRows) {
 		// LibraryItemController.middleware / startEpisodePlaybackSession
 		// (LibraryItemController.js:460-470): res.sendStatus(404).
 		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutETag())
-		return
+		return nil
 	}
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	if !canAccess(user, item) {
 		httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutETag())
-		return
+		return nil
 	}
 	if len(item.Files) == 0 {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	var body map[string]any
 	if r.Body != nil {
 		data, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 		if readErr != nil {
-			http.Error(w, "Invalid request body", 400)
-			return
+			return reject(w, 400, "Invalid request body")
 		}
 		if len(data) > 1<<20 {
-			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
-			return
+			return reject(w, http.StatusRequestEntityTooLarge, "Request body too large")
 		}
 		if len(strings.TrimSpace(string(data))) > 0 && json.Unmarshal(data, &body) != nil {
-			http.Error(w, "Invalid request body", 400)
-			return
+			return reject(w, 400, "Invalid request body")
 		}
 	}
 	if body == nil {
@@ -276,8 +202,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	}
 	deviceID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	mediaPlayer, _ := body["mediaPlayer"].(string)
 	if mediaPlayer == "" {
@@ -288,8 +213,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	forceTranscode, _ := body["forceTranscode"].(bool)
 	progress, err := h.readProgress(r.Context(), user.ID, item, episodeID)
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	start := 0.0
 	if progress != nil && !progress.finished {
@@ -307,13 +231,11 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	// that serializer.
 	itemJSON, err := h.items.ItemJSON(r.Context(), item.ID, true)
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	sessionID, err := ids.New()
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if episodeID != "" {
@@ -337,12 +259,11 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	} else {
 		if _, err := exec.LookPath(ffmpegExecutable()); err != nil {
 			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
-			return
+			return nil
 		}
 		t, err := h.startTranscode(s, item, start)
 		if err != nil {
-			h.serverError(w, r, err)
-			return
+			return h.serverError(w, r, err)
 		}
 		s.stream = t
 		s.AudioTracks = []map[string]any{{"index": 1, "startOffset": 0, "duration": s.Duration, "title": s.DisplayTitle, "contentUrl": "/hls/" + s.ID + "/output.m3u8", "mimeType": "application/vnd.apple.mpegurl", "codec": nil, "metadata": nil}}
@@ -357,6 +278,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request, user store
 	h.mu.Unlock()
 	h.emit("@admins", "user_stream_update", h.publicUser(user, s))
 	httputil.WriteJSON(w, http.StatusOK, s.clientJSON())
+	return nil
 }
 
 func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData, error) {
@@ -614,22 +536,22 @@ func (h *Handler) readProgress(ctx context.Context, userID string, item *itemDat
 	return &progress{currentTime: pos.Currenttime.Float64, finished: pos.Isfinished.Int64 != 0}, nil
 }
 
-func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexText string) {
+func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
+	id, indexText := r.PathValue("id"), r.PathValue("index")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		methodNotAllowed(w)
-		return
+		return nil
 	}
 	index, err := strconv.Atoi(indexText)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
+		return reject(w, http.StatusBadRequest, "")
 	}
 	h.mu.RLock()
 	s := h.sessions[id]
 	h.mu.RUnlock()
 	if s == nil {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	var chosen map[string]any
 	for _, track := range s.AudioTracks {
@@ -644,12 +566,12 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexT
 	}
 	if chosen == nil {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	if s.PlayMethod == 2 {
 		if content, ok := chosen["contentUrl"].(string); ok && content != "" {
 			http.Redirect(w, r, content, http.StatusFound)
-			return
+			return nil
 		}
 	}
 	ino, _ := chosen["ino"].(string)
@@ -667,70 +589,26 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request, id, indexT
 	}
 	if f == nil {
 		logging.RequestDebug(r, "responding 500: audio track "+indexText+" of the item was not found")
-		http.Error(w, "", http.StatusInternalServerError)
-		return
+		return reject(w, http.StatusInternalServerError, "")
 	}
 	path, _ := f.Metadata["path"].(string)
 	if path == "" {
 		logging.RequestDebug(r, "responding 500: audio file has no path")
-		http.Error(w, "", http.StatusInternalServerError)
-		return
+		return reject(w, http.StatusInternalServerError, "")
 	}
 	serveMedia(w, r, path, f.MimeType)
+	return nil
 }
 
-func (h *Handler) handleItemFile(w http.ResponseWriter, r *http.Request, user store.User, itemID, ino string) {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		methodNotAllowed(w)
-		return
-	}
-	item, err := h.loadItem(r.Context(), itemID, "")
-	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		h.serverError(w, r, err)
-		return
-	}
-	if !canAccess(user, item) {
-		http.Error(w, "Forbidden", 403)
-		return
-	}
-	for _, f := range item.Files {
-		if f.Ino == ino {
-			path, _ := f.Metadata["path"].(string)
-			if path == "" {
-				logging.RequestDebug(r, "responding 500: library file has no path")
-				http.Error(w, "", 500)
-				return
-			}
-			serveMedia(w, r, path, f.MimeType)
-			return
-		}
-	}
-	for _, ep := range item.Episodes {
-		if ep.Audio.Ino == ino {
-			path, _ := ep.Audio.Metadata["path"].(string)
-			if path != "" {
-				serveMedia(w, r, path, ep.Audio.MimeType)
-				return
-			}
-		}
-	}
-	http.NotFound(w, r)
-}
-
-func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request, user store.User, id string) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
+	id := r.PathValue("id")
 	s := h.openSession(w, r, user, id)
 	if s == nil {
-		return
+		return nil
 	}
 	httputil.WriteJSON(w, 200, s.clientJSON())
+	return nil
 }
 
 func (h *Handler) openSession(w http.ResponseWriter, r *http.Request, user store.User, id string) *session {
@@ -748,31 +626,27 @@ func (h *Handler) openSession(w http.ResponseWriter, r *http.Request, user store
 	return s
 }
 
-func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.User, id string, closeSession bool) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
+	id := r.PathValue("id")
+	closeSession := strings.HasSuffix(r.URL.Path, "/close")
 	s := h.openSession(w, r, user, id)
 	if s == nil {
-		return
+		return nil
 	}
 	var body map[string]any
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	if err := dec.Decode(&body); err != nil && err != io.EOF {
-		http.Error(w, "Invalid request body", 400)
-		return
+		return reject(w, 400, "Invalid request body")
 	}
 	if len(body) > 0 {
 		ct, ok := asFloat(body["currentTime"])
 		if !ok || ct < 0 {
-			http.Error(w, "Invalid currentTime", 400)
-			return
+			return reject(w, 400, "Invalid currentTime")
 		}
 		listened, ok := asFloat(body["timeListened"])
 		if !ok || listened < 0 {
-			http.Error(w, "Invalid timeListened", 400)
-			return
+			return reject(w, 400, "Invalid timeListened")
 		}
 		s.CurrentTime = ct
 		s.TimeListening += listened
@@ -781,20 +655,17 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
 		if err := h.saveSession(r.Context(), s); err != nil {
-			h.serverError(w, r, err)
-			return
+			return h.serverError(w, r, err)
 		}
 		syncDuration, _ := asFloat(body["duration"])
 		if _, err := h.syncProgress(r.Context(), user.ID, s, syncDuration, nil); err != nil {
-			h.serverError(w, r, err)
-			return
+			return h.serverError(w, r, err)
 		}
 	}
 	if closeSession {
 		if len(body) == 0 {
 			if err := h.saveSession(r.Context(), s); err != nil {
-				h.serverError(w, r, err)
-				return
+				return h.serverError(w, r, err)
 			}
 		}
 		logging.Debugf("[PlaybackSessionManager] closeSession %q", s.ID) // PlaybackSessionManager.js:427
@@ -809,6 +680,7 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request, user store.
 		h.emit(user.ID, "user_session_closed", s.ID)
 	}
 	sendOK(w)
+	return nil
 }
 
 func (h *Handler) saveSession(ctx context.Context, s *session) error {
@@ -972,14 +844,10 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 	return true, nil
 }
 
-func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user store.User) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		http.Error(w, "", http.StatusNotFound)
-		return
+		return reject(w, http.StatusNotFound, "")
 	}
 	validSort := map[string]string{"displayTitle": "displayTitle", "duration": "duration", "playMethod": "playMethod", "startTime": "startTime", "currentTime": "currentTime", "timeListening": "timeListening", "updatedAt": "updatedAt", "createdAt": "createdAt"}
 	sortKey := r.URL.Query().Get("sort")
@@ -1016,34 +884,29 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 	}
 	total, err := sqlc.New(h.db).CountPlaybackSessionsForUser(r.Context(), store.TextOrNull(userFilter))
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
 	args = append(args, perPage, perPage*page)
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	sessions := []store.PlaybackSessionRow{}
 	for rows.Next() {
 		s, err := store.ScanPlaybackSession(rows)
 		if err != nil {
 			_ = rows.Close()
-			h.serverError(w, r, err)
-			return
+			return h.serverError(w, r, err)
 		}
 		sessions = append(sessions, s)
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	if err := rows.Close(); err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	result := []map[string]any{}
 	for _, s := range sessions {
@@ -1052,8 +915,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 			device, err = nil, nil
 		}
 		if err != nil {
-			h.serverError(w, r, err)
-			return
+			return h.serverError(w, r, err)
 		}
 		obj := s.LegacyJSON(device)
 		if u, err := sqlc.New(h.db).GetUserByID(r.Context(), s.UserID.String); err == nil && u.Username.Valid {
@@ -1067,18 +929,16 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request, user sto
 		payload["userId"] = userFilter
 	}
 	httputil.WriteJSON(w, 200, payload)
+	return nil
 }
 
-func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request, user store.User) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		http.Error(w, "", http.StatusNotFound)
-		return
+		return reject(w, http.StatusNotFound, "")
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
+	return nil
 }
 
 // OpenSessions returns the current in-memory playback sessions in the same
@@ -1101,52 +961,42 @@ func (h *Handler) OpenSessions() []map[string]any {
 	return out
 }
 
-func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request, user store.User, id string) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
+	id := r.PathValue("id")
 	if !canDelete(user) {
-		http.Error(w, "", 403)
-		return
+		return reject(w, 403, "")
 	}
 	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	if exists == 0 {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	h.removeOpenSession(id)
 	if err := sqlc.New(h.db).DeletePlaybackSession(r.Context(), id); err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	sendOK(w)
+	return nil
 }
 
-func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request, user store.User) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		http.Error(w, "", 403)
-		return
+		return reject(w, 403, "")
 	}
 	var body struct {
 		Sessions []string `json:"sessions"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.Sessions) == 0 {
-		http.Error(w, `Invalid request body. "sessions" array of session id strings is required.`, 400)
-		return
+		return reject(w, 400, `Invalid request body. "sessions" array of session id strings is required.`)
 	}
 	for _, id := range body.Sessions {
 		if !validUUID(id) {
-			http.Error(w, `Invalid request body. "sessions" array of session id strings is required.`, 400)
-			return
+			return reject(w, 400, `Invalid request body. "sessions" array of session id strings is required.`)
 		}
 	}
 	for _, id := range body.Sessions {
@@ -1155,13 +1005,13 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request, user
 	res, err := sqlc.New(h.db).DeletePlaybackSessionsByIDs(r.Context(), body.Sessions)
 	if err != nil {
 		logging.RequestError(r, "Failed to remove sessions", err)
-		http.Error(w, "Failed to remove sessions", 500)
-		return
+		return reject(w, 500, "Failed to remove sessions")
 	}
 	if removed, rowsErr := res.RowsAffected(); rowsErr == nil {
 		logging.Infof("[SessionController] %d playback sessions removed by %q", removed, user.Username) // SessionController.js:238
 	}
 	sendOK(w)
+	return nil
 }
 
 func (h *Handler) removeOpenSession(id string) {
@@ -1174,20 +1024,16 @@ func (h *Handler) removeOpenSession(id string) {
 	}
 }
 
-func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user store.User, all bool) {
-	if user.ID == "" {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
+func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error {
+	user, _ := store.UserFromContext(r.Context())
+	all := strings.HasSuffix(r.URL.Path, "-all")
 	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 	if err != nil || len(data) > 1<<20 {
-		http.Error(w, "Invalid request body", 400)
-		return
+		return reject(w, 400, "Invalid request body")
 	}
 	var body map[string]any
 	if json.Unmarshal(data, &body) != nil {
-		http.Error(w, "Invalid request body", 400)
-		return
+		return reject(w, 400, "Invalid request body")
 	}
 	device, _ := body["deviceInfo"].(map[string]any)
 	if device == nil {
@@ -1195,22 +1041,16 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 	}
 	deviceDBID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		h.serverError(w, r, err)
-		return
+		return h.serverError(w, r, err)
 	}
 	if !all {
-		result, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
+		_, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
 		if errMsg != "" {
 			logging.RequestDebug(r, "responding 500: "+errMsg)
-			http.Error(w, errMsg, 500)
-			return
-		}
-		if result == nil {
-			sendOK(w)
-			return
+			return reject(w, 500, errMsg)
 		}
 		sendOK(w)
-		return
+		return nil
 	}
 	sessions, _ := body["sessions"].([]any)
 	results := make([]map[string]any, 0, len(sessions))
@@ -1228,6 +1068,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request, user s
 		}
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"results": results})
+	return nil
 }
 
 func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[string]any, deviceDBID string, device map[string]any) (map[string]any, string) {
@@ -1423,33 +1264,31 @@ func deviceDescription(device map[string]any) string {
 	}
 	return stringOr(device["osName"], "") + " " + stringOr(device["osVersion"], "") + " / " + stringOr(device["browserName"], "")
 }
-func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request, id, name string) {
+func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
+	id, name := r.PathValue("id"), r.PathValue("name")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		methodNotAllowed(w)
-		return
+		return nil
 	}
 	h.mu.RLock()
 	s := h.sessions[id]
 	h.mu.RUnlock()
 	if s == nil || s.stream == nil {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	t := s.stream
 	if filepath.Base(name) != name || name == "." || name == ".." {
-		http.Error(w, "", 400)
-		return
+		return reject(w, 400, "")
 	}
 	ext := filepath.Ext(name)
 	if ext != ".ts" && ext != ".m3u8" {
-		http.Error(w, "", 400)
-		return
+		return reject(w, 400, "")
 	}
 	path := filepath.Join(t.root, name)
 	rel, err := filepath.Rel(t.root, path)
 	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		http.Error(w, "", 400)
-		return
+		return reject(w, 400, "")
 	}
 	if _, err := os.Stat(path); err != nil {
 		if ext == ".ts" {
@@ -1460,7 +1299,7 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request, id, name str
 			}
 		}
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	contentType := "video/mp2t"
 	if ext == ".m3u8" {
@@ -1469,18 +1308,19 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request, id, name str
 	f, err := os.Open(path)
 	if err != nil {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
 		http.NotFound(w, r)
-		return
+		return nil
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
 	w.Header().Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, name, st.ModTime(), f)
+	return nil
 }
 
 func (h *Handler) startTranscode(s *session, item *itemData, start float64) (*transcode, error) {
@@ -2097,9 +1937,19 @@ func ffmpegExecutable() string {
 	}
 	return "ffmpeg"
 }
-func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error) {
+
+// serverError logs err and answers 500 in net/http framing; handlers return
+// its nil so the answer is not written twice.
+func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error) error {
 	logging.RequestError(r, "Internal Server Error", err)
-	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	return reject(w, http.StatusInternalServerError, "Internal Server Error")
+}
+
+// reject answers with http.Error framing (not the Express framing of
+// httputil.Fail, which these media routes never used) and returns nil.
+func reject(w http.ResponseWriter, code int, message string) error {
+	http.Error(w, message, code)
+	return nil
 }
 
 // jsTemplateValue renders a decoded JSON value as a JS template literal would

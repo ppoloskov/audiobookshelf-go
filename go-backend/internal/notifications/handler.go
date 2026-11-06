@@ -29,33 +29,26 @@ type Handler struct {
 func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
 	return &Handler{db: db, emit: emit}
 }
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	p := r.URL.Path
-	if (strings.HasPrefix(p, "/api/notifications") || p == "/api/notificationdata") && !admin(user.Type) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return true
+
+// Routes registers the notification routes (server/routers/ApiRouter.js
+// /notifications, /notificationdata); every one is admin only.
+func (h *Handler) Routes(mux *http.ServeMux) {
+	route := func(pattern string, f httputil.Handler) {
+		mux.Handle(pattern, httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
+			if user, _ := store.UserFromContext(r.Context()); !admin(user.Type) {
+				return httputil.Status(http.StatusForbidden, "")
+			}
+			return f(w, r)
+		}))
 	}
-	switch {
-	case p == "/api/notifications" && r.Method == http.MethodGet:
-		h.get(w, r, false)
-	case p == "/api/notifications" && r.Method == http.MethodPatch:
-		h.update(w, r)
-	case p == "/api/notificationdata" && r.Method == http.MethodGet:
-		h.get(w, r, true)
-	case p == "/api/notifications/test" && r.Method == http.MethodGet:
-		h.testEvent(w, r)
-	case p == "/api/notifications" && r.Method == http.MethodPost:
-		h.create(w, r)
-	case strings.HasPrefix(p, "/api/notifications/") && strings.HasSuffix(p, "/test") && r.Method == http.MethodGet:
-		h.testNotification(w, r)
-	case strings.HasPrefix(p, "/api/notifications/") && r.Method == http.MethodDelete:
-		h.delete(w, r)
-	case strings.HasPrefix(p, "/api/notifications/") && r.Method == http.MethodPatch:
-		h.updateNotification(w, r)
-	default:
-		return false
-	}
-	return true
+	route("GET /api/notifications", func(w http.ResponseWriter, r *http.Request) error { return h.get(w, r, false) })
+	route("PATCH /api/notifications", h.update)
+	route("POST /api/notifications", h.create)
+	route("GET /api/notificationdata", func(w http.ResponseWriter, r *http.Request) error { return h.get(w, r, true) })
+	route("GET /api/notifications/test", h.testEvent)
+	route("GET /api/notifications/{id}/test", h.testNotification)
+	route("DELETE /api/notifications/{id}", h.delete)
+	route("PATCH /api/notifications/{id}", h.updateNotification)
 }
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
@@ -84,36 +77,39 @@ func (h *Handler) save(ctx context.Context, v map[string]any) error {
 	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('notification-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
 	return e
 }
+
+// dbFail logs err and answers http.Error's plain-text 500 (not Express framing).
+func dbFail(w http.ResponseWriter, r *http.Request, err error, msg string) error {
+	logging.RequestError(r, msg, err)
+	http.Error(w, msg, http.StatusInternalServerError)
+	return nil
+}
 func admin(t string) bool { return t == "admin" || t == "root" }
-func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) {
+func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
 	if data {
 		write(w, map[string]any{"events": events})
-		return
+		return nil
 	}
 	write(w, map[string]any{"data": map[string]any{"events": events}, "settings": s})
+	return nil
 }
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	var payload any
 	if json.NewDecoder(r.Body).Decode(&payload) != nil {
 		w.WriteHeader(400)
-		return
+		return nil
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
-		httputil.SendStatus(w, http.StatusOK)
-		return
+		return httputil.Status(http.StatusOK, "")
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
 	updated := false
 	if v, ok := p["appriseApiUrl"]; !ok {
@@ -152,10 +148,10 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		if e = h.save(r.Context(), s); e != nil {
 			logging.RequestError(r, "database error", e)
 			http.Error(w, "database error", 500)
-			return
+			return nil
 		}
 	}
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 func strictEqual(a, b any) bool {
 	switch x := a.(type) {
@@ -196,26 +192,22 @@ func truthy(v any) bool {
 		return true
 	}
 }
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	p := map[string]any{}
 	_ = json.NewDecoder(r.Body).Decode(&p)
 	event, _ := p["eventName"].(string)
 	urls, _ := p["urls"].([]any)
 	if event == "" || len(urls) == 0 {
 		write(w, h.mustLoad(r))
-		return
+		return nil
 	}
 	id, e := id()
 	if e != nil {
-		logging.RequestError(r, "internal error", e)
-		http.Error(w, "internal error", 500)
-		return
+		return dbFail(w, r, e, "internal error")
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
 	items := array(s["notifications"])
 	libraryID := p["libraryId"]
@@ -238,18 +230,17 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
 		logging.RequestError(r, "database error", saveErr)
 		http.Error(w, "database error", 500)
-		return
+		return nil
 	}
 	write(w, s)
+	return nil
 }
-func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
-	id := lastID(r.URL.Path)
+	id := r.PathValue("id")
 	a := array(s["notifications"])
 	out := []any{}
 	removed := false
@@ -262,37 +253,34 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		out = append(out, raw)
 	}
 	if !removed {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	s["notifications"] = out
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
 		logging.RequestError(r, "database error", saveErr)
 		http.Error(w, "database error", 500)
-		return
+		return nil
 	}
 	write(w, s)
+	return nil
 }
-func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
-	if h.find(s, lastID(r.URL.Path)) == nil {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+	if h.find(s, r.PathValue("id")) == nil {
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	var payload any
 	if json.NewDecoder(r.Body).Decode(&payload) != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return nil
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
 		write(w, s)
-		return
+		return nil
 	}
 	id, _ := p["id"].(string)
 	n := h.find(s, id)
@@ -323,22 +311,21 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) {
 			if saveErr := h.save(r.Context(), s); saveErr != nil {
 				logging.RequestError(r, "database error", saveErr)
 				http.Error(w, "database error", 500)
-				return
+				return nil
 			}
 		}
 	}
 	write(w, s)
+	return nil
 }
-func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
 	data := events[len(events)-1].(map[string]any)
 	_, _ = h.deliverActive(r.Context(), s, "onTest", data["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 // TriggerEvent is the runtime hook for source lifecycle notifications (backup
@@ -359,35 +346,27 @@ func (h *Handler) TriggerEvent(ctx context.Context, eventName string, data map[s
 	return nil
 }
 
-func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return dbFail(w, r, e, "database error")
 	}
-	n := h.find(s, lastID(strings.TrimSuffix(r.URL.Path, "/test")))
+	n := h.find(s, r.PathValue("id"))
 	if n == nil {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	endpoint, _ := s["appriseApiUrl"].(string)
 	if endpoint == "" {
-		httputil.SendText(w, http.StatusBadRequest, "Apprise is not configured")
-		return
+		return httputil.Status(http.StatusBadRequest, "Apprise is not configured")
 	}
 	event := eventData(n["eventName"].(string))
 	if event == nil {
-		logging.RequestDebug(r, "responding 500: unknown notification event "+fmt.Sprint(n["eventName"]))
-		httputil.SendStatus(w, http.StatusInternalServerError)
-		return
+		return &httputil.Error{Status: http.StatusInternalServerError, Cause: fmt.Errorf("unknown notification event %v", n["eventName"])}
 	}
-	if deliverErr := h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))); deliverErr == nil {
-		httputil.SendStatus(w, http.StatusOK)
-	} else {
-		logging.RequestError(r, "Apprise test notification failed", deliverErr)
-		httputil.SendStatus(w, http.StatusInternalServerError)
+	if err := h.deliver(r.Context(), endpoint, payload(n, event["testData"].(map[string]any))); err != nil {
+		return &httputil.Error{Status: http.StatusInternalServerError, Cause: err}
 	}
+	return httputil.OK(w, r)
 }
 func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event string, data map[string]any, fail bool) (bool, error) {
 	endpoint, _ := s["appriseApiUrl"].(string)

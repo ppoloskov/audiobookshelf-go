@@ -1,55 +1,54 @@
 package lists
 
-import "net/http"
+import (
+	"net/http"
 
-func register(mux *http.ServeMux, method, pattern string, action http.HandlerFunc) {
-	mux.HandleFunc(method+" "+pattern, func(w http.ResponseWriter, r *http.Request) {
+	"audiobookshelf-compat/internal/httputil"
+)
+
+// readOnly answers HEAD with the 404 Express gives these routes; GET patterns
+// would otherwise serve it.
+func readOnly(h httputil.Handler) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == http.MethodHead {
-			notImplemented(w)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
-		action(w, r)
-	})
+		return h(w, r)
+	}
 }
 
 // Routes mounts the list API on the runtime's authenticated mux.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	register(mux, "GET", "/api/collections", h.collectionRoot)
-	register(mux, "POST", "/api/collections", h.createCollection)
-	register(mux, "GET", "/api/collections/{id}", h.collectionID)
-	register(mux, "PATCH", "/api/collections/{id}", h.collectionID)
-	register(mux, "DELETE", "/api/collections/{id}", h.collectionID)
-	register(mux, "POST", "/api/collections/{id}/book", h.addCollectionBook)
-	register(mux, "DELETE", "/api/collections/{id}/book/{itemID}", h.removeCollectionBook)
-	register(mux, "POST", "/api/collections/{id}/batch/{action}", h.batchCollectionBooks)
-	register(mux, "GET", "/api/playlists", h.listPlaylists)
-	register(mux, "POST", "/api/playlists", h.createPlaylist)
-	register(mux, "GET", "/api/playlists/{id}", h.playlistID)
-	register(mux, "PATCH", "/api/playlists/{id}", h.playlistID)
-	register(mux, "DELETE", "/api/playlists/{id}", h.playlistID)
-	register(mux, "POST", "/api/playlists/{id}/{action}", h.playlistAction)
-	register(mux, "POST", "/api/playlists/{id}/batch/add", func(w http.ResponseWriter, r *http.Request) {
-		h.addPlaylistItem(w, r, r.PathValue("id"), requestUser(r), true)
-	})
-	register(mux, "POST", "/api/playlists/{id}/batch/remove", func(w http.ResponseWriter, r *http.Request) {
-		h.removePlaylistItems(w, r, r.PathValue("id"), requestUser(r))
-	})
-	register(mux, "DELETE", "/api/playlists/{id}/item/{itemPath...}", h.removePlaylistItem)
-	register(mux, "GET", "/api/libraries/{libraryID}/collections", func(w http.ResponseWriter, r *http.Request) {
-		h.libraryCollections(w, r, requestUser(r), r.PathValue("libraryID"))
-	})
-	register(mux, "GET", "/api/libraries/{libraryID}/playlists", func(w http.ResponseWriter, r *http.Request) {
-		h.libraryPlaylists(w, r, requestUser(r), r.PathValue("libraryID"))
-	})
+	mux.Handle("GET /api/collections", readOnly(h.collectionRoot))
+	mux.Handle("POST /api/collections", httputil.Handler(h.createCollection))
+	mux.Handle("GET /api/collections/{id}", readOnly(h.getCollection))
+	mux.Handle("PATCH /api/collections/{id}", httputil.Handler(h.updateCollection))
+	mux.Handle("DELETE /api/collections/{id}", httputil.Handler(h.deleteCollection))
+	mux.Handle("POST /api/collections/{id}/book", httputil.Handler(h.addCollectionBook))
+	mux.Handle("DELETE /api/collections/{id}/book/{itemID}", httputil.Handler(h.removeCollectionBook))
+	mux.Handle("POST /api/collections/{id}/batch/{action}", httputil.Handler(h.batchCollectionBooks))
+	mux.Handle("GET /api/playlists", readOnly(h.listPlaylists))
+	mux.Handle("POST /api/playlists", httputil.Handler(h.createPlaylist))
+	mux.Handle("GET /api/playlists/{id}", readOnly(h.getPlaylist))
+	mux.Handle("PATCH /api/playlists/{id}", httputil.Handler(h.updatePlaylist))
+	mux.Handle("DELETE /api/playlists/{id}", httputil.Handler(h.deletePlaylist))
+	mux.Handle("POST /api/playlists/{id}/{action}", httputil.Handler(h.playlistAction))
+	mux.Handle("POST /api/playlists/{id}/batch/add", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		return h.addPlaylistItem(w, r, r.PathValue("id"), requestUser(r), true)
+	}))
+	mux.Handle("POST /api/playlists/{id}/batch/remove", httputil.Handler(h.removePlaylistItems))
+	mux.Handle("DELETE /api/playlists/{id}/item/{itemPath...}", httputil.Handler(h.removePlaylistItem))
+	mux.Handle("GET /api/libraries/{libraryID}/collections", readOnly(h.libraryCollections))
+	mux.Handle("GET /api/libraries/{libraryID}/playlists", readOnly(h.libraryPlaylists))
 }
 
-func (h *Handler) playlistAction(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) playlistAction(w http.ResponseWriter, r *http.Request) error {
 	id, action, user := r.PathValue("id"), r.PathValue("action"), requestUser(r)
-	if id == "collection" {
-		h.createPlaylistFromCollection(w, r, user, action)
-	} else if action == "item" {
-		h.addPlaylistItem(w, r, id, user, false)
-	} else {
-		notImplemented(w)
+	switch {
+	case id == "collection":
+		return h.createPlaylistFromCollection(w, r, user, action)
+	case action == "item":
+		return h.addPlaylistItem(w, r, id, user, false)
 	}
+	return httputil.Status(http.StatusNotFound, "")
 }

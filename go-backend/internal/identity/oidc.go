@@ -62,55 +62,47 @@ type oidcConfig struct {
 	autoRegister       bool
 }
 
-func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) error {
 	if !h.authMethodEnabled(r.Context(), "openid") {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	cfg, err := h.readOIDCConfig(r.Context())
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writePlain(w, http.StatusInternalServerError, err.Error())
-		return
+		return writePlain(w, http.StatusInternalServerError, err.Error())
 	}
 	query := r.URL.Query()
 	responseType := query.Get("response_type")
 	if responseType != "" && responseType != "code" {
-		writeExpressText(w, http.StatusBadRequest, "Invalid response_type, only code supported")
-		return
+		return writeExpressText(w, http.StatusBadRequest, "Invalid response_type, only code supported")
 	}
 	isMobile := responseType == "code" || query.Get("redirect_uri") != "" || query.Get("code_challenge") != ""
 	if !isMobile && query.Has("state") {
-		writeExpressText(w, http.StatusBadRequest, "Invalid state, not allowed on web flow")
-		return
+		return writeExpressText(w, http.StatusBadRequest, "Invalid state, not allowed on web flow")
 	}
 	state := query.Get("state")
 	if !isMobile || state == "" {
 		state, err = randomURLToken(32)
 		if err != nil {
 			logging.RequestError(r, "Internal Server Error", err)
-			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-			return
+			return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		}
 	}
 	redirectURI := ""
 	if isMobile {
 		redirectURI = query.Get("redirect_uri")
 		if !validMobileRedirect(cfg.mobileRedirectURIs, redirectURI) {
-			writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
-			return
+			return writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
 		}
 		if query.Get("code_challenge") == "" {
-			writeExpressText(w, http.StatusBadRequest, "code_challenge required for mobile flow (PKCE)")
-			return
+			return writeExpressText(w, http.StatusBadRequest, "code_challenge required for mobile flow (PKCE)")
 		}
 		method := query.Get("code_challenge_method")
 		if method != "" && method != "S256" {
-			writeExpressText(w, http.StatusBadRequest, "Only S256 code_challenge_method method supported")
-			return
+			return writeExpressText(w, http.StatusBadRequest, "Only S256 code_challenge_method method supported")
 		}
 	} else {
 		callback := query.Get("redirect_uri")
@@ -118,12 +110,10 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 			callback = query.Get("callback")
 		}
 		if callback == "" {
-			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"message": "No callback parameter"})
-			return
+			return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"message": "No callback parameter"})
 		}
 		if !h.validWebCallback(callback, r) {
-			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid callback URL - must be same-origin"})
-			return
+			return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"message": "Invalid callback URL - must be same-origin"})
 		}
 		redirectURI = callback
 	}
@@ -131,8 +121,7 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	nonce, err := randomURLToken(32)
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	challenge := query.Get("code_challenge")
 	if isMobile {
@@ -143,35 +132,30 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 		verifier, err = randomURLToken(32)
 		if err != nil {
 			logging.RequestError(r, "Internal Server Error", err)
-			writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-			return
+			return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 		}
 		digest := sha256.Sum256([]byte(verifier))
 		challenge = base64.RawURLEncoding.EncodeToString(digest[:])
 	}
 	callbackURL, err := callbackEndpoint(requestOrigin(r), cfg.subfolder, "/auth/openid/callback")
 	if err != nil {
-		writePlain(w, http.StatusBadRequest, "Invalid callback URL")
-		return
+		return writePlain(w, http.StatusBadRequest, "Invalid callback URL")
 	}
 	if isMobile {
 		callbackURL, err = callbackEndpoint(requestOrigin(r), cfg.subfolder, "/auth/openid/mobile-redirect")
 		if err != nil {
-			writePlain(w, http.StatusBadRequest, "Invalid callback URL")
-			return
+			return writePlain(w, http.StatusBadRequest, "Invalid callback URL")
 		}
 	}
 	if isMobile {
 		if err := callbackURLIsSafeProviderReturn(cfg.mobileRedirectURIs, redirectURI); err != nil {
-			writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
-			return
+			return writeExpressText(w, http.StatusBadRequest, "Invalid redirect_uri")
 		}
 	}
 	sessionCookie, err := h.sessionCookieValue(r)
 	if err != nil {
 		logging.RequestError(r, "Internal Server Error", err)
-		writePlain(w, http.StatusInternalServerError, "Internal Server Error")
-		return
+		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 	if !isMobile {
 		setTemporaryCookie(w, "auth_cb", redirectURI, 600, false)
@@ -193,20 +177,18 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) {
 	providerURL, err := authorizationURL(cfg, callbackURL, state, challenge, nonce)
 	if err != nil {
 		logging.RequestError(r, "internal error", err)
-		writePlain(w, http.StatusInternalServerError, err.Error())
-		return
+		return writePlain(w, http.StatusInternalServerError, err.Error())
 	}
 	setExpressCookieValue(w, "connect.sid", sessionCookie, 0, true, false, "")
-	redirectExpress(w, http.StatusFound, providerURL)
+	return redirectExpress(w, http.StatusFound, providerURL)
 }
 
-func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) error {
 	if !h.authMethodEnabled(r.Context(), "openid") {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -218,29 +200,25 @@ func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 	h.oidcMu.Unlock()
 	if !ok || state == "" {
-		writeExpressText(w, http.StatusBadRequest, "State parameter mismatch")
-		return
+		return writeExpressText(w, http.StatusBadRequest, "State parameter mismatch")
 	}
 	if flow.redirectURI == "" {
-		writeExpressText(w, http.StatusBadRequest, "No redirect URI")
-		return
+		return writeExpressText(w, http.StatusBadRequest, "No redirect URI")
 	}
 	returnURL, err := url.Parse(flow.redirectURI)
 	if err != nil {
-		writeExpressText(w, http.StatusBadRequest, "Invalid redirect URI")
-		return
+		return writeExpressText(w, http.StatusBadRequest, "Invalid redirect URI")
 	}
 	returnURL.RawQuery = "code=" + url.QueryEscape(code) + "&state=" + url.QueryEscape(state)
-	redirectExpress(w, http.StatusFound, returnURL.String())
+	return redirectExpress(w, http.StatusFound, returnURL.String())
 }
 
-func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) error {
 	if !h.authMethodEnabled(r.Context(), "openid") {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	state := r.URL.Query().Get("state")
 	h.oidcMu.Lock()
@@ -254,21 +232,17 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		verifiers := r.URL.Query()["code_verifier"]
 		hasCodeVerifier := len(verifiers) > 1 || len(verifiers) == 1 && verifiers[0] != ""
 		if cookieValue(r, "auth_method") == "openid-mobile" || hasCodeVerifier {
-			writeExpressText(w, http.StatusBadRequest, "No session")
-			return
+			return writeExpressText(w, http.StatusBadRequest, "No session")
 		}
-		h.oidcFailure(w, http.StatusBadRequest, "No sign-in session")
-		return
+		return h.oidcFailure(w, http.StatusBadRequest, "No sign-in session")
 	}
 	if providerError := r.URL.Query().Get("error"); providerError != "" {
 		logging.Errorf("[OidcAuth] openid callback error: provider returned %q (%s)", providerError, r.URL.Query().Get("error_description"))
-		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		h.oidcFailure(w, http.StatusBadRequest, "Invalid authorization code")
-		return
+		return h.oidcFailure(w, http.StatusBadRequest, "Invalid authorization code")
 	}
 	verifier := flow.verifier
 	if supplied := r.URL.Query().Get("code_verifier"); supplied != "" {
@@ -277,14 +251,12 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	cfg, err := h.readOIDCConfig(r.Context())
 	if err != nil {
 		logging.RequestError(r, "Error in callback", err)
-		h.oidcFailure(w, http.StatusInternalServerError, "Error in callback")
-		return
+		return h.oidcFailure(w, http.StatusInternalServerError, "Error in callback")
 	}
 	userinfo, idToken, err := exchangeAndLoadUserInfo(r.Context(), cfg, code, flow.redirectURI, verifier, flow.nonce)
 	if err != nil {
 		logging.Errorf("[OidcAuth] openid callback error: %v", err) // OidcAuthStrategy.js:160
-		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	user, err := h.userFromOIDCInfo(r.Context(), cfg, userinfo)
 	if err != nil {
@@ -293,14 +265,12 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		logging.Warn("[User] openid: User found but is not active") // User.js:292
 	}
 	if err != nil || !user.IsActive {
-		h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return h.oidcFailure(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
 		logging.RequestError(r, "Error during login", err)
-		h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
-		return
+		return h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 	}
 	logging.Infof("[OidcAuth] User %q logged in with OpenID from ip %s", user.Username, clientIP(r))
 	setExpressCookie(w, "openid_id_token", idToken, 10*365*24*60*60, true, true, "Strict")
@@ -308,73 +278,65 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		payload, err := h.loginPayload(r.Context(), user)
 		if err != nil {
 			logging.RequestError(r, "Error during login", err)
-			h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
-			return
+			return h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 		}
 		userDTO := payload["user"].(map[string]any)
 		userDTO["accessToken"] = access
 		userDTO["refreshToken"] = refresh
 		setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
 		httputil.WriteJSON(w, http.StatusOK, payload)
-		return
+		return nil
 	}
 	setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
 	setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
 	callback := cookieValue(r, "auth_cb")
 	if callback == "" {
-		redirectExpress(w, http.StatusFound, "/login?error=No%20callback%20or%20already%20expired&autoLaunch=0")
-		return
+		return redirectExpress(w, http.StatusFound, "/login?error=No%20callback%20or%20already%20expired&autoLaunch=0")
 	}
 	stateQuery := ""
 	if userState := cookieValue(r, "auth_state"); userState != "" {
 		stateQuery = "&state=" + url.QueryEscape(userState)
 	}
 	target := callback + "?setToken=" + url.QueryEscape(user.Token) + "&accessToken=" + url.QueryEscape(access) + stateQuery
-	redirectExpress(w, http.StatusFound, target)
+	return redirectExpress(w, http.StatusFound, target)
 }
 
-func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) error {
 	if !h.allowAuthRequest(w, r) {
-		return
+		return nil
 	}
 	user, err := h.Authenticate(r)
 	if err != nil {
-		writePlain(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if user.Type != "root" && user.Type != "admin" {
 		w.WriteHeader(http.StatusForbidden)
-		return
+		return nil
 	}
 	issuer := r.URL.Query().Get("issuer")
 	if issuer == "" {
-		writePlain(w, http.StatusBadRequest, "Invalid request. Query param 'issuer' is required")
-		return
+		return writePlain(w, http.StatusBadRequest, "Invalid request. Query param 'issuer' is required")
 	}
 	issuer = strings.TrimSuffix(issuer, "/")
 	u, err := url.Parse(issuer + "/.well-known/openid-configuration")
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || !strings.HasSuffix(u.Path, "/.well-known/openid-configuration") {
-		writePlain(w, http.StatusBadRequest, "Invalid request. Query param 'issuer' is invalid")
-		return
+		return writePlain(w, http.StatusBadRequest, "Invalid request. Query param 'issuer' is invalid")
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
-		return
+		return writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
 	}
 	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
 	if err != nil {
 		logging.Errorf("[OidcAuth] Failed to get openid configuration at %q: %v", u.String(), err) // OidcAuthStrategy.js:470
-		writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
-		return
+		return writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
 	}
 	defer resp.Body.Close()
 	var data map[string]any
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 || json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&data) != nil {
-		writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
-		return
+		return writePlain(w, http.StatusBadRequest, "Failed to get openid configuration")
 	}
 	result := map[string]any{}
 	for _, key := range []string{"issuer", "authorization_endpoint", "token_endpoint", "userinfo_endpoint", "end_session_endpoint", "jwks_uri", "id_token_signing_alg_values_supported"} {
@@ -383,6 +345,7 @@ func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, result)
+	return nil
 }
 
 func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) any {
@@ -411,7 +374,7 @@ func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) a
 	return u.String()
 }
 
-func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string) {
+func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string) error {
 	// The pinned Passport callback routes failures based on
 	// `req.session[sessionKey].mobile === true`, but the OIDC strategy stores
 	// the mobile redirect URI string there. A valid mobile flow therefore uses
@@ -425,7 +388,7 @@ func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string)
 		message = "Unauthorized"
 	}
 	redirectError := strings.ReplaceAll(url.QueryEscape(message), "+", "%20")
-	redirectExpress(w, http.StatusFound, "/login?error="+redirectError+"&autoLaunch=0")
+	return redirectExpress(w, http.StatusFound, "/login?error="+redirectError+"&autoLaunch=0")
 }
 
 func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {

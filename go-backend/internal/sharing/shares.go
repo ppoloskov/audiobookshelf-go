@@ -176,7 +176,7 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
-	id := routeID(r.URL.Path, "")
+	id := r.PathValue("id")
 	share, err := shareResult(h.queries().GetMediaItemShare(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		httputil.SendText(w, 404, "Media item share not found", httputil.WithoutETag())

@@ -79,226 +79,147 @@ func (h *Handler) SetQuickMatchHandler(fn func(context.Context, string, bool) (i
 	h.queueMu.Unlock()
 }
 
-// Handle handles feed and OPML routes under /api/podcasts. Unknown paths are
-// left to the runtime's explicit unsupported-route handler.
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	p := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api"), "/")
-	if p == "" {
-		p = "/"
-	}
-	if h.handleLibrary(w, r, user, p) {
-		return true
-	}
-	if p == "/podcasts/feed" && r.Method == http.MethodPost {
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		var body struct {
-			RSSFeed string `json:"rssFeed"`
-		}
-		if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || validFeedURL(body.RSSFeed) == "" {
-			text(w, 400, `Invalid request body. "rssFeed" must be a valid URL`)
-			return true
-		}
-		feed, err := h.getFeed(r.Context(), body.RSSFeed, false)
-		if err != nil {
-			text(w, 404, "Podcast RSS feed request failed or invalid response data")
-			return true
-		}
-		jsonResponse(w, 200, map[string]any{"podcast": feed})
-		return true
-	}
-	if p == "/podcasts" && r.Method == http.MethodPost {
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.createPodcast(w, r)
-		return true
-	}
-	if p == "/podcasts/opml/parse" && r.Method == http.MethodPost {
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		var body struct {
-			OPMLText string `json:"opmlText"`
-		}
-		if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil || body.OPMLText == "" {
-			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		jsonResponse(w, 200, map[string]any{"feeds": parseOPML(body.OPMLText)})
-		return true
-	}
-	if p == "/podcasts/opml/create" && r.Method == http.MethodPost {
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.createFromOPML(w, r)
-		return true
-	}
-	parts := strings.Split(strings.TrimPrefix(p, "/podcasts/"), "/")
-	if !strings.HasPrefix(p, "/podcasts/") || len(parts) < 2 {
-		return false
-	}
-	id, err := url.PathUnescape(parts[0])
-	if err != nil || id == "" {
-		httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	}
-	// PodcastController.middleware (server/controllers/PodcastController.js:
-	// 503-530): unknown item 404, non-podcast item 500, no library access 403,
-	// then the update/delete permission by HTTP method.
-	item, err := h.loadItem(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) {
-		var other string
-		if e := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraryItems WHERE id=?`, id).Scan(&other); e == nil {
-			// PodcastController.middleware answers a bare 500 for a non-podcast
-			// item (PodcastController.js:565); upstream logs nothing.
-			logging.RequestDebug(r, "responding 500: library item "+id+" is a "+other+" item, not a podcast")
-			httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
-		} else {
-			httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
-		}
-		return true
-	}
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return true
-	}
-	if !canAccessPodcast(user, item) {
-		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	}
-	if r.Method == http.MethodDelete && !canDeletePodcast(user) {
-		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	}
-	if (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !canUpdatePodcast(user) {
-		httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	}
-	switch {
-	case len(parts) == 2 && parts[1] == "downloads" && r.Method == http.MethodGet:
-		jsonResponse(w, 200, wire.EpisodeDownloads{Downloads: h.downloadsFor(id)})
-		return true
-	case len(parts) == 2 && parts[1] == "clear-queue" && r.Method == http.MethodGet:
-		h.clearQueue(id)
-		httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	case len(parts) == 2 && parts[1] == "download-episodes" && r.Method == http.MethodPost:
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		var episodes []map[string]any
-		if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&episodes) != nil || len(episodes) == 0 {
-			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		if err := h.enqueue(item, episodes, false); err != nil {
-			text(w, 400, err.Error())
-			return true
-		}
-		httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	case len(parts) == 2 && parts[1] == "search-episode" && r.Method == http.MethodGet:
-		if !item.FeedURL.Valid || item.FeedURL.String == "" {
-			text(w, 400, "Podcast does not have an RSS feed URL")
-			return true
-		}
-		title := r.URL.Query().Get("title")
-		if title == "" {
-			logging.RequestDebug(r, "responding 500: query parameter title is empty")
-			httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		feed, e := h.getFeed(r.Context(), item.FeedURL.String, false)
-		if e != nil {
-			jsonResponse(w, 200, map[string]any{"episodes": nil})
-			return true
-		}
-		jsonResponse(w, 200, map[string]any{"episodes": matchEpisodes(feed, title)})
-		return true
-	case len(parts) == 2 && parts[1] == "match-episodes" && r.Method == http.MethodPost:
-		if !canUpdatePodcast(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.queueMu.Lock()
-		matcher := h.quickMatch
-		h.queueMu.Unlock()
-		if matcher == nil {
-			http.Error(w, "Podcast episode matcher unavailable", http.StatusServiceUnavailable)
-			return true
-		}
-		updated, err := matcher(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
-		if err != nil {
-			logging.RequestError(r, "Podcast episode matching failed", err)
-			http.Error(w, "Podcast episode matching failed", http.StatusInternalServerError)
-			return true
-		}
-		if updated > 0 {
-			if fresh, e := h.loadItem(r.Context(), item.ID); e == nil {
-				h.emit("@admins", "item_updated", fresh.oldJSON())
+// Routes registers the podcast routes under /api/podcasts and the two
+// podcast-only library routes. The server attaches the user to the request
+// context before dispatch (store.ContextWithUser).
+func (h *Handler) Routes(mux *http.ServeMux) {
+	adminOnly := func(fn httputil.Handler) httputil.Handler {
+		return func(w http.ResponseWriter, r *http.Request) error {
+			if !admin(requestUser(r)) {
+				return bare(w, 403)
 			}
+			return fn(w, r)
 		}
-		jsonResponse(w, 200, map[string]any{"numEpisodesUpdated": updated})
-		return true
-	case len(parts) == 2 && parts[1] == "checknew" && r.Method == http.MethodGet:
-		if !admin(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		if !item.FeedURL.Valid || item.FeedURL.String == "" {
-			text(w, 400, "Podcast has no rss feed url")
-			return true
-		}
-		h.checkNew(w, r, item)
-		return true
-	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodGet:
-		episodeID, decodeErr := url.PathUnescape(parts[2])
-		if decodeErr != nil {
-			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		ep, ok := item.episode(episodeID)
-		if !ok {
-			httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		jsonResponse(w, 200, ep.oldJSON(item.ID))
-		return true
-	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodPatch:
-		if !canUpdatePodcast(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		episodeID, decodeErr := url.PathUnescape(parts[2])
-		if decodeErr != nil {
-			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.updateEpisode(w, r, item, episodeID)
-		return true
-	case len(parts) == 3 && parts[1] == "episode" && r.Method == http.MethodDelete:
-		if !canDeletePodcast(user) {
-			httputil.SendStatus(w, 403, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		episodeID, decodeErr := url.PathUnescape(parts[2])
-		if decodeErr != nil {
-			httputil.SendStatus(w, 400, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
-		}
-		h.removeEpisode(w, r, item, episodeID)
-		return true
 	}
-	return false
+	mux.Handle("GET /api/libraries/{id}/recent-episodes", h.libraryRoute(true))
+	mux.Handle("GET /api/libraries/{id}/episode-downloads", h.libraryRoute(false))
+	mux.Handle("POST /api/podcasts/feed", adminOnly(h.feed))
+	mux.Handle("POST /api/podcasts", adminOnly(h.createPodcast))
+	mux.Handle("POST /api/podcasts/opml/parse", adminOnly(h.parseOPML))
+	mux.Handle("POST /api/podcasts/opml/create", adminOnly(h.createFromOPML))
+	mux.Handle("GET /api/podcasts/{id}/downloads", h.onItem(func(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+		return httputil.JSON(w, r, wire.EpisodeDownloads{Downloads: h.downloadsFor(item.ID)})
+	}))
+	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, _ *http.Request, item podcastItem) error {
+		h.clearQueue(item.ID)
+		return bare(w, 200)
+	}))
+	mux.Handle("POST /api/podcasts/{id}/download-episodes", h.onItem(h.downloadEpisodes))
+	mux.Handle("GET /api/podcasts/{id}/search-episode", h.onItem(h.searchEpisode))
+	mux.Handle("POST /api/podcasts/{id}/match-episodes", h.onItem(h.matchEpisodes))
+	mux.Handle("GET /api/podcasts/{id}/checknew", h.onItem(h.checkNew))
+	mux.Handle("GET /api/podcasts/{id}/episode/{episodeId}", h.onItem(func(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+		ep, ok := item.episode(r.PathValue("episodeId"))
+		if !ok {
+			return bare(w, 404)
+		}
+		return httputil.JSON(w, r, ep.oldJSON(item.ID))
+	}))
+	mux.Handle("PATCH /api/podcasts/{id}/episode/{episodeId}", h.onItem(h.updateEpisode))
+	mux.Handle("DELETE /api/podcasts/{id}/episode/{episodeId}", h.onItem(h.removeEpisode))
+}
+
+// onItem is PodcastController.middleware (server/controllers/PodcastController.js:
+// 503-530): unknown item 404, non-podcast item 500, no library access 403,
+// then the update/delete permission by HTTP method.
+func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, podcastItem) error) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		user, id := requestUser(r), r.PathValue("id")
+		item, err := h.loadItem(r.Context(), id)
+		if errors.Is(err, sql.ErrNoRows) {
+			var other string
+			if e := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraryItems WHERE id=?`, id).Scan(&other); e == nil {
+				// PodcastController.middleware answers a bare 500 for a non-podcast
+				// item (PodcastController.js:565); upstream logs nothing.
+				logging.RequestDebug(r, "responding 500: library item "+id+" is a "+other+" item, not a podcast")
+				return bare(w, 500)
+			}
+			return bare(w, 404)
+		}
+		if err != nil {
+			return dbError(w, r, "database read failed", err)
+		}
+		if !canAccessPodcast(user, item) ||
+			r.Method == http.MethodDelete && !canDeletePodcast(user) ||
+			(r.Method == http.MethodPatch || r.Method == http.MethodPost) && !canUpdatePodcast(user) {
+			return bare(w, 403)
+		}
+		return fn(w, r, item)
+	}
+}
+
+func (h *Handler) feed(w http.ResponseWriter, r *http.Request) error {
+	var body struct {
+		RSSFeed string `json:"rssFeed"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || validFeedURL(body.RSSFeed) == "" {
+		return text(w, 400, `Invalid request body. "rssFeed" must be a valid URL`)
+	}
+	feed, err := h.getFeed(r.Context(), body.RSSFeed, false)
+	if err != nil {
+		return text(w, 404, "Podcast RSS feed request failed or invalid response data")
+	}
+	return httputil.JSON(w, r, map[string]any{"podcast": feed})
+}
+
+func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
+	var body struct {
+		OPMLText string `json:"opmlText"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil || body.OPMLText == "" {
+		return bare(w, 400)
+	}
+	return httputil.JSON(w, r, map[string]any{"feeds": parseOPML(body.OPMLText)})
+}
+
+func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	if !admin(requestUser(r)) {
+		return bare(w, 403)
+	}
+	var episodes []map[string]any
+	if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&episodes) != nil || len(episodes) == 0 {
+		return bare(w, 400)
+	}
+	if err := h.enqueue(item, episodes, false); err != nil {
+		return text(w, 400, err.Error())
+	}
+	return bare(w, 200)
+}
+
+func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	if !item.FeedURL.Valid || item.FeedURL.String == "" {
+		return text(w, 400, "Podcast does not have an RSS feed URL")
+	}
+	title := r.URL.Query().Get("title")
+	if title == "" {
+		logging.RequestDebug(r, "responding 500: query parameter title is empty")
+		return bare(w, 500)
+	}
+	feed, err := h.getFeed(r.Context(), item.FeedURL.String, false)
+	if err != nil {
+		return httputil.JSON(w, r, map[string]any{"episodes": nil})
+	}
+	return httputil.JSON(w, r, map[string]any{"episodes": matchEpisodes(feed, title)})
+}
+
+func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	h.queueMu.Lock()
+	matcher := h.quickMatch
+	h.queueMu.Unlock()
+	if matcher == nil {
+		http.Error(w, "Podcast episode matcher unavailable", http.StatusServiceUnavailable)
+		return nil
+	}
+	updated, err := matcher(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
+	if err != nil {
+		return dbError(w, r, "Podcast episode matching failed", err)
+	}
+	if updated > 0 {
+		if fresh, e := h.loadItem(r.Context(), item.ID); e == nil {
+			h.emit("@admins", "item_updated", fresh.oldJSON())
+		}
+	}
+	return httputil.JSON(w, r, map[string]any{"numEpisodesUpdated": updated})
 }
 
 func canUpdatePodcast(u store.User) bool {
@@ -318,16 +239,15 @@ func canDeletePodcast(u store.User) bool {
 	return p["delete"] == true
 }
 
-func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item podcastItem, episodeID string) {
+func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	episodeID := r.PathValue("episodeId")
 	ep, ok := item.episode(episodeID)
 	if !ok {
-		text(w, 404, "Episode not found")
-		return
+		return text(w, 404, "Episode not found")
 	}
 	var body map[string]any
 	if json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&body) != nil {
-		text(w, 400, "Invalid request body")
-		return
+		return text(w, 400, "Invalid request body")
 	}
 	fields := map[string]any{}
 	allowed := map[string]string{"title": "title", "subtitle": "subtitle", "description": "description", "pubDate": "pubDate", "episode": "episode", "season": "season", "episodeType": "episodeType"}
@@ -412,9 +332,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 		args = append(args, dbtime.Now(), episodeID)
 		set = append(set, "updatedAt=?")
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE podcastEpisodes SET `+strings.Join(set, ",")+` WHERE id=?`, args...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
+			return dbError(w, r, "database write failed", err)
 		}
 		updated, err := h.loadItem(r.Context(), item.ID)
 		if err == nil {
@@ -422,7 +340,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 			item = updated
 		}
 	}
-	jsonResponse(w, 200, item.oldJSON())
+	return httputil.JSON(w, r, item.oldJSON())
 }
 
 func episodeStringField(e podcastEpisode, key string) sql.NullString {
@@ -444,11 +362,11 @@ func episodeStringField(e podcastEpisode, key string) sql.NullString {
 	}
 }
 
-func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item podcastItem, episodeID string) {
+func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	episodeID := r.PathValue("episodeId")
 	ep, ok := item.episode(episodeID)
 	if !ok {
-		httputil.SendStatus(w, 404, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return bare(w, 404)
 	}
 	if r.URL.Query().Get("hard") == "1" {
 		var audio map[string]any
@@ -473,9 +391,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	fileBytes, _ := json.Marshal(files)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return dbError(w, r, "database write failed", err)
 	}
 	now := dbtime.Now()
 	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(r.Context(), episodeID); err == nil {
@@ -492,30 +408,29 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	}
 	if err != nil {
 		_ = tx.Rollback()
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return dbError(w, r, "database write failed", err)
 	}
 	if err = tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return dbError(w, r, "database write failed", err)
 	}
 	updated, err := h.loadItem(r.Context(), item.ID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return dbError(w, r, "database read failed", err)
 	}
 	h.emit("@admins", "item_updated", updated.oldJSON())
-	jsonResponse(w, 200, updated.legacyJSON())
+	return httputil.JSON(w, r, updated.legacyJSON())
 }
 
-func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastItem) {
+func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastItem) error {
+	if !admin(requestUser(r)) {
+		return bare(w, 403)
+	}
+	if !item.FeedURL.Valid || item.FeedURL.String == "" {
+		return text(w, 400, "Podcast has no rss feed url")
+	}
 	feed, err := h.getFeed(r.Context(), item.FeedURL.String, false)
 	if err != nil {
-		jsonResponse(w, 200, map[string]any{"episodes": []any{}})
-		return
+		return httputil.JSON(w, r, map[string]any{"episodes": []any{}})
 	}
 	after := sqlMillis(item.LastEpisodeCheck)
 	afterMS := int64(0)
@@ -561,16 +476,14 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastI
 	}
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", http.StatusInternalServerError)
-		return
+		return dbError(w, r, "database write failed", err)
 	}
 	if len(found) > 0 {
 		if err := h.enqueue(item, found, false); err != nil {
 			logging.Errorf("[podcasts] manual episode check enqueue failed for %s: %v", item.ID, err)
 		}
 	}
-	jsonResponse(w, 200, map[string]any{"episodes": found})
+	return httputil.JSON(w, r, map[string]any{"episodes": found})
 }
 
 func (x podcastItem) episode(id string) (podcastEpisode, bool) {
@@ -643,26 +556,22 @@ func (h *Handler) Close() {
 	h.queueMu.Unlock()
 }
 
-func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) error {
 	var body map[string]any
 	if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil {
-		text(w, 400, "Invalid request body")
-		return
+		return text(w, 400, "Invalid request body")
 	}
 	item, status, message, err := h.createPodcastFromBody(r.Context(), body)
-	if err != nil {
-		if status == http.StatusInternalServerError {
-			logging.RequestError(r, message, err)
-			http.Error(w, message, status)
-		} else {
-			text(w, status, message)
-		}
-		return
+	if status == http.StatusInternalServerError && err != nil {
+		return dbError(w, r, message, err)
 	}
-	jsonResponse(w, 200, item.oldJSON())
+	if err != nil {
+		return text(w, status, message)
+	}
 	if item.AutoDownload {
 		h.addSchedule(item.ID)
 	}
+	return httputil.JSON(w, r, item.oldJSON())
 }
 
 // createPodcastFromBody performs podcast creation without coupling the operation
@@ -832,7 +741,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	return item, 200, "", nil
 }
 
-func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) error {
 	var body struct {
 		Feeds                []string `json:"feeds"`
 		LibraryID            string   `json:"libraryId"`
@@ -840,43 +749,35 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) {
 		AutoDownloadEpisodes bool     `json:"autoDownloadEpisodes"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&body) != nil || len(body.Feeds) == 0 {
-		text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
-		return
+		return text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
 	}
 	for _, raw := range body.Feeds {
 		if validFeedURL(raw) == "" {
-			text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
-			return
+			return text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
 		}
 	}
 	if body.LibraryID == "" || body.FolderID == "" {
-		text(w, 400, `Invalid request body. "libraryId" and "folderId" are required`)
-		return
+		return text(w, 400, `Invalid request body. "libraryId" and "folderId" are required`)
 	}
 	var folderPath, libraryID string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT path,libraryId FROM libraryFolders WHERE id=?`, body.FolderID).Scan(&folderPath, &libraryID); errors.Is(err, sql.ErrNoRows) {
-		text(w, 404, "Folder not found")
-		return
+		return text(w, 404, "Folder not found")
 	} else if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return dbError(w, r, "database read failed", err)
 	}
 	if libraryID != body.LibraryID {
-		text(w, 404, "Folder not found")
-		return
+		return text(w, 404, "Folder not found")
 	}
 	id, err := ids.New()
 	if err != nil {
 		logging.RequestError(r, "could not create the OPML import task id", err)
-		httputil.SendStatus(w, 500, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return
+		return bare(w, 500)
 	}
 	started := time.Now().UnixMilli()
 	task := map[string]any{"id": id, "action": "opml-import", "data": map[string]any{}, "title": "OPML import", "titleKey": "MessageTaskOpmlImport", "titleSubs": nil, "description": fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "descriptionKey": "MessageTaskOpmlImportDescription", "descriptionSubs": []any{len(body.Feeds)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": started, "finishedAt": nil}
 	h.emit("*", "task_started", task)
-	httputil.SendStatus(w, 200, httputil.WithoutContentLength(), httputil.WithoutETag())
 	go h.runOPMLImport(body.Feeds, body.LibraryID, body.FolderID, folderPath, body.AutoDownloadEpisodes, task)
+	return bare(w, 200)
 }
 
 func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath string, auto bool, task map[string]any) {
@@ -1258,21 +1159,30 @@ func validFeedURL(raw string) string {
 }
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
 
-func text(w http.ResponseWriter, status int, s string) {
+// text is Express res.status(n).send(message) without Content-Length or ETag.
+func text(w http.ResponseWriter, status int, s string) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, s)
+	return nil
 }
-func jsonResponse(w http.ResponseWriter, status int, v any) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		logging.Errorf("[podcasts] jsonResponse: internal server error: %v", err)
-		http.Error(w, "internal server error", 500)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write(b)
+
+// bare is Express res.sendStatus(n) without Content-Length or ETag.
+func bare(w http.ResponseWriter, status int) error {
+	httputil.SendStatus(w, status, httputil.WithoutContentLength(), httputil.WithoutETag())
+	return nil
+}
+
+// dbError logs err and answers a 500 with message, net/http's plain-text framing.
+func dbError(w http.ResponseWriter, r *http.Request, message string, err error) error {
+	logging.RequestError(r, message, err)
+	http.Error(w, message, http.StatusInternalServerError)
+	return nil
+}
+
+func requestUser(r *http.Request) store.User {
+	user, _ := store.UserFromContext(r.Context())
+	return user
 }
 
 // SetHTTPClientForTests allows a local fixture server to exercise feed parsing

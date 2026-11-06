@@ -42,3 +42,30 @@ unused.
 | Step | Commit | Handwritten before → after | Net | Complexity | Notes |
 |------|--------|----------------------------|-----|------------|-------|
 | Baseline | 8e17183 | 44,674 | — | 10,809 | 990 `map[string]any`, 9 Handle routers |
+| M1: handlers return error; Handle chains → mux | (this commit) | 44,674 → 43,348 | −1,326 (prod +2,560 / −4,036) | 10,809 → 10,406 | 8 hand routers and the legacy adapter deleted; JSON 200 GET/HEAD gains ETag/304; unknown routes 404 |
+
+### M1 behaviour changes (all toward TS/Express)
+
+- An unknown `/api` route answers 404 `Not Found` (text/plain) instead of a
+  501 JSON body.
+- One trailing slash routes on every mux route (Express non-strict routing).
+  `//` inside a path no longer matches (it did through `path.Clean`).
+- A method that a route does not declare answers 404 instead of being served
+  (catalog's any-method branches are now GET only) or answering 405 (playback
+  API routes). Public `/hls` and `/public/session` keep 405.
+- GET routes answer HEAD (sharing `/feed` and `/public/share`, playback).
+- A non-admin sending an undeclared method to `/api/notifications*` gets 404,
+  not 403 (TS per-route middleware).
+- Three userapi/lists database-failure 500s (`targetUser`,
+  `requireItemAccess`, `libraryListPagination`) are now Express-framed
+  (text/html) instead of `http.Error` text/plain.
+- playback's `GET /api/items/{id}/file/{ino}` handler was unreachable
+  (catalog matched first) and is deleted.
+
+### Mechanisms removed in M1
+
+Hand-written path routers in catalog, userapi, sharing, playback, scanner,
+podcasts, notifications and emailapi; `Runtime.legacyChain`, `features()`,
+`legacyRouter`, `isPublicPlayback`, the sharing/playback public
+pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
+`PathUnescape` 400 branches that the mux's decoded `PathValue` makes dead.

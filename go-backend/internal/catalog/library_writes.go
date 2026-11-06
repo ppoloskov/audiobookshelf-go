@@ -36,39 +36,35 @@ func defaultLibrarySettings(mediaType string) map[string]any {
 	return map[string]any{"coverAspectRatio": 1, "disableWatcher": false, "autoScanCronExpression": nil, "skipMatchingMediaWithAsin": false, "skipMatchingMediaWithIsbn": false, "audiobooksOnly": false, "epubsAllowScriptedContent": false, "hideSingleBookSeries": false, "onlyShowLaterBooksInContinueSeries": false, "metadataPrecedence": []string{"folderStructure", "audioMetatags", "nfoFile", "txtFiles", "opfFile", "absMetadata"}, "markAsFinishedPercentComplete": nil, "markAsFinishedTimeRemaining": 10}
 }
 
-func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
+	user := requestUser(r)
 	if !adminUser(user) {
 		w.WriteHeader(http.StatusForbidden)
-		return
+		return nil
 	}
 	var body map[string]json.RawMessage
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&body) != nil {
-		httputil.WriteError(w, 400, "Invalid request body")
-		return
+		return httputil.Status(400, "Invalid request body")
 	}
 	name, ok := requestString(body, "name")
 	if !ok || name == nil || name == "" {
-		httputil.WriteError(w, 400, "Invalid request. Name must be a string")
-		return
+		return httputil.Status(400, "Invalid request. Name must be a string")
 	}
 	mediaType := readStringField(body, "mediaType", "book")
 	provider := readStringField(body, "provider", "google")
 	icon := readStringField(body, "icon", "database")
 	if mediaType == "" || provider == "" || icon == "" {
-		httputil.WriteError(w, 400, "Invalid request. mediaType, icon and provider must be strings")
-		return
+		return httputil.Status(400, "Invalid request. mediaType, icon and provider must be strings")
 	}
 	var inputs []folderInput
 	if raw, ok := body["folders"]; !ok || json.Unmarshal(raw, &inputs) != nil {
-		httputil.WriteError(w, 400, "Invalid request. Folders must be an array of objects with path string")
-		return
+		return httputil.Status(400, "Invalid request. Folders must be an array of objects with path string")
 	}
 	settings := defaultLibrarySettings(mediaType)
 	if raw, ok := body["settings"]; ok {
 		var supplied map[string]any
 		if json.Unmarshal(raw, &supplied) != nil || supplied == nil {
-			httputil.WriteError(w, 400, "Invalid request. Settings must be an object")
-			return
+			return httputil.Status(400, "Invalid request. Settings must be an object")
 		}
 		for key, value := range supplied {
 			old, exists := settings[key]
@@ -77,8 +73,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 			}
 			if key == "metadataPrecedence" {
 				if _, ok := value.([]any); !ok {
-					httputil.WriteError(w, 400, `Invalid request. Settings "metadataPrecedence" must be an array`)
-					return
+					return httputil.Status(400, `Invalid request. Settings "metadataPrecedence" must be an array`)
 				}
 				settings[key] = value
 				continue
@@ -90,24 +85,20 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 			switch old.(type) {
 			case bool:
 				if _, ok := value.(bool); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			case float64:
 				if _, ok := value.(float64); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			case string:
 				if _, ok := value.(string); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			case nil:
 				if _, ok := value.(string); !ok {
 					if _, num := value.(float64); !num {
-						httputil.WriteError(w, 400, "Invalid request setting type")
-						return
+						return httputil.Status(400, "Invalid request setting type")
 					}
 				}
 			}
@@ -117,8 +108,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if strings.HasPrefix(provider, "custom-") {
 		var n int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM customMetadataProviders WHERE slug=?`, provider).Scan(&n); err != nil || n == 0 {
-			httputil.WriteError(w, 400, "Invalid request. Custom metadata provider does not exist")
-			return
+			return httputil.Status(400, "Invalid request. Custom metadata provider does not exist")
 		}
 	}
 	paths := make([]string, 0, len(inputs))
@@ -128,70 +118,51 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 			target = folder.Path
 		}
 		if target == "" {
-			httputil.WriteError(w, 400, "Invalid request. Folders must be an array of objects with path string")
-			return
+			return httputil.Status(400, "Invalid request. Folders must be an array of objects with path string")
 		}
 		abs, err := filepath.Abs(target)
 		if err != nil {
-			httputil.WriteError(w, 400, "Invalid folder directory")
-			return
+			return httputil.Status(400, "Invalid folder directory")
 		}
 		abs = filepath.ToSlash(filepath.Clean(abs))
 		if err := os.MkdirAll(abs, 0755); err != nil {
-			httputil.WriteError(w, 400, "Invalid folder directory")
-			return
+			return httputil.Status(400, "Invalid folder directory")
 		}
 		paths = append(paths, abs)
 	}
 	var order int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(displayOrder),0)+1 FROM libraries`).Scan(&order); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	id := makeUUID()
 	if id == "" {
-		logging.RequestError(r, "failed to create library", errors.New("could not generate a library id"))
-		httputil.WriteError(w, 500, "failed to create library")
-		return
+		return httputil.Internal("failed to create library", errors.New("could not generate a library id"))
 	}
 	now := dbNow()
 	settingsJSON, _ := json.Marshal(settings)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,lastScan,lastScanVersion,settings,extraData,createdAt,updatedAt) VALUES(?,?,?,?,?,?,NULL,NULL,?,'{}',?,?)`, id, name, order, icon, mediaType, provider, string(settingsJSON), now, now); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range paths {
 		folderID := makeUUID()
 		if folderID == "" {
-			logging.RequestError(r, "database write failed", errors.New("could not generate a library folder id"))
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", errors.New("could not generate a library folder id"))
 		}
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, folderID, folderPath, id, now, now); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	// Upstream create responds with library.toOldJSON() from a freshly built
 	// Sequelize instance (LibraryController.create): unpersisted attributes
@@ -205,6 +176,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request, user sto
 		h.emit("*", "library_added", result)
 	}
 	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func readStringField(body map[string]json.RawMessage, key, fallback string) string {
@@ -218,28 +190,26 @@ func readStringField(body map[string]json.RawMessage, key, fallback string) stri
 	return fallback
 }
 
-func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
+	defer h.resetIssues(r.Context(), id) // LibraryController.js:513
 	if !adminUser(user) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	var existingName, provider, icon, mediaType string
 	var existingOrder int
 	var settingsRaw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT name,provider,icon,mediaType,displayOrder,settings FROM libraries WHERE id=?`, id).Scan(&existingName, &provider, &icon, &mediaType, &existingOrder, &settingsRaw)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, 404, "Library not found")
-		return
+		return httputil.Status(404, "Library not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var body map[string]json.RawMessage
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&body) != nil {
-		httputil.WriteError(w, 400, "Invalid request body")
-		return
+		return httputil.Status(400, "Invalid request body")
 	}
 	fields := map[string]any{}
 	oldFields := map[string]any{"name": existingName, "provider": provider, "mediaType": mediaType, "icon": icon}
@@ -247,8 +217,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		if _, ok := body[key]; ok {
 			value, valid := requestString(body, key)
 			if !valid || value == nil {
-				httputil.WriteError(w, 400, "Invalid request. "+key+" must be a string")
-				return
+				return httputil.Status(400, "Invalid request. "+key+" must be a string")
 			}
 			if value != "" && value != oldFields[key] {
 				fields[key] = value
@@ -258,13 +227,11 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if raw, ok := body["displayOrder"]; ok {
 		var value json.Number
 		if json.Unmarshal(raw, &value) != nil {
-			httputil.WriteError(w, 400, "Invalid request. displayOrder must be a number")
-			return
+			return httputil.Status(400, "Invalid request. displayOrder must be a number")
 		}
 		n, e := strconv.ParseFloat(value.String(), 64)
 		if e != nil {
-			httputil.WriteError(w, 400, "Invalid request. displayOrder must be a number")
-			return
+			return httputil.Status(400, "Invalid request. displayOrder must be a number")
 		}
 		if n != float64(existingOrder) {
 			fields["displayOrder"] = n
@@ -285,8 +252,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if raw, ok := body["settings"]; ok {
 		var values map[string]any
 		if json.Unmarshal(raw, &values) != nil || values == nil {
-			httputil.WriteError(w, 400, "Invalid request. Settings must be an object")
-			return
+			return httputil.Status(400, "Invalid request. Settings must be an object")
 		}
 		for key, value := range values {
 			old, exists := defaults[key]
@@ -303,8 +269,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 			}
 			if key == "metadataPrecedence" {
 				if _, ok := value.([]any); !ok {
-					httputil.WriteError(w, 400, `Invalid request. Settings "metadataPrecedence" must be an array`)
-					return
+					return httputil.Status(400, `Invalid request. Settings "metadataPrecedence" must be an array`)
 				}
 				settings[key] = value
 				if !reflect.DeepEqual(previous, value) {
@@ -315,18 +280,15 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 			switch old.(type) {
 			case bool:
 				if _, ok := value.(bool); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			case float64:
 				if _, ok := value.(float64); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			case string:
 				if _, ok := value.(string); !ok {
-					httputil.WriteError(w, 400, "Invalid request setting type")
-					return
+					return httputil.Status(400, "Invalid request setting type")
 				}
 			}
 			settings[key] = value
@@ -341,15 +303,12 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if raw, ok := body["folders"]; ok {
 		var requested []folderInput
 		if json.Unmarshal(raw, &requested) != nil {
-			httputil.WriteError(w, 400, "Invalid request folders")
-			return
+			return httputil.Status(400, "Invalid request folders")
 		}
 		current := map[string]bool{}
 		rows, e := h.db.QueryContext(r.Context(), `SELECT id FROM libraryFolders WHERE libraryId=?`, id)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		for rows.Next() {
 			var folderID string
@@ -369,18 +328,15 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 				folderPath = folder.Path
 			}
 			if folderPath == "" {
-				httputil.WriteError(w, 400, "Invalid request folders")
-				return
+				return httputil.Status(400, "Invalid request folders")
 			}
 			abs, e := filepath.Abs(folderPath)
 			if e != nil {
-				httputil.WriteError(w, 400, "Invalid folder directory")
-				return
+				return httputil.Status(400, "Invalid folder directory")
 			}
 			abs = filepath.ToSlash(filepath.Clean(abs))
 			if e = os.MkdirAll(abs, 0755); e != nil {
-				httputil.WriteError(w, 400, "Invalid folder directory")
-				return
+				return httputil.Status(400, "Invalid folder directory")
 			}
 			newFolders = append(newFolders, abs)
 		}
@@ -393,9 +349,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	for _, folderID := range removedFolders {
 		rows, e := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryFolderId=?`, folderID)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		itemIDs := []string{}
 		for rows.Next() {
@@ -406,9 +360,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		if e = rows.Err(); e != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		rows.Close()
 		cleanupUser := user
@@ -416,8 +368,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		for _, itemID := range itemIDs {
 			status, _ := h.deleteLibraryItem(r.Context(), cleanupUser, itemID, false)
 			if status != http.StatusOK {
-				httputil.WriteError(w, status, "library folder item cleanup failed")
-				return
+				return httputil.Status(status, "library folder item cleanup failed")
 			}
 		}
 	}
@@ -425,18 +376,14 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	if !hasUpdates {
 		result, e := h.libraryJSON(r.Context(), id)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
-		return
+		return nil
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
 	sets := make([]string, 0)
@@ -453,34 +400,24 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 	sets = append(sets, `"updatedAt"=?`)
 	args = append(args, dbNow(), id)
 	if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range newFolders {
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, makeUUID(), folderPath, id, dbNow(), dbNow()); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	for _, folderID := range removedFolders {
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE id=? AND libraryId=?`, folderID, id); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if h.libraryChanged != nil && (len(newFolders) > 0 || len(removedFolders) > 0 || disableWatcherChanged) {
 		h.libraryChanged(id)
@@ -489,34 +426,30 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request, user sto
 		h.emit("*", "library_updated", result)
 	}
 	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
-func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
+	defer h.filters.Invalidate(id) // LibraryController.js:591
 	if !adminUser(user) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	var count int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, id).Scan(&count); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if count == 0 {
-		httputil.WriteError(w, 404, "Library not found")
-		return
+		return httputil.Status(404, "Library not found")
 	}
 	result, err := h.libraryJSON(r.Context(), id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaId,mediaType FROM libraryItems WHERE libraryId=?`, id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	type deletedItem struct{ id, mediaID, mediaType string }
 	items := make([]deletedItem, 0)
@@ -527,9 +460,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		var item deletedItem
 		if err := rows.Scan(&item.id, &item.mediaID, &item.mediaType); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		items = append(items, item)
 		itemIDs = append(itemIDs, item.id)
@@ -541,9 +472,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
 	mediaIDs := append([]string{}, bookIDs...)
@@ -551,9 +480,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	for _, podcastID := range podcastIDs {
 		eps, e := h.db.QueryContext(r.Context(), `SELECT id FROM podcastEpisodes WHERE podcastId=?`, podcastID)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		for eps.Next() {
 			var episodeID string
@@ -564,124 +491,84 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 		if e = eps.Err(); e != nil {
 			eps.Close()
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		eps.Close()
 	}
 	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result["name"]) // LibraryController.js:557
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
 	if len(mediaIDs) > 0 {
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId IN (`+sqlMarks(len(mediaIDs))+`)`, stringArgs(mediaIDs)...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		if err := deletePlaylistMedia(ctxTx{tx, r.Context()}, mediaIDs); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if len(itemIDs) > 0 {
 		if err := sqlc.New(tx).DeleteLibraryItemFeedsByItemIDs(r.Context(), store.Texts(itemIDs)); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if len(bookIDs) > 0 {
 		for _, q := range []string{`DELETE FROM bookAuthors WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM bookSeries WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`} {
 			if _, err := tx.ExecContext(r.Context(), q, stringArgs(bookIDs)...); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				httputil.WriteError(w, 500, "database write failed")
-				return
+				return httputil.Internal("database write failed", err)
 			}
 		}
 		if err := sqlc.New(tx).DeleteBookSharesByMediaIDs(r.Context(), store.Texts(bookIDs)); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM books WHERE id IN (`+sqlMarks(len(bookIDs))+`)`, stringArgs(bookIDs)...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if len(podcastIDs) > 0 {
 		if len(podcastEpisodeIDs) > 0 {
 			if err := sqlc.New(tx).DeletePodcastEpisodeSharesByMediaIDs(r.Context(), store.Texts(podcastEpisodeIDs)); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				httputil.WriteError(w, 500, "database write failed")
-				return
+				return httputil.Internal("database write failed", err)
 			}
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE podcastId IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcasts WHERE id IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryItems WHERE libraryId=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM authors WHERE libraryId=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM series WHERE libraryId=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if err := sqlc.New(tx).DeleteCollectionBooksByLibraryID(r.Context(), id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if err := sqlc.New(tx).DeleteCollectionsByLibraryID(r.Context(), id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if res, err := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET libraryId=NULL WHERE libraryId=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
 		logging.Infof("[LibraryController] Updated %d playback sessions to remove library id", n) // LibraryController.js:580
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE libraryId=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraries WHERE id=?`, id); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	orderRows, err := tx.QueryContext(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder,id`)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	remainingLibraries := []string{}
 	for orderRows.Next() {
@@ -692,22 +579,16 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 	}
 	if err := orderRows.Err(); err != nil {
 		orderRows.Close()
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	orderRows.Close()
 	for order, libraryID := range remainingLibraries {
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=? WHERE id=?`, order+1, libraryID); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, 500, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if h.libraryChanged != nil {
 		h.libraryChanged(id)
@@ -724,6 +605,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request, user sto
 		}
 	}
 	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func sqlMarks(n int) string { return strings.TrimRight(strings.Repeat("?,", n), ",") }
@@ -735,58 +617,46 @@ func stringArgs(values []string) []any {
 	return args
 }
 
-func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error {
+	user := requestUser(r)
 	if !adminUser(user) {
 		w.WriteHeader(403)
-		return
+		return nil
 	}
 	var order []struct {
 		ID       string  `json:"id"`
 		NewOrder float64 `json:"newOrder"`
 	}
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&order) != nil {
-		httputil.WriteError(w, 400, "Invalid request. Request body must be an array of objects")
-		return
+		return httputil.Status(400, "Invalid request. Request body must be an array of objects")
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
 	for _, row := range order {
 		if row.ID == "" {
-			httputil.WriteError(w, 400, "Invalid request. Request body must be an array of objects")
-			return
+			return httputil.Status(400, "Invalid request. Request body must be an array of objects")
 		}
 		var old int
 		if err := tx.QueryRowContext(r.Context(), `SELECT displayOrder FROM libraries WHERE id=?`, row.ID).Scan(&old); errors.Is(err, sql.ErrNoRows) {
-			httputil.WriteError(w, 400, "Library not found with id "+row.ID)
-			return
+			return httputil.Status(400, "Library not found with id "+row.ID)
 		} else if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if float64(old) != row.NewOrder {
 			if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=?,updatedAt=? WHERE id=?`, row.NewOrder, dbNow(), row.ID); err != nil {
-				logging.RequestError(r, "database write failed", err)
-				httputil.WriteError(w, 500, "database write failed")
-				return
+				return httputil.Internal("database write failed", err)
 			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		httputil.WriteError(w, 500, "database write failed")
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder`)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, 500, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	ids := make([]string, 0)
 	for rows.Next() {
@@ -800,13 +670,12 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request, user 
 	for _, id := range ids {
 		library, e := h.libraryJSON(r.Context(), id)
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			httputil.WriteError(w, 500, "database read failed")
-			return
+			return httputil.Internal("database read failed", e)
 		}
 		result = append(result, library)
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, error) {

@@ -32,7 +32,7 @@ func TestEmailSettingsUseUpstreamDefaultsAndPersistFirstUpdate(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	admin := store.User{Type: "admin"}
 	get := httptest.NewRecorder()
-	h.Handle(get, httptest.NewRequest(http.MethodGet, "/api/emails/settings", nil), admin)
+	serve(h, get, httptest.NewRequest(http.MethodGet, "/api/emails/settings", nil), admin)
 	if get.Code != http.StatusOK {
 		t.Fatalf("GET status %d: %s", get.Code, get.Body)
 	}
@@ -46,7 +46,7 @@ func TestEmailSettingsUseUpstreamDefaultsAndPersistFirstUpdate(t *testing.T) {
 		t.Fatalf("upstream defaults not returned: %#v", response.Settings)
 	}
 	patch := httptest.NewRecorder()
-	h.Handle(patch, httptest.NewRequest(http.MethodPatch, "/api/emails/settings", strings.NewReader(`{"host":"smtp.example.invalid","port":"587","secure":"false"}`)), admin)
+	serve(h, patch, httptest.NewRequest(http.MethodPatch, "/api/emails/settings", strings.NewReader(`{"host":"smtp.example.invalid","port":"587","secure":"false"}`)), admin)
 	if patch.Code != http.StatusOK {
 		t.Fatalf("PATCH status %d: %s", patch.Code, patch.Body)
 	}
@@ -78,7 +78,7 @@ func TestEmailTestVerificationFailureUsesExpressSendResponse(t *testing.T) {
 	}
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/emails/test", strings.NewReader(`{}`)), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodPost, "/api/emails/test", strings.NewReader(`{}`)), store.User{Type: "admin"})
 	if w.Code != http.StatusBadRequest || w.Body.String() != "Failed to verify SMTP connection configuration" {
 		t.Fatalf("SMTP verification response = %d %q", w.Code, w.Body.String())
 	}
@@ -106,7 +106,7 @@ func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testin
 	body := `{"ereaderDevices":[{"name":"Invalid option","email":"invalid@example.test","availabilityOption":"invalid","users":["other"]},{"name":"Empty specific users","email":"empty@example.test","availabilityOption":"specificUsers","users":[]},{"name":"Guest with empty users","email":"guest@example.test","availabilityOption":"guestOrUp","users":[]},{"name":"Missing users","email":"missing@example.test"},{"name":"Null users","email":"null@example.test","availabilityOption":"guestOrUp","users":null},{"name":"Specific users string","email":"string@example.test","availabilityOption":"specificUsers","users":"user-id"},{"name":"Guest object users","email":"object@example.test","availabilityOption":"guestOrUp","users":{"length":1}}]}`
 	post := func() *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/emails/ereader-devices", strings.NewReader(body)), admin)
+		serve(h, w, httptest.NewRequest(http.MethodPost, "/api/emails/ereader-devices", strings.NewReader(body)), admin)
 		return w
 	}
 	first := post()
@@ -169,7 +169,7 @@ func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testin
 	}
 	changed := strings.Replace(body, "invalid@example.test", "changed@example.test", 1)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/emails/ereader-devices", strings.NewReader(changed)), admin)
+	serve(h, w, httptest.NewRequest(http.MethodPost, "/api/emails/ereader-devices", strings.NewReader(changed)), admin)
 	if w.Code != http.StatusOK {
 		t.Fatalf("changed device update status %d: %s", w.Code, w.Body)
 	}
@@ -311,4 +311,11 @@ func TestSendMailAgainstLocalSMTPServer(t *testing.T) {
 	case err := <-errs:
 		t.Fatal(err)
 	}
+}
+
+// serve dispatches through the route mux as the runtime does, with user in the context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, user store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 }

@@ -16,127 +16,108 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !boolValue(store.DecodeJSONObject(user.Permissions)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		httputil.SendText(w, 400, "Invalid collection data")
-		return
+		return httputil.Status(400, "Invalid collection data")
 	}
 	name, _ := body["name"].(string)
 	name = cleanName(name)
 	libraryID, _ := body["libraryId"].(string)
 	description, descOK := body["description"].(string)
 	if name == "" || libraryID == "" {
-		httputil.SendText(w, 400, "Invalid collection data")
-		return
+		return httputil.Status(400, "Invalid collection data")
 	}
 	if jsonvalue.Truthy(body["description"]) && !descOK {
-		http.Error(w, "Invalid collection description", 400)
-		return
+		return plainError(w, "Invalid collection description", 400)
 	}
 	// Collection.create persists `description || null` upstream; an empty
 	// string therefore round-trips as JSON null, not as an empty string
 	// (store.TextOrNull writes NULL for it).
 	if !h.canAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	bookIDs := jsonvalue.Strings(body["books"])
 	if len(bookIDs) == 0 {
-		http.Error(w, "Invalid collection data. No books", 400)
-		return
+		return plainError(w, "Invalid collection data. No books", 400)
 	}
 	mediaIDs := make([]string, len(bookIDs))
 	for i, itemID := range bookIDs {
 		var mediaID, mediaType, lib string
 		err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType,libraryId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType, &lib)
 		if err != nil || mediaType != "book" || lib != libraryID {
-			http.Error(w, "Invalid collection data. Invalid books", 400)
-			return
+			return plainError(w, "Invalid collection data. Invalid books", 400)
 		}
 		mediaIDs[i] = mediaID
 	}
 	id, err := ids.New()
 	if err != nil {
-		writeInternalError(w, r, "Failed to create collection", err)
-		return
+		return writeInternalError(w, r, "Failed to create collection", err)
 	}
 	now := dbtime.Now()
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		writeInternalError(w, r, "Failed to create collection", err)
-		return
+		return writeInternalError(w, r, "Failed to create collection", err)
 	}
 	defer tx.Rollback()
 	q := sqlc.New(tx)
 	if err = q.InsertCollection(r.Context(), sqlc.InsertCollectionParams{ID: id, Name: name, Description: store.TextOrNull(description), LibraryID: libraryID, Createdat: now, Updatedat: now}); err != nil {
-		writeInternalError(w, r, "Failed to create collection", err)
-		return
+		return writeInternalError(w, r, "Failed to create collection", err)
 	}
 	for i, bookID := range mediaIDs {
 		entryID, genErr := ids.New()
 		if genErr != nil {
-			writeInternalError(w, r, "Failed to create collection", genErr)
-			return
+			return writeInternalError(w, r, "Failed to create collection", genErr)
 		}
 		if err = q.InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: bookID, Position: int64(i + 1), Createdat: now}); err != nil {
-			writeInternalError(w, r, "Failed to create collection", err)
-			return
+			return writeInternalError(w, r, "Failed to create collection", err)
 		}
 	}
 	if err = tx.Commit(); err != nil {
-		writeInternalError(w, r, "Failed to create collection", err)
-		return
+		return writeInternalError(w, r, "Failed to create collection", err)
 	}
 	dto, _, err := h.collection(r.Context(), id, user)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "collection_added", dto)
 	}
-	httputil.WriteJSON(w, 200, dto)
+	return httputil.JSON(w, r, dto)
 }
 
 // collectionLibraryID is the library of a collection; sql.ErrNoRows when the
 // collection does not exist.
-func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user store.User, id string) {
+func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error {
+	user, id := requestUser(r), r.PathValue("id")
 	c, err := h.queries().GetCollection(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	} else if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	libraryID, name, desc := c.Libraryid.String, c.Name.String, c.Description
 	if !h.canAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	if !boolValue(store.DecodeJSONObject(user.Permissions)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	oldName, oldDesc := name, desc
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		http.Error(w, "Invalid request", 400)
-		return
+		return plainError(w, "Invalid request", 400)
 	}
 	if val, ok := body["description"]; ok && val != nil {
 		if s, ok := val.(string); ok {
 			desc = sql.NullString{String: s, Valid: true}
 		} else {
 			logging.RequestDebug(r, "responding 500: description is not a string")
-			http.Error(w, "database write failed", 500)
-			return
+			return plainError(w, "database write failed", 500)
 		}
 	} else if _, ok := body["description"]; ok {
 		desc = sql.NullString{}
@@ -147,16 +128,14 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	changed := name != oldName || desc != oldDesc
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	defer tx.Rollback()
 	books := jsonvalue.Strings(body["books"])
 	if len(books) > 0 {
 		linkRows, err := sqlc.New(tx).ListCollectionBookLinks(r.Context(), id)
 		if err != nil {
-			writeInternalError(w, r, "database write failed", err)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
 		type collectionLink struct {
 			linkID, itemID string
@@ -178,8 +157,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 		for i, link := range links {
 			if link.order != i+1 {
 				if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(i + 1), ID: link.linkID}); err != nil {
-					writeInternalError(w, r, "database write failed", err)
-					return
+					return writeInternalError(w, r, "database write failed", err)
 				}
 				changed = true
 			}
@@ -187,71 +165,51 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request, user 
 	}
 	if changed {
 		if err := sqlc.New(tx).UpdateCollection(r.Context(), sqlc.UpdateCollectionParams{Name: name, Description: desc, Updatedat: dbtime.Now(), ID: id}); err != nil {
-			writeInternalError(w, r, "database write failed", err)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
 	}
 	if err = tx.Commit(); err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	dto, _, err := h.collection(r.Context(), id, user)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if changed && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	httputil.WriteJSON(w, 200, dto)
-	return
+	return httputil.JSON(w, r, dto)
 }
 
 // batchCollectionBooks mirrors the legacy batch endpoints. Invalid identifiers
 // are filtered before the query; adding a batch with no valid books is an
 // error, while removing unknown books is an idempotent no-op.
-func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) error {
 	user, id, action := requestUser(r), r.PathValue("id"), r.PathValue("action")
 	if action != "add" && action != "remove" {
-		notImplemented(w)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	add := action == "add"
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	} else if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if !h.canAccessLibrary(user, libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if !boolValue(store.DecodeJSONObject(user.Permissions)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
-	body, err := httputil.DecodeObjectRequest(r)
-	if err != nil {
-		if add {
-			httputil.SendText(w, 400, "Invalid request body")
-		} else {
-			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
-			http.Error(w, "Invalid request body", 500)
-		}
-		return
-	}
+	body, _ := httputil.DecodeObjectRequest(r)
 	itemIDs := validCollectionBookIDs(body["books"])
 	if len(itemIDs) == 0 {
 		if add {
-			httputil.SendText(w, 400, "Invalid request body")
-		} else {
-			logging.RequestDebug(r, "responding 500: the request body has no valid books array")
-			http.Error(w, "Invalid request body", 500)
+			return httputil.Status(http.StatusBadRequest, "Invalid request body")
 		}
-		return
+		logging.RequestDebug(r, "responding 500: the request body has no valid books array")
+		return plainError(w, "Invalid request body", http.StatusInternalServerError)
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(itemIDs)), ",")
 	args := make([]any, 0, len(itemIDs)+2)
@@ -265,8 +223,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	mediaByItem := make(map[string]string)
 	mediaSet := make(map[string]bool)
@@ -274,33 +231,28 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
 		var itemID, mediaID string
 		if err := rows.Scan(&itemID, &mediaID); err != nil {
 			rows.Close()
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		mediaByItem[itemID] = mediaID
 		mediaSet[mediaID] = true
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	rows.Close()
 	if add && len(mediaByItem) == 0 {
-		httputil.SendText(w, 400, "Invalid request body. No valid books")
-		return
+		return httputil.Status(400, "Invalid request body. No valid books")
 	}
 	if add {
 		count, err := h.queries().CountCollectionBooks(r.Context(), id)
 		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		order := int(count)
 		members, err := h.queries().ListCollectionBookMediaIDs(r.Context(), id)
 		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		existing := map[string]bool{}
 		for _, m := range members {
@@ -308,8 +260,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
 		}
 		tx, err := h.db.BeginTx(r.Context(), nil)
 		if err != nil {
-			writeInternalError(w, r, "database write failed", err)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
 		defer tx.Rollback()
 		changed := false
@@ -323,26 +274,21 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
 			existing[mediaID] = true
 			entryID, err := ids.New()
 			if err != nil {
-				writeInternalError(w, r, "database write failed", err)
-				return
+				return writeInternalError(w, r, "database write failed", err)
 			}
 			if err := sqlc.New(tx).InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: int64(order), Createdat: dbtime.Now()}); err != nil {
-				writeInternalError(w, r, "database write failed", err)
-				return
+				return writeInternalError(w, r, "database write failed", err)
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "database write failed", err)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
-		h.writeCollectionAfterBatch(w, r, user, id, changed)
-		return
+		return h.writeCollectionAfterBatch(w, r, user, id, changed)
 	}
 
 	entries, err := h.queries().ListCollectionBooks(r.Context(), id)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	type link struct {
 		id, mediaID string
@@ -354,34 +300,30 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	defer tx.Rollback()
 	changed, order := false, 1
 	for _, entry := range links {
 		if mediaSet[entry.mediaID] {
 			if err := sqlc.New(tx).DeleteCollectionBook(r.Context(), entry.id); err != nil {
-				writeInternalError(w, r, "database write failed", err)
-				return
+				return writeInternalError(w, r, "database write failed", err)
 			}
 			changed = true
 			continue
 		}
 		if entry.order != order {
 			if err := sqlc.New(tx).UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(order), ID: entry.id}); err != nil {
-				writeInternalError(w, r, "database write failed", err)
-				return
+				return writeInternalError(w, r, "database write failed", err)
 			}
 			changed = true
 		}
 		order++
 	}
 	if err := tx.Commit(); err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
-	h.writeCollectionAfterBatch(w, r, user, id, changed)
+	return h.writeCollectionAfterBatch(w, r, user, id, changed)
 }
 
 // validCollectionBookIDs matches CollectionController.addBatch: accept only
@@ -397,150 +339,123 @@ func validCollectionBookIDs(raw any) []string {
 	return ids
 }
 
-func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Request, user store.User, id string, changed bool) {
+func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Request, user store.User, id string, changed bool) error {
 	dto, _, err := h.collection(r.Context(), id, user)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if changed && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	httputil.WriteJSON(w, 200, dto)
-	return
+	return httputil.JSON(w, r, dto)
 }
 
-func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if !h.canAccessLibrary(user, libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if !boolValue(store.DecodeJSONObject(user.Permissions)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		httputil.SendStatus(w, 400)
-		return
+		return httputil.Status(400, "")
 	}
 	itemID, _ := body["id"].(string)
 	var mediaID, mediaType, lib string
 	err = h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType,libraryId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType, &lib)
 	if err != nil {
-		http.Error(w, "Book not found", 404)
-		return
+		return plainError(w, "Book not found", 404)
 	}
 	if lib != libraryID {
-		http.Error(w, "Book in different library", 400)
-		return
+		return plainError(w, "Book in different library", 400)
 	}
 	if mediaType != "book" {
-		http.Error(w, "Book not found", 404)
-		return
+		return plainError(w, "Book not found", 404)
 	}
 	count, _ := h.queries().CountCollectionBooks(r.Context(), id)
 	exists, _ := h.queries().CountCollectionBook(r.Context(), sqlc.CountCollectionBookParams{CollectionID: id, BookID: mediaID})
 	if exists > 0 {
-		http.Error(w, "Book already in collection", 400)
-		return
+		return plainError(w, "Book already in collection", 400)
 	}
 	now := dbtime.Now()
 	entryID, err := ids.New()
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	if err = h.queries().InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: count + 1, Createdat: now}); err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	dto, _, err := h.collection(r.Context(), id, user)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	httputil.WriteJSON(w, 200, dto)
-	return
+	return httputil.JSON(w, r, dto)
 }
 
-func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) error {
 	user, id, itemID := requestUser(r), r.PathValue("id"), r.PathValue("itemID")
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if !h.canAccessLibrary(user, libraryID) {
-		sendEntityNotFound(w, "Collection not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if !boolValue(store.DecodeJSONObject(user.Permissions)["update"]) {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	var mediaID string
 	err = h.db.QueryRowContext(r.Context(), `SELECT mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	defer tx.Rollback()
 	q := sqlc.New(tx)
 	res, err := q.DeleteCollectionBookByMediaID(r.Context(), sqlc.DeleteCollectionBookByMediaIDParams{CollectionID: id, BookID: mediaID})
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	removed, _ := res.RowsAffected()
 	entries, err := q.ListCollectionBooks(r.Context(), id)
 	if err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	for seq, e := range entries {
 		_ = q.UpdateCollectionBookOrder(r.Context(), sqlc.UpdateCollectionBookOrderParams{Position: int64(seq + 1), ID: e.ID})
 	}
 	if err = tx.Commit(); err != nil {
-		writeInternalError(w, r, "database write failed", err)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	dto, _, err := h.collection(r.Context(), id, user)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if removed > 0 && h.emit != nil {
 		h.emit("*", "collection_updated", dto)
 	}
-	httputil.WriteJSON(w, 200, dto)
-	return
+	return httputil.JSON(w, r, dto)
 }
 
 func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[string]any, error) {

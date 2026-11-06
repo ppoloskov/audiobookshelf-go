@@ -41,7 +41,7 @@ func TestSettingsDefaultsAndPartialPatchMatchUpstream(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	admin := store.User{Type: "admin"}
 	get := httptest.NewRecorder()
-	h.Handle(get, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), admin)
+	serve(h, get, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), admin)
 	if get.Code != http.StatusOK {
 		t.Fatalf("GET status %d: %s", get.Code, get.Body)
 	}
@@ -55,12 +55,12 @@ func TestSettingsDefaultsAndPartialPatchMatchUpstream(t *testing.T) {
 		t.Fatalf("upstream defaults not returned: %#v", response.Settings)
 	}
 	patch := httptest.NewRecorder()
-	h.Handle(patch, httptest.NewRequest(http.MethodPatch, "/api/notifications", strings.NewReader(`{"appriseApiUrl":"http://apprise.example.invalid","maxFailedAttempts":3,"maxNotificationQueue":8}`)), admin)
+	serve(h, patch, httptest.NewRequest(http.MethodPatch, "/api/notifications", strings.NewReader(`{"appriseApiUrl":"http://apprise.example.invalid","maxFailedAttempts":3,"maxNotificationQueue":8}`)), admin)
 	if patch.Code != http.StatusOK || patch.Body.String() != "OK" || patch.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("PATCH response: status=%d content-type=%q body=%q", patch.Code, patch.Header().Get("Content-Type"), patch.Body.String())
 	}
 	defaults := httptest.NewRecorder()
-	h.Handle(defaults, httptest.NewRequest(http.MethodPatch, "/api/notifications", strings.NewReader(`{}`)), admin)
+	serve(h, defaults, httptest.NewRequest(http.MethodPatch, "/api/notifications", strings.NewReader(`{}`)), admin)
 	if defaults.Code != http.StatusOK || defaults.Body.String() != "OK" {
 		t.Fatalf("default PATCH response: status=%d body=%q", defaults.Code, defaults.Body.String())
 	}
@@ -82,7 +82,7 @@ func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRecorder()
-	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Original"}`)), admin)
+	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Original"}`)), admin)
 	if create.Code != http.StatusOK {
 		t.Fatalf("create status %d: %s", create.Code, create.Body)
 	}
@@ -94,7 +94,7 @@ func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
 	created := items[0].(map[string]any)
 	id := created["id"].(string)
 	patch := httptest.NewRecorder()
-	h.Handle(patch, httptest.NewRequest(http.MethodPatch, "/api/notifications/"+id, strings.NewReader(`{"titleTemplate":"Ignored without body ID"}`)), admin)
+	serve(h, patch, httptest.NewRequest(http.MethodPatch, "/api/notifications/"+id, strings.NewReader(`{"titleTemplate":"Ignored without body ID"}`)), admin)
 	if patch.Code != http.StatusOK {
 		t.Fatalf("PATCH status %d: %s", patch.Code, patch.Body)
 	}
@@ -107,7 +107,7 @@ func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
 		t.Fatalf("route ID must not substitute for missing PATCH body ID: %#v", created)
 	}
 	minimal := httptest.NewRecorder()
-	h.Handle(minimal, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://minimal"],"enabled":"false","libraryId":"","type":""}`)), admin)
+	serve(h, minimal, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://minimal"],"enabled":"false","libraryId":"","type":""}`)), admin)
 	if minimal.Code != http.StatusOK {
 		t.Fatalf("minimal create status %d: %s", minimal.Code, minimal.Body)
 	}
@@ -126,7 +126,7 @@ func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
 		t.Fatalf("omitted bodyTemplate must not serialize as null: %#v", created)
 	}
 	missing := httptest.NewRecorder()
-	h.Handle(missing, httptest.NewRequest(http.MethodDelete, "/api/notifications/00000000-0000-4000-8000-000000000000", nil), admin)
+	serve(h, missing, httptest.NewRequest(http.MethodDelete, "/api/notifications/00000000-0000-4000-8000-000000000000", nil), admin)
 	if missing.Code != http.StatusNotFound || missing.Body.String() != "Not Found" || missing.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("missing DELETE response status=%d content-type=%q body=%q", missing.Code, missing.Header().Get("Content-Type"), missing.Body.String())
 	}
@@ -145,7 +145,7 @@ func TestTriggerEventDeliversRuntimeLifecyclePayload(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRecorder()
-	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onBackupFailed","urls":["discord://test"],"titleTemplate":"Backup failed","bodyTemplate":"{{errorMsg}}","enabled":true}`)), admin)
+	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onBackupFailed","urls":["discord://test"],"titleTemplate":"Backup failed","bodyTemplate":"{{errorMsg}}","enabled":true}`)), admin)
 	if create.Code != 200 {
 		t.Fatalf("create notification status %d", create.Code)
 	}
@@ -170,7 +170,7 @@ func TestNotificationTestPostsRenderedPayloadToLocalApprise(t *testing.T) {
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Version {{version}}","bodyTemplate":"Hi {{version}}","enabled":true}`))
 	cw := httptest.NewRecorder()
-	h.Handle(cw, create, admin)
+	serve(h, cw, create, admin)
 	if cw.Code != 200 {
 		t.Fatalf("create status %d", cw.Code)
 	}
@@ -182,7 +182,7 @@ func TestNotificationTestPostsRenderedPayloadToLocalApprise(t *testing.T) {
 	id := list[0].(map[string]any)["id"].(string)
 	testReq := httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil)
 	tw := httptest.NewRecorder()
-	h.Handle(tw, testReq, admin)
+	serve(h, tw, testReq, admin)
 	if tw.Code != 200 || tw.Body.String() != "OK" || tw.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("test status %d: %s", tw.Code, tw.Body.String())
 	}
@@ -198,14 +198,14 @@ func TestNotificationTestAppriseFailureUsesSendStatus(t *testing.T) {
 	db := notificationDB(t, mock.URL)
 	h := New(db, config.Config{}, nil)
 	create := httptest.NewRecorder()
-	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
+	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
 	var settings map[string]any
 	if err := json.Unmarshal(create.Body.Bytes(), &settings); err != nil {
 		t.Fatal(err)
 	}
 	id := settings["notifications"].([]any)[0].(map[string]any)["id"].(string)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusInternalServerError || w.Body.String() != "Internal Server Error" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
@@ -215,7 +215,7 @@ func TestNotificationTestEventUsesSendStatusWhenUnconfigured(t *testing.T) {
 	db := notificationDB(t, "")
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/test?fail=1", nil), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/test?fail=1", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusOK || w.Body.String() != "OK" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
 		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
@@ -241,7 +241,7 @@ func TestNotificationRejectsNonAdmin(t *testing.T) {
 	db := notificationDB(t, "")
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), store.User{Type: "user"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), store.User{Type: "user"})
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status %d", w.Code)
 	}
@@ -251,7 +251,7 @@ func TestNotificationTestMissingIDPrecedesAppriseConfiguration(t *testing.T) {
 	db := notificationDB(t, "")
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/missing/test", nil), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/missing/test", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusNotFound || strings.TrimSpace(w.Body.String()) != http.StatusText(http.StatusNotFound) {
 		t.Fatalf("status/body = %d/%q, want 404 %q", w.Code, w.Body.String(), http.StatusText(http.StatusNotFound))
 	}
@@ -261,18 +261,25 @@ func TestNotificationTestUnavailableUsesExpressSendResponse(t *testing.T) {
 	db := notificationDB(t, "")
 	h := New(db, config.Config{}, nil)
 	create := httptest.NewRecorder()
-	h.Handle(create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
+	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
 	var settings map[string]any
 	if err := json.Unmarshal(create.Body.Bytes(), &settings); err != nil {
 		t.Fatal(err)
 	}
 	id := settings["notifications"].([]any)[0].(map[string]any)["id"].(string)
 	w := httptest.NewRecorder()
-	h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/"+id+"/test", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusBadRequest || w.Body.String() != "Apprise is not configured" || w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
 		t.Fatalf("status/header/body = %d/%q/%q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 	if w.Header().Get("Content-Length") != "25" || w.Header().Get("ETag") == "" {
 		t.Fatalf("missing Express response headers: %#v", w.Header())
 	}
+}
+
+// serve dispatches through the route mux as the runtime does, with user in the context.
+func serve(h *Handler, w http.ResponseWriter, r *http.Request, user store.User) {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 }

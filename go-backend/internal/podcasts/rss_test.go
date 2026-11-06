@@ -86,7 +86,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	r := httptest.NewRequest("POST", "/api/podcasts", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	if !h.Handle(w, r, store.User{Type: "admin"}) {
+	if !serveAdmin(h, w, r) {
 		t.Fatal("create route not handled")
 	}
 	if w.Code != 200 {
@@ -117,20 +117,20 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	}
 	r = httptest.NewRequest("GET", "/api/podcasts/"+itemID+"/episode/ep1", nil)
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 || strings.Contains(w.Body.String(), "audioTrack") {
 		t.Fatalf("legacy episode response mismatch: %d %s", w.Code, w.Body.String())
 	}
 	r = httptest.NewRequest("PATCH", "/api/podcasts/"+itemID+"/episode/ep1", strings.NewReader(`{"title":"Updated Episode","description":"<p>okay</p><script>bad</script>","enclosure":null}`))
 	r.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "Updated Episode") || strings.Contains(w.Body.String(), "<script>") {
 		t.Fatalf("episode patch mismatch: %d %s", w.Code, w.Body.String())
 	}
 	r = httptest.NewRequest("DELETE", "/api/podcasts/"+itemID+"/episode/ep1", nil)
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 {
 		t.Fatalf("episode delete status %d: %s", w.Code, w.Body.String())
 	}
@@ -170,7 +170,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	r = httptest.NewRequest("POST", "/api/podcasts/"+itemID+"/download-episodes", bytes.NewReader(episodesJSON))
 	r.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 {
 		t.Fatalf("download route returned %d: %s", w.Code, w.Body.String())
 	}
@@ -222,7 +222,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	r = httptest.NewRequest("POST", "/api/podcasts/opml/create", strings.NewReader(opmlBody))
 	r.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
-	if !h.Handle(w, r, store.User{Type: "admin"}) || w.Code != 200 {
+	if !serveAdmin(h, w, r) || w.Code != 200 {
 		t.Fatalf("OPML create route: %d %s", w.Code, w.Body.String())
 	}
 	deadline := time.Now().Add(3 * time.Second)
@@ -244,7 +244,7 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	})
 	r = httptest.NewRequest("POST", "/api/podcasts/"+itemID+"/match-episodes?override=1", nil)
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"numEpisodesUpdated":2`) {
 		t.Fatalf("quick-match route: %d %s", w.Code, w.Body.String())
 	}
@@ -296,7 +296,7 @@ func TestFeedAndOPMLRoutesAgainstControlledHTTPFixture(t *testing.T) {
 	r := httptest.NewRequest("POST", "/api/podcasts/feed", strings.NewReader(`{"rssFeed":"`+server.URL+`"}`))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	if !h.Handle(w, r, store.User{Type: "admin"}) {
+	if !serveAdmin(h, w, r) {
 		t.Fatal("feed route not handled")
 	}
 	if w.Code != 200 {
@@ -308,7 +308,7 @@ func TestFeedAndOPMLRoutesAgainstControlledHTTPFixture(t *testing.T) {
 	r = httptest.NewRequest("POST", "/api/podcasts/opml/parse", strings.NewReader(`{"opmlText":"<opml><body><outline text=\"Show\" type=\"rss\" xmlUrl=\"https://example.test/feed\"/></body></opml>"}`))
 	r.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
-	h.Handle(w, r, store.User{Type: "admin"})
+	serveAdmin(h, w, r)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "example.test/feed") {
 		t.Fatalf("OPML parse failed: %d %s", w.Code, w.Body.String())
 	}
@@ -395,4 +395,16 @@ func TestOPMLImportCreationOutcomesAndEventPayloads(t *testing.T) {
 		failures[1]["error"] != "Failed to create podcast library item" || failures[1]["errorKey"] != "MessageTaskOpmlImportFeedPodcastFailed" {
 		t.Fatalf("other failure payload mismatch: %#v", failures[1])
 	}
+}
+
+// serveAdmin dispatches r through the handler's mux as an admin and reports
+// whether a route matched.
+func serveAdmin(h *Handler, w http.ResponseWriter, r *http.Request) bool {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	if _, pattern := mux.Handler(r); pattern == "" {
+		return false
+	}
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"})))
+	return true
 }

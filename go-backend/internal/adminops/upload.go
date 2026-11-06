@@ -15,14 +15,12 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !canUpload(u) {
-		w.WriteHeader(http.StatusForbidden)
-		return
+		return reply(w, http.StatusForbidden, "")
 	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil || r.MultipartForm == nil || len(r.MultipartForm.File) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return reply(w, http.StatusBadRequest, "")
 	}
 	defer r.MultipartForm.RemoveAll()
 	files := make([]*multipart.FileHeader, 0)
@@ -31,8 +29,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 	}
 	title, libraryID, folderID := r.FormValue("title"), r.FormValue("library"), r.FormValue("folder")
 	if title == "" || libraryID == "" || folderID == "" {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+		return reply(w, http.StatusBadRequest, "Invalid request body")
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType); err != nil {
@@ -42,11 +39,10 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 			logging.RequestError(r, "Internal server error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
-		return
+		return nil
 	}
 	if !canAccessLibrary(u, libraryID) {
-		w.WriteHeader(http.StatusForbidden)
-		return
+		return reply(w, http.StatusForbidden, "")
 	}
 	var folderPath string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT path FROM libraryFolders WHERE id=? AND libraryId=?`, folderID, libraryID).Scan(&folderPath); err != nil {
@@ -56,7 +52,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 			logging.RequestError(r, "Internal server error", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
-		return
+		return nil
 	}
 	parts := []string{}
 	if mediaType == "podcast" {
@@ -74,8 +70,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 	dir := filepath.Join(append([]string{folderPath}, parts...)...)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		logging.RequestError(r, "internal error", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return reply(w, http.StatusInternalServerError, "")
 	}
 	for _, fh := range files {
 		file, err := fh.Open()
@@ -94,7 +89,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) {
 		}
 		_ = file.Close()
 	}
-	w.WriteHeader(http.StatusOK)
+	return reply(w, http.StatusOK, "")
 }
 
 var (

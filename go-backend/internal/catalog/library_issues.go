@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -8,45 +9,35 @@ import (
 	"net/http"
 
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
 
 // removeLibraryItemsWithIssues is DELETE /api/libraries/:id/issues: it removes
 // every item flagged missing or invalid, then the authors and series those
 // items leave empty (LibraryController.js:650-722).
-func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
+func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	var found string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT id FROM libraries WHERE id=?`, libraryID).Scan(&found); errors.Is(err, sql.ErrNoRows) {
-		httputil.WriteError(w, http.StatusNotFound, "Library not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Library not found")
 	} else if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !adminUser(user) {
-		httputil.WriteError(w, http.StatusForbidden, "")
-		return
+		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var itemIDs []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		itemIDs = append(itemIDs, id)
 	}
@@ -54,15 +45,12 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		if err == nil {
 			err = rows.Err()
 		}
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	var linked itemLinks
 	for _, id := range itemIDs {
 		if status, message := h.removeLibraryItem(r.Context(), nil, id, false, &linked); status != http.StatusOK {
-			httputil.WriteError(w, status, message)
-			return
+			return httputil.Status(status, cmp.Or(message, http.StatusText(status)))
 		}
 	}
 	// The cleanup is racy upstream: the author of a removed book is sometimes
@@ -72,7 +60,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 	h.checkRemoveAuthorsWithNoBooks(r.Context(), linked.authors)
 	h.checkRemoveEmptySeries(r.Context(), linked.series)
 	h.filters.StoreNumIssues(libraryID, 0) // LibraryController.js:727-730
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 // checkRemoveAuthorsWithNoBooks removes the given authors that have no books

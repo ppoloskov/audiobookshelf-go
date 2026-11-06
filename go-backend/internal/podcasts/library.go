@@ -7,72 +7,49 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
-// handleLibrary serves the two podcast-only library routes
-// GET /api/libraries/:id/recent-episodes and
-// GET /api/libraries/:id/episode-downloads. It reports false for any other
-// path so the runtime keeps looking.
-func (h *Handler) handleLibrary(w http.ResponseWriter, r *http.Request, user store.User, p string) bool {
-	rest := strings.TrimPrefix(p, "/libraries/")
-	if rest == p || r.Method != http.MethodGet {
-		return false
-	}
-	parts := strings.Split(rest, "/")
-	if len(parts) != 2 || (parts[1] != "recent-episodes" && parts[1] != "episode-downloads") {
-		return false
-	}
-	libraryID, err := url.PathUnescape(parts[0])
-	if err != nil || libraryID == "" {
-		return false
-	}
-	// LibraryController.middleware (server/controllers/LibraryController.js:1475).
-	if !canAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutContentLength(), httputil.WithoutETag())
-		return true
-	}
-	var mediaType string
-	err = h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType)
-	if err == sql.ErrNoRows {
-		text(w, http.StatusNotFound, "Library not found")
-		return true
-	}
-	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", http.StatusInternalServerError)
-		return true
-	}
-	limit, page, bad := libraryPaging(r)
-	if bad != "" {
-		text(w, http.StatusBadRequest, "Invalid request. "+bad+" must be a positive integer")
-		return true
-	}
-	switch parts[1] {
-	case "episode-downloads":
-		jsonResponse(w, http.StatusOK, h.libraryDownloadQueue(libraryID))
-	case "recent-episodes":
+// libraryRoute serves the two podcast-only library routes
+// GET /api/libraries/:id/recent-episodes (recent true) and
+// GET /api/libraries/:id/episode-downloads.
+func (h *Handler) libraryRoute(recent bool) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		user, libraryID := requestUser(r), r.PathValue("id")
+		// LibraryController.middleware (server/controllers/LibraryController.js:1475).
+		if !canAccessLibrary(user, libraryID) {
+			return bare(w, http.StatusForbidden)
+		}
+		var mediaType string
+		err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType)
+		if err == sql.ErrNoRows {
+			return text(w, http.StatusNotFound, "Library not found")
+		}
+		if err != nil {
+			return dbError(w, r, "database read failed", err)
+		}
+		limit, page, bad := libraryPaging(r)
+		if bad != "" {
+			return text(w, http.StatusBadRequest, "Invalid request. "+bad+" must be a positive integer")
+		}
+		if !recent {
+			return httputil.JSON(w, r, h.libraryDownloadQueue(libraryID))
+		}
 		// LibraryController.getRecentEpisodes (LibraryController.js:1280).
 		if mediaType != "podcast" {
-			httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutContentLength(), httputil.WithoutETag())
-			return true
+			return bare(w, http.StatusNotFound)
 		}
 		episodes, err := h.recentEpisodes(r.Context(), user, libraryID, limit, limit*page)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", http.StatusInternalServerError)
-			return true
+			return dbError(w, r, "database read failed", err)
 		}
-		jsonResponse(w, http.StatusOK, map[string]any{"episodes": episodes, "limit": limit, "page": page})
+		return httputil.JSON(w, r, map[string]any{"episodes": episodes, "limit": limit, "page": page})
 	}
-	return true
 }
 
 // libraryPaging applies LibraryController.middleware's rule: a present limit

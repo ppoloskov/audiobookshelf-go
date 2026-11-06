@@ -253,7 +253,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 		return
 	}
 	ctx := r.Context()
-	id := routeID(r.URL.Path, "open")
+	id := r.PathValue("id")
 	var req openFeedRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	var src *feedSource
@@ -451,7 +451,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		httputil.SendStatus(w, 403, httputil.WithoutETag())
 		return
 	}
-	id := routeID(r.URL.Path, "close")
+	id := r.PathValue("id")
 	feed, err := feedResult(h.queries().GetFeed(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		httputil.SendStatus(w, 404, httputil.WithoutETag())
@@ -478,11 +478,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 // /feed/:slug/cover* (RssFeedManager.getFeed, getFeedItem, getFeedCover).
 func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) < 2 {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
-	}
-	slug := parts[1]
+	slug := r.PathValue("slug")
 	if len(parts) >= 4 && parts[2] == "item" {
 		h.feedItem(w, r, slug, parts[3])
 		return

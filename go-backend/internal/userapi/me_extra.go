@@ -17,73 +17,56 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
-func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
-	parts := strings.Split(tail, "/")
-	if len(parts) == 0 || len(parts) > 2 || parts[0] == "" {
-		httputil.SendStatus(w, 404)
-		return
-	}
-	access, err := h.canAccessItem(r.Context(), user, parts[0])
+func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
+	itemID, episodeID := r.PathValue("id"), r.PathValue("episodeId")
+	access, err := h.canAccessItem(r.Context(), user, itemID)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if !access.exists {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	var mediaID, mediaType string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType FROM libraryItems WHERE id=?`, parts[0]).Scan(&mediaID, &mediaType); err != nil {
-		httputil.SendStatus(w, 404)
-		return
+	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType); err != nil {
+		return httputil.Status(404, "")
 	}
 	// MeController.getItemListeningSessions (MeController.js:185): the episode
 	// is looked up by its id alone, a podcast without one is a 404 before the
 	// access check, and an existing episode id replaces the media item id.
 	episodeFound := false
-	if len(parts) == 2 && parts[1] != "" {
+	if episodeID != "" {
 		var exists int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, parts[1]).Scan(&exists); err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, episodeID).Scan(&exists); err != nil {
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		episodeFound = exists > 0
 	}
 	if mediaType == "podcast" && !episodeFound {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	if !access.allowed {
-		httputil.SendStatus(w, 403)
-		return
+		return httputil.Status(403, "")
 	}
 	if episodeFound {
-		mediaID = parts[1]
+		mediaID = episodeID
 	}
-	h.writeListeningSessions(w, r, user.ID, mediaID, false)
+	return h.writeListeningSessions(w, r, user.ID, mediaID, false)
 }
 
-func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.Request, user store.User, tail string) {
-	parts := strings.Split(tail, "/")
-	if len(parts) != 2 || parts[0] == "" || (parts[1] != "remove-from-continue-listening" && parts[1] != "readd-to-continue-listening") {
-		httputil.SendStatus(w, 404)
-		return
+func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.Request, user store.User) error {
+	seriesID, action := r.PathValue("id"), r.PathValue("action")
+	if action != "remove-from-continue-listening" && action != "readd-to-continue-listening" {
+		return httputil.Status(404, "")
 	}
 	var exists int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM series WHERE id=?`, parts[0]).Scan(&exists); err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM series WHERE id=?`, seriesID).Scan(&exists); err != nil {
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if exists == 0 {
-		httputil.SendStatus(w, 404)
-		return
+		return httputil.Status(404, "")
 	}
 	var extra map[string]any
 	_ = json.Unmarshal(user.ExtraData, &extra)
@@ -94,52 +77,46 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	seen := false
 	filtered := make([]string, 0, len(ids)+1)
 	for _, id := range ids {
-		if id == parts[0] {
+		if id == seriesID {
 			seen = true
-			if parts[1] == "readd-to-continue-listening" {
+			if action == "readd-to-continue-listening" {
 				continue
 			}
 		}
 		filtered = append(filtered, id)
 	}
 	changed := false
-	if parts[1] == "remove-from-continue-listening" && !seen {
-		filtered = append(filtered, parts[0])
+	if action == "remove-from-continue-listening" && !seen {
+		filtered = append(filtered, seriesID)
 		changed = true
 	}
-	if parts[1] == "readd-to-continue-listening" && seen {
+	if action == "readd-to-continue-listening" && seen {
 		changed = true
 	}
 	if changed {
 		extra["seriesHideFromContinueListening"] = filtered
 		raw, _ := json.Marshal(extra)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(raw), dbtime.Now(), user.ID); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			http.Error(w, "database write failed", 500)
-			return
+			return writeInternalError(w, r, "database write failed", err)
 		}
 		user.ExtraData = raw
 		h.emitUserUpdate(r.Context(), user)
 	}
 	payload, err := h.userPayload(r.Context(), user)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
-	httputil.WriteJSON(w, 200, payload)
+	return httputil.JSON(w, r, payload)
 }
 
-func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
 	limit := queryInt(r, "limit", 25)
 	if limit == 0 {
 		limit = 25
 	}
 	rows, err := sqlc.New(h.db).ListItemsInProgress(r.Context(), store.Text(user.ID))
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	type progress struct {
 		id, itemID, typ, mediaID string
@@ -161,9 +138,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		seen[p.id] = true
 		access, err := h.canAccessItem(r.Context(), user, p.itemID)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			http.Error(w, "database read failed", 500)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		if !access.allowed {
 			continue
@@ -207,30 +182,26 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	if len(result) > limit {
 		result = result[:limit]
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"libraryItems": result})
+	return httputil.JSON(w, r, map[string]any{"libraryItems": result})
 }
 
-func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, user store.User) {
+func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, user store.User) error {
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		http.Error(w, "Invalid payload. ereaderDevices array required", 400)
-		return
+		return plainError(w, "Invalid payload. ereaderDevices array required", 400)
 	}
 	provided, ok := body["ereaderDevices"].([]any)
 	if !ok {
-		http.Error(w, "Invalid payload. ereaderDevices array required", 400)
-		return
+		return plainError(w, "Invalid payload. ereaderDevices array required", 400)
 	}
 	for _, raw := range provided {
 		d, ok := raw.(map[string]any)
 		if !ok || !jsonvalue.Truthy(d["name"]) || !jsonvalue.Truthy(d["email"]) {
-			http.Error(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
-			return
+			return plainError(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
 		}
 		users, ok := d["users"].([]any)
 		if d["availabilityOption"] != "specificUsers" || !ok || len(users) != 1 || users[0] != user.ID {
-			http.Error(w, `Invalid payload. ereaderDevices array items must have availabilityOption "specificUsers" and only the current user`, 400)
-			return
+			return plainError(w, `Invalid payload. ereaderDevices array items must have availabilityOption "specificUsers" and only the current user`, 400)
 		}
 	}
 	// A database without an email-settings row starts from the defaults TS
@@ -241,9 +212,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	var raw []byte
 	err = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
 	if err != nil && err != sql.ErrNoRows {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	if err == nil {
 		var stored map[string]any
@@ -276,8 +245,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 		d, _ := entry.(map[string]any)
 		name := jsonvalue.String(d["name"])
 		if names[name] {
-			http.Error(w, `Invalid payload. Duplicate "name" field found.`, 400)
-			return
+			return plainError(w, `Invalid payload. Duplicate "name" field found.`, 400)
 		}
 		names[name] = true
 	}
@@ -285,9 +253,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	encoded, _ := json.Marshal(settings)
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(encoded), now, now); err != nil {
-		logging.RequestError(r, "database write failed", err)
-		http.Error(w, "database write failed", 500)
-		return
+		return writeInternalError(w, r, "database write failed", err)
 	}
 	visible := make([]any, 0)
 	for _, entry := range combined {
@@ -307,14 +273,13 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	if h.emit != nil {
 		h.emit(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"ereaderDevices": visible})
+	return httputil.JSON(w, r, map[string]any{"ereaderDevices": visible})
 }
 
-func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user store.User, rawYear string) {
-	year, err := strconv.Atoi(rawYear)
+func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user store.User) error {
+	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil || year < 2000 || year > 9999 {
-		http.Error(w, "Invalid year", 400)
-		return
+		return plainError(w, "Invalid year", 400)
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	// userStats.getStatsForYear sums raw float seconds (`ls.timeListening
@@ -323,9 +288,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	var total, bookTime, podcastTime float64
 	sessionRows, err := sqlc.New(h.db).ListPlaybackSessionsCreatedBetween(r.Context(), sqlc.ListPlaybackSessionsCreatedBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	months := map[int]float64{}
 	books := map[string]float64{}
@@ -373,9 +336,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	}
 	finishedRows, err := sqlc.New(h.db).ListFinishedBookProgressBetween(r.Context(), sqlc.ListFinishedBookProgressBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	finished := 0
 	finishedCovers := make([]any, 0, 5)
@@ -401,9 +362,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	booksWithCoversSet := map[string]bool{}
 	yearSessions, err := h.listeningSessions(r, user.ID, "")
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		http.Error(w, "database read failed", 500)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	for _, session := range yearSessions {
 		created := dbtime.Time(session.CreatedAt)
@@ -430,7 +389,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 			booksWithCoversSet[itemID] = true
 		}
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
+	return httputil.JSON(w, r, map[string]any{"totalListeningSessions": sessions, "totalListeningTime": int(math.Round(total)), "totalBookListeningTime": int(math.Round(bookTime)), "totalPodcastListeningTime": int(math.Round(podcastTime)), "topAuthors": topEntries(roundTimes(authors), "name", 3), "topGenres": topEntries(roundTimes(genres), "genre", 3), "mostListenedNarrator": topOne(roundTimes(narrators), "name"), "mostListenedMonth": topMonth(roundMonths(months)), "numBooksFinished": finished, "numBooksListened": len(books), "longestAudiobookFinished": longest, "booksWithCovers": booksWithCovers, "finishedBooksWithCovers": finishedCovers})
 }
 
 // roundTimes applies upstream's per-entry Math.round to summed seconds.

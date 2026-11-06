@@ -59,45 +59,57 @@ type RouteDeps struct {
 // the request context before dispatch (store.ContextWithUser). Each handler
 // keeps its own admin check, which answers 403.
 func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
-	read := func(fn func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+	type userHandler func(http.ResponseWriter, *http.Request, store.User) error
+	read := func(fn userHandler) httputil.Handler {
+		return func(w http.ResponseWriter, r *http.Request) error {
 			user, _ := store.UserFromContext(r.Context())
-			fn(w, r, user)
+			return fn(w, r, user)
 		}
 	}
-	write := func(fn func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
+	write := func(fn userHandler) httputil.Handler {
 		handle := read(fn)
-		return func(w http.ResponseWriter, r *http.Request) {
-			handle(w, r)
+		return func(w http.ResponseWriter, r *http.Request) error {
+			err := handle(w, r)
 			if deps.AfterWrite != nil {
 				deps.AfterWrite()
 			}
+			return err
 		}
 	}
-	mux.HandleFunc("PATCH /api/settings", write(h.patchSettings))
-	mux.HandleFunc("PATCH /api/sorting-prefixes", write(h.sortingPrefixes))
-	mux.HandleFunc("GET /api/auth-settings", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.authSettings(w, r, u, false) }))
-	mux.HandleFunc("PATCH /api/auth-settings", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.authSettings(w, r, u, true) }))
-	mux.HandleFunc("POST /api/validate-cron", write(h.validateCron))
-	mux.HandleFunc("GET /api/logger-data", read(h.loggerData))
-	mux.HandleFunc("POST /api/cache/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.purgeCache(w, r, u, false) }))
-	mux.HandleFunc("POST /api/cache/items/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.purgeCache(w, r, u, true) }))
-	mux.HandleFunc("GET /api/stats/server", read(h.serverStats))
-	mux.HandleFunc("POST /api/watcher/update", write(h.updateWatchedPath))
-	mux.HandleFunc("GET /api/tags", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.listTaxonomy(w, r, u, "tags") }))
-	mux.HandleFunc("GET /api/genres", read(func(w http.ResponseWriter, r *http.Request, u store.User) { h.listTaxonomy(w, r, u, "genres") }))
-	mux.HandleFunc("POST /api/tags/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) {
-		h.renameTaxonomy(w, r, u, "tags", "tag", "newTag")
+	mux.Handle("PATCH /api/settings", write(h.patchSettings))
+	mux.Handle("PATCH /api/sorting-prefixes", write(h.sortingPrefixes))
+	mux.Handle("GET /api/auth-settings", read(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.authSettings(w, r, u, false)
 	}))
-	mux.HandleFunc("POST /api/genres/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) {
-		h.renameTaxonomy(w, r, u, "genres", "genre", "newGenre")
+	mux.Handle("PATCH /api/auth-settings", write(func(w http.ResponseWriter, r *http.Request, u store.User) error { return h.authSettings(w, r, u, true) }))
+	mux.Handle("POST /api/validate-cron", write(h.validateCron))
+	mux.Handle("GET /api/logger-data", read(h.loggerData))
+	mux.Handle("POST /api/cache/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) error { return h.purgeCache(w, r, u, false) }))
+	mux.Handle("POST /api/cache/items/purge", write(func(w http.ResponseWriter, r *http.Request, u store.User) error { return h.purgeCache(w, r, u, true) }))
+	mux.Handle("GET /api/stats/server", read(h.serverStats))
+	mux.Handle("POST /api/watcher/update", write(h.updateWatchedPath))
+	mux.Handle("GET /api/tags", read(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.listTaxonomy(w, r, u, "tags")
 	}))
-	mux.HandleFunc("DELETE /api/tags/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.deleteTaxonomy(w, r, u, "tags") }))
-	mux.HandleFunc("DELETE /api/genres/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) { h.deleteTaxonomy(w, r, u, "genres") }))
-	mux.HandleFunc("GET /api/stats/year/{year}", read(h.statsForYear))
-	mux.HandleFunc("GET /api/filesystem", read(h.filesystem))
-	mux.HandleFunc("POST /api/filesystem/pathexists", write(h.pathExists))
-	mux.HandleFunc("POST /api/upload", write(h.upload))
+	mux.Handle("GET /api/genres", read(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.listTaxonomy(w, r, u, "genres")
+	}))
+	mux.Handle("POST /api/tags/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.renameTaxonomy(w, r, u, "tags", "tag", "newTag")
+	}))
+	mux.Handle("POST /api/genres/rename", write(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.renameTaxonomy(w, r, u, "genres", "genre", "newGenre")
+	}))
+	mux.Handle("DELETE /api/tags/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.deleteTaxonomy(w, r, u, "tags")
+	}))
+	mux.Handle("DELETE /api/genres/{name}", write(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+		return h.deleteTaxonomy(w, r, u, "genres")
+	}))
+	mux.Handle("GET /api/stats/year/{year}", read(h.statsForYear))
+	mux.Handle("GET /api/filesystem", read(h.filesystem))
+	mux.Handle("POST /api/filesystem/pathexists", write(h.pathExists))
+	mux.Handle("POST /api/upload", write(h.upload))
 }
 
 func admin(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
@@ -141,35 +153,30 @@ func (h *Handler) browserSettings(m map[string]any) map[string]any {
 	out["timeZone"] = "UTC"
 	return out
 }
-func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	var patch map[string]any
 	if json.NewDecoder(r.Body).Decode(&patch) != nil || patch == nil {
-		http.Error(w, "Invalid settings update object", 400)
-		return
+		return reply(w, 400, "Invalid settings update object")
 	}
 	allowed := map[string]bool{}
 	for _, k := range []string{"scannerParseSubtitle", "scannerFindCovers", "scannerCoverProvider", "scannerPreferMatchedMetadata", "scannerDisableWatcher", "storeCoverWithItem", "storeMetadataWithItem", "allowIframe", "allowedOrigins", "backupSchedule", "backupsToKeep", "maxBackupSize", "logLevel", "homeBookshelfView", "bookshelfView", "dateFormat", "timeFormat", "language", "chromecastEnabled", "sortingIgnorePrefix"} {
 		allowed[k] = true
 	}
 	if patch["allowIframe"] == false && os.Getenv("ALLOW_IFRAME") == "1" {
-		http.Error(w, "Cannot disable iframe when ALLOW_IFRAME is enabled in environment", 400)
-		return
+		return reply(w, 400, "Cannot disable iframe when ALLOW_IFRAME is enabled in environment")
 	}
 	if v, ok := patch["allowedOrigins"]; ok {
 		if _, ok := v.([]any); !ok {
-			http.Error(w, "allowedOrigins must be an array", 400)
-			return
+			return reply(w, 400, "allowedOrigins must be an array")
 		}
 	}
 	m, e := h.settings(r)
 	if e != nil {
 		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return reply(w, 500, "database error")
 	}
 	changed := false
 	for k, v := range patch {
@@ -185,29 +192,26 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	if changed {
 		if e = h.saveSettings(r, m); e != nil {
 			logging.RequestError(r, "database error", e)
-			http.Error(w, "database error", 500)
-			return
+			return reply(w, 500, "database error")
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)}, httputil.Streamed())
+	return nil
 }
-func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) {
+func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	m, e := h.settings(r)
 	if e != nil {
 		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return reply(w, 500, "database error")
 	}
 	keys := []string{"authLoginCustomMessage", "authActiveAuthMethods", "authOpenIDIssuerURL", "authOpenIDAuthorizationURL", "authOpenIDTokenURL", "authOpenIDUserInfoURL", "authOpenIDJwksURL", "authOpenIDLogoutURL", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDTokenSigningAlgorithm", "authOpenIDButtonText", "authOpenIDAutoLaunch", "authOpenIDAutoRegister", "authOpenIDMatchExistingBy", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim", "authOpenIDSubfolderForRedirectURLs"}
 	if patch {
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil || p == nil {
-			http.Error(w, "Invalid auth settings update object", 400)
-			return
+			return reply(w, 400, "Invalid auth settings update object")
 		}
 		allowed := map[string]bool{}
 		for _, k := range keys {
@@ -277,12 +281,11 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 		if updated {
 			if e = h.saveSettings(r, m); e != nil {
 				logging.RequestError(r, "database error", e)
-				http.Error(w, "database error", 500)
-				return
+				return reply(w, 500, "database error")
 			}
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
-		return
+		return nil
 	}
 	out := map[string]any{}
 	for _, k := range keys {
@@ -292,18 +295,17 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 	}
 	out["authOpenIDSamplePermissions"] = samplePermissions
 	httputil.WriteJSON(w, http.StatusOK, out, httputil.Streamed())
+	return nil
 }
-func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	var p struct {
 		SortingPrefixes []string `json:"sortingPrefixes"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || len(p.SortingPrefixes) == 0 {
-		http.Error(w, "Invalid request body", 400)
-		return
+		return reply(w, 400, "Invalid request body")
 	}
 	seen := map[string]bool{}
 	out := []string{}
@@ -315,20 +317,17 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 		}
 	}
 	if len(out) == 0 {
-		http.Error(w, "Invalid sortingPrefixes in request body", 400)
-		return
+		return reply(w, 400, "Invalid sortingPrefixes in request body")
 	}
 	m, e := h.settings(r)
 	if e != nil {
 		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return reply(w, 500, "database error")
 	}
 	m["sortingPrefixes"] = out
 	if e = h.saveSettings(r, m); e != nil {
 		logging.RequestError(r, "database error", e)
-		http.Error(w, "database error", 500)
-		return
+		return reply(w, 500, "database error")
 	}
 	rowsUpdated := 0
 	for _, table := range []struct{ name, title string }{{"books", "title"}, {"podcasts", "title"}, {"series", "name"}} {
@@ -363,6 +362,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
+	return nil
 }
 func prefix(title string, prefixes []string) string {
 	t := strings.ToLower(title)
@@ -374,33 +374,30 @@ func prefix(title string, prefixes []string) string {
 	return title
 }
 
-func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.User) error {
 	var v struct {
 		Expression string `json:"expression"`
 	}
 	if json.NewDecoder(r.Body).Decode(&v) != nil || v.Expression == "" {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	if e := cronspec.Validate(v.Expression); e != nil {
-		http.Error(w, "Invalid cron expression", 400)
-		return
+		return reply(w, 400, "Invalid cron expression")
 	}
-	w.WriteHeader(200)
+	return reply(w, 200, "")
 }
-func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
 		logging.Errorf("[MiscController] Non-admin user %q attempted to get logger data", u.Username) // MiscController.js:779
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData(), httputil.Streamed())
+	return nil
 }
 
-func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) {
+func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	root := filepath.Join(h.cfg.MetadataPath, "cache")
 	if itemsOnly {
@@ -413,60 +410,52 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.Use
 	}
 	if err := os.RemoveAll(root); err != nil {
 		logging.RequestError(r, "Failed to purge cache", err)
-		http.Error(w, "Failed to purge cache", 500)
-		return
+		return reply(w, 500, "Failed to purge cache")
 	}
 	if err := os.MkdirAll(root, 0755); err != nil {
 		logging.RequestError(r, "Failed to purge cache", err)
-		http.Error(w, "Failed to purge cache", 500)
-		return
+		return reply(w, 500, "Failed to purge cache")
 	}
 	if !itemsOnly {
 		for _, child := range []string{"covers", "images", "items"} {
 			if err := os.MkdirAll(filepath.Join(root, child), 0755); err != nil {
 				logging.RequestError(r, "Failed to purge cache", err)
-				http.Error(w, "Failed to purge cache", 500)
-				return
+				return reply(w, 500, "Failed to purge cache")
 			}
 		}
 	}
-	w.WriteHeader(200)
+	return reply(w, 200, "")
 }
 
-func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	var booksSize, booksCount, podcastsSize, podcastsCount int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='book'`).Scan(&booksSize, &booksCount); err != nil {
 		logging.RequestError(r, "Internal server error", err)
-		http.Error(w, "Internal server error", 500)
-		return
+		return reply(w, 500, "Internal server error")
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='podcast'`).Scan(&podcastsSize, &podcastsCount); err != nil {
 		logging.RequestError(r, "Internal server error", err)
-		http.Error(w, "Internal server error", 500)
-		return
+		return reply(w, 500, "Internal server error")
 	}
 	var bookFiles, podcastFiles int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(json_array_length(audioFiles)),0) FROM books`).Scan(&bookFiles); err != nil {
 		logging.RequestError(r, "Internal server error", err)
-		http.Error(w, "Internal server error", 500)
-		return
+		return reply(w, 500, "Internal server error")
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes`).Scan(&podcastFiles); err != nil {
 		logging.RequestError(r, "Internal server error", err)
-		http.Error(w, "Internal server error", 500)
-		return
+		return reply(w, 500, "Internal server error")
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}}, httputil.Streamed())
+	return nil
 }
 
-func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	var body struct {
 		LibraryID string `json:"libraryId"`
@@ -475,32 +464,26 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u st
 		OldPath   string `json:"oldPath"`
 	}
 	if json.NewDecoder(r.Body).Decode(&body) != nil || body.LibraryID == "" || body.Path == "" || body.Type == "" {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	if body.Type != "add" && body.Type != "unlink" && body.Type != "rename" {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	if body.Type == "rename" && body.OldPath == "" {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	if h.watcherUpdate == nil {
-		http.Error(w, "Watcher is unavailable", 501)
-		return
+		return reply(w, 501, "Watcher is unavailable")
 	}
 	if err := h.watcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type, body.OldPath); err != nil {
 		logging.RequestError(r, "Failed to update watched path", err)
-		http.Error(w, "Failed to update watched path", 500)
-		return
+		return reply(w, 500, "Failed to update watched path")
 	}
-	w.WriteHeader(200)
+	return reply(w, 200, "")
 }
-func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) {
+func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	values := []string{}
 	seen := map[string]bool{}
@@ -530,20 +513,18 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.U
 		sort.Slice(values, func(i, j int) bool { return strings.ToLower(values[i]) < strings.ToLower(values[j]) })
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{column: values}, httputil.Streamed())
+	return nil
 }
-func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) {
+func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	if h.itemChanged == nil {
-		http.Error(w, "item metadata writer is unavailable", http.StatusNotImplemented)
-		return
+		return reply(w, http.StatusNotImplemented, "item metadata writer is unavailable")
 	}
 	var p map[string]string
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p[oldKey] == "" || p[newKey] == "" {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	old, newv := p[oldKey], p[newKey]
 	merged, changed := false, 0
@@ -601,23 +582,21 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
 						logging.RequestError(r, "failed to update item metadata", e)
-						http.Error(w, "failed to update item metadata", 500)
-						return
+						return reply(w, 500, "failed to update item metadata")
 					}
 				}
 			}
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed}, httputil.Streamed())
+	return nil
 }
-func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) {
+func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	if h.itemChanged == nil {
-		http.Error(w, "item metadata writer is unavailable", http.StatusNotImplemented)
-		return
+		return reply(w, http.StatusNotImplemented, "item metadata writer is unavailable")
 	}
 	// The client sends the name base64-encoded and URL-escaped; PathValue
 	// returns it unescaped.
@@ -627,8 +606,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		raw, e = base64.RawURLEncoding.DecodeString(seg)
 	}
 	if e != nil {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	target := string(raw)
 	changed := 0
@@ -669,14 +647,14 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
 						logging.RequestError(r, "failed to update item metadata", e)
-						http.Error(w, "failed to update item metadata", 500)
-						return
+						return reply(w, 500, "failed to update item metadata")
 					}
 				}
 			}
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed}, httputil.Streamed())
+	return nil
 }
 func sqlDate() string { return dbtime.Now() }
 func (h *Handler) changedItem(ctx context.Context, id string) error {
@@ -690,15 +668,13 @@ func (h *Handler) changedItem(ctx context.Context, id string) error {
 	return nil
 }
 
-func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil || year < 2000 || year > 9999 {
-		http.Error(w, "Invalid year", 400)
-		return
+		return reply(w, 400, "Invalid year")
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	var sessions, authors int
@@ -782,6 +758,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")}, httputil.Streamed())
+	return nil
 }
 
 // orderedTimes is a JS object used as a map: keys keep first-insertion
@@ -817,21 +794,18 @@ func topTimes(o *orderedTimes, key string) []map[string]any {
 	return a
 }
 
-func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	p := r.URL.Query().Get("path")
 	level, _ := strconv.Atoi(r.URL.Query().Get("level"))
 	if p != "" {
 		if !filepath.IsAbs(p) {
-			http.Error(w, `Invalid "path" query string`, 400)
-			return
+			return reply(w, 400, `Invalid "path" query string`)
 		}
 		if _, e := os.Stat(p); e != nil {
-			http.Error(w, `Invalid "path" query string`, 400)
-			return
+			return reply(w, 400, `Invalid "path" query string`)
 		}
 	} else {
 		p = "/"
@@ -850,11 +824,11 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs}, httputil.Streamed())
+	return nil
 }
-func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !canUpload(u) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	var p struct {
 		Directory  string `json:"directory"`
@@ -863,28 +837,25 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Directory == "" || p.FolderPath == "" {
 		// Upstream answers res.status(400).json({error}), FileSystemController.js:94-97.
 		httputil.ErrorJSON(w, http.StatusBadRequest, "Invalid request body", httputil.Streamed())
-		return
+		return nil
 	}
 	var libraryID string
 	e := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM libraryFolders WHERE path=? LIMIT 1`, p.FolderPath).Scan(&libraryID)
 	if e != nil {
-		w.WriteHeader(404)
-		return
+		return reply(w, 404, "")
 	}
 	if !canAccessLibrary(u, libraryID) {
-		w.WriteHeader(403)
-		return
+		return reply(w, 403, "")
 	}
 	base, _ := filepath.Abs(filepath.Clean(p.FolderPath))
 	target, _ := filepath.Abs(filepath.Join(base, p.Directory))
 	rel, e := filepath.Rel(base, target)
 	if e != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		w.WriteHeader(400)
-		return
+		return reply(w, 400, "")
 	}
 	if _, e = os.Stat(target); e == nil {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true}, httputil.Streamed())
-		return
+		return nil
 	}
 	cleaned := filepath.ToSlash(filepath.Clean(p.Directory))
 	if strings.Contains(cleaned, "/") {
@@ -901,10 +872,11 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		var title sql.NullString
 		if h.db.QueryRowContext(r.Context(), `SELECT title FROM libraryItems WHERE path IN (`+marks+`) LIMIT 1`, args...).Scan(&title) == nil {
 			httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true, "libraryItemTitle": title.String}, httputil.Streamed())
-			return
+			return nil
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false}, httputil.Streamed())
+	return nil
 }
 func canUpload(u store.User) bool {
 	var p map[string]any
@@ -972,3 +944,15 @@ const samplePermissions = `{
     "ThirdTag"
   ]
 }`
+
+// reply answers status with message as http.Error does, or with the bare
+// status line when message is empty; the framing is deliberately not
+// httputil.Fail's (no ETag), as in the pre-ADR-001 handlers.
+func reply(w http.ResponseWriter, status int, message string) error {
+	if message == "" {
+		w.WriteHeader(status)
+	} else {
+		http.Error(w, message, status)
+	}
+	return nil
+}

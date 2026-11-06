@@ -91,56 +91,58 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 // Routes registers the task and tool routes on mux. The server attaches the
 // user to the request context before dispatch (store.ContextWithUser).
 func (h *Handler) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/tasks", h.tasksRoute)
-	mux.HandleFunc("POST /api/tools/batch/embed-metadata", func(w http.ResponseWriter, r *http.Request) {
-		h.batch(w, r, requestUser(r))
-	})
-	mux.HandleFunc("DELETE /api/tools/item/{id}/encode-m4b", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /api/tasks", httputil.Handler(h.tasksRoute))
+	mux.Handle("POST /api/tools/batch/embed-metadata", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		return h.batch(w, r, requestUser(r))
+	}))
+	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		if !isAdmin(requestUser(r)) {
-			status(w, 403)
-			return
+			return status(w, 403)
 		}
-		h.cancelEncode(w, r.PathValue("id"))
-	})
-	mux.HandleFunc("POST /api/tools/item/{id}/encode-m4b", h.itemRoute(h.encode))
-	mux.HandleFunc("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
+		return h.cancelEncode(w, r.PathValue("id"))
+	}))
+	mux.Handle("POST /api/tools/item/{id}/encode-m4b", h.itemRoute(h.encode))
+	mux.Handle("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
 }
 
 // itemRoute answers a tool on one library item: admins only, then the item must
 // exist and the user must be able to reach its library.
-func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, store.User, item)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, store.User, item) error) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		user := requestUser(r)
 		if !isAdmin(user) {
-			status(w, 403)
-			return
+			return status(w, 403)
 		}
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return status(w, 404)
+		}
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				status(w, 404)
-			} else {
-				logging.RequestError(r, "database read failed", err)
-				http.Error(w, "database read failed", 500)
-			}
-			return
+			return readFailed(w, r, err)
 		}
 		if !canAccess(user, it.library) {
-			status(w, 403)
-			return
+			return status(w, 403)
 		}
-		action(w, r, user, it)
+		return action(w, r, user, it)
 	}
 }
 
-func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) error {
 	payload, err := h.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
 	if err != nil {
 		logging.RequestError(r, "error", err)
 		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load tasks"})
-		return
+		return nil
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload)
+	return nil
+}
+
+// readFailed is the 500 for a failed item read; its framing is http.Error's.
+func readFailed(w http.ResponseWriter, r *http.Request, err error) error {
+	logging.RequestError(r, "database read failed", err)
+	http.Error(w, "database read failed", http.StatusInternalServerError)
+	return nil
 }
 
 func requestUser(r *http.Request) store.User {
@@ -274,18 +276,15 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 	return x, nil
 }
 
-func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, it item) {
+func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
 	if it.typ != "book" {
-		text(w, 400, "Invalid library item: not a book")
-		return
+		return text(w, 400, "Invalid library item: not a book")
 	}
 	if len(it.files) == 0 {
-		text(w, 400, "Invalid audiobook: no audio tracks")
-		return
+		return text(w, 400, "Invalid audiobook: no audio tracks")
 	}
 	if h.has(it.id, "encode-m4b") {
-		text(w, 400, "Audiobook is already processing")
-		return
+		return text(w, 400, "Audiobook is already processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t := h.newTask("encode-m4b", u, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
@@ -293,19 +292,17 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, i
 		cancel()
 		logging.RequestError(r, "Unable to create task cache", err)
 		http.Error(w, "Unable to create task cache", 500)
-		return
+		return nil
 	}
 	go h.runEncode(t, it, r.URL.Query())
-	sendOK(w)
+	return sendOK(w)
 }
-func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it item) {
+func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
 	if it.typ != "book" || len(it.files) == 0 {
-		status(w, 400)
-		return
+		return status(w, 400)
 	}
 	if h.has(it.id, "embed-metadata") {
-		text(w, 400, "Library item is already in queue or processing")
-		return
+		return text(w, 400, "Library item is already in queue or processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t := h.newTask("embed-metadata", u, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
@@ -321,44 +318,36 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 	h.mu.Unlock()
 	h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
 	h.runNextEmbed()
-	sendOK(w)
+	return sendOK(w)
 }
 
-func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !isAdmin(u) {
-		status(w, 403)
-		return
+		return status(w, 403)
 	}
 	var body struct {
 		LibraryItemIDs []string `json:"libraryItemIds"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || len(body.LibraryItemIDs) == 0 {
-		text(w, 400, "Invalid request payload")
-		return
+		return text(w, 400, "Invalid request payload")
 	}
 	items := make([]item, 0, len(body.LibraryItemIDs))
 	for _, id := range body.LibraryItemIDs {
 		it, e := h.loadItem(r.Context(), id)
 		if errors.Is(e, sql.ErrNoRows) {
-			status(w, 404)
-			return
+			return status(w, 404)
 		}
 		if e != nil {
-			logging.RequestError(r, "database read failed", e)
-			http.Error(w, "database read failed", 500)
-			return
+			return readFailed(w, r, e)
 		}
 		if !canAccess(u, it.library) {
-			status(w, 403)
-			return
+			return status(w, 403)
 		}
 		if it.typ != "book" || len(it.files) == 0 {
-			status(w, 400)
-			return
+			return status(w, 400)
 		}
 		if h.has(id, "embed-metadata") {
-			text(w, 400, "Library item is already in queue or processing")
-			return
+			return text(w, 400, "Library item is already in queue or processing")
 		}
 		items = append(items, it)
 	}
@@ -375,7 +364,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) {
 		h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
 	}
 	h.runNextEmbed()
-	sendOK(w)
+	return sendOK(w)
 }
 
 func (h *Handler) newTask(action string, u store.User, it item, title, key, desc, descKey string, queued bool, ctx context.Context, cancel context.CancelFunc) *task {
@@ -409,7 +398,7 @@ func (h *Handler) has(itemID, action string) bool {
 	}
 	return false
 }
-func (h *Handler) cancelEncode(w http.ResponseWriter, id string) {
+func (h *Handler) cancelEncode(w http.ResponseWriter, id string) error {
 	h.mu.Lock()
 	var t *task
 	for _, x := range h.tasks {
@@ -420,12 +409,11 @@ func (h *Handler) cancelEncode(w http.ResponseWriter, id string) {
 	}
 	h.mu.Unlock()
 	if t == nil {
-		status(w, 404)
-		return
+		return status(w, 404)
 	}
 	t.cancel()
 	h.finish(t, errors.New("Task canceled by user"))
-	sendOK(w)
+	return sendOK(w)
 }
 func (h *Handler) finish(t *task, err error) {
 	h.mu.Lock()
@@ -723,10 +711,11 @@ func num(v any) float64 {
 	}
 	return 0
 }
-func status(w http.ResponseWriter, n int) { w.WriteHeader(n) }
-func text(w http.ResponseWriter, n int, s string) {
+func status(w http.ResponseWriter, n int) error { w.WriteHeader(n); return nil }
+func text(w http.ResponseWriter, n int, s string) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(n)
 	_, _ = io.WriteString(w, s)
+	return nil
 }
-func sendOK(w http.ResponseWriter) { text(w, 200, "OK") }
+func sendOK(w http.ResponseWriter) error { return text(w, 200, "OK") }

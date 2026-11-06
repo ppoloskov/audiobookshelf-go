@@ -21,21 +21,17 @@ import (
 // libraryListPagination is LibraryController.middleware's access check and
 // pagination coercion (server/controllers/LibraryController.js:1475-1497):
 // 403 before the existence lookup, 404 "Library not found", then limit and
-// page must be non-negative integers. It reports false after writing an
-// error response.
-func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) (limit, page int, ok bool) {
+// page must be non-negative integers.
+func (h *Handler) libraryListPagination(r *http.Request, user store.User, libraryID string) (limit, page int, err error) {
 	if !h.canAccessLibrary(user, libraryID) {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return 0, 0, false
+		return 0, 0, httputil.Status(http.StatusForbidden, "")
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, libraryID).Scan(&exists); err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return 0, 0, false
+		return 0, 0, httputil.Internal("database read failed", err)
 	}
 	if exists == 0 {
-		httputil.SendText(w, http.StatusNotFound, "Library not found")
-		return 0, 0, false
+		return 0, 0, httputil.Status(http.StatusNotFound, "Library not found")
 	}
 	values := map[string]int{}
 	for _, key := range []string{"limit", "page"} {
@@ -52,12 +48,11 @@ func (h *Handler) libraryListPagination(w http.ResponseWriter, r *http.Request, 
 			n = 0
 		}
 		if n != math.Trunc(n) || n < 0 || math.IsInf(n, 0) {
-			httputil.SendText(w, http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
-			return 0, 0, false
+			return 0, 0, httputil.Status(http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
 		}
 		values[key] = int(n)
 	}
-	return values["limit"], values["page"], true
+	return values["limit"], values["page"], nil
 }
 
 func paginate[T any](items []T, limit, page int) []T {
@@ -77,10 +72,11 @@ func paginate[T any](items []T, limit, page int) []T {
 
 // libraryCollections serves GET /api/libraries/:id/collections
 // (LibraryController.getCollectionsForLibrary, server/controllers/LibraryController.js:814).
-func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
-	limit, page, ok := h.libraryListPagination(w, r, user, libraryID)
-	if !ok {
-		return
+func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("libraryID")
+	limit, page, err := h.libraryListPagination(r, user, libraryID)
+	if err != nil {
+		return err
 	}
 	include := make([]string, 0)
 	for _, v := range strings.Split(r.URL.Query().Get("include"), ",") {
@@ -90,8 +86,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	}
 	ids, err := h.queries().ListLibraryCollectionIDs(r.Context(), libraryID)
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	collections := make([]any, 0, len(ids))
 	for _, id := range ids {
@@ -100,16 +95,14 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 			continue
 		}
 		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		// Collection.getOldCollectionsJsonExpanded attaches the full feed
 		// (feed.toOldJSON), not the minified one.
 		if slices.Contains(include, "rssfeed") {
 			feed, err := h.collectionRSSFeed(r, id)
 			if err != nil {
-				writeInternalError(w, r, "database read failed", err)
-				return
+				return writeInternalError(w, r, "database read failed", err)
 			}
 			if feed != nil {
 				dto["rssFeed"] = feed
@@ -128,20 +121,20 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request, use
 	if v, present := r.URL.Query()["filter"]; present {
 		payload.FilterBy = &v[0]
 	}
-	httputil.WriteJSON(w, 200, payload)
+	return httputil.JSON(w, r, payload)
 }
 
 // libraryPlaylists serves GET /api/libraries/:id/playlists
 // (LibraryController.getUserPlaylistsForLibrary, server/controllers/LibraryController.js:853).
-func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user store.User, libraryID string) {
-	limit, page, ok := h.libraryListPagination(w, r, user, libraryID)
-	if !ok {
-		return
+func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error {
+	user, libraryID := requestUser(r), r.PathValue("libraryID")
+	limit, page, err := h.libraryListPagination(r, user, libraryID)
+	if err != nil {
+		return err
 	}
 	ids, err := h.queries().ListUserLibraryPlaylistIDs(r.Context(), sqlc.ListUserLibraryPlaylistIDsParams{UserID: user.ID, LibraryID: libraryID})
 	if err != nil {
-		writeInternalError(w, r, "database read failed", err)
-		return
+		return writeInternalError(w, r, "database read failed", err)
 	}
 	type namedPlaylist struct {
 		name string
@@ -154,8 +147,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 			continue
 		}
 		if err != nil {
-			writeInternalError(w, r, "database read failed", err)
-			return
+			return writeInternalError(w, r, "database read failed", err)
 		}
 		playlists = append(playlists, namedPlaylist{name: jsonvalue.String(item["name"]), dto: item})
 	}
@@ -166,5 +158,5 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request, user 
 	for _, p := range paginate(playlists, limit, page) {
 		results = append(results, p.dto)
 	}
-	httputil.WriteJSON(w, 200, wire.LibraryPlaylistsPage{Results: results, Total: len(playlists), Limit: limit, Page: page})
+	return httputil.JSON(w, r, wire.LibraryPlaylistsPage{Results: results, Total: len(playlists), Limit: limit, Page: page})
 }
