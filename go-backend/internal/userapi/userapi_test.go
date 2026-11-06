@@ -15,7 +15,6 @@ import (
 
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
@@ -60,10 +59,10 @@ func TestPlaylistRejectsWrongAddShapes(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"items":[]}`))
 			r.Header.Set("Content-Type", "application/json")
 			if !h.Handle(w, r, user) {
-				httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+				w.WriteHeader(http.StatusNotFound) // the runtime's unknown-route answer
 			}
-			if w.Code != http.StatusNotImplemented {
-				t.Fatalf("POST %s status=%d body=%s, want 501", path, w.Code, w.Body.String())
+			if w.Code != http.StatusNotFound {
+				t.Fatalf("POST %s status=%d body=%s, want 404 (unknown route)", path, w.Code, w.Body.String())
 			}
 		})
 	}

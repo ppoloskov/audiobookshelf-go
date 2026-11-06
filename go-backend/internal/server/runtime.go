@@ -137,6 +137,13 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.audiotools.Routes(rt.routes)
 	rt.providers.Routes(rt.routes)
+	// Feature packages migrated to method patterns expose Routes(mux) and are
+	// mounted here; the rest still answer through legacyChain (ADR-001).
+	for _, f := range rt.features() {
+		if m, ok := f.(interface{ Routes(*http.ServeMux) }); ok {
+			m.Routes(rt.routes)
+		}
+	}
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
 	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
@@ -327,6 +334,11 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !strings.HasPrefix(path, "/api/") && path != "/api" {
+		// Non-API patterns on the mux are public (feeds, shares, HLS,
+		// session tracks): they run with no user.
+		if rt.serveRoute(w, withPath(r, path), store.User{}) {
+			return
+		}
 		rt.serveClient(w, r, path)
 		return
 	}
@@ -344,31 +356,33 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if rt.serveRoute(w, withPath(r, path), user) {
 		return
 	}
-	if rt.catalog.Handle(w, withPath(r, path), user) {
+	if rt.legacyChain(w, withPath(r, path), user) {
 		return
 	}
-	if rt.sharing.Handle(w, withPath(r, path), user) {
-		return
+	// Express answers an unknown route 404; clients branch on it (Absorb
+	// falls back to older endpoints on 404).
+	httputil.Fail(w, r, httputil.Status(http.StatusNotFound, ""))
+}
+
+// legacyRouter is a feature package that still dispatches with a hand-rolled
+// Handle chain. Packages drop out of legacyChain by deleting Handle (ADR-001);
+// this adapter is removed with the last one.
+type legacyRouter interface {
+	Handle(http.ResponseWriter, *http.Request, store.User) bool
+}
+
+// features lists the feature packages in the legacy dispatch order.
+func (rt *Runtime) features() []any {
+	return []any{rt.catalog, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts}
+}
+
+func (rt *Runtime) legacyChain(w http.ResponseWriter, r *http.Request, user store.User) bool {
+	for _, f := range rt.features() {
+		if h, ok := f.(legacyRouter); ok && h.Handle(w, r, user) {
+			return true
+		}
 	}
-	if rt.userapi.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.playback.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.notifications.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.emailapi.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.scanner.Handle(w, withPath(r, path), user) {
-		return
-	}
-	if rt.podcasts.Handle(w, withPath(r, path), user) {
-		return
-	}
-	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+	return false
 }
 
 // serveRoute dispatches a request to a handler registered on the route mux and
@@ -378,7 +392,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 // answer it with a redirect.
 func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	if r.URL.Path != pathpkg.Clean(r.URL.Path) {
-		canonical, ok := rt.listPathAlias(r.URL.Path)
+		canonical, ok := routeAlias(r.URL.Path)
 		if !ok {
 			return false
 		}
@@ -391,7 +405,10 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store
 	return true
 }
 
-func (rt *Runtime) listPathAlias(path string) (string, bool) {
+// routeAlias maps a path Express would route to its canonical form: Express
+// routing is non-strict, so one trailing slash matches the route without it.
+// The list roots also answer "//" (TS router.use("/collections", ...) quirk).
+func routeAlias(path string) (string, bool) {
 	canonical := path
 	switch path {
 	case "/api/collections//":
@@ -404,17 +421,7 @@ func (rt *Runtime) listPathAlias(path string) (string, bool) {
 		}
 		canonical = strings.TrimSuffix(path, "/")
 	}
-	if pathpkg.Clean(canonical) != canonical || !listRoutePath(canonical) {
-		return "", false
-	}
-	return canonical, true
-}
-
-func listRoutePath(path string) bool {
-	return path == "/api/collections" || strings.HasPrefix(path, "/api/collections/") ||
-		path == "/api/playlists" || strings.HasPrefix(path, "/api/playlists/") ||
-		strings.HasPrefix(path, "/api/libraries/") &&
-			(strings.HasSuffix(path, "/collections") || strings.HasSuffix(path, "/playlists"))
+	return canonical, pathpkg.Clean(canonical) == canonical
 }
 
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }

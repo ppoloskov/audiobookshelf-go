@@ -27,15 +27,15 @@ func TestListsRouteBaseline(t *testing.T) {
 			{"/api/collections//", root, 200, "application/json", ""},
 			{"/api/collections/" + collection, root, 200, "application/json", ""},
 			{"/api/collections/" + collection + "/", root, 200, "application/json", ""},
-			{"/api/collections/" + collection + "//", root, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
-			{"/api/collections/" + collection + "/unknown", root, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
+			{"/api/collections/" + collection + "//", root, 404, "text/plain", "Not Found"},
+			{"/api/collections/" + collection + "/unknown", root, 404, "text/plain", "Not Found"},
 			{"/api/playlists", root, 200, "application/json", ""},
 			{"/api/playlists/", root, 200, "application/json", ""},
 			{"/api/playlists//", root, 200, "application/json", ""},
 			{"/api/playlists/" + playlist, root, 403, "text/plain", "Forbidden"},
 			{"/api/playlists/" + playlist + "/", root, 403, "text/plain", "Forbidden"},
-			{"/api/playlists/" + playlist + "//", root, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
-			{"/api/playlists/" + playlist + "/item/extra/segment", root, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
+			{"/api/playlists/" + playlist + "//", root, 404, "text/plain", "Not Found"},
+			{"/api/playlists/" + playlist + "/item/extra/segment", root, 404, "text/plain", "Not Found"},
 		} {
 			requestPath := base + tc.path
 			resp, body := in.Do(t, http.MethodGet, requestPath, tc.token, nil)
@@ -51,13 +51,13 @@ func TestListsRouteBaseline(t *testing.T) {
 	}{
 		{http.MethodPost, "/api/collections/" + collection + "/batch/add", root, `{"books":["missing-item"]}`, 400, "text/html", "Invalid request body. No valid books"},
 		{http.MethodPost, "/api/collections/" + collection + "/batch/add/", root, `{"books":["missing-item"]}`, 400, "text/html", "Invalid request body. No valid books"},
-		{http.MethodPost, "/api/collections/" + collection + "/batch/add//", root, `{"books":["missing-item"]}`, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
+		{http.MethodPost, "/api/collections/" + collection + "/batch/add//", root, `{"books":["missing-item"]}`, 404, "text/plain", "Not Found"},
 		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add", listener, `{"items":[]}`, 400, "text/html", "Invalid request body items"},
 		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add/", listener, `{"items":[]}`, 400, "text/html", "Invalid request body items"},
-		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add//", listener, `{"items":[]}`, 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
-		{http.MethodHead, "/api/collections", root, "", 501, "application/json", ""},
-		{http.MethodOptions, "/api/collections", root, "", 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
-		{http.MethodPut, "/api/playlists/" + playlist, listener, "", 501, "application/json", `{"error":"This route is not implemented in the experimental Go backend"}`},
+		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add//", listener, `{"items":[]}`, 404, "text/plain", "Not Found"},
+		{http.MethodHead, "/api/collections", root, "", 404, "text/plain", ""},
+		{http.MethodOptions, "/api/collections", root, "", 404, "text/plain", "Not Found"},
+		{http.MethodPut, "/api/playlists/" + playlist, listener, "", 404, "text/plain", "Not Found"},
 	} {
 		var body any
 		if tc.body != "" {

@@ -58,5 +58,7 @@ func writeText(w http.ResponseWriter, status int, contentType, body string, o op
 		w.Header().Set("ETag", ExpressETag([]byte(body)))
 	}
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
+	if !o.head() {
+		_, _ = w.Write([]byte(body))
+	}
 }

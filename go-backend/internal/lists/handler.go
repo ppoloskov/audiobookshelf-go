@@ -39,8 +39,9 @@ func requestUser(r *http.Request) store.User {
 	return user
 }
 
+// notImplemented answers an unknown method or sub-path like Express: 404.
 func notImplemented(w http.ResponseWriter) {
-	httputil.ErrorJSON(w, http.StatusNotImplemented, "This route is not implemented in the experimental Go backend")
+	httputil.WriteError(w, http.StatusNotFound, "", httputil.ContentType("text/plain; charset=utf-8"))
 }
 
 var stripMarkup = regexp.MustCompile(`<[^>]*>`)

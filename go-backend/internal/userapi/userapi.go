@@ -1458,8 +1458,9 @@ func validStringArray(value any) bool {
 		return false
 	}
 }
+// writeNotImplemented answers an unknown method or sub-path like Express: 404.
 func writeNotImplemented(w http.ResponseWriter) {
-	httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "This route is not implemented in the experimental Go backend"})
+	httputil.WriteError(w, http.StatusNotFound, "", httputil.ContentType("text/plain; charset=utf-8"))
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {
