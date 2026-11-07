@@ -87,9 +87,9 @@ func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Reque
 	return h.deleteCustomProvider(w, r, id)
 }
 
-// stream answers with Streamed JSON (newline-terminated, no ETag).
+// stream answers with JSON.
 func stream(w http.ResponseWriter, status int, v any) error {
-	httputil.WriteJSON(w, status, v, httputil.Streamed())
+	httputil.WriteJSON(w, status, v)
 	return nil
 }
 
@@ -229,7 +229,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	if h.emit != nil {
 		h.emit("*", "custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
 	}
-	httputil.SendStatus(w, http.StatusOK, httputil.WithoutContentLength(), httputil.WithoutETag())
+	httputil.SendStatus(w, http.StatusOK)
 	return nil
 }
 

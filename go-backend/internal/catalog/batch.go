@@ -283,5 +283,5 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 	}
 	h.checkRemoveEmptySeries(ctx, seriesRemoved)
 	h.checkRemoveAuthorsWithNoBooks(ctx, authorsRemoved)
-	return writeJSONWithETag(w, r, http.StatusOK, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
+	return httputil.JSON(w, r, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
 }

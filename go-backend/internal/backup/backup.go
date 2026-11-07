@@ -240,7 +240,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 
 func (h *Handler) listRoute(w http.ResponseWriter, _ *http.Request) {
 	opt := h.options()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet}, httputil.WithoutContentLength())
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet})
 }
 
 func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +249,7 @@ func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "backup failed", 500)
 		return
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
 }
 
 func (h *Handler) Create(ctx context.Context) (Backup, error) {
@@ -415,7 +415,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 		h.backups = append(h.backups, b)
 	}
 	h.mu.Unlock()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
 }
 
 func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +459,7 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to reload backup path", 500)
 		return
 	}
-	httputil.WriteJSON(w, 200, "OK", httputil.WithoutContentLength())
+	httputil.WriteJSON(w, 200, "OK")
 }
 
 func (h *Handler) delete(w http.ResponseWriter, b Backup) {
@@ -473,7 +473,7 @@ func (h *Handler) delete(w http.ResponseWriter, b Backup) {
 	}
 	h.backups = next
 	h.mu.Unlock()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()}, httputil.WithoutContentLength())
+	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
 }
 
 func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {

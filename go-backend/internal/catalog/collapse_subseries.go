@@ -143,7 +143,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 		return httputil.Internal("database read failed", err)
 	}
 	payload.Results, payload.Total = results, total
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 

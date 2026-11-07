@@ -1,12 +1,8 @@
 package catalog
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -65,33 +61,6 @@ func TestRemoveOldCoversUsesPinnedExtensionAllowlist(t *testing.T) {
 	}
 }
 
-func TestWriteJSONWithETagSetsExpressHeaders(t *testing.T) {
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/authors/a1?include=items", nil)
-	value := struct {
-		Success bool   `json:"success"`
-		Cover   string `json:"cover"`
-	}{true, "/metadata/items/<id&>/cover.png"}
-	writeJSONWithETag(response, request, http.StatusOK, value)
-	var got struct {
-		Success bool   `json:"success"`
-		Cover   string `json:"cover"`
-	}
-	if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
-		t.Fatalf("decode response JSON: %v", err)
-	}
-	if response.Code != http.StatusOK || got != value {
-		t.Fatalf("response = %d %#v, want success and original cover value", response.Code, got)
-	}
-	if got := response.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
-		t.Errorf("Content-Type = %q", got)
-	}
-	if got := response.Header().Get("Content-Length"); got != strconv.Itoa(response.Body.Len()) {
-		t.Errorf("Content-Length = %q, want %d", got, response.Body.Len())
-	}
-	requireOpaqueETag(t, response.Header().Get("ETag"))
-}
-
 // Entity tags are opaque validators; their hash algorithm is not a client contract.
 func requireOpaqueETag(t *testing.T, tag string) {
 	t.Helper()
@@ -103,106 +72,5 @@ func requireOpaqueETag(t *testing.T, tag string) {
 		if b < 0x21 || b == '"' || b == 0x7f {
 			t.Fatalf("invalid entity tag %q", tag)
 		}
-	}
-}
-
-func TestWriteJSONWithETagConditionalRequests(t *testing.T) {
-	value := struct {
-		Name string `json:"name"`
-	}{"Series"}
-	initial := httptest.NewRecorder()
-	writeJSONWithETag(initial, httptest.NewRequest(http.MethodGet, "/api/series/s1", nil), http.StatusOK, value)
-	etag := initial.Header().Get("ETag")
-	if etag == "" {
-		t.Fatal("initial response has no ETag")
-	}
-
-	tests := []struct {
-		name, method, validator string
-		wantStatus              int
-	}{
-		{name: "weak form", method: http.MethodGet, validator: etag, wantStatus: http.StatusNotModified},
-		{name: "strong form", method: http.MethodGet, validator: strings.TrimPrefix(etag, "W/"), wantStatus: http.StatusNotModified},
-		{name: "comma list", method: http.MethodGet, validator: `W/"other", ` + etag, wantStatus: http.StatusNotModified},
-		{name: "whole wildcard", method: http.MethodGet, validator: " * ", wantStatus: http.StatusNotModified},
-		{name: "star inside quoted list member", method: http.MethodGet, validator: `"foo,*,bar"`, wantStatus: http.StatusOK},
-		{name: "nonmatching", method: http.MethodGet, validator: `W/"other"`, wantStatus: http.StatusOK},
-		{name: "POST ignores validator", method: http.MethodPost, validator: etag, wantStatus: http.StatusOK},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(test.method, "/api/series/s1", nil)
-			request.Header.Set("If-None-Match", test.validator)
-			response := httptest.NewRecorder()
-			writeJSONWithETag(response, request, http.StatusOK, value)
-			if response.Code != test.wantStatus {
-				t.Fatalf("status = %d, want %d; body=%q", response.Code, test.wantStatus, response.Body.String())
-			}
-			if response.Header().Get("ETag") != etag {
-				t.Errorf("ETag = %q, want %q", response.Header().Get("ETag"), etag)
-			}
-			if test.wantStatus == http.StatusNotModified {
-				if response.Body.Len() != 0 {
-					t.Fatalf("304 body = %q, want empty", response.Body.String())
-				}
-			} else {
-				var got map[string]string
-				if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil || got["name"] != value.Name {
-					t.Fatalf("fresh body = %q, want valid JSON name %q (decode err %v)", response.Body.String(), value.Name, err)
-				}
-			}
-		})
-	}
-}
-
-func TestWriteJSONWithETagChangedValueIsFresh(t *testing.T) {
-	value := map[string]string{"name": "Original series"}
-	initial := httptest.NewRecorder()
-	writeJSONWithETag(initial, httptest.NewRequest(http.MethodGet, "/api/series/s1", nil), http.StatusOK, value)
-	etag := initial.Header().Get("ETag")
-	requireOpaqueETag(t, etag)
-	changed := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/series/s1", nil)
-	request.Header.Set("If-None-Match", etag)
-	value["name"] = "Updated series"
-	writeJSONWithETag(changed, request, http.StatusOK, value)
-	var got map[string]string
-	if err := json.Unmarshal(changed.Body.Bytes(), &got); err != nil || changed.Code != http.StatusOK || got["name"] != "Updated series" {
-		t.Fatalf("changed representation = %d %q (decode %v)", changed.Code, changed.Body.String(), err)
-	}
-	newETag := changed.Header().Get("ETag")
-	requireOpaqueETag(t, newETag)
-	if newETag == etag {
-		t.Fatal("changed JSON reused the previous representation's validator")
-	}
-	request.Header.Set("If-None-Match", newETag)
-	cached := httptest.NewRecorder()
-	writeJSONWithETag(cached, request, http.StatusOK, value)
-	if cached.Code != http.StatusNotModified || cached.Body.Len() != 0 {
-		t.Fatalf("updated validator replay = %d %q", cached.Code, cached.Body.String())
-	}
-}
-
-func TestWriteJSONWithETagHeadSuppressesBody(t *testing.T) {
-	value := map[string]string{"name": "Series"}
-	get := httptest.NewRecorder()
-	writeJSONWithETag(get, httptest.NewRequest(http.MethodGet, "/api/series/s1", nil), http.StatusOK, value)
-
-	for _, test := range []struct {
-		name, validator string
-		wantStatus      int
-	}{
-		{name: "ordinary HEAD", validator: `W/"other"`, wantStatus: http.StatusOK},
-		{name: "conditional HEAD", validator: get.Header().Get("ETag"), wantStatus: http.StatusNotModified},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodHead, "/api/series/s1", nil)
-			request.Header.Set("If-None-Match", test.validator)
-			response := httptest.NewRecorder()
-			writeJSONWithETag(response, request, http.StatusOK, value)
-			if response.Code != test.wantStatus || response.Body.Len() != 0 {
-				t.Fatalf("HEAD response = %d with %d body bytes, want %d/empty", response.Code, response.Body.Len(), test.wantStatus)
-			}
-		})
 	}
 }

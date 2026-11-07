@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -67,7 +68,7 @@ func TestBatchUpdateCountsOnlyRealChanges(t *testing.T) {
 		{"id":"i1","mediaPayload":{"metadata":{"title":"The Book","genres":["fiction"]},"tags":["tag"]}},
 		{"id":"i2","mediaPayload":{"metadata":{"title":"The New Second","subtitle":"Sub","publishedYear":1999,"authors":[{"name":"Ada Author"}]}}}
 	]`, rootUser())
-	if status != 200 || body != `{"success":true,"updates":1}` {
+	if status != 200 || !sameJSON(body, `{"success":true,"updates":1}`) {
 		t.Fatalf("%d %s", status, body)
 	}
 	var title, ignore, subtitle, year string
@@ -100,7 +101,7 @@ func TestBatchUpdateCountsOnlyRealChanges(t *testing.T) {
 	}
 	// The same payload again changes nothing.
 	status, body = post(rig, "/api/items/batch/update", `[{"id":"i2","mediaPayload":{"metadata":{"title":"The New Second"}}}]`, rootUser())
-	if status != 200 || body != `{"success":true,"updates":0}` || len(rig.takeEvents()) != 0 {
+	if status != 200 || !sameJSON(body, `{"success":true,"updates":0}`) || len(rig.takeEvents()) != 0 {
 		t.Fatalf("repeat: %d %s", status, body)
 	}
 }
@@ -167,4 +168,11 @@ func TestBatchDelete(t *testing.T) {
 	if status, _ := post(rig, "/api/items/batch/delete", `{"libraryItemIds":["i3"]}`, rootUser()); status != 404 {
 		t.Fatalf("deleted again: %d", status)
 	}
+}
+
+// sameJSON reports whether got and want are the same JSON value; key order and
+// whitespace are not part of the contract (ADR-002).
+func sameJSON(got, want string) bool {
+	var g, w any
+	return json.Unmarshal([]byte(got), &g) == nil && json.Unmarshal([]byte(want), &w) == nil && reflect.DeepEqual(g, w)
 }

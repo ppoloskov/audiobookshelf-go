@@ -545,7 +545,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			if !user.IsActive {
 				return user, nil
 			}
-			encoded, err := setOrderedJSONField(user.ExtraData, "authOpenIDSub", sub)
+			encoded, err := setJSONField(user.ExtraData, "authOpenIDSub", sub)
 			if err != nil {
 				return store.User{}, err
 			}
@@ -593,84 +593,21 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 	return user, nil
 }
 
-// setOrderedJSONField updates one object member while retaining the source
-// order of every existing member. Upstream mutates the parsed Sequelize JSON
-// object and serializes it in insertion order; Go map marshaling sorts keys.
-func setOrderedJSONField(data []byte, name string, value any) ([]byte, error) {
-	if len(bytes.TrimSpace(data)) == 0 || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		data = []byte("{}")
+// setJSONField sets one member of the JSON object in data (null or empty
+// data is an empty object), leaving the other members' values untouched.
+func setJSONField(data []byte, name string, value any) ([]byte, error) {
+	fields := map[string]json.RawMessage{}
+	if trimmed := bytes.TrimSpace(data); len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null")) {
+		if err := json.Unmarshal(trimmed, &fields); err != nil {
+			return nil, errors.New("identity: OIDC extraData must be a JSON object")
+		}
 	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	token, err := decoder.Token()
-	if err != nil {
-		return nil, err
-	}
-	delim, ok := token.(json.Delim)
-	if !ok || delim != '{' {
-		return nil, errors.New("identity: OIDC extraData must be a JSON object")
-	}
-	type field struct {
-		name  string
-		value json.RawMessage
-	}
-	fields := make([]field, 0, 8)
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
-	found := false
-	for decoder.More() {
-		token, err = decoder.Token()
-		if err != nil {
-			return nil, err
-		}
-		key, ok := token.(string)
-		if !ok {
-			return nil, errors.New("identity: invalid OIDC extraData key")
-		}
-		var raw json.RawMessage
-		if err := decoder.Decode(&raw); err != nil {
-			return nil, err
-		}
-		if key == name {
-			raw = encoded
-			found = true
-		}
-		fields = append(fields, field{name: key, value: raw})
-	}
-	if _, err := decoder.Token(); err != nil {
-		return nil, err
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		if err == nil {
-			return nil, errors.New("identity: trailing data after OIDC extraData object")
-		}
-		return nil, err
-	}
-	if !found {
-		fields = append(fields, field{name: name, value: encoded})
-	}
-	var output bytes.Buffer
-	output.WriteByte('{')
-	for i, item := range fields {
-		if i > 0 {
-			output.WriteByte(',')
-		}
-		key, err := json.Marshal(item.name)
-		if err != nil {
-			return nil, err
-		}
-		value, err := json.Marshal(item.value)
-		if err != nil {
-			return nil, err
-		}
-		output.Write(key)
-		output.WriteByte(':')
-		output.Write(value)
-	}
-	output.WriteByte('}')
-	return output.Bytes(), nil
+	fields[name] = encoded
+	return json.Marshal(fields)
 }
 
 func (h *Handler) matchOIDCUser(ctx context.Context, cfg oidcConfig, info map[string]any) (store.User, error) {

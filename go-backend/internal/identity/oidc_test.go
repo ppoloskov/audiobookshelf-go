@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -545,8 +546,12 @@ func TestOIDCLinksExistingUserByConfiguredUsername(t *testing.T) {
 	if err := db.QueryRow(`SELECT extraData FROM users WHERE id = ?`, "user-1").Scan(&persisted); err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"seriesHideFromContinueListening":[],"authOpenIDSub":"linked-sub"}`; persisted != want {
-		t.Fatalf("linked extraData = %s, want source field order %s", persisted, want)
+	var got map[string]any
+	if err := json.Unmarshal([]byte(persisted), &got); err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]any{"seriesHideFromContinueListening": []any{}, "authOpenIDSub": "linked-sub"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("linked extraData = %s, want %v", persisted, want)
 	}
 }
 

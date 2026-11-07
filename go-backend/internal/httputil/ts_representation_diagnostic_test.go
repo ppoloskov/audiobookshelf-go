@@ -25,7 +25,7 @@ func TestTSRepresentationR02(t *testing.T) {
 // opt-in diagnostic; the default test checks the decoded document and framing.
 func TestTSRepresentationR03(t *testing.T) {
 	rec := httptest.NewRecorder()
-	WriteJSON(rec, http.StatusOK, map[string]int{"a": 1}, Streamed())
+	WriteJSON(rec, http.StatusOK, map[string]int{"a": 1})
 	if got, want := rec.Body.String(), "{\"a\":1}\n"; got != want {
 		t.Fatalf("body = %q, want %q", got, want)
 	}

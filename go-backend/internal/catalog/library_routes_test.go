@@ -281,18 +281,18 @@ func TestLibraryRemoveMetadata(t *testing.T) {
 	if w := rig.do("POST", "/api/libraries/l1/remove-metadata", "{}", readOnlyUser()); w.Code != 403 {
 		t.Fatalf("non-admin %d", w.Code)
 	}
-	if w := rig.do("POST", "/api/libraries/l1/remove-metadata?ext=abs", "{}", rootUser()); w.Code != 200 || w.Body.String() != `{"found":0}` {
+	if w := rig.do("POST", "/api/libraries/l1/remove-metadata?ext=abs", "{}", rootUser()); w.Code != 200 || !sameJSON(w.Body.String(), `{"found":0}`) {
 		t.Fatalf("abs: %d %s", w.Code, w.Body)
 	}
 	w := rig.do("POST", "/api/libraries/l1/remove-metadata", "{}", rootUser())
-	if w.Code != 200 || w.Body.String() != `{"found":1,"removed":1}` {
+	if w.Code != 200 || !sameJSON(w.Body.String(), `{"found":1,"removed":1}`) {
 		t.Fatalf("json: %d %s", w.Code, w.Body)
 	}
 	if _, err := os.Stat(file); err == nil {
 		t.Fatal("file kept")
 	}
 	// The database still lists the file, and a file that is gone still counts.
-	if w := rig.do("POST", "/api/libraries/l1/remove-metadata", "{}", rootUser()); w.Body.String() != `{"found":1,"removed":1}` {
+	if w := rig.do("POST", "/api/libraries/l1/remove-metadata", "{}", rootUser()); !sameJSON(w.Body.String(), `{"found":1,"removed":1}`) {
 		t.Fatalf("again: %s", w.Body)
 	}
 }

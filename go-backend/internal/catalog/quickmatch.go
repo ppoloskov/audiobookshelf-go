@@ -773,7 +773,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("internal error", err)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, result)
+	return httputil.JSON(w, r, result)
 }
 
 // batchQuickMatch is LibraryItemController.batchQuickMatch (:763-812): admins

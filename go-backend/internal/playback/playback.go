@@ -706,46 +706,15 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	return err
 }
 
-// persistedMediaMetadata preserves the legacy Book.oldMetadataToJSON shape in
-// playbackSessions without changing the expanded metadata returned by the API.
-// Key ORDER matters: the persisted bytes feed rollback compatibility, and
-// Node's JSON.stringify keeps insertion order, so this is marshaled through an
-// ordered struct (Book.js:550-569). Missing keys marshal as explicit nulls.
-type persistedMediaMetadata struct {
-	Title         json.RawMessage `json:"title"`
-	Subtitle      json.RawMessage `json:"subtitle"`
-	Authors       json.RawMessage `json:"authors"`
-	Narrators     json.RawMessage `json:"narrators"`
-	Series        json.RawMessage `json:"series"`
-	Genres        json.RawMessage `json:"genres"`
-	PublishedYear json.RawMessage `json:"publishedYear"`
-	PublishedDate json.RawMessage `json:"publishedDate"`
-	Publisher     json.RawMessage `json:"publisher"`
-	Description   json.RawMessage `json:"description"`
-	ISBN          json.RawMessage `json:"isbn"`
-	ASIN          json.RawMessage `json:"asin"`
-	Language      json.RawMessage `json:"language"`
-	Explicit      json.RawMessage `json:"explicit"`
-	Abridged      json.RawMessage `json:"abridged"`
-}
-
-// persistedPodcastMetadata is Podcast.oldMetadataToJSON (server/models/Podcast.js:
-// 402) in key order, which a podcast session stores as its mediaMetadata.
-type persistedPodcastMetadata struct {
-	Title          json.RawMessage `json:"title"`
-	Author         json.RawMessage `json:"author"`
-	Description    json.RawMessage `json:"description"`
-	ReleaseDate    json.RawMessage `json:"releaseDate"`
-	Genres         json.RawMessage `json:"genres"`
-	FeedURL        json.RawMessage `json:"feedUrl"`
-	ImageURL       json.RawMessage `json:"imageUrl"`
-	ITunesPageURL  json.RawMessage `json:"itunesPageUrl"`
-	ITunesID       json.RawMessage `json:"itunesId"`
-	ITunesArtistID json.RawMessage `json:"itunesArtistId"`
-	Explicit       json.RawMessage `json:"explicit"`
-	Language       json.RawMessage `json:"language"`
-	Type           json.RawMessage `json:"type"`
-}
+// Persisted playbackSessions.mediaMetadata keys: Book.oldMetadataToJSON and
+// Podcast.oldMetadataToJSON. TS reads these back with JSON.parse, so every
+// key is kept and a missing value is an explicit null.
+var (
+	persistedBookMetadataKeys = []string{"title", "subtitle", "authors", "narrators", "series", "genres", "publishedYear",
+		"publishedDate", "publisher", "description", "isbn", "asin", "language", "explicit", "abridged"}
+	persistedPodcastMetadataKeys = []string{"title", "author", "description", "releaseDate", "genres", "feedUrl", "imageUrl",
+		"itunesPageUrl", "itunesId", "itunesArtistId", "explicit", "language", "type"}
+)
 
 func persistedMetadataJSON(metadata map[string]any, mediaType string) ([]byte, error) {
 	raw, err := json.Marshal(metadata)
@@ -756,19 +725,15 @@ func persistedMetadataJSON(metadata map[string]any, mediaType string) ([]byte, e
 	if err := json.Unmarshal(raw, &norm); err != nil {
 		return nil, err
 	}
+	keys := persistedBookMetadataKeys
 	if mediaType == "podcast" {
-		return json.Marshal(persistedPodcastMetadata{
-			Title: norm["title"], Author: norm["author"], Description: norm["description"], ReleaseDate: norm["releaseDate"],
-			Genres: norm["genres"], FeedURL: norm["feedUrl"], ImageURL: norm["imageUrl"], ITunesPageURL: norm["itunesPageUrl"],
-			ITunesID: norm["itunesId"], ITunesArtistID: norm["itunesArtistId"], Explicit: norm["explicit"], Language: norm["language"], Type: norm["type"],
-		})
+		keys = persistedPodcastMetadataKeys
 	}
-	return json.Marshal(persistedMediaMetadata{
-		Title: norm["title"], Subtitle: norm["subtitle"], Authors: norm["authors"], Narrators: norm["narrators"],
-		Series: norm["series"], Genres: norm["genres"], PublishedYear: norm["publishedYear"], PublishedDate: norm["publishedDate"],
-		Publisher: norm["publisher"], Description: norm["description"], ISBN: norm["isbn"], ASIN: norm["asin"],
-		Language: norm["language"], Explicit: norm["explicit"], Abridged: norm["abridged"],
-	})
+	out := make(map[string]json.RawMessage, len(keys))
+	for _, k := range keys {
+		out[k] = norm[k] // nil marshals as null
+	}
+	return json.Marshal(out)
 }
 
 // sessionProgress is PlaybackSession.progress (server/objects/PlaybackSession.js:176).

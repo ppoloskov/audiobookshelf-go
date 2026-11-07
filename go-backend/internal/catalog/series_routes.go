@@ -208,5 +208,5 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
 	if len(changes.columns) > 0 && h.emit != nil {
 		h.emit("*", "series_updated", oldJSON)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, oldJSON)
+	return httputil.JSON(w, r, oldJSON)
 }

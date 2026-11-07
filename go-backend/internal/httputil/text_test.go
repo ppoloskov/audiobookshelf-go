@@ -56,14 +56,3 @@ func TestOpaqueETagSyntax(t *testing.T) {
 		}
 	}
 }
-
-func TestSendStatusOptionsDropHeaders(t *testing.T) {
-	rec := httptest.NewRecorder()
-	SendStatus(rec, http.StatusOK, WithoutContentLength(), WithoutETag())
-	if rec.Body.String() != "OK" {
-		t.Fatalf("body = %q", rec.Body.String())
-	}
-	if rec.Header().Get("Content-Length") != "" || rec.Header().Get("ETag") != "" {
-		t.Fatalf("headers = %v", rec.Header())
-	}
-}

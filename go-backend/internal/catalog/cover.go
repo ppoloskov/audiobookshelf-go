@@ -33,41 +33,6 @@ func (h *Handler) coverCachePath() string {
 	return filepath.Join(h.cfg.MetadataPath, "cache", "covers")
 }
 
-// writeJSONWithETag writes a JSON response with the existing Express validator.
-func writeJSONWithETag(w http.ResponseWriter, r *http.Request, status int, value any) error {
-	body, err := json.Marshal(value)
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	etag := httputil.ExpressETag(body)
-	w.Header().Set("ETag", etag)
-	if status == http.StatusOK && (r.Method == http.MethodGet || r.Method == http.MethodHead) && ifNoneMatch(etag, strings.Join(r.Header.Values("If-None-Match"), ",")) {
-		w.WriteHeader(http.StatusNotModified)
-		return nil
-	}
-	w.WriteHeader(status)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write(body)
-	}
-	return nil
-}
-
-func ifNoneMatch(etag, header string) bool {
-	header = strings.TrimSpace(header)
-	if header == "*" {
-		return true
-	}
-	weakETag := strings.TrimPrefix(etag, "W/")
-	for _, candidate := range strings.Split(header, ",") {
-		if strings.TrimPrefix(strings.TrimSpace(candidate), "W/") == weakETag {
-			return true
-		}
-	}
-	return false
-}
-
 // expressFileETag mirrors the file-derived weak ETag of express 'send':
 // "<size hex>-<mtimeMs hex>" — observed as W/"78-1a1875cf4bd" for a 120-byte
 // file in the recorded differential run.

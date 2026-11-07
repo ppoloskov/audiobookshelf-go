@@ -109,7 +109,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "libraryItem": item}, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "libraryItem": item}, httputil.ForRequest(r))
 	if updated && h.emit != nil {
 		if expanded, e := h.ItemJSON(r.Context(), itemID, true); e == nil {
 			h.emit("*", "item_updated", expanded)
@@ -1048,7 +1048,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	if currentCover.Valid && currentCover.String == body.Cover {
-		return writeJSONWithETag(w, r, http.StatusOK, struct {
+		return httputil.JSON(w, r, struct {
 			Success bool   `json:"success"`
 			Cover   string `json:"cover"`
 		}{true, body.Cover})
@@ -1113,7 +1113,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, struct {
+	return httputil.JSON(w, r, struct {
 		Success bool   `json:"success"`
 		Cover   string `json:"cover"`
 	}{true, coverPath})

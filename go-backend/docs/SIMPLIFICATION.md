@@ -61,6 +61,7 @@ and nulls, because TS reads those back.
 | Baseline | 8e17183 | 44,674 | — | 10,809 | 990 `map[string]any`, 9 Handle routers |
 | M1: handlers return error; Handle chains → mux | (this commit) | 44,674 → 43,348 | −1,326 (prod +2,560 / −4,036) | 10,809 → 10,406 | 8 hand routers and the legacy adapter deleted; JSON 200 GET/HEAD gains ETag/304; unknown routes 404 |
 | M2: one error framing (httputil.Fail); per-package write helpers deleted; catalog round 2 | (this commit) | 43,348 → 42,743 | −605 | 10,406 → 10,380 | ~20 helpers (bare, text, reply, reject, plainError, dbFail, …) and catalog adapters gone; error bodies follow the TS send/sendStatus choice |
+| M3: ADR-002 sweep (key-order/byte-fidelity code deleted) | (this commit) | 42,743 → 42,578 | −165 | 10,380 → 10,347 | httputil Streamed/WithoutContentLength/WithoutETag, catalog writeJSONWithETag, OIDC ordered rewriter, playback ordered metadata structs; byte/order test assertions now compare values |
 
 ### M1 behaviour changes (all toward TS/Express)
 

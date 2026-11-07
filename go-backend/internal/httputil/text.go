@@ -51,12 +51,8 @@ func ErrorJSON(w http.ResponseWriter, status int, message string, opts ...Option
 
 func writeText(w http.ResponseWriter, status int, contentType, body string, o options) {
 	w.Header().Set("Content-Type", contentType)
-	if !o.noContentLength {
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	}
-	if !o.noETag {
-		w.Header().Set("ETag", ExpressETag([]byte(body)))
-	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("ETag", ExpressETag([]byte(body)))
 	w.WriteHeader(status)
 	if !o.head() {
 		_, _ = w.Write([]byte(body))

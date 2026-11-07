@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -129,7 +130,19 @@ func TestLoggerDataEndpointThroughRuntime(t *testing.T) {
 	w := httptest.NewRecorder()
 	rt.ServeHTTP(w, r)
 	body := w.Body.String()
-	if w.Code != http.StatusOK || !strings.HasPrefix(body, `{"currentDailyLogs":[`) || !strings.Contains(body, `"message":"logger-data marker","levelName":"INFO","level":2}`) {
-		t.Fatalf("status=%d body=%.300s", w.Code, body)
+	var data struct {
+		CurrentDailyLogs []map[string]any `json:"currentDailyLogs"`
+	}
+	if err := json.Unmarshal([]byte(body), &data); err != nil || w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%.300s err=%v", w.Code, body, err)
+	}
+	found := false
+	for _, entry := range data.CurrentDailyLogs {
+		if entry["message"] == "logger-data marker" && entry["levelName"] == "INFO" && entry["level"] == float64(2) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("logger-data marker missing: %.300s", body)
 	}
 }

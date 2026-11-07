@@ -23,13 +23,10 @@ func TestSendTextIsExpressSend(t *testing.T) {
 	assertOpaqueETag(t, rec.Header().Get("ETag"))
 }
 
-func TestSendTextOptions(t *testing.T) {
+func TestSendTextContentType(t *testing.T) {
 	rec := httptest.NewRecorder()
-	SendText(rec, http.StatusOK, "x", ContentType("text/plain; charset=utf-8"), WithoutContentLength(), WithoutETag())
+	SendText(rec, http.StatusOK, "x", ContentType("text/plain; charset=utf-8"))
 	if got, want := rec.Header().Get("Content-Type"), "text/plain; charset=utf-8"; got != want {
 		t.Fatalf("Content-Type = %q, want %q", got, want)
-	}
-	if rec.Header().Get("Content-Length") != "" || rec.Header().Get("ETag") != "" {
-		t.Fatalf("headers = %v", rec.Header())
 	}
 }

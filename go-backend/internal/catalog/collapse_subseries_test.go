@@ -167,8 +167,12 @@ func TestCollapseSubseriesFilteredPage(t *testing.T) {
 	if s := first.Media.Metadata.Series; s == nil || s.ID != "mega" || s.Name != "Mega" || s.Sequence == nil || *s.Sequence != "1" {
 		t.Errorf("metadata.series = %+v", s)
 	}
-	if !strings.HasPrefix(raw, `{"results":[`) || !strings.Contains(raw, `"collapseseries":true,"include":"","offset":0}`) {
-		t.Errorf("payload key order: %.60s ... %s", raw, raw[len(raw)-160:])
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := payload["results"].([]any); !ok || payload["collapseseries"] != true || payload["include"] != "" || payload["offset"] != float64(0) {
+		t.Errorf("payload = %.200s", raw)
 	}
 	if got, _, sortBy := order("&sort=media.metadata.title&desc=1"); got != "liA,liD,liC" || sortBy == nil {
 		t.Errorf("title desc = %s", got)

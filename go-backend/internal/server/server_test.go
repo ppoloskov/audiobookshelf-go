@@ -54,7 +54,7 @@ func TestPingStatusAndPrefixedPing(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
-		if w.Code != http.StatusOK || w.Body.String() != `{"success":true}` {
+		if w.Code != http.StatusOK || !jsonEqual(decodeAny(w.Body.String()), map[string]any{"success": true}) {
 			t.Fatalf("%s: status=%d body=%s", path, w.Code, w.Body.String())
 		}
 	}
@@ -185,4 +185,10 @@ func jsonEqual(a, b any) bool {
 	x, _ := json.Marshal(a)
 	y, _ := json.Marshal(b)
 	return string(x) == string(y)
+}
+
+func decodeAny(s string) any {
+	var v any
+	_ = json.Unmarshal([]byte(s), &v)
+	return v
 }

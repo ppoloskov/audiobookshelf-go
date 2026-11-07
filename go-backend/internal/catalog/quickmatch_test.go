@@ -45,7 +45,7 @@ func TestItemMatchValidationAndWarning(t *testing.T) {
 		t.Fatalf("no update permission %d", w.Code)
 	}
 	w := rig.do("POST", "/api/items/i1/match", `{"provider":"audible","title":"Query","author":"Someone"}`, rootUser())
-	if w.Code != 200 || w.Body.String() != `{"warning":"No audible match found"}` {
+	if w.Code != 200 || !sameJSON(w.Body.String(), `{"warning":"No audible match found"}`) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	q := finder.queries[0]

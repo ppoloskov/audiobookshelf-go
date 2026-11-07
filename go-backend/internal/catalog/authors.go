@@ -570,7 +570,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
+	return httputil.JSON(w, r, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
 }
 
 // authorMerge is the merge branch of AuthorController.update
@@ -651,7 +651,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		h.emit("*", "author_updated", expanded)
 	}
 	merged := true
-	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
+	return httputil.JSON(w, r, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
 }
 
 // purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
@@ -870,7 +870,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	return httputil.JSON(w, r, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 // jsString is how a JavaScript template literal renders a JSON value.
@@ -928,7 +928,7 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) erro
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	return httputil.JSON(w, r, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
@@ -1002,7 +1002,7 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
+	return httputil.JSON(w, r, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
 }
 
 func firstNonEmpty(values ...string) string {

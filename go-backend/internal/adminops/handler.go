@@ -193,7 +193,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 			return httputil.Internal("database error", e)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)})
 	return nil
 }
 func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) error {
@@ -280,7 +280,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 				return httputil.Internal("database error", e)
 			}
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)})
 		return nil
 	}
 	out := map[string]any{}
@@ -290,7 +290,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 		}
 	}
 	out["authOpenIDSamplePermissions"] = samplePermissions
-	httputil.WriteJSON(w, http.StatusOK, out, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, out)
 	return nil
 }
 func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) error {
@@ -355,7 +355,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)})
 	return nil
 }
 func prefix(title string, prefixes []string) string {
@@ -385,7 +385,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 		logging.Errorf("[MiscController] Non-admin user %q attempted to get logger data", u.Username) // MiscController.js:779
 		return httputil.Status(403, "")
 	}
-	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData(), httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData())
 	return nil
 }
 
@@ -436,7 +436,7 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.Us
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes`).Scan(&podcastFiles); err != nil {
 		return httputil.Internal("Internal server error", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}})
 	return nil
 }
 
@@ -498,7 +498,7 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.U
 	if column == "tags" {
 		sort.Slice(values, func(i, j int) bool { return strings.ToLower(values[i]) < strings.ToLower(values[j]) })
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{column: values}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{column: values})
 	return nil
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) error {
@@ -573,7 +573,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed})
 	return nil
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
@@ -637,7 +637,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed})
 	return nil
 }
 func sqlDate() string { return dbtime.Now() }
@@ -741,7 +741,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.U
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
 	return nil
 }
 
@@ -807,7 +807,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 			dirs = append(dirs, map[string]any{"path": filepath.ToSlash(full), "dirname": entry.Name(), "level": level})
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs})
 	return nil
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
@@ -820,7 +820,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Directory == "" || p.FolderPath == "" {
 		// Upstream answers res.status(400).json({error}), FileSystemController.js:94-97.
-		httputil.ErrorJSON(w, http.StatusBadRequest, "Invalid request body", httputil.Streamed())
+		httputil.ErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return nil
 	}
 	var libraryID string
@@ -838,7 +838,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		return httputil.Status(400, "")
 	}
 	if _, e = os.Stat(target); e == nil {
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true}, httputil.Streamed())
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true})
 		return nil
 	}
 	cleaned := filepath.ToSlash(filepath.Clean(p.Directory))
@@ -855,11 +855,11 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		}
 		var title sql.NullString
 		if h.db.QueryRowContext(r.Context(), `SELECT title FROM libraryItems WHERE path IN (`+marks+`) LIMIT 1`, args...).Scan(&title) == nil {
-			httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true, "libraryItemTitle": title.String}, httputil.Streamed())
+			httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true, "libraryItemTitle": title.String})
 			return nil
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false}, httputil.Streamed())
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false})
 	return nil
 }
 func canUpload(u store.User) bool {

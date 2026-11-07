@@ -130,7 +130,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database read failed", shelfErr)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.ForRequest(r))
 	return nil
 }
 
@@ -348,7 +348,7 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	if listenAgain != nil {
 		shelves = append(shelves, *listenAgain)
 	}
-	httputil.WriteJSON(w, 200, shelves, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, 200, shelves, httputil.ForRequest(r))
 	return nil
 }
 

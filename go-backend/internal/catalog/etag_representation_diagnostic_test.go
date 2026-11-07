@@ -19,7 +19,7 @@ import (
 
 func TestTSRepresentationR01Catalog(t *testing.T) {
 	response := httptest.NewRecorder()
-	writeJSONWithETag(response, httptest.NewRequest(http.MethodGet, "/api/authors/a1", nil), http.StatusOK, map[string]string{"cover": "/metadata/<id&>/cover.png"})
+	_ = httputil.JSON(response, httptest.NewRequest(http.MethodGet, "/api/authors/a1", nil), map[string]string{"cover": "/metadata/<id&>/cover.png"})
 	if got, want := response.Header().Get("ETag"), httputil.ExpressETag(response.Body.Bytes()); got != want {
 		t.Fatalf("JSON ETag = %q, want Express %q", got, want)
 	}

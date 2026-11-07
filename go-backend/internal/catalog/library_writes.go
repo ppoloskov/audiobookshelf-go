@@ -174,7 +174,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	if h.emit != nil {
 		h.emit("*", "library_added", result)
 	}
-	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 	return nil
 }
 
@@ -376,7 +376,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+		httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 		return nil
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -423,7 +423,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	if h.emit != nil {
 		h.emit("*", "library_updated", result)
 	}
-	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 	return nil
 }
 
@@ -601,7 +601,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 			_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", item.id))
 		}
 	}
-	httputil.WriteJSON(w, 200, result, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 	return nil
 }
 
@@ -670,7 +670,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 		}
 		result = append(result, library)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.ForRequest(r))
 	return nil
 }
 

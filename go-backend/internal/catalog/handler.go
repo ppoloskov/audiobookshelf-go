@@ -865,7 +865,7 @@ func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, data, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, data, httputil.ForRequest(r))
 	return nil
 }
 
@@ -1021,10 +1021,10 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata["numIssues"], "numUserPlaylists": playlists, "library": payload}, httputil.Streamed(), httputil.ForRequest(r))
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata["numIssues"], "numUserPlaylists": playlists, "library": payload}, httputil.ForRequest(r))
 		return nil
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 
@@ -1045,7 +1045,7 @@ func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, stats, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, stats, httputil.ForRequest(r))
 	return nil
 }
 
@@ -1475,7 +1475,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 		authors = append(authors, map[string]any{"id": a.id, "asin": store.NullString(a.asin), "name": store.NullString(a.name), "description": store.NullString(a.description), "imagePath": store.NullString(a.imagePath), "libraryId": a.libraryID, "addedAt": deref(created), "updatedAt": deref(updated), "numBooks": a.numBooks, "lastFirst": store.NullString(a.lastFirst)})
 	}
 	if !paginated {
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"authors": authors}, httputil.ForRequest(r))
 		return nil
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}
@@ -1488,7 +1488,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 	if v := r.URL.Query().Get("include"); v != "" {
 		payload["include"] = v
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 
@@ -1679,7 +1679,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	if sortBy != "" {
 		payload["sortBy"] = sortBy
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 
@@ -1791,7 +1791,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 		}
 		payload["progress"] = map[string]any{"libraryItemIds": ids, "libraryItemIdsFinished": finished, "isFinished": len(finished) >= len(ids)}
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 
@@ -2022,7 +2022,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	if v := r.URL.Query().Get("filter"); v != "" {
 		payload["filterBy"] = v
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
 	return nil
 }
 
@@ -2046,7 +2046,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database read failed", err)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, item, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, item, httputil.ForRequest(r))
 	return nil
 }
 
@@ -2572,7 +2572,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes}, httputil.Streamed(), httputil.ForRequest(r))
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes}, httputil.ForRequest(r))
 		return nil
 	}
 	narrators, err := h.searchJSONValues(r.Context(), libraryID, table, "narrators", query, limit)
@@ -2587,7 +2587,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors}, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors}, httputil.ForRequest(r))
 	return nil
 }
 

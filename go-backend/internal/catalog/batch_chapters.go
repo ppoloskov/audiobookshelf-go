@@ -114,7 +114,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		}
 		selected = append(selected, item)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraryItems": selected}, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraryItems": selected}, httputil.ForRequest(r))
 	return nil
 }
 
@@ -207,7 +207,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true, "updated": updated}, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true, "updated": updated}, httputil.ForRequest(r))
 	return nil
 }
 
@@ -284,7 +284,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 			delete(values, key)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, values, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, values, httputil.ForRequest(r))
 	return nil
 }
 
@@ -346,7 +346,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if err := json.Unmarshal(output, &result); err != nil {
 		return httputil.Internal("ffprobe returned invalid data", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, result, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, result, httputil.ForRequest(r))
 	return nil
 }
 
@@ -422,7 +422,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if h.emit != nil {
 		h.emit("*", "item_updated", item)
 	}
-	httputil.WriteJSON(w, http.StatusOK, item, httputil.Streamed(), httputil.ForRequest(r))
+	httputil.WriteJSON(w, http.StatusOK, item, httputil.ForRequest(r))
 	return nil
 }
 
