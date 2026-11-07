@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"math"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -69,8 +67,9 @@ type seriesRow struct {
 	maxSequence *float64
 }
 
-func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryID string, limit int) ([]any, int, error) {
-	ctx := r.Context()
+func (e *shelfEnv) continueSeries() (shelfQuery, error) {
+	h, ctx, user, libraryID, limit := e.h, e.r.Context(), e.user, e.libraryID, e.limit
+	var q shelfQuery
 	settings := h.bookLibrarySettings(ctx, libraryID)
 	var extra struct {
 		SeriesHideFromContinueListening []string `json:"seriesHideFromContinueListening"`
@@ -100,14 +99,13 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 	where += ` AND (SELECT count(*) FROM mediaProgresses mp, bookSeries bs WHERE mp.mediaItemId = bs.bookId AND mp.userId = ? AND bs.seriesId = s.id AND mp.isFinished = 0 AND mp.currentTime > 0) = 0`
 	args = append(args, user.ID)
 
-	var count int
-	if err := h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&count); err != nil {
-		return nil, 0, err
+	if err := h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&q.total); err != nil {
+		return q, err
 	}
 	selectArgs := append([]any{user.ID, user.ID}, args...)
 	rows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, `+maxSequence+` AS maxSequence, (SELECT max(mp.updatedAt) FROM bookSeries bs, mediaProgresses mp WHERE mp.mediaItemId = bs.bookId AND mp.userId = ? AND bs.seriesId = s.id) AS recent_progress`+where+` ORDER BY recent_progress DESC LIMIT ?`, append(selectArgs, limit)...)
 	if err != nil {
-		return nil, 0, err
+		return q, err
 	}
 	series := make([]seriesRow, 0)
 	for rows.Next() {
@@ -115,7 +113,7 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 		var name *string
 		if err := rows.Scan(&s.id, &name, &s.maxSequence, new(any)); err != nil {
 			rows.Close()
-			return nil, 0, err
+			return q, err
 		}
 		if name != nil {
 			s.name = *name
@@ -124,11 +122,11 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, 0, err
+		return q, err
 	}
 	rows.Close()
 
-	permission, permissionArgs := userMediaClause(user, "book")
+	permission, permissionArgs := e.perm, e.permArgs
 	type chosenBook struct {
 		series   seriesRow
 		itemID   string
@@ -138,12 +136,12 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 	for _, s := range series {
 		// The series' bookSeries rows whose book the user has not finished,
 		// ordered by CAST(sequence AS FLOAT) ASC NULLS LAST.
-		q := `SELECT li.id, bs.sequence FROM bookSeries bs JOIN books b ON b.id = bs.bookId JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
+		candidateSQL := `SELECT li.id, bs.sequence FROM bookSeries bs JOIN books b ON b.id = bs.bookId JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
 			LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = ?
 			WHERE bs.seriesId = ? AND (mp.isFinished IS NULL OR mp.isFinished = 0)` + permission + ` ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST`
-		bookRows, err := h.db.QueryContext(ctx, q, append([]any{user.ID, s.id}, permissionArgs...)...)
+		bookRows, err := h.db.QueryContext(ctx, candidateSQL, append([]any{user.ID, s.id}, permissionArgs...)...)
 		if err != nil {
-			return nil, 0, err
+			return q, err
 		}
 		type candidate struct {
 			itemID   string
@@ -154,13 +152,13 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 			var c candidate
 			if err := bookRows.Scan(&c.itemID, &c.sequence); err != nil {
 				bookRows.Close()
-				return nil, 0, err
+				return q, err
 			}
 			candidates = append(candidates, c)
 		}
 		if err := bookRows.Err(); err != nil {
 			bookRows.Close()
-			return nil, 0, err
+			return q, err
 		}
 		bookRows.Close()
 		if len(candidates) == 0 {
@@ -185,32 +183,25 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 		}
 		chosenBooks = append(chosenBooks, chosenBook{s, candidates[index].itemID, candidates[index].sequence})
 	}
-	chosenIDs := make([]string, len(chosenBooks))
-	for i, c := range chosenBooks {
-		chosenIDs[i] = c.itemID
+	for _, c := range chosenBooks {
+		q.ids = append(q.ids, c.itemID)
 	}
-	rendered, err := h.minifiedItems(ctx, chosenIDs)
-	if err != nil {
-		return nil, 0, err
-	}
-	items := make([]any, 0, len(rendered))
-	for i := range rendered {
-		item := &rendered[i]
-		// The continue-series and discover queries only load feeds; they never
-		// set mediaItemShare (libraryItemsBookFilters.js:707-826, 886-1017).
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item.Head, item.MediaID(), &item.Extras); err != nil {
-			return nil, 0, err
+	// The continue-series query only loads feeds; it never sets mediaItemShare
+	// (libraryItemsBookFilters.js:707-826).
+	attach := e.attach(itemIncludes{rssFeed: includeHas(e.r, "rssfeed")})
+	q.build = func(items []shelfItem) ([]any, error) {
+		for i := range items {
+			c := chosenBooks[i]
+			editBookMetadata(&items[i].min, func(metadata *libitem.BookMetadataMinified) {
+				// book.series = [] before toOldJSONMinified, then metadata.series
+				// is replaced with the continued series.
+				metadata.SeriesName = ""
+				metadata.Series = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
+			})
 		}
-		c := chosenBooks[i]
-		editBookMetadata(item, func(metadata *libitem.BookMetadataMinified) {
-			// book.series = [] before toOldJSONMinified, then metadata.series
-			// is replaced with the continued series.
-			metadata.SeriesName = ""
-			metadata.Series = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
-		})
-		items = append(items, *item)
+		return attach(items)
 	}
-	return items, count, nil
+	return q, nil
 }
 
 // jsParseFloat approximates JavaScript parseFloat: the longest leading
@@ -244,86 +235,86 @@ done:
 	return math.NaN(), false
 }
 
-// recentSeriesShelf mirrors libraryFilters.getSeriesMostRecentlyAdded
+// recentSeries mirrors libraryFilters.getSeriesMostRecentlyAdded
 // (server/utils/queries/libraryFilters.js:207-317); upstream asks for 5.
-func (h *Handler) recentSeriesShelf(r *http.Request, user store.User, libraryID string, includeRSS bool) ([]any, int, error) {
-	ctx := r.Context()
-	settings := h.bookLibrarySettings(ctx, libraryID)
-	permission, permissionArgs := userMediaClause(user, "book")
+func (e *shelfEnv) recentSeries() (shelfQuery, error) {
+	h, ctx, permission, permissionArgs := e.h, e.r.Context(), e.perm, e.permArgs
+	var q shelfQuery
 	where := ` FROM series s WHERE s.libraryId = ? AND s.createdAt >= ?`
-	args := []any{libraryID, sixtyDaysAgo()}
-	if settings.HideSingleBookSeries {
+	args := []any{e.libraryID, sixtyDaysAgo()}
+	if h.bookLibrarySettings(ctx, e.libraryID).HideSingleBookSeries {
 		where += ` AND (SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = s.id AND bs.bookId = b.id) > 1`
 	}
 	if permission != "" {
 		where += ` AND (SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = s.id AND bs.bookId = b.id` + permission + `) > 0`
 		args = append(args, permissionArgs...)
 	}
-	var count int
-	if err := h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&count); err != nil {
-		return nil, 0, err
+	if err := h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&q.total); err != nil {
+		return q, err
 	}
 	rows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, s.description, s.createdAt, s.updatedAt, s.libraryId`+where+` ORDER BY s.createdAt DESC LIMIT 5`, args...)
 	if err != nil {
-		return nil, 0, err
+		return q, err
 	}
-	entries := make([]wire.SeriesShelfEntry, 0)
+	defer rows.Close()
+	var entries []wire.SeriesShelfEntry
 	for rows.Next() {
-		var e wire.SeriesShelfEntry
+		var entry wire.SeriesShelfEntry
 		var created, updated any
-		if err := rows.Scan(&e.ID, &e.Name, &e.Description, &created, &updated, &e.LibraryID); err != nil {
-			rows.Close()
-			return nil, 0, err
+		if err := rows.Scan(&entry.ID, &entry.Name, &entry.Description, &created, &updated, &entry.LibraryID); err != nil {
+			return q, err
 		}
-		e.AddedAt, _ = dbtime.OptionalMillis(created)
-		e.UpdatedAt, _ = dbtime.OptionalMillis(updated)
-		entries = append(entries, e)
+		entry.AddedAt, _ = dbtime.OptionalMillis(created)
+		entry.UpdatedAt, _ = dbtime.OptionalMillis(updated)
+		entries = append(entries, entry)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, 0, err
+		return q, err
 	}
 	rows.Close()
 
-	out := make([]any, 0, len(entries))
-	for _, e := range entries {
-		if e.Name != nil {
-			prefixed := h.titlePrefix(ctx, *e.Name)
-			e.NameIgnorePrefix = &prefixed
+	// Each entry's visible books by sequence; all of them load with the other
+	// shelves' items.
+	members := make([]int, len(entries))
+	for i := range entries {
+		entry := &entries[i]
+		if entry.Name != nil {
+			prefixed := h.titlePrefix(ctx, *entry.Name)
+			entry.NameIgnorePrefix = &prefixed
 		}
-		if includeRSS {
-			if feed, ok, err := h.feedMinified(ctx, "", e.ID); err != nil {
-				return nil, 0, err
+		if includeHas(e.r, "rssfeed") {
+			if feed, ok, err := h.feedMinified(ctx, "", entry.ID); err != nil {
+				return q, err
 			} else if ok {
-				e.RSSFeed = feed
+				entry.RSSFeed = feed
 			}
-		}
-		bookRows, err := h.db.QueryContext(ctx, `SELECT li.id, bs.sequence FROM bookSeries bs JOIN books b ON b.id = bs.bookId JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book' WHERE bs.seriesId = ?`+permission, append([]any{e.ID}, permissionArgs...)...)
-		if err != nil {
-			return nil, 0, err
 		}
 		type member struct {
 			itemID   string
 			sequence *string
 		}
-		members := make([]member, 0)
+		var books []member
+		bookRows, err := h.db.QueryContext(ctx, `SELECT li.id, bs.sequence FROM bookSeries bs JOIN books b ON b.id = bs.bookId JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book' WHERE bs.seriesId = ?`+permission, append([]any{entry.ID}, permissionArgs...)...)
+		if err != nil {
+			return q, err
+		}
 		for bookRows.Next() {
 			var m member
 			if err := bookRows.Scan(&m.itemID, &m.sequence); err != nil {
 				bookRows.Close()
-				return nil, 0, err
+				return q, err
 			}
-			members = append(members, m)
+			books = append(books, m)
 		}
-		if err := bookRows.Err(); err != nil {
-			bookRows.Close()
-			return nil, 0, err
-		}
+		err = bookRows.Err()
 		bookRows.Close()
+		if err != nil {
+			return q, err
+		}
 		// a.sequence.localeCompare(b.sequence, undefined, {numeric: true,
 		// sensitivity: 'base'}); a missing sequence sorts last.
-		sort.SliceStable(members, func(i, j int) bool {
-			a, b := members[i].sequence, members[j].sequence
+		sort.SliceStable(books, func(i, j int) bool {
+			a, b := books[i].sequence, books[j].sequence
 			if a == nil || *a == "" {
 				return false
 			}
@@ -332,24 +323,27 @@ func (h *Handler) recentSeriesShelf(r *http.Request, user store.User, libraryID 
 			}
 			return naturalCompare(*a, *b) < 0
 		})
-		memberIDs := make([]string, len(members))
-		for i, m := range members {
-			memberIDs[i] = m.itemID
+		members[i] = len(books)
+		for _, m := range books {
+			q.ids = append(q.ids, m.itemID)
 		}
-		books, err := h.minifiedItems(ctx, memberIDs)
-		if err != nil {
-			return nil, 0, err
-		}
-		e.Books = make([]any, 0, len(books))
-		for i := range books {
-			editBookMetadata(&books[i], func(metadata *libitem.BookMetadataMinified) {
-				metadata.AuthorName, metadata.AuthorNameLF, metadata.SeriesName = "", "", ""
-			})
-			e.Books = append(e.Books, books[i])
-		}
-		out = append(out, e)
 	}
-	return out, count, nil
+	q.build = func(items []shelfItem) ([]any, error) {
+		out := make([]any, len(entries))
+		for i := range entries {
+			entries[i].Books = make([]any, 0, members[i])
+			for _, item := range items[:members[i]] {
+				editBookMetadata(&item.min, func(metadata *libitem.BookMetadataMinified) {
+					metadata.AuthorName, metadata.AuthorNameLF, metadata.SeriesName = "", "", ""
+				})
+				entries[i].Books = append(entries[i].Books, item.min)
+			}
+			items = items[members[i]:]
+			out[i] = entries[i]
+		}
+		return out, nil
+	}
+	return q, nil
 }
 
 // naturalCompare approximates ICU localeCompare with numeric collation and
@@ -391,21 +385,21 @@ func leadingDigits(s string) (string, string) {
 	return s[:i], s[i:]
 }
 
-// discoverShelf mirrors libraryItemsBookFilters.getDiscoverLibraryItems
+// discover mirrors libraryItemsBookFilters.getDiscoverLibraryItems
 // (server/utils/queries/libraryItemsBookFilters.js:850-1010): random books the
 // user has not started, taking only the first book of not-started series.
-func (h *Handler) discoverShelf(r *http.Request, user store.User, libraryID string, limit int) ([]any, int, error) {
-	ctx := r.Context()
-	permission, permissionArgs := userMediaClause(user, "book")
-	seriesIDs, err := h.queryStrings(ctx, `SELECT s.id FROM series s WHERE s.libraryId = ? AND (SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = s.id AND mp.userId = ? AND (mp.isFinished = 1 OR mp.currentTime > 0)) = 0 ORDER BY RANDOM() LIMIT ?`, libraryID, user.ID, limit)
+func (e *shelfEnv) discover() (shelfQuery, error) {
+	h, ctx, permission := e.h, e.r.Context(), e.perm
+	var q shelfQuery
+	seriesIDs, err := h.queryStrings(ctx, `SELECT s.id FROM series s WHERE s.libraryId = ? AND (SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = s.id AND mp.userId = ? AND (mp.isFinished = 1 OR mp.currentTime > 0)) = 0 ORDER BY RANDOM() LIMIT ?`, e.libraryID, e.user.ID, e.limit)
 	if err != nil {
-		return nil, 0, err
+		return q, err
 	}
 	firstBooks := make([]any, 0, len(seriesIDs))
 	for _, seriesID := range seriesIDs {
-		ids, err := h.queryStrings(ctx, `SELECT b.id FROM bookSeries bs JOIN books b ON b.id = bs.bookId WHERE bs.seriesId = ?`+permission+` ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST LIMIT 1`, append([]any{seriesID}, permissionArgs...)...)
+		ids, err := h.queryStrings(ctx, `SELECT b.id FROM bookSeries bs JOIN books b ON b.id = bs.bookId WHERE bs.seriesId = ?`+permission+` ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST LIMIT 1`, append([]any{seriesID}, e.permArgs...)...)
 		if err != nil {
-			return nil, 0, err
+			return q, err
 		}
 		if len(ids) == 1 {
 			firstBooks = append(firstBooks, ids[0])
@@ -418,58 +412,43 @@ func (h *Handler) discoverShelf(r *http.Request, user store.User, libraryID stri
 	where := ` FROM books b JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book' AND li.libraryId = ?
 		LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = ?
 		WHERE (mp.isFinished IS NULL OR mp.isFinished = 0) AND (mp.currentTime IS NULL OR mp.currentTime = 0) AND ` + seriesClause + permission
-	args := append([]any{libraryID, user.ID}, firstBooks...)
-	args = append(args, permissionArgs...)
-	var count int
-	if err := h.db.QueryRowContext(ctx, `SELECT count(DISTINCT b.id)`+where, args...).Scan(&count); err != nil {
-		return nil, 0, err
+	args := append(append([]any{e.libraryID, e.user.ID}, firstBooks...), e.permArgs...)
+	if err := h.db.QueryRowContext(ctx, `SELECT count(DISTINCT b.id)`+where, args...).Scan(&q.total); err != nil {
+		return q, err
 	}
-	itemIDs, err := h.queryStrings(ctx, `SELECT li.id`+where+` GROUP BY b.id ORDER BY RANDOM() LIMIT ?`, append(args, limit)...)
-	if err != nil {
-		return nil, 0, err
-	}
-	rendered, err := h.minifiedItems(ctx, itemIDs)
-	if err != nil {
-		return nil, 0, err
-	}
-	items := make([]any, 0, len(rendered))
-	for i := range rendered {
-		item := &rendered[i]
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item.Head, item.MediaID(), &item.Extras); err != nil {
-			return nil, 0, err
-		}
-		items = append(items, *item)
-	}
-	return items, count, nil
+	q.ids, err = h.queryStrings(ctx, `SELECT li.id`+where+` GROUP BY b.id ORDER BY RANDOM() LIMIT ?`, append(args, e.limit)...)
+	// Discover only loads feeds; it never sets mediaItemShare (js:886-1017).
+	q.build = e.attach(itemIncludes{rssFeed: includeHas(e.r, "rssfeed")})
+	return q, err
 }
 
-// newestAuthorsShelf mirrors libraryFilters.getNewestAuthors
+// newestAuthors mirrors libraryFilters.getNewestAuthors
 // (server/utils/queries/libraryFilters.js:334-368).
-func (h *Handler) newestAuthorsShelf(r *http.Request, user store.User, libraryID string, limit int) ([]wire.AuthorShelfEntry, int, error) {
-	ctx := r.Context()
-	permission, permissionArgs := userMediaClause(user, "book")
+func (e *shelfEnv) newestAuthors() (shelfQuery, error) {
+	var q shelfQuery
+	ctx, permission := e.r.Context(), e.perm
 	books := `(SELECT count(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id = ba.bookId WHERE ba.authorId = a.id` + permission + `)`
 	where := ` FROM authors a WHERE a.libraryId = ? AND a.createdAt >= ? AND ` + books + ` > 0`
-	args := append([]any{libraryID, sixtyDaysAgo()}, permissionArgs...)
-	var count int
-	if err := h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&count); err != nil {
-		return nil, 0, err
+	args := append([]any{e.libraryID, sixtyDaysAgo()}, e.permArgs...)
+	if err := e.h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&q.total); err != nil {
+		return q, err
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT a.id, a.asin, a.name, a.description, a.imagePath, a.libraryId, a.createdAt, a.updatedAt, `+books+where+` ORDER BY a.createdAt DESC LIMIT ?`, append(append(append([]any{}, permissionArgs...), args...), limit)...)
+	rows, err := e.h.db.QueryContext(ctx, `SELECT a.id, a.asin, a.name, a.description, a.imagePath, a.libraryId, a.createdAt, a.updatedAt, `+books+where+` ORDER BY a.createdAt DESC LIMIT ?`, append(append(append([]any{}, e.permArgs...), args...), e.limit)...)
 	if err != nil {
-		return nil, 0, err
+		return q, err
 	}
 	defer rows.Close()
-	authors := make([]wire.AuthorShelfEntry, 0)
+	var authors []any
 	for rows.Next() {
 		var a wire.AuthorShelfEntry
 		var created, updated any
 		if err := rows.Scan(&a.ID, &a.ASIN, &a.Name, &a.Description, &a.ImagePath, &a.LibraryID, &created, &updated, &a.NumBooks); err != nil {
-			return nil, 0, err
+			return q, err
 		}
 		a.AddedAt, _ = dbtime.OptionalMillis(created)
 		a.UpdatedAt, _ = dbtime.OptionalMillis(updated)
 		authors = append(authors, a)
 	}
-	return authors, count, rows.Err()
+	q.build = func([]shelfItem) ([]any, error) { return authors, nil }
+	return q, rows.Err()
 }

@@ -173,7 +173,7 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 // libraryItemsBookFilters.getFilteredLibraryItems, 'authors' group, addedAt
 // descending): only items the user may see (explicit and tag permissions).
 func (h *Handler) authorItemIDs(ctx context.Context, user store.User, author authorRecord) ([]string, error) {
-	permissionSQL, permissionArgs := userMediaClause(user, "book")
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	args := append([]any{author.libraryID, author.id}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`+permissionSQL+` ORDER BY li.createdAt DESC`, args...)
 	if err != nil {

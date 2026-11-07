@@ -11,7 +11,7 @@
     "go-backend/internal/adminops/handler.go": "9f308130cd32940d5f7dafea62d6d2059447016ce688388a5ce7f7b2935dd8d3",
     "go-backend/internal/audiotools/tools.go": "3cbfd0b6a2baa14dd4e943ba9ae8ac2a7aa796a861705526f3b88e25839c31d4",
     "go-backend/internal/backup/backup.go": "c052028e8b681d931e399788645ddf8d59845a8de79d154d1292a96d233e103e",
-    "go-backend/internal/catalog/handler.go": "de1ec1602ec1ce6486bb28666d8cce084411cd99960e1b3b0f9792fcffbadc0d",
+    "go-backend/internal/catalog/handler.go": "e63d3ce550bdc9c01f257b1aa65993769809f1003184ddb8ad4837c6b9433774",
     "go-backend/internal/emailapi/handler.go": "a36073aacf769336c9875c589fab8b37e82e9c388a78a1fe7a8faad8ea3983ff",
     "go-backend/internal/identity/identity.go": "9230ff72494518b2d58543305f116c30f216471f05a207489a681a81bc0c7c7b",
     "go-backend/internal/lists/routes.go": "44fa5e9c4170603c51437f7f88fd459377157875ac25834f7b4208f1752ac2c0",

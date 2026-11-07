@@ -64,6 +64,7 @@ and nulls, because TS reads those back.
 | M3: ADR-002 sweep (key-order/byte-fidelity code deleted) | (this commit) | 42,743 → 42,578 | −165 | 10,380 → 10,347 | httputil Streamed/WithoutContentLength/WithoutETag, catalog writeJSONWithETag, OIDC ordered rewriter, playback ordered metadata structs; byte/order test assertions now compare values |
 | M4 (C1): one typed item model, internal/libitem | (this commit) | 42,578 → 41,812 | −766 (libitem +~1,050 included) | 10,347 → 10,155 | packages books/ and items/ deleted; catalog podcast/book map builders, podcasts/item.go serializer, playback and sharing schema readers, lists per-entry SELECTs, dead wire book types; map[string]any 990 → 900, []any 326 → 301 |
 | M5 (C1d + C2): typed item decorators; one item-mutation write path (internal/itemwrite) | (this commit) | 41,812 → 41,475 | −337 (new itemwrite + mutation.go +661 included) | 10,155 → 10,015 | toMap round trip, realtime map item path, sync/quickMatch author+series copies, column builders, orphan check copies, finalizeScan loops, taxonomy bodies; map[string]any 900 → 852 |
+| M6 (C3 + C4): filters/sort as tables; shelves as definitions; one permission clause | (this commit) | 41,475 → 41,204 | −271 | 10,015 → 9,874 | filterClause (55), podcastFilterClause, three order builders, podcastPermissionClause, userMediaClause and personalized hand loops (37) replaced by catalog/query.go tables and one shelf loop |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -124,3 +125,17 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
   never delivered (every item emitter now sends libitem values).
 - Left: shared image fetch (`cover.go`/`authors.go`), and catalog still has a
   second SetItemChanged wiring.
+
+### M6 notes
+
+- Recorded before the refactor and unchanged after: catalog/testdata/query_golden.json
+  (2,004 cases: every filter group and sort key, both media types, three
+  users) and catalog/testdata/personalized_golden.json (5 users, both library
+  types, settings and query variants).
+- Shelves load all their items with one libitem.Load; episode shelves load only
+  the episodes they show (`libitem.Options.EpisodeIDs`).
+- Podcast filter values decode like book values; book genre/tag filters guard
+  with json_valid like podcasts. A book sort on a key with no column
+  (`media.metadata.author`, `media.numTracks`) still answers 500, as before.
+- Permission code outside catalog (podcasts, emailapi, playback, sharing) still
+  has its own copies; next packet.

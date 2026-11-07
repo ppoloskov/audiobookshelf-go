@@ -7,13 +7,11 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -94,365 +92,6 @@ func (h *Handler) itemMaps(ctx context.Context, ids []string, _ string) ([]libit
 	return h.expandedItems(ctx, ids)
 }
 
-func orderClause(sortBy string, desc, ignorePrefix bool) (string, error) {
-	dir := "ASC"
-	if desc {
-		dir = "DESC"
-	}
-	fields := map[string]string{"addedAt": "li.createdAt", "size": "li.size", "birthtimeMs": "li.birthtime", "mtimeMs": "li.mtime", "media.duration": "b.duration", "media.metadata.publishedYear": "CAST(b.publishedYear AS INTEGER)", "media.metadata.authorName": "li.authorNamesFirstLast COLLATE NOCASE", "media.metadata.authorNameLF": "li.authorNamesLastFirst COLLATE NOCASE", "media.metadata.title": "li.title COLLATE NOCASE"}
-	fields["media.metadata.author"] = "b.author COLLATE NOCASE"
-	fields["media.numTracks"] = "b.numEpisodes"
-	fields["random"] = "RANDOM()"
-	if sortBy == "" {
-		return "", nil
-	}
-	field, ok := fields[sortBy]
-	if !ok {
-		return "", fmt.Errorf("unsupported sort field")
-	}
-	if sortBy == "media.metadata.title" && ignorePrefix {
-		field = "li.titleIgnorePrefix COLLATE NOCASE"
-	}
-	return " ORDER BY " + field + " " + dir, nil
-}
-
-// orderClauseForRequest adds the two user scoped orderings supported by the
-// upstream book library query. Keep these as correlated subqueries so each
-// item can still be paginated without multiplying rows by progress records.
-func orderClauseForRequest(sortBy string, desc, ignorePrefix bool, mediaType, filter string, user store.User) (string, []any, error) {
-	if sortBy == "sequence" {
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("sequence sort is unavailable for podcasts")
-		}
-		if strings.HasPrefix(filter, "series.") {
-			_, value, _ := strings.Cut(filter, ".")
-			value, _ = decodeFilterValue(value)
-			dir := "ASC NULLS LAST"
-			if desc {
-				dir = "DESC NULLS FIRST"
-			}
-			return " ORDER BY CAST((SELECT bs.sequence FROM bookSeries bs WHERE bs.bookId=b.id AND bs.seriesId=? LIMIT 1) AS FLOAT) " + dir, []any{value}, nil
-		}
-		clause, err := orderClause("media.metadata.title", desc, ignorePrefix)
-		return clause, nil, err
-	}
-	if strings.HasPrefix(sortBy, "progress") {
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("progress sort is unavailable for podcasts")
-		}
-		dir := "ASC"
-		if desc {
-			dir = "DESC"
-		}
-		field := "updatedAt"
-		switch sortBy {
-		case "progress", "progress.updatedAt":
-			field = "updatedAt"
-		case "progress.createdAt":
-			field = "createdAt"
-		case "progress.finishedAt":
-			field = "finishedAt"
-		default:
-			return "", nil, fmt.Errorf("unsupported sort field")
-		}
-		return " ORDER BY (SELECT mp." + field + " FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? LIMIT 1) " + dir + " NULLS LAST", []any{user.ID}, nil
-	}
-	clause, err := orderClause(sortBy, desc, ignorePrefix)
-	return clause, nil, err
-}
-
-// podcastFilterGroups are the filter groups LibraryFilters splits at the
-// first dot (server/utils/queries/libraryFilters.js:35). Every other filter
-// string is taken whole as the group, so "explicit" only filters when sent
-// without a value.
-var podcastFilterGroups = []string{"genres", "tags", "series", "authors", "progress", "narrators", "publishers", "publishedDecades", "missing", "languages", "tracks", "ebooks"}
-
-// podcastFilterClause mirrors libraryItemsPodcastFilters.getFilteredLibraryItems
-// and getMediaGroupQuery (server/utils/queries/libraryItemsPodcastFilters.js:
-// 40-62, 144-163): only issues, recent, feed-open, genres, tags, languages and
-// explicit filter; any other group (progress, series, ...) matches everything.
-func podcastFilterClause(raw string) (string, []any) {
-	if raw == "" {
-		return "", nil
-	}
-	group, value := raw, ""
-	for _, g := range podcastFilterGroups {
-		if strings.HasPrefix(raw, g+".") {
-			group, value = g, decodeUpstreamFilterValue(strings.TrimPrefix(raw, g+"."))
-			break
-		}
-	}
-	switch group {
-	case "issues":
-		return ` AND (li.isMissing=1 OR li.isInvalid=1)`, nil
-	case "recent":
-		return ` AND li.createdAt>=?`, []any{dbtime.Format(time.Now().Add(-60 * 24 * time.Hour))}
-	case "feed-open":
-		return ` AND EXISTS (SELECT 1 FROM feeds f WHERE f.entityType='libraryItem' AND f.entityId=li.id)`, nil
-	case "genres", "tags":
-		return ` AND EXISTS (SELECT 1 FROM json_each(b.` + group + `) WHERE json_valid(b.` + group + `) AND json_each.value=?)`, []any{value}
-	case "languages":
-		return ` AND b.language=?`, []any{value}
-	case "explicit":
-		return ` AND b.explicit=1`, nil
-	}
-	return "", nil
-}
-
-// decodeUpstreamFilterValue is libraryFilters.decode: decodeURIComponent then
-// base64 (server/utils/queries/libraryFilters.js:13). Node's base64 decoder is
-// lenient about alphabet and padding, so all four Go encodings are tried.
-func decodeUpstreamFilterValue(value string) string {
-	if unescaped, err := url.PathUnescape(value); err == nil {
-		value = unescaped
-	}
-	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if b, err := enc.DecodeString(value); err == nil {
-			return string(b)
-		}
-	}
-	return value
-}
-
-// podcastOrderClause mirrors libraryItemsPodcastFilters.getOrder
-// (server/utils/queries/libraryItemsPodcastFilters.js:67-95). Sort keys that
-// are not listed (for example media.duration) add no ORDER BY upstream.
-func podcastOrderClause(sortBy string, desc, ignorePrefix bool) string {
-	dir := "ASC"
-	if desc {
-		dir = "DESC"
-	}
-	switch sortBy {
-	case "addedAt":
-		return " ORDER BY li.createdAt " + dir
-	case "size":
-		return " ORDER BY li.size " + dir
-	case "birthtimeMs":
-		return " ORDER BY li.birthtime " + dir
-	case "mtimeMs":
-		return " ORDER BY li.mtime " + dir
-	case "media.metadata.author":
-		if desc {
-			return " ORDER BY b.author COLLATE NOCASE DESC NULLS FIRST"
-		}
-		return " ORDER BY b.author COLLATE NOCASE ASC NULLS LAST"
-	case "media.metadata.title":
-		if ignorePrefix {
-			return " ORDER BY li.titleIgnorePrefix COLLATE NOCASE " + dir
-		}
-		return " ORDER BY li.title COLLATE NOCASE " + dir
-	case "media.numTracks":
-		return " ORDER BY b.numEpisodes " + dir
-	case "random":
-		return " ORDER BY RANDOM()"
-	}
-	return ""
-}
-
-func filterClause(raw, mediaType string, user store.User) (string, []any, error) {
-	if raw == "" {
-		return "", nil, nil
-	}
-	group, value, hasValue := strings.Cut(raw, ".")
-	if !hasValue {
-		group = raw
-		value = ""
-	} else if decoded, err := decodeFilterValue(value); err == nil {
-		value = decoded
-	}
-	if group == "" {
-		return "", nil, nil
-	}
-	var clause string
-	var arg any
-	switch group {
-	case "issues":
-		clause = ` AND (li.isMissing=1 OR li.isInvalid=1)`
-	case "recent":
-		clause = ` AND li.createdAt>=?`
-		arg = dbtime.Format(time.Now().Add(-60 * 24 * time.Hour))
-	case "feed-open":
-		clause = ` AND EXISTS (SELECT 1 FROM feeds f WHERE f.entityType='libraryItem' AND f.entityId=li.id)`
-	case "share-open":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("share filter is unavailable for podcasts")
-		}
-		clause = ` AND EXISTS (SELECT 1 FROM mediaItemShares ms WHERE ms.mediaItemType='book' AND ms.mediaItemId=b.id)`
-	case "progress":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("progress filter is unavailable for podcasts")
-		}
-		// libraryItemsBookFilters.getMediaGroupQuery (server/utils/queries/libraryItemsBookFilters.js:109-183)
-		// LEFT JOINs the user's single progress row; a missing row reads as
-		// NULL, so "not finished"/"not started" include items without one.
-		// An unknown value adds no condition.
-		exists := func(cond string) string {
-			return ` AND EXISTS (SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND (` + cond + `))`
-		}
-		notExists := func(cond string) string {
-			return ` AND NOT EXISTS (SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND (` + cond + `))`
-		}
-		switch value {
-		case "not-finished":
-			clause = notExists(`mp.isFinished=1`)
-		case "not-started":
-			clause = notExists(`NOT ((mp.currentTime IS NULL OR mp.currentTime=0) AND (mp.isFinished IS NULL OR mp.isFinished=0))`)
-		case "finished":
-			clause = exists(`mp.isFinished=1`)
-		case "in-progress":
-			clause = exists(`(mp.currentTime>0 OR mp.ebookProgress>0) AND mp.isFinished=0`)
-		case "audio-in-progress":
-			clause = exists(`mp.currentTime>0 AND mp.isFinished=0`)
-		case "ebook-in-progress":
-			clause = ` AND json_array_length(b.audioFiles)=0` + exists(`mp.ebookProgress>0 AND mp.isFinished=0`)
-		case "ebook-finished":
-			clause = ` AND json_array_length(b.audioFiles)=0 AND b.ebookFile IS NOT NULL` + exists(`mp.isFinished=1`)
-		default:
-			return "", nil, nil
-		}
-		return clause, []any{user.ID}, nil
-	case "genres", "tags":
-		clause = ` AND EXISTS (SELECT 1 FROM json_each(b.` + group + `) WHERE json_each.value=?)`
-		arg = value
-	case "narrators":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("narrator filter is unavailable for podcasts")
-		}
-		clause = ` AND EXISTS (SELECT 1 FROM json_each(b.narrators) WHERE json_each.value=?)`
-		arg = value
-	case "languages":
-		clause = ` AND b.language=?`
-		arg = value
-	case "publishers":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("publisher filter is unavailable for podcasts")
-		}
-		clause = ` AND b.publisher=?`
-		arg = value
-	case "authors":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("author filter is unavailable for podcasts")
-		}
-		clause = ` AND EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`
-		arg = value
-	case "series":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("series filter is unavailable for podcasts")
-		}
-		if value == "no-series" {
-			clause = ` AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.bookId=b.id)`
-		} else {
-			clause = ` AND EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.bookId=b.id AND bs.seriesId=?)`
-			arg = value
-		}
-	case "explicit":
-		clause = ` AND b.explicit=1`
-	case "abridged":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("abridged filter is unavailable for podcasts")
-		}
-		clause = ` AND b.abridged=1`
-	case "tracks":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("track filter is unavailable for podcasts")
-		}
-		if value == "none" {
-			clause = ` AND json_array_length(b.audioFiles)=0`
-		} else if value == "multi" {
-			clause = ` AND json_array_length(b.audioFiles)>1`
-		} else {
-			clause = ` AND json_array_length(b.audioFiles)=1`
-		}
-	case "ebooks":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("ebook filter is unavailable for podcasts")
-		}
-		if value == "ebook" {
-			clause = ` AND b.ebookFile IS NOT NULL AND b.ebookFile!='null'`
-		} else if value == "no-ebook" {
-			clause = ` AND (b.ebookFile IS NULL OR b.ebookFile='null')`
-		} else if value == "supplementary" {
-			clause = ` AND li.libraryFiles LIKE '%"isSupplementary":true%'`
-		} else if value == "no-supplementary" {
-			clause = ` AND li.libraryFiles NOT LIKE '%"isSupplementary":true%'`
-		} else {
-			return "", nil, fmt.Errorf("unsupported ebook filter")
-		}
-	case "publishedDecades":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("published decade filter is unavailable for podcasts")
-		}
-		year, err := strconv.Atoi(value)
-		if err != nil {
-			return "", nil, err
-		}
-		clause = ` AND CAST(b.publishedYear AS INTEGER) BETWEEN ? AND ?`
-		return clause, []any{year, year + 9}, nil
-	case "missing":
-		if mediaType != "book" {
-			return "", nil, fmt.Errorf("missing metadata filter is unavailable for podcasts")
-		}
-		switch value {
-		case "authors":
-			clause = ` AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id)`
-		case "series":
-			clause = ` AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.bookId=b.id)`
-		case "issues":
-			clause = ` AND (li.isMissing=1 OR li.isInvalid=1)`
-		case "asin", "isbn", "subtitle", "publishedYear", "description", "publisher", "language":
-			clause = ` AND (b.` + value + ` IS NULL OR b.` + value + `='')`
-		case "cover":
-			clause = ` AND (b.coverPath IS NULL OR b.coverPath='')`
-		case "genres", "tags", "narrators", "chapters":
-			clause = ` AND (b.` + value + ` IS NULL OR json_array_length(b.` + value + `)=0)`
-		default:
-			return "", nil, fmt.Errorf("unsupported missing metadata filter")
-		}
-	default:
-		return "", nil, fmt.Errorf("unsupported filter group %q", group)
-	}
-	if arg == nil {
-		return clause, nil, nil
-	}
-	return clause, []any{arg}, nil
-}
-
-func decodeFilterValue(value string) (string, error) {
-	if value == "no-series" || value == "no-ebook" || value == "ebook" || value == "issues" || value == "authors" || value == "series" || value == "genres" || value == "tags" || value == "narrators" || value == "not-finished" || value == "not-started" || value == "finished" || value == "in-progress" || value == "audio-in-progress" || value == "ebook-in-progress" || value == "ebook-finished" || value == "multi" || value == "none" || value == "supplementary" || value == "no-supplementary" || value == "share-open" || value == "feed-open" || value == "recent" {
-		return value, nil
-	}
-	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if b, err := enc.DecodeString(value); err == nil {
-			return string(b), nil
-		}
-	}
-	return value, fmt.Errorf("filter is not base64")
-}
-
-func userMediaClause(user store.User, _ string) (string, []any) {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	parts := make([]string, 0, 2)
-	args := make([]any, 0)
-	if permissions["accessExplicitContent"] != true || !user.IsActive {
-		parts = append(parts, " AND b.explicit=0")
-	}
-	if permissions["accessAllTags"] != true {
-		selected, _ := permissions["itemTagsSelected"].([]any)
-		if len(selected) > 0 {
-			placeholders := strings.TrimRight(strings.Repeat("?,", len(selected)), ",")
-			count := `(SELECT count(*) FROM json_each(b.tags) WHERE json_each.value IN (` + placeholders + `))`
-			if permissions["selectedTagsNotAccessible"] == true {
-				parts = append(parts, " AND "+count+"=0")
-			} else {
-				parts = append(parts, " AND "+count+">0")
-			}
-			args = append(args, selected...)
-		}
-	}
-	return strings.Join(parts, ""), args
-}
-
 func pagination(r *http.Request) (int, int, error) {
 	page, limit := 0, 0
 	for name, target := range map[string]*int{"page": &page, "limit": &limit} {
@@ -469,37 +108,6 @@ func pagination(r *http.Request) (int, int, error) {
 	return page, limit, nil
 }
 
-func userCanAccessLibrary(user store.User, id string) bool {
-	var p map[string]any
-	_ = json.Unmarshal(user.Permissions, &p)
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	ids, _ := p["librariesAccessible"].([]any)
-	for _, v := range ids {
-		if v == id {
-			return true
-		}
-	}
-	return false
-}
-
-// LibraryController.findAll filters only a non-empty librariesAccessible list;
-// it does not special-case accessAllLibraries on this list route.
-func userCanListLibrary(user store.User, id string) bool {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	ids, _ := permissions["librariesAccessible"].([]any)
-	if len(ids) == 0 {
-		return true
-	}
-	for _, value := range ids {
-		if value == id {
-			return true
-		}
-	}
-	return false
-}
 func decodeObject(raw []byte) map[string]any {
 	return store.DecodeJSONObject(raw)
 }
@@ -1192,7 +800,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 	filtered := make([]authorRow, 0, len(data))
 	for _, a := range data {
 		var count int64
-		where, args := userMediaClause(user, "book")
+		where, args := mediaPermission(user, "b")
 		q := `SELECT COUNT(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id=ba.bookId WHERE ba.authorId=?` + where
 		params := append([]any{a.id}, args...)
 		if err := h.db.QueryRowContext(r.Context(), q, params...).Scan(&count); err != nil {
@@ -1320,7 +928,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	filter := r.URL.Query().Get("filter")
 	settings := decodeObject(settingsRaw)
 	hideSingle, _ := settings["hideSingleBookSeries"].(bool)
-	permissionSQL, permissionArgs := userMediaClause(user, "book")
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	hasPermissionFilter := permissionSQL != ""
 	rows, err := h.db.QueryContext(r.Context(), `SELECT s.id,s.name,s.nameIgnorePrefix,s.description,s.createdAt,s.updatedAt,s.libraryId,(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id) AS bookCount,(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS duration,(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS recent FROM series s WHERE s.libraryId=?`, libraryID)
 	if err != nil {
@@ -1477,7 +1085,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
-	permission, args := userMediaClause(user, "book")
+	permission, args := mediaPermission(user, "b")
 	queryArgs := append([]any{seriesID}, args...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission, queryArgs...)
 	if err != nil {
@@ -1531,7 +1139,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	visibleSQL, args := userMediaClause(user, "book")
+	visibleSQL, args := mediaPermission(user, "b")
 	var count int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=?`+visibleSQL, append([]any{seriesID}, args...)...).Scan(&count); err != nil {
 		return httputil.Internal("database read failed", err)
@@ -1638,34 +1246,29 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 		return h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
 	}
 	filterValue := r.URL.Query().Get("filter")
-	var order string
-	var orderArgs []any
-	if mediaType == "podcast" {
-		order = podcastOrderClause(r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1", ignorePrefix)
-	} else {
-		order, orderArgs, err = orderClauseForRequest(r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1", ignorePrefix, mediaType, filterValue, user)
-		if err != nil {
-			return httputil.Status(http.StatusBadRequest, err.Error())
-		}
-	}
-	var total int
 	mediaTable := "books"
-	if mediaType == "podcast" {
+	switch mediaType {
+	case "podcast":
 		mediaTable = "podcasts"
-	} else if mediaType != "book" {
+	case "book":
+	default:
 		return httputil.Status(http.StatusNotImplemented, "unsupported library media type")
 	}
-	var filterSQL string
-	var filterArgs []any
-	if mediaType == "podcast" {
-		filterSQL, filterArgs = podcastFilterClause(filterValue)
-	} else if filterSQL, filterArgs, err = filterClause(filterValue, mediaType, user); err != nil {
+	podcast := mediaType == "podcast"
+	sortBy, desc := r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1"
+	order, orderArgs, err := orderSQL(sortBy, filterValue, desc, ignorePrefix, podcast, user)
+	if err != nil {
+		return httputil.Status(http.StatusBadRequest, err.Error())
+	}
+	filterWhere, filterArgs, err := filterSQL(filterValue, podcast, user)
+	if err != nil {
 		return httputil.Status(http.StatusNotImplemented, err.Error())
 	}
-	permissionSQL, permissionArgs := userMediaClause(user, mediaType)
+	var total int
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	var collapsed collapsedSeries
 	if collapse && mediaType == "book" {
-		if collapsed, err = h.collapseSeries(r.Context(), libraryID, filterValue, filterSQL, filterArgs, permissionSQL, permissionArgs); err != nil {
+		if collapsed, err = h.collapseSeries(r.Context(), libraryID, filterValue, filterWhere, filterArgs, permissionSQL, permissionArgs); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if len(collapsed.excludeBookIDs) > 0 {
@@ -1678,7 +1281,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 			order, orderArgs = collapsedTitleOrder(collapsed, ignorePrefix, r.URL.Query().Get("desc") == "1")
 		}
 	}
-	whereSQL := filterSQL + permissionSQL
+	whereSQL := filterWhere + permissionSQL
 	countArgs := append([]any{libraryID, mediaType}, filterArgs...)
 	countArgs = append(countArgs, permissionArgs...)
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems li JOIN `+mediaTable+` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?`+whereSQL, countArgs...).Scan(&total); err != nil {
@@ -1752,7 +1355,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, it.LibraryID) || !userCanAccessMedia(user, it.Access()) {
+	if !userCanAccessItem(user, it.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if !expanded {
@@ -1815,38 +1418,6 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 		}
 	}
 	return nil
-}
-
-// userCanAccessMedia is User.checkCanAccessLibraryItem's explicit and tag
-// checks (server/models/User.js:658-683) on a book's access fields.
-func userCanAccessMedia(user store.User, access libitem.Access) bool {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	if access.Explicit && permissions["accessExplicitContent"] != true {
-		return false
-	}
-	if permissions["accessAllTags"] == true {
-		return true
-	}
-	tags := access.Tags
-	selected := make(map[string]bool)
-	for _, tag := range stringValues(permissions["itemTagsSelected"]) {
-		selected[tag] = true
-	}
-	if permissions["selectedTagsNotAccessible"] == true {
-		for _, tag := range tags {
-			if selected[tag] {
-				return false
-			}
-		}
-		return true
-	}
-	for _, tag := range tags {
-		if selected[tag] {
-			return true
-		}
-	}
-	return false
 }
 
 func stringValues(value any) []string {
@@ -2174,7 +1745,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	} else if mediaType != "book" {
 		return httputil.Status(http.StatusNotImplemented, "unsupported library media type")
 	}
-	permissionSQL, permissionArgs := userMediaClause(user, mediaType)
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	querySQL := `SELECT li.id FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND (lower(b.title) LIKE lower(?) OR `
 	if mediaType == "book" {
 		querySQL += `lower(b.subtitle) LIKE lower(?) OR lower(b.asin) LIKE lower(?) OR lower(b.isbn) LIKE lower(?))`
@@ -2412,7 +1983,7 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		return nil, err
 	}
 	rows.Close()
-	permission, permissionArgs := userMediaClause(user, "book")
+	permission, permissionArgs := mediaPermission(user, "b")
 	out := make([]map[string]any, 0, len(matches))
 	for _, m := range matches {
 		itemIDs, err := h.queryStrings(ctx, `SELECT li.id FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=?`+permission+` ORDER BY bs.rowid`, append([]any{m.id}, permissionArgs...)...)

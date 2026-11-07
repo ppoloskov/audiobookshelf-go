@@ -57,7 +57,7 @@ type seriesItem struct{ itemID, bookID string }
 // (libraryItemsBookFilters.js:1079-1082): the series' books the user may see,
 // ordered by sequence as a number, books without one last.
 func (h *Handler) seriesItems(ctx context.Context, user store.User, s seriesRecord) ([]seriesItem, error) {
-	permissionSQL, permissionArgs := userMediaClause(user, "book")
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	args := append([]any{s.libraryID, s.id}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN bookSeries bs ON bs.bookId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND bs.seriesId=?`+permissionSQL+` ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, li.rowid`, args...)
 	if err != nil {

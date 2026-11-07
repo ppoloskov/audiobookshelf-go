@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
@@ -50,14 +51,14 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 			}
 			h := New(db, config.Config{}, nil)
 			user := store.User{ID: "shelf-user", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":false}`)}
-			permission, permissionArgs := userMediaClause(user, "book")
+			permission, permissionArgs := mediaPermission(user, "b")
 			query := `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)` + permission + ` ORDER BY mp.updatedAt DESC LIMIT ?`
 			args := []any{"l1", user.ID}
 			args = append(args, permissionArgs...)
 			args = append(args, size)
 			r := httptest.NewRequest("GET", "/", nil)
 			counter.reset()
-			items, err := h.personalizedItems(r, user, query, args)
+			items, err := shelfItems(h, r, query, args)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -121,13 +122,12 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 	db, _ := catalogFixtureWithQueryCount(t)
 	seedBookPage(t, db, 10)
 	h := New(db, config.Config{}, nil)
-	user := store.User{ID: "shelf-user", IsActive: true}
 	r := httptest.NewRequest("GET", "/", nil)
-	duplicates, err := h.personalizedItems(r, user, `SELECT 'i8' UNION ALL SELECT 'i8'`, nil)
+	duplicates, err := shelfItems(h, r, `SELECT 'i8' UNION ALL SELECT 'i8'`, nil)
 	if err != nil || len(duplicates) != 2 || duplicates[0].ID != "i8" || duplicates[1].ID != "i8" {
 		t.Fatalf("duplicate selection result=%v err=%v", duplicates, err)
 	}
-	missing, err := h.personalizedItems(r, user, `SELECT 'missing-item'`, nil)
+	missing, err := shelfItems(h, r, `SELECT 'missing-item'`, nil)
 	if !errors.Is(err, sql.ErrNoRows) || missing != nil {
 		t.Fatalf("missing selection result=%v err=%v, want nil/sql.ErrNoRows", missing, err)
 	}
@@ -173,4 +173,14 @@ func itemIDsForShelf(count int) []string {
 		ids[i] = fmt.Sprintf("i%d", i+2)
 	}
 	return ids
+}
+
+// shelfItems is a shelf's two steps: the ids a query selects, then one batched
+// load of them.
+func shelfItems(h *Handler, r *http.Request, query string, args []any) ([]libitem.Minified, error) {
+	ids, err := h.queryStrings(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return h.minifiedItems(r.Context(), ids)
 }

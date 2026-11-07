@@ -148,6 +148,9 @@ type Options struct {
 	// Episodes loads Podcast.Episodes (createdAt ascending). List pages must
 	// leave it unset.
 	Episodes bool
+	// EpisodeIDs, when set with Episodes, limits the episodes loaded to these
+	// ids (a shelf needs only the episodes it shows).
+	EpisodeIDs []string
 }
 
 // Access is what every permission check reads of an item.

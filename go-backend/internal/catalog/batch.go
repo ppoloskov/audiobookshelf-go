@@ -68,7 +68,7 @@ func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items
 		if table == "" {
 			return false, nil
 		}
-		permissionSQL, permissionArgs := userMediaClause(user, item.mediaType)
+		permissionSQL, permissionArgs := mediaPermission(user, "b")
 		var visible int
 		query := `SELECT COUNT(*) FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.id=?` + permissionSQL
 		if err := h.db.QueryRowContext(ctx, query, append([]any{item.id}, permissionArgs...)...).Scan(&visible); err != nil {

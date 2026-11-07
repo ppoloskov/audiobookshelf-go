@@ -117,7 +117,7 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	permissionSQL, permissionArgs := userMediaClause(user, "podcast")
+	permissionSQL, permissionArgs := mediaPermission(user, "b")
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
 	if err != nil {
 		return httputil.Internal("database read failed", err)

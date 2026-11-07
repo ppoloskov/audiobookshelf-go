@@ -94,7 +94,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		if ref.mediaType == "podcast" {
 			mediaAlias = "p"
 		}
-		permission, permissionArgs := userMediaClause(user, ref.mediaType)
+		permission, permissionArgs := mediaPermission(user, "b")
 		var visible int
 		query := `SELECT COUNT(*) FROM libraryItems li JOIN ` + map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType] + ` ` + mediaAlias + ` ON ` + mediaAlias + `.id=li.mediaId WHERE li.id=?` + permission
 		if _, exists := map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType]; !exists {

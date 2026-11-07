@@ -1,24 +1,76 @@
 package catalog
 
 import (
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
 
-// personalized implements the book shelves whose upstream source is
-// LibraryItem.getPersonalizedShelves / libraryFilters. Shelves are omitted
-// when they have no visible entities, as in the reference controller.
+// A shelf is a definition: its identity and one query. personalized runs the
+// queries of a library's shelves, loads every item they name with a single
+// libitem.Load, and renders the shelves in definition order. A shelf without
+// entities is omitted, as in the reference controller
+// (LibraryItem.getPersonalizedShelves, server/models/LibraryItem.js:384-491).
+type shelfDef struct {
+	id, label, key, typ string
+	query               func(*shelfEnv) (shelfQuery, error)
+}
+
+// shelfQuery is what a shelf shows: the library items it needs loaded, its
+// total, and how it renders them. build gets those items in ids order.
+type shelfQuery struct {
+	ids   []string
+	total int
+	build func([]shelfItem) ([]any, error)
+}
+
+// shelfItem is a loaded item and its shelf rendering.
+type shelfItem struct {
+	min libitem.Minified
+	src libitem.Item
+}
+
+// shelfEnv is the request every shelf query shares.
+type shelfEnv struct {
+	h         *Handler
+	r         *http.Request
+	user      store.User
+	libraryID string
+	limit     int
+	podcast   bool
+	perm      string // the user's media permission clause, with its arguments
+	permArgs  []any
+	memo      map[string]shelfQuery
+	episodes  []string // episode ids the episode shelves show; only these are loaded
+}
+
+var bookShelves = []shelfDef{
+	{"continue-listening", "Continue Listening", "LabelContinueListening", "book", progressBooks(`mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)`, false)},
+	{"continue-reading", "Continue Reading", "LabelContinueReading", "book", progressBooks(`mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)`, true)},
+	{"continue-series", "Continue Series", "LabelContinueSeries", "book", (*shelfEnv).continueSeries},
+	{"recently-added", "Recently Added", "LabelRecentlyAdded", "book", func(e *shelfEnv) (shelfQuery, error) {
+		return e.itemQuery(`SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.libraryID, sixtyDaysAgo())
+	}},
+	{"recent-series", "Recent Series", "LabelRecentSeries", "series", (*shelfEnv).recentSeries},
+	{"discover", "Discover", "LabelDiscover", "book", (*shelfEnv).discover},
+	{"listen-again", "Listen Again", "LabelListenAgain", "book", progressBooks(`mp.isFinished=1`, false)},
+	{"read-again", "Read Again", "LabelReadAgain", "book", progressBooks(`mp.isFinished=1`, true)},
+	{"newest-authors", "Newest Authors", "LabelNewestAuthors", "authors", (*shelfEnv).newestAuthors},
+}
+
+var podcastShelves = []shelfDef{
+	{"continue-listening", "Continue Listening", "LabelContinueListening", "episode", episodeShelf(true, `mp.isFinished=0 AND mp.currentTime>0 AND mp.hideFromContinueListening=0`)},
+	{"newest-episodes", "Newest Episodes", "LabelNewestEpisodes", "episode", episodeShelf(false, `ep.createdAt>=?`)},
+	{"recently-added", "Recently Added", "LabelRecentlyAdded", "podcast", (*shelfEnv).recentPodcasts},
+	{"listen-again", "Listen Again", "LabelListenAgain", "episode", episodeShelf(true, `mp.isFinished=1`)},
+}
+
 func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
@@ -40,368 +92,194 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 			limit = v
 		}
 	}
-	if mediaType != "book" {
-		if mediaType == "podcast" {
-			return h.personalizedPodcasts(w, r, user, libraryID, limit)
-		}
+	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
+	defs := bookShelves
+	switch mediaType {
+	case "book":
+		e.perm, e.permArgs = mediaPermission(user, "b")
+	case "podcast":
+		defs = podcastShelves
+		e.perm, e.permArgs = mediaPermission(user, "p")
+	default:
 		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
-	permission, permissionArgs := userMediaClause(user, "book")
-	shelves := make([]wire.Shelf, 0, 5)
-	for _, spec := range []struct {
-		id, label, key, query string
-	}{
-		{"continue-listening", "Continue Listening", "LabelContinueListening", `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)` + permission + ` ORDER BY mp.updatedAt DESC`},
-		{"recently-added", "Recently Added", "LabelRecentlyAdded", `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND li.createdAt>=?` + permission + ` ORDER BY li.createdAt DESC`},
-		{"listen-again", "Listen Again", "LabelListenAgain", `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND mp.isFinished=1` + permission + ` ORDER BY mp.updatedAt DESC`},
-	} {
-		// The progress shelves have the same user scope and permission clauses;
-		// recent items do not have a progress user argument.
-		args := []any{libraryID}
-		if spec.id == "continue-listening" || spec.id == "listen-again" {
-			args = append(args, user.ID)
-		} else {
-			args = append(args, dbtime.Format(time.Now().Add(-60*24*time.Hour)))
-		}
-		args = append(args, permissionArgs...)
-		totalQuery := "SELECT COUNT(*) FROM (" + spec.query + ")"
-		var total int
-		if err := h.db.QueryRowContext(r.Context(), totalQuery, args...).Scan(&total); err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		items, err := h.personalizedItems(r, user, spec.query+` LIMIT ?`, append(append([]any{}, args...), limit))
+	queries := make([]shelfQuery, len(defs))
+	var ids []string
+	for i, def := range defs {
+		q, err := def.query(e)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if spec.id == "continue-listening" || spec.id == "listen-again" {
-			audio := make([]libitem.Minified, 0, len(items))
-			reading := make([]libitem.Minified, 0, len(items))
-			for _, item := range items {
-				var tracks int
-				var hasEbookFormat bool
-				if media, ok := item.Media.(libitem.BookMinified); ok {
-					tracks = media.NumTracks
-					hasEbookFormat = len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null"
-				}
-				if tracks > 0 {
-					audio = append(audio, item)
-				} else if hasEbookFormat {
-					reading = append(reading, item)
-				}
-			}
-			if len(audio) > 0 {
-				id, label, key := spec.id, spec.label, spec.key
-				if id == "listen-again" {
-					id, label, key = "listen-again", "Listen Again", "LabelListenAgain"
-				}
-				shelves = append(shelves, wire.Shelf{ID: id, Label: label, LabelStringKey: key, Type: "book", Entities: audio, Total: total})
-			}
-			if len(reading) > 0 {
-				id, label, key := spec.id, spec.label, spec.key
-				if id == "continue-listening" {
-					id, label, key = "continue-reading", "Continue Reading", "LabelContinueReading"
-				} else {
-					id, label, key = "read-again", "Read Again", "LabelReadAgain"
-				}
-				shelves = append(shelves, wire.Shelf{ID: id, Label: label, LabelStringKey: key, Type: "book", Entities: reading, Total: total})
-			}
-		} else if len(items) > 0 {
-			shelves = append(shelves, wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: "book", Entities: items, Total: total})
+		queries[i] = q
+		ids = append(ids, q.ids...)
+	}
+	items, err := e.load(ids)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	shelves := make([]wire.Shelf, 0, len(defs))
+	for i, def := range defs {
+		q := queries[i]
+		entities, err := q.build(items[:len(q.ids)])
+		if err != nil {
+			return httputil.Internal("database read failed", err)
 		}
-		// Remaining book shelves, in LibraryItem.getPersonalizedShelves order
-		// (server/models/LibraryItem.js:384-491).
-		var shelfErr error
-		switch spec.id {
-		case "continue-listening":
-			shelfErr = h.appendContinueSeries(r, user, libraryID, limit, &shelves)
-		case "recently-added":
-			shelfErr = h.appendRecentSeriesAndDiscover(r, user, libraryID, limit, &shelves)
-		case "listen-again":
-			shelfErr = h.appendNewestAuthors(r, user, libraryID, limit, &shelves)
-		}
-		if shelfErr != nil {
-			return httputil.Internal("database read failed", shelfErr)
+		items = items[len(q.ids):]
+		if len(entities) > 0 {
+			shelves = append(shelves, wire.Shelf{ID: def.id, Label: def.label, LabelStringKey: def.key, Type: def.typ, Entities: entities, Total: q.total})
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.ForRequest(r))
 	return nil
 }
 
-func (h *Handler) appendContinueSeries(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
-	items, count, err := h.continueSeriesShelf(r, user, libraryID, limit)
+// load renders ids in the shelf shape in id order; a missing id is
+// sql.ErrNoRows. Podcast libraries load the episode shelves' episodes too.
+func (e *shelfEnv) load(ids []string) ([]shelfItem, error) {
+	loaded, err := libitem.Load(e.r.Context(), e.h.db, ids, libitem.Options{Episodes: e.podcast, EpisodeIDs: e.episodes})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if len(items) > 0 {
-		*shelves = append(*shelves, wire.Shelf{ID: "continue-series", Label: "Continue Series", LabelStringKey: "LabelContinueSeries", Type: "book", Entities: items, Total: count})
+	if len(loaded) != len(ids) {
+		return nil, sql.ErrNoRows
 	}
-	return nil
+	prefixes := e.h.sortingPrefixes(e.r.Context())
+	out := make([]shelfItem, len(loaded))
+	for i, it := range loaded {
+		out[i] = shelfItem{it.Minified(prefixes), it}
+	}
+	return out, nil
 }
 
-func (h *Handler) appendRecentSeriesAndDiscover(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
-	series, count, err := h.recentSeriesShelf(r, user, libraryID, includeHas(r, "rssfeed"))
-	if err != nil {
-		return err
+// itemQuery is a shelf of library items: query selects their ids in shelf
+// order, and its arguments are args followed by the permission arguments.
+// Shelves that differ only in how they render share one query by its text.
+func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
+	if q, ok := e.memo[query]; ok {
+		return q, nil
 	}
-	if len(series) > 0 {
-		*shelves = append(*shelves, wire.Shelf{ID: "recent-series", Label: "Recent Series", LabelStringKey: "LabelRecentSeries", Type: "series", Entities: series, Total: count})
+	ctx := e.r.Context()
+	args = append(args, e.permArgs...)
+	q := shelfQuery{build: e.attach(requestItemIncludes(e.r, e.user))}
+	if err := e.h.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+query+")", args...).Scan(&q.total); err != nil {
+		return q, err
 	}
-	items, count, err := h.discoverShelf(r, user, libraryID, limit)
-	if err != nil {
-		return err
-	}
-	if len(items) > 0 {
-		*shelves = append(*shelves, wire.Shelf{ID: "discover", Label: "Discover", LabelStringKey: "LabelDiscover", Type: "book", Entities: items, Total: count})
-	}
-	return nil
+	var err error
+	q.ids, err = e.h.queryStrings(ctx, query+` LIMIT ?`, append(args, e.limit)...)
+	e.memo[query] = q
+	return q, err
 }
 
-func (h *Handler) appendNewestAuthors(r *http.Request, user store.User, libraryID string, limit int, shelves *[]wire.Shelf) error {
-	authors, count, err := h.newestAuthorsShelf(r, user, libraryID, limit)
-	if err != nil {
-		return err
+// attach renders items with their include= entities.
+func (e *shelfEnv) attach(inc itemIncludes) func([]shelfItem) ([]any, error) {
+	return func(items []shelfItem) ([]any, error) {
+		out := make([]any, len(items))
+		for i := range items {
+			item := items[i].min
+			if err := e.h.attachItemIncludes(e.r.Context(), inc, item.Head, item.MediaID(), &item.Extras); err != nil {
+				return nil, err
+			}
+			out[i] = item
+		}
+		return out, nil
 	}
-	if len(authors) > 0 {
-		*shelves = append(*shelves, wire.Shelf{ID: "newest-authors", Label: "Newest Authors", LabelStringKey: "LabelNewestAuthors", Type: "authors", Entities: authors, Total: count})
-	}
-	return nil
 }
 
-type episodeShelfRow struct {
-	itemID  string
-	episode libitem.EpisodeJSON
-}
-
-func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, user store.User, libraryID string, limit int) error {
-	permission, args := podcastPermissionClause(user)
-	cutoff := dbtime.Format(time.Now().Add(-60 * 24 * time.Hour))
-	shelves := make([]wire.Shelf, 0, 3)
-	var listenAgain *wire.Shelf
-	for _, spec := range []struct {
-		id, label, key, kind string
-		filter               string
-		progress             bool
-	}{
-		{"continue-listening", "Continue Listening", "LabelContinueListening", "episode", `mp.isFinished=0 AND mp.currentTime>0 AND mp.hideFromContinueListening=0`, true},
-		{"newest-episodes", "Newest Episodes", "LabelNewestEpisodes", "episode", `ep.createdAt>=?`, false},
-		{"listen-again", "Listen Again", "LabelListenAgain", "episode", `mp.isFinished=1`, true},
-	} {
-		where := spec.filter
-		queryArgs := []any{libraryID}
-		if spec.progress {
-			queryArgs = append(queryArgs, user.ID)
-		} else {
-			queryArgs = append(queryArgs, cutoff)
-		}
-		queryArgs = append(queryArgs, args...)
-		join := ``
-		if spec.progress {
-			join = ` JOIN mediaProgresses mp ON mp.mediaItemId=ep.id AND mp.userId=?`
-		}
-		base := ` FROM podcastEpisodes ep JOIN podcasts p ON p.id=ep.podcastId JOIN libraryItems li ON li.mediaId=p.id` + join + ` WHERE li.libraryId=? AND li.mediaType='podcast' AND ` + where + permission
-		// Keep bind order aligned with the SQL text: join progress precedes the library predicate.
-		if spec.progress {
-			queryArgs = []any{user.ID, libraryID}
-			queryArgs = append(queryArgs, args...)
-		} else {
-			queryArgs = []any{libraryID, cutoff}
-			queryArgs = append(queryArgs, args...)
-		}
-		var total int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(DISTINCT ep.id)`+base, queryArgs...).Scan(&total); err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,ep.id,ep."index",ep.season,ep.episode,ep.episodeType,ep.title,ep.subtitle,ep.description,ep.pubDate,ep.enclosureURL,ep.enclosureSize,ep.enclosureType,ep.publishedAt,ep.audioFile,ep.chapters,ep.extraData,ep.createdAt,ep.updatedAt`+base+` ORDER BY `+map[bool]string{true: "mp.updatedAt", false: "ep.createdAt"}[spec.progress]+` DESC LIMIT ?`, append(queryArgs, limit)...)
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		records := make([]episodeShelfRow, 0)
-		for rows.Next() {
-			var itemID, episodeID string
-			var index sql.NullInt64
-			var season, episode, episodeType, title, subtitle, description, pubDate, enclosureURL, enclosureType sql.NullString
-			var enclosureSize sql.NullInt64
-			var published, created, updated any
-			var audioRaw, chaptersRaw, extraRaw []byte
-			if err := rows.Scan(&itemID, &episodeID, &index, &season, &episode, &episodeType, &title, &subtitle, &description, &pubDate, &enclosureURL, &enclosureSize, &enclosureType, &published, &audioRaw, &chaptersRaw, &extraRaw, &created, &updated); err != nil {
-				rows.Close()
-				return httputil.Internal("database read failed", err)
-			}
-			pub, e := dbtime.OptionalMillis(published)
-			if e != nil {
-				rows.Close()
-				return httputil.Internal("database read failed", e)
-			}
-			createdMs, e := dbtime.OptionalMillis(created)
-			if e != nil {
-				rows.Close()
-				return httputil.Internal("database read failed", e)
-			}
-			updatedMs, e := dbtime.OptionalMillis(updated)
-			if e != nil {
-				rows.Close()
-				return httputil.Internal("database read failed", e)
-			}
-			var enclosure *libitem.Enclosure
-			if enclosureURL.Valid {
-				enclosure = &libitem.Enclosure{URL: enclosureURL.String, Type: store.NullStringPtr(enclosureType)}
-				if enclosureSize.Valid {
-					length := strconv.FormatInt(enclosureSize.Int64, 10)
-					enclosure.Length = &length
+// progressBooks is a shelf of the user's books that match where, most recent
+// progress first. Audiobooks and ebooks without audio (reading) are separate
+// shelves of the same query.
+func progressBooks(where string, reading bool) func(*shelfEnv) (shelfQuery, error) {
+	return func(e *shelfEnv) (shelfQuery, error) {
+		q, err := e.itemQuery(`SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND `+where+e.perm+` ORDER BY mp.updatedAt DESC`, e.libraryID, e.user.ID)
+		attach := q.build
+		q.build = func(items []shelfItem) ([]any, error) {
+			var picked []shelfItem
+			for _, item := range items {
+				media, _ := item.min.Media.(libitem.BookMinified)
+				hasEbook := len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null"
+				if (!reading && media.NumTracks > 0) || (reading && media.NumTracks <= 0 && hasEbook) {
+					picked = append(picked, item)
 				}
 			}
-			audio := decodeObject(audioRaw)
-			extra := decodeObject(extraRaw)
-			var episodeIndex *int64
-			if index.Valid {
-				episodeIndex = &index.Int64
-			}
-			episodeJSON := libitem.EpisodeJSON{LibraryItemID: itemID, PodcastID: stringValue(audio["podcastId"]), ID: episodeID,
-				OldEpisodeID: nonEmpty(stringValue(extra["oldEpisodeId"])), Index: episodeIndex, Season: store.NullStringPtr(season),
-				Episode: store.NullStringPtr(episode), EpisodeType: store.NullStringPtr(episodeType), Title: store.NullStringPtr(title),
-				Subtitle: store.NullStringPtr(subtitle), Description: store.NullStringPtr(description), Enclosure: enclosure,
-				GUID: nonEmpty(stringValue(extra["guid"])), PubDate: store.NullStringPtr(pubDate), Chapters: decodeArray(chaptersRaw),
-				AudioFile: audio, PublishedAt: pub, AddedAt: createdMs, UpdatedAt: updatedMs}
-			records = append(records, episodeShelfRow{itemID, episodeJSON})
+			return attach(picked)
 		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", err)
-		}
-		rows.Close()
-		recordIDs := make([]string, len(records))
-		for i, record := range records {
-			recordIDs[i] = record.itemID
-		}
-		entities, e := h.minifiedItems(r.Context(), recordIDs)
-		if e != nil {
-			return httputil.Internal("database read failed", e)
-		}
-		for i := range entities {
-			records[i].episode.PodcastID = entities[i].MediaID()
-			entities[i].RecentEpisode = records[i].episode
-		}
-		if len(entities) > 0 {
-			shelf := wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: spec.kind, Entities: entities, Total: total}
-			if spec.id == "listen-again" {
-				listenAgain = &shelf
-			} else {
-				shelves = append(shelves, shelf)
-			}
-		}
+		return q, err
 	}
-	// Recently-added podcasts are parent items, separate from episode shelves.
-	var total int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+permission, append([]any{libraryID, cutoff}, args...)...).Scan(&total); err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	ids, err := h.db.QueryContext(r.Context(), `SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+permission+` ORDER BY li.createdAt DESC LIMIT ?`, append(append([]any{libraryID, cutoff}, args...), limit)...)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	itemIDs := []string{}
-	for ids.Next() {
-		var id string
-		if ids.Scan(&id) == nil {
-			itemIDs = append(itemIDs, id)
-		}
-	}
-	if err := ids.Err(); err != nil {
-		ids.Close()
-		return httputil.Internal("database read failed", err)
-	}
-	ids.Close()
-	entities, err := h.minifiedItems(r.Context(), itemIDs)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	for i := range entities {
-		item := &entities[i]
-		if e := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, item.MediaID(), &item.Extras); e != nil {
-			return httputil.Internal("database read failed", e)
-		}
-		// LibraryFilters.getLibraryItemsMostRecentlyAdded podcast branch
-		// (server/utils/queries/libraryFilters.js:113-128).
-		media, _ := item.Media.(libitem.PodcastMedia)
-		if item.Size != nil && *item.Size != 0 && (media.Size == nil || *media.Size == 0) {
-			size := *item.Size
-			media.Size = &size
-			item.Media = media
-		}
-		if includeHas(r, "numepisodesincomplete") {
-			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, media.ID)
-			if incErr != nil {
-				return httputil.Internal("database read failed", incErr)
-			}
-			item.NumEpisodesIncomplete = incomplete
-		}
-	}
-	if len(entities) > 0 {
-		shelves = append(shelves, wire.Shelf{ID: "recently-added", Label: "Recently Added", LabelStringKey: "LabelRecentlyAdded", Type: "podcast", Entities: entities, Total: total})
-	}
-	if listenAgain != nil {
-		shelves = append(shelves, *listenAgain)
-	}
-	httputil.WriteJSON(w, 200, shelves, httputil.ForRequest(r))
-	return nil
 }
 
-func podcastPermissionClause(user store.User) (string, []any) {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	parts := []string{}
-	args := []any{}
-	if !user.IsActive || permissions["accessExplicitContent"] != true {
-		parts = append(parts, " AND p.explicit=0")
-	}
-	if permissions["accessAllTags"] != true {
-		selected, _ := permissions["itemTagsSelected"].([]any)
-		if len(selected) > 0 {
-			marks := strings.TrimRight(strings.Repeat("?,", len(selected)), ",")
-			count := `(SELECT count(*) FROM json_each(p.tags) WHERE json_each.value IN (` + marks + `))`
-			if permissions["selectedTagsNotAccessible"] == true {
-				parts = append(parts, " AND "+count+"=0")
-			} else {
-				parts = append(parts, " AND "+count+">0")
+// episodeShelf is a shelf of podcast episodes that match where, each rendered
+// as its podcast with recentEpisode. progress joins the user's progress and
+// orders by it; otherwise episodes are newest first and where takes the
+// recent cutoff.
+func episodeShelf(progress bool, where string) func(*shelfEnv) (shelfQuery, error) {
+	return func(e *shelfEnv) (shelfQuery, error) {
+		from, order, args := ` FROM podcastEpisodes ep JOIN podcasts p ON p.id=ep.podcastId JOIN libraryItems li ON li.mediaId=p.id`, "ep.createdAt", []any{}
+		if progress {
+			from, order, args = from+` JOIN mediaProgresses mp ON mp.mediaItemId=ep.id AND mp.userId=?`, "mp.updatedAt", append(args, e.user.ID)
+		}
+		from += ` WHERE li.libraryId=? AND li.mediaType='podcast' AND ` + where + e.perm
+		args = append(args, e.libraryID)
+		if !progress {
+			args = append(args, sixtyDaysAgo())
+		}
+		args = append(args, e.permArgs...)
+		var q shelfQuery
+		ctx := e.r.Context()
+		if err := e.h.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT ep.id)`+from, args...).Scan(&q.total); err != nil {
+			return q, err
+		}
+		rows, err := e.h.db.QueryContext(ctx, `SELECT li.id,ep.id`+from+` ORDER BY `+order+` DESC LIMIT ?`, append(args, e.limit)...)
+		if err != nil {
+			return q, err
+		}
+		defer rows.Close()
+		var episodeIDs []string
+		for rows.Next() {
+			var itemID, episodeID string
+			if err := rows.Scan(&itemID, &episodeID); err != nil {
+				return q, err
 			}
-			args = append(args, selected...)
+			q.ids, episodeIDs = append(q.ids, itemID), append(episodeIDs, episodeID)
 		}
+		e.episodes = append(e.episodes, episodeIDs...)
+		q.build = func(items []shelfItem) ([]any, error) {
+			out := make([]any, len(items))
+			for i, item := range items {
+				for _, episode := range item.src.Podcast.Episodes {
+					if episode.ID == episodeIDs[i] {
+						item.min.RecentEpisode = episode.JSON(item.src.ID)
+					}
+				}
+				out[i] = item.min
+			}
+			return out, nil
+		}
+		return q, rows.Err()
 	}
-	return strings.Join(parts, ""), args
 }
 
-func (h *Handler) personalizedItems(r *http.Request, user store.User, query string, args []any) ([]libitem.Minified, error) {
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]string, 0)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			_ = rows.Close()
-			return nil, err
+// recentPodcasts is LibraryFilters.getLibraryItemsMostRecentlyAdded's podcast
+// branch (server/utils/queries/libraryFilters.js:113-128).
+func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
+	q, err := e.itemQuery(`SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.libraryID, sixtyDaysAgo())
+	attach := q.build
+	q.build = func(items []shelfItem) ([]any, error) {
+		out, err := attach(items)
+		for i := range out {
+			item := out[i].(libitem.Minified)
+			media, _ := item.Media.(libitem.PodcastMedia)
+			if item.Size != nil && *item.Size != 0 && (media.Size == nil || *media.Size == 0) {
+				size := *item.Size
+				media.Size = &size
+				item.Media = media
+			}
+			if err == nil && includeHas(e.r, "numepisodesincomplete") {
+				item.NumEpisodesIncomplete, err = e.h.numEpisodesIncomplete(e.r.Context(), e.user.ID, media.ID)
+			}
+			out[i] = item
 		}
-		ids = append(ids, id)
+		return out, err
 	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		return nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-
-	items, err := h.minifiedItems(r.Context(), ids)
-	if err != nil {
-		return nil, err
-	}
-	includes := requestItemIncludes(r, user)
-	for i := range items {
-		item := &items[i]
-		if err := h.attachItemIncludes(r.Context(), includes, item.Head, item.MediaID(), &item.Extras); err != nil {
-			return nil, err
-		}
-	}
-	return items, nil
+	return q, err
 }
+

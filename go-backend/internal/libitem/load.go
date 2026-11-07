@@ -305,7 +305,11 @@ func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (m
 	if err != nil || !opt.Episodes {
 		return podcasts, err
 	}
-	err = queryIn(ctx, db, `SELECT podcastId,id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt FROM podcastEpisodes WHERE podcastId IN `, ` ORDER BY podcastId,createdAt ASC,rowid`, ids, func(rows *sql.Rows) error {
+	column, keys := "podcastId", ids
+	if opt.EpisodeIDs != nil {
+		column, keys = "id", opt.EpisodeIDs
+	}
+	err = queryIn(ctx, db, `SELECT podcastId,id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt FROM podcastEpisodes WHERE `+column+` IN `, ` ORDER BY podcastId,createdAt ASC,rowid`, keys, func(rows *sql.Rows) error {
 		var e Episode
 		var index, enclosureSize sql.NullInt64
 		var season, episode, episodeType, title, subtitle, description, pubDate, enclosureURL, enclosureType sql.NullString
