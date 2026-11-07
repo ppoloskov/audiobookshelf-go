@@ -155,28 +155,27 @@ func (h *Handler) browserSettings(m map[string]any) map[string]any {
 }
 func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var patch map[string]any
 	if json.NewDecoder(r.Body).Decode(&patch) != nil || patch == nil {
-		return reply(w, 400, "Invalid settings update object")
+		return httputil.Status(400, "Invalid settings update object")
 	}
 	allowed := map[string]bool{}
 	for _, k := range []string{"scannerParseSubtitle", "scannerFindCovers", "scannerCoverProvider", "scannerPreferMatchedMetadata", "scannerDisableWatcher", "storeCoverWithItem", "storeMetadataWithItem", "allowIframe", "allowedOrigins", "backupSchedule", "backupsToKeep", "maxBackupSize", "logLevel", "homeBookshelfView", "bookshelfView", "dateFormat", "timeFormat", "language", "chromecastEnabled", "sortingIgnorePrefix"} {
 		allowed[k] = true
 	}
 	if patch["allowIframe"] == false && os.Getenv("ALLOW_IFRAME") == "1" {
-		return reply(w, 400, "Cannot disable iframe when ALLOW_IFRAME is enabled in environment")
+		return httputil.Status(400, "Cannot disable iframe when ALLOW_IFRAME is enabled in environment")
 	}
 	if v, ok := patch["allowedOrigins"]; ok {
 		if _, ok := v.([]any); !ok {
-			return reply(w, 400, "allowedOrigins must be an array")
+			return httputil.Status(400, "allowedOrigins must be an array")
 		}
 	}
 	m, e := h.settings(r)
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		return reply(w, 500, "database error")
+		return httputil.Internal("database error", e)
 	}
 	changed := false
 	for k, v := range patch {
@@ -191,8 +190,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	}
 	if changed {
 		if e = h.saveSettings(r, m); e != nil {
-			logging.RequestError(r, "database error", e)
-			return reply(w, 500, "database error")
+			return httputil.Internal("database error", e)
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)}, httputil.Streamed())
@@ -200,18 +198,17 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 }
 func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	m, e := h.settings(r)
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		return reply(w, 500, "database error")
+		return httputil.Internal("database error", e)
 	}
 	keys := []string{"authLoginCustomMessage", "authActiveAuthMethods", "authOpenIDIssuerURL", "authOpenIDAuthorizationURL", "authOpenIDTokenURL", "authOpenIDUserInfoURL", "authOpenIDJwksURL", "authOpenIDLogoutURL", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDTokenSigningAlgorithm", "authOpenIDButtonText", "authOpenIDAutoLaunch", "authOpenIDAutoRegister", "authOpenIDMatchExistingBy", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim", "authOpenIDSubfolderForRedirectURLs"}
 	if patch {
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil || p == nil {
-			return reply(w, 400, "Invalid auth settings update object")
+			return httputil.Status(400, "Invalid auth settings update object")
 		}
 		allowed := map[string]bool{}
 		for _, k := range keys {
@@ -280,8 +277,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 		}
 		if updated {
 			if e = h.saveSettings(r, m); e != nil {
-				logging.RequestError(r, "database error", e)
-				return reply(w, 500, "database error")
+				return httputil.Internal("database error", e)
 			}
 		}
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)}, httputil.Streamed())
@@ -299,13 +295,13 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 }
 func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var p struct {
 		SortingPrefixes []string `json:"sortingPrefixes"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || len(p.SortingPrefixes) == 0 {
-		return reply(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	seen := map[string]bool{}
 	out := []string{}
@@ -317,17 +313,15 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 		}
 	}
 	if len(out) == 0 {
-		return reply(w, 400, "Invalid sortingPrefixes in request body")
+		return httputil.Status(400, "Invalid sortingPrefixes in request body")
 	}
 	m, e := h.settings(r)
 	if e != nil {
-		logging.RequestError(r, "database error", e)
-		return reply(w, 500, "database error")
+		return httputil.Internal("database error", e)
 	}
 	m["sortingPrefixes"] = out
 	if e = h.saveSettings(r, m); e != nil {
-		logging.RequestError(r, "database error", e)
-		return reply(w, 500, "database error")
+		return httputil.Internal("database error", e)
 	}
 	rowsUpdated := 0
 	for _, table := range []struct{ name, title string }{{"books", "title"}, {"podcasts", "title"}, {"series", "name"}} {
@@ -379,17 +373,17 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.U
 		Expression string `json:"expression"`
 	}
 	if json.NewDecoder(r.Body).Decode(&v) != nil || v.Expression == "" {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if e := cronspec.Validate(v.Expression); e != nil {
-		return reply(w, 400, "Invalid cron expression")
+		return httputil.Status(400, "Invalid cron expression")
 	}
-	return reply(w, 200, "")
+	return httputil.OK(w, r)
 }
 func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
 		logging.Errorf("[MiscController] Non-admin user %q attempted to get logger data", u.Username) // MiscController.js:779
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData(), httputil.Streamed())
 	return nil
@@ -397,7 +391,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	root := filepath.Join(h.cfg.MetadataPath, "cache")
 	if itemsOnly {
@@ -409,45 +403,38 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.Use
 		logging.Infof("[CacheManager] Purging all cache at %q", root) // CacheManager.js:129
 	}
 	if err := os.RemoveAll(root); err != nil {
-		logging.RequestError(r, "Failed to purge cache", err)
-		return reply(w, 500, "Failed to purge cache")
+		return httputil.Internal("Failed to purge cache", err)
 	}
 	if err := os.MkdirAll(root, 0755); err != nil {
-		logging.RequestError(r, "Failed to purge cache", err)
-		return reply(w, 500, "Failed to purge cache")
+		return httputil.Internal("Failed to purge cache", err)
 	}
 	if !itemsOnly {
 		for _, child := range []string{"covers", "images", "items"} {
 			if err := os.MkdirAll(filepath.Join(root, child), 0755); err != nil {
-				logging.RequestError(r, "Failed to purge cache", err)
-				return reply(w, 500, "Failed to purge cache")
+				return httputil.Internal("Failed to purge cache", err)
 			}
 		}
 	}
-	return reply(w, 200, "")
+	return httputil.OK(w, r)
 }
 
 func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var booksSize, booksCount, podcastsSize, podcastsCount int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='book'`).Scan(&booksSize, &booksCount); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		return reply(w, 500, "Internal server error")
+		return httputil.Internal("Internal server error", err)
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(size),0),COUNT(*) FROM libraryItems WHERE mediaType='podcast'`).Scan(&podcastsSize, &podcastsCount); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		return reply(w, 500, "Internal server error")
+		return httputil.Internal("Internal server error", err)
 	}
 	var bookFiles, podcastFiles int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(SUM(json_array_length(audioFiles)),0) FROM books`).Scan(&bookFiles); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		return reply(w, 500, "Internal server error")
+		return httputil.Internal("Internal server error", err)
 	}
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes`).Scan(&podcastFiles); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		return reply(w, 500, "Internal server error")
+		return httputil.Internal("Internal server error", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}}, httputil.Streamed())
 	return nil
@@ -455,7 +442,7 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.Us
 
 func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var body struct {
 		LibraryID string `json:"libraryId"`
@@ -464,26 +451,25 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u st
 		OldPath   string `json:"oldPath"`
 	}
 	if json.NewDecoder(r.Body).Decode(&body) != nil || body.LibraryID == "" || body.Path == "" || body.Type == "" {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if body.Type != "add" && body.Type != "unlink" && body.Type != "rename" {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if body.Type == "rename" && body.OldPath == "" {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if h.watcherUpdate == nil {
-		return reply(w, 501, "Watcher is unavailable")
+		return httputil.Status(501, "Watcher is unavailable")
 	}
 	if err := h.watcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type, body.OldPath); err != nil {
-		logging.RequestError(r, "Failed to update watched path", err)
-		return reply(w, 500, "Failed to update watched path")
+		return httputil.Internal("Failed to update watched path", err)
 	}
-	return reply(w, 200, "")
+	return httputil.OK(w, r)
 }
 func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	values := []string{}
 	seen := map[string]bool{}
@@ -517,14 +503,14 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.U
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	if h.itemChanged == nil {
-		return reply(w, http.StatusNotImplemented, "item metadata writer is unavailable")
+		return httputil.Status(http.StatusNotImplemented, "item metadata writer is unavailable")
 	}
 	var p map[string]string
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p[oldKey] == "" || p[newKey] == "" {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	old, newv := p[oldKey], p[newKey]
 	merged, changed := false, 0
@@ -581,8 +567,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 				if n > 0 {
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
-						logging.RequestError(r, "failed to update item metadata", e)
-						return reply(w, 500, "failed to update item metadata")
+						return httputil.Internal("failed to update item metadata", e)
 					}
 				}
 			}
@@ -593,10 +578,10 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	if h.itemChanged == nil {
-		return reply(w, http.StatusNotImplemented, "item metadata writer is unavailable")
+		return httputil.Status(http.StatusNotImplemented, "item metadata writer is unavailable")
 	}
 	// The client sends the name base64-encoded and URL-escaped; PathValue
 	// returns it unescaped.
@@ -606,7 +591,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		raw, e = base64.RawURLEncoding.DecodeString(seg)
 	}
 	if e != nil {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	target := string(raw)
 	changed := 0
@@ -646,8 +631,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 				if n > 0 {
 					changed++
 					if e := h.changedItem(r.Context(), it.id); e != nil {
-						logging.RequestError(r, "failed to update item metadata", e)
-						return reply(w, 500, "failed to update item metadata")
+						return httputil.Internal("failed to update item metadata", e)
 					}
 				}
 			}
@@ -670,11 +654,11 @@ func (h *Handler) changedItem(ctx context.Context, id string) error {
 
 func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil || year < 2000 || year > 9999 {
-		return reply(w, 400, "Invalid year")
+		return httputil.Status(400, "Invalid year")
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	var sessions, authors int
@@ -796,16 +780,16 @@ func topTimes(o *orderedTimes, key string) []map[string]any {
 
 func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	p := r.URL.Query().Get("path")
 	level, _ := strconv.Atoi(r.URL.Query().Get("level"))
 	if p != "" {
 		if !filepath.IsAbs(p) {
-			return reply(w, 400, `Invalid "path" query string`)
+			return httputil.Status(400, `Invalid "path" query string`)
 		}
 		if _, e := os.Stat(p); e != nil {
-			return reply(w, 400, `Invalid "path" query string`)
+			return httputil.Status(400, `Invalid "path" query string`)
 		}
 	} else {
 		p = "/"
@@ -828,7 +812,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !canUpload(u) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var p struct {
 		Directory  string `json:"directory"`
@@ -842,16 +826,16 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	var libraryID string
 	e := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM libraryFolders WHERE path=? LIMIT 1`, p.FolderPath).Scan(&libraryID)
 	if e != nil {
-		return reply(w, 404, "")
+		return httputil.Status(404, "")
 	}
 	if !canAccessLibrary(u, libraryID) {
-		return reply(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	base, _ := filepath.Abs(filepath.Clean(p.FolderPath))
 	target, _ := filepath.Abs(filepath.Join(base, p.Directory))
 	rel, e := filepath.Rel(base, target)
 	if e != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		return reply(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if _, e = os.Stat(target); e == nil {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true}, httputil.Streamed())
@@ -944,15 +928,3 @@ const samplePermissions = `{
     "ThirdTag"
   ]
 }`
-
-// reply answers status with message as http.Error does, or with the bare
-// status line when message is empty; the framing is deliberately not
-// httputil.Fail's (no ETag), as in the pre-ADR-001 handlers.
-func reply(w http.ResponseWriter, status int, message string) error {
-	if message == "" {
-		w.WriteHeader(status)
-	} else {
-		http.Error(w, message, status)
-	}
-	return nil
-}

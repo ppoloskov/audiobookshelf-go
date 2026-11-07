@@ -67,16 +67,6 @@ func (h *Handler) libraryAccess(r *http.Request, user store.User) (libraryRecord
 	return library, nil
 }
 
-// libraryRequest answers libraryAccess's error itself, for handlers that do not
-// return one yet.
-func (h *Handler) libraryRequest(w http.ResponseWriter, r *http.Request, user store.User) (libraryRecord, bool) {
-	library, err := h.libraryAccess(r, user)
-	if err != nil {
-		httputil.Fail(w, r, err)
-	}
-	return library, err == nil
-}
-
 // opmlEscape is escapeForXML (libs/xml/escapeForXML.js).
 func opmlEscape(s string) string {
 	return strings.NewReplacer("&", "&amp;", `"`, "&quot;", "'", "&apos;", "<", "&lt;", ">", "&gt;").Replace(s)
@@ -202,10 +192,9 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 	}
 	if len(paths) == 0 {
 		logging.Infof("[LibraryController] No %s files found to remove", filename)
-		writeJSONWithETag(w, r, http.StatusOK, struct {
+		return writeJSONWithETag(w, r, http.StatusOK, struct {
 			Found int `json:"found"`
 		}{0})
-		return nil
 	}
 	logging.Infof("[LibraryController] Found %d %s files to remove", len(paths), filename)
 	removed := 0
@@ -221,11 +210,10 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 		}
 		removed++
 	}
-	writeJSONWithETag(w, r, http.StatusOK, struct {
+	return writeJSONWithETag(w, r, http.StatusOK, struct {
 		Found   int `json:"found"`
 		Removed int `json:"removed"`
 	}{len(paths), removed})
-	return nil
 }
 
 // libraryDownload is LibraryController.downloadMultiple

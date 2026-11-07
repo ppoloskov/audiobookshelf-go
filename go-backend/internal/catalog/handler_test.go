@@ -1045,7 +1045,7 @@ func TestFileDownloadMissingDiskFileUsesSourceErrorResponse(t *testing.T) {
 	if w.Code != http.StatusNotFound || w.Body.String() != "File not found" {
 		t.Fatalf("missing disk file status=%d body=%q", w.Code, w.Body.String())
 	}
-	if got := w.Header().Get("Content-Type"); got != "audio/mp4; charset=utf-8" {
+	if got := w.Header().Get("Content-Type"); got != "text/html; charset=utf-8" { // round 2: Express send() framing, not the pre-selected file type
 		t.Fatalf("missing disk file content type=%q", got)
 	}
 }

@@ -78,54 +78,44 @@ func (h *Handler) seriesItems(ctx context.Context, user store.User, s seriesReco
 // seriesRequest is SeriesController.middleware (SeriesController.js:95-119): an
 // unknown series, or one without a book the user may see, is a 404; then
 // DELETE needs the delete permission and PATCH/POST the update permission.
-func (h *Handler) seriesRequest(w http.ResponseWriter, r *http.Request, user store.User) (seriesRecord, []seriesItem, bool) {
+func (h *Handler) seriesRequest(r *http.Request, user store.User) (seriesRecord, []seriesItem, error) {
 	s, err := h.loadSeries(r.Context(), r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return s, nil, false
+		return s, nil, httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return s, nil, false
+		return s, nil, httputil.Internal("database read failed", err)
 	}
 	items, err := h.seriesItems(r.Context(), user, s)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return s, nil, false
+		return s, nil, httputil.Internal("database read failed", err)
 	}
 	if len(items) == 0 {
 		logging.Warnf(`[SeriesController] User "%s" attempted to access series "%s" with no accessible books`, user.Username, s.id)
-		httputil.SendStatus(w, http.StatusNotFound)
-		return s, nil, false
+		return s, nil, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
 	case r.Method == http.MethodDelete && !userAllows(user, "delete"):
 		logging.Warnf(`[SeriesController] User "%s" attempted to delete without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return s, nil, false
+		return s, nil, httputil.Status(http.StatusForbidden, "")
 	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !userAllows(user, "update"):
 		logging.Warnf(`[SeriesController] User "%s" attempted to update without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return s, nil, false
+		return s, nil, httputil.Status(http.StatusForbidden, "")
 	}
-	return s, items, true
+	return s, items, nil
 }
 
 // seriesFindOne is SeriesController.findOne (SeriesController.js:35-62).
-func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	s, items, ok := h.seriesRequest(w, r, user)
-	if !ok {
-		return
+	s, items, err := h.seriesRequest(r, user)
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	oldJSON, err := h.seriesOldJSON(ctx, s)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	detail := wire.SeriesDetail{Series: oldJSON}
 	var include []string
@@ -142,9 +132,7 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 			// req.user.getMediaProgress(li.media.id)?.isFinished
 			err := h.db.QueryRowContext(ctx, `SELECT isFinished FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, user.ID, item.bookID).Scan(&finished)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				logging.RequestError(r, "database read failed", err)
-				httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			if finished.Valid && finished.Bool {
 				progress.LibraryItemIDsFinished = append(progress.LibraryItemIDsFinished, item.itemID)
@@ -157,30 +145,26 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) {
 		// RssFeedManager.findFeedForEntityId matches on entityId alone.
 		feed, found, err := h.feedMinified(ctx, "", s.id)
 		if err != nil {
-			logging.RequestError(r, "database read failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		raw := json.RawMessage("null")
 		if found {
 			if raw, err = json.Marshal(feed); err != nil {
-				logging.RequestError(r, "internal error", err)
-				httputil.WriteError(w, http.StatusInternalServerError, "internal error")
-				return
+				return httputil.Internal("internal error", err)
 			}
 		}
 		detail.RSSFeed = raw
 	}
-	writeJSONWithETag(w, r, http.StatusOK, detail)
+	return httputil.JSON(w, r, detail)
 }
 
 // seriesUpdate is SeriesController.update (SeriesController.js:70-87): only
 // string name and description are read; a change is saved and announced with
 // series_updated. The prefix column is not recomputed, as upstream.
-func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
-	s, _, ok := h.seriesRequest(w, r, requestUser(r))
-	if !ok {
-		return
+func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
+	s, _, err := h.seriesRequest(r, requestUser(r))
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	body := jsonBodyObject(r)
@@ -200,8 +184,7 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 		changes.set(key, current[key], &value)
 	}
 	if valid == 0 {
-		httputil.WriteError(w, http.StatusBadRequest, "No valid fields to update")
-		return
+		return httputil.Status(http.StatusBadRequest, "No valid fields to update")
 	}
 	if len(changes.columns) > 0 {
 		sets := make([]string, 0, len(changes.columns)+1)
@@ -211,25 +194,19 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) {
 		sets = append(sets, "updatedAt=?")
 		args := append(append([]any{}, changes.values...), dbNow(), s.id)
 		if _, err := h.db.ExecContext(ctx, `UPDATE series SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 	}
 	saved, err := h.loadSeries(ctx, s.id)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	oldJSON, err := h.seriesOldJSON(ctx, saved)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(changes.columns) > 0 && h.emit != nil {
 		h.emit("*", "series_updated", oldJSON)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, oldJSON)
+	return writeJSONWithETag(w, r, http.StatusOK, oldJSON)
 }

@@ -86,17 +86,15 @@ func validUUIDv4(s string) bool {
 
 // publicShare is ShareController.getMediaItemShareBySlug
 // (server/controllers/ShareController.js:31).
-func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	ctx := r.Context()
 	share, err := h.loadShare(ctx, slug)
 	if errors.Is(err, errShareGone) {
-		httputil.SendText(w, 404, "Media item share not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item share not found")
 	}
 	if err != nil {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	start := 0.0
 	if raw := r.URL.Query().Get("t"); raw != "" {
@@ -121,7 +119,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 			payload := publicShareResponse{MediaItemShare: share.wire(), PlaybackSession: old.json()}
 			h.mu.Unlock()
 			write(w, payload)
-			return
+			return nil
 		}
 		if old != nil {
 			delete(h.sessions, sessionID)
@@ -132,26 +130,21 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if share.MediaItemType != "book" {
-		httputil.SendText(w, 404, "Media item not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item not found")
 	}
 	var itemID, libraryID, mediaID sql.NullString
 	if err := h.db.QueryRowContext(ctx, `SELECT id,libraryId,mediaId FROM libraryItems WHERE mediaId=? LIMIT 1`, share.MediaItemID).Scan(&itemID, &libraryID, &mediaID); err != nil {
-		httputil.SendText(w, 404, "Media item not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item not found")
 	}
 	var title, cover sql.NullString
 	var duration sql.NullFloat64
 	var audioRaw, chaptersRaw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT title,coverPath,duration,audioFiles,chapters FROM books WHERE id=?`, share.MediaItemID).Scan(&title, &cover, &duration, &audioRaw, &chaptersRaw); err != nil {
-		httputil.SendText(w, 404, "Media item not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item not found")
 	}
 	authors, err := h.bookAuthors(ctx, share.MediaItemID)
 	if err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	var files []shareAudioFile
 	_ = json.Unmarshal(audioRaw, &files)
@@ -185,9 +178,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UnixMilli()
 	device, err := h.shareDevice(ctx, r, sid)
 	if err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	s := &shareSession{
 		BookID: share.MediaItemID, Device: device,
@@ -209,6 +200,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) {
 	logging.Infof("[ShareManager] Adding new open share playback session %q", s.Title) // ShareManager.js:31
 	http.SetCookie(w, &http.Cookie{Name: "share_session_id", Value: sid, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
 	write(w, payload)
+	return nil
 }
 
 func nonEmpty(s *string) *string {
@@ -229,16 +221,14 @@ func (s *shareSession) json() map[string]any {
 
 // shareSessionFor runs the checks the cookie-protected share routes share:
 // cookie, share by slug, playback session of that share.
-func (h *Handler) shareSessionFor(w http.ResponseWriter, r *http.Request, slug string) (shareRow, shareSession, bool) {
+func (h *Handler) shareSessionFor(r *http.Request, slug string) (shareRow, shareSession, error) {
 	cookie, err := r.Cookie("share_session_id")
 	if err != nil || cookie.Value == "" {
-		httputil.SendText(w, 404, "Share session not set", httputil.WithoutETag())
-		return shareRow{}, shareSession{}, false
+		return shareRow{}, shareSession{}, httputil.Status(404, "Share session not set")
 	}
 	share, err := h.findShare(r.Context(), slug)
 	if err != nil {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return shareRow{}, shareSession{}, false
+		return shareRow{}, shareSession{}, httputil.Status(404, "")
 	}
 	h.mu.Lock()
 	s := h.sessions[cookie.Value]
@@ -248,63 +238,58 @@ func (h *Handler) shareSessionFor(w http.ResponseWriter, r *http.Request, slug s
 	}
 	h.mu.Unlock()
 	if s == nil || s.ShareID != share.ID {
-		httputil.SendText(w, 404, "Share session not found", httputil.WithoutETag())
-		return shareRow{}, shareSession{}, false
+		return shareRow{}, shareSession{}, httputil.Status(404, "Share session not found")
 	}
-	return share, copySession, true
+	return share, copySession, nil
 }
 
 // shareProgress is ShareController.updateMediaItemShareProgress.
-func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	cookie, err := r.Cookie("share_session_id")
 	if err != nil || cookie.Value == "" {
-		httputil.SendText(w, 404, "Share session not set", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Share session not set")
 	}
 	var p struct {
 		CurrentTime *float64 `json:"currentTime"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.CurrentTime == nil || *p.CurrentTime < 0 {
-		httputil.SendText(w, 400, "Invalid current time", httputil.WithoutETag())
-		return
+		return httputil.Status(400, "Invalid current time")
 	}
 	share, err := h.findShare(r.Context(), slug)
 	if err != nil {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	h.mu.Lock()
 	s := h.sessions[cookie.Value]
 	if s == nil || s.ShareID != share.ID {
 		h.mu.Unlock()
-		httputil.SendText(w, 404, "Share session not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Share session not found")
 	}
 	s.Current = math.Min(*p.CurrentTime, s.Duration)
 	s.Updated = time.Now().UnixMilli()
 	h.mu.Unlock()
-	httputil.SendStatus(w, 204, httputil.WithoutETag())
+	return httputil.Empty(204)
 }
 
 // shareCover serves /public/share/:slug/cover.
-func (h *Handler) shareCover(w http.ResponseWriter, r *http.Request) {
-	_, s, ok := h.shareSessionFor(w, r, r.PathValue("slug"))
-	if !ok {
-		return
+func (h *Handler) shareCover(w http.ResponseWriter, r *http.Request) error {
+	_, s, err := h.shareSessionFor(r, r.PathValue("slug"))
+	if err != nil {
+		return err
 	}
 	if s.CoverPath == "" {
-		httputil.SendText(w, 404, "Cover image not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Cover image not found")
 	}
 	serveMedia(w, r, s.CoverPath)
+	return nil
 }
 
 // shareTrack serves /public/share/:slug/track/:index.
-func (h *Handler) shareTrack(w http.ResponseWriter, r *http.Request) {
-	_, s, ok := h.shareSessionFor(w, r, r.PathValue("slug"))
-	if !ok {
-		return
+func (h *Handler) shareTrack(w http.ResponseWriter, r *http.Request) error {
+	_, s, err := h.shareSessionFor(r, r.PathValue("slug"))
+	if err != nil {
+		return err
 	}
 	index := -1
 	if n := jsParseInt(r.PathValue("index")); !math.IsNaN(n) {
@@ -313,48 +298,44 @@ func (h *Handler) shareTrack(w http.ResponseWriter, r *http.Request) {
 	for _, track := range s.Tracks {
 		if track.Index == index {
 			serveMedia(w, r, track.path)
-			return
+			return nil
 		}
 	}
-	httputil.SendText(w, 404, "Track not found", httputil.WithoutETag())
+	return httputil.Status(404, "Track not found")
 }
 
 // shareDownload serves /public/share/:slug/download.
-func (h *Handler) shareDownload(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) shareDownload(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	cookie, err := r.Cookie("share_session_id")
 	if err != nil || cookie.Value == "" {
-		httputil.SendText(w, 404, "Share session not set", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Share session not set")
 	}
 	share, err := h.findShare(r.Context(), slug)
 	if err != nil {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	if !share.IsDownloadable.Bool {
-		httputil.SendText(w, 403, "Download is not allowed for this item", httputil.WithoutETag())
-		return
+		return httputil.Status(403, "Download is not allowed for this item")
 	}
-	_, s, ok := h.shareSessionFor(w, r, slug)
-	if !ok {
-		return
+	_, s, err := h.shareSessionFor(r, slug)
+	if err != nil {
+		return err
 	}
 	var itemPath, relPath sql.NullString
 	var isFile int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT path,relPath,isFile FROM libraryItems WHERE id=?`, s.ItemID).Scan(&itemPath, &relPath, &isFile); err != nil {
-		httputil.SendText(w, 404, "Library item not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Library item not found")
 	}
 	if isFile != 0 {
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filepath.Base(relPath.String)+`"`)
 		serveMedia(w, r, itemPath.String)
-		return
+		return nil
 	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+safeFilename(s.Title)+`.zip"`)
 	if err := zipDirectory(w, itemPath.String); err != nil {
-		logging.RequestError(r, "Failed to download the item", err)
-		httputil.SendText(w, 500, "Failed to download the item", httputil.WithoutETag())
+		return httputil.Internal("Failed to download the item", err)
 	}
+	return nil
 }

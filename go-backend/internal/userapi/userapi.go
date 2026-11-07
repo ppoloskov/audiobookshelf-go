@@ -123,11 +123,11 @@ func (h *Handler) ownListeningStats(w http.ResponseWriter, r *http.Request, user
 func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User) error {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	serialized, err := h.browserUserDB(r.Context(), user, progress, jsonArray(user.Bookmarks))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, serialized)
 }
@@ -149,12 +149,12 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		return plainError(w, "Missing or invalid password or new password", 400)
+		return httputil.Status(400, "Missing or invalid password or new password")
 	}
 	oldRaw, hasOld := body["password"]
 	newRaw, hasNew := body["newPassword"]
 	if !hasOld || !hasNew {
-		return plainError(w, "Missing or invalid password or new password", 400)
+		return httputil.Status(400, "Missing or invalid password or new password")
 	}
 	oldPassword, oldOK := oldRaw.(string)
 	newPassword, newOK := newRaw.(string)
@@ -165,19 +165,19 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		newOK = true
 	}
 	if !oldOK || !newOK {
-		return plainError(w, "Missing or invalid password or new password", 400)
+		return httputil.Status(400, "Missing or invalid password or new password")
 	}
 	if h.changePassword == nil || h.invalidateSessions == nil {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err := h.changePassword(r.Context(), user.ID, oldPassword, newPassword); err != nil {
 		logging.Errorf("[LocalAuth] User %q failed to change password: %v", user.Username, err) // LocalAuthStrategy.js:178
-		return plainError(w, err.Error(), 400)
+		return httputil.Status(400, err.Error())
 	}
 	logging.Infof("[LocalAuth] User %q changed password", user.Username) // LocalAuthStrategy.js:173
 	accessToken, refreshToken, err := h.invalidateSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if refreshToken != "" && r.Header.Get("x-refresh-token") != "" {
 		return httputil.JSON(w, r, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
@@ -191,7 +191,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 func (h *Handler) getAllProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
 	progress, err := h.progressRows(r.Context(), user.ID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"mediaProgress": progress})
 }
@@ -204,7 +204,7 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 	}
 	access, err := h.canAccessItem(r.Context(), user, libraryItemID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if !access.exists {
 		return httputil.Status(404, "")
@@ -224,7 +224,7 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 func (h *Handler) removeFromContinueListening(w http.ResponseWriter, r *http.Request, user store.User) error {
 	res, err := sqlc.New(h.db).HideMediaProgressFromContinueListening(r.Context(), sqlc.HideMediaProgressFromContinueListeningParams{UpdatedAt: dbtime.Now(), ID: r.PathValue("id"), UserID: store.Text(user.ID)})
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return httputil.Status(404, "")
@@ -232,7 +232,7 @@ func (h *Handler) removeFromContinueListening(w http.ResponseWriter, r *http.Req
 	h.emitUserUpdate(r.Context(), user)
 	payload, err := h.userPayload(r.Context(), user)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, payload)
 }
@@ -240,7 +240,7 @@ func (h *Handler) removeFromContinueListening(w http.ResponseWriter, r *http.Req
 func (h *Handler) getProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
 	p, err := progressdto.ReadOne(r.Context(), h.db, user.ID, r.PathValue("id"), r.PathValue("episodeId"))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if p == nil {
 		return httputil.Status(404, "")
@@ -251,7 +251,7 @@ func (h *Handler) getProgress(w http.ResponseWriter, r *http.Request, user store
 func (h *Handler) deleteProgress(w http.ResponseWriter, r *http.Request, user store.User) error {
 	res, err := sqlc.New(h.db).DeleteMediaProgressForUser(r.Context(), sqlc.DeleteMediaProgressForUserParams{ID: r.PathValue("id"), UserID: store.Text(user.ID)})
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return httputil.Status(404, "")
@@ -263,7 +263,7 @@ func (h *Handler) batchUpdateProgress(w http.ResponseWriter, r *http.Request, us
 	var batch []progressdto.Payload
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&batch); err != nil || len(batch) == 0 {
-		return plainError(w, "Missing request payload", 400)
+		return httputil.Status(400, "Missing request payload")
 	}
 	updated := false
 	for _, payload := range batch {
@@ -284,7 +284,7 @@ func (h *Handler) updateOneProgress(w http.ResponseWriter, r *http.Request, user
 	var payload progressdto.Payload
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		return plainError(w, "Invalid request body", 400)
+		return httputil.Status(400, "Invalid request body")
 	}
 	payload.LibraryItemID, payload.EpisodeID = r.PathValue("id"), r.PathValue("episodeId")
 	if _, err := h.updateProgress(r.Context(), user, payload); err != nil {
@@ -293,8 +293,7 @@ func (h *Handler) updateOneProgress(w http.ResponseWriter, r *http.Request, user
 			// Express res.status(n).send(string): text/html, no trailing newline.
 			return httputil.Status(refused.Status, refused.Message)
 		}
-		logging.RequestError(r, "request failed", err)
-		return plainError(w, "database write failed", 500)
+		return httputil.Internal("database write failed", err)
 	}
 	h.emitUserUpdate(r.Context(), user)
 	return httputil.OK(w, r)
@@ -329,15 +328,15 @@ func (h *Handler) saveBookmark(w http.ResponseWriter, r *http.Request, user stor
 	bookmarks := jsonArray(user.Bookmarks)
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		return plainError(w, "Invalid request body", 400)
+		return httputil.Status(400, "Invalid request body")
 	}
 	timeValue, ok := finiteNumber(body["time"])
 	if !ok {
-		return plainError(w, "Invalid time", 400)
+		return httputil.Status(400, "Invalid time")
 	}
 	title, ok := body["title"].(string)
 	if !ok || title == "" {
-		return plainError(w, "Invalid title", 400)
+		return httputil.Status(400, "Invalid title")
 	}
 	index := bookmarkIndex(bookmarks, itemID, timeValue)
 	if r.Method == http.MethodPatch && index < 0 {
@@ -352,7 +351,7 @@ func (h *Handler) saveBookmark(w http.ResponseWriter, r *http.Request, user stor
 		entry["title"] = title
 	}
 	if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	user.Bookmarks, _ = json.Marshal(bookmarks)
 	h.emitUserUpdate(r.Context(), user)
@@ -367,7 +366,7 @@ func (h *Handler) deleteBookmark(w http.ResponseWriter, r *http.Request, user st
 	bookmarks := jsonArray(user.Bookmarks)
 	timeValue, err := strconv.ParseFloat(r.PathValue("time"), 64)
 	if err != nil || math.IsNaN(timeValue) || math.IsInf(timeValue, 0) {
-		return plainError(w, "Invalid time", 400)
+		return httputil.Status(400, "Invalid time")
 	}
 	index := bookmarkIndex(bookmarks, itemID, timeValue)
 	if index < 0 {
@@ -375,7 +374,7 @@ func (h *Handler) deleteBookmark(w http.ResponseWriter, r *http.Request, user st
 	}
 	bookmarks = append(bookmarks[:index], bookmarks[index+1:]...)
 	if err := h.saveBookmarks(r.Context(), user.ID, bookmarks); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	user.Bookmarks, _ = json.Marshal(bookmarks)
 	h.emitUserUpdate(r.Context(), user)
@@ -413,7 +412,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt FROM users`)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	defer rows.Close()
 	users := make([]any, 0)
@@ -421,12 +420,12 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		users = append(users, minimalBrowserUser(u, hideRootToken))
 	}
 	if err := rows.Err(); err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"users": users})
 }
@@ -454,7 +453,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	var exists int
 	err = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username = ?`, username).Scan(&exists)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if exists > 0 {
 		return httputil.Status(400, "Username already taken")
@@ -483,11 +482,11 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	encodedPerms, _ := json.Marshal(permissions)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
-		return writeInternalError(w, r, "Failed to save new user", err)
+		return httputil.Internal("Failed to save new user", err)
 	}
 	userID, err := ids.New()
 	if err != nil {
-		return writeInternalError(w, r, "Failed to save new user", err)
+		return httputil.Internal("Failed to save new user", err)
 	}
 	email, _ := body["email"].(string)
 	// Upstream user create via Sequelize omits undefined fields; an absent
@@ -501,18 +500,18 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	now := dbtime.Now()
 	token, err := h.signToken(map[string]any{"userId": userID, "username": username})
 	if err != nil {
-		return writeInternalError(w, r, "Failed to save new user", err)
+		return httputil.Internal("Failed to save new user", err)
 	}
 	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, string(encodedPerms), `[]`, `{"seriesHideFromContinueListening":[]}`, now, now); err != nil {
-		return writeInternalError(w, r, "Failed to save new user", err)
+		return httputil.Internal("Failed to save new user", err)
 	}
 	newUser, err := h.userByID(r.Context(), userID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	serialized, err := h.browserUserDB(r.Context(), newUser, []any{}, []any{})
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("admin", "user_added", serialized)
@@ -566,12 +565,12 @@ func (h *Handler) openIDUnlink(w http.ResponseWriter, r *http.Request, current s
 	extra["authOpenIDSub"] = nil
 	encoded, _ := json.Marshal(extra)
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), id); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	u.ExtraData = encoded
 	serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit(current.ID, "user_updated", serialized)
@@ -587,14 +586,14 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, current store.
 	}
 	progress, err := h.progressRows(r.Context(), id)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	serialized, err := h.browserUserDB(r.Context(), u, progress, jsonArray(u.Bookmarks))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, serialized)
 }
@@ -615,23 +614,23 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
 	if err = sqlc.New(tx).DeleteUserPlaylists(r.Context(), id); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	sessionsUpdated := int64(0)
 	if res, execErr := sqlc.New(tx).DetachPlaybackSessionsFromUser(r.Context(), store.Text(id)); execErr != nil {
-		return writeInternalError(w, r, "database write failed", execErr)
+		return httputil.Internal("database write failed", execErr)
 	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
 		sessionsUpdated = n
 	}
 	if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if err = tx.Commit(); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
 	if h.emit != nil {
@@ -651,11 +650,11 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		return plainError(w, "Invalid request", 400)
+		return httputil.Status(400, "Invalid request")
 	}
 	for _, key := range []string{"id", "pash", "token", "extraData", "bookmarks"} {
 		if _, ok := body[key]; ok {
-			return plainError(w, `Key "`+key+`" cannot be updated`, 400)
+			return httputil.Status(400, `Key "`+key+`" cannot be updated`)
 		}
 	}
 	if value, exists := body["email"]; exists && value != nil && value != "" {
@@ -683,7 +682,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	if name, ok := body["username"].(string); ok && name != "" && name != u.Username {
 		var exists int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username=? AND id<>?`, name, id).Scan(&exists); err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if exists != 0 {
 			return httputil.Status(400, "Username already taken")
@@ -691,7 +690,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 		u.Username = name
 		token, err := h.signToken(map[string]any{"userId": u.ID, "username": u.Username})
 		if err != nil {
-			return writeInternalError(w, r, "database write failed", err)
+			return httputil.Internal("database write failed", err)
 		}
 		u.Token = token
 		credentialsChanged = true
@@ -699,7 +698,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	if password, ok := body["password"].(string); ok && password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 		if err != nil {
-			return writeInternalError(w, r, "database write failed", err)
+			return httputil.Internal("database write failed", err)
 		}
 		u.Password = string(hash)
 		credentialsChanged = true
@@ -755,12 +754,12 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 		_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
 	}
 	if writeErr != nil {
-		return writeInternalError(w, r, "database write failed", writeErr)
+		return httputil.Internal("database write failed", writeErr)
 	}
 	if credentialsChanged && h.invalidateSessions != nil {
 		_, refresh, err := h.invalidateSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
 		if err != nil {
-			return writeInternalError(w, r, "database write failed", err)
+			return httputil.Internal("database write failed", err)
 		}
 		if refresh != "" && r.Header.Get("x-refresh-token") == "" && h.setRefreshCookie != nil {
 			h.setRefreshCookie(w, r, refresh)
@@ -769,7 +768,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	u.Permissions = encoded
 	serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit(current.ID, "user_updated", serialized)
@@ -780,7 +779,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 func (h *Handler) listAPIKeys(w http.ResponseWriter, r *http.Request, current store.User) error {
 	keys, err := h.apiKeys(r.Context())
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"apiKeys": keys})
 }
@@ -800,7 +799,7 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current s
 		return httputil.Status(400, "")
 	}
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if target.Type == "root" && current.Type != "root" {
 		return httputil.Status(403, "")
@@ -811,7 +810,7 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current s
 	}
 	keyID, err := ids.New()
 	if err != nil {
-		return writeInternalError(w, r, "API key creation failed", err)
+		return httputil.Internal("API key creation failed", err)
 	}
 	now := time.Now().UTC()
 	var expires any
@@ -824,15 +823,15 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current s
 	}
 	token, err := h.signToken(tokenClaims)
 	if err != nil {
-		return writeInternalError(w, r, "API key creation failed", err)
+		return httputil.Internal("API key creation failed", err)
 	}
 	active, _ := body["isActive"].(bool)
 	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO apiKeys (id,name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, keyID, name, nil, expires, nil, active, nil, userID, current.ID, dbtime.Format(now), dbtime.Format(now)); err != nil {
-		return writeInternalError(w, r, "API key creation failed", err)
+		return httputil.Internal("API key creation failed", err)
 	}
 	entry, err := h.apiKey(r.Context(), keyID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	// Upstream create spreads apiKey.toJSON() from a freshly built instance
 	// (ApiKeyController.js:100): unpersisted attributes (description,
@@ -850,7 +849,7 @@ func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, current s
 	id := r.PathValue("id")
 	res, err := h.db.ExecContext(r.Context(), `DELETE FROM apiKeys WHERE id=?`, id)
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
@@ -867,7 +866,7 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current s
 		return httputil.Status(404, "")
 	}
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if ownerType == "root" && current.Type != "root" {
 		return httputil.Status(403, "")
@@ -907,11 +906,11 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current s
 		_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,updatedAt=? WHERE id=?`, newOwner, dbtime.Now(), id)
 	}
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	key, err := h.apiKey(r.Context(), id)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	// Upstream update spreads apiKey.toJSON() from the instance it mutated
 	// (ApiKeyController.js:~100): the plain instance JSON has no
@@ -1225,21 +1224,6 @@ func validStringArray(value any) bool {
 	default:
 		return false
 	}
-}
-
-// writeInternalError answers a failed database operation with net/http's
-// plain-text 500 (the framing clients already see) and logs the cause. It
-// returns nil because the response is written.
-func writeInternalError(w http.ResponseWriter, r *http.Request, message string, err error) error {
-	logging.RequestError(r, message, err)
-	return plainError(w, message, http.StatusInternalServerError)
-}
-
-// plainError answers with net/http's text/plain framing, which the validation
-// messages of these routes have always used. It returns nil: the response is written.
-func plainError(w http.ResponseWriter, message string, status int) error {
-	http.Error(w, message, status)
-	return nil
 }
 
 func requestUser(r *http.Request) store.User {

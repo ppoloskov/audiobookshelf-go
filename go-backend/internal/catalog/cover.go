@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
 )
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
@@ -35,12 +34,10 @@ func (h *Handler) coverCachePath() string {
 }
 
 // writeJSONWithETag writes a JSON response with the existing Express validator.
-func writeJSONWithETag(w http.ResponseWriter, r *http.Request, status int, value any) {
+func writeJSONWithETag(w http.ResponseWriter, r *http.Request, status int, value any) error {
 	body, err := json.Marshal(value)
 	if err != nil {
-		logging.Errorf("[catalog] writeJSONWithETag: internal error: %v", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "")
-		return
+		return httputil.Internal("Internal Server Error", err)
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
@@ -48,12 +45,13 @@ func writeJSONWithETag(w http.ResponseWriter, r *http.Request, status int, value
 	w.Header().Set("ETag", etag)
 	if status == http.StatusOK && (r.Method == http.MethodGet || r.Method == http.MethodHead) && ifNoneMatch(etag, strings.Join(r.Header.Values("If-None-Match"), ",")) {
 		w.WriteHeader(http.StatusNotModified)
-		return
+		return nil
 	}
 	w.WriteHeader(status)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
 	}
+	return nil
 }
 
 func ifNoneMatch(etag, header string) bool {
@@ -97,11 +95,10 @@ func clampCoverDimension(raw string, max int) *int {
 // coverRaw mirrors the raw branch of LibraryItemController.getCover
 // (LibraryItemController.js:858-884): sendFile semantics with the express
 // send defaults — Cache-Control public,max-age=0, weak ETag, Last-Modified.
-func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath string) {
+func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath string) error {
 	info, err := os.Stat(coverPath)
 	if err != nil {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	// node_modules/send/index.js:862: the Cache-Control default is only
 	// applied when the handler has not already set one (the ts branch of
@@ -113,6 +110,7 @@ func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath str
 		w.Header().Set("ETag", expressFileETag(info.Size(), info.ModTime().UnixMilli()))
 	}
 	http.ServeFile(w, r, coverPath)
+	return nil
 }
 
 // handleCoverCache mirrors CacheManager.handleCoverCache (CacheManager.js:43-102):
@@ -122,7 +120,7 @@ func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath str
 // or dimension is a sendStatus(400), a missing cover sendStatus(404), and an
 // encoder failure sendStatus(500) — including matching this environment where
 // the shared ffmpeg build lacks libwebp.
-func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemID string) {
+func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemID string) error {
 	formatParam := r.URL.Query().Get("format")
 	widthValue := clampCoverDimension(r.URL.Query().Get("width"), 4096)
 	heightValue := clampCoverDimension(r.URL.Query().Get("height"), 4096)
@@ -135,8 +133,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 		}
 	}
 	if format != "webp" && format != "jpeg" && format != "png" {
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	width := 400
 	if widthValue != nil {
@@ -156,30 +153,23 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 	}
 	cachePath := filepath.Join(h.coverCachePath(), cacheName+"."+format)
 	if _, statErr := os.Stat(cachePath); statErr == nil {
-		streamCoverCache(w, r, cachePath)
-		return
+		return streamCoverCache(w, r, cachePath)
 	}
 	var coverPath sql.NullString
 	err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(b.coverPath, p.coverPath) FROM libraryItems li LEFT JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book' LEFT JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast' WHERE li.id = ?`, itemID).Scan(&coverPath)
 	if err != nil || !coverPath.Valid || coverPath.String == "" {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if _, statErr := os.Stat(coverPath.String); statErr != nil {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err := os.MkdirAll(h.coverCachePath(), 0o755); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, http.StatusInternalServerError)
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	if err := resizeImage(r.Context(), coverPath.String, cachePath, width, height); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, http.StatusInternalServerError)
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
-	streamCoverCache(w, r, cachePath)
+	return streamCoverCache(w, r, cachePath)
 }
 
 // resizeImage is ffmpegHelpers.resizeImage (ffmpegHelpers.js:78-97): the width
@@ -195,12 +185,10 @@ func resizeImage(ctx context.Context, input, output string, width, height int) e
 
 // streamCoverCache mirrors the cache-hit/done path: a bare chunked stream
 // without Content-Length (node stream pipe semantics).
-func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) {
+func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) error {
 	file, err := os.Open(cachePath)
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "")
-		return
+		return httputil.Internal("", err)
 	}
 	defer file.Close()
 	w.WriteHeader(http.StatusOK)
@@ -210,6 +198,7 @@ func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) 
 	if r.Method != http.MethodHead {
 		_, _ = io.Copy(w, file)
 	}
+	return nil
 }
 
 var supportedImageTypes = map[string]bool{"jpeg": true, "jpg": true, "png": true, "webp": true}
@@ -388,18 +377,18 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if !user.IsActive || permissions["upload"] != true {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var libraryID, itemPath, mediaType, mediaID string
 	var isFile int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryId, path, mediaType, mediaId, COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &itemPath, &mediaType, &mediaID, &isFile); err != nil {
 		if err == sql.ErrNoRows {
-			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var fileHeader *multipart.FileHeader
 	var coverURL string
@@ -423,16 +412,14 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	if fileHeader == nil && coverURL == "" {
-		httputil.SendText(w, http.StatusBadRequest, "Invalid request no file or url")
-		return nil
+		return httputil.Status(http.StatusBadRequest, "Invalid request no file or url")
 	}
 	var ext string
 	if fileHeader != nil {
 		ext = strings.TrimPrefix(strings.ToLower(filepath.Ext(fileHeader.Filename)), ".")
 		if ext == "" || !supportedImageTypes[ext] {
 			extension := filepath.Ext(strings.ToLower(fileHeader.Filename))
-			httputil.SendText(w, http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
-			return nil
+			return httputil.Status(http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
 		}
 	}
 	var storeWithItem bool
@@ -451,8 +438,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		if coverURL != "" {
 			message = "Failed to fetch image from url"
 		}
-		httputil.SendText(w, http.StatusBadRequest, message)
-		return nil
+		return httputil.Status(http.StatusBadRequest, message)
 	}
 	var coverFullPath string
 	if coverURL != "" {
@@ -460,32 +446,27 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		var message string
 		ext, message = downloadCoverFromURL(r.Context(), coverURL, tempPath)
 		if message != "" {
-			httputil.SendText(w, http.StatusBadRequest, message)
-			return nil
+			return httputil.Status(http.StatusBadRequest, message)
 		}
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		if err := os.Rename(tempPath, coverFullPath); err != nil {
-			httputil.SendText(w, http.StatusBadRequest, "Failed to fetch image from url")
-			return nil
+			return httputil.Status(http.StatusBadRequest, "Failed to fetch image from url")
 		}
 	} else {
 		coverFullPath = filepath.Join(coverDir, "cover."+ext)
 		source, err := fileHeader.Open()
 		if err != nil {
-			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return nil
+			return httputil.Status(http.StatusBadRequest, "Failed to move cover into destination")
 		}
 		target, err := os.Create(coverFullPath)
 		if err != nil {
 			source.Close()
-			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return nil
+			return httputil.Status(http.StatusBadRequest, "Failed to move cover into destination")
 		}
 		if _, err := io.Copy(target, source); err != nil {
 			target.Close()
 			source.Close()
-			httputil.SendText(w, http.StatusBadRequest, "Failed to move cover into destination")
-			return nil
+			return httputil.Status(http.StatusBadRequest, "Failed to move cover into destination")
 		}
 		target.Close()
 		source.Close()

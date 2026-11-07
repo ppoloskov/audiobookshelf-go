@@ -15,7 +15,7 @@ import (
 func (h *Handler) narrators(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
 	if err != nil {
@@ -61,21 +61,21 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 	// (LibraryController.js:1170,1214); reloading it keeps the same content.
 	defer h.filters.Invalidate(libraryID)
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if !canUpdateCatalog(user) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	decoded, err := url.QueryUnescape(encodedID)
 	if err != nil {
-		return httputil.Status(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	nameBytes, err := base64.StdEncoding.DecodeString(decoded)
 	if err != nil {
 		nameBytes, err = base64.RawStdEncoding.DecodeString(decoded)
 	}
 	if err != nil {
-		return httputil.Status(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	oldName := string(nameBytes)
 	newName := ""
@@ -150,10 +150,10 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if user.Type != "root" && user.Type != "admin" {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)
 	if err != nil {

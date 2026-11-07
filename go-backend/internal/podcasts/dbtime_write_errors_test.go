@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -39,7 +40,10 @@ func TestManualCheckNewReturns500WhenEpisodeCheckWriteFails(t *testing.T) {
 	item := podcastItem{ID: "pod-1", MediaID: "pod-1", FeedURL: sql.NullString{String: feed.URL + "/rss", Valid: true}}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/checknew?limit=3", nil)
-	_ = h.checkNew(w, r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"})), item)
+	r = r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"}))
+	if err := h.checkNew(w, r, item); err != nil {
+		httputil.Fail(w, r, err)
+	}
 	if w.Code == http.StatusOK {
 		t.Fatalf("checknew reported success despite failed lastEpisodeCheck write: %d %s", w.Code, w.Body.String())
 	}

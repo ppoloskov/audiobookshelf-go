@@ -166,31 +166,28 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		// LibraryItemController.middleware / startEpisodePlaybackSession
 		// (LibraryItemController.js:460-470): res.sendStatus(404).
-		httputil.SendStatus(w, http.StatusNotFound, httputil.WithoutETag())
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	if !canAccess(user, item) {
-		httputil.SendStatus(w, http.StatusForbidden, httputil.WithoutETag())
-		return nil
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if len(item.Files) == 0 {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	var body map[string]any
 	if r.Body != nil {
 		data, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 		if readErr != nil {
-			return reject(w, 400, "Invalid request body")
+			return httputil.Status(400, "Invalid request body")
 		}
 		if len(data) > 1<<20 {
-			return reject(w, http.StatusRequestEntityTooLarge, "Request body too large")
+			return httputil.Status(http.StatusRequestEntityTooLarge, "Request body too large")
 		}
 		if len(strings.TrimSpace(string(data))) > 0 && json.Unmarshal(data, &body) != nil {
-			return reject(w, 400, "Invalid request body")
+			return httputil.Status(400, "Invalid request body")
 		}
 	}
 	if body == nil {
@@ -202,7 +199,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	}
 	deviceID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	mediaPlayer, _ := body["mediaPlayer"].(string)
 	if mediaPlayer == "" {
@@ -213,7 +210,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	forceTranscode, _ := body["forceTranscode"].(bool)
 	progress, err := h.readProgress(r.Context(), user.ID, item, episodeID)
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	start := 0.0
 	if progress != nil && !progress.finished {
@@ -231,11 +228,11 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	// that serializer.
 	itemJSON, err := h.items.ItemJSON(r.Context(), item.ID, true)
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	sessionID, err := ids.New()
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if episodeID != "" {
@@ -263,7 +260,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 		}
 		t, err := h.startTranscode(s, item, start)
 		if err != nil {
-			return h.serverError(w, r, err)
+			return httputil.Internal("Internal Server Error", err)
 		}
 		s.stream = t
 		s.AudioTracks = []map[string]any{{"index": 1, "startOffset": 0, "duration": s.Duration, "title": s.DisplayTitle, "contentUrl": "/hls/" + s.ID + "/output.m3u8", "mimeType": "application/vnd.apple.mpegurl", "codec": nil, "metadata": nil}}
@@ -539,19 +536,17 @@ func (h *Handler) readProgress(ctx context.Context, userID string, item *itemDat
 func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
 	id, indexText := r.PathValue("id"), r.PathValue("index")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		methodNotAllowed(w)
-		return nil
+		return httputil.Status(http.StatusMethodNotAllowed, "")
 	}
 	index, err := strconv.Atoi(indexText)
 	if err != nil {
-		return reject(w, http.StatusBadRequest, "")
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	h.mu.RLock()
 	s := h.sessions[id]
 	h.mu.RUnlock()
 	if s == nil {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	var chosen map[string]any
 	for _, track := range s.AudioTracks {
@@ -565,8 +560,7 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
 		chosen = s.AudioTracks[0]
 	}
 	if chosen == nil {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if s.PlayMethod == 2 {
 		if content, ok := chosen["contentUrl"].(string); ok && content != "" {
@@ -589,64 +583,61 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
 	}
 	if f == nil {
 		logging.RequestDebug(r, "responding 500: audio track "+indexText+" of the item was not found")
-		return reject(w, http.StatusInternalServerError, "")
+		return httputil.Status(http.StatusInternalServerError, "")
 	}
 	path, _ := f.Metadata["path"].(string)
 	if path == "" {
 		logging.RequestDebug(r, "responding 500: audio file has no path")
-		return reject(w, http.StatusInternalServerError, "")
+		return httputil.Status(http.StatusInternalServerError, "")
 	}
-	serveMedia(w, r, path, f.MimeType)
-	return nil
+	return serveMedia(w, r, path, f.MimeType)
 }
 
 func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	id := r.PathValue("id")
-	s := h.openSession(w, r, user, id)
-	if s == nil {
-		return nil
+	s, err := h.openSession(user, id)
+	if err != nil {
+		return err
 	}
 	httputil.WriteJSON(w, 200, s.clientJSON())
 	return nil
 }
 
-func (h *Handler) openSession(w http.ResponseWriter, r *http.Request, user store.User, id string) *session {
+func (h *Handler) openSession(user store.User, id string) (*session, error) {
 	h.mu.RLock()
 	s := h.sessions[id]
 	h.mu.RUnlock()
 	if s == nil {
-		http.NotFound(w, r)
-		return nil
+		return nil, httputil.Status(http.StatusNotFound, "")
 	}
 	if s.UserID != user.ID && !isAdmin(user) {
-		http.Error(w, "Forbidden", 403)
-		return nil
+		return nil, httputil.Status(http.StatusForbidden, "")
 	}
-	return s
+	return s, nil
 }
 
 func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	id := r.PathValue("id")
 	closeSession := strings.HasSuffix(r.URL.Path, "/close")
-	s := h.openSession(w, r, user, id)
-	if s == nil {
-		return nil
+	s, err := h.openSession(user, id)
+	if err != nil {
+		return err
 	}
 	var body map[string]any
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	if err := dec.Decode(&body); err != nil && err != io.EOF {
-		return reject(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	if len(body) > 0 {
 		ct, ok := asFloat(body["currentTime"])
 		if !ok || ct < 0 {
-			return reject(w, 400, "Invalid currentTime")
+			return httputil.Status(400, "Invalid currentTime")
 		}
 		listened, ok := asFloat(body["timeListened"])
 		if !ok || listened < 0 {
-			return reject(w, 400, "Invalid timeListened")
+			return httputil.Status(400, "Invalid timeListened")
 		}
 		s.CurrentTime = ct
 		s.TimeListening += listened
@@ -655,17 +646,17 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
 		if err := h.saveSession(r.Context(), s); err != nil {
-			return h.serverError(w, r, err)
+			return httputil.Internal("Internal Server Error", err)
 		}
 		syncDuration, _ := asFloat(body["duration"])
 		if _, err := h.syncProgress(r.Context(), user.ID, s, syncDuration, nil); err != nil {
-			return h.serverError(w, r, err)
+			return httputil.Internal("Internal Server Error", err)
 		}
 	}
 	if closeSession {
 		if len(body) == 0 {
 			if err := h.saveSession(r.Context(), s); err != nil {
-				return h.serverError(w, r, err)
+				return httputil.Internal("Internal Server Error", err)
 			}
 		}
 		logging.Debugf("[PlaybackSessionManager] closeSession %q", s.ID) // PlaybackSessionManager.js:427
@@ -847,7 +838,7 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		return reject(w, http.StatusNotFound, "")
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	validSort := map[string]string{"displayTitle": "displayTitle", "duration": "duration", "playMethod": "playMethod", "startTime": "startTime", "currentTime": "currentTime", "timeListening": "timeListening", "updatedAt": "updatedAt", "createdAt": "createdAt"}
 	sortKey := r.URL.Query().Get("sort")
@@ -884,29 +875,29 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 	}
 	total, err := sqlc.New(h.db).CountPlaybackSessionsForUser(r.Context(), store.TextOrNull(userFilter))
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
 	args = append(args, perPage, perPage*page)
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	sessions := []store.PlaybackSessionRow{}
 	for rows.Next() {
 		s, err := store.ScanPlaybackSession(rows)
 		if err != nil {
 			_ = rows.Close()
-			return h.serverError(w, r, err)
+			return httputil.Internal("Internal Server Error", err)
 		}
 		sessions = append(sessions, s)
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	if err := rows.Close(); err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	result := []map[string]any{}
 	for _, s := range sessions {
@@ -915,7 +906,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 			device, err = nil, nil
 		}
 		if err != nil {
-			return h.serverError(w, r, err)
+			return httputil.Internal("Internal Server Error", err)
 		}
 		obj := s.LegacyJSON(device)
 		if u, err := sqlc.New(h.db).GetUserByID(r.Context(), s.UserID.String); err == nil && u.Username.Valid {
@@ -935,7 +926,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		return reject(w, http.StatusNotFound, "")
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
 	return nil
@@ -965,19 +956,18 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) er
 	user, _ := store.UserFromContext(r.Context())
 	id := r.PathValue("id")
 	if !canDelete(user) {
-		return reject(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	if exists == 0 {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	h.removeOpenSession(id)
 	if err := sqlc.New(h.db).DeletePlaybackSession(r.Context(), id); err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	sendOK(w)
 	return nil
@@ -986,17 +976,17 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) er
 func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	if !isAdmin(user) {
-		return reject(w, 403, "")
+		return httputil.Status(403, "")
 	}
 	var body struct {
 		Sessions []string `json:"sessions"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.Sessions) == 0 {
-		return reject(w, 400, `Invalid request body. "sessions" array of session id strings is required.`)
+		return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
 	}
 	for _, id := range body.Sessions {
 		if !validUUID(id) {
-			return reject(w, 400, `Invalid request body. "sessions" array of session id strings is required.`)
+			return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
 		}
 	}
 	for _, id := range body.Sessions {
@@ -1004,8 +994,7 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) erro
 	}
 	res, err := sqlc.New(h.db).DeletePlaybackSessionsByIDs(r.Context(), body.Sessions)
 	if err != nil {
-		logging.RequestError(r, "Failed to remove sessions", err)
-		return reject(w, 500, "Failed to remove sessions")
+		return httputil.Internal("Failed to remove sessions", err)
 	}
 	if removed, rowsErr := res.RowsAffected(); rowsErr == nil {
 		logging.Infof("[SessionController] %d playback sessions removed by %q", removed, user.Username) // SessionController.js:238
@@ -1029,11 +1018,11 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error 
 	all := strings.HasSuffix(r.URL.Path, "-all")
 	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 	if err != nil || len(data) > 1<<20 {
-		return reject(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	var body map[string]any
 	if json.Unmarshal(data, &body) != nil {
-		return reject(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	device, _ := body["deviceInfo"].(map[string]any)
 	if device == nil {
@@ -1041,13 +1030,13 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error 
 	}
 	deviceDBID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
 	if err != nil {
-		return h.serverError(w, r, err)
+		return httputil.Internal("Internal Server Error", err)
 	}
 	if !all {
 		_, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
 		if errMsg != "" {
 			logging.RequestDebug(r, "responding 500: "+errMsg)
-			return reject(w, 500, errMsg)
+			return httputil.Status(500, errMsg)
 		}
 		sendOK(w)
 		return nil
@@ -1267,28 +1256,26 @@ func deviceDescription(device map[string]any) string {
 func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 	id, name := r.PathValue("id"), r.PathValue("name")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		methodNotAllowed(w)
-		return nil
+		return httputil.Status(http.StatusMethodNotAllowed, "")
 	}
 	h.mu.RLock()
 	s := h.sessions[id]
 	h.mu.RUnlock()
 	if s == nil || s.stream == nil {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	t := s.stream
 	if filepath.Base(name) != name || name == "." || name == ".." {
-		return reject(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	ext := filepath.Ext(name)
 	if ext != ".ts" && ext != ".m3u8" {
-		return reject(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	path := filepath.Join(t.root, name)
 	rel, err := filepath.Rel(t.root, path)
 	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return reject(w, 400, "")
+		return httputil.Status(400, "")
 	}
 	if _, err := os.Stat(path); err != nil {
 		if ext == ".ts" {
@@ -1298,8 +1285,7 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 				}
 			}
 		}
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	contentType := "video/mp2t"
 	if ext == ".m3u8" {
@@ -1307,14 +1293,12 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		http.NotFound(w, r)
-		return nil
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
@@ -1743,26 +1727,25 @@ func or(value, fallback string) string {
 	return fallback
 }
 
-func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) {
+func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) error {
 	if mime == "" {
 		mime = mimeForFormat(strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), "."))
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		http.NotFound(w, r)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil || !st.Mode().IsRegular() {
-		http.NotFound(w, r)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	w.Header().Set("Accept-Ranges", "bytes")
 	if mime != "" {
 		w.Header().Set("Content-Type", mime)
 	}
 	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
+	return nil
 }
 
 func mimeForFormat(ext string) string {
@@ -1921,10 +1904,6 @@ func segmentNumber(name string) (int, bool) {
 	n, e := strconv.Atoi(parts[1])
 	return n, e == nil && n >= 0
 }
-func methodNotAllowed(w http.ResponseWriter) {
-	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-}
-
 func sendOK(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", "2")
@@ -1936,20 +1915,6 @@ func ffmpegExecutable() string {
 		return p
 	}
 	return "ffmpeg"
-}
-
-// serverError logs err and answers 500 in net/http framing; handlers return
-// its nil so the answer is not written twice.
-func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error) error {
-	logging.RequestError(r, "Internal Server Error", err)
-	return reject(w, http.StatusInternalServerError, "Internal Server Error")
-}
-
-// reject answers with http.Error framing (not the Express framing of
-// httputil.Fail, which these media routes never used) and returns nil.
-func reject(w http.ResponseWriter, code int, message string) error {
-	http.Error(w, message, code)
-	return nil
 }
 
 // jsTemplateValue renders a decoded JSON value as a JS template literal would

@@ -11,16 +11,16 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
 
 func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !canUpload(u) {
-		return reply(w, http.StatusForbidden, "")
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil || r.MultipartForm == nil || len(r.MultipartForm.File) == 0 {
-		return reply(w, http.StatusBadRequest, "")
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	defer r.MultipartForm.RemoveAll()
 	files := make([]*multipart.FileHeader, 0)
@@ -29,30 +29,24 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) e
 	}
 	title, libraryID, folderID := r.FormValue("title"), r.FormValue("library"), r.FormValue("folder")
 	if title == "" || libraryID == "" || folderID == "" {
-		return reply(w, http.StatusBadRequest, "Invalid request body")
+		return httputil.Status(http.StatusBadRequest, "Invalid request body")
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType); err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Library not found", http.StatusNotFound)
-		} else {
-			logging.RequestError(r, "Internal server error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return httputil.Status(http.StatusNotFound, "Library not found")
 		}
-		return nil
+		return httputil.Internal("Internal server error", err)
 	}
 	if !canAccessLibrary(u, libraryID) {
-		return reply(w, http.StatusForbidden, "")
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var folderPath string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT path FROM libraryFolders WHERE id=? AND libraryId=?`, folderID, libraryID).Scan(&folderPath); err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Folder not found", http.StatusNotFound)
-		} else {
-			logging.RequestError(r, "Internal server error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return httputil.Status(http.StatusNotFound, "Folder not found")
 		}
-		return nil
+		return httputil.Internal("Internal server error", err)
 	}
 	parts := []string{}
 	if mediaType == "podcast" {
@@ -69,8 +63,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) e
 	}
 	dir := filepath.Join(append([]string{folderPath}, parts...)...)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		logging.RequestError(r, "internal error", err)
-		return reply(w, http.StatusInternalServerError, "")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	for _, fh := range files {
 		file, err := fh.Open()
@@ -89,7 +82,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) e
 		}
 		_ = file.Close()
 	}
-	return reply(w, http.StatusOK, "")
+	return httputil.OK(w, r)
 }
 
 var (

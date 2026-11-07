@@ -17,6 +17,7 @@ func TestHandlerMapsErrors(t *testing.T) {
 		{Status(http.StatusBadRequest, "Invalid request body"), 400, "Invalid request body"},
 		{Internal("database read failed", errors.New("boom")), 500, "database read failed"},
 		{errors.New("plain"), 500, "Internal Server Error"},
+		{Empty(http.StatusNoContent), 204, ""},
 	} {
 		w := httptest.NewRecorder()
 		Handler(func(http.ResponseWriter, *http.Request) error { return tc.err }).ServeHTTP(w, httptest.NewRequest("GET", "/x", nil))

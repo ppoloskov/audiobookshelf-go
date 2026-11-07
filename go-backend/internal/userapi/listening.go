@@ -17,7 +17,7 @@ import (
 func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request, userID, mediaID string, includeUser bool) error {
 	sessions, err := h.listeningSessions(r, userID, mediaID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	page, perPage := queryInt(r, "page", 0), queryInt(r, "itemsPerPage", 10)
 	if perPage <= 0 {
@@ -38,7 +38,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 	for _, session := range sessions[start:end] {
 		row, err := h.listeningSessionJSON(r, session)
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if includeUser {
 			if u, err := sqlc.New(h.db).GetUserByID(r.Context(), session.UserID.String); err == nil && u.Username.Valid {
@@ -54,7 +54,7 @@ func (h *Handler) writeListeningSessions(w http.ResponseWriter, r *http.Request,
 func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, userID string) error {
 	sessions, err := h.listeningSessions(r, userID, "")
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	stats := map[string]any{"totalTime": float64(0), "items": map[string]any{}, "days": map[string]any{}, "dayOfWeek": map[string]any{}, "today": float64(0), "recentSessions": []any{}}
 	items := stats["items"].(map[string]any)
@@ -68,7 +68,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		if index < 10 {
 			row, err := h.listeningSessionJSON(r, session)
 			if err != nil {
-				return writeInternalError(w, r, "database read failed", err)
+				return httputil.Internal("database read failed", err)
 			}
 			recent = append(recent, row)
 		}

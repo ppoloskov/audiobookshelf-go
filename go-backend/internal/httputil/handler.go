@@ -29,6 +29,7 @@ type Error struct {
 	Status  int
 	Message string
 	Cause   error // logged, never sent
+	Empty   bool  // no body at all: Express res.status(n).end()
 }
 
 func (e *Error) Error() string { return e.Message }
@@ -39,6 +40,9 @@ func (e *Error) Unwrap() error { return e.Cause }
 func Status(status int, message string) error {
 	return &Error{Status: status, Message: message}
 }
+
+// Empty returns an *Error answering status with no body or Content-Type.
+func Empty(status int) error { return &Error{Status: status, Empty: true} }
 
 // Internal returns a 500 *Error with message as the body and cause logged.
 func Internal(message string, cause error) error {
@@ -61,6 +65,10 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 			cause = errors.New(message)
 		}
 		logging.RequestError(r, message, cause)
+	}
+	if e.Empty {
+		w.WriteHeader(e.Status)
+		return
 	}
 	// Express: res.status(n).send(message) is text/html, res.sendStatus(n)
 	// (no message) is the status text as text/plain; both carry a weak ETag.

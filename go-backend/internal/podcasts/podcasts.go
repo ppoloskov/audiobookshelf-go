@@ -86,7 +86,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	adminOnly := func(fn httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			if !admin(requestUser(r)) {
-				return bare(w, 403)
+				return httputil.Status(403, "")
 			}
 			return fn(w, r)
 		}
@@ -100,9 +100,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/podcasts/{id}/downloads", h.onItem(func(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 		return httputil.JSON(w, r, wire.EpisodeDownloads{Downloads: h.downloadsFor(item.ID)})
 	}))
-	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, _ *http.Request, item podcastItem) error {
+	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 		h.clearQueue(item.ID)
-		return bare(w, 200)
+		return httputil.OK(w, r)
 	}))
 	mux.Handle("POST /api/podcasts/{id}/download-episodes", h.onItem(h.downloadEpisodes))
 	mux.Handle("GET /api/podcasts/{id}/search-episode", h.onItem(h.searchEpisode))
@@ -111,7 +111,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/podcasts/{id}/episode/{episodeId}", h.onItem(func(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 		ep, ok := item.episode(r.PathValue("episodeId"))
 		if !ok {
-			return bare(w, 404)
+			return httputil.Status(404, "")
 		}
 		return httputil.JSON(w, r, ep.oldJSON(item.ID))
 	}))
@@ -132,17 +132,17 @@ func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, podcastItem
 				// PodcastController.middleware answers a bare 500 for a non-podcast
 				// item (PodcastController.js:565); upstream logs nothing.
 				logging.RequestDebug(r, "responding 500: library item "+id+" is a "+other+" item, not a podcast")
-				return bare(w, 500)
+				return &httputil.Error{Status: 500}
 			}
-			return bare(w, 404)
+			return httputil.Status(404, "")
 		}
 		if err != nil {
-			return dbError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if !canAccessPodcast(user, item) ||
 			r.Method == http.MethodDelete && !canDeletePodcast(user) ||
 			(r.Method == http.MethodPatch || r.Method == http.MethodPost) && !canUpdatePodcast(user) {
-			return bare(w, 403)
+			return httputil.Status(403, "")
 		}
 		return fn(w, r, item)
 	}
@@ -153,11 +153,11 @@ func (h *Handler) feed(w http.ResponseWriter, r *http.Request) error {
 		RSSFeed string `json:"rssFeed"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || validFeedURL(body.RSSFeed) == "" {
-		return text(w, 400, `Invalid request body. "rssFeed" must be a valid URL`)
+		return httputil.Status(400, `Invalid request body. "rssFeed" must be a valid URL`)
 	}
 	feed, err := h.getFeed(r.Context(), body.RSSFeed, false)
 	if err != nil {
-		return text(w, 404, "Podcast RSS feed request failed or invalid response data")
+		return httputil.Status(404, "Podcast RSS feed request failed or invalid response data")
 	}
 	return httputil.JSON(w, r, map[string]any{"podcast": feed})
 }
@@ -167,33 +167,33 @@ func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
 		OPMLText string `json:"opmlText"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil || body.OPMLText == "" {
-		return bare(w, 400)
+		return httputil.Status(400, "")
 	}
 	return httputil.JSON(w, r, map[string]any{"feeds": parseOPML(body.OPMLText)})
 }
 
 func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 	if !admin(requestUser(r)) {
-		return bare(w, 403)
+		return httputil.Status(403, "")
 	}
 	var episodes []map[string]any
 	if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&episodes) != nil || len(episodes) == 0 {
-		return bare(w, 400)
+		return httputil.Status(400, "")
 	}
 	if err := h.enqueue(item, episodes, false); err != nil {
-		return text(w, 400, err.Error())
+		return httputil.Status(400, err.Error())
 	}
-	return bare(w, 200)
+	return httputil.OK(w, r)
 }
 
 func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 	if !item.FeedURL.Valid || item.FeedURL.String == "" {
-		return text(w, 400, "Podcast does not have an RSS feed URL")
+		return httputil.Status(400, "Podcast does not have an RSS feed URL")
 	}
 	title := r.URL.Query().Get("title")
 	if title == "" {
 		logging.RequestDebug(r, "responding 500: query parameter title is empty")
-		return bare(w, 500)
+		return &httputil.Error{Status: 500}
 	}
 	feed, err := h.getFeed(r.Context(), item.FeedURL.String, false)
 	if err != nil {
@@ -212,7 +212,7 @@ func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item pod
 	}
 	updated, err := matcher(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
 	if err != nil {
-		return dbError(w, r, "Podcast episode matching failed", err)
+		return httputil.Internal("Podcast episode matching failed", err)
 	}
 	if updated > 0 {
 		if fresh, e := h.loadItem(r.Context(), item.ID); e == nil {
@@ -243,11 +243,11 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 	episodeID := r.PathValue("episodeId")
 	ep, ok := item.episode(episodeID)
 	if !ok {
-		return text(w, 404, "Episode not found")
+		return httputil.Status(404, "Episode not found")
 	}
 	var body map[string]any
 	if json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&body) != nil {
-		return text(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	fields := map[string]any{}
 	allowed := map[string]string{"title": "title", "subtitle": "subtitle", "description": "description", "pubDate": "pubDate", "episode": "episode", "season": "season", "episodeType": "episodeType"}
@@ -332,7 +332,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item pod
 		args = append(args, dbtime.Now(), episodeID)
 		set = append(set, "updatedAt=?")
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE podcastEpisodes SET `+strings.Join(set, ",")+` WHERE id=?`, args...); err != nil {
-			return dbError(w, r, "database write failed", err)
+			return httputil.Internal("database write failed", err)
 		}
 		updated, err := h.loadItem(r.Context(), item.ID)
 		if err == nil {
@@ -366,7 +366,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	episodeID := r.PathValue("episodeId")
 	ep, ok := item.episode(episodeID)
 	if !ok {
-		return bare(w, 404)
+		return httputil.Status(404, "")
 	}
 	if r.URL.Query().Get("hard") == "1" {
 		var audio map[string]any
@@ -391,7 +391,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	fileBytes, _ := json.Marshal(files)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		return dbError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	now := dbtime.Now()
 	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(r.Context(), episodeID); err == nil {
@@ -408,14 +408,14 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 	}
 	if err != nil {
 		_ = tx.Rollback()
-		return dbError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if err = tx.Commit(); err != nil {
-		return dbError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	updated, err := h.loadItem(r.Context(), item.ID)
 	if err != nil {
-		return dbError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	h.emit("@admins", "item_updated", updated.oldJSON())
 	return httputil.JSON(w, r, updated.legacyJSON())
@@ -423,10 +423,10 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item pod
 
 func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastItem) error {
 	if !admin(requestUser(r)) {
-		return bare(w, 403)
+		return httputil.Status(403, "")
 	}
 	if !item.FeedURL.Valid || item.FeedURL.String == "" {
-		return text(w, 400, "Podcast has no rss feed url")
+		return httputil.Status(400, "Podcast has no rss feed url")
 	}
 	feed, err := h.getFeed(r.Context(), item.FeedURL.String, false)
 	if err != nil {
@@ -476,7 +476,7 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item podcastI
 	}
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
-		return dbError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if len(found) > 0 {
 		if err := h.enqueue(item, found, false); err != nil {
@@ -559,14 +559,14 @@ func (h *Handler) Close() {
 func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) error {
 	var body map[string]any
 	if json.NewDecoder(io.LimitReader(r.Body, 4<<20)).Decode(&body) != nil {
-		return text(w, 400, "Invalid request body")
+		return httputil.Status(400, "Invalid request body")
 	}
 	item, status, message, err := h.createPodcastFromBody(r.Context(), body)
 	if status == http.StatusInternalServerError && err != nil {
-		return dbError(w, r, message, err)
+		return httputil.Internal(message, err)
 	}
 	if err != nil {
-		return text(w, status, message)
+		return httputil.Status(status, message)
 	}
 	if item.AutoDownload {
 		h.addSchedule(item.ID)
@@ -749,35 +749,34 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) error {
 		AutoDownloadEpisodes bool     `json:"autoDownloadEpisodes"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&body) != nil || len(body.Feeds) == 0 {
-		return text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
+		return httputil.Status(400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
 	}
 	for _, raw := range body.Feeds {
 		if validFeedURL(raw) == "" {
-			return text(w, 400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
+			return httputil.Status(400, `Invalid request body. "feeds" must be an array of RSS feed URLs`)
 		}
 	}
 	if body.LibraryID == "" || body.FolderID == "" {
-		return text(w, 400, `Invalid request body. "libraryId" and "folderId" are required`)
+		return httputil.Status(400, `Invalid request body. "libraryId" and "folderId" are required`)
 	}
 	var folderPath, libraryID string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT path,libraryId FROM libraryFolders WHERE id=?`, body.FolderID).Scan(&folderPath, &libraryID); errors.Is(err, sql.ErrNoRows) {
-		return text(w, 404, "Folder not found")
+		return httputil.Status(404, "Folder not found")
 	} else if err != nil {
-		return dbError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if libraryID != body.LibraryID {
-		return text(w, 404, "Folder not found")
+		return httputil.Status(404, "Folder not found")
 	}
 	id, err := ids.New()
 	if err != nil {
-		logging.RequestError(r, "could not create the OPML import task id", err)
-		return bare(w, 500)
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	started := time.Now().UnixMilli()
 	task := map[string]any{"id": id, "action": "opml-import", "data": map[string]any{}, "title": "OPML import", "titleKey": "MessageTaskOpmlImport", "titleSubs": nil, "description": fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "descriptionKey": "MessageTaskOpmlImportDescription", "descriptionSubs": []any{len(body.Feeds)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": started, "finishedAt": nil}
 	h.emit("*", "task_started", task)
 	go h.runOPMLImport(body.Feeds, body.LibraryID, body.FolderID, folderPath, body.AutoDownloadEpisodes, task)
-	return bare(w, 200)
+	return httputil.OK(w, r)
 }
 
 func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath string, auto bool, task map[string]any) {
@@ -1158,27 +1157,6 @@ func validFeedURL(raw string) string {
 	return u.String()
 }
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
-
-// text is Express res.status(n).send(message) without Content-Length or ETag.
-func text(w http.ResponseWriter, status int, s string) error {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = io.WriteString(w, s)
-	return nil
-}
-
-// bare is Express res.sendStatus(n) without Content-Length or ETag.
-func bare(w http.ResponseWriter, status int) error {
-	httputil.SendStatus(w, status, httputil.WithoutContentLength(), httputil.WithoutETag())
-	return nil
-}
-
-// dbError logs err and answers a 500 with message, net/http's plain-text framing.
-func dbError(w http.ResponseWriter, r *http.Request, message string, err error) error {
-	logging.RequestError(r, message, err)
-	http.Error(w, message, http.StatusInternalServerError)
-	return nil
-}
 
 func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())

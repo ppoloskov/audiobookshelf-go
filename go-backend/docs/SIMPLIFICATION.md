@@ -37,12 +37,30 @@ deleted once the last package stops exposing `Handle`. Response options
 (`WithoutETag`, `Streamed`, `ForRequest`, …) are deleted when they are
 unused.
 
+## ADR-002: the JSON contract is semantic, not Express bytes (owner, 2026-11-07)
+
+**Decision.** Clients and TS rollback read JSON by value. The contract is the
+set of keys, their JSON types and values, array order, and `null` vs absent
+where a reader branches on it. Not contract, and not to be preserved with
+code: object key order (HTTP bodies and persisted JSON columns alike),
+whitespace and trailing newlines, which framing an error body uses
+(text/html vs text/plain), and Express's exact ETag bytes (an ETag only has to
+change when the body changes).
+
+**Consequences.** Delete code whose only job is key order or byte fidelity
+(ordered marshal structs, order-preserving JSON rewriters, insertion-order
+bookkeeping, superset-map-and-delete shapes kept for order) and turn byte or
+order assertions into semantic comparisons (`internal/compat` already ignores
+key order). New code uses plain typed structs. Persisted JSON keeps its values
+and nulls, because TS reads those back.
+
 ## Ledger
 
 | Step | Commit | Handwritten before → after | Net | Complexity | Notes |
 |------|--------|----------------------------|-----|------------|-------|
 | Baseline | 8e17183 | 44,674 | — | 10,809 | 990 `map[string]any`, 9 Handle routers |
 | M1: handlers return error; Handle chains → mux | (this commit) | 44,674 → 43,348 | −1,326 (prod +2,560 / −4,036) | 10,809 → 10,406 | 8 hand routers and the legacy adapter deleted; JSON 200 GET/HEAD gains ETag/304; unknown routes 404 |
+| M2: one error framing (httputil.Fail); per-package write helpers deleted; catalog round 2 | (this commit) | 43,348 → 42,743 | −605 | 10,406 → 10,380 | ~20 helpers (bare, text, reply, reject, plainError, dbFail, …) and catalog adapters gone; error bodies follow the TS send/sendStatus choice |
 
 ### M1 behaviour changes (all toward TS/Express)
 

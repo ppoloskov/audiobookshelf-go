@@ -145,37 +145,26 @@ func userAllows(user store.User, key string) bool {
 // authorRequest is AuthorController.middleware (AuthorController.js:427-442):
 // an unknown author or one in a library the user cannot access is a 404, and
 // DELETE needs the delete permission, PATCH and POST the update permission.
-func (h *Handler) authorRequest(w http.ResponseWriter, r *http.Request, user store.User) (authorRecord, bool) {
+func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord, error) {
 	a, err := h.loadAuthor(r.Context(), r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return a, false
+		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return a, false
+		return a, httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, a.libraryID) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return a, false
+		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
 	case r.Method == http.MethodDelete && !userAllows(user, "delete"):
 		logging.Warnf(`[AuthorController] User "%s" attempted to delete without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return a, false
+		return a, httputil.Status(http.StatusForbidden, "")
 	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !userAllows(user, "update"):
 		logging.Warnf(`[AuthorController] User "%s" attempted to update without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return a, false
+		return a, httputil.Status(http.StatusForbidden, "")
 	}
-	return a, true
-}
-
-func (h *Handler) authorServerError(w http.ResponseWriter, r *http.Request, message string, err error) {
-	logging.RequestError(r, message, err)
-	httputil.WriteError(w, http.StatusInternalServerError, message)
+	return a, nil
 }
 
 // authorItemIDs are the library item ids of an author's books in the order of
@@ -252,50 +241,45 @@ func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error
 }
 
 // authorFindOne is AuthorController.findOne (AuthorController.js:40-88).
-func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	a, ok := h.authorRequest(w, r, user)
-	if !ok {
-		return
+	a, err := h.authorRequest(r, user)
+	if err != nil {
+		return err
 	}
 	include := strings.Split(r.URL.Query().Get("include"), ",")
 	oldJSON, err := a.toOldJSON()
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	detail := wire.AuthorDetail{Author: oldJSON}
 	if sliceHas(include, "items") {
 		ids, err := h.authorItemIDs(r.Context(), user, a)
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		items := make([]json.RawMessage, 0, len(ids))
 		if sliceHas(include, "series") {
 			groups, err := h.authorSeriesGroups(r.Context(), ids)
 			if err != nil {
-				h.authorServerError(w, r, "database read failed", err)
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			detail.Series = &groups
 		}
 		for _, id := range ids {
 			item, err := h.ItemMinifiedJSON(r.Context(), id)
 			if err != nil {
-				h.authorServerError(w, r, "database read failed", err)
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			raw, err := json.Marshal(item)
 			if err != nil {
-				h.authorServerError(w, r, "internal error", err)
-				return
+				return httputil.Internal("internal error", err)
 			}
 			items = append(items, raw)
 		}
 		detail.LibraryItems = &items
 	}
-	writeJSONWithETag(w, r, http.StatusOK, detail)
+	return httputil.JSON(w, r, detail)
 }
 
 func sliceHas(list []string, v string) bool {
@@ -487,11 +471,11 @@ func authorLastFirst(name *string) *string {
 }
 
 // authorUpdate is AuthorController.update (AuthorController.js:96-224).
-func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	a, ok := h.authorRequest(w, r, user)
-	if !ok {
-		return
+	a, err := h.authorRequest(r, user)
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	body := jsonBodyObject(r)
@@ -505,8 +489,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(payload) == 0 {
 		logging.Errorf("[AuthorController] Invalid request payload. No valid keys found")
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request payload. No valid keys found")
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid request payload. No valid keys found")
 	}
 	newName, hasName := payload["name"]
 	authorNameUpdate := hasName && !samePointer(newName, store.NullStringPtr(a.name))
@@ -526,11 +509,10 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		if err == nil {
 			h.authorMerge(w, r, a, existingID)
-			return
+			return nil
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 	}
 
@@ -549,38 +531,32 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 	hasUpdated := len(update.columns) > 0
 	if hasUpdated {
 		if err := update.save(ctx, h.db, a.id); err != nil {
-			h.authorServerError(w, r, "database write failed", err)
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		numBooks := 0
 		if authorNameUpdate {
 			itemIDs, err := h.authorBookItems(ctx, a.id)
 			if err != nil {
-				h.authorServerError(w, r, "database read failed", err)
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			numBooks = len(itemIDs)
 			if err := h.saveMetadataFiles(ctx, itemIDs); err != nil {
-				h.authorServerError(w, r, "metadata file write failed", err)
-				return
+				return httputil.Internal("metadata file write failed", err)
 			}
 			h.emitItemsUpdated(ctx, itemIDs)
 		} else {
 			var err error
 			if numBooks, err = h.authorNumBooks(ctx, a.id); err != nil {
-				h.authorServerError(w, r, "database read failed", err)
-				return
+				return httputil.Internal("database read failed", err)
 			}
 		}
 		saved, err := h.loadAuthor(ctx, a.id)
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		oldJSON, err := saved.toOldJSON()
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if h.emit != nil {
 			h.emit("*", "author_updated", wire.AuthorExpanded{Author: oldJSON, NumBooks: numBooks})
@@ -588,95 +564,80 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := h.loadAuthor(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	oldJSON, err := saved.toOldJSON()
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
 }
 
 // authorMerge is the merge branch of AuthorController.update
 // (AuthorController.js:129-175): every book of the renamed author moves to the
 // existing author of that name, the renamed author is removed.
-func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRecord, existingID string) {
+func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRecord, existingID string) error {
 	ctx := r.Context()
 	existing, err := h.loadAuthor(ctx, existingID)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	logging.Infof(`[AuthorController] Merging author "%s" with "%s"`, a.name.String, existing.name.String) // AuthorController.js:130
 	itemIDs, err := h.authorBookItems(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(itemIDs) > 0 {
 		tx, err := h.db.BeginTx(ctx, nil)
 		if err != nil {
-			h.authorServerError(w, r, "database write failed", err)
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		defer tx.Rollback()
 		rows, err := tx.QueryContext(ctx, `SELECT bookId FROM bookAuthors WHERE authorId=? ORDER BY rowid`, a.id)
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		var bookIDs []string
 		for rows.Next() {
 			var id string
 			if err := rows.Scan(&id); err != nil {
 				rows.Close()
-				h.authorServerError(w, r, "database read failed", err)
-				return
+				return httputil.Internal("database read failed", err)
 			}
 			bookIDs = append(bookIDs, id)
 		}
 		if err := rows.Close(); err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		// bookAuthorModel.removeByIds then bulkCreate({ ignoreDuplicates: true })
 		// (AuthorController.js:151-152).
 		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE authorId=?`, a.id); err != nil {
-			h.authorServerError(w, r, "database write failed", err)
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		now := dbNow()
 		for _, bookID := range bookIDs {
 			linkID := makeUUID()
 			if linkID == "" {
-				h.authorServerError(w, r, "internal error", errors.New("generate book author id"))
-				return
+				return httputil.Internal("internal error", errors.New("generate book author id"))
 			}
 			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.id, now); err != nil {
-				h.authorServerError(w, r, "database write failed", err)
-				return
+				return httputil.Internal("database write failed", err)
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			h.authorServerError(w, r, "database write failed", err)
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		if err := h.saveMetadataFiles(ctx, itemIDs); err != nil {
-			h.authorServerError(w, r, "metadata file write failed", err)
-			return
+			return httputil.Internal("metadata file write failed", err)
 		}
 		h.emitItemsUpdated(ctx, itemIDs)
 	}
 	oldAuthor, err := a.toOldJSON()
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.id); err != nil {
-		h.authorServerError(w, r, "database write failed", err)
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "author_removed", oldAuthor)
@@ -684,14 +645,13 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID) // AuthorController.js:164
 	expanded, err := h.authorExpanded(ctx, existing.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
 	merged := true
-	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
 }
 
 // purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
@@ -721,10 +681,10 @@ func (h *Handler) imageCachePath() string {
 }
 
 // authorDelete is AuthorController.delete (AuthorController.js:233-258).
-func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) {
-	a, ok := h.authorRequest(w, r, requestUser(r))
-	if !ok {
-		return
+func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
+	a, err := h.authorRequest(r, requestUser(r))
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	logging.Infof(`[AuthorController] Removing author "%s"`, a.name.String)
@@ -733,27 +693,23 @@ func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	itemIDs, err := h.authorBookItems(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	oldAuthor, err := a.toOldJSON()
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.id); err != nil {
-		h.authorServerError(w, r, "database write failed", err)
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	if err := h.saveMetadataFiles(ctx, itemIDs); err != nil {
-		h.authorServerError(w, r, "metadata file write failed", err)
-		return
+		return httputil.Internal("metadata file write failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "author_removed", oldAuthor)
 	}
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID)
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 // authorImagePath is the file AuthorFinder.saveAuthorImage writes
@@ -859,16 +815,15 @@ func axiosMessage(err error) string {
 }
 
 // authorUploadImage is AuthorController.uploadImage (AuthorController.js:267-304).
-func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	a, ok := h.authorRequest(w, r, user)
-	if !ok {
-		return
+	a, err := h.authorRequest(r, user)
+	if err != nil {
+		return err
 	}
 	if !userAllows(user, "upload") {
 		logging.Warnf(`User "%s" attempted to upload an image without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	ctx := r.Context()
 	body := jsonBodyObject(r)
@@ -885,8 +840,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if !present || !jsTruthy(generic) {
 		logging.Errorf("[AuthorController] Invalid request payload. 'url' not in request body")
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request payload. 'url' not in request body")
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid request payload. 'url' not in request body")
 	}
 	if !isString || (!strings.HasPrefix(imageURL, "http:") && !strings.HasPrefix(imageURL, "https:")) {
 		shown := imageURL
@@ -894,14 +848,12 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 			shown = jsString(generic)
 		}
 		logging.Errorf(`[AuthorController] Invalid request payload. Invalid url "%s"`, shown)
-		httputil.WriteError(w, http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
-		return
+		return httputil.Status(http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
 	}
 	logging.Debugf(`[AuthorController] Requesting download author image from url "%s"`, imageURL)
 	imagePath, message := h.saveAuthorImage(ctx, a.id, imageURL)
 	if message != "" {
-		httputil.WriteError(w, http.StatusBadRequest, message)
-		return
+		return httputil.Status(http.StatusBadRequest, message)
 	}
 	if a.imagePath.Valid && a.imagePath.String != "" {
 		h.purgeImageCache(a.id)
@@ -909,18 +861,16 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) {
 	update := &authorColumnUpdate{}
 	update.force("imagePath", &imagePath) // changed('imagePath', true): bump updatedAt
 	if err := update.save(ctx, h.db, a.id); err != nil {
-		h.authorServerError(w, r, "database write failed", err)
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	expanded, err := h.authorExpanded(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 // jsString is how a JavaScript template literal renders a JSON value.
@@ -948,16 +898,15 @@ func jsString(v any) string {
 }
 
 // authorDeleteImage is AuthorController.deleteImage (AuthorController.js:313-329).
-func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) {
-	a, ok := h.authorRequest(w, r, requestUser(r))
-	if !ok {
-		return
+func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) error {
+	a, err := h.authorRequest(r, requestUser(r))
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	if !a.imagePath.Valid || a.imagePath.String == "" {
 		logging.Errorf(`[AuthorController] Author "%s" has no imagePath set`, a.imagePath.String)
-		httputil.WriteError(w, http.StatusBadRequest, "Author has no image path set")
-		return
+		return httputil.Status(http.StatusBadRequest, "Author has no image path set")
 	}
 	logging.Infof(`[AuthorController] Removing image for author "%s" at "%s"`, a.name.String, a.imagePath.String)
 	h.purgeImageCache(a.id)
@@ -965,33 +914,30 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Stat(a.imagePath.String); err != nil {
 		logging.Warnf("[CoverManager] Attempting to remove file that does not exist %s", a.imagePath.String)
 	} else if err := os.Remove(a.imagePath.String); err != nil {
-		h.authorServerError(w, r, "internal error", err)
-		return
+		return httputil.Internal("internal error", err)
 	}
 	update := &authorColumnUpdate{}
 	update.set("imagePath", store.NullStringPtr(a.imagePath), nil)
 	if err := update.save(ctx, h.db, a.id); err != nil {
-		h.authorServerError(w, r, "database write failed", err)
-		return
+		return httputil.Internal("database write failed", err)
 	}
 	expanded, err := h.authorExpanded(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "author_updated", expanded)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorImageResult{Author: expanded.Author})
 }
 
 var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
 
 // authorMatch is AuthorController.match (AuthorController.js:337-383).
-func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
-	a, ok := h.authorRequest(w, r, requestUser(r))
-	if !ok {
-		return
+func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
+	a, err := h.authorRequest(r, requestUser(r))
+	if err != nil {
+		return err
 	}
 	ctx := r.Context()
 	body := jsonBodyObject(r)
@@ -1013,8 +959,7 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if data == nil {
-		httputil.WriteError(w, http.StatusNotFound, "Author not found")
-		return
+		return httputil.Status(http.StatusNotFound, "Author not found")
 	}
 	logging.Debugf(`[AuthorController] match author with "%s"`, firstNonEmpty(bodyString("q"), bodyString("asin")))
 	update := &authorColumnUpdate{}
@@ -1039,13 +984,11 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	if hasUpdates {
 		if err := update.save(ctx, h.db, a.id); err != nil {
-			h.authorServerError(w, r, "database write failed", err)
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		expanded, err := h.authorExpanded(ctx, a.id)
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if h.emit != nil {
 			h.emit("*", "author_updated", expanded)
@@ -1053,15 +996,13 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := h.loadAuthor(ctx, a.id)
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	oldJSON, err := saved.toOldJSON()
 	if err != nil {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
 }
 
 func firstNonEmpty(values ...string) string {
@@ -1081,32 +1022,28 @@ func isUUID(s string) bool { return uuidPattern.MatchString(s) }
 // authorImage is AuthorController.getImage (AuthorController.js:391-419) over
 // CacheManager.handleAuthorCache (CacheManager.js:155-190). The route is
 // public (Auth.js:21).
-func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	authorID := r.PathValue("id")
 	query := r.URL.Query()
 	if query.Get("raw") != "" {
 		a, err := h.loadAuthor(r.Context(), authorID)
 		if errors.Is(err, sql.ErrNoRows) {
 			logging.Warnf(`[AuthorController] Author "%s" not found`, authorID)
-			httputil.SendStatus(w, http.StatusNotFound)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		if err != nil {
-			h.authorServerError(w, r, "database read failed", err)
-			return
+			return httputil.Internal("database read failed", err)
 		}
 		if !a.imagePath.Valid || a.imagePath.String == "" {
 			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			httputil.SendStatus(w, http.StatusNotFound)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		if _, err := os.Stat(a.imagePath.String); err != nil {
 			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			httputil.SendStatus(w, http.StatusNotFound)
-			return
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		h.coverRaw(w, r, a.imagePath.String)
-		return
+		return nil
 	}
 	format := query.Get("format")
 	if format == "" {
@@ -1119,8 +1056,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 	widthValue := clampCoverDimension(query.Get("width"), 4096)
 	heightValue := clampCoverDimension(query.Get("height"), 4096)
 	if format != "webp" && format != "jpeg" && format != "png" || !isUUID(authorID) {
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	width, height := 400, -1
 	if widthValue != nil {
@@ -1137,30 +1073,24 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) {
 	cachePath := filepath.Join(h.imageCachePath(), cacheName+"."+format)
 	if _, err := os.Stat(cachePath); err == nil {
 		streamCoverCache(w, r, cachePath)
-		return
+		return nil
 	}
 	a, err := h.loadAuthor(r.Context(), authorID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		h.authorServerError(w, r, "database read failed", err)
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if err != nil || !a.imagePath.Valid || a.imagePath.String == "" {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if _, err := os.Stat(a.imagePath.String); err != nil {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err := os.MkdirAll(h.imageCachePath(), 0o755); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, http.StatusInternalServerError)
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	if err := resizeImage(r.Context(), a.imagePath.String, cachePath, width, height); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, http.StatusInternalServerError)
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	streamCoverCache(w, r, cachePath)
+	return nil
 }

@@ -166,30 +166,26 @@ func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 	return out
 }
 
-func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		httputil.SendStatus(w, 403, httputil.WithoutETag())
-		return
+		return httputil.Status(403, "")
 	}
 	rows, err := h.queries().ListFeeds(r.Context())
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	out := wire.FeedList{Feeds: make([]wire.Feed, 0, len(rows)), Minified: make([]wire.FeedMinified, 0, len(rows))}
 	for _, row := range rows {
 		f := feedFromRow(row)
 		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
 		if err != nil {
-			logging.RequestError(r, "internal error", err)
-			httputil.SendStatus(w, 500, httputil.WithoutETag())
-			return
+			return &httputil.Error{Status: 500, Cause: err}
 		}
 		out.Feeds = append(out.Feeds, f.old(eps))
 		out.Minified = append(out.Minified, f.minified())
 	}
 	write(w, out)
+	return nil
 }
 
 // openFeedRequest is the body of the three open routes. The fields stay raw
@@ -247,10 +243,9 @@ func (req openFeedRequest) valid() (serverAddress, slug string, ok bool) {
 // (server/controllers/RSSFeedController.js:38-170). The checks run in the
 // order upstream runs them, which differs between the item route and the
 // collection and series routes.
-func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User, entityType string) {
+func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User, entityType string) error {
 	if !admin(u) {
-		httputil.SendStatus(w, 403, httputil.WithoutETag())
-		return
+		return httputil.Status(403, "")
 	}
 	ctx := r.Context()
 	id := r.PathValue("id")
@@ -262,12 +257,10 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	switch entityType {
 	case "libraryItem":
 		if src, err = h.loadItemSource(ctx, id); err != nil {
-			h.feedEntityError(w, err)
-			return
+			return feedEntityError(err)
 		}
 		if !libraryAccess(u, src.LibraryID) {
-			httputil.SendStatus(w, 403, httputil.WithoutETag())
-			return
+			return httputil.Status(403, "")
 		}
 	case "collection":
 		noTracks = "Collection has no audio tracks"
@@ -276,35 +269,29 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	}
 	serverAddress, slug, ok := req.valid()
 	if !ok {
-		httputil.SendText(w, 400, "Invalid request body", httputil.WithoutETag())
-		return
+		return httputil.Status(400, "Invalid request body")
 	}
 	if entityType == "libraryItem" {
 		if len(src.Episodes) == 0 {
-			httputil.SendText(w, 400, noTracks, httputil.WithoutETag())
-			return
+			return httputil.Status(400, noTracks)
 		}
-		if h.slugInUse(ctx, w, slug) {
-			return
+		if err := h.slugInUse(ctx, slug); err != nil {
+			return err
 		}
 	} else {
-		if h.slugInUse(ctx, w, slug) {
-			return
+		if err := h.slugInUse(ctx, slug); err != nil {
+			return err
 		}
 		if src, err = h.loadAggregateSource(ctx, entityType, id); err != nil {
-			h.feedEntityError(w, err)
-			return
+			return feedEntityError(err)
 		}
 		if len(src.Episodes) == 0 {
-			httputil.SendText(w, 400, noTracks, httputil.WithoutETag())
-			return
+			return httputil.Status(400, noTracks)
 		}
 	}
 	feed, err := h.createFeed(ctx, u.ID, entityType, id, src, serverAddress, slug, req.options())
 	if err != nil {
-		logging.RequestError(r, "Failed to open RSS feed", err)
-		httputil.SendText(w, 500, "Failed to open RSS feed", httputil.WithoutETag())
-		return
+		return httputil.Internal("Failed to open RSS feed", err)
 	}
 	minified := feed.minified()
 	logging.Infof("[RssFeedManager] Opened RSS feed %q", feedURLText(minified)) // RssFeedManager.js:301
@@ -312,6 +299,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 		h.emit("*", "rss_feed_open", minified)
 	}
 	write(w, wire.FeedOpened{Feed: minified})
+	return nil
 }
 
 func feedURLText(f wire.FeedMinified) string {
@@ -321,28 +309,23 @@ func feedURLText(f wire.FeedMinified) string {
 	return *f.FeedURL
 }
 
-func (h *Handler) feedEntityError(w http.ResponseWriter, err error) {
+func feedEntityError(err error) error {
 	if errors.Is(err, errFeedEntityMissing) {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
-	logging.Errorf("[sharing] RSS feed entity lookup failed: %v", err)
-	httputil.SendStatus(w, 500, httputil.WithoutETag())
+	return &httputil.Error{Status: 500, Cause: err}
 }
 
-// slugInUse answers 400 and reports true when a feed already has the slug.
-func (h *Handler) slugInUse(ctx context.Context, w http.ResponseWriter, slug string) bool {
+// slugInUse is the 400 an open request gets when a feed already has the slug.
+func (h *Handler) slugInUse(ctx context.Context, slug string) error {
 	count, err := h.queries().CountFeedsBySlug(ctx, slug)
 	if err != nil {
-		logging.Errorf("[sharing] slugInUse: internal error: %v", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return true
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	if count > 0 {
-		httputil.SendText(w, 400, "Slug already in use", httputil.WithoutETag())
-		return true
+		return httputil.Status(400, "Slug already in use")
 	}
-	return false
+	return nil
 }
 
 func feedImageURL(slug string, coverPath sql.NullString, entityUpdatedAt time.Time) string {
@@ -446,56 +429,48 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 }
 
 // closeFeed is RSSFeedController.closeRSSFeed and RssFeedManager.handleCloseFeed.
-func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		httputil.SendStatus(w, 403, httputil.WithoutETag())
-		return
+		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")
 	feed, err := feedResult(h.queries().GetFeed(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	if err = h.queries().DeleteFeed(r.Context(), id); err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	logging.Infof("[RssFeedManager] Closed RSS feed %q", feedURLText(feed.minified())) // RssFeedManager.js:359
 	if h.emit != nil {
 		h.emit("*", "rss_feed_closed", feed.minified())
 	}
-	httputil.SendStatus(w, 200, httputil.WithoutETag())
+	return httputil.OK(w, r)
 }
 
 // publicFeed is GET /feed/:slug, /feed/:slug/item/:episodeId/* and
 // /feed/:slug/cover* (RssFeedManager.getFeed, getFeedItem, getFeedCover).
-func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) error {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	slug := r.PathValue("slug")
 	if len(parts) >= 4 && parts[2] == "item" {
 		h.feedItem(w, r, slug, parts[3])
-		return
+		return nil
 	}
 	if len(parts) >= 3 && strings.HasPrefix(parts[2], "cover") {
 		h.feedCover(w, r, slug)
-		return
+		return nil
 	}
 	if len(parts) != 2 {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	ctx := r.Context()
 	feed, err := h.feedBySlug(ctx, slug)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	var eps []feedEpisodeRow
 	if err == nil {
@@ -505,12 +480,11 @@ func (h *Handler) publicFeed(w http.ResponseWriter, r *http.Request) {
 		feed, eps, err = h.refreshFeedIfStale(ctx, feed, eps)
 	}
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.SendStatus(w, 500, httputil.WithoutETag())
-		return
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	w.Header().Set("Content-Type", "text/xml; charset=utf-8")
 	_, _ = io.WriteString(w, feedXML(feed, eps, hostPrefix(r, h.cfg.RouterBasePath), time.Now()))
+	return nil
 }
 
 // feedRequiresUpdate is RssFeedManager.checkFeedRequiresUpdate
@@ -606,31 +580,30 @@ func feedColumnsChanged(a, b feedRow) bool {
 		a.Explicit != b.Explicit || a.CoverPath != b.CoverPath || a.FeedURL != b.FeedURL
 }
 
-func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episodeID string) {
+func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episodeID string) error {
 	path, err := h.queries().GetFeedEpisodeFilePath(r.Context(), sqlc.GetFeedEpisodeFilePathParams{Slug: slug, EpisodeID: episodeID})
 	if err != nil || path.String == "" {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	serveMedia(w, r, path.String)
+	return nil
 }
 
 // feedCover streams the cover with Content-Type image/<extension> like
 // RssFeedManager.getFeedCover (res.type + createReadStream, no ranges).
-func (h *Handler) feedCover(w http.ResponseWriter, r *http.Request, slug string) {
+func (h *Handler) feedCover(w http.ResponseWriter, r *http.Request, slug string) error {
 	path, err := h.queries().GetFeedCoverPathBySlug(r.Context(), slug)
 	if err != nil || path.String == "" {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	f, err := os.Open(path.String)
 	if err != nil {
-		httputil.SendStatus(w, 404, httputil.WithoutETag())
-		return
+		return httputil.Status(404, "")
 	}
 	defer f.Close()
 	w.Header().Set("Content-Type", "image/"+strings.ToLower(strings.TrimPrefix(nodeExt(path.String), ".")))
 	_, _ = io.Copy(w, f)
+	return nil
 }
 
 // --- RSS XML (server/libs/rss, server/libs/xml, Feed.buildXml, FeedEpisode.getRSSData)

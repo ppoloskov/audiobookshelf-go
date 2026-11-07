@@ -16,6 +16,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -60,34 +61,36 @@ func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler
 // Routes registers the feed and share routes. The /feed and /public/share
 // routes are public: the runtime mounts them without a user.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	authed := func(f func(http.ResponseWriter, *http.Request, store.User)) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+	authed := func(f func(http.ResponseWriter, *http.Request, store.User) error) http.Handler {
+		return httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
 			u, _ := store.UserFromContext(r.Context())
-			f(w, r, u)
-		}
+			return f(w, r, u)
+		})
 	}
-	open := func(entityType string) http.HandlerFunc {
-		return authed(func(w http.ResponseWriter, r *http.Request, u store.User) { h.openFeed(w, r, u, entityType) })
+	open := func(entityType string) http.Handler {
+		return authed(func(w http.ResponseWriter, r *http.Request, u store.User) error {
+			return h.openFeed(w, r, u, entityType)
+		})
 	}
-	mux.HandleFunc("GET /api/feeds", authed(h.listFeeds))
-	mux.HandleFunc("POST /api/feeds/item/{id}/open", open("libraryItem"))
-	mux.HandleFunc("POST /api/feeds/collection/{id}/open", open("collection"))
-	mux.HandleFunc("POST /api/feeds/series/{id}/open", open("series"))
-	mux.HandleFunc("POST /api/feeds/{id}/close", authed(h.closeFeed))
-	mux.HandleFunc("POST /api/share/mediaitem", authed(h.createShare))
-	mux.HandleFunc("DELETE /api/share/mediaitem/{id}", authed(h.deleteShare))
+	mux.Handle("GET /api/feeds", authed(h.listFeeds))
+	mux.Handle("POST /api/feeds/item/{id}/open", open("libraryItem"))
+	mux.Handle("POST /api/feeds/collection/{id}/open", open("collection"))
+	mux.Handle("POST /api/feeds/series/{id}/open", open("series"))
+	mux.Handle("POST /api/feeds/{id}/close", authed(h.closeFeed))
+	mux.Handle("POST /api/share/mediaitem", authed(h.createShare))
+	mux.Handle("DELETE /api/share/mediaitem/{id}", authed(h.deleteShare))
 	h.publicRoutes(mux)
 }
 
 // publicRoutes registers the bearer-free routes.
 func (h *Handler) publicRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /feed/{slug}", h.publicFeed)
-	mux.HandleFunc("GET /feed/{slug}/{tail...}", h.publicFeed)
-	mux.HandleFunc("GET /public/share/{slug}", h.publicShare)
-	mux.HandleFunc("GET /public/share/{slug}/cover", h.shareCover)
-	mux.HandleFunc("GET /public/share/{slug}/track/{index}", h.shareTrack)
-	mux.HandleFunc("GET /public/share/{slug}/download", h.shareDownload)
-	mux.HandleFunc("PATCH /public/share/{slug}/progress", h.shareProgress)
+	mux.Handle("GET /feed/{slug}", httputil.Handler(h.publicFeed))
+	mux.Handle("GET /feed/{slug}/{tail...}", httputil.Handler(h.publicFeed))
+	mux.Handle("GET /public/share/{slug}", httputil.Handler(h.publicShare))
+	mux.Handle("GET /public/share/{slug}/cover", httputil.Handler(h.shareCover))
+	mux.Handle("GET /public/share/{slug}/track/{index}", httputil.Handler(h.shareTrack))
+	mux.Handle("GET /public/share/{slug}/download", httputil.Handler(h.shareDownload))
+	mux.Handle("PATCH /public/share/{slug}/progress", httputil.Handler(h.shareProgress))
 }
 
 func admin(u store.User) bool { return u.Type == "root" || u.Type == "admin" }

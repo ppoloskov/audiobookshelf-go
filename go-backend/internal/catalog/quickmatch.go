@@ -746,61 +746,50 @@ func matchOptionsFromBody(body map[string]json.RawMessage, keys ...string) quick
 
 // itemMatch is LibraryItemController.match (LibraryItemController.js:526-548)
 // behind LibraryItemController.middleware (:1220-1249).
-func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	id := r.PathValue("id")
 	var libraryID, mediaType, mediaID string
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, id).Scan(&libraryID, &mediaType, &mediaID)
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	allowed, err := h.userCanAccessItems(r.Context(), user, []batchItem{{id: id, libraryID: libraryID, mediaType: mediaType, mediaID: mediaID}})
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !allowed {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	if !userAllows(user, "update") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to update without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	options := matchOptionsFromBody(jsonBodyObject(r), "provider", "title", "author", "isbn", "asin")
 	result, err := h.quickMatchLibraryItem(r.Context(), id, options)
 	if err != nil {
-		logging.RequestError(r, "internal error", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "internal error")
-		return
+		return httputil.Internal("internal error", err)
 	}
-	writeJSONWithETag(w, r, http.StatusOK, result)
+	return writeJSONWithETag(w, r, http.StatusOK, result)
 }
 
 // batchQuickMatch is LibraryItemController.batchQuickMatch (:763-812): admins
 // only; the request is answered at once and the matching runs on, ending with
 // batch_quickmatch_complete to the requesting user.
-func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !adminUser(user) {
 		logging.Warnf(`Non-admin user "%s" other than admin attempted to batch quick match library items`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	body := jsonBodyObject(r)
 	var ids []string
 	var rawIDs []json.RawMessage
 	if json.Unmarshal(body["libraryItemIds"], &rawIDs) != nil || len(rawIDs) == 0 {
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	for _, raw := range rawIDs {
 		var s string
@@ -810,15 +799,11 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.itemsExpandedWhere(r.Context(), ids)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(items) == 0 {
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
-	httputil.SendStatus(w, http.StatusOK)
 	var optionBody map[string]json.RawMessage
 	_ = json.Unmarshal(body["options"], &optionBody)
 	options := matchOptionsFromBody(optionBody, "provider")
@@ -840,24 +825,24 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) {
 			h.emit(user.ID, "batch_quickmatch_complete", wire.BatchQuickMatchResult{Success: updated > 0, Updates: updated, Unmatched: unmatched})
 		}
 	})
+	return httputil.OK(w, r)
 }
 
 // libraryMatchAll is LibraryController.matchAll (LibraryController.js:1245-1254)
 // over Scanner.matchLibraryItems (Scanner.js:472-548) and
 // matchLibraryItemsChunk (:435-469).
-func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	library, ok := h.libraryRequest(w, r, user)
-	if !ok {
-		return
+	library, err := h.libraryAccess(r, user)
+	if err != nil {
+		return err
 	}
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	h.background(func(ctx context.Context) { h.matchLibraryItems(ctx, library) })
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 func (h *Handler) matchLibraryItems(ctx context.Context, library libraryRecord) {

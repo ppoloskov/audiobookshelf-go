@@ -129,72 +129,61 @@ func looselyOne(value string) bool {
 // batchDelete is LibraryItemController.batchDelete (LibraryItemController.js:
 // 558-621): each item is removed like ApiRouter.handleDeleteLibraryItem (with
 // its files when hard=1), then the series and authors it leaves empty.
-func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !userAllows(user, "delete") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to delete without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	ctx := r.Context()
 	hard := looselyOne(r.URL.Query().Get("hard"))
 	ids, ok := bodyStringList(jsonBodyObject(r)["libraryItemIds"])
 	if !ok {
-		httputil.WriteError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid request body")
 	}
 	items, err := h.itemsExpandedWhere(ctx, ids)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(items) == 0 {
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !allowed {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	libraryID := items[0].libraryID
 	for _, item := range items {
 		var linked itemLinks
 		if status, message := h.removeLibraryItem(ctx, nil, item.id, hard, &linked); status != http.StatusOK {
-			httputil.WriteError(w, status, message)
-			return
+			return httputil.Status(status, message)
 		}
 		// The series check runs before the authors check (js:610-615).
 		h.checkRemoveEmptySeries(ctx, linked.series)
 		h.checkRemoveAuthorsWithNoBooks(ctx, linked.authors)
 	}
 	h.resetIssues(ctx, libraryID) // Database.resetLibraryIssuesFilterData
-	httputil.SendStatus(w, http.StatusOK)
+	return httputil.OK(w, r)
 }
 
 // batchUpdate is LibraryItemController.batchUpdate (LibraryItemController.js:
 // 630-735): every payload {id, mediaPayload} updates its item like
 // PATCH /api/items/:id/media, the emptied series and authors are removed at
 // the end, and the answer counts the items that changed.
-func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !userAllows(user, "update") {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to batch update without permission`, user.Username)
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	ctx := r.Context()
 	updates, ok := jsonBodyArray(r)
 	if !ok || len(updates) == 0 {
 		logging.Errorf("[LibraryItemController] Batch update failed. Invalid payload")
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	type update struct {
 		id      string
@@ -222,29 +211,22 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(ids) == 0 || len(ids) != len(updates) {
 		logging.Errorf("[LibraryItemController] Batch update failed. Each update payload must have a unique library item id")
-		httputil.SendStatus(w, http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	items, err := h.itemsExpandedWhere(ctx, ids)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if len(items) != len(updates) {
 		logging.Errorf("[LibraryItemController] Batch update failed. Not all library items found")
-		httputil.SendStatus(w, http.StatusNotFound)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	allowed, err := h.userCanAccessItems(ctx, user, items)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	if !allowed {
-		httputil.SendStatus(w, http.StatusForbidden)
-		return
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	byID := make(map[string]batchItem, len(items))
 	for _, item := range items {
@@ -272,9 +254,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 		scope := itemScope{itemID: item.id, libraryID: item.libraryID, mediaID: item.mediaID, mediaType: item.mediaType}
 		result, err := h.applyMedia(ctx, scope, payload, metadata)
 		if err != nil {
-			logging.RequestError(r, "database write failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "database write failed")
-			return
+			return httputil.Internal("database write failed", err)
 		}
 		for _, se := range result.sync.seriesAdded {
 			h.filters.AddSeries(item.libraryID, se.Name, se.ID)
@@ -293,9 +273,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if err := h.saveMetadataFiles(ctx, []string{item.id}); err != nil {
-			logging.RequestError(r, "metadata file write failed", err)
-			httputil.WriteError(w, http.StatusInternalServerError, "metadata file write failed")
-			return
+			return httputil.Internal("metadata file write failed", err)
 		}
 		logging.Debugf("[LibraryItemController] Updated library item media %q", item.id)
 		if expanded, err := h.ItemJSON(ctx, item.id, true); err == nil && h.emit != nil {
@@ -305,5 +283,5 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	h.checkRemoveEmptySeries(ctx, seriesRemoved)
 	h.checkRemoveAuthorsWithNoBooks(ctx, authorsRemoved)
-	writeJSONWithETag(w, r, http.StatusOK, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
+	return writeJSONWithETag(w, r, http.StatusOK, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
 }

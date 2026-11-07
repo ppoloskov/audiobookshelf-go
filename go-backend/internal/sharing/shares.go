@@ -76,10 +76,9 @@ type createShareRequest struct {
 // expired when it is created is dropped from the database again by
 // ShareManager.scheduleMediaItemShare, but the request still answers 201 and
 // emits share_open.
-func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		httputil.SendStatus(w, 403, httputil.WithoutETag())
-		return
+		return httputil.Status(403, "")
 	}
 	var req createShareRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
@@ -87,33 +86,26 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	mediaType, okType := jsonString(req.MediaItemType)
 	mediaID, okID := jsonString(req.MediaItemID)
 	if !okSlug || strings.TrimSpace(slug) == "" || !okType || !okID {
-		httputil.SendText(w, 400, "Missing or invalid required fields", httputil.WithoutETag())
-		return
+		return httputil.Status(400, "Missing or invalid required fields")
 	}
 	var expiresMillis float64
 	if err := json.Unmarshal(req.ExpiresAt, &expiresMillis); err != nil || string(req.ExpiresAt) == "null" || expiresMillis < 0 {
-		httputil.SendText(w, 400, "Invalid expiration date", httputil.WithoutETag())
-		return
+		return httputil.Status(400, "Invalid expiration date")
 	}
 	if mediaType != "book" && mediaType != "podcastEpisode" {
-		httputil.SendText(w, 400, "Invalid media item type", httputil.WithoutETag())
-		return
+		return httputil.Status(400, "Invalid media item type")
 	}
 	ctx := r.Context()
 	q := h.queries()
 	existingMedia, err := q.GetShareMediaIDBySlugOrMedia(ctx, sqlc.GetShareMediaIDBySlugOrMediaParams{Slug: slug, MediaID: mediaID})
 	if err == nil {
 		if existingMedia.String == mediaID {
-			httputil.SendText(w, 409, "Item is already shared", httputil.WithoutETag())
-		} else {
-			httputil.SendText(w, 409, "Slug is already in use", httputil.WithoutETag())
+			return httputil.Status(409, "Item is already shared")
 		}
-		return
+		return httputil.Status(409, "Slug is already in use")
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	// The media table is chosen by type; books and podcastEpisodes are not
 	// sharing tables, so this existence check stays a plain query.
@@ -123,19 +115,14 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	var exists int
 	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE id=?`, mediaID).Scan(&exists); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	if exists == 0 {
-		httputil.SendText(w, 404, "Media item not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item not found")
 	}
 	id, err := ids.New()
 	if err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	share := shareRow{ID: id, MediaItemID: mediaID, MediaItemType: mediaType, Slug: slug, CreatedAt: now, UpdatedAt: now}
@@ -154,9 +141,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		ID: id, MediaID: mediaID, MediaType: mediaType, Slug: slug, Expiresat: expires, Isdownloadable: downloadable,
 		Createdat: dbtime.Format(now), Updatedat: dbtime.Format(now), UserID: u.ID,
 	}); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	if !share.ExpiresAt.IsZero() && !share.ExpiresAt.After(time.Now()) {
 		_ = q.DeleteMediaItemShare(ctx, id)
@@ -167,36 +152,31 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)
 	_ = json.NewEncoder(w).Encode(share.wire())
+	return nil
 }
 
 // deleteShare is ShareController.deleteMediaItemShare and
 // ShareManager.removeMediaItemShare.
-func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.User) {
+func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {
-		httputil.SendStatus(w, 403, httputil.WithoutETag())
-		return
+		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")
 	share, err := shareResult(h.queries().GetMediaItemShare(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
-		httputil.SendText(w, 404, "Media item share not found", httputil.WithoutETag())
-		return
+		return httputil.Status(404, "Media item share not found")
 	}
 	if err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	if err = h.queries().DeleteMediaItemShare(r.Context(), id); err != nil {
-		logging.RequestError(r, "Internal server error", err)
-		httputil.SendText(w, 500, "Internal server error", httputil.WithoutETag())
-		return
+		return httputil.Internal("Internal server error", err)
 	}
 	h.dropShareSessions(id)
 	if h.emit != nil {
 		h.emit("@admins", "share_closed", share.wire())
 	}
-	httputil.SendStatus(w, 204, httputil.WithoutETag())
+	return httputil.Empty(204)
 }
 
 func (h *Handler) dropShareSessions(shareID string) {

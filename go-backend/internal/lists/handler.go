@@ -13,7 +13,6 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -71,7 +70,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	ids, err := h.queries().ListCollectionIDs(r.Context())
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	out := make([]any, 0)
 	for _, id := range ids {
@@ -80,7 +79,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if h.canAccessLibrary(user, libraryID) {
 			out = append(out, dto)
@@ -96,12 +95,12 @@ func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
 		feed, err := h.collectionRSSFeed(r, id)
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if feed != nil {
 			dto["rssFeed"] = feed
@@ -116,7 +115,7 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	} else if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if !h.canAccessLibrary(user, libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
@@ -126,7 +125,7 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	}
 	dto, _, _ := h.collection(r.Context(), id, user)
 	if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	if h.emit != nil {
 		h.emit("*", "collection_removed", dto)
@@ -140,22 +139,7 @@ func (h *Handler) getPlaylist(w http.ResponseWriter, r *http.Request) error {
 		return playlistError(code)
 	}
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, item)
-}
-
-// writeInternalError answers a failed database operation with net/http's
-// plain-text 500 (the framing clients already see) and logs the cause. It
-// returns nil because the response is written.
-func writeInternalError(w http.ResponseWriter, r *http.Request, message string, err error) error {
-	logging.RequestError(r, message, err)
-	return plainError(w, message, http.StatusInternalServerError)
-}
-
-// plainError answers with net/http's text/plain framing, which the validation
-// messages of these routes have always used. It returns nil: the response is written.
-func plainError(w http.ResponseWriter, message string, status int) error {
-	http.Error(w, message, status)
-	return nil
 }

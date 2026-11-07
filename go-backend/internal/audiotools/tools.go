@@ -97,7 +97,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	}))
 	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		if !isAdmin(requestUser(r)) {
-			return status(w, 403)
+			return httputil.Status(403, "")
 		}
 		return h.cancelEncode(w, r.PathValue("id"))
 	}))
@@ -111,17 +111,17 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stor
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user := requestUser(r)
 		if !isAdmin(user) {
-			return status(w, 403)
+			return httputil.Status(403, "")
 		}
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
 		if errors.Is(err, sql.ErrNoRows) {
-			return status(w, 404)
+			return httputil.Status(404, "")
 		}
 		if err != nil {
-			return readFailed(w, r, err)
+			return httputil.Internal("database read failed", err)
 		}
 		if !canAccess(user, it.library) {
-			return status(w, 403)
+			return httputil.Status(403, "")
 		}
 		return action(w, r, user, it)
 	}
@@ -135,13 +135,6 @@ func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 	httputil.WriteJSON(w, http.StatusOK, payload)
-	return nil
-}
-
-// readFailed is the 500 for a failed item read; its framing is http.Error's.
-func readFailed(w http.ResponseWriter, r *http.Request, err error) error {
-	logging.RequestError(r, "database read failed", err)
-	http.Error(w, "database read failed", http.StatusInternalServerError)
 	return nil
 }
 
@@ -278,31 +271,29 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 
 func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
 	if it.typ != "book" {
-		return text(w, 400, "Invalid library item: not a book")
+		return httputil.Status(400, "Invalid library item: not a book")
 	}
 	if len(it.files) == 0 {
-		return text(w, 400, "Invalid audiobook: no audio tracks")
+		return httputil.Status(400, "Invalid audiobook: no audio tracks")
 	}
 	if h.has(it.id, "encode-m4b") {
-		return text(w, 400, "Audiobook is already processing")
+		return httputil.Status(400, "Audiobook is already processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t := h.newTask("encode-m4b", u, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
 	if err := os.MkdirAll(t.cache, 0755); err != nil {
 		cancel()
-		logging.RequestError(r, "Unable to create task cache", err)
-		http.Error(w, "Unable to create task cache", 500)
-		return nil
+		return httputil.Internal("Unable to create task cache", err)
 	}
 	go h.runEncode(t, it, r.URL.Query())
 	return sendOK(w)
 }
 func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
 	if it.typ != "book" || len(it.files) == 0 {
-		return status(w, 400)
+		return httputil.Status(400, "")
 	}
 	if h.has(it.id, "embed-metadata") {
-		return text(w, 400, "Library item is already in queue or processing")
+		return httputil.Status(400, "Library item is already in queue or processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t := h.newTask("embed-metadata", u, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
@@ -323,31 +314,31 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !isAdmin(u) {
-		return status(w, 403)
+		return httputil.Status(403, "")
 	}
 	var body struct {
 		LibraryItemIDs []string `json:"libraryItemIds"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || len(body.LibraryItemIDs) == 0 {
-		return text(w, 400, "Invalid request payload")
+		return httputil.Status(400, "Invalid request payload")
 	}
 	items := make([]item, 0, len(body.LibraryItemIDs))
 	for _, id := range body.LibraryItemIDs {
 		it, e := h.loadItem(r.Context(), id)
 		if errors.Is(e, sql.ErrNoRows) {
-			return status(w, 404)
+			return httputil.Status(404, "")
 		}
 		if e != nil {
-			return readFailed(w, r, e)
+			return httputil.Internal("database read failed", e)
 		}
 		if !canAccess(u, it.library) {
-			return status(w, 403)
+			return httputil.Status(403, "")
 		}
 		if it.typ != "book" || len(it.files) == 0 {
-			return status(w, 400)
+			return httputil.Status(400, "")
 		}
 		if h.has(id, "embed-metadata") {
-			return text(w, 400, "Library item is already in queue or processing")
+			return httputil.Status(400, "Library item is already in queue or processing")
 		}
 		items = append(items, it)
 	}
@@ -409,7 +400,7 @@ func (h *Handler) cancelEncode(w http.ResponseWriter, id string) error {
 	}
 	h.mu.Unlock()
 	if t == nil {
-		return status(w, 404)
+		return httputil.Status(404, "")
 	}
 	t.cancel()
 	h.finish(t, errors.New("Task canceled by user"))
@@ -711,11 +702,8 @@ func num(v any) float64 {
 	}
 	return 0
 }
-func status(w http.ResponseWriter, n int) error { w.WriteHeader(n); return nil }
-func text(w http.ResponseWriter, n int, s string) error {
+func sendOK(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(n)
-	_, _ = io.WriteString(w, s)
+	_, _ = io.WriteString(w, "OK")
 	return nil
 }
-func sendOK(w http.ResponseWriter) error { return text(w, 200, "OK") }

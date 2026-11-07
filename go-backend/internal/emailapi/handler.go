@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -56,12 +55,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/emails/send-ebook-to-device", httputil.Handler(h.sendEbook))
 }
 
-// dbFail logs err and answers http.Error's plain-text 500 (not Express framing).
-func dbFail(w http.ResponseWriter, r *http.Request, err error) error {
-	logging.RequestError(r, "database error", err)
-	http.Error(w, "database error", http.StatusInternalServerError)
-	return nil
-}
 func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
@@ -92,14 +85,13 @@ func (h *Handler) save(ctx context.Context, m map[string]any) error {
 func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) error {
 	m, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e)
+		return httputil.Internal("database error", e)
 	}
 	if patch {
 		before, _ := json.Marshal(m)
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil {
-			w.WriteHeader(400)
-			return nil
+			return httputil.Status(400, "")
 		}
 		for _, k := range []string{"host", "port", "secure", "rejectUnauthorized", "user", "pass", "testAddress", "fromAddress", "ereaderDevices"} {
 			v, ok := p[k]
@@ -128,9 +120,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 		after, _ := json.Marshal(m)
 		if !bytes.Equal(before, after) {
 			if e = h.save(r.Context(), m); e != nil {
-				logging.RequestError(r, "database error", e)
-				http.Error(w, "database error", 500)
-				return nil
+				return httputil.Internal("database error", e)
 			}
 		}
 	}
@@ -158,18 +148,16 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 		Devices []map[string]any `json:"ereaderDevices"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Devices == nil {
-		http.Error(w, "Invalid payload. ereaderDevices array required", 400)
-		return nil
+		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
 	for _, d := range p.Devices {
 		if !jsTruthy(d["name"]) || !jsTruthy(d["email"]) {
-			http.Error(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
-			return nil
+			return httputil.Status(400, "Invalid payload. ereaderDevices array items must have name and email")
 		}
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e)
+		return httputil.Internal("database error", e)
 	}
 	provided := make([]any, len(p.Devices))
 	for i, device := range p.Devices {
@@ -180,9 +168,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	m["ereaderDevices"] = clean
 	if changed {
 		if e = h.save(r.Context(), m); e != nil {
-			logging.RequestError(r, "database error", e)
-			http.Error(w, "database error", 500)
-			return nil
+			return httputil.Internal("database error", e)
 		}
 		if h.emit != nil {
 			h.emit("@admins", "ereader-devices-updated", map[string]any{"ereaderDevices": clean})
@@ -194,7 +180,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) error {
 	m, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e)
+		return httputil.Internal("database error", e)
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
 		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
@@ -219,42 +205,35 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 		DeviceName    string `json:"deviceName"`
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.LibraryItemID == "" || p.DeviceName == "" {
-		w.WriteHeader(400)
-		return nil
+		return httputil.Status(400, "")
 	}
 	m, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e)
+		return httputil.Internal("database error", e)
 	}
 	device := device(m, p.DeviceName)
 	if device == nil {
-		http.Error(w, "Ereader device not found", 404)
-		return nil
+		return httputil.Status(404, "Ereader device not found")
 	}
 	if !deviceAllowed(device, u) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(403, "")
 	}
 	var folder, mediaID, mediaType string
 	e = h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaId,mediaType FROM libraryItems WHERE id=?`, p.LibraryItemID).Scan(&folder, &mediaID, &mediaType)
 	if e != nil {
-		http.Error(w, "Library item not found", 404)
-		return nil
+		return httputil.Status(404, "Library item not found")
 	}
 	if !libraryAllowed(u, folder) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(403, "")
 	}
 	if mediaType != "book" {
-		http.Error(w, "Ebook file not found", 404)
-		return nil
+		return httputil.Status(404, "Ebook file not found")
 	}
 	var explicit int
 	var tagsRaw, ebookRaw []byte
 	e = h.db.QueryRowContext(r.Context(), `SELECT explicit,tags,ebookFile FROM books WHERE id=?`, mediaID).Scan(&explicit, &tagsRaw, &ebookRaw)
 	if e != nil || !canAccessContent(u, explicit, tagsRaw) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(403, "")
 	}
 	var ebook struct {
 		Metadata struct {
@@ -263,20 +242,16 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 		} `json:"metadata"`
 	}
 	if json.Unmarshal(ebookRaw, &ebook) != nil || ebook.Metadata.Path == "" {
-		http.Error(w, "Ebook file not found", 404)
-		return nil
+		return httputil.Status(404, "Ebook file not found")
 	}
 	f, e := os.Open(ebook.Metadata.Path)
 	if e != nil {
-		http.Error(w, "Ebook file not found", 404)
-		return nil
+		return httputil.Status(404, "Ebook file not found")
 	}
 	defer f.Close()
 	data, e := io.ReadAll(io.LimitReader(f, 512<<20))
 	if e != nil {
-		logging.RequestError(r, "Failed to read ebook file", e)
-		http.Error(w, "Failed to read ebook file", 500)
-		return nil
+		return httputil.Internal("Failed to read ebook file", e)
 	}
 	if e = verifySMTP(r.Context(), m); e != nil {
 		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/httputil"
@@ -62,7 +61,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 	err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryId, li.path, li.relPath, COALESCE(li.isFile,0), li.mediaType, COALESCE(b.title, p.title) FROM libraryItems li LEFT JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book' LEFT JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast' WHERE li.id = ?`, itemID).Scan(&libraryID, &itemPath, &relPath, &isFile, &mediaType, &title)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		return httputil.Internal("database read failed", err)
 	}
@@ -81,8 +80,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 	}
 	itemPath = filepath.Clean(itemPath)
 	if _, statErr := os.Stat(itemPath); os.IsNotExist(statErr) {
-		sendDownloadText(w, http.StatusNotFound, "File not found")
-		return nil
+		return httputil.Status(http.StatusNotFound, "File not found")
 	}
 	if isFile != 0 {
 		name := filepath.Base(relPath)
@@ -149,21 +147,4 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 	}
 	_ = zipWriter.Close()
 	return nil
-}
-
-// sendDownloadText matches res.status(...).send('...'), preserving a MIME type
-// already selected for a file download while adding Express's string charset.
-func sendDownloadText(w http.ResponseWriter, status int, message string) {
-	body := []byte(message)
-	contentType := w.Header().Get("Content-Type")
-	if contentType == "" {
-		contentType = "text/html; charset=utf-8"
-	} else if !strings.Contains(strings.ToLower(contentType), "charset=") {
-		contentType += "; charset=utf-8"
-	}
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", httputil.ExpressETag(body))
-	w.WriteHeader(status)
-	_, _ = w.Write(body)
 }

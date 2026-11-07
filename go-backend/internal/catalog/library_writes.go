@@ -39,8 +39,7 @@ func defaultLibrarySettings(mediaType string) map[string]any {
 func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !adminUser(user) {
-		w.WriteHeader(http.StatusForbidden)
-		return nil
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var body map[string]json.RawMessage
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&body) != nil {
@@ -194,8 +193,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	defer h.resetIssues(r.Context(), id) // LibraryController.js:513
 	if !adminUser(user) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var existingName, provider, icon, mediaType string
 	var existingOrder int
@@ -433,8 +431,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	defer h.filters.Invalidate(id) // LibraryController.js:591
 	if !adminUser(user) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var count int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, id).Scan(&count); err != nil {
@@ -620,8 +617,7 @@ func stringArgs(values []string) []any {
 func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !adminUser(user) {
-		w.WriteHeader(403)
-		return nil
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var order []struct {
 		ID       string  `json:"id"`

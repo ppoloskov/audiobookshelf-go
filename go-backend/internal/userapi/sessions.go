@@ -29,11 +29,11 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 	var total int
 	now := dbtime.Now()
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM sessions WHERE userId=? AND expiresAt>?`, user.ID, now).Scan(&total); err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,ipAddress,userAgent,createdAt,updatedAt,refreshToken,lastRefreshToken FROM sessions WHERE userId=? AND expiresAt>? ORDER BY updatedAt DESC LIMIT ? OFFSET ?`, user.ID, now, perPage, perPage*page)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	defer rows.Close()
 	refresh := refreshTokenFromRequest(r)
@@ -43,12 +43,12 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		var ip, agent, token, last sql.NullString
 		var created, updated any
 		if err := rows.Scan(&id, &ip, &agent, &created, &updated, &token, &last); err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": parseUA(agent.String), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
 	}
 	if err := rows.Err(); err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
 }
@@ -73,7 +73,7 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	}
 	res, err := h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id=? AND userId=?`, id, user.ID)
 	if err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {

@@ -86,7 +86,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) err
 	}
 	ids, err := h.queries().ListLibraryCollectionIDs(r.Context(), libraryID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	collections := make([]any, 0, len(ids))
 	for _, id := range ids {
@@ -95,14 +95,14 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) err
 			continue
 		}
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		// Collection.getOldCollectionsJsonExpanded attaches the full feed
 		// (feed.toOldJSON), not the minified one.
 		if slices.Contains(include, "rssfeed") {
 			feed, err := h.collectionRSSFeed(r, id)
 			if err != nil {
-				return writeInternalError(w, r, "database read failed", err)
+				return httputil.Internal("database read failed", err)
 			}
 			if feed != nil {
 				dto["rssFeed"] = feed
@@ -134,7 +134,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error
 	}
 	ids, err := h.queries().ListUserLibraryPlaylistIDs(r.Context(), sqlc.ListUserLibraryPlaylistIDsParams{UserID: user.ID, LibraryID: libraryID})
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	type namedPlaylist struct {
 		name string
@@ -147,7 +147,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error
 			continue
 		}
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		playlists = append(playlists, namedPlaylist{name: jsonvalue.String(item["name"]), dto: item})
 	}

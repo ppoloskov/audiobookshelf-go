@@ -17,7 +17,7 @@ import (
 func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var found string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT id FROM libraries WHERE id=?`, libraryID).Scan(&found); errors.Is(err, sql.ErrNoRows) {
@@ -26,7 +26,7 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 		return httputil.Internal("database read failed", err)
 	}
 	if !adminUser(user) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
 	if err != nil {

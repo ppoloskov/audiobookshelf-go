@@ -238,6 +238,9 @@ Rules:
 - Errors map to status in `httpx`. A database error is a 500, not a 404.
 - No Express emulation for its own sake. Keep a quirk only when a client
   depends on it, and name the client in a comment.
+- JSON is compared by value (ADR-002, docs/SIMPLIFICATION.md): key order,
+  whitespace, trailing newlines and error-body framing are not contract, in
+  HTTP bodies or persisted JSON columns. Do not write code to preserve them.
 
 ## Events and realtime
 

@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -78,17 +77,11 @@ func (h *Handler) save(ctx context.Context, v map[string]any) error {
 	return e
 }
 
-// dbFail logs err and answers http.Error's plain-text 500 (not Express framing).
-func dbFail(w http.ResponseWriter, r *http.Request, err error, msg string) error {
-	logging.RequestError(r, msg, err)
-	http.Error(w, msg, http.StatusInternalServerError)
-	return nil
-}
 func admin(t string) bool { return t == "admin" || t == "root" }
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	if data {
 		write(w, map[string]any{"events": events})
@@ -100,8 +93,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	var payload any
 	if json.NewDecoder(r.Body).Decode(&payload) != nil {
-		w.WriteHeader(400)
-		return nil
+		return httputil.Status(400, "")
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
@@ -109,7 +101,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	updated := false
 	if v, ok := p["appriseApiUrl"]; !ok {
@@ -146,9 +138,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	}
 	if updated {
 		if e = h.save(r.Context(), s); e != nil {
-			logging.RequestError(r, "database error", e)
-			http.Error(w, "database error", 500)
-			return nil
+			return httputil.Internal("database error", e)
 		}
 	}
 	return httputil.OK(w, r)
@@ -203,11 +193,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	}
 	id, e := id()
 	if e != nil {
-		return dbFail(w, r, e, "internal error")
+		return httputil.Internal("internal error", e)
 	}
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	items := array(s["notifications"])
 	libraryID := p["libraryId"]
@@ -228,9 +218,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	items = append(items, n)
 	s["notifications"] = items
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
-		logging.RequestError(r, "database error", saveErr)
-		http.Error(w, "database error", 500)
-		return nil
+		return httputil.Internal("database error", saveErr)
 	}
 	write(w, s)
 	return nil
@@ -238,7 +226,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	id := r.PathValue("id")
 	a := array(s["notifications"])
@@ -257,9 +245,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 	}
 	s["notifications"] = out
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
-		logging.RequestError(r, "database error", saveErr)
-		http.Error(w, "database error", 500)
-		return nil
+		return httputil.Internal("database error", saveErr)
 	}
 	write(w, s)
 	return nil
@@ -267,15 +253,14 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	if h.find(s, r.PathValue("id")) == nil {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	var payload any
 	if json.NewDecoder(r.Body).Decode(&payload) != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return nil
+		return httputil.Status(400, "")
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
@@ -309,9 +294,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) err
 		}
 		if updated {
 			if saveErr := h.save(r.Context(), s); saveErr != nil {
-				logging.RequestError(r, "database error", saveErr)
-				http.Error(w, "database error", 500)
-				return nil
+				return httputil.Internal("database error", saveErr)
 			}
 		}
 	}
@@ -321,7 +304,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) err
 func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	data := events[len(events)-1].(map[string]any)
 	_, _ = h.deliverActive(r.Context(), s, "onTest", data["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
@@ -349,7 +332,7 @@ func (h *Handler) TriggerEvent(ctx context.Context, eventName string, data map[s
 func (h *Handler) testNotification(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
 	if e != nil {
-		return dbFail(w, r, e, "database error")
+		return httputil.Internal("database error", e)
 	}
 	n := h.find(s, r.PathValue("id"))
 	if n == nil {

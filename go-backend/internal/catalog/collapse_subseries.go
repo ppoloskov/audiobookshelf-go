@@ -13,7 +13,6 @@ import (
 	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	itemapi "audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
@@ -122,7 +121,7 @@ func trimPartial(s string) string {
 // series is looked up by id in any library; its books are filtered by the
 // user's access and, when they belong to other series too, collapsed behind
 // the first book of each of those series.
-func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user store.User, libraryID, mediaType, seriesID string, page, limit int, ignorePrefix bool) {
+func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user store.User, libraryID, mediaType, seriesID string, page, limit int, ignorePrefix bool) error {
 	query := r.URL.Query()
 	payload := wire.CollapsedSubseriesPage{
 		Results: []any{}, Limit: limit, Page: page,
@@ -141,12 +140,11 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 	}
 	results, total, err := h.collapseSubseriesResults(r.Context(), user, libraryID, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
 	if err != nil {
-		logging.RequestError(r, "database read failed", err)
-		httputil.WriteError(w, http.StatusInternalServerError, "database read failed")
-		return
+		return httputil.Internal("database read failed", err)
 	}
 	payload.Results, payload.Total = results, total
 	httputil.WriteJSON(w, http.StatusOK, payload, httputil.Streamed(), httputil.ForRequest(r))
+	return nil
 }
 
 func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, libraryID, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {

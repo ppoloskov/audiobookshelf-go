@@ -23,6 +23,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -382,28 +383,26 @@ func elapsedPretty(seconds float64) string {
 // Routes registers the admin scan endpoints (LibraryController.scan,
 // LibraryItemController.scan, batchScan).
 func (s *Scanner) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/items/batch/scan", adminOnly(s.batchScan))
-	mux.HandleFunc("POST /api/libraries/{id}/scan", adminOnly(s.scanLibraryRoute))
-	mux.HandleFunc("POST /api/items/{id}/scan", adminOnly(s.scanItemRoute))
+	mux.Handle("POST /api/items/batch/scan", adminOnly(s.batchScan))
+	mux.Handle("POST /api/libraries/{id}/scan", adminOnly(s.scanLibraryRoute))
+	mux.Handle("POST /api/items/{id}/scan", adminOnly(s.scanItemRoute))
 }
 
-func adminOnly(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func adminOnly(next httputil.Handler) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if user, _ := store.UserFromContext(r.Context()); user.Type != "root" && user.Type != "admin" {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
+			return httputil.Status(http.StatusForbidden, "")
 		}
-		next(w, r)
+		return next(w, r)
 	}
 }
 
-func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) {
+func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
 	var body struct {
 		LibraryItemIDs []string `json:"libraryItemIds"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.LibraryItemIDs) == 0 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	type itemRef struct {
 		ID, LibraryID string
@@ -418,8 +417,7 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(items) == 0 {
-		http.Error(w, "Items not found", http.StatusBadRequest)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	w.WriteHeader(http.StatusOK)
 	go func(items []itemRef) {
@@ -430,17 +428,16 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) {
 			_, _ = s.ScanItemForce(context.Background(), item.ID)
 		}
 	}(items)
+	return nil
 }
 
-func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) {
+func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) error {
 	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "Bad library id", 400)
-		return
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	if _, err := s.library(r.Context(), id); err != nil {
-		http.Error(w, "Library not found", 404)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	force := r.URL.Query().Get("force") == "1" || strings.EqualFold(r.URL.Query().Get("force"), "true")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -453,25 +450,22 @@ func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) {
 			_, _ = s.Scan(context.Background(), id)
 		}
 	}()
+	return nil
 }
 
-func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) {
+func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
 	var isFile int
 	if err := s.db.QueryRowContext(r.Context(), `SELECT isFile FROM libraryItems WHERE id=?`, id).Scan(&isFile); err != nil {
-		http.Error(w, "Item not found", 404)
-		return
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if isFile != 0 {
 		logging.RequestDebug(r, "responding 500: cannot scan a library file")
-		http.Error(w, "Cannot scan a library file", http.StatusInternalServerError)
-		return
+		return httputil.Status(http.StatusInternalServerError, "")
 	}
 	res, err := s.ScanItemForce(r.Context(), id)
 	if err != nil && !res.Canceled {
-		logging.RequestError(r, "internal error", err)
-		http.Error(w, err.Error(), 500)
-		return
+		return &httputil.Error{Status: http.StatusInternalServerError, Cause: err}
 	}
 	status := "UPTODATE"
 	if res.Added+res.Updated > 0 {
@@ -481,6 +475,7 @@ func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]string{"result": status})
+	return nil
 }
 
 // Start initializes recursive filesystem watchers and per-library schedules.

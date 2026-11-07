@@ -27,7 +27,6 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
 	itemapi "audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -854,7 +853,7 @@ func (h *Handler) SetItemChanged(callback func(context.Context, string) error) {
 func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, id).Scan(&mediaType); errors.Is(err, sql.ErrNoRows) {
@@ -974,7 +973,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var name, icon, mediaType, provider, version sql.NullString
 	var order sql.NullInt64
@@ -1032,7 +1031,7 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, id) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
 	err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, id).Scan(&mediaType)
@@ -1363,7 +1362,7 @@ func orString(s sql.NullString, fallback string) string {
 func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, libraryID).Scan(&exists); err != nil {
@@ -1512,7 +1511,7 @@ func authorPagination(r *http.Request) (int, int, bool) {
 func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
 	var settingsRaw []byte
@@ -1731,14 +1730,14 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID, seriesID := requestUser(r), r.PathValue("id"), r.PathValue("seriesId")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var name, nameIgnore, description sql.NullString
 	var created, updated any
 	var lib string
 	err := h.db.QueryRowContext(r.Context(), `SELECT name,nameIgnorePrefix,description,createdAt,updatedAt,libraryId FROM series WHERE id=?`, seriesID).Scan(&name, &nameIgnore, &description, &created, &updated, &lib)
 	if errors.Is(err, sql.ErrNoRows) || lib != libraryID {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -1749,7 +1748,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	if count == 0 {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	createdMs, e := dbtime.OptionalMillis(created)
 	if e != nil {
@@ -1829,7 +1828,7 @@ func (h *Handler) libraryFolders(ctx context.Context, libraryID string) ([]map[s
 func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
 	err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType)
@@ -1852,8 +1851,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 		ignorePrefix, _ = decodeObject(settingsJSON)["sortingIgnorePrefix"].(bool)
 	}
 	if seriesID, ok := collapseSubseriesFilter(r); ok {
-		h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
-		return nil
+		return h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
 	}
 	filterValue := r.URL.Query().Get("filter")
 	var order string
@@ -2278,12 +2276,9 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 		if download {
 			if _, statErr := os.Stat(target); statErr != nil {
 				if os.IsNotExist(statErr) {
-					sendDownloadText(w, http.StatusNotFound, "File not found")
-				} else {
-					logging.RequestError(r, "Download failed", statErr)
-					sendDownloadText(w, http.StatusInternalServerError, "Download failed")
+					return httputil.Status(http.StatusNotFound, "File not found")
 				}
-				return nil
+				return httputil.Internal("Download failed", statErr)
 			}
 		}
 		return httputil.Status(http.StatusNotFound, "")
@@ -2300,13 +2295,13 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	target := ""
 	if fileID != "" {
@@ -2322,15 +2317,15 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	} else if mediaType == "book" {
 		var ebookRaw []byte
 		if err := h.db.QueryRowContext(r.Context(), `SELECT ebookFile FROM books WHERE id=?`, mediaID).Scan(&ebookRaw); err != nil {
-			return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+			return httputil.Status(http.StatusNotFound, "")
 		}
 		target = filePath(decodeObject(ebookRaw))
 	}
 	if target == "" {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	if !h.pathAllowed(r.Context(), target, libraryID, false) {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	return h.servePath(w, r, target)
 }
@@ -2363,11 +2358,9 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 		if !h.pathAllowed(r.Context(), target, libraryID, true) {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		h.coverRaw(w, r, target)
-		return nil
+		return h.coverRaw(w, r, target)
 	}
-	h.handleCoverCache(w, r, itemID)
-	return nil
+	return h.handleCoverCache(w, r, itemID)
 }
 
 func (h *Handler) pathAllowed(ctx context.Context, target, libraryID string, metadataOK bool) bool {
@@ -2424,7 +2417,7 @@ func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target strin
 		return httputil.Internal("File read failed", err)
 	}
 	if !info.Mode().IsRegular() {
-		return httputil.Status(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return httputil.Status(http.StatusNotFound, "")
 	}
 	ext := strings.ToLower(filepath.Ext(target))
 	media := map[string]string{".m4b": "audio/mp4", ".m4a": "audio/mp4", ".aac": "audio/aac", ".mp3": "audio/mpeg", ".flac": "audio/flac", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".wav": "audio/wav"}[ext]
@@ -2500,7 +2493,7 @@ func fileMetadataExt(file map[string]any) any {
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {

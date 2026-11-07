@@ -23,7 +23,7 @@ import (
 func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
 	if !userCanAccessLibrary(user, libraryID) {
-		return httputil.Status(http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
 	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType); errors.Is(err, sql.ErrNoRows) {

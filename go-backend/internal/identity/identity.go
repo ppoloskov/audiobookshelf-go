@@ -501,18 +501,15 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 	logging.Info("[Server] Initializing new server") // Server.js:486
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		logging.RequestError(r, "Internal Server Error", err)
-		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	defer tx.Rollback()
 	count, err := sqlc.New(tx).CountRootUsers(r.Context())
 	if err != nil || count > 0 {
 		if err == nil {
 			logging.Error("[Server] attempt to init server when server already has a root user") // Server.js:493
-		} else {
-			logging.RequestError(r, "Internal Server Error", err)
 		}
-		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	var body struct {
 		NewRoot struct {
@@ -521,7 +518,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 		} `json:"newRoot"`
 	}
 	if decodeBody(r, &body) != nil {
-		return writePlain(w, http.StatusBadRequest, "Bad Request")
+		return httputil.Status(400, "")
 	}
 	username := body.NewRoot.Username
 	if username == "" {
@@ -534,20 +531,17 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 	if body.NewRoot.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(body.NewRoot.Password), 8)
 		if err != nil {
-			logging.RequestError(r, "Internal Server Error", err)
-			return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+			return &httputil.Error{Status: 500, Cause: err}
 		}
 		passwordHash = string(hash)
 	}
 	id, err := ids.New()
 	if err != nil {
-		logging.RequestError(r, "Internal Server Error", err)
-		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	legacyToken, err := h.issueLegacyToken(id, username)
 	if err != nil {
-		logging.RequestError(r, "Internal Server Error", err)
-		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
 	permissions := map[string]any{"download": true, "update": true, "delete": true, "upload": true, "createEreader": true, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
 	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
@@ -560,10 +554,9 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 		err = tx.Commit()
 	}
 	if err != nil {
-		logging.RequestError(r, "Internal Server Error", err)
-		return writePlain(w, http.StatusInternalServerError, "Internal Server Error")
+		return &httputil.Error{Status: 500, Cause: err}
 	}
-	return writePlain(w, http.StatusOK, "OK")
+	return httputil.OK(w, r)
 }
 
 func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Request) (string, string, error) {
@@ -1109,6 +1102,7 @@ func writePassportDenied(w http.ResponseWriter) error {
 	return nil
 }
 
+// writePlain answers the 401 "Unauthorized" of OIDC routes (auth contract, kept as is).
 func writePlain(w http.ResponseWriter, status int, body string) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))

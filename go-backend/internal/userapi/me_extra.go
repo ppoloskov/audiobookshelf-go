@@ -24,7 +24,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 	itemID, episodeID := r.PathValue("id"), r.PathValue("episodeId")
 	access, err := h.canAccessItem(r.Context(), user, itemID)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if !access.exists {
 		return httputil.Status(404, "")
@@ -40,7 +40,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 	if episodeID != "" {
 		var exists int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, episodeID).Scan(&exists); err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		episodeFound = exists > 0
 	}
@@ -63,7 +63,7 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 	}
 	var exists int
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM series WHERE id=?`, seriesID).Scan(&exists); err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if exists == 0 {
 		return httputil.Status(404, "")
@@ -97,14 +97,14 @@ func (h *Handler) updateSeriesContinueListening(w http.ResponseWriter, r *http.R
 		extra["seriesHideFromContinueListening"] = filtered
 		raw, _ := json.Marshal(extra)
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(raw), dbtime.Now(), user.ID); err != nil {
-			return writeInternalError(w, r, "database write failed", err)
+			return httputil.Internal("database write failed", err)
 		}
 		user.ExtraData = raw
 		h.emitUserUpdate(r.Context(), user)
 	}
 	payload, err := h.userPayload(r.Context(), user)
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, payload)
 }
@@ -116,7 +116,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	}
 	rows, err := sqlc.New(h.db).ListItemsInProgress(r.Context(), store.Text(user.ID))
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	type progress struct {
 		id, itemID, typ, mediaID string
@@ -138,7 +138,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		seen[p.id] = true
 		access, err := h.canAccessItem(r.Context(), user, p.itemID)
 		if err != nil {
-			return writeInternalError(w, r, "database read failed", err)
+			return httputil.Internal("database read failed", err)
 		}
 		if !access.allowed {
 			continue
@@ -188,20 +188,20 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, user store.User) error {
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
-		return plainError(w, "Invalid payload. ereaderDevices array required", 400)
+		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
 	provided, ok := body["ereaderDevices"].([]any)
 	if !ok {
-		return plainError(w, "Invalid payload. ereaderDevices array required", 400)
+		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
 	for _, raw := range provided {
 		d, ok := raw.(map[string]any)
 		if !ok || !jsonvalue.Truthy(d["name"]) || !jsonvalue.Truthy(d["email"]) {
-			return plainError(w, "Invalid payload. ereaderDevices array items must have name and email", 400)
+			return httputil.Status(400, "Invalid payload. ereaderDevices array items must have name and email")
 		}
 		users, ok := d["users"].([]any)
 		if d["availabilityOption"] != "specificUsers" || !ok || len(users) != 1 || users[0] != user.ID {
-			return plainError(w, `Invalid payload. ereaderDevices array items must have availabilityOption "specificUsers" and only the current user`, 400)
+			return httputil.Status(400, `Invalid payload. ereaderDevices array items must have availabilityOption "specificUsers" and only the current user`)
 		}
 	}
 	// A database without an email-settings row starts from the defaults TS
@@ -212,7 +212,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	var raw []byte
 	err = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
 	if err != nil && err != sql.ErrNoRows {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	if err == nil {
 		var stored map[string]any
@@ -245,7 +245,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 		d, _ := entry.(map[string]any)
 		name := jsonvalue.String(d["name"])
 		if names[name] {
-			return plainError(w, `Invalid payload. Duplicate "name" field found.`, 400)
+			return httputil.Status(400, `Invalid payload. Duplicate "name" field found.`)
 		}
 		names[name] = true
 	}
@@ -253,7 +253,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	encoded, _ := json.Marshal(settings)
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(encoded), now, now); err != nil {
-		return writeInternalError(w, r, "database write failed", err)
+		return httputil.Internal("database write failed", err)
 	}
 	visible := make([]any, 0)
 	for _, entry := range combined {
@@ -279,7 +279,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user store.User) error {
 	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil || year < 2000 || year > 9999 {
-		return plainError(w, "Invalid year", 400)
+		return httputil.Status(400, "Invalid year")
 	}
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	// userStats.getStatsForYear sums raw float seconds (`ls.timeListening
@@ -288,7 +288,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	var total, bookTime, podcastTime float64
 	sessionRows, err := sqlc.New(h.db).ListPlaybackSessionsCreatedBetween(r.Context(), sqlc.ListPlaybackSessionsCreatedBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	months := map[int]float64{}
 	books := map[string]float64{}
@@ -336,7 +336,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	}
 	finishedRows, err := sqlc.New(h.db).ListFinishedBookProgressBetween(r.Context(), sqlc.ListFinishedBookProgressBetweenParams{UserID: store.Text(user.ID), StartAt: start, EndAt: end})
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	finished := 0
 	finishedCovers := make([]any, 0, 5)
@@ -362,7 +362,7 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 	booksWithCoversSet := map[string]bool{}
 	yearSessions, err := h.listeningSessions(r, user.ID, "")
 	if err != nil {
-		return writeInternalError(w, r, "database read failed", err)
+		return httputil.Internal("database read failed", err)
 	}
 	for _, session := range yearSessions {
 		created := dbtime.Time(session.CreatedAt)

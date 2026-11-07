@@ -41,7 +41,7 @@ func TestLoggerDataAdminOnlyAndShape(t *testing.T) {
 	}
 }
 
-// A 500 keeps its exact response bytes and records the cause with the route.
+// A 500 answers in Express framing and records the cause with the route.
 func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 	db := adminopsDB(t)
 	if _, err := db.Exec(`DROP TABLE settings`); err != nil {
@@ -50,7 +50,7 @@ func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 	h := New(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings?x=1", strings.NewReader(`{"language":"fr"}`)), store.User{Type: "admin"})
-	if w.Code != 500 || w.Body.String() != "database error\n" {
+	if w.Code != 500 || w.Body.String() != "database error" {
 		t.Fatalf("status %d body %q", w.Code, w.Body.String())
 	}
 	for _, e := range logging.Default().Recent() {
