@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,26 +31,26 @@ func TestParseFeedShapesAndSanitizesRSS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta := feed["metadata"].(map[string]any)
-	if meta["title"] != "Fixture Cast" || meta["author"] != "Writer" || meta["image"] != "https://example.test/cover.jpg" || meta["feedUrl"] != "https://example.test/feed.xml" {
+	meta := feed.Metadata
+	if meta.Title != "Fixture Cast" || meta.Author != "Writer" || meta.Image != "https://example.test/cover.jpg" || meta.FeedURL != "https://example.test/feed.xml" {
 		t.Fatalf("metadata mismatch: %#v", meta)
 	}
-	if strings.Contains(meta["description"].(string), "script") || !strings.Contains(meta["description"].(string), "<strong>news</strong>") {
-		t.Fatalf("unsafe or missing channel description: %s", meta["description"])
+	if strings.Contains(meta.Description, "script") || !strings.Contains(meta.Description, "<strong>news</strong>") {
+		t.Fatalf("unsafe or missing channel description: %s", meta.Description)
 	}
-	eps := feed["episodes"].([]map[string]any)
+	eps := feed.Episodes
 	if len(eps) != 1 {
 		t.Fatalf("episodes: %#v", eps)
 	}
 	ep := eps[0]
-	if ep["title"] != "Episode One" || ep["season"] != "2" || ep["episode"] != "4" || ep["durationSeconds"] != 3723 || ep["publishedAt"] == nil {
+	if ep.Title != "Episode One" || ep.Season != "2" || ep.Episode != "4" || ep.DurationSeconds == nil || *ep.DurationSeconds != 3723 || ep.PublishedAt == nil {
 		t.Fatalf("episode mismatch: %#v", ep)
 	}
-	if strings.Contains(ep["description"].(string), "javascript:") {
-		t.Fatalf("unsafe episode description: %s", ep["description"])
+	if strings.Contains(ep.Description, "javascript:") {
+		t.Fatalf("unsafe episode description: %s", ep.Description)
 	}
-	if ep["enclosure"].(map[string]any)["url"] != "https://example.test/episode.mp3" {
-		t.Fatalf("enclosure mismatch: %#v", ep["enclosure"])
+	if ep.Enclosure.URL != "https://example.test/episode.mp3" {
+		t.Fatalf("enclosure mismatch: %#v", ep.Enclosure)
 	}
 }
 
@@ -162,11 +163,11 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	defer downloadServer.Close()
 	h.SetHTTPClientForTests(downloadServer.Client())
 	feedURL := downloadServer.URL + "/feed"
-	feed, feedErr := h.getFeed(context.Background(), feedURL, false)
+	feed, feedErr := h.getFeed(context.Background(), feedURL)
 	if feedErr != nil {
 		t.Fatal(feedErr)
 	}
-	episodesJSON, _ := json.Marshal(feed["episodes"])
+	episodesJSON, _ := json.Marshal(feed.Episodes)
 	r = httptest.NewRequest("POST", "/api/podcasts/"+itemID+"/download-episodes", bytes.NewReader(episodesJSON))
 	r.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
@@ -188,19 +189,16 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	if _, err = db.Exec(`UPDATE podcasts SET autoDownloadEpisodes=1,maxEpisodesToKeep=1 WHERE id=?`, mediaID); err != nil {
 		t.Fatal(err)
 	}
-	second := feed["episodes"].([]map[string]any)[0]
-	secondCopy := make(map[string]any, len(second))
-	for key, value := range second {
-		secondCopy[key] = value
-	}
-	second = secondCopy
-	second["title"], second["guid"], second["publishedAt"] = "Newer Episode", "newer-guid", time.Now().Add(time.Hour).UnixMilli()
-	second["enclosure"] = map[string]any{"url": downloadServer.URL + "/audio.wav?newer=1", "type": "audio/wav", "length": len(tone)}
+	second := feed.Episodes[0]
+	newer := time.Now().Add(time.Hour).UnixMilli()
+	guid := "newer-guid"
+	second.Title, second.GUID, second.PublishedAt = "Newer Episode", &guid, &newer
+	second.Enclosure = enclosure{URL: downloadServer.URL + "/audio.wav?newer=1", Type: "audio/wav", Length: numText(strconv.Itoa(len(tone)))}
 	item, err := h.loadItem(context.Background(), itemID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = h.enqueue(item, []map[string]any{second}, true); err != nil {
+	if err = h.enqueue(item, []Episode{second}, true); err != nil {
 		t.Fatal(err)
 	}
 	select {

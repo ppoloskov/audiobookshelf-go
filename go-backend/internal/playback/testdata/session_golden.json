@@ -1,0 +1,2767 @@
+{
+  "book": {
+    "close": {
+      "body": "OK",
+      "status": 200
+    },
+    "closeEmpty": {
+      "body": "OK",
+      "status": 200
+    },
+    "events": [
+      {
+        "event": "user_stream_update",
+        "payload": {
+          "createdAt": "\u003cT\u003e",
+          "id": "user-one",
+          "lastSeen": "\u003cT\u003e",
+          "session": {
+            "audioTracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "mimeType": "audio/mpeg",
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ],
+            "bookId": "book-one",
+            "chapters": [],
+            "coverPath": null,
+            "currentTime": 0,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "browserVersion": "120.0.0.0",
+              "clientName": "Abs Android",
+              "clientVersion": "0.9.79",
+              "deviceId": "dev-1",
+              "deviceName": "Google Pixel 8",
+              "id": "\u003cIDB\u003e",
+              "ipAddress": "192.0.2.1",
+              "manufacturer": "Google",
+              "model": "Pixel 8",
+              "osName": "Linux",
+              "sdkVersion": "34",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Author",
+            "displayTitle": "Book",
+            "duration": 3,
+            "episodeId": null,
+            "id": "\u003cIDA\u003e",
+            "libraryId": "library-one",
+            "libraryItem": null,
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "abridged": false,
+              "asin": null,
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "subtitle": null,
+              "title": "Book"
+            },
+            "mediaPlayer": "exo-player",
+            "mediaType": "book",
+            "playMethod": 0,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 0,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "type": "user",
+          "username": "tester"
+        },
+        "to": "@admins"
+      },
+      {
+        "event": "user_item_progress_updated",
+        "payload": {
+          "data": {
+            "currentTime": 1.5,
+            "duration": 3,
+            "ebookLocation": null,
+            "ebookProgress": 0,
+            "episodeId": null,
+            "finishedAt": "\u003cT\u003e",
+            "hideFromContinueListening": false,
+            "id": "\u003cIDG\u003e",
+            "isFinished": false,
+            "lastUpdate": "\u003cT\u003e",
+            "libraryItemId": "item-one",
+            "mediaItemId": "book-one",
+            "mediaItemType": "book",
+            "progress": 0.5,
+            "startedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "deviceDescription": "Pixel 8 SDK 34 / v0.9.79",
+          "id": "\u003cIDG\u003e",
+          "sessionId": "\u003cIDA\u003e"
+        },
+        "to": "user-one"
+      },
+      {
+        "event": "user_item_progress_updated",
+        "payload": {
+          "data": {
+            "currentTime": 2,
+            "duration": 3,
+            "ebookLocation": null,
+            "ebookProgress": 0,
+            "episodeId": null,
+            "finishedAt": "\u003cT\u003e",
+            "hideFromContinueListening": false,
+            "id": "\u003cIDG\u003e",
+            "isFinished": true,
+            "lastUpdate": "\u003cT\u003e",
+            "libraryItemId": "item-one",
+            "mediaItemId": "book-one",
+            "mediaItemType": "book",
+            "progress": 1,
+            "startedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "deviceDescription": "Pixel 8 SDK 34 / v0.9.79",
+          "id": "\u003cIDG\u003e",
+          "sessionId": "\u003cIDA\u003e"
+        },
+        "to": "user-one"
+      },
+      {
+        "event": "user_session_closed",
+        "payload": "\u003cIDA\u003e",
+        "to": "user-one"
+      },
+      {
+        "event": "user_stream_update",
+        "payload": {
+          "createdAt": "\u003cT\u003e",
+          "id": "user-one",
+          "lastSeen": "\u003cT\u003e",
+          "session": {
+            "audioTracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "mimeType": "audio/mpeg",
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ],
+            "bookId": "book-one",
+            "chapters": [],
+            "coverPath": null,
+            "currentTime": 0,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "browserVersion": "120.0.0.0",
+              "clientName": "Abs Web",
+              "clientVersion": "2.37.2",
+              "deviceId": "\u003cIDD\u003e",
+              "deviceName": "Linux N/A Chrome",
+              "id": "\u003cIDD\u003e",
+              "ipAddress": "192.0.2.1",
+              "osName": "Linux",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Author",
+            "displayTitle": "Book",
+            "duration": 3,
+            "episodeId": null,
+            "id": "\u003cIDC\u003e",
+            "libraryId": "library-one",
+            "libraryItem": null,
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "abridged": false,
+              "asin": null,
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "subtitle": null,
+              "title": "Book"
+            },
+            "mediaPlayer": "unknown",
+            "mediaType": "book",
+            "playMethod": 0,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 0,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "type": "user",
+          "username": "tester"
+        },
+        "to": "@admins"
+      },
+      {
+        "event": "user_session_closed",
+        "payload": "\u003cIDC\u003e",
+        "to": "user-one"
+      },
+      {
+        "event": "user_stream_update",
+        "payload": {
+          "createdAt": "\u003cT\u003e",
+          "id": "user-one",
+          "lastSeen": "\u003cT\u003e",
+          "session": {
+            "audioTracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "mimeType": "audio/mpeg",
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ],
+            "bookId": "book-one",
+            "chapters": [],
+            "coverPath": null,
+            "currentTime": 0,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "browserVersion": "120.0.0.0",
+              "clientName": "Abs iOS",
+              "clientVersion": "2.37.2",
+              "deviceId": "dev-2",
+              "deviceName": "Unknown iPhone",
+              "id": "\u003cIDF\u003e",
+              "ipAddress": "192.0.2.1",
+              "model": "iPhone",
+              "osName": "Linux",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Author",
+            "displayTitle": "Book",
+            "duration": 3,
+            "episodeId": null,
+            "id": "\u003cIDE\u003e",
+            "libraryId": "library-one",
+            "libraryItem": null,
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "abridged": false,
+              "asin": null,
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "subtitle": null,
+              "title": "Book"
+            },
+            "mediaPlayer": "unknown",
+            "mediaType": "book",
+            "playMethod": 0,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 0,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "type": "user",
+          "username": "tester"
+        },
+        "to": "@admins"
+      }
+    ],
+    "get": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 705600,
+            "channels": 1,
+            "codec": "pcm_s16le",
+            "contentUrl": "/api/items/item-one/file/audio-one",
+            "duration": 3,
+            "exclude": false,
+            "format": "wav",
+            "index": 1,
+            "ino": "audio-one",
+            "metadata": {
+              "ext": ".wav",
+              "filename": "test.wav",
+              "path": "\u003cMEDIA\u003e",
+              "size": 441044
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "test.wav"
+          }
+        ],
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Android",
+          "clientVersion": "0.9.79",
+          "deviceId": "dev-1",
+          "deviceName": "Google Pixel 8",
+          "id": "\u003cIDB\u003e",
+          "ipAddress": "192.0.2.1",
+          "manufacturer": "Google",
+          "model": "Pixel 8",
+          "osName": "Linux",
+          "sdkVersion": "34",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "audioFiles": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                }
+              }
+            ],
+            "chapters": [],
+            "coverPath": null,
+            "duration": 3,
+            "ebookFile": null,
+            "id": "book-one",
+            "libraryItemId": "item-one",
+            "metadata": {
+              "abridged": false,
+              "asin": null,
+              "authorName": "Author",
+              "authorNameLF": "Author",
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "descriptionPlain": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narratorName": "",
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "seriesName": "",
+              "subtitle": null,
+              "title": "Book",
+              "titleIgnorePrefix": "Book"
+            },
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "numTracks": 1,
+            "size": 441044,
+            "tags": [],
+            "tracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ]
+          },
+          "mediaType": "book",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "exo-player",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "getForeign": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 705600,
+            "channels": 1,
+            "codec": "pcm_s16le",
+            "contentUrl": "/api/items/item-one/file/audio-one",
+            "duration": 3,
+            "exclude": false,
+            "format": "wav",
+            "index": 1,
+            "ino": "audio-one",
+            "metadata": {
+              "ext": ".wav",
+              "filename": "test.wav",
+              "path": "\u003cMEDIA\u003e",
+              "size": 441044
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "test.wav"
+          }
+        ],
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Android",
+          "clientVersion": "0.9.79",
+          "deviceId": "dev-1",
+          "deviceName": "Google Pixel 8",
+          "id": "\u003cIDB\u003e",
+          "ipAddress": "192.0.2.1",
+          "manufacturer": "Google",
+          "model": "Pixel 8",
+          "osName": "Linux",
+          "sdkVersion": "34",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "audioFiles": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                }
+              }
+            ],
+            "chapters": [],
+            "coverPath": null,
+            "duration": 3,
+            "ebookFile": null,
+            "id": "book-one",
+            "libraryItemId": "item-one",
+            "metadata": {
+              "abridged": false,
+              "asin": null,
+              "authorName": "Author",
+              "authorNameLF": "Author",
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "descriptionPlain": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narratorName": "",
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "seriesName": "",
+              "subtitle": null,
+              "title": "Book",
+              "titleIgnorePrefix": "Book"
+            },
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "numTracks": 1,
+            "size": 441044,
+            "tags": [],
+            "tracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ]
+          },
+          "mediaType": "book",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "exo-player",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "history": {
+      "body": {
+        "itemsPerPage": 10,
+        "numPages": 1,
+        "page": 0,
+        "sessions": [
+          {
+            "bookId": "book-one",
+            "chapters": [],
+            "coverPath": null,
+            "currentTime": 1.5,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "clientName": "Abs Android",
+              "clientVersion": "0.9.79",
+              "deviceId": "dev-1",
+              "deviceName": "Google Pixel 8",
+              "id": "\u003cIDB\u003e",
+              "ipAddress": "192.0.2.1",
+              "manufacturer": "Google",
+              "model": "Pixel 8",
+              "osName": "Linux",
+              "sdkVersion": "34",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Author",
+            "displayTitle": "Book",
+            "duration": 3,
+            "episodeId": null,
+            "id": "\u003cIDA\u003e",
+            "libraryId": "library-one",
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "abridged": false,
+              "asin": null,
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "subtitle": null,
+              "title": "Book"
+            },
+            "mediaPlayer": "exo-player",
+            "mediaType": "book",
+            "playMethod": 0,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 2,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          }
+        ],
+        "total": 1
+      },
+      "status": 200
+    },
+    "open": [
+      {
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs iOS",
+          "clientVersion": "2.37.2",
+          "deviceId": "dev-2",
+          "deviceName": "Unknown iPhone",
+          "id": "\u003cIDF\u003e",
+          "ipAddress": "192.0.2.1",
+          "model": "iPhone",
+          "osName": "Linux",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDE\u003e",
+        "libraryId": "library-one",
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "user": {
+          "id": "user-one",
+          "username": ""
+        },
+        "userId": "user-one"
+      }
+    ],
+    "playAndroid": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 705600,
+            "channels": 1,
+            "codec": "pcm_s16le",
+            "contentUrl": "/api/items/item-one/file/audio-one",
+            "duration": 3,
+            "exclude": false,
+            "format": "wav",
+            "index": 1,
+            "ino": "audio-one",
+            "metadata": {
+              "ext": ".wav",
+              "filename": "test.wav",
+              "path": "\u003cMEDIA\u003e",
+              "size": 441044
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "test.wav"
+          }
+        ],
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Android",
+          "clientVersion": "0.9.79",
+          "deviceId": "dev-1",
+          "deviceName": "Google Pixel 8",
+          "id": "\u003cIDB\u003e",
+          "ipAddress": "192.0.2.1",
+          "manufacturer": "Google",
+          "model": "Pixel 8",
+          "osName": "Linux",
+          "sdkVersion": "34",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "audioFiles": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                }
+              }
+            ],
+            "chapters": [],
+            "coverPath": null,
+            "duration": 3,
+            "ebookFile": null,
+            "id": "book-one",
+            "libraryItemId": "item-one",
+            "metadata": {
+              "abridged": false,
+              "asin": null,
+              "authorName": "Author",
+              "authorNameLF": "Author",
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "descriptionPlain": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narratorName": "",
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "seriesName": "",
+              "subtitle": null,
+              "title": "Book",
+              "titleIgnorePrefix": "Book"
+            },
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "numTracks": 1,
+            "size": 441044,
+            "tags": [],
+            "tracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ]
+          },
+          "mediaType": "book",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "exo-player",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "playNoBody": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 705600,
+            "channels": 1,
+            "codec": "pcm_s16le",
+            "contentUrl": "/api/items/item-one/file/audio-one",
+            "duration": 3,
+            "exclude": false,
+            "format": "wav",
+            "index": 1,
+            "ino": "audio-one",
+            "metadata": {
+              "ext": ".wav",
+              "filename": "test.wav",
+              "path": "\u003cMEDIA\u003e",
+              "size": 441044
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "test.wav"
+          }
+        ],
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs iOS",
+          "clientVersion": "2.37.2",
+          "deviceId": "dev-2",
+          "deviceName": "Unknown iPhone",
+          "id": "\u003cIDF\u003e",
+          "ipAddress": "192.0.2.1",
+          "model": "iPhone",
+          "osName": "Linux",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDE\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "audioFiles": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                }
+              }
+            ],
+            "chapters": [],
+            "coverPath": null,
+            "duration": 3,
+            "ebookFile": null,
+            "id": "book-one",
+            "libraryItemId": "item-one",
+            "metadata": {
+              "abridged": false,
+              "asin": null,
+              "authorName": "Author",
+              "authorNameLF": "Author",
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "descriptionPlain": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narratorName": "",
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "seriesName": "",
+              "subtitle": null,
+              "title": "Book",
+              "titleIgnorePrefix": "Book"
+            },
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "numTracks": 1,
+            "size": 441044,
+            "tags": [],
+            "tracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ]
+          },
+          "mediaType": "book",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "playWeb": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 705600,
+            "channels": 1,
+            "codec": "pcm_s16le",
+            "contentUrl": "/api/items/item-one/file/audio-one",
+            "duration": 3,
+            "exclude": false,
+            "format": "wav",
+            "index": 1,
+            "ino": "audio-one",
+            "metadata": {
+              "ext": ".wav",
+              "filename": "test.wav",
+              "path": "\u003cMEDIA\u003e",
+              "size": 441044
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "test.wav"
+          }
+        ],
+        "bookId": "book-one",
+        "chapters": [],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Web",
+          "clientVersion": "2.37.2",
+          "deviceId": "\u003cIDD\u003e",
+          "deviceName": "Linux N/A Chrome",
+          "id": "\u003cIDD\u003e",
+          "ipAddress": "192.0.2.1",
+          "osName": "Linux",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "episodeId": null,
+        "id": "\u003cIDC\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "audioFiles": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                }
+              }
+            ],
+            "chapters": [],
+            "coverPath": null,
+            "duration": 3,
+            "ebookFile": null,
+            "id": "book-one",
+            "libraryItemId": "item-one",
+            "metadata": {
+              "abridged": false,
+              "asin": null,
+              "authorName": "Author",
+              "authorNameLF": "Author",
+              "authors": [
+                {
+                  "id": "author-one",
+                  "name": "Author"
+                }
+              ],
+              "description": null,
+              "descriptionPlain": null,
+              "explicit": false,
+              "genres": [],
+              "isbn": null,
+              "language": null,
+              "narratorName": "",
+              "narrators": [],
+              "publishedDate": null,
+              "publishedYear": null,
+              "publisher": null,
+              "series": [],
+              "seriesName": "",
+              "subtitle": null,
+              "title": "Book",
+              "titleIgnorePrefix": "Book"
+            },
+            "numAudioFiles": 1,
+            "numChapters": 0,
+            "numTracks": 1,
+            "size": 441044,
+            "tags": [],
+            "tracks": [
+              {
+                "bitRate": 705600,
+                "channels": 1,
+                "codec": "pcm_s16le",
+                "contentUrl": "/api/items/item-one/file/audio-one",
+                "duration": 3,
+                "exclude": false,
+                "format": "wav",
+                "index": 1,
+                "ino": "audio-one",
+                "metadata": {
+                  "ext": ".wav",
+                  "filename": "test.wav",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 441044
+                },
+                "startOffset": 0,
+                "title": "test.wav"
+              }
+            ]
+          },
+          "mediaType": "book",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "mediaType": "book",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "coverPath": null,
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 2,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceId": "\u003cIDB\u003e",
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "exo-player",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "timeListening": 3,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs Android",
+        "clientVersion": "0.9.79",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "dev-1",
+        "deviceName": "Google Pixel 8",
+        "deviceVersion": "34",
+        "extraData": {
+          "browserName": "Chrome",
+          "manufacturer": "Google",
+          "model": "Pixel 8",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDB\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs Web",
+        "clientVersion": "2.37.2",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "\u003cIDD\u003e",
+        "deviceName": "Linux N/A Chrome",
+        "deviceVersion": "120.0.0.0",
+        "extraData": {
+          "browserName": "Chrome",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDD\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs iOS",
+        "clientVersion": "2.37.2",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "dev-2",
+        "deviceName": "Unknown iPhone",
+        "deviceVersion": "120.0.0.0",
+        "extraData": {
+          "browserName": "Chrome",
+          "model": "iPhone",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDF\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 2,
+        "duration": 3,
+        "ebookLocation": null,
+        "ebookProgress": 0,
+        "extraData": {
+          "libraryItemId": "item-one",
+          "progress": 1
+        },
+        "finishedAt": "\u003cT\u003e",
+        "hideFromContinueListening": 0,
+        "id": "\u003cIDG\u003e",
+        "isFinished": 1,
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "podcastId": null,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      }
+    ],
+    "sync": {
+      "body": "OK",
+      "status": 200
+    },
+    "syncBad": {
+      "body": "Invalid currentTime",
+      "status": 400
+    },
+    "syncBad2": {
+      "body": "Invalid timeListened",
+      "status": 400
+    }
+  },
+  "local": {
+    "events": [
+      {
+        "event": "user_item_progress_updated",
+        "payload": {
+          "data": {
+            "currentTime": 20,
+            "duration": 3,
+            "ebookLocation": null,
+            "ebookProgress": 0,
+            "episodeId": null,
+            "finishedAt": "\u003cT\u003e",
+            "hideFromContinueListening": false,
+            "id": "\u003cIDG\u003e",
+            "isFinished": false,
+            "lastUpdate": "\u003cT\u003e",
+            "libraryItemId": "item-one",
+            "mediaItemId": "book-one",
+            "mediaItemType": "book",
+            "progress": 1,
+            "startedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "deviceDescription": "Pixel SDK 33 / v0.9",
+          "id": "\u003cIDG\u003e",
+          "sessionId": "\u003cIDD\u003e"
+        },
+        "to": "user-one"
+      }
+    ],
+    "local": {
+      "body": "OK",
+      "status": 200
+    },
+    "localAgain": {
+      "body": "OK",
+      "status": 200
+    },
+    "localAll": {
+      "body": {
+        "results": [
+          {
+            "id": "\u003cIDC\u003e",
+            "progressSynced": false,
+            "success": true
+          },
+          {
+            "error": "Media item not found",
+            "id": null,
+            "success": false
+          },
+          {
+            "id": "\u003cIDC\u003e",
+            "progressSynced": false,
+            "success": true
+          },
+          {
+            "error": "Media item not found",
+            "id": "fixed-id-1",
+            "success": false
+          },
+          {
+            "id": "\u003cIDA\u003e",
+            "progressSynced": false,
+            "success": true
+          },
+          {
+            "id": "\u003cIDB\u003e",
+            "progressSynced": false,
+            "success": true
+          }
+        ]
+      },
+      "status": 200
+    },
+    "localBadBody": {
+      "body": "Invalid request body",
+      "status": 400
+    },
+    "localMissing": {
+      "body": "Media item not found",
+      "status": 500
+    },
+    "open": [],
+    "rows": [
+      {
+        "coverPath": null,
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 1,
+        "date": "2026-01-05",
+        "dayOfWeek": "Monday",
+        "deviceId": "\u003cIDE\u003e",
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "playMethod": 3,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "timeListening": 1,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "coverPath": null,
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 1,
+        "date": "1970-01-01",
+        "dayOfWeek": "Thursday",
+        "deviceId": "\u003cIDE\u003e",
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDB\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "playMethod": 3,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "timeListening": 1,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "coverPath": null,
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 8,
+        "date": "2026-01-05",
+        "dayOfWeek": "Monday",
+        "deviceId": "\u003cIDE\u003e",
+        "displayAuthor": "Author",
+        "displayTitle": "Book",
+        "duration": 3,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDC\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "unknown",
+        "playMethod": 3,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "timeListening": 4,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "coverPath": "/c.jpg",
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 20,
+        "date": "2026-01-05",
+        "dayOfWeek": "Monday",
+        "deviceId": "\u003cIDE\u003e",
+        "displayAuthor": "Me",
+        "displayTitle": "Mine",
+        "duration": 3,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDD\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "mediaMetadata": {
+          "abridged": false,
+          "asin": null,
+          "authors": [
+            {
+              "id": "author-one",
+              "name": "Author"
+            }
+          ],
+          "description": null,
+          "explicit": false,
+          "genres": [],
+          "isbn": null,
+          "language": null,
+          "narrators": [],
+          "publishedDate": null,
+          "publishedYear": null,
+          "publisher": null,
+          "series": [],
+          "subtitle": null,
+          "title": "Book"
+        },
+        "mediaPlayer": "offline",
+        "playMethod": 3,
+        "serverVersion": "2.37.2",
+        "startTime": 2,
+        "timeListening": 5,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs Android",
+        "clientVersion": "0.9",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "dev-local",
+        "deviceName": "Google Pixel",
+        "deviceVersion": "33",
+        "extraData": {
+          "browserName": "Chrome",
+          "manufacturer": "Google",
+          "model": "Pixel",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDE\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs Web",
+        "clientVersion": "2.37.2",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "\u003cIDF\u003e",
+        "deviceName": "Linux N/A Chrome",
+        "deviceVersion": "120.0.0.0",
+        "extraData": {
+          "browserName": "Chrome",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDF\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 20,
+        "duration": 3,
+        "ebookLocation": null,
+        "ebookProgress": 0,
+        "extraData": {
+          "libraryItemId": "item-one",
+          "progress": 1
+        },
+        "finishedAt": "\u003cT\u003e",
+        "hideFromContinueListening": 0,
+        "id": "\u003cIDG\u003e",
+        "isFinished": 0,
+        "mediaItemId": "book-one",
+        "mediaItemType": "book",
+        "podcastId": null,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      }
+    ]
+  },
+  "podcast": {
+    "closeEpisode": {
+      "body": "OK",
+      "status": 200
+    },
+    "closeHLS": {
+      "body": "OK",
+      "status": 200
+    },
+    "events": [
+      {
+        "event": "user_stream_update",
+        "payload": {
+          "createdAt": "\u003cT\u003e",
+          "id": "user-one",
+          "lastSeen": "\u003cT\u003e",
+          "session": {
+            "audioTracks": [
+              {
+                "bitRate": 64000,
+                "codec": "mp3",
+                "contentUrl": "/api/items/item-one/file/ep-episode-two",
+                "customKey": "kept",
+                "duration": 4,
+                "exclude": false,
+                "index": 1,
+                "ino": "ep-episode-two",
+                "metadata": {
+                  "ext": ".mp3",
+                  "filename": "episode-two.mp3",
+                  "path": "\u003cMEDIA\u003e",
+                  "size": 1000
+                },
+                "mimeType": "audio/mpeg",
+                "startOffset": 0,
+                "title": "episode-two.mp3"
+              }
+            ],
+            "bookId": null,
+            "chapters": [
+              {
+                "end": 1,
+                "id": 0,
+                "start": 0,
+                "title": "c"
+              }
+            ],
+            "coverPath": null,
+            "currentTime": 0,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "browserVersion": "120.0.0.0",
+              "clientName": "Abs Web",
+              "clientVersion": "2.37.2",
+              "deviceId": "web-1",
+              "deviceName": "Linux N/A Chrome",
+              "id": "\u003cIDB\u003e",
+              "ipAddress": "192.0.2.1",
+              "osName": "Linux",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Host",
+            "displayTitle": "Title episode-two",
+            "duration": 4,
+            "episodeId": "episode-two",
+            "id": "\u003cIDA\u003e",
+            "libraryId": "library-one",
+            "libraryItem": null,
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "author": "Host",
+              "description": "Desc",
+              "explicit": true,
+              "feedUrl": "https://f.example/rss",
+              "genres": [
+                "g1",
+                "g2"
+              ],
+              "imageUrl": "https://f.example/i.png",
+              "itunesArtistId": null,
+              "itunesId": null,
+              "itunesPageUrl": null,
+              "language": "en",
+              "releaseDate": null,
+              "title": "Pod",
+              "type": "episodic"
+            },
+            "mediaPlayer": "html5",
+            "mediaType": "podcast",
+            "playMethod": 0,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 0,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "type": "user",
+          "username": "tester"
+        },
+        "to": "@admins"
+      },
+      {
+        "event": "user_item_progress_updated",
+        "payload": {
+          "data": {
+            "currentTime": 2,
+            "duration": 4,
+            "ebookLocation": null,
+            "ebookProgress": 0,
+            "episodeId": "episode-two",
+            "finishedAt": "\u003cT\u003e",
+            "hideFromContinueListening": false,
+            "id": "\u003cIDD\u003e",
+            "isFinished": false,
+            "lastUpdate": "\u003cT\u003e",
+            "libraryItemId": "item-one",
+            "mediaItemId": "episode-two",
+            "mediaItemType": "podcastEpisode",
+            "progress": 0.5,
+            "startedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "deviceDescription": "Linux  / Chrome",
+          "id": "\u003cIDD\u003e",
+          "sessionId": "\u003cIDA\u003e"
+        },
+        "to": "user-one"
+      },
+      {
+        "event": "user_item_progress_updated",
+        "payload": {
+          "data": {
+            "currentTime": 3,
+            "duration": 4,
+            "ebookLocation": null,
+            "ebookProgress": 0,
+            "episodeId": "episode-two",
+            "finishedAt": "\u003cT\u003e",
+            "hideFromContinueListening": false,
+            "id": "\u003cIDD\u003e",
+            "isFinished": true,
+            "lastUpdate": "\u003cT\u003e",
+            "libraryItemId": "item-one",
+            "mediaItemId": "episode-two",
+            "mediaItemType": "podcastEpisode",
+            "progress": 1,
+            "startedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "deviceDescription": "Linux  / Chrome",
+          "id": "\u003cIDD\u003e",
+          "sessionId": "\u003cIDA\u003e"
+        },
+        "to": "user-one"
+      },
+      {
+        "event": "user_session_closed",
+        "payload": "\u003cIDA\u003e",
+        "to": "user-one"
+      },
+      {
+        "event": "user_stream_update",
+        "payload": {
+          "createdAt": "\u003cT\u003e",
+          "id": "user-one",
+          "lastSeen": "\u003cT\u003e",
+          "session": {
+            "audioTracks": [
+              {
+                "codec": null,
+                "contentUrl": "/hls/\u003cIDC\u003e/output.m3u8",
+                "duration": 3,
+                "index": 1,
+                "metadata": null,
+                "mimeType": "application/vnd.apple.mpegurl",
+                "startOffset": 0,
+                "title": "Title episode-one"
+              }
+            ],
+            "bookId": null,
+            "chapters": [
+              {
+                "end": 1,
+                "id": 0,
+                "start": 0,
+                "title": "c"
+              }
+            ],
+            "coverPath": null,
+            "currentTime": 0,
+            "date": "\u003cT\u003e",
+            "dayOfWeek": "\u003cT\u003e",
+            "deviceInfo": {
+              "browserName": "Chrome",
+              "browserVersion": "120.0.0.0",
+              "clientName": "Abs Web",
+              "clientVersion": "2.37.2",
+              "deviceId": "web-1",
+              "deviceName": "Linux N/A Chrome",
+              "id": "\u003cIDB\u003e",
+              "ipAddress": "192.0.2.1",
+              "osName": "Linux",
+              "userId": "user-one"
+            },
+            "displayAuthor": "Host",
+            "displayTitle": "Title episode-one",
+            "duration": 3,
+            "episodeId": "episode-one",
+            "id": "\u003cIDC\u003e",
+            "libraryId": "library-one",
+            "libraryItem": null,
+            "libraryItemId": "item-one",
+            "mediaMetadata": {
+              "author": "Host",
+              "description": "Desc",
+              "explicit": true,
+              "feedUrl": "https://f.example/rss",
+              "genres": [
+                "g1",
+                "g2"
+              ],
+              "imageUrl": "https://f.example/i.png",
+              "itunesArtistId": null,
+              "itunesId": null,
+              "itunesPageUrl": null,
+              "language": "en",
+              "releaseDate": null,
+              "title": "Pod",
+              "type": "episodic"
+            },
+            "mediaPlayer": "unknown",
+            "mediaType": "podcast",
+            "playMethod": 2,
+            "serverVersion": "2.37.2",
+            "startTime": 0,
+            "startedAt": "\u003cT\u003e",
+            "timeListening": 0,
+            "updatedAt": "\u003cT\u003e",
+            "userId": "user-one"
+          },
+          "type": "user",
+          "username": "tester"
+        },
+        "to": "@admins"
+      },
+      {
+        "event": "user_session_closed",
+        "payload": "\u003cIDC\u003e",
+        "to": "user-one"
+      }
+    ],
+    "open": [],
+    "playEpisode": {
+      "body": {
+        "audioTracks": [
+          {
+            "bitRate": 64000,
+            "codec": "mp3",
+            "contentUrl": "/api/items/item-one/file/ep-episode-two",
+            "customKey": "kept",
+            "duration": 4,
+            "exclude": false,
+            "index": 1,
+            "ino": "ep-episode-two",
+            "metadata": {
+              "ext": ".mp3",
+              "filename": "episode-two.mp3",
+              "path": "\u003cMEDIA\u003e",
+              "size": 1000
+            },
+            "mimeType": "audio/mpeg",
+            "startOffset": 0,
+            "title": "episode-two.mp3"
+          }
+        ],
+        "bookId": null,
+        "chapters": [
+          {
+            "end": 1,
+            "id": 0,
+            "start": 0,
+            "title": "c"
+          }
+        ],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Web",
+          "clientVersion": "2.37.2",
+          "deviceId": "web-1",
+          "deviceName": "Linux N/A Chrome",
+          "id": "\u003cIDB\u003e",
+          "ipAddress": "192.0.2.1",
+          "osName": "Linux",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Host",
+        "displayTitle": "Title episode-two",
+        "duration": 4,
+        "episodeId": "episode-two",
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "autoDownloadEpisodes": false,
+            "autoDownloadSchedule": null,
+            "coverPath": null,
+            "episodes": [
+              {
+                "addedAt": 1767225600000,
+                "audioFile": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "customKey": "kept",
+                  "duration": 3,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-one",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-one.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  }
+                },
+                "audioTrack": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "contentUrl": "/api/items/item-one/file/ep-episode-one",
+                  "customKey": "kept",
+                  "duration": 3,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-one",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-one.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  },
+                  "startOffset": 0,
+                  "title": "episode-one.mp3"
+                },
+                "chapters": [
+                  {
+                    "end": 1,
+                    "id": 0,
+                    "start": 0,
+                    "title": "c"
+                  }
+                ],
+                "description": null,
+                "duration": 3,
+                "enclosure": null,
+                "episode": null,
+                "episodeType": null,
+                "guid": null,
+                "id": "episode-one",
+                "index": null,
+                "libraryItemId": "item-one",
+                "oldEpisodeId": null,
+                "podcastId": "podcast-one",
+                "pubDate": null,
+                "publishedAt": null,
+                "season": null,
+                "size": 1000,
+                "subtitle": null,
+                "title": "Title episode-one",
+                "updatedAt": "\u003cT\u003e"
+              },
+              {
+                "addedAt": 1767225600000,
+                "audioFile": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "customKey": "kept",
+                  "duration": 4,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-two",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-two.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  }
+                },
+                "audioTrack": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "contentUrl": "/api/items/item-one/file/ep-episode-two",
+                  "customKey": "kept",
+                  "duration": 4,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-two",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-two.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  },
+                  "startOffset": 0,
+                  "title": "episode-two.mp3"
+                },
+                "chapters": [
+                  {
+                    "end": 1,
+                    "id": 0,
+                    "start": 0,
+                    "title": "c"
+                  }
+                ],
+                "description": null,
+                "duration": 4,
+                "enclosure": null,
+                "episode": null,
+                "episodeType": null,
+                "guid": null,
+                "id": "episode-two",
+                "index": null,
+                "libraryItemId": "item-one",
+                "oldEpisodeId": null,
+                "podcastId": "podcast-one",
+                "pubDate": null,
+                "publishedAt": null,
+                "season": null,
+                "size": 1000,
+                "subtitle": null,
+                "title": "Title episode-two",
+                "updatedAt": "\u003cT\u003e"
+              }
+            ],
+            "id": "podcast-one",
+            "lastEpisodeCheck": null,
+            "libraryItemId": "item-one",
+            "maxEpisodesToKeep": 0,
+            "maxNewEpisodesToDownload": 3,
+            "metadata": {
+              "author": "Host",
+              "description": "Desc",
+              "explicit": true,
+              "feedUrl": "https://f.example/rss",
+              "genres": [
+                "g1",
+                "g2"
+              ],
+              "imageUrl": "https://f.example/i.png",
+              "itunesArtistId": null,
+              "itunesId": null,
+              "itunesPageUrl": null,
+              "language": "en",
+              "releaseDate": null,
+              "title": "Pod",
+              "titleIgnorePrefix": "Pod",
+              "type": "episodic"
+            },
+            "numEpisodes": 2,
+            "size": 2000,
+            "tags": [
+              "t"
+            ]
+          },
+          "mediaType": "podcast",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "author": "Host",
+          "description": "Desc",
+          "explicit": true,
+          "feedUrl": "https://f.example/rss",
+          "genres": [
+            "g1",
+            "g2"
+          ],
+          "imageUrl": "https://f.example/i.png",
+          "itunesArtistId": null,
+          "itunesId": null,
+          "itunesPageUrl": null,
+          "language": "en",
+          "releaseDate": null,
+          "title": "Pod",
+          "type": "episodic"
+        },
+        "mediaPlayer": "html5",
+        "mediaType": "podcast",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "playEpisodeHLS": {
+      "body": {
+        "audioTracks": [
+          {
+            "codec": null,
+            "contentUrl": "/hls/\u003cIDC\u003e/output.m3u8",
+            "duration": 3,
+            "index": 1,
+            "metadata": null,
+            "mimeType": "application/vnd.apple.mpegurl",
+            "startOffset": 0,
+            "title": "Title episode-one"
+          }
+        ],
+        "bookId": null,
+        "chapters": [
+          {
+            "end": 1,
+            "id": 0,
+            "start": 0,
+            "title": "c"
+          }
+        ],
+        "coverPath": null,
+        "currentTime": 0,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceInfo": {
+          "browserName": "Chrome",
+          "browserVersion": "120.0.0.0",
+          "clientName": "Abs Web",
+          "clientVersion": "2.37.2",
+          "deviceId": "web-1",
+          "deviceName": "Linux N/A Chrome",
+          "id": "\u003cIDB\u003e",
+          "ipAddress": "192.0.2.1",
+          "osName": "Linux",
+          "userId": "user-one"
+        },
+        "displayAuthor": "Host",
+        "displayTitle": "Title episode-one",
+        "duration": 3,
+        "episodeId": "episode-one",
+        "id": "\u003cIDC\u003e",
+        "libraryId": "library-one",
+        "libraryItem": {
+          "addedAt": 1767225600000,
+          "birthtimeMs": 1767225600000,
+          "ctimeMs": 1767225600000,
+          "folderId": "folder-one",
+          "id": "item-one",
+          "ino": "item-ino",
+          "isFile": false,
+          "isInvalid": false,
+          "isMissing": false,
+          "lastScan": null,
+          "libraryFiles": [],
+          "libraryId": "library-one",
+          "media": {
+            "autoDownloadEpisodes": false,
+            "autoDownloadSchedule": null,
+            "coverPath": null,
+            "episodes": [
+              {
+                "addedAt": 1767225600000,
+                "audioFile": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "customKey": "kept",
+                  "duration": 3,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-one",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-one.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  }
+                },
+                "audioTrack": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "contentUrl": "/api/items/item-one/file/ep-episode-one",
+                  "customKey": "kept",
+                  "duration": 3,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-one",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-one.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  },
+                  "startOffset": 0,
+                  "title": "episode-one.mp3"
+                },
+                "chapters": [
+                  {
+                    "end": 1,
+                    "id": 0,
+                    "start": 0,
+                    "title": "c"
+                  }
+                ],
+                "description": null,
+                "duration": 3,
+                "enclosure": null,
+                "episode": null,
+                "episodeType": null,
+                "guid": null,
+                "id": "episode-one",
+                "index": null,
+                "libraryItemId": "item-one",
+                "oldEpisodeId": null,
+                "podcastId": "podcast-one",
+                "pubDate": null,
+                "publishedAt": null,
+                "season": null,
+                "size": 1000,
+                "subtitle": null,
+                "title": "Title episode-one",
+                "updatedAt": "\u003cT\u003e"
+              },
+              {
+                "addedAt": 1767225600000,
+                "audioFile": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "customKey": "kept",
+                  "duration": 4,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-two",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-two.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  }
+                },
+                "audioTrack": {
+                  "bitRate": 64000,
+                  "codec": "mp3",
+                  "contentUrl": "/api/items/item-one/file/ep-episode-two",
+                  "customKey": "kept",
+                  "duration": 4,
+                  "exclude": false,
+                  "index": 1,
+                  "ino": "ep-episode-two",
+                  "metadata": {
+                    "ext": ".mp3",
+                    "filename": "episode-two.mp3",
+                    "path": "\u003cMEDIA\u003e",
+                    "size": 1000
+                  },
+                  "startOffset": 0,
+                  "title": "episode-two.mp3"
+                },
+                "chapters": [
+                  {
+                    "end": 1,
+                    "id": 0,
+                    "start": 0,
+                    "title": "c"
+                  }
+                ],
+                "description": null,
+                "duration": 4,
+                "enclosure": null,
+                "episode": null,
+                "episodeType": null,
+                "guid": null,
+                "id": "episode-two",
+                "index": null,
+                "libraryItemId": "item-one",
+                "oldEpisodeId": null,
+                "podcastId": "podcast-one",
+                "pubDate": null,
+                "publishedAt": null,
+                "season": null,
+                "size": 1000,
+                "subtitle": null,
+                "title": "Title episode-two",
+                "updatedAt": "\u003cT\u003e"
+              }
+            ],
+            "id": "podcast-one",
+            "lastEpisodeCheck": null,
+            "libraryItemId": "item-one",
+            "maxEpisodesToKeep": 0,
+            "maxNewEpisodesToDownload": 3,
+            "metadata": {
+              "author": "Host",
+              "description": "Desc",
+              "explicit": true,
+              "feedUrl": "https://f.example/rss",
+              "genres": [
+                "g1",
+                "g2"
+              ],
+              "imageUrl": "https://f.example/i.png",
+              "itunesArtistId": null,
+              "itunesId": null,
+              "itunesPageUrl": null,
+              "language": "en",
+              "releaseDate": null,
+              "title": "Pod",
+              "titleIgnorePrefix": "Pod",
+              "type": "episodic"
+            },
+            "numEpisodes": 2,
+            "size": 2000,
+            "tags": [
+              "t"
+            ]
+          },
+          "mediaType": "podcast",
+          "mtimeMs": 1767225600000,
+          "numFiles": 0,
+          "oldLibraryItemId": null,
+          "path": "\u003cMEDIA\u003e",
+          "relPath": "test.wav",
+          "scanVersion": null,
+          "size": 441044,
+          "updatedAt": "\u003cT\u003e"
+        },
+        "libraryItemId": "item-one",
+        "mediaMetadata": {
+          "author": "Host",
+          "description": "Desc",
+          "explicit": true,
+          "feedUrl": "https://f.example/rss",
+          "genres": [
+            "g1",
+            "g2"
+          ],
+          "imageUrl": "https://f.example/i.png",
+          "itunesArtistId": null,
+          "itunesId": null,
+          "itunesPageUrl": null,
+          "language": "en",
+          "releaseDate": null,
+          "title": "Pod",
+          "type": "episodic"
+        },
+        "mediaPlayer": "unknown",
+        "mediaType": "podcast",
+        "playMethod": 2,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "startedAt": "\u003cT\u003e",
+        "timeListening": 0,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      "status": 200
+    },
+    "playMissingEpisode": {
+      "body": "Not Found",
+      "status": 404
+    },
+    "rows": [
+      {
+        "coverPath": null,
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 3,
+        "date": "\u003cT\u003e",
+        "dayOfWeek": "\u003cT\u003e",
+        "deviceId": "\u003cIDB\u003e",
+        "displayAuthor": "Host",
+        "displayTitle": "Title episode-two",
+        "duration": 4,
+        "extraData": {
+          "libraryItemId": "item-one"
+        },
+        "id": "\u003cIDA\u003e",
+        "libraryId": "library-one",
+        "mediaItemId": "episode-two",
+        "mediaItemType": "podcastEpisode",
+        "mediaMetadata": {
+          "author": "Host",
+          "description": "Desc",
+          "explicit": true,
+          "feedUrl": "https://f.example/rss",
+          "genres": [
+            "g1",
+            "g2"
+          ],
+          "imageUrl": "https://f.example/i.png",
+          "itunesArtistId": null,
+          "itunesId": null,
+          "itunesPageUrl": null,
+          "language": "en",
+          "releaseDate": null,
+          "title": "Pod",
+          "type": "episodic"
+        },
+        "mediaPlayer": "html5",
+        "playMethod": 0,
+        "serverVersion": "2.37.2",
+        "startTime": 0,
+        "timeListening": 3,
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "clientName": "Abs Web",
+        "clientVersion": "2.37.2",
+        "createdAt": "\u003cT\u003e",
+        "deviceId": "web-1",
+        "deviceName": "Linux N/A Chrome",
+        "deviceVersion": "120.0.0.0",
+        "extraData": {
+          "browserName": "Chrome",
+          "osName": "Linux"
+        },
+        "id": "\u003cIDB\u003e",
+        "ipAddress": "192.0.2.1",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      },
+      {
+        "createdAt": "\u003cT\u003e",
+        "currentTime": 3,
+        "duration": 4,
+        "ebookLocation": null,
+        "ebookProgress": 0,
+        "extraData": {
+          "libraryItemId": "item-one",
+          "progress": 1
+        },
+        "finishedAt": "\u003cT\u003e",
+        "hideFromContinueListening": 0,
+        "id": "\u003cIDD\u003e",
+        "isFinished": 1,
+        "mediaItemId": "episode-two",
+        "mediaItemType": "podcastEpisode",
+        "podcastId": "podcast-one",
+        "updatedAt": "\u003cT\u003e",
+        "userId": "user-one"
+      }
+    ],
+    "syncEpisode": {
+      "body": "OK",
+      "status": 200
+    }
+  }
+}

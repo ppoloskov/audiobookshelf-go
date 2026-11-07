@@ -2,10 +2,10 @@
   "episodes": [
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
-      "description": "\u003cp\u003eEscaped \u003ca href=\"https://example.org/x\"\u003emarkup\u003c/a\u003e and .\u003c/p\u003e",
+      "description": "<p>Escaped <a href=\"https://example.org/x\">markup</a> and .</p>",
       "descriptionPlain": "Escaped markup and .",
       "duration": "45:30",
       "durationSeconds": 2730,
@@ -26,7 +26,7 @@
     },
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
       "description": "Six, with a trailing newline.",
@@ -54,8 +54,8 @@
     "categories": [
       "Arts:Performing Arts"
     ],
-    "description": "\u003cp\u003eLate-night stories, read slowly \u0026amp; warmly.\u003c/p\u003e",
-    "descriptionPlain": "Late-night stories, read slowly \u0026 warmly.",
+    "description": "<p>Late-night stories, read slowly &amp; warmly.</p>",
+    "descriptionPlain": "Late-night stories, read slowly & warmly.",
     "explicit": "false",
     "feedUrl": "https://feeds.nightshift.example/new.xml",
     "image": "https://nightshift.example/rss-art.png",

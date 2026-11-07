@@ -29,7 +29,7 @@ func TestDownloadCompletionStatusPollingIsSynchronized(t *testing.T) {
 	h.client = &http.Client{Transport: rt}
 	d := &downloadTask{
 		id: "download", item: libitem.Item{ID: "item", Path: t.TempDir(), Podcast: &libitem.Podcast{}},
-		episode: map[string]any{"title": "Episode"}, url: "http://fixture.test/episode.mp3",
+		episode: Episode{Title: "Episode"}, url: "http://fixture.test/episode.mp3",
 		createdAt: 1,
 	}
 	h.queueMu.Lock()

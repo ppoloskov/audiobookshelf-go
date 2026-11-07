@@ -2,11 +2,11 @@
   "episodes": [
     {
       "author": "Ada Quill",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
-      "description": "\u003cp\u003eFull notes: \u003cstrong\u003ewind\u003c/strong\u003e, salt, \u0026amp; gulls.\u003c/p\u003e\u003cp\u003e\u003c/p\u003e",
-      "descriptionPlain": "Full notes: wind, salt, \u0026 gulls.",
+      "description": "<p>Full notes: <strong>wind</strong>, salt, &amp; gulls.</p><p></p>",
+      "descriptionPlain": "Full notes: wind, salt, & gulls.",
       "duration": "1:02:03",
       "durationSeconds": 3723,
       "enclosure": {
@@ -26,11 +26,11 @@
     },
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
-      "description": "Plain text description with an \u0026amp; and a \u0026#34;quote\u0026#34;.",
-      "descriptionPlain": "Plain text description with an \u0026 and a \"quote\".",
+      "description": "Plain text description with an &amp; and a &#34;quote&#34;.",
+      "descriptionPlain": "Plain text description with an & and a \"quote\".",
       "duration": "3600",
       "durationSeconds": 3600,
       "enclosure": {
@@ -52,10 +52,10 @@
   "metadata": {
     "author": "Field Notes Team",
     "categories": [
-      "Society \u0026 Culture:Philosophy",
+      "Society & Culture:Philosophy",
       "Arts"
     ],
-    "description": "\u003cp\u003eStories from \u003cb\u003equiet\u003c/b\u003e places.\u003c/p\u003e\u003cp\u003eNew episodes Tuesdays.\u003c/p\u003e",
+    "description": "<p>Stories from <b>quiet</b> places.</p><p>New episodes Tuesdays.</p>",
     "descriptionPlain": "Stories from quiet places.New episodes Tuesdays.",
     "explicit": "no",
     "feedUrl": "https://feeds.example/feed.xml",
@@ -63,7 +63,7 @@
     "language": "en-us",
     "link": "https://megaphone.example/fieldnotes",
     "pubDate": "",
-    "title": "Field Notes \u0026 Quiet Rooms",
+    "title": "Field Notes & Quiet Rooms",
     "type": "episodic"
   }
 }

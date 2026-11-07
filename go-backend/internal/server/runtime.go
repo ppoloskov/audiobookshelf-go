@@ -428,7 +428,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database not ready", 503)
 		return
 	}
-	settings := stored.Doc
+	settings := stored.Doc()
 	methods, ok := settings["authActiveAuthMethods"].([]any)
 	if !ok {
 		methods = []any{"local"}
@@ -462,7 +462,7 @@ func (rt *Runtime) settingsAllowIframe() bool {
 	if err != nil {
 		return false
 	}
-	return settings.Doc["allowIframe"] == true || os.Getenv("ALLOW_IFRAME") == "1"
+	return settings.Doc()["allowIframe"] == true || os.Getenv("ALLOW_IFRAME") == "1"
 }
 
 func isPublicCover(path string) bool {

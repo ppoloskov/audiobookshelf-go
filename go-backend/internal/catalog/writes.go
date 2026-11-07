@@ -590,7 +590,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(500, validationError)
 	}
 	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
-	if storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc["storeCoverWithItem"].(bool); storeWithItem && isFile == 0 {
+	if storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc()["storeCoverWithItem"].(bool); storeWithItem && isFile == 0 {
 		coverDir = itemPath
 	}
 	coverPath := body.Cover

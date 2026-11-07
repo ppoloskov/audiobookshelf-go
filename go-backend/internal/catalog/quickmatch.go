@@ -209,7 +209,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 	if err != nil {
 		return wire.QuickMatchResult{}, err
 	}
-	settings := serversettings.Load(ctx, h.db).Doc
+	settings := serversettings.Load(ctx, h.db).Doc()
 	provider := options.provider
 	if provider == "" {
 		provider = "google"

@@ -15,7 +15,6 @@ import (
 	"audiobookshelf-compat/internal/textdist"
 	"audiobookshelf-compat/internal/wire"
 
-	"audiobookshelf-compat/internal/textclean"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -111,34 +110,25 @@ func (h *Handler) runBookSearch(ctx context.Context, title, author, provider, as
 	if strings.Contains(provider, ".") {
 		region = provider[strings.LastIndex(provider, ".")+1:]
 	}
-	var books []wire.BookMatch
+	var results []bookMatch
+	var err error
 	switch {
 	case provider == "openlibrary":
-		results, err := h.searchOpenLibrary(ctx, title, author)
-		if err != nil {
-			return nil
-		}
-		books = filterSearchResults(convertJSON[wire.BookMatch](results), title, author, maxTitleDistance, maxAuthorDistance)
+		results, err = h.searchOpenLibrary(ctx, title, author)
 	case strings.HasPrefix(provider, "audible"):
-		results, err := h.searchAudible(ctx, provider, title, author, asin, region)
-		if err != nil {
-			return nil
-		}
-		books = convertJSON[wire.BookMatch](results)
+		results, err = h.searchAudible(ctx, provider, title, author, asin, region)
 	default:
-		results, err := h.searchBuiltinBooks(ctx, provider, title, author, asin, "")
-		if err != nil {
-			return nil
-		}
-		books = convertJSON[wire.BookMatch](results)
+		results, err = h.searchBuiltinBooks(ctx, provider, title, author, asin, "")
 	}
-	for i := range books {
-		var description string
-		if json.Unmarshal(books[i].Description, &description) == nil && description != "" {
-			sanitized := textclean.Sanitize(description)
-			books[i].Description, _ = json.Marshal(sanitized)
-			books[i].DescriptionPlain, _ = json.Marshal(textclean.Strip(sanitized))
-		}
+	if err != nil {
+		return nil
+	}
+	for i := range results {
+		results[i].sanitize()
+	}
+	books := convertJSON[wire.BookMatch](results)
+	if provider == "openlibrary" {
+		books = filterSearchResults(books, title, author, maxTitleDistance, maxAuthorDistance)
 	}
 	return books
 }

@@ -1,0 +1,758 @@
+{
+  "authors": {
+    "body": {
+      "asin": "B0AUTHOR01",
+      "description": "Bio",
+      "image": "https://img.test/jane.jpg",
+      "name": "Jane Doe"
+    },
+    "status": 200
+  },
+  "authors/none": {
+    "body": null,
+    "status": 200
+  },
+  "books/audible": {
+    "body": [
+      {
+        "abridged": true,
+        "asin": "B000000001",
+        "author": "Auth A, Auth B",
+        "cover": "https://img.test/a.jpg",
+        "description": "\u003cp\u003eSum\u003c/p\u003e",
+        "descriptionPlain": "Sum",
+        "duration": 125,
+        "explicit": true,
+        "genres": [
+          "Mystery"
+        ],
+        "isbn": "9781",
+        "language": "English",
+        "narrator": "Nar",
+        "publishedYear": "2022",
+        "publisher": "PubCo",
+        "rating": "4.5",
+        "region": "us",
+        "series": [
+          {
+            "sequence": "1.5",
+            "series": "Saga"
+          },
+          {
+            "series": "Other"
+          }
+        ],
+        "subtitle": "Sub",
+        "tags": [
+          "Classic"
+        ],
+        "title": "Audible One"
+      },
+      {
+        "abridged": false,
+        "asin": "B000000002",
+        "duration": 30.5,
+        "explicit": false,
+        "rating": "uk",
+        "region": "uk",
+        "title": "Audible Two"
+      }
+    ],
+    "status": 200
+  },
+  "books/audible-asin": {
+    "body": [
+      {
+        "abridged": false,
+        "asin": "B000000002",
+        "duration": 30.5,
+        "explicit": false,
+        "rating": "uk",
+        "region": "uk",
+        "title": "Audible Two"
+      }
+    ],
+    "status": 200
+  },
+  "books/audible-title-asin": {
+    "body": [
+      {
+        "abridged": true,
+        "asin": "B000000001",
+        "author": "Auth A, Auth B",
+        "cover": "https://img.test/a.jpg",
+        "description": "\u003cp\u003eSum\u003c/p\u003e",
+        "descriptionPlain": "Sum",
+        "duration": 125,
+        "explicit": true,
+        "genres": [
+          "Mystery"
+        ],
+        "isbn": "9781",
+        "language": "English",
+        "narrator": "Nar",
+        "publishedYear": "2022",
+        "publisher": "PubCo",
+        "rating": "4.5",
+        "region": "us",
+        "series": [
+          {
+            "sequence": "1.5",
+            "series": "Saga"
+          },
+          {
+            "series": "Other"
+          }
+        ],
+        "subtitle": "Sub",
+        "tags": [
+          "Classic"
+        ],
+        "title": "Audible One"
+      }
+    ],
+    "status": 200
+  },
+  "books/audible.uk": {
+    "body": [
+      {
+        "abridged": true,
+        "asin": "B000000001",
+        "author": "Auth A, Auth B",
+        "cover": "https://img.test/a.jpg",
+        "description": "\u003cp\u003eSum\u003c/p\u003e",
+        "descriptionPlain": "Sum",
+        "duration": 125,
+        "explicit": true,
+        "genres": [
+          "Mystery"
+        ],
+        "isbn": "9781",
+        "language": "English",
+        "narrator": "Nar",
+        "publishedYear": "2022",
+        "publisher": "PubCo",
+        "rating": "4.5",
+        "region": "us",
+        "series": [
+          {
+            "sequence": "1.5",
+            "series": "Saga"
+          },
+          {
+            "series": "Other"
+          }
+        ],
+        "subtitle": "Sub",
+        "tags": [
+          "Classic"
+        ],
+        "title": "Audible One"
+      },
+      {
+        "abridged": false,
+        "asin": "B000000002",
+        "duration": 30.5,
+        "explicit": false,
+        "rating": "uk",
+        "region": "uk",
+        "title": "Audible Two"
+      }
+    ],
+    "status": 200
+  },
+  "books/audiobookcovers": {
+    "body": [
+      {
+        "cover": "https://c.test/1.png"
+      },
+      {
+        "cover": "https://c.test/2.png"
+      }
+    ],
+    "status": 200
+  },
+  "books/custom-c1": {
+    "body": [
+      {
+        "asin": "B,C",
+        "author": "A,B",
+        "cover": "https://img.test/cover.jpg",
+        "description": "\u003cp\u003eSafe \u003ca\u003elink\u003c/a\u003e\u003c/p\u003e",
+        "descriptionPlain": "Safe link",
+        "duration": 12.5,
+        "genres": [
+          "Mystery",
+          "Thriller"
+        ],
+        "isbn": "123",
+        "language": "en",
+        "narrator": "N",
+        "publishedYear": "2001",
+        "publisher": "7",
+        "series": [
+          {
+            "sequence": "2",
+            "series": "Saga"
+          },
+          {
+            "sequence": "3",
+            "series": "Other"
+          }
+        ],
+        "tags": [
+          "Classic"
+        ],
+        "title": "42"
+      },
+      {
+        "title": "Second"
+      },
+      {
+        "duration": 7,
+        "title": "Third"
+      }
+    ],
+    "status": 200
+  },
+  "books/empty-title": {
+    "body": [],
+    "status": 200
+  },
+  "books/fantlab": {
+    "body": [
+      {
+        "author": "Writer One, Writer Two",
+        "cover": "https://fantlab.ru/img/e.jpg",
+        "description": "Fant desc",
+        "descriptionPlain": "Fant desc",
+        "genres": [
+          "Fantasy",
+          "Epic",
+          "Heroic"
+        ],
+        "id": 12,
+        "isbn": "978-5",
+        "publishedYear": 2021,
+        "subtitle": "Alt A",
+        "title": "Fant Title"
+      },
+      {
+        "id": 13,
+        "publishedYear": "2005",
+        "title": "Second Fant"
+      }
+    ],
+    "status": 200
+  },
+  "books/google": {
+    "body": [
+      {
+        "author": "A One, B Two",
+        "cover": "https://i.test/l.jpg",
+        "description": "\u003cb\u003eDesc\u003c/b\u003e text",
+        "descriptionPlain": "Desc text",
+        "genres": [
+          "Fiction",
+          "Fantasy"
+        ],
+        "id": "g1",
+        "isbn": "9780000000001",
+        "publishedYear": "2020",
+        "publisher": "Pub",
+        "subtitle": "Sub",
+        "title": "Full Book"
+      },
+      {
+        "cover": "https://i.test/z.jpg",
+        "id": "g2",
+        "isbn": "0000000002",
+        "title": "Sparse"
+      }
+    ],
+    "status": 200
+  },
+  "books/itunes": {
+    "body": [
+      {
+        "artistId": 222,
+        "author": "X, Y",
+        "cover": "https://a.test/600x600bb.jpg",
+        "description": "\u003cp\u003eHello\u003c/p\u003e",
+        "descriptionPlain": "Hello",
+        "genres": [
+          "Mystery"
+        ],
+        "id": 111,
+        "publishedYear": "2019",
+        "title": "iTunes Book"
+      },
+      {
+        "author": "Solo",
+        "cover": "https://a.test/600.jpg",
+        "id": 112,
+        "title": "Plain"
+      }
+    ],
+    "status": 200
+  },
+  "books/openlibrary": {
+    "body": [
+      {
+        "author": "Tolkien, Other",
+        "cover": "https://covers.openlibrary.org/b/OLID/OL1M-L.jpg",
+        "covers": [
+          "https://covers.openlibrary.org/b/id/12-L.jpg",
+          "https://covers.openlibrary.org/b/id/34-L.jpg"
+        ],
+        "description": "Obj \u003cb\u003edesc\u003c/b\u003e",
+        "descriptionPlain": "Obj desc",
+        "edition": "OL1M",
+        "first_publish_date": "1937-09-21",
+        "id": "OL1W",
+        "key": "/works/OL1W",
+        "publishedYear": "1937",
+        "title": "The Hobbit"
+      },
+      {
+        "description": "Plain desc",
+        "descriptionPlain": "Plain desc",
+        "first_publish_date": "1999-01",
+        "id": "OL2W",
+        "key": "/works/OL2W",
+        "publishedYear": "1999",
+        "title": "Second"
+      }
+    ],
+    "status": 200
+  },
+  "chapters": {
+    "body": {
+      "asin": "B000000009",
+      "chapters": [
+        {
+          "lengthMs": 1000,
+          "startOffsetMs": 0,
+          "title": "One"
+        }
+      ]
+    },
+    "status": 200
+  },
+  "chapters/invalid": {
+    "body": {
+      "error": "Invalid ASIN",
+      "stringKey": "MessageInvalidAsin"
+    },
+    "status": 200
+  },
+  "covers/best": {
+    "body": {
+      "results": [
+        "https://i.test/l.jpg",
+        "https://i.test/z.jpg",
+        "https://a.test/600x600bb.jpg",
+        "https://a.test/600.jpg",
+        "https://covers.openlibrary.org/b/id/12-L.jpg",
+        "https://covers.openlibrary.org/b/id/34-L.jpg",
+        "https://covers.openlibrary.org/b/OLID/OL1M-L.jpg",
+        "https://fantlab.ru/img/e.jpg",
+        "https://c.test/1.png",
+        "https://c.test/2.png",
+        "https://img.test/a.jpg"
+      ]
+    },
+    "status": 200
+  },
+  "covers/custom": {
+    "body": {
+      "results": [
+        "https://img.test/cover.jpg"
+      ]
+    },
+    "status": 200
+  },
+  "covers/podcast": {
+    "body": {
+      "results": [
+        "https://a.test/p600.jpg",
+        "https://a.test/600x600bb.jpg"
+      ]
+    },
+    "status": 200
+  },
+  "finder": {
+    "audible": [
+      {
+        "abridged": false,
+        "asin": "B000000002",
+        "author": null,
+        "cover": null,
+        "description": null,
+        "descriptionPlain": null,
+        "duration": 30.5,
+        "explicit": false,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": null,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Audible Two"
+      },
+      {
+        "abridged": true,
+        "asin": "B000000001",
+        "author": "Auth A, Auth B",
+        "cover": "https://img.test/a.jpg",
+        "description": "\u003cp\u003eSum\u003c/p\u003e",
+        "descriptionPlain": "Sum",
+        "duration": 125,
+        "explicit": true,
+        "genres": [
+          "Mystery"
+        ],
+        "isbn": "9781",
+        "language": "English",
+        "narrator": "Nar",
+        "publishedYear": "2022",
+        "publisher": "PubCo",
+        "sequence": null,
+        "series": [
+          {
+            "sequence": "1.5",
+            "series": "Saga"
+          },
+          {
+            "series": "Other"
+          }
+        ],
+        "subtitle": "Sub",
+        "tags": [
+          "Classic"
+        ],
+        "title": "Audible One"
+      }
+    ],
+    "authorByName": {
+      "asin": "B0AUTHOR01",
+      "description": "Bio",
+      "image": "https://img.test/jane.jpg",
+      "name": "Jane Doe"
+    },
+    "custom": [
+      {
+        "abridged": null,
+        "asin": "B,C",
+        "author": "A,B",
+        "cover": "https://img.test/cover.jpg",
+        "description": "\u003cp\u003eSafe \u003ca\u003elink\u003c/a\u003e\u003c/p\u003e",
+        "descriptionPlain": null,
+        "duration": 12.5,
+        "explicit": null,
+        "genres": [
+          "Mystery",
+          "Thriller"
+        ],
+        "isbn": "123",
+        "language": "en",
+        "narrator": "N",
+        "publishedYear": "2001",
+        "publisher": "7",
+        "sequence": null,
+        "series": [
+          {
+            "sequence": "2",
+            "series": "Saga"
+          },
+          {
+            "sequence": "3",
+            "series": "Other"
+          }
+        ],
+        "subtitle": null,
+        "tags": [
+          "Classic"
+        ],
+        "title": "42"
+      },
+      {
+        "abridged": null,
+        "asin": null,
+        "author": null,
+        "cover": null,
+        "description": null,
+        "descriptionPlain": null,
+        "duration": null,
+        "explicit": null,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": null,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Second"
+      },
+      {
+        "abridged": null,
+        "asin": null,
+        "author": null,
+        "cover": null,
+        "description": null,
+        "descriptionPlain": null,
+        "duration": 7,
+        "explicit": null,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": null,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Third"
+      }
+    ],
+    "fantlab": [
+      {
+        "abridged": null,
+        "asin": null,
+        "author": "Writer One, Writer Two",
+        "cover": "https://fantlab.ru/img/e.jpg",
+        "description": "Fant desc",
+        "descriptionPlain": "Fant desc",
+        "duration": null,
+        "explicit": null,
+        "genres": [
+          "Fantasy",
+          "Epic",
+          "Heroic"
+        ],
+        "isbn": "978-5",
+        "language": null,
+        "narrator": null,
+        "publishedYear": 2021,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": "Alt A",
+        "tags": null,
+        "title": "Fant Title"
+      },
+      {
+        "abridged": null,
+        "asin": null,
+        "author": null,
+        "cover": null,
+        "description": null,
+        "descriptionPlain": null,
+        "duration": null,
+        "explicit": null,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": "2005",
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Second Fant"
+      }
+    ],
+    "google": [
+      {
+        "abridged": null,
+        "asin": null,
+        "author": "A One, B Two",
+        "cover": "https://i.test/l.jpg",
+        "description": "\u003cb\u003eDesc\u003c/b\u003e text",
+        "descriptionPlain": "Desc text",
+        "duration": null,
+        "explicit": null,
+        "genres": [
+          "Fiction",
+          "Fantasy"
+        ],
+        "isbn": "9780000000001",
+        "language": null,
+        "narrator": null,
+        "publishedYear": "2020",
+        "publisher": "Pub",
+        "sequence": null,
+        "series": null,
+        "subtitle": "Sub",
+        "tags": null,
+        "title": "Full Book"
+      },
+      {
+        "abridged": null,
+        "asin": null,
+        "author": null,
+        "cover": "https://i.test/z.jpg",
+        "description": null,
+        "descriptionPlain": null,
+        "duration": null,
+        "explicit": null,
+        "genres": null,
+        "isbn": "0000000002",
+        "language": null,
+        "narrator": null,
+        "publishedYear": null,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Sparse"
+      }
+    ],
+    "itunes": [
+      {
+        "abridged": null,
+        "asin": null,
+        "author": "X, Y",
+        "cover": "https://a.test/600x600bb.jpg",
+        "description": "\u003cp\u003eHello\u003c/p\u003e",
+        "descriptionPlain": "Hello",
+        "duration": null,
+        "explicit": null,
+        "genres": [
+          "Mystery"
+        ],
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": "2019",
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "iTunes Book"
+      },
+      {
+        "abridged": null,
+        "asin": null,
+        "author": "Solo",
+        "cover": "https://a.test/600.jpg",
+        "description": null,
+        "descriptionPlain": null,
+        "duration": null,
+        "explicit": null,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": null,
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "Plain"
+      }
+    ],
+    "openlibrary": [
+      {
+        "abridged": null,
+        "asin": null,
+        "author": "Tolkien, Other",
+        "cover": "https://covers.openlibrary.org/b/OLID/OL1M-L.jpg",
+        "description": "Obj \u003cb\u003edesc\u003c/b\u003e",
+        "descriptionPlain": "Obj desc",
+        "duration": null,
+        "explicit": null,
+        "genres": null,
+        "isbn": null,
+        "language": null,
+        "narrator": null,
+        "publishedYear": "1937",
+        "publisher": null,
+        "sequence": null,
+        "series": null,
+        "subtitle": null,
+        "tags": null,
+        "title": "The Hobbit"
+      }
+    ],
+    "podcasts": [
+      {
+        "artistId": 6,
+        "artistName": "Host",
+        "cover": "https://a.test/p600.jpg",
+        "descriptionPlain": "About it",
+        "feedUrl": "https://feed.test/rss",
+        "genres": [
+          "Tech",
+          "News"
+        ],
+        "id": 5,
+        "pageUrl": "https://pod.test/5",
+        "releaseDate": "2021-01-02T00:00:00Z",
+        "title": "Pod"
+      },
+      {
+        "artistId": null,
+        "artistName": null,
+        "cover": "https://a.test/600x600bb.jpg",
+        "descriptionPlain": "",
+        "feedUrl": null,
+        "genres": [],
+        "id": 7,
+        "pageUrl": null,
+        "releaseDate": null,
+        "title": "Bare"
+      }
+    ]
+  },
+  "podcast": {
+    "body": [
+      {
+        "artistId": 6,
+        "artistName": "Host",
+        "cover": "https://a.test/p600.jpg",
+        "description": "\u003ci\u003eAbout\u003c/i\u003e it",
+        "descriptionPlain": "About it",
+        "explicit": true,
+        "feedUrl": "https://feed.test/rss",
+        "genres": [
+          "Tech",
+          "News"
+        ],
+        "id": 5,
+        "pageUrl": "https://pod.test/5",
+        "releaseDate": "2021-01-02T00:00:00Z",
+        "title": "Pod",
+        "trackCount": 42
+      },
+      {
+        "artistId": null,
+        "artistName": null,
+        "cover": "https://a.test/600x600bb.jpg",
+        "description": "",
+        "descriptionPlain": "",
+        "explicit": false,
+        "feedUrl": null,
+        "genres": [],
+        "id": 7,
+        "pageUrl": null,
+        "releaseDate": null,
+        "title": "Bare",
+        "trackCount": null
+      }
+    ],
+    "status": 200
+  }
+}

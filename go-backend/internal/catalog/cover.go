@@ -387,7 +387,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Status(http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
 		}
 	}
-	storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc["storeCoverWithItem"].(bool)
+	storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc()["storeCoverWithItem"].(bool)
 	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
 	if storeWithItem && isFile == 0 {
 		coverDir = itemPath

@@ -233,15 +233,15 @@ func TestBuiltinProvidersUseInjectableHTTPAndSourceTransforms(t *testing.T) {
 	h.SetEndpoint("audible", server.URL+"/1.0/catalog/products")
 	h.SetEndpoint("audnexus", server.URL)
 	google, err := h.searchBuiltinBooks(context.Background(), "google", "Title", "Writer", "", "")
-	if err != nil || len(google) != 1 || google[0]["publishedYear"] != "2020" || google[0]["isbn"] != "9780000000001" || google[0]["cover"] != "https://image.test/book.jpg" {
+	if err != nil || len(google) != 1 || google[0].PublishedYear.v != "2020" || google[0].ISBN != "9780000000001" || google[0].Cover != "https://image.test/book.jpg" {
 		t.Fatalf("Google result=%v err=%v", google, err)
 	}
 	fantlab, err := h.searchBuiltinBooks(context.Background(), "fantlab", "Title", "Writer", "", "")
-	if err != nil || len(fantlab) != 1 || fantlab[0]["author"] != "Writer" || len(fantlab[0]["genres"].([]string)) != 2 {
+	if err != nil || len(fantlab) != 1 || fantlab[0].Author != "Writer" || len(fantlab[0].Genres) != 2 {
 		t.Fatalf("FantLab result=%v err=%v", fantlab, err)
 	}
 	audible, err := h.searchBuiltinBooks(context.Background(), "audible", "Title", "Writer", "", "")
-	if err != nil || len(audible) != 1 || audible[0]["narrator"] != "Reader" || audible[0]["duration"] != 12.5 || audible[0]["abridged"] != true || audible[0]["series"].([]map[string]any)[0]["sequence"] != "1.5" {
+	if err != nil || len(audible) != 1 || audible[0].Narrator != "Reader" || audible[0].Duration.v != 12.5 || !*audible[0].Abridged || audible[0].Series[0].Sequence != "1.5" {
 		t.Fatalf("Audible result=%v err=%v", audible, err)
 	}
 }

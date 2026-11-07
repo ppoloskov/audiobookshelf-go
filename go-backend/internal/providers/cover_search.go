@@ -114,20 +114,20 @@ func (h *Handler) providerCovers(ctx context.Context, provider string, req Cover
 	if req.Podcast {
 		query := url.Values{"term": {req.Title}, "entity": {"podcast"}, "media": {"podcast"}}
 		var response struct {
-			Results []map[string]any `json:"results"`
+			Results []itunesItem `json:"results"`
 		}
 		if err := h.getJSON(ctx, h.endpoint("itunes")+"?"+query.Encode(), &response); err != nil {
 			return nil, err
 		}
 		var covers []string
 		for _, item := range response.Results {
-			if cover, ok := itunesArtwork(item).(string); ok && cover != "" {
+			if cover := item.cover(); cover != "" {
 				covers = append(covers, cover)
 			}
 		}
 		return uniqueStrings(covers), nil
 	}
-	var results []map[string]any
+	var results []bookMatch
 	var err error
 	if strings.HasPrefix(provider, "custom-") {
 		results, err = h.searchCustom(ctx, provider, "book", req.Title, req.Author, "", coverSearchProviderTimeout)
@@ -139,11 +139,9 @@ func (h *Handler) providerCovers(ctx context.Context, provider string, req Cover
 	}
 	var covers []string
 	for _, result := range results {
-		if list, ok := result["covers"].([]string); ok {
-			covers = append(covers, list...)
-		}
-		if cover, ok := result["cover"].(string); ok && cover != "" {
-			covers = append(covers, cover)
+		covers = append(covers, result.Covers...)
+		if result.Cover != "" {
+			covers = append(covers, string(result.Cover))
 		}
 	}
 	return uniqueStrings(covers), nil

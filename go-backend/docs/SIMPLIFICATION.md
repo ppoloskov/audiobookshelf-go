@@ -66,6 +66,7 @@ and nulls, because TS reads those back.
 | M5 (C1d + C2): typed item decorators; one item-mutation write path (internal/itemwrite) | (this commit) | 41,812 → 41,475 | −337 (new itemwrite + mutation.go +661 included) | 10,155 → 10,015 | toMap round trip, realtime map item path, sync/quickMatch author+series copies, column builders, orphan check copies, finalizeScan loops, taxonomy bodies; map[string]any 900 → 852 |
 | M6 (C3 + C4): filters/sort as tables; shelves as definitions; one permission clause | (this commit) | 41,475 → 41,204 | −271 | 10,015 → 9,874 | filterClause (55), podcastFilterClause, three order builders, podcastPermissionClause, userMediaClause and personalized hand loops (37) replaced by catalog/query.go tables and one shelf loop |
 | M7 (P + S): one permission owner (internal/access), cached server settings (internal/serversettings), scanner walk/group pipeline | (this commit) | 41,204 → 40,817 | −387 | 9,874 → 9,703 | ~10 per-package permission helpers and ~12 admin checks, 4 per-request settings SELECTs, 5 directory walks, 2 grouping algorithms, the per-item stored-row lookup in importGroup |
+| M8: review fixes (authorization, settings lifecycle) + M-b providers + M-c playback/podcasts typing | (this commit) | 40,817 → 40,725 | −92 | 9,703 → 9,558 | provider map building and helpers; playback openJSON/clientJSON maps and payload helpers; podcasts xmlNode parser and checkNew copy; map[string]any 823 → 675 |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -159,3 +160,36 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
   ignore rules (.ignore directories, temporary extensions, dot directories).
 - Left in the scanner: typed audio files and sidecar (arch-scanner §6.4/6.7),
   one ffprobe implementation (§6.5).
+
+### M8: review fixes (owner review of 111fef8)
+
+- **List and item authorization agree** (P1). `access.MediaClause` selects
+  exactly what `Content` allows; `TestMediaClauseMatchesContent` checks every
+  user × item of the matrix. Two mismatches fixed: an empty allow list
+  (accessAllTags false, nothing selected) now hides every item from list
+  queries, failing closed where TS's list SQL skips the filter
+  (`libraryItemsBookFilters.js:27`) although its item check denies; and
+  explicit media needs an active user at item level too
+  (`User.canAccessExplicitContent`). A user row without `accessAllTags` is an
+  empty allow list (TS defaults always include the key). End-to-end:
+  contracttest `TestEmptyTagAllowListSeesNothing`.
+- **Malformed permissions grant nothing** (P1): a document that does not
+  decode completely, including a later field of the wrong type, is discarded.
+- `access/testdata/decisions.json` re-recorded; every changed cell falls under
+  the rules above or the M7 notes, and `podSQL`, `catalogUpdate`, `podDelete`
+  are now checked (recorded before but never asserted).
+- **Settings cache** (P2): immutable snapshots (`Doc()` decodes a copy,
+  prefixes cloned), a read overlapping an invalidation is repeated instead of
+  returning an older document, and `Forget` drops a handle's entry on every
+  close in the restore manager. Tests run under -race.
+- Providers: a supplied `false`/`0` keeps its key (the web match modal
+  branches on `explicit != null`, `Match.vue:213`); FantLab year stays a
+  number (`FantLab.js:113`).
+- Playback/podcasts: JSON bodies up to 10 MiB as TS (`Server.js:352`); OPML
+  attribute names case-insensitive (htmlparser2 lowercases); feed episode
+  `guid` null and `chapters` [] when missing (`podcastUtils.js:278-288`);
+  `enclosure.length` accepts a number or a string.
+- **Not landed, pending owner review**: S2 (scanner matcher index and
+  importGroup plan/apply split). It is +173 production lines against a +60
+  budget (AGENTS.md growth review); its invariant tests (matching rules,
+  linear matching, 13 plan cases) are ready in a saved patch.

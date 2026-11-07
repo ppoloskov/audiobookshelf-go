@@ -2,7 +2,7 @@
   "episodes": [
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
       "description": "",
@@ -17,7 +17,7 @@
       "episode": "",
       "episodeType": "",
       "explicit": "",
-      "guid": "",
+      "guid": null,
       "pubDate": "Fri, 05 Jan 2024 10:00:00 GMT",
       "publishedAt": 1704448800000,
       "season": "",
@@ -26,7 +26,7 @@
     },
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
       "description": "",

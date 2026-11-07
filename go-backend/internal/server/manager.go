@@ -70,7 +70,7 @@ func (m *Manager) Close() {
 		m.current.Close()
 	}
 	if m.database != nil {
-		_ = m.database.Close()
+		_ = closeStore(m.database)
 	}
 }
 
@@ -110,7 +110,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	if err != nil {
 		return fmt.Errorf("validate backup database: %w", err)
 	}
-	_ = check.Close()
+	_ = closeStore(check)
 
 	oldRuntime, oldStore := m.current, m.database
 	dbPath := filepath.Join(m.cfg.ConfigPath, "absdatabase.sqlite")
@@ -125,7 +125,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 
 	sharedHub := oldRuntime.realtime
 	oldRuntime.close(false)
-	if err = oldStore.Close(); err != nil {
+	if err = closeStore(oldStore); err != nil {
 		return fmt.Errorf("close current database: %w", err)
 	}
 	removeSQLiteSidecars(dbPath)
@@ -197,7 +197,7 @@ func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause er
 	}
 	rt, err := newRuntime(opened.DB(), m.cfg, opened, m, hub...)
 	if err != nil {
-		_ = opened.Close()
+		_ = closeStore(opened)
 		m.current, m.database = nil, nil
 		return fmt.Errorf("%v; rebuild current runtime: %w", cause, err)
 	}
@@ -212,7 +212,7 @@ func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *
 		rt.Close()
 	}
 	if db != nil {
-		_ = db.Close()
+		_ = closeStore(db)
 	}
 	_ = os.Remove(dbPath)
 	_ = os.Rename(dbOld, dbPath)
@@ -300,4 +300,11 @@ func dbOrNil(s *store.Store) *sql.DB {
 		return nil
 	}
 	return s.DB()
+}
+
+// closeStore closes a database and drops its cached server settings, so a
+// handle closed during restore does not keep a cache entry.
+func closeStore(s *store.Store) error {
+	serversettings.Forget(s.DB())
+	return s.Close()
 }

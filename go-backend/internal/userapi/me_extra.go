@@ -147,7 +147,7 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}
-	prefixes := serversettings.Load(r.Context(), h.db).SortingPrefixes
+	prefixes := serversettings.Load(r.Context(), h.db).SortingPrefixes()
 	perms := access.Of(user)
 	result := make([]libitem.Minified, 0)
 	for _, p := range entries {

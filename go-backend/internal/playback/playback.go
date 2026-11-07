@@ -6,12 +6,15 @@ package playback
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/serversettings"
+	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -48,56 +51,141 @@ type Handler struct {
 	localIDs map[string]string
 }
 
+// serverVersion is the pinned TS release the session JSON mirrors.
+const serverVersion = "2.37.2"
+
+// session is a playback session as TS PlaybackSession.toJSON writes it (GET
+// /api/sessions/open lists these, the client's sessions page reads them).
+// sessionJSON adds the fields that are null or computed.
 type session struct {
-	ID, UserID, LibraryID, LibraryItemID, BookID, EpisodeID string
-	MediaType, DisplayTitle, DisplayAuthor                  string
-	CoverPath                                               any
-	DeviceID                                                string
-	PlayMethod                                              int
-	MediaPlayer                                             string
-	Duration, StartTime, CurrentTime                        float64
-	TimeListening                                           float64
-	StartedAt, UpdatedAt                                    int64
-	Date, DayOfWeek                                         string
-	MediaMetadata                                           map[string]any
-	Chapters                                                []map[string]any
-	AudioTracks                                             []map[string]any
-	Item                                                    any
-	Device                                                  map[string]any
-	Files                                                   []audioFile
-	stream                                                  *transcode
+	ID            string           `json:"id"`
+	UserID        string           `json:"userId"`
+	LibraryID     string           `json:"libraryId"`
+	LibraryItemID string           `json:"libraryItemId"`
+	BookID        string           `json:"-"`
+	EpisodeID     string           `json:"-"`
+	MediaType     string           `json:"mediaType"`
+	MediaMetadata any              `json:"mediaMetadata"` // libitem.BookMetadataFull or PodcastMetadata
+	Chapters      []map[string]any `json:"chapters"`
+	DisplayTitle  string           `json:"displayTitle"`
+	DisplayAuthor string           `json:"displayAuthor"`
+	CoverPath     *string          `json:"coverPath"`
+	Duration      float64          `json:"duration"`
+	PlayMethod    int              `json:"playMethod"`
+	MediaPlayer   string           `json:"mediaPlayer"`
+	Device        deviceInfo       `json:"deviceInfo"`
+	Date          string           `json:"date"`
+	DayOfWeek     string           `json:"dayOfWeek"`
+	TimeListening float64          `json:"timeListening"`
+	StartTime     float64          `json:"startTime"`
+	CurrentTime   float64          `json:"currentTime"`
+	StartedAt     int64            `json:"startedAt"`
+	UpdatedAt     int64            `json:"updatedAt"`
+
+	Item   libitem.Expanded `json:"-"`
+	Files  []audioFile      `json:"-"`
+	stream *transcode
+}
+
+// nullID marshals "" as null (bookId and episodeId of the other media type).
+type nullID string
+
+func (n nullID) MarshalJSON() ([]byte, error) {
+	if n == "" {
+		return []byte("null"), nil
+	}
+	return json.Marshal(string(n))
+}
+
+// sessionJSON is a session as a client reads it. Its own fields shadow the
+// session's; the open-sessions listing leaves the tracks and item out.
+type sessionJSON struct {
+	*session
+	BookID        nullID           `json:"bookId"`
+	EpisodeID     nullID           `json:"episodeId"`
+	ServerVersion string           `json:"serverVersion"`
+	AudioTracks   []map[string]any `json:"audioTracks,omitempty"`
+	LibraryItem   any              `json:"libraryItem,omitempty"`
+	User          *struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+	} `json:"user,omitempty"`
+}
+
+func (s *session) view() sessionJSON {
+	return sessionJSON{session: s, BookID: nullID(s.BookID), EpisodeID: nullID(s.EpisodeID), ServerVersion: serverVersion}
+}
+
+func (s *session) client() sessionJSON {
+	v := s.view()
+	v.AudioTracks, v.LibraryItem = s.tracks(), s.Item
+	return v
+}
+
+// deviceInfo is the session's device DTO (DeviceInfo.js toJSON): empty values
+// are omitted.
+type deviceInfo struct {
+	ID             string `json:"id"`
+	UserID         string `json:"userId"`
+	DeviceID       string `json:"deviceId"`
+	IPAddress      string `json:"ipAddress"`
+	ClientVersion  string `json:"clientVersion"`
+	ClientName     string `json:"clientName"`
+	DeviceName     string `json:"deviceName,omitempty"`
+	BrowserName    string `json:"browserName,omitempty"`
+	BrowserVersion string `json:"browserVersion,omitempty"`
+	OSName         string `json:"osName,omitempty"`
+	OSVersion      string `json:"osVersion,omitempty"`
+	Manufacturer   string `json:"manufacturer,omitempty"`
+	Model          string `json:"model,omitempty"`
+	SDKVersion     string `json:"sdkVersion,omitempty"`
+}
+
+// clientDevice is the deviceInfo a client sends.
+type clientDevice struct {
+	DeviceID      string     `json:"deviceId"`
+	ClientVersion string     `json:"clientVersion"`
+	ClientName    string     `json:"clientName"`
+	Manufacturer  string     `json:"manufacturer"`
+	Model         string     `json:"model"`
+	SDKVersion    sdkVersion `json:"sdkVersion"`
+}
+
+// sdkVersion is a JSON number (the Android app) or string, kept as text
+// (DeviceInfo.setData, server/objects/DeviceInfo.js:100).
+type sdkVersion string
+
+func (v *sdkVersion) UnmarshalJSON(b []byte) error {
+	var n json.Number
+	if json.Unmarshal(b, &n) != nil {
+		_ = json.Unmarshal(b, (*string)(v))
+		return nil
+	}
+	*v = sdkVersion(n)
+	return nil
 }
 
 type itemData struct {
 	libitem.Item
 	Title, Author string
-	CoverPath     any
+	CoverPath     *string
 	Duration      float64
-	Metadata      map[string]any
+	Metadata      any // libitem.BookMetadataFull or PodcastMetadata
 	Chapters      []map[string]any
 	Files         []audioFile
-	Episodes      []episodeData
 }
 
+// audioFile is the part of a scanner-written audio file the playback code
+// reads; Fields is the whole object, passed through to the client's tracks.
 type audioFile struct {
-	Index    any            `json:"index"`
+	Index    *int           `json:"index"`
 	Ino      string         `json:"ino"`
 	Metadata map[string]any `json:"metadata"`
 	Duration float64        `json:"duration"`
-	BitRate  any            `json:"bitRate"`
-	Channels any            `json:"channels"`
-	Codec    any            `json:"codec"`
-	Format   any            `json:"format"`
-	MimeType string         `json:"mimeType"`
+	Codec    string         `json:"codec"`
 	Exclude  bool           `json:"exclude"`
+	MimeType string         `json:"-"`
 	Fields   map[string]any `json:"-"`
-}
-
-type episodeData struct {
-	ID, Title string
-	Audio     audioFile
-	Duration  float64
-	Chapters  []map[string]any
 }
 
 type transcode struct {
@@ -175,79 +263,48 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	if len(item.Files) == 0 {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	var body map[string]any
-	if r.Body != nil {
-		data, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
-		if readErr != nil {
-			return httputil.Status(400, "Invalid request body")
-		}
-		if len(data) > 1<<20 {
-			return httputil.Status(http.StatusRequestEntityTooLarge, "Request body too large")
-		}
-		if len(strings.TrimSpace(string(data))) > 0 && json.Unmarshal(data, &body) != nil {
-			return httputil.Status(400, "Invalid request body")
-		}
+	var body struct {
+		DeviceInfo         clientDevice `json:"deviceInfo"`
+		MediaPlayer        string       `json:"mediaPlayer"`
+		SupportedMimeTypes []string     `json:"supportedMimeTypes"`
+		ForceDirectPlay    bool         `json:"forceDirectPlay"`
+		ForceTranscode     bool         `json:"forceTranscode"`
 	}
-	if body == nil {
-		body = map[string]any{}
+	if err := readBody(r, &body); err != nil {
+		return err
 	}
-	device, _ := body["deviceInfo"].(map[string]any)
-	if device == nil {
-		device = map[string]any{}
-	}
-	deviceID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
+	device, err := h.upsertDevice(r.Context(), user, r, body.DeviceInfo)
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
-	mediaPlayer, _ := body["mediaPlayer"].(string)
-	if mediaPlayer == "" {
-		mediaPlayer = "unknown"
+	if body.MediaPlayer == "" {
+		body.MediaPlayer = "unknown"
 	}
-	supported := stringSlice(body["supportedMimeTypes"])
-	forceDirect, _ := body["forceDirectPlay"].(bool)
-	forceTranscode, _ := body["forceTranscode"].(bool)
 	progress, err := h.readProgress(r.Context(), user.ID, item, episodeID)
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
 	start := 0.0
 	if progress != nil && !progress.finished {
-		start = progress.currentTime
+		start = math.Max(0, progress.currentTime)
 	}
-	start = math.Max(0, start)
-	playMethod := 0
-	if forceDirect || (!forceTranscode && len(supported) > 0 && allSupported(item.Files, supported)) {
+	playMethod := 2
+	if body.ForceDirectPlay || (!body.ForceTranscode && allSupported(item.Files, body.SupportedMimeTypes)) {
 		playMethod = 0
-	} else {
-		playMethod = 2
 	}
 	// PlaybackSession.toJSONForClient embeds libraryItem.toOldJSONExpanded()
 	// (server/objects/PlaybackSession.js:86-116).
-	itemJSON := item.Item.Expanded(serversettings.Load(r.Context(), h.db).SortingPrefixes)
+	itemJSON := item.Item.Expanded(serversettings.Load(r.Context(), h.db).SortingPrefixes())
 	sessionID, err := ids.New()
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
-	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, DeviceID: deviceID, PlayMethod: playMethod, MediaPlayer: mediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, TimeListening: 0, StartedAt: nowMS(), UpdatedAt: nowMS(), Date: time.Now().Format("2006-01-02"), DayOfWeek: time.Now().Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
-	if episodeID != "" {
-		s.EpisodeID = episodeID
-		for _, ep := range item.Episodes {
-			if ep.ID == episodeID {
-				s.Duration = ep.Duration
-				s.Chapters = ep.Chapters
-				break
-			}
-		}
-	}
+	now := time.Now()
+	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, EpisodeID: episodeID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, PlayMethod: playMethod, MediaPlayer: body.MediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, StartedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Date: now.Format("2006-01-02"), DayOfWeek: now.Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if item.MediaType == "book" {
 		s.BookID = item.MediaID
 	}
-	if item.MediaType == "podcast" && s.EpisodeID != "" {
-		s.BookID = ""
-	}
-	if playMethod == 0 {
-		s.AudioTracks = makeDirectTracks(s, item)
-	} else {
+	if playMethod == 2 {
 		if _, err := exec.LookPath(ffmpegExecutable()); err != nil {
 			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 			return nil
@@ -257,18 +314,17 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("Internal Server Error", err)
 		}
 		s.stream = t
-		s.AudioTracks = []map[string]any{{"index": 1, "startOffset": 0, "duration": s.Duration, "title": s.DisplayTitle, "contentUrl": "/hls/" + s.ID + "/output.m3u8", "mimeType": "application/vnd.apple.mpegurl", "codec": nil, "metadata": nil}}
 	}
 	if playMethod == 0 {
-		logging.Debugf("[PlaybackSessionManager] %q starting direct play session for item %q with id %s (Device: %s)", user.Username, item.ID, s.ID, deviceDescription(device)) // PlaybackSessionManager.js:340
+		logging.Debugf("[PlaybackSessionManager] %q starting direct play session for item %q with id %s (Device: %s)", user.Username, item.ID, s.ID, device.description()) // PlaybackSessionManager.js:340
 	} else {
-		logging.Debugf("[PlaybackSessionManager] %q starting stream session for item %q (Device: %s)", user.Username, item.ID, deviceDescription(device)) // PlaybackSessionManager.js:344
+		logging.Debugf("[PlaybackSessionManager] %q starting stream session for item %q (Device: %s)", user.Username, item.ID, device.description()) // PlaybackSessionManager.js:344
 	}
 	h.mu.Lock()
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
 	h.emit("@admins", "user_stream_update", h.publicUser(user, s))
-	httputil.WriteJSON(w, http.StatusOK, s.clientJSON())
+	httputil.WriteJSON(w, http.StatusOK, s.client())
 	return nil
 }
 
@@ -281,9 +337,9 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 		return nil, sql.ErrNoRows
 	}
 	out := &itemData{Item: it, Files: []audioFile{}, Chapters: []map[string]any{}}
-	var metadata any
+	media := it.Full().Media
 	if b := it.Book; b != nil {
-		out.Title, out.Author, out.CoverPath, out.Chapters = deref(b.Title), b.AuthorName(), coverAny(b.CoverPath), b.Chapters
+		out.Title, out.Author, out.CoverPath, out.Chapters, out.Metadata = deref(b.Title), b.AuthorName(), b.CoverPath, b.Chapters, media.(libitem.BookFull).Metadata
 		if b.Duration != nil {
 			out.Duration = *b.Duration
 		}
@@ -293,33 +349,33 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 				return nil, err
 			}
 			if !f.Exclude {
-				f.Index = numberOr(f.Index, len(out.Files))
+				if f.Index == nil {
+					n := len(out.Files)
+					f.Index = &n
+				}
 				out.Files = append(out.Files, f)
 			}
 		}
-		metadata = it.Full().Media.(libitem.BookFull).Metadata
 	} else {
 		p := it.Podcast
-		out.Title, out.Author, out.CoverPath = deref(p.Title), deref(p.Author), coverAny(p.CoverPath)
-		for _, e := range p.Episodes {
-			if f, err := parseAudioFile(e.AudioFile); err == nil {
-				out.Episodes = append(out.Episodes, episodeData{ID: e.ID, Title: deref(e.Title), Audio: f, Duration: f.Duration, Chapters: e.Chapters})
-			}
-		}
-		metadata = it.Full().Media.(libitem.PodcastMedia).Metadata
+		out.Title, out.Author, out.CoverPath, out.Metadata = deref(p.Title), deref(p.Author), p.CoverPath, media.(libitem.PodcastMedia).Metadata
 	}
-	raw, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, err
-	}
-	_ = json.Unmarshal(raw, &out.Metadata)
 	if episodeID != "" {
-		i := slices.IndexFunc(out.Episodes, func(e episodeData) bool { return e.ID == episodeID })
+		if it.Podcast == nil {
+			return nil, sql.ErrNoRows
+		}
+		i := slices.IndexFunc(it.Podcast.Episodes, func(e libitem.Episode) bool { return e.ID == episodeID })
 		if i < 0 {
 			return nil, sql.ErrNoRows
 		}
-		ep := out.Episodes[i]
-		out.Files, out.Duration, out.Chapters, out.Title = []audioFile{ep.Audio}, ep.Duration, ep.Chapters, ep.Title
+		ep := it.Podcast.Episodes[i]
+		f, err := parseAudioFile(ep.AudioFile)
+		if err != nil {
+			return nil, sql.ErrNoRows
+		}
+		one := 1
+		f.Index = &one
+		out.Files, out.Duration, out.Chapters, out.Title = []audioFile{f}, f.Duration, ep.Chapters, deref(ep.Title)
 	}
 	return out, nil
 }
@@ -327,14 +383,6 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 func deref(s *string) string {
 	if s == nil {
 		return ""
-	}
-	return *s
-}
-
-// coverAny is a nullable cover path as the session's dynamic JSON value.
-func coverAny(s *string) any {
-	if s == nil {
-		return nil
 	}
 	return *s
 }
@@ -374,43 +422,23 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
 	if s == nil {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	var chosen map[string]any
-	for _, track := range s.AudioTracks {
-		idx := int(number(track["index"], 1))
-		if idx == index {
-			chosen = track
-			break
+	isPodcastFirst := s.MediaType == "podcast" && index == 0 // episodes were once addressed as track 0
+	if s.PlayMethod == 2 {
+		// The only track of a transcoded session is the HLS playlist.
+		if index != 1 && !isPodcastFirst {
+			return httputil.Status(http.StatusNotFound, "")
 		}
+		http.Redirect(w, r, hlsPlaylist(s.ID), http.StatusFound)
+		return nil
 	}
-	if chosen == nil && s.MediaType == "podcast" && index == 0 && len(s.AudioTracks) > 0 {
-		chosen = s.AudioTracks[0]
+	i := slices.IndexFunc(s.Files, func(f audioFile) bool { return f.Index != nil && *f.Index == index })
+	if i < 0 && isPodcastFirst && len(s.Files) > 0 {
+		i = 0
 	}
-	if chosen == nil {
+	if i < 0 {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if s.PlayMethod == 2 {
-		if content, ok := chosen["contentUrl"].(string); ok && content != "" {
-			http.Redirect(w, r, content, http.StatusFound)
-			return nil
-		}
-	}
-	ino, _ := chosen["ino"].(string)
-	if ino == "" {
-		if meta, ok := chosen["metadata"].(map[string]any); ok {
-			_ = meta
-		}
-	}
-	var f *audioFile
-	for i := range s.Files {
-		if s.Files[i].Ino == ino {
-			f = &s.Files[i]
-			break
-		}
-	}
-	if f == nil {
-		logging.RequestDebug(r, "responding 500: audio track "+indexText+" of the item was not found")
-		return httputil.Status(http.StatusInternalServerError, "")
-	}
+	f := &s.Files[i]
 	path, _ := f.Metadata["path"].(string)
 	if path == "" {
 		logging.RequestDebug(r, "responding 500: audio file has no path")
@@ -426,7 +454,7 @@ func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	httputil.WriteJSON(w, 200, s.clientJSON())
+	httputil.WriteJSON(w, 200, s.client())
 	return nil
 }
 
@@ -451,36 +479,41 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	var body map[string]any
-	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
-	if err := dec.Decode(&body); err != nil && err != io.EOF {
-		return httputil.Status(400, "Invalid request body")
+	var body struct {
+		CurrentTime  *float64 `json:"currentTime"`
+		TimeListened *float64 `json:"timeListened"`
+		Duration     *float64 `json:"duration"`
 	}
-	if len(body) > 0 {
-		ct, ok := asFloat(body["currentTime"])
-		if !ok || ct < 0 {
+	if err := readBody(r, &body); err != nil {
+		return err
+	}
+	synced := body.CurrentTime != nil || body.TimeListened != nil || body.Duration != nil
+	if synced {
+		if body.CurrentTime == nil || *body.CurrentTime < 0 {
 			return httputil.Status(400, "Invalid currentTime")
 		}
-		listened, ok := asFloat(body["timeListened"])
-		if !ok || listened < 0 {
+		if body.TimeListened == nil || *body.TimeListened < 0 {
 			return httputil.Status(400, "Invalid timeListened")
 		}
-		s.CurrentTime = ct
-		s.TimeListening += listened
-		logging.Debugf("[PlaybackSessionManager] syncSession %q (Device: %s) | Total Time Listened: %v", s.ID, deviceDescription(s.Device), s.TimeListening) // PlaybackSessionManager.js:389
+		s.CurrentTime = *body.CurrentTime
+		s.TimeListening += *body.TimeListened
+		logging.Debugf("[PlaybackSessionManager] syncSession %q (Device: %s) | Total Time Listened: %v", s.ID, s.Device.description(), s.TimeListening) // PlaybackSessionManager.js:389
 		s.UpdatedAt = nowMS()
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
 		if err := h.saveSession(r.Context(), s); err != nil {
 			return httputil.Internal("Internal Server Error", err)
 		}
-		syncDuration, _ := asFloat(body["duration"])
-		if _, err := h.syncProgress(r.Context(), user.ID, s, syncDuration, nil); err != nil {
+		var duration float64
+		if body.Duration != nil {
+			duration = *body.Duration
+		}
+		if _, err := h.syncProgress(r.Context(), user.ID, s, duration, nil); err != nil {
 			return httputil.Internal("Internal Server Error", err)
 		}
 	}
 	if closeSession {
-		if len(body) == 0 {
+		if !synced {
 			if err := h.saveSession(r.Context(), s); err != nil {
 				return httputil.Internal("Internal Server Error", err)
 			}
@@ -512,7 +545,9 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 	if s.EpisodeID != "" {
 		mediaID, kind = s.EpisodeID, "podcastEpisode"
 	}
-	metadata, err := persistedMetadataJSON(s.MediaMetadata, s.MediaType)
+	// Book.oldMetadataToJSON / Podcast.oldMetadataToJSON: TS reads these keys
+	// back with JSON.parse, so a missing value is an explicit null.
+	metadata, err := json.Marshal(s.MediaMetadata)
 	if err != nil {
 		return err
 	}
@@ -523,43 +558,13 @@ func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
 		ID: s.ID, MediaItemID: store.Text(mediaID), MediaItemType: store.Text(kind),
 		DisplayTitle: store.Text(s.DisplayTitle), DisplayAuthor: store.Text(s.DisplayAuthor),
 		Duration: store.Float(s.Duration), PlayMethod: store.Float(float64(s.PlayMethod)), MediaPlayer: store.Text(s.MediaPlayer),
-		StartTime: store.Float(s.StartTime), CurrentPosition: store.Float(s.CurrentTime), CoverPath: store.TextAny(s.CoverPath),
+		StartTime: store.Float(s.StartTime), CurrentPosition: store.Float(s.CurrentTime), CoverPath: store.TextPtr(s.CoverPath),
 		TimeListening: store.Float(s.TimeListening), MediaMetadata: store.Text(string(metadata)),
 		Date: store.Text(s.Date), DayOfWeek: store.Text(s.DayOfWeek), ExtraData: store.Text(string(extra)),
-		UserID: store.Text(s.UserID), DeviceID: store.TextOrNull(s.DeviceID), LibraryID: store.Text(s.LibraryID),
+		UserID: store.Text(s.UserID), DeviceID: store.TextOrNull(s.Device.ID), LibraryID: store.Text(s.LibraryID),
 		CreatedAt: created, UpdatedAt: now,
 	})
 	return err
-}
-
-// Persisted playbackSessions.mediaMetadata keys: Book.oldMetadataToJSON and
-// Podcast.oldMetadataToJSON. TS reads these back with JSON.parse, so every
-// key is kept and a missing value is an explicit null.
-var (
-	persistedBookMetadataKeys = []string{"title", "subtitle", "authors", "narrators", "series", "genres", "publishedYear",
-		"publishedDate", "publisher", "description", "isbn", "asin", "language", "explicit", "abridged"}
-	persistedPodcastMetadataKeys = []string{"title", "author", "description", "releaseDate", "genres", "feedUrl", "imageUrl",
-		"itunesPageUrl", "itunesId", "itunesArtistId", "explicit", "language", "type"}
-)
-
-func persistedMetadataJSON(metadata map[string]any, mediaType string) ([]byte, error) {
-	raw, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, err
-	}
-	norm := map[string]json.RawMessage{}
-	if err := json.Unmarshal(raw, &norm); err != nil {
-		return nil, err
-	}
-	keys := persistedBookMetadataKeys
-	if mediaType == "podcast" {
-		keys = persistedPodcastMetadataKeys
-	}
-	out := make(map[string]json.RawMessage, len(keys))
-	for _, k := range keys {
-		out[k] = norm[k] // nil marshals as null
-	}
-	return json.Marshal(out)
 }
 
 // sessionProgress is PlaybackSession.progress (server/objects/PlaybackSession.js:176).
@@ -622,7 +627,7 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 	if err != nil {
 		return false, err
 	}
-	h.emit(userID, "user_item_progress_updated", wire.ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: deviceDescription(s.Device), Data: progress})
+	h.emit(userID, "user_item_progress_updated", wire.ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: s.Device.description(), Data: progress})
 	return true, nil
 }
 
@@ -719,27 +724,34 @@ func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) err
 	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
+	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.openSessions(), "shareSessions": []any{}})
 	return nil
+}
+
+func (h *Handler) openSessions() []sessionJSON {
+	h.mu.RLock()
+	out := make([]sessionJSON, 0, len(h.sessions))
+	for _, s := range h.sessions {
+		out = append(out, s.view())
+	}
+	h.mu.RUnlock()
+	for i := range out {
+		u, _ := sqlc.New(h.db).GetUserByID(context.Background(), out[i].UserID)
+		out[i].User = &struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+		}{out[i].UserID, u.Username.String}
+	}
+	return out
 }
 
 // OpenSessions returns the current in-memory playback sessions in the same
 // shape used by GET /api/sessions/open. Runtime APIs use it to include active
 // sessions in their online-users response.
 func (h *Handler) OpenSessions() []map[string]any {
-	h.mu.RLock()
-	sessions := make([]*session, 0, len(h.sessions))
-	for _, s := range h.sessions {
-		sessions = append(sessions, s)
-	}
-	h.mu.RUnlock()
-	out := make([]map[string]any, 0, len(sessions))
-	for _, s := range sessions {
-		entry := s.openJSON()
-		u, _ := sqlc.New(h.db).GetUserByID(context.Background(), s.UserID)
-		entry["user"] = map[string]any{"id": s.UserID, "username": u.Username.String}
-		out = append(out, entry)
-	}
+	raw, _ := json.Marshal(h.openSessions())
+	out := []map[string]any{}
+	_ = json.Unmarshal(raw, &out)
 	return out
 }
 
@@ -804,163 +816,199 @@ func (h *Handler) removeOpenSession(id string) {
 	}
 }
 
+// epochMS is a time a client sends as epoch milliseconds, as a string of them
+// or as an RFC 3339 string; anything else is 0.
+type epochMS int64
+
+func (t *epochMS) UnmarshalJSON(b []byte) error {
+	var n float64
+	if json.Unmarshal(b, &n) == nil {
+		*t = epochMS(n)
+		return nil
+	}
+	var text string
+	if json.Unmarshal(b, &text) != nil {
+		return nil
+	}
+	if ms, err := strconv.ParseInt(text, 10, 64); err == nil {
+		*t = epochMS(ms)
+	} else if d, err := time.Parse(time.RFC3339Nano, text); err == nil {
+		*t = epochMS(d.UnixMilli())
+	}
+	return nil
+}
+
+// localSession is an offline session a client uploads (PlaybackSession.toJSON
+// as the app stored it).
+type localSession struct {
+	ID            string          `json:"id"`
+	LibraryItemID string          `json:"libraryItemId"`
+	EpisodeID     string          `json:"episodeId"`
+	DisplayTitle  string          `json:"displayTitle"`
+	DisplayAuthor string          `json:"displayAuthor"`
+	CoverPath     *string         `json:"coverPath"`
+	MediaPlayer   string          `json:"mediaPlayer"`
+	PlayMethod    *int            `json:"playMethod"`
+	Date          string          `json:"date"`
+	DayOfWeek     string          `json:"dayOfWeek"`
+	StartTime     float64         `json:"startTime"`
+	CurrentTime   float64         `json:"currentTime"`
+	TimeListening float64         `json:"timeListening"`
+	StartedAt     epochMS         `json:"startedAt"`
+	UpdatedAt     epochMS         `json:"updatedAt"`
+	MediaMetadata json.RawMessage `json:"mediaMetadata"`
+}
+
+// localResult is one entry of the local-all response.
+type localResult struct {
+	ID             nullID `json:"id"`
+	Success        bool   `json:"success"`
+	ProgressSynced *bool  `json:"progressSynced,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
 func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
-	all := strings.HasSuffix(r.URL.Path, "-all")
-	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
-	if err != nil || len(data) > 1<<20 {
-		return httputil.Status(400, "Invalid request body")
+	var body struct {
+		localSession
+		DeviceInfo clientDevice   `json:"deviceInfo"`
+		Sessions   []localSession `json:"sessions"`
 	}
-	var body map[string]any
-	if json.Unmarshal(data, &body) != nil {
-		return httputil.Status(400, "Invalid request body")
+	if err := readBody(r, &body); err != nil {
+		return err
 	}
-	device, _ := body["deviceInfo"].(map[string]any)
-	if device == nil {
-		device = map[string]any{}
-	}
-	deviceDBID, device, err := h.upsertDevice(r.Context(), user, r, cleanDevice(device))
+	device, err := h.upsertDevice(r.Context(), user, r, body.DeviceInfo)
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
-	if !all {
-		_, errMsg := h.syncOneLocal(r.Context(), user, body, deviceDBID, device)
-		if errMsg != "" {
-			logging.RequestDebug(r, "responding 500: "+errMsg)
-			return httputil.Status(500, errMsg)
+	if !strings.HasSuffix(r.URL.Path, "-all") {
+		if res := h.syncOneLocal(r.Context(), user, body.localSession, device); res.Error != "" {
+			logging.RequestDebug(r, "responding 500: "+res.Error)
+			return httputil.Status(500, res.Error)
 		}
 		sendOK(w)
 		return nil
 	}
-	sessions, _ := body["sessions"].([]any)
-	results := make([]map[string]any, 0, len(sessions))
-	for _, raw := range sessions {
-		obj, ok := raw.(map[string]any)
-		if !ok {
-			results = append(results, map[string]any{"id": nil, "success": false, "error": "Media item not found"})
-			continue
-		}
-		result, msg := h.syncOneLocal(r.Context(), user, obj, deviceDBID, device)
-		if msg != "" {
-			results = append(results, map[string]any{"id": obj["id"], "success": false, "error": msg})
-		} else {
-			results = append(results, result)
-		}
+	results := make([]localResult, len(body.Sessions))
+	for i, ls := range body.Sessions {
+		results[i] = h.syncOneLocal(r.Context(), user, ls, device)
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"results": results})
 	return nil
 }
 
-func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[string]any, deviceDBID string, device map[string]any) (map[string]any, string) {
-	itemID, _ := obj["libraryItemId"].(string)
-	episodeID, _ := obj["episodeId"].(string)
-	displayTitle, _ := obj["displayTitle"].(string)
-	localID, _ := obj["id"].(string)
-	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %s)", displayTitle, localID, jsTemplateValue(obj["updatedAt"])) // PlaybackSessionManager.js:110
-	item, err := h.loadItem(ctx, itemID, episodeID)
-	if err != nil {
-		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Media item not found for session %q (%s): %v", displayTitle, localID, err) // PlaybackSessionManager.js:132
-		return nil, "Media item not found"
-	}
-	var libraryExists int
-	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryExists); err != nil || libraryExists == 0 {
-		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Library not found for session %q (%s)", displayTitle, localID) // PlaybackSessionManager.js:142
-		return nil, "Library not found"
-	}
-	oldID, _ := obj["id"].(string)
-	id := oldID
+// localSessionID maps a client's play_local_* id to the server id it was
+// first stored under; any other client id is kept and a missing one is new.
+func (h *Handler) localSessionID(id string) (string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if strings.HasPrefix(id, "play_local_") {
-		h.mu.Lock()
 		if h.localIDs[id] == "" {
-			generated, genErr := ids.New()
-			if genErr != nil {
-				h.mu.Unlock()
-				logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", displayTitle, localID, genErr)
-				return nil, "Failed to save session"
+			generated, err := ids.New()
+			if err != nil {
+				return "", err
 			}
 			h.localIDs[id] = generated
 		}
-		id = h.localIDs[oldID]
-		h.mu.Unlock()
+		return h.localIDs[id], nil
 	}
-	if id == "" {
-		generated, genErr := ids.New()
-		if genErr != nil {
-			logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", displayTitle, localID, genErr)
-			return nil, "Failed to save session"
-		}
-		id = generated
+	if id != "" {
+		return id, nil
 	}
-	updated := timeFromPayload(obj["updatedAt"])
-	started := timeFromPayload(obj["startedAt"])
+	return ids.New()
+}
+
+// overlayMetadata applies the keys of the client's mediaMetadata over the
+// item's, as the persisted legacy subset.
+func overlayMetadata(base any, client json.RawMessage) any {
+	switch m := base.(type) {
+	case libitem.BookMetadataFull:
+		_ = unmarshalLoose(client, &m)
+		return m
+	case libitem.PodcastMetadata:
+		_ = unmarshalLoose(client, &m)
+		m.TitleIgnorePrefix = nil
+		return m
+	}
+	return base
+}
+
+func (h *Handler) syncOneLocal(ctx context.Context, user store.User, ls localSession, device deviceInfo) localResult {
+	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %d)", ls.DisplayTitle, ls.ID, ls.UpdatedAt) // PlaybackSessionManager.js:110
+	fail := func(msg string) localResult { return localResult{ID: nullID(ls.ID), Error: msg} }
+	item, err := h.loadItem(ctx, ls.LibraryItemID, ls.EpisodeID)
+	if err != nil {
+		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Media item not found for session %q (%s): %v", ls.DisplayTitle, ls.ID, err) // PlaybackSessionManager.js:132
+		return fail("Media item not found")
+	}
+	var libraryExists int
+	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryExists); err != nil || libraryExists == 0 {
+		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Library not found for session %q (%s)", ls.DisplayTitle, ls.ID) // PlaybackSessionManager.js:142
+		return fail("Library not found")
+	}
+	id, err := h.localSessionID(ls.ID)
+	if err != nil {
+		logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", ls.DisplayTitle, ls.ID, err)
+		return fail("Failed to save session")
+	}
+	updated, started := int64(ls.UpdatedAt), int64(ls.StartedAt)
 	if updated == 0 {
 		updated = nowMS()
 	}
 	if started == 0 {
 		started = updated
 	}
-	current := number(obj["currentTime"], 0)
-	listened := number(obj["timeListening"], 0)
-	// PlaybackSessionManager.syncLocalSession (server/managers/PlaybackSessionManager.js:203)
-	// always replaces the client duration with the item's playback duration.
-	duration := item.Duration
 	day, weekday := time.UnixMilli(updated).Format("2006-01-02"), time.UnixMilli(updated).Weekday().String()
-	existingSession, _ := sqlc.New(h.db).CountPlaybackSessionByID(ctx, id)
-	if existingSession == 0 {
+	if existing, _ := sqlc.New(h.db).CountPlaybackSessionByID(ctx, id); existing == 0 {
 		// A new local session is constructed from the client JSON
 		// (PlaybackSessionManager.js:182), keeping its date and dayOfWeek;
 		// only updates recompute them from updatedAt (:212-216).
-		if v, ok := obj["date"].(string); ok && v != "" {
-			day = v
+		if ls.Date != "" {
+			day = ls.Date
 		}
-		if v, ok := obj["dayOfWeek"].(string); ok && v != "" {
-			weekday = v
-		}
-	}
-	// coverPath also comes from the client JSON, not the library item.
-	var coverPath any
-	if v, ok := obj["coverPath"].(string); ok {
-		coverPath = v
-	}
-	mediaMeta, _ := obj["mediaMetadata"].(map[string]any)
-	if mediaMeta == nil {
-		mediaMeta = map[string]any{}
-	}
-	for k, v := range item.Metadata {
-		if _, ok := mediaMeta[k]; !ok {
-			mediaMeta[k] = v
+		if ls.DayOfWeek != "" {
+			weekday = ls.DayOfWeek
 		}
 	}
-	title, _ := obj["displayTitle"].(string)
-	if title == "" {
-		title = item.Title
+	if ls.DisplayTitle == "" {
+		ls.DisplayTitle = item.Title
 	}
-	author, _ := obj["displayAuthor"].(string)
-	if author == "" {
-		author = item.Author
+	if ls.DisplayAuthor == "" {
+		ls.DisplayAuthor = item.Author
 	}
-	playMethod := int(number(obj["playMethod"], 3))
-	mediaType := item.MediaType
-	bookID := item.MediaID
-	if episodeID != "" {
-		bookID = ""
+	if ls.MediaPlayer == "" {
+		ls.MediaPlayer = "unknown"
 	}
-	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, BookID: bookID, EpisodeID: episodeID, MediaType: mediaType, DisplayTitle: title, DisplayAuthor: author, CoverPath: coverPath, DeviceID: deviceDBID, PlayMethod: playMethod, MediaPlayer: stringOr(obj["mediaPlayer"], "unknown"), Duration: duration, StartTime: number(obj["startTime"], 0), CurrentTime: current, TimeListening: listened, StartedAt: started, UpdatedAt: updated, Date: day, DayOfWeek: weekday, MediaMetadata: mediaMeta, Chapters: item.Chapters, Device: device, Files: item.Files}
+	playMethod := 3
+	if ls.PlayMethod != nil {
+		playMethod = *ls.PlayMethod
+	}
+	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, EpisodeID: ls.EpisodeID, MediaType: item.MediaType,
+		DisplayTitle: ls.DisplayTitle, DisplayAuthor: ls.DisplayAuthor, CoverPath: ls.CoverPath, // coverPath also comes from the client JSON, not the library item
+		PlayMethod: playMethod, MediaPlayer: ls.MediaPlayer,
+		// PlaybackSessionManager.syncLocalSession (server/managers/PlaybackSessionManager.js:203)
+		// always replaces the client duration with the item's playback duration.
+		Duration: item.Duration, StartTime: ls.StartTime, CurrentTime: ls.CurrentTime, TimeListening: ls.TimeListening, StartedAt: started, UpdatedAt: updated,
+		Date: day, DayOfWeek: weekday, MediaMetadata: overlayMetadata(item.Metadata, ls.MediaMetadata), Chapters: item.Chapters, Device: device, Files: item.Files}
+	if ls.EpisodeID == "" {
+		s.BookID = item.MediaID
+	}
 	if err = h.saveSessionRecord(ctx, s); err != nil {
-		return nil, "Failed to save session"
+		return fail("Failed to save session")
 	}
 	synced, err := h.syncProgress(ctx, user.ID, s, 0, &updated)
 	if err != nil {
-		return nil, "Failed to sync progress"
+		return fail("Failed to sync progress")
 	}
-	return map[string]any{"id": id, "success": true, "progressSynced": synced}, ""
+	return localResult{ID: nullID(id), Success: true, ProgressSynced: &synced}
 }
 
 func (h *Handler) publicUser(user store.User, s *session) map[string]any {
-	client := s.clientJSON()
-	client["libraryItem"] = nil
+	client := s.client()
+	client.LibraryItem = json.RawMessage("null")
 	return map[string]any{"id": user.ID, "username": user.Username, "type": user.Type, "session": client, "lastSeen": user.LastSeen, "createdAt": user.CreatedAt}
 }
+
 func validUUID(v string) bool {
 	if len(v) != 36 {
 		return false
@@ -978,37 +1026,15 @@ func validUUID(v string) bool {
 	}
 	return true
 }
-func timeFromPayload(v any) int64 {
-	if ms, ok := asFloat(v); ok {
-		return int64(ms)
-	}
-	if s, ok := v.(string); ok {
-		if ms, err := strconv.ParseInt(s, 10, 64); err == nil {
-			return ms
+
+func (d deviceInfo) description() string {
+	if d.Model != "" {
+		if d.SDKVersion != "" {
+			return d.Model + " SDK " + d.SDKVersion + " / v" + d.ClientVersion
 		}
-		if d, err := time.Parse(time.RFC3339Nano, s); err == nil {
-			return d.UnixMilli()
-		}
+		return d.Model + " / v" + d.ClientVersion
 	}
-	return 0
-}
-func stringOr(v any, fallback string) string {
-	if s, ok := v.(string); ok && s != "" {
-		return s
-	}
-	return fallback
-}
-func deviceDescription(device map[string]any) string {
-	model := stringOr(device["model"], "")
-	if model != "" {
-		sdk := stringOr(device["sdkVersion"], "")
-		version := stringOr(device["clientVersion"], "")
-		if sdk != "" {
-			return model + " SDK " + sdk + " / v" + version
-		}
-		return model + " / v" + version
-	}
-	return stringOr(device["osName"], "") + " " + stringOr(device["osVersion"], "") + " / " + stringOr(device["browserName"], "")
+	return d.OSName + " " + d.OSVersion + " / " + d.BrowserName
 }
 func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 	id, name := r.PathValue("id"), r.PathValue("name")
@@ -1103,7 +1129,7 @@ func transcodeAudioCodec(files []audioFile) string {
 		return "copy"
 	}
 	file := files[0]
-	codec := strings.ToLower(fmt.Sprint(file.Codec))
+	codec := strings.ToLower(file.Codec)
 	switch file.MimeType {
 	case "audio/flac", "audio/ogg", "audio/x-ms-wma", "audio/x-aiff", "audio/webm", "audio/amr-wb", "audio/x-caf":
 		return "aac"
@@ -1276,49 +1302,56 @@ func (t *transcode) close() error {
 	return os.RemoveAll(t.root)
 }
 
-func makeDirectTracks(s *session, item *itemData) []map[string]any {
-	out := make([]map[string]any, 0, len(item.Files))
+func hlsPlaylist(sessionID string) string { return "/hls/" + sessionID + "/output.m3u8" }
+
+// tracks are the session's audio tracks as the client reads them: each file's
+// scanner JSON with its position, title and URL. A transcoded session has the
+// one HLS playlist.
+func (s *session) tracks() []map[string]any {
+	if s.PlayMethod == 2 {
+		return []map[string]any{{"index": 1, "startOffset": 0, "duration": s.Duration, "title": s.DisplayTitle, "contentUrl": hlsPlaylist(s.ID), "mimeType": "application/vnd.apple.mpegurl", "codec": nil, "metadata": nil}}
+	}
+	out := make([]map[string]any, 0, len(s.Files))
 	offset := 0.0
-	for _, f := range item.Files {
-		track := audioJSON(f)
-		track["startOffset"] = offset
-		track["title"] = f.Metadata["filename"]
-		track["contentUrl"] = "/api/items/" + item.ID + "/file/" + f.Ino
+	for _, f := range s.Files {
+		track := maps.Clone(f.Fields)
+		track["index"], track["ino"], track["metadata"], track["duration"], track["mimeType"] = f.Index, f.Ino, f.Metadata, f.Duration, f.MimeType
+		track["startOffset"], track["title"], track["contentUrl"] = offset, f.Metadata["filename"], "/api/items/"+s.LibraryItemID+"/file/"+f.Ino
 		out = append(out, track)
 		offset += f.Duration
-	}
-	if s.EpisodeID != "" {
-		for _, ep := range item.Episodes {
-			if ep.ID == s.EpisodeID {
-				track := audioJSON(ep.Audio)
-				track["index"] = 1
-				track["startOffset"] = 0
-				track["title"] = ep.Audio.Metadata["filename"]
-				track["contentUrl"] = "/api/items/" + item.ID + "/file/" + ep.Audio.Ino
-				return []map[string]any{track}
-			}
-		}
 	}
 	return out
 }
 
-// openJSON is a playback session as TS PlaybackSession.toJSON writes it (GET
-// /api/sessions/open lists these, the client's sessions page reads them). The
-// client's session response adds the tracks and the item to it.
-func (s *session) openJSON() map[string]any {
-	return map[string]any{"id": s.ID, "userId": s.UserID, "libraryId": s.LibraryID, "libraryItemId": s.LibraryItemID, "bookId": store.NullIfEmpty(s.BookID), "episodeId": store.NullIfEmpty(s.EpisodeID), "mediaType": s.MediaType, "mediaMetadata": s.MediaMetadata, "chapters": s.Chapters, "displayTitle": s.DisplayTitle, "displayAuthor": s.DisplayAuthor, "coverPath": s.CoverPath, "duration": s.Duration, "playMethod": s.PlayMethod, "mediaPlayer": s.MediaPlayer, "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": s.Date, "dayOfWeek": s.DayOfWeek, "timeListening": s.TimeListening, "startTime": s.StartTime, "currentTime": s.CurrentTime, "startedAt": s.StartedAt, "updatedAt": s.UpdatedAt}
+// unmarshalLoose decodes JSON into v, ignoring values of the wrong type
+// (they leave the field zero) but not malformed JSON or a non-object.
+func unmarshalLoose(data []byte, v any) error {
+	var typeErr *json.UnmarshalTypeError
+	if err := json.Unmarshal(data, v); err != nil && !(errors.As(err, &typeErr) && typeErr.Field != "") {
+		return err
+	}
+	return nil
 }
-func (s *session) clientJSON() map[string]any {
-	out := s.openJSON()
-	out["audioTracks"] = s.AudioTracks
-	out["libraryItem"] = s.Item
-	return out
+
+// readBody decodes a request body of at most 10 MiB; an empty body leaves v as is.
+func readBody(r *http.Request, v any) error {
+	data, err := io.ReadAll(io.LimitReader(r.Body, 10<<20+1))
+	if err != nil {
+		return httputil.Status(400, "Invalid request body")
+	}
+	if len(data) > 10<<20 {
+		return httputil.Status(http.StatusRequestEntityTooLarge, "Request body too large")
+	}
+	if len(bytes.TrimSpace(data)) > 0 && unmarshalLoose(data, v) != nil {
+		return httputil.Status(400, "Invalid request body")
+	}
+	return nil
 }
 
 func parseAudioFile(raw map[string]any) (audioFile, error) {
 	b, _ := json.Marshal(raw)
 	var f audioFile
-	if err := json.Unmarshal(b, &f); err != nil {
+	if err := unmarshalLoose(b, &f); err != nil {
 		return f, err
 	}
 	f.Fields = raw
@@ -1331,60 +1364,34 @@ func parseAudioFile(raw map[string]any) (audioFile, error) {
 		format, _ = f.Metadata["format"].(string)
 	}
 	f.MimeType = mimeForFormat(format)
-	if f.Duration < 0 {
-		f.Duration = 0
-	}
+	f.Duration = max(f.Duration, 0)
 	return f, nil
 }
 
-func cleanDevice(in map[string]any) map[string]any {
-	out := map[string]any{}
-	allowed := []string{"id", "userId", "deviceId", "ipAddress", "browserName", "browserVersion", "osName", "osVersion", "deviceType", "clientVersion", "manufacturer", "model", "sdkVersion", "clientName", "deviceName"}
-	for _, k := range allowed {
-		if v, ok := in[k]; ok && v != nil {
-			out[k] = v
-		}
-	}
-	return out
-}
-
-func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Request, client map[string]any) (string, map[string]any, error) {
-	get := func(key string) string { v, _ := client[key].(string); return v }
-	ua := r.UserAgent()
-	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(ua)
-	clientVersion := get("clientVersion")
-	if clientVersion == "" {
-		clientVersion = "2.37.2"
-	}
-	clientName := get("clientName")
-	manufacturer, model, sdk := get("manufacturer"), get("model"), get("sdkVersion")
-	// DeviceInfo.setData (server/objects/DeviceInfo.js:100): the Android app
-	// sends sdkVersion as a JSON number, stored as its decimal string.
-	if n, ok := client["sdkVersion"].(float64); ok {
-		sdk = strconv.FormatFloat(n, 'f', -1, 64)
-	}
-	if sdk != "" {
-		if clientName == "" {
+func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Request, client clientDevice) (deviceInfo, error) {
+	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(r.UserAgent())
+	clientVersion := cmp.Or(client.ClientVersion, serverVersion)
+	manufacturer, model, sdk := client.Manufacturer, client.Model, string(client.SDKVersion)
+	clientName := client.ClientName
+	if clientName == "" {
+		switch {
+		case sdk != "":
 			clientName = "Abs Android"
-		}
-	} else if model != "" {
-		if clientName == "" {
+		case model != "":
 			clientName = "Abs iOS"
-		}
-	} else if browser != "" && osName != "" {
-		if clientName == "" {
+		case browser != "" && osName != "":
 			clientName = "Abs Web"
+		default:
+			clientName = "Unknown"
 		}
-	} else if clientName == "" {
-		clientName = "Unknown"
 	}
 	deviceName := ""
 	// DeviceInfo.js:109/112: `${manufacturer || 'Unknown'} ${model || ''}`, untrimmed.
 	switch {
 	case sdk != "", model != "":
-		deviceName = or(manufacturer, "Unknown") + " " + model
+		deviceName = cmp.Or(manufacturer, "Unknown") + " " + model
 	case browser != "":
-		deviceName = osName + " " + or(osVersion, "N/A") + " " + browser
+		deviceName = osName + " " + cmp.Or(osVersion, "N/A") + " " + browser
 	}
 	ip := r.RemoteAddr
 	if host, _, err := net.SplitHostPort(ip); err == nil {
@@ -1392,30 +1399,24 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	}
 	dbID, err := ids.New()
 	if err != nil {
-		return "", nil, err
+		return deviceInfo{}, err
 	}
-	deviceKey := get("deviceId")
-	if deviceKey == "" {
-		deviceKey = dbID
-	}
+	deviceKey := cmp.Or(client.DeviceID, dbID)
 	var existing string
 	err = h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? AND userId=? LIMIT 1`, deviceKey, user.ID).Scan(&existing)
 	if err == nil {
 		dbID = existing
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return "", nil, err
+		return deviceInfo{}, err
 	}
-	extra := map[string]any{}
-	for key, value := range map[string]string{"manufacturer": manufacturer, "model": model, "osName": osName, "osVersion": osVersion, "browserName": browser} {
-		if value != "" {
-			extra[key] = value
-		}
-	}
-	extraRaw, _ := json.Marshal(extra)
-	version := browserVersion
-	if sdk != "" {
-		version = sdk
-	}
+	extraRaw, _ := json.Marshal(struct {
+		Manufacturer string `json:"manufacturer,omitempty"`
+		Model        string `json:"model,omitempty"`
+		OSName       string `json:"osName,omitempty"`
+		OSVersion    string `json:"osVersion,omitempty"`
+		BrowserName  string `json:"browserName,omitempty"`
+	}{manufacturer, model, osName, osVersion, browser})
+	version := cmp.Or(sdk, browserVersion)
 	now := dbtime.Now()
 	if existing == "" {
 		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, dbID, deviceKey, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), user.ID, now, now)
@@ -1423,25 +1424,13 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), now, dbID)
 	}
 	if err != nil {
-		return "", nil, err
-	}
-	info := map[string]any{"id": dbID, "userId": user.ID, "deviceId": deviceKey, "ipAddress": ip, "clientVersion": clientVersion, "clientName": clientName, "deviceName": store.NullIfEmpty(deviceName), "browserName": store.NullIfEmpty(browser), "browserVersion": store.NullIfEmpty(browserVersion), "osName": store.NullIfEmpty(osName), "osVersion": store.NullIfEmpty(osVersion), "deviceType": nil, "manufacturer": store.NullIfEmpty(manufacturer), "model": store.NullIfEmpty(model), "sdkVersion": store.NullIfEmpty(sdk)}
-	for k, v := range info {
-		if v == nil {
-			delete(info, k)
-		}
+		return deviceInfo{}, err
 	}
 	// The observed v2.37.2 playback-session device DTO omits deviceName,
 	// manufacturer, model and sdkVersion entirely when no value exists
 	// (PlaybackSession.js:86-104 / DeviceInfo.js:43-67 fixture behavior).
-	return dbID, info, nil
-}
-
-func or(value, fallback string) string {
-	if value != "" {
-		return value
-	}
-	return fallback
+	return deviceInfo{ID: dbID, UserID: user.ID, DeviceID: deviceKey, IPAddress: ip, ClientVersion: clientVersion, ClientName: clientName, DeviceName: deviceName,
+		BrowserName: browser, BrowserVersion: browserVersion, OSName: osName, OSVersion: osVersion, Manufacturer: manufacturer, Model: model, SDKVersion: sdk}, nil
 }
 
 func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) error {
@@ -1493,62 +1482,6 @@ func mimeForFormat(ext string) string {
 	return "audio/mpeg"
 }
 
-func audioJSON(f audioFile) map[string]any {
-	out := map[string]any{}
-	for k, v := range f.Fields {
-		out[k] = v
-	}
-	out["index"] = f.Index
-	out["ino"] = f.Ino
-	out["metadata"] = f.Metadata
-	out["duration"] = f.Duration
-	out["mimeType"] = f.MimeType
-	if f.Codec != nil {
-		out["codec"] = f.Codec
-	}
-	return out
-}
-
-func number(v any, fallback float64) float64 {
-	if n, ok := asFloat(v); ok {
-		return n
-	}
-	return fallback
-}
-func asFloat(v any) (float64, bool) {
-	switch n := v.(type) {
-	case float64:
-		return n, true
-	case int:
-		return float64(n), true
-	case int64:
-		return float64(n), true
-	case json.Number:
-		f, e := n.Float64()
-		return f, e == nil
-	}
-	return 0, false
-}
-func numberOr(v any, fallback int) any {
-	if v == nil {
-		return fallback
-	}
-	return v
-}
-func stringSlice(v any) []string {
-	out := []string{}
-	switch x := v.(type) {
-	case []string:
-		return x
-	case []any:
-		for _, a := range x {
-			if s, ok := a.(string); ok {
-				out = append(out, s)
-			}
-		}
-	}
-	return out
-}
 func allSupported(files []audioFile, supported []string) bool {
 	if len(files) == 0 {
 		return false
@@ -1581,21 +1514,4 @@ func ffmpegExecutable() string {
 		return p
 	}
 	return "ffmpeg"
-}
-
-// jsTemplateValue renders a decoded JSON value as a JS template literal would
-// for the log lines that interpolate request fields (numbers without
-// exponent notation, null/undefined spelled out).
-func jsTemplateValue(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return "null"
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	case string:
-		return x
-	case bool:
-		return strconv.FormatBool(x)
-	}
-	return fmt.Sprint(v)
 }

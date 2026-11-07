@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -29,7 +30,7 @@ import (
 type downloadTask struct {
 	id                               string
 	item                             libitem.Item
-	episode                          map[string]any
+	episode                          Episode
 	url, filename                    string
 	auto                             bool
 	createdAt, startedAt, finishedAt int64
@@ -39,16 +40,12 @@ type downloadTask struct {
 }
 
 func (d *downloadTask) clientJSON() wire.EpisodeDownload {
-	title, _ := d.episode["title"].(string)
-	kind := d.episode["episodeType"]
-	if kind == nil || kind == "" {
-		kind = "full"
-	}
+	title := d.episode.Title
 	libraryID := d.item.LibraryID
 	out := wire.EpisodeDownload{
 		ID: d.id, EpisodeDisplayTitle: &title, URL: d.url, LibraryItemID: d.item.ID, IsFinished: d.finished, Failed: d.failed,
 		AppendRandomID: d.appendID, CreatedAt: d.createdAt, PodcastExplicit: d.item.Podcast.Explicit,
-		Season: d.episode["season"], Episode: d.episode["episode"], EpisodeType: kind, PublishedAt: d.episode["publishedAt"], GUID: d.episode["guid"],
+		Season: d.episode.Season, Episode: d.episode.Episode, EpisodeType: cmp.Or(d.episode.EpisodeType, "full"), PublishedAt: d.episode.PublishedAt, GUID: d.episode.GUID,
 	}
 	if libraryID != "" {
 		out.LibraryID = &libraryID
@@ -63,22 +60,17 @@ func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 	return out
 }
 
-func (h *Handler) enqueue(item libitem.Item, episodes []map[string]any, auto bool) error {
+func (h *Handler) enqueue(item libitem.Item, episodes []Episode, auto bool) error {
 	var added []*downloadTask
 	for _, episode := range episodes {
-		enc, ok := episode["enclosure"].(map[string]any)
-		if !ok {
+		if episode.Enclosure.URL == "" {
 			return errors.New("Invalid episode: enclosure URL is required")
 		}
-		raw, _ := enc["url"].(string)
-		target := validFeedURL(raw)
+		target := validFeedURL(episode.Enclosure.URL)
 		if target == "" {
 			return errors.New("Invalid episode enclosure URL")
 		}
-		title, _ := episode["title"].(string)
-		if strings.TrimSpace(title) == "" {
-			title = "Episode"
-		}
+		title := cmp.Or(strings.TrimSpace(episode.Title), "Episode")
 		taskID, err := ids.New()
 		if err != nil {
 			return err
@@ -383,39 +375,23 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 		return err
 	}
 	extra := map[string]any{}
-	if guid, ok := d.episode["guid"].(string); ok && guid != "" {
-		extra["guid"] = guid
+	if g := d.episode.GUID; g != nil && *g != "" {
+		extra["guid"] = *g
 	}
 	extraJSON, _ := json.Marshal(extra)
 	audioJSON, _ := json.Marshal(audio)
 	chaptersJSON, _ := json.Marshal([]any{})
-	var enclosure map[string]any
-	enclosure, _ = d.episode["enclosure"].(map[string]any)
-	enclosureURL, _ := enclosure["url"].(string)
-	enclosureType, _ := enclosure["type"].(string)
+	enclosureURL, enclosureType := d.episode.Enclosure.URL, d.episode.Enclosure.Type
 	var enclosureSize any
-	if n, ok := enclosure["length"].(string); ok {
-		if i, e := strconv.ParseInt(n, 10, 64); e == nil {
-			enclosureSize = i
-		}
-	} else if n, ok := enclosure["length"].(float64); ok {
-		enclosureSize = int64(n)
+	if i, e := strconv.ParseInt(string(d.episode.Enclosure.Length), 10, 64); e == nil {
+		enclosureSize = i
 	}
 	title := episodeTitle(d)
-	subtitle, _ := d.episode["subtitle"].(string)
-	description, _ := d.episode["description"].(string)
-	pubDate, _ := d.episode["pubDate"].(string)
-	season, _ := d.episode["season"].(string)
-	episodeNo, _ := d.episode["episode"].(string)
-	kind, _ := d.episode["episodeType"].(string)
-	if kind == "" {
-		kind = "full"
-	}
+	subtitle, description, pubDate, season, episodeNo := d.episode.Subtitle, d.episode.Description, d.episode.PubDate, d.episode.Season, d.episode.Episode
+	kind := cmp.Or(d.episode.EpisodeType, "full")
 	var published any
-	if n, ok := d.episode["publishedAt"].(int64); ok && n != 0 {
-		published = time.UnixMilli(n).UTC().Format(time.RFC3339Nano)
-	} else if n, ok := d.episode["publishedAt"].(float64); ok && n != 0 {
-		published = time.UnixMilli(int64(n)).UTC().Format(time.RFC3339Nano)
+	if n := d.episode.PublishedAt; n != nil && *n != 0 {
+		published = time.UnixMilli(*n).UTC().Format(time.RFC3339Nano)
 	}
 	tx, err := h.db.BeginTx(d.ctx, nil)
 	if err != nil {
@@ -549,8 +525,8 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, just
 }
 
 func episodeTitle(d *downloadTask) string {
-	if s, ok := d.episode["title"].(string); ok && strings.TrimSpace(s) != "" {
-		return s
+	if strings.TrimSpace(d.episode.Title) != "" {
+		return d.episode.Title
 	}
 	return "Episode"
 }

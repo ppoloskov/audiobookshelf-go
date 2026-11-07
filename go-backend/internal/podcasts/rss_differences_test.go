@@ -10,7 +10,7 @@ import (
 // These tests pin the deliberate differences from the encoding/xml parser
 // that gofeed replaced. Each one names the old behavior it changes.
 
-func parseTestFeed(t *testing.T, raw string) (map[string]any, error) {
+func parseTestFeed(t *testing.T, raw string) (*Feed, error) {
 	t.Helper()
 	return parseFeed([]byte(raw), "https://feeds.example/feed.xml")
 }
@@ -26,47 +26,47 @@ func TestParseFeedFallbackDifferences(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta := feed["metadata"].(map[string]any)
+	meta := feed.Metadata
 	// Old: channel description was empty when only itunes:summary was set.
-	if meta["description"] != "Only the summary is set." || meta["descriptionPlain"] != "Only the summary is set." {
+	if meta.Description != "Only the summary is set." || meta.DescriptionPlain != "Only the summary is set." {
 		t.Errorf("channel description from itunes:summary: %#v", meta)
 	}
 	// Old: categories came from the nested itunes categories, as now.
-	if !reflect.DeepEqual(meta["categories"], []string{"Society & Culture:Philosophy", "Arts:Books"}) {
-		t.Errorf("categories: %#v", meta["categories"])
+	if !reflect.DeepEqual(meta.Categories, []string{"Society & Culture:Philosophy", "Arts:Books"}) {
+		t.Errorf("categories: %#v", meta.Categories)
 	}
 	// Old: an unprefixed <author> was the episode author when itunes:author was
 	// missing. Now only itunes:author counts, so the field is empty.
-	episodes := feed["episodes"].([]map[string]any)
+	episodes := feed.Episodes
 	if len(episodes) != 4 {
 		t.Fatalf("episodes: want 4 (old 3, media:content fallback added), got %d", len(episodes))
 	}
 	summary, media, psc := episodes[0], episodes[1], episodes[2]
 	// Old: description was empty when only itunes:summary was set.
-	if summary["description"] != "Summary used as description." {
-		t.Errorf("episode description from itunes:summary: %#v", summary["description"])
+	if summary.Description != "Summary used as description." {
+		t.Errorf("episode description from itunes:summary: %#v", summary.Description)
 	}
 	// Old: an episode with only a media:content audio file was dropped. The old
 	// namespace match looked for "media" inside the URL http://search.yahoo.com/mrss/.
-	if !reflect.DeepEqual(media["enclosure"], map[string]any{"url": "https://fallback.example/b.mp3", "type": "audio/mpeg", "length": "2"}) {
-		t.Errorf("media:content enclosure: %#v", media["enclosure"])
+	if !reflect.DeepEqual(media.Enclosure, enclosure{URL: "https://fallback.example/b.mp3", Type: "audio/mpeg", Length: "2"}) {
+		t.Errorf("media:content enclosure: %#v", media.Enclosure)
 	}
 	// Old: psc:chapters were never read (same namespace-URL mismatch).
-	wantChapters := []map[string]any{
-		{"id": 0, "title": "Intro", "start": 0, "end": 30},
-		{"id": 1, "title": "Middle", "start": 30, "end": 60},
+	wantChapters := []chapter{
+		{ID: 0, Title: "Intro", Start: 0, End: 30},
+		{ID: 1, Title: "Middle", Start: 30, End: 60},
 	}
-	if !reflect.DeepEqual(psc["chapters"], wantChapters) {
-		t.Errorf("psc chapters: %#v", psc["chapters"])
+	if !reflect.DeepEqual(psc.Chapters, wantChapters) {
+		t.Errorf("psc chapters: %#v", psc.Chapters)
 	}
 	plainEp := episodes[3]
 	// Old: pubDate was empty and publishedAt nil when only dc:date was set.
-	if plainEp["pubDate"] != "2024-02-01T10:00:00Z" || plainEp["publishedAt"] != int64(1706781600000) {
-		t.Errorf("dc:date fallback: pubDate=%#v publishedAt=%#v", plainEp["pubDate"], plainEp["publishedAt"])
+	if plainEp.PubDate != "2024-02-01T10:00:00Z" || plainEp.PublishedAt == nil || *plainEp.PublishedAt != 1706781600000 {
+		t.Errorf("dc:date fallback: pubDate=%#v publishedAt=%#v", plainEp.PubDate, plainEp.PublishedAt)
 	}
 	// Old: the unprefixed <author> was the episode author; now it is empty.
-	if plainEp["author"] != "" {
-		t.Errorf("episode author from unprefixed <author>: %#v", plainEp["author"])
+	if plainEp.Author != "" {
+		t.Errorf("episode author from unprefixed <author>: %#v", plainEp.Author)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestParseFeedChannelImageIsRSSFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := feed["metadata"].(map[string]any)["image"]; got != "https://img.example/rss.png" {
+	if got := feed.Metadata.Image; got != "https://img.example/rss.png" {
 		t.Errorf("image: %#v", got)
 	}
 }
@@ -110,12 +110,10 @@ func TestParseFeedEmptyTextIsNil(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta := feed["metadata"].(map[string]any)
-	if v, ok := meta["categories"].([]string); !ok || v != nil {
-		t.Errorf("categories should be a nil slice, got %#v", meta["categories"])
+	if feed.Metadata.Categories != nil {
+		t.Errorf("categories should be a nil slice, got %#v", feed.Metadata.Categories)
 	}
-	ep := feed["episodes"].([]map[string]any)[0]
-	if v, ok := ep["chapters"].([]map[string]any); !ok || v != nil {
-		t.Errorf("chapters should be a nil slice, got %#v", ep["chapters"])
+	if ep := feed.Episodes[0]; ep.Chapters == nil || len(ep.Chapters) != 0 {
+		t.Errorf("chapters should be an empty slice, got %#v", ep.Chapters)
 	}
 }

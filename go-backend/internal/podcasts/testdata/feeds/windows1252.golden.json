@@ -2,7 +2,7 @@
   "episodes": [
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
       "description": "Tea time — été.",
@@ -17,7 +17,7 @@
       "episode": "1",
       "episodeType": "",
       "explicit": "",
-      "guid": "",
+      "guid": null,
       "pubDate": "Sat, 06 Jan 2024 12:00:00 GMT",
       "publishedAt": 1704542400000,
       "season": "",

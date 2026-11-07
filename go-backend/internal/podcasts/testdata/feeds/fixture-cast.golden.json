@@ -2,10 +2,10 @@
   "episodes": [
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": null,
       "chaptersUrl": null,
-      "description": "\u003cp\u003eEpisode \u003ca\u003elink\u003c/a\u003e\u003c/p\u003e",
+      "description": "<p>Episode <a>link</a></p>",
       "descriptionPlain": "Episode link",
       "duration": "01:02:03",
       "durationSeconds": 3723,
@@ -30,7 +30,7 @@
     "categories": [
       "Arts:Books"
     ],
-    "description": "\u003cp\u003eUseful \u003cstrong\u003enews\u003c/strong\u003e\u003c/p\u003e",
+    "description": "<p>Useful <strong>news</strong></p>",
     "descriptionPlain": "Useful news",
     "explicit": "",
     "feedUrl": "https://feeds.example/feed.xml",

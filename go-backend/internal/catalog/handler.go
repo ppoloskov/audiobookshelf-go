@@ -141,7 +141,7 @@ func valueOrNull(s string) any {
 
 // sortingPrefixes reads the server's sortingPrefixes setting.
 func (h *Handler) sortingPrefixes(ctx context.Context) []string {
-	return serversettings.Load(ctx, h.db).SortingPrefixes
+	return serversettings.Load(ctx, h.db).SortingPrefixes()
 }
 
 func (h *Handler) titlePrefix(ctx context.Context, title string) string {
@@ -992,7 +992,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	}
 	sortBy := r.URL.Query().Get("sort")
 	desc := r.URL.Query().Get("desc") == "1"
-	ignorePrefix, _ := serversettings.Load(r.Context(), h.db).Doc["sortingIgnorePrefix"].(bool)
+	ignorePrefix, _ := serversettings.Load(r.Context(), h.db).Doc()["sortingIgnorePrefix"].(bool)
 	sort.SliceStable(all, func(i, j int) bool {
 		a, b := all[i], all[j]
 		var less bool
@@ -1235,7 +1235,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	collapse := r.URL.Query().Get("collapseseries") == "1"
 	include := normalizedInclude(r)
 	settings := serversettings.Load(r.Context(), h.db)
-	ignorePrefix, _ := settings.Doc["sortingIgnorePrefix"].(bool)
+	ignorePrefix, _ := settings.Doc()["sortingIgnorePrefix"].(bool)
 	if seriesID, ok := collapseSubseriesFilter(r); ok {
 		return h.collapseSubseries(w, r, user, libraryID, mediaType, seriesID, page, limit, ignorePrefix)
 	}
@@ -1298,7 +1298,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	prefixes := settings.SortingPrefixes
+	prefixes := settings.SortingPrefixes()
 	results := make([]libitem.Minified, 0, len(pageItems))
 	for _, it := range pageItems {
 		item := it.ListRow(prefixes)

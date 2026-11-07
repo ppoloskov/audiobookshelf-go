@@ -114,8 +114,8 @@ func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 			t.Fatalf("secret setting %s leaked", k)
 		}
 	}
-	if cached, err := serversettings.Get(req.Context(), db); err != nil || cached.Doc["language"] != "fr" {
-		t.Fatalf("cached settings stale after PATCH: %v %v", cached.Doc["language"], err)
+	if cached, err := serversettings.Get(req.Context(), db); err != nil || cached.Doc()["language"] != "fr" {
+		t.Fatalf("cached settings stale after PATCH: %v %v", cached.Doc()["language"], err)
 	}
 	var raw string
 	if e := db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); e != nil {

@@ -159,7 +159,7 @@ func (h *Handler) feed(w http.ResponseWriter, r *http.Request) error {
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || validFeedURL(body.RSSFeed) == "" {
 		return httputil.Status(400, `Invalid request body. "rssFeed" must be a valid URL`)
 	}
-	feed, err := h.getFeed(r.Context(), body.RSSFeed, false)
+	feed, err := h.getFeed(r.Context(), body.RSSFeed)
 	if err != nil {
 		return httputil.Status(404, "Podcast RSS feed request failed or invalid response data")
 	}
@@ -180,7 +180,7 @@ func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item 
 	if !access.AdminUser(requestUser(r)) {
 		return httputil.Status(403, "")
 	}
-	var episodes []map[string]any
+	var episodes []Episode
 	if json.NewDecoder(io.LimitReader(r.Body, 8<<20)).Decode(&episodes) != nil || len(episodes) == 0 {
 		return httputil.Status(400, "")
 	}
@@ -199,11 +199,11 @@ func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item lib
 		logging.RequestDebug(r, "responding 500: query parameter title is empty")
 		return &httputil.Error{Status: 500}
 	}
-	feed, err := h.getFeed(r.Context(), str(item.Podcast.FeedURL), false)
+	feed, err := h.getFeed(r.Context(), str(item.Podcast.FeedURL))
 	if err != nil {
 		return httputil.JSON(w, r, map[string]any{"episodes": nil})
 	}
-	return httputil.JSON(w, r, map[string]any{"episodes": matchEpisodes(feed, title)})
+	return httputil.JSON(w, r, map[string]any{"episodes": matchEpisodes(feed.Episodes, title)})
 }
 
 func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
@@ -407,7 +407,7 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.
 	if str(item.Podcast.FeedURL) == "" {
 		return httputil.Status(400, "Podcast has no rss feed url")
 	}
-	feed, err := h.getFeed(r.Context(), str(item.Podcast.FeedURL), false)
+	feed, err := h.getFeed(r.Context(), str(item.Podcast.FeedURL))
 	if err != nil {
 		return httputil.JSON(w, r, map[string]any{"episodes": []any{}})
 	}
@@ -415,33 +415,13 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.
 	if t := item.Podcast.LastEpisodeCheck; t != nil {
 		afterMS = *t
 	}
-	known := knownEpisodes(item)
-	all, _ := feed["episodes"].([]map[string]any)
 	limit := 3
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		if n, e := strconv.Atoi(raw); e == nil {
 			limit = n
 		}
 	}
-	found := make([]map[string]any, 0)
-	for _, ep := range all {
-		pub, _ := ep["publishedAt"].(float64)
-		if pub == 0 {
-			if n, ok := ep["publishedAt"].(int64); ok {
-				pub = float64(n)
-			}
-		}
-		enc, _ := ep["enclosure"].(map[string]any)
-		guid, _ := ep["guid"].(string)
-		urlValue, _ := enc["url"].(string)
-		if int64(pub) <= afterMS || known["g:"+guid] || known["u:"+urlValue] {
-			continue
-		}
-		found = append(found, ep)
-		if limit > 0 && len(found) >= limit {
-			break
-		}
-	}
+	found := filterNew(feed.Episodes, item, afterMS, limit)
 	now := dbtime.Now()
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
 		return httputil.Internal("database write failed", err)
@@ -488,7 +468,7 @@ func (h *Handler) loadItem(ctx context.Context, id string) (libitem.Item, error)
 
 // expanded is the item's socket and detail JSON.
 func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expanded {
-	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes)
+	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes())
 }
 
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
@@ -505,28 +485,29 @@ func str(s *string) string {
 	return *s
 }
 
-func matchEpisodes(feed map[string]any, query string) []map[string]any {
-	eps, _ := feed["episodes"].([]map[string]any)
+// episodeMatch is one hit of the search-episode response.
+type episodeMatch struct {
+	Episode Episode `json:"episode"`
+}
+
+func matchEpisodes(episodes []Episode, query string) []episodeMatch {
 	type score struct {
-		v map[string]any
-		s float64
+		ep Episode
+		s  float64
 	}
 	var found []score
 	needle := strings.ToLower(strings.TrimSpace(query))
-	for _, ep := range eps {
-		title, _ := ep["title"].(string)
-		sub, _ := ep["subtitle"].(string)
-		a := similarity(needle, strings.ToLower(title))
-		b := similarity(needle, strings.ToLower(sub))
-		s := a*.7 + b*.3
+	for _, ep := range episodes {
+		a := similarity(needle, strings.ToLower(ep.Title))
+		b := similarity(needle, strings.ToLower(ep.Subtitle))
 		if a > 0.6 || b > 0.6 {
-			found = append(found, score{ep, s})
+			found = append(found, score{ep, a*.7 + b*.3})
 		}
 	}
 	sort.SliceStable(found, func(i, j int) bool { return found[i].s > found[j].s })
-	out := make([]map[string]any, len(found))
+	out := make([]episodeMatch, len(found))
 	for i, x := range found {
-		out[i] = map[string]any{"episode": x.v}
+		out[i] = episodeMatch{x.ep}
 	}
 	return out
 }
@@ -535,12 +516,16 @@ func matchEpisodes(feed map[string]any, query string) []map[string]any {
 // configured HTTP client and network policy. It is intended for scanner
 // integration and returns parsed episode maps in API shape.
 func (h *Handler) FetchFeedEpisodes(ctx context.Context, feedURL string) ([]map[string]any, error) {
-	feed, err := h.getFeed(ctx, feedURL, false)
+	feed, err := h.getFeed(ctx, feedURL)
 	if err != nil {
 		return nil, err
 	}
-	episodes, _ := feed["episodes"].([]map[string]any)
-	return episodes, nil
+	raw, err := json.Marshal(feed.Episodes)
+	if err != nil {
+		return nil, err
+	}
+	var episodes []map[string]any
+	return episodes, json.Unmarshal(raw, &episodes)
 }
 func similarity(a, b string) float64 {
 	if a == "" || b == "" {
@@ -635,7 +620,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	if schedule != "" && !cronspec.Valid(schedule) {
 		return libitem.Item{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
 	}
-	settings := serversettings.Load(ctx, h.db).Doc
+	settings := serversettings.Load(ctx, h.db).Doc()
 	if schedule == "" {
 		schedule, _ = settings["podcastEpisodeSchedule"].(string)
 		if schedule == "" {
@@ -793,20 +778,20 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath string, auto bool, task map[string]any) {
 	added := 0
 	for _, feedURL := range feeds {
-		feed, err := h.getFeed(context.Background(), feedURL, false)
+		feed, err := h.getFeed(context.Background(), feedURL)
 		if err != nil {
 			// PodcastManager.js:543-557: feed-fetch failures describe the feed URL.
 			h.emitFailedOPMLFeed(feedURL, `Importing RSS feed "`+feedURL+`"`, "MessageTaskOpmlImportFeedDescription", "Failed to get podcast feed", "MessageTaskOpmlImportFeedFailed")
 			continue
 		}
-		metadata, _ := feed["metadata"].(map[string]any)
-		title := anyString(metadata["title"])
+		metadata := feed.Metadata
+		title := metadata.Title
 		if title == "" {
 			h.emitFailedOPMLFeed(feedURL, `Importing RSS feed "`+feedURL+`"`, "MessageTaskOpmlImportFeedDescription", "Failed to get podcast feed", "MessageTaskOpmlImportFeedFailed")
 			continue
 		}
 		path := filepath.Join(folderPath, sanitizePodcastFilename(title))
-		payload := map[string]any{"libraryId": libraryID, "folderId": folderID, "path": filepath.ToSlash(path), "autoDownloadEpisodes": auto, "media": map[string]any{"autoDownloadEpisodes": auto, "metadata": map[string]any{"title": metadata["title"], "author": metadata["author"], "description": metadata["description"], "releaseDate": "", "genres": metadata["categories"], "feedUrl": metadata["feedUrl"], "imageUrl": metadata["image"], "itunesPageUrl": "", "itunesId": "", "itunesArtistId": "", "language": "", "numEpisodes": feed["numEpisodes"]}}}
+		payload := map[string]any{"libraryId": libraryID, "folderId": folderID, "path": filepath.ToSlash(path), "autoDownloadEpisodes": auto, "media": map[string]any{"autoDownloadEpisodes": auto, "metadata": map[string]any{"title": metadata.Title, "author": metadata.Author, "description": metadata.Description, "releaseDate": "", "genres": metadata.Categories, "feedUrl": metadata.FeedURL, "imageUrl": metadata.Image, "itunesPageUrl": "", "itunesId": "", "itunesArtistId": "", "language": ""}}}
 		item, _, _, createErr := h.createPodcastFromBody(context.Background(), payload)
 		if createErr == nil {
 			added++
@@ -909,7 +894,7 @@ func (h *Handler) runScheduled(itemID string) {
 		after = *v
 	}
 	logging.Infof("[PodcastManager] runEpisodeCheck: %q | Last check: %v", str(item.Podcast.Title), time.UnixMilli(after).UTC().Format(time.RFC3339)) // PodcastManager.js:329
-	feed, err := h.getFeed(context.Background(), str(item.Podcast.FeedURL), false)
+	feed, err := h.getFeed(context.Background(), str(item.Podcast.FeedURL))
 	if err != nil {
 		logging.Errorf("[PodcastManager] Failed to get feed for podcast %q (%s): %v", str(item.Podcast.Title), str(item.Podcast.FeedURL), err)
 		h.queueMu.Lock()
@@ -952,8 +937,7 @@ func (h *Handler) runScheduled(itemID string) {
 			after = *v
 		}
 	}
-	all, _ := feed["episodes"].([]map[string]any)
-	found := filterNew(all, item, after, int(item.Podcast.MaxNewEpisodesToDownload))
+	found := filterNew(feed.Episodes, item, after, int(item.Podcast.MaxNewEpisodesToDownload))
 	if len(found) > 0 {
 		if err := h.enqueue(item, found, true); err != nil {
 			logging.Errorf("[podcasts] scheduled episode enqueue failed for %s: %v", item.MediaID, err)
@@ -965,21 +949,11 @@ func (h *Handler) runScheduled(itemID string) {
 	}
 }
 
-func filterNew(all []map[string]any, item libitem.Item, after int64, limit int) []map[string]any {
+func filterNew(all []Episode, item libitem.Item, after int64, limit int) []Episode {
 	known := knownEpisodes(item)
-	found := []map[string]any{}
+	found := []Episode{}
 	for _, ep := range all {
-		var published int64
-		switch n := ep["publishedAt"].(type) {
-		case int64:
-			published = n
-		case float64:
-			published = int64(n)
-		}
-		enc, _ := ep["enclosure"].(map[string]any)
-		guid, _ := ep["guid"].(string)
-		urlValue, _ := enc["url"].(string)
-		if published <= after || known["g:"+guid] || known["u:"+urlValue] {
+		if (ep.PublishedAt == nil || *ep.PublishedAt <= after) || (ep.GUID != nil && known["g:"+*ep.GUID]) || known["u:"+ep.Enclosure.URL] {
 			continue
 		}
 		found = append(found, ep)
@@ -1017,7 +991,7 @@ func stringArray(v any) []string {
 	return out
 }
 
-func (h *Handler) getFeed(ctx context.Context, rawURL string, excludeEpisodes bool) (map[string]any, error) {
+func (h *Handler) getFeed(ctx context.Context, rawURL string) (*Feed, error) {
 	feedURL := validFeedURL(rawURL)
 	if feedURL == "" {
 		return nil, errors.New("invalid feed URL")
@@ -1062,15 +1036,7 @@ func (h *Handler) getFeed(ctx context.Context, rawURL string, excludeEpisodes bo
 	if int64(len(raw)) > limit {
 		return nil, errors.New("podcast feed is too large")
 	}
-	feed, err := parseFeed(raw, feedURL)
-	if err != nil {
-		return nil, err
-	}
-	if excludeEpisodes {
-		feed["numEpisodes"] = len(feed["episodes"].([]map[string]any))
-		delete(feed, "episodes")
-	}
-	return feed, nil
+	return parseFeed(raw, feedURL)
 }
 
 func secureClient() *http.Client {

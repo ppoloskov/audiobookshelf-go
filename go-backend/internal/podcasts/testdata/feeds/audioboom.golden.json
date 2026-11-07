@@ -2,7 +2,7 @@
   "episodes": [
     {
       "author": "Sam Reid",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": "application/json+chapters",
       "chaptersUrl": "https://audioboom.example/clips/1001.json",
       "description": "Markets opened higher on Monday.",
@@ -26,10 +26,10 @@
     },
     {
       "author": "",
-      "chapters": null,
+      "chapters": [],
       "chaptersType": "application/json",
       "chaptersUrl": "https://audioboom.example/clips/1000.chapters",
-      "description": "\u003cul\u003e\u003cli\u003eGrowth\u003c/li\u003e\u003cli\u003eInflation \u003cem\u003eeasing\u003c/em\u003e\u003c/li\u003e\u003c/ul\u003e\u003cp\u003eRead more at \u003ca href=\"https://audioboom.example/q\"\u003eour site\u003c/a\u003e, don't miss it.\u003c/p\u003e",
+      "description": "<ul><li>Growth</li><li>Inflation <em>easing</em></li></ul><p>Read more at <a href=\"https://audioboom.example/q\">our site</a>, don't miss it.</p>",
       "descriptionPlain": "GrowthInflation easingRead more at our site, don't miss it.",
       "duration": "1800",
       "durationSeconds": 1800,

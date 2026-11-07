@@ -71,7 +71,7 @@ func Playlist(ctx context.Context, db *sql.DB, id string) (map[string]any, strin
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}
-	prefixes := serversettings.Load(ctx, db).SortingPrefixes
+	prefixes := serversettings.Load(ctx, db).SortingPrefixes()
 	playlistItems := make([]any, 0, len(entries))
 	for _, e := range entries {
 		it, ok := byID[e.LibraryItemID]
@@ -127,7 +127,7 @@ func Collection(ctx context.Context, db *sql.DB, id string, canView func(context
 	if err != nil {
 		return nil, "", err
 	}
-	prefixes := serversettings.Load(ctx, db).SortingPrefixes
+	prefixes := serversettings.Load(ctx, db).SortingPrefixes()
 	books := make([]any, len(loaded))
 	for i, it := range loaded {
 		books[i] = it.Expanded(prefixes)

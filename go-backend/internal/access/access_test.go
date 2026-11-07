@@ -47,58 +47,146 @@ func load(t *testing.T) (matrix, map[string]map[string]any) {
 	return m, d
 }
 
-func TestDecisionsMatchRecordedHelpers(t *testing.T) {
-	m, d := load(t)
-	check := func(name, key string, got bool) {
-		t.Helper()
-		if want := d[name][key]; want != got {
-			t.Errorf("%s[%s] = %v, recorded %v", name, key, got, want)
+// decide computes every recorded decision of the current rules, keyed like
+// testdata/decisions.json. ACCESS_RECORD=1 rewrites that file from it.
+func decide(t *testing.T, m matrix) map[string]map[string]any {
+	d := map[string]map[string]any{}
+	put := func(name, key string, v any) {
+		if d[name] == nil {
+			d[name] = map[string]any{}
 		}
+		d[name][key] = v
 	}
 	for ui, u := range m.Users {
-		user := store.User{Type: u.Type, IsActive: u.Active}
-		if u.Permissions != nil {
-			user.Permissions = json.RawMessage(*u.Permissions)
-		}
-		p := Of(user)
+		p := Of(userOf(u.Type, u.Active, u.Permissions))
 		k := fmt.Sprint(ui)
 		for _, lib := range []string{"lib1", "lib2", "lib3"} {
 			key := k + ":" + lib
 			for _, name := range []string{"catalogLibrary", "userapiLibrary", "shareLibrary", "rtLibrary"} {
-				check(name, key, p.Library(lib))
+				put(name, key, p.Library(lib))
 			}
 			for _, name := range []string{"podLibrary", "emailLibrary", "adminLibrary", "audioLibrary"} {
-				check(name, key, p.IsAdmin() || p.Library(lib))
+				put(name, key, p.IsAdmin() || p.Library(lib))
 			}
-			check("catalogList", key, p.ListLibrary(lib))
+			put("catalogList", key, p.ListLibrary(lib))
 		}
 		for ii, it := range m.Items {
 			key := k + ":" + fmt.Sprint(ii)
 			a := libitem.Access{LibraryID: it.Lib, Explicit: it.Explicit, Tags: it.Tags}
 			for _, name := range []string{"catalogItem", "libitemAllowed", "playAccess", "rtItem"} {
-				check(name, key, p.Item(a))
+				put(name, key, p.Item(a))
 			}
-			check("podAccess", key, p.IsAdmin() || p.Item(a))
-			check("emailContent", key, p.Content(a))
+			put("podAccess", key, p.IsAdmin() || p.Item(a))
+			put("emailContent", key, p.Content(a))
 		}
-		check("catalogAuthUpdate", k, p.Update())
-		check("catalogAuthDelete", k, p.Delete())
-		check("catalogAuthUpload", k, p.Upload())
-		check("catalogAuthDownload", k, p.Download())
-		check("adminUpload", k, p.Upload())
-		// Moved toward TS (User.js:560-571, `!!flag && isActive`): the helpers
-		// recorded for these two took only literal true and ignored isActive.
-		if loose := u.Permissions != nil && strings.Contains(*u.Permissions, `"yes"`); !loose {
-			check("playDelete", k, p.Delete())
-			if u.Active {
-				check("podUpdate", k, p.IsAdmin() || p.Update())
-			}
+		for _, name := range []string{"catalogAuthUpdate", "catalogUpdate"} {
+			put(name, k, p.Update())
 		}
-		check("catalogAdminUser", k, p.Active && p.IsAdmin())
+		put("podUpdate", k, p.IsAdmin() || p.Update())
+		for _, name := range []string{"catalogAuthDelete", "playDelete"} {
+			put(name, k, p.Delete())
+		}
+		put("podDelete", k, p.IsAdmin() || p.Delete())
+		put("catalogAuthUpload", k, p.Upload())
+		put("adminUpload", k, p.Upload())
+		put("catalogAuthDownload", k, p.Download())
+		put("catalogAdminUser", k, p.Active && p.IsAdmin())
 		clause, args := p.MediaClause("b")
-		if got, want := visible(t, m, clause, args), fmt.Sprint(d["catalogSQL"][k]); fmt.Sprint(got) != want {
-			t.Errorf("MediaClause user %d = %v, recorded %v", ui, got, want)
+		put("catalogSQL", k, visible(t, m, clause, args))
+		put("podSQL", k, visible(t, m, clause, args)) // MediaClause differs only by alias
+	}
+	return d
+}
+
+func userOf(typ string, active bool, permissions *string) store.User {
+	user := store.User{Type: typ, IsActive: active}
+	if permissions != nil {
+		user.Permissions = json.RawMessage(*permissions)
+	}
+	return user
+}
+
+// TestDecisionsMatchRecorded replays testdata/decisions.json. It was first
+// recorded from the per-package helpers this package replaced, then
+// re-recorded once (docs/SIMPLIFICATION.md, M7 fixes) for three deliberate
+// changes, each also pinned by its own test below: a permissions document
+// that does not decode completely grants nothing; explicit items need an
+// active user; an empty allow list hides every item from SQL too.
+func TestDecisionsMatchRecorded(t *testing.T) {
+	m, want := load(t)
+	got := decide(t, m)
+	if os.Getenv("ACCESS_RECORD") == "1" {
+		raw, _ := json.MarshalIndent(got, "", " ")
+		if err := os.WriteFile("testdata/decisions.json", append(raw, '\n'), 0o644); err != nil {
+			t.Fatal(err)
 		}
+		return
+	}
+	for name, cells := range got {
+		for key, v := range cells {
+			if fmt.Sprint(v) != fmt.Sprint(want[name][key]) {
+				t.Errorf("%s[%s] = %v, recorded %v", name, key, v, want[name][key])
+			}
+		}
+	}
+}
+
+// TestMediaClauseMatchesContent is the invariant between list queries and
+// item reads: the SQL clause selects exactly the media Content allows, for
+// every user and item of the matrix.
+func TestMediaClauseMatchesContent(t *testing.T) {
+	m, _ := load(t)
+	for ui, u := range m.Users {
+		p := Of(userOf(u.Type, u.Active, u.Permissions))
+		clause, args := p.MediaClause("b")
+		selected := map[float64]bool{}
+		for _, i := range visible(t, m, clause, args) {
+			selected[i.(float64)] = true
+		}
+		for ii, it := range m.Items {
+			allowed := p.Content(libitem.Access{Explicit: it.Explicit, Tags: it.Tags})
+			if selected[float64(ii)] != allowed {
+				t.Errorf("user %d item %d: SQL selects %v, Content allows %v", ui, ii, selected[float64(ii)], allowed)
+			}
+		}
+	}
+}
+
+func TestMalformedPermissionsGrantNothing(t *testing.T) {
+	for _, doc := range []string{
+		`{"accessAllLibraries": true, "accessAllTags": true, "update": true, "librariesAccessible": "lib1"}`,
+		`{"accessAllLibraries": true, "accessAllTags": "yes"}`,
+		`{"accessAllLibraries": true,`,
+		`[]`,
+	} {
+		p := Of(store.User{Type: "user", IsActive: true, Permissions: json.RawMessage(doc)})
+		if p.Library("lib1") || p.Update() || p.Content(libitem.Access{Tags: []string{"a"}}) {
+			t.Errorf("%s: malformed permissions granted access: %+v", doc, p)
+		}
+		if clause, _ := p.MediaClause("b"); !strings.Contains(clause, "AND 0") {
+			t.Errorf("%s: malformed permissions must hide all media, clause %q", doc, clause)
+		}
+	}
+}
+
+func TestExplicitNeedsActiveUser(t *testing.T) {
+	doc := json.RawMessage(`{"accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true}`)
+	explicit := libitem.Access{LibraryID: "lib1", Explicit: true}
+	if !Of(store.User{IsActive: true, Permissions: doc}).Item(explicit) {
+		t.Fatal("active user with accessExplicitContent must see explicit items")
+	}
+	if Of(store.User{IsActive: false, Permissions: doc}).Item(explicit) {
+		t.Fatal("inactive user must not see explicit items (User.canAccessExplicitContent)")
+	}
+}
+
+func TestEmptyAllowListHidesEverything(t *testing.T) {
+	p := Of(store.User{IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries": true, "accessAllTags": false, "itemTagsSelected": [], "selectedTagsNotAccessible": false}`)})
+	if p.Content(libitem.Access{Tags: []string{"a"}}) || p.Content(libitem.Access{}) {
+		t.Fatal("empty allow list must deny every item")
+	}
+	if clause, _ := p.MediaClause("b"); !strings.Contains(clause, "AND 0") {
+		t.Fatalf("empty allow list must hide every item from list queries, clause %q", clause)
 	}
 }
 

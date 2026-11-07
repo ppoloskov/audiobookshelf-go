@@ -32,10 +32,14 @@ type Permissions struct {
 	UploadFlag   any      `json:"upload"`
 }
 
-// Of decodes the permissions of a user row. Malformed JSON grants nothing.
+// Of decodes the permissions of a user row. A document that does not decode
+// completely (malformed JSON or a field of the wrong type) grants nothing:
+// json.Unmarshal can fill earlier fields before failing on a later one.
 func Of(u store.User) Permissions {
 	p := Permissions{Type: u.Type, Active: u.IsActive}
-	_ = json.Unmarshal(u.Permissions, &p)
+	if json.Unmarshal(u.Permissions, &p) != nil {
+		return Permissions{Type: u.Type, Active: u.IsActive}
+	}
 	return p
 }
 
@@ -66,8 +70,11 @@ func (p Permissions) Item(a libitem.Access) bool {
 }
 
 // Content is Item without the library rule (Access.LibraryID is ignored).
+// Explicit content needs an active user (User.canAccessExplicitContent).
+// MediaClause must select exactly the media Content allows
+// (TestMediaClauseMatchesContent).
 func (p Permissions) Content(a libitem.Access) bool {
-	if a.Explicit && !p.Explicit {
+	if a.Explicit && !(p.Explicit && p.Active) {
 		return false
 	}
 	if p.AllTags {
@@ -85,6 +92,12 @@ func (p Permissions) MediaClause(alias string) (string, []any) {
 	clause, args := "", []any(nil)
 	if !p.Explicit || !p.Active {
 		clause += " AND " + alias + ".explicit=0"
+	}
+	if !p.AllTags && !p.TagsExcluded && len(p.Tags) == 0 {
+		// An empty allow list admits no item (checkCanAccessLibraryItemWithTags).
+		// Upstream's list queries skip the filter here and so disagree with its
+		// own item check; we fail closed instead.
+		clause += " AND 0"
 	}
 	if !p.AllTags && len(p.Tags) > 0 {
 		compare := ">0"

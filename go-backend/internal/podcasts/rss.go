@@ -2,12 +2,13 @@ package podcasts
 
 import (
 	"bytes"
+	"cmp"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"strings"
 
-	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 
 	"github.com/mmcdole/gofeed"
@@ -15,63 +16,87 @@ import (
 	"golang.org/x/net/html/charset"
 )
 
-// xmlNode is a small element tree for OPML, which gofeed does not parse.
-type xmlNode struct {
-	Name     xml.Name
-	Attr     []xml.Attr
-	Text     strings.Builder
-	Children []*xmlNode
+// Feed is a parsed RSS feed in the API shape of POST /api/podcasts/feed.
+type Feed struct {
+	Metadata FeedMetadata `json:"metadata"`
+	Episodes []Episode    `json:"episodes"`
 }
 
-func parseXML(raw []byte) (*xmlNode, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(raw))
-	decoder.CharsetReader = charset.NewReaderLabel
-	root := &xmlNode{Name: xml.Name{Local: "root"}}
-	stack := []*xmlNode{root}
-	for {
-		tok, err := decoder.Token()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			n := &xmlNode{Name: t.Name, Attr: t.Attr}
-			stack[len(stack)-1].Children = append(stack[len(stack)-1].Children, n)
-			stack = append(stack, n)
-		case xml.EndElement:
-			if len(stack) > 1 {
-				stack = stack[:len(stack)-1]
-			}
-		case xml.CharData:
-			stack[len(stack)-1].Text.Write([]byte(t))
-		}
-	}
-	if len(root.Children) == 0 {
-		return nil, fmt.Errorf("empty XML")
-	}
-	return root.Children[0], nil
+type FeedMetadata struct {
+	Title            string   `json:"title"`
+	Language         string   `json:"language"`
+	Explicit         string   `json:"explicit"`
+	Author           string   `json:"author"`
+	PubDate          string   `json:"pubDate"`
+	Link             string   `json:"link"`
+	Image            string   `json:"image"`
+	Categories       []string `json:"categories"`
+	FeedURL          string   `json:"feedUrl"`
+	Description      string   `json:"description"`
+	DescriptionPlain string   `json:"descriptionPlain"`
+	Type             string   `json:"type"`
 }
 
-func attr(n *xmlNode, key string) string {
-	if n == nil {
-		return ""
+// Episode is a feed episode in the API shape. Clients post these back to
+// download-episodes.
+type Episode struct {
+	Title            string    `json:"title"`
+	Subtitle         string    `json:"subtitle"`
+	Description      string    `json:"description"`
+	DescriptionPlain string    `json:"descriptionPlain"`
+	PubDate          string    `json:"pubDate"`
+	EpisodeType      string    `json:"episodeType"`
+	Season           string    `json:"season"`
+	Episode          string    `json:"episode"`
+	Author           string    `json:"author"`
+	Duration         string    `json:"duration"`
+	DurationSeconds  *int      `json:"durationSeconds"`
+	Explicit         string    `json:"explicit"`
+	PublishedAt      *int64    `json:"publishedAt"`
+	Enclosure        enclosure `json:"enclosure"`
+	GUID             *string   `json:"guid"`
+	ChaptersURL      *string   `json:"chaptersUrl"`
+	ChaptersType     *string   `json:"chaptersType"`
+	Chapters         []chapter `json:"chapters"`
+}
+
+type enclosure struct {
+	URL    string  `json:"url"`
+	Type   string  `json:"type,omitempty"`
+	Length numText `json:"length,omitempty"`
+}
+
+// numText is a size a client may send as a JSON number or a string.
+type numText string
+
+func (n *numText) UnmarshalJSON(b []byte) error {
+	var num json.Number
+	if json.Unmarshal(b, &num) != nil {
+		_ = json.Unmarshal(b, (*string)(n))
+		return nil
 	}
-	for _, a := range n.Attr {
-		if strings.EqualFold(a.Name.Local, key) {
-			return strings.TrimSpace(a.Value)
-		}
-	}
-	return ""
+	*n = numText(num)
+	return nil
+}
+
+type chapter struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+}
+
+// opmlFeed is one feed of an OPML import.
+type opmlFeed struct {
+	Title   string `json:"title"`
+	FeedURL string `json:"feedUrl"`
 }
 
 // parseFeed maps a gofeed parse of an RSS document to the podcast metadata and
 // episodes Go stores. The iTunes fields are read from gofeed's iTunes
 // extension, the chapter and media fields from its generic extensions.
 // gofeed's translated fields are used only where they equal the raw element.
-func parseFeed(raw []byte, feedURL string) (map[string]any, error) {
+func parseFeed(raw []byte, feedURL string) (*Feed, error) {
 	parser := gofeed.NewParser()
 	// The channel image comes from <image>, then itunes:image. gofeed's
 	// last-resort scan of the description HTML is off.
@@ -94,26 +119,25 @@ func parseFeed(raw []byte, feedURL string) (map[string]any, error) {
 	if feed.Image != nil && feed.Image.URL != "" {
 		image = feed.Image.URL
 	}
-	meta := map[string]any{"title": feed.Title, "language": feed.Language, "explicit": itunes.Explicit, "author": itunes.Author, "pubDate": feed.Published, "link": feed.Link, "image": image, "categories": feedCategories(itunes), "feedUrl": feedURL, "description": "", "descriptionPlain": "", "type": itunes.Type}
+	out := &Feed{Metadata: FeedMetadata{Title: feed.Title, Language: feed.Language, Explicit: itunes.Explicit, Author: itunes.Author, PubDate: feed.Published, Link: feed.Link, Image: image,
+		Categories: feedCategories(itunes), FeedURL: feedURL, Type: itunes.Type}}
 	if feedURL == "" {
-		meta["feedUrl"] = feed.FeedLink
+		out.Metadata.FeedURL = feed.FeedLink
 	}
 	if itunes.NewFeedURL != "" {
-		meta["feedUrl"] = itunes.NewFeedURL
+		out.Metadata.FeedURL = itunes.NewFeedURL
 	}
 	description := strings.TrimSpace(feed.Description)
-	meta["description"], meta["descriptionPlain"] = textclean.Sanitize(description), textclean.Strip(description)
-	episodes := make([]map[string]any, 0, len(feed.Items))
+	out.Metadata.Description, out.Metadata.DescriptionPlain = textclean.Sanitize(description), textclean.Strip(description)
 	for _, item := range feed.Items {
-		episode := parseEpisode(item)
-		if episode != nil {
-			episodes = append(episodes, episode)
+		if episode, ok := parseEpisode(item); ok {
+			out.Episodes = append(out.Episodes, episode)
 		}
 	}
-	if len(episodes) == 0 {
+	if len(out.Episodes) == 0 {
 		return nil, fmt.Errorf("RSS feed has no playable episodes")
 	}
-	return map[string]any{"metadata": meta, "episodes": episodes}, nil
+	return out, nil
 }
 
 // feedCategories joins each itunes:category with its one subcategory as
@@ -134,48 +158,45 @@ func feedCategories(itunes *ext.ITunesFeedExtension) []string {
 	return genres
 }
 
-func parseEpisode(item *gofeed.Item) map[string]any {
+func parseEpisode(item *gofeed.Item) (Episode, bool) {
 	itunes := item.ITunesExt
 	if itunes == nil {
 		itunes = &ext.ITunesItemExtension{}
 	}
 	urlValue, typeValue, length := episodeEnclosure(item)
 	if urlValue == "" {
-		return nil
+		return Episode{}, false
 	}
 	rawDesc := strings.TrimSpace(item.Content)
 	if rawDesc == "" {
 		rawDesc = strings.TrimSpace(item.Description)
 	}
-	published := int64(0)
-	if item.PublishedParsed != nil {
-		published = item.PublishedParsed.UnixMilli()
+	ep := Episode{Title: item.Title, Subtitle: itunes.Subtitle, Description: textclean.Sanitize(rawDesc), DescriptionPlain: textclean.Strip(rawDesc), PubDate: item.Published,
+		EpisodeType: itunes.EpisodeType, Season: itunes.Season, Episode: itunes.Episode, Author: itunes.Author, Duration: itunes.Duration, Explicit: itunes.Explicit,
+		Chapters: []chapter{}, Enclosure: enclosure{URL: urlValue, Type: typeValue, Length: numText(length)}}
+	if item.GUID != "" {
+		ep.GUID = &item.GUID
+	}
+	if item.PublishedParsed != nil && item.PublishedParsed.UnixMilli() != 0 {
+		ms := item.PublishedParsed.UnixMilli()
+		ep.PublishedAt = &ms
 	}
 	durSec := durationSeconds(itunes.Duration)
-	var dur any
 	if durSec > 0 {
-		dur = durSec
+		ep.DurationSeconds = &durSec
 	}
-	var chapters []map[string]any
 	if psc := firstExtension(item.Extensions, "psc", "chapters"); psc != nil {
-		chapters = pscChapters(psc.Children["chapter"], durSec)
+		ep.Chapters = append(ep.Chapters, pscChapters(psc.Children["chapter"], durSec)...)
 	}
-	chaptersURL, chaptersType := "", ""
 	if ch := firstExtension(item.Extensions, "podcast", "chapters"); ch != nil {
-		chaptersURL = strings.TrimSpace(ch.Attrs["url"])
-		chaptersType = strings.TrimSpace(ch.Attrs["type"])
+		if url := strings.TrimSpace(ch.Attrs["url"]); url != "" {
+			chType := cmp.Or(strings.TrimSpace(ch.Attrs["type"]), "application/json")
+			ep.ChaptersURL, ep.ChaptersType = &url, &chType
+		} else if chType := strings.TrimSpace(ch.Attrs["type"]); chType != "" {
+			ep.ChaptersType = &chType
+		}
 	}
-	if chaptersType == "" && chaptersURL != "" {
-		chaptersType = "application/json"
-	}
-	enclosure := map[string]any{"url": urlValue}
-	if typeValue != "" {
-		enclosure["type"] = typeValue
-	}
-	if length != "" {
-		enclosure["length"] = length
-	}
-	return map[string]any{"title": item.Title, "subtitle": itunes.Subtitle, "description": textclean.Sanitize(rawDesc), "descriptionPlain": textclean.Strip(rawDesc), "pubDate": item.Published, "episodeType": itunes.EpisodeType, "season": itunes.Season, "episode": itunes.Episode, "author": itunes.Author, "duration": itunes.Duration, "durationSeconds": dur, "explicit": itunes.Explicit, "publishedAt": store.NullIfZero(published), "enclosure": enclosure, "guid": item.GUID, "chaptersUrl": store.NullIfEmpty(chaptersURL), "chaptersType": store.NullIfEmpty(chaptersType), "chapters": chapters}
+	return ep, true
 }
 
 // episodeEnclosure returns the first enclosure. When it has no URL, it returns
@@ -216,10 +237,9 @@ func durationSeconds(s string) int {
 	return total
 }
 
-func pscChapters(nodes []ext.Extension, duration int) []map[string]any {
-	var out []map[string]any
+func pscChapters(nodes []ext.Extension, duration int) []chapter {
+	var out []chapter
 	for i, ch := range nodes {
-		start := durationSeconds(ch.Attrs["start"])
 		title := strings.TrimSpace(ch.Attrs["title"])
 		if title == "" {
 			continue
@@ -228,33 +248,42 @@ func pscChapters(nodes []ext.Extension, duration int) []map[string]any {
 		if i+1 < len(nodes) {
 			end = durationSeconds(nodes[i+1].Attrs["start"])
 		}
-		out = append(out, map[string]any{"id": len(out), "title": title, "start": start, "end": end})
+		out = append(out, chapter{ID: len(out), Title: title, Start: durationSeconds(ch.Attrs["start"]), End: end})
 	}
 	return out
 }
 
-func parseOPML(raw string) []map[string]string {
-	root, err := parseXML([]byte(raw))
-	if err != nil {
-		return []map[string]string{}
-	}
-	var out []map[string]string
-	var visit func(*xmlNode)
-	visit = func(n *xmlNode) {
-		if strings.EqualFold(n.Name.Local, "outline") && strings.EqualFold(attr(n, "type"), "rss") {
-			feed := attr(n, "xmlurl")
-			if feed != "" {
-				title := attr(n, "title")
-				if title == "" {
-					title = attr(n, "text")
-				}
-				out = append(out, map[string]string{"title": title, "feedUrl": feed})
-			}
+// parseOPML lists the RSS feeds of an OPML document in document order,
+// folders flattened. Element and attribute names match case-insensitively, as
+// in TS (htmlparser2). A document that does not parse has none.
+func parseOPML(raw string) []opmlFeed {
+	decoder := xml.NewDecoder(strings.NewReader(raw))
+	decoder.CharsetReader = charset.NewReaderLabel
+	var out []opmlFeed
+	sawElement := false
+	for {
+		tok, err := decoder.Token()
+		if err == io.EOF {
+			break
 		}
-		for _, c := range n.Children {
-			visit(c)
+		if err != nil {
+			return []opmlFeed{}
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		sawElement = true
+		attrs := map[string]string{}
+		for _, a := range start.Attr {
+			attrs[strings.ToLower(a.Name.Local)] = strings.TrimSpace(a.Value)
+		}
+		if feed := attrs["xmlurl"]; strings.EqualFold(start.Name.Local, "outline") && strings.EqualFold(attrs["type"], "rss") && feed != "" {
+			out = append(out, opmlFeed{cmp.Or(attrs["title"], attrs["text"]), feed})
 		}
 	}
-	visit(root)
+	if !sawElement {
+		return []opmlFeed{}
+	}
 	return out
 }
