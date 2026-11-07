@@ -1,6 +1,7 @@
 package server
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -117,7 +118,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
-	listHandler := lists.New(db, hub.Emit, userapiHandler.CanReadItem, userapiHandler.AllowsLibrary)
+	listHandler := lists.New(db, hub.Emit, userapiHandler.CanReadItem)
 	rt := &Runtime{
 		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
 		catalog:       catalogHandler,
@@ -417,7 +418,7 @@ func withPath(r *http.Request, path string) *http.Request {
 }
 
 func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
-	settings, err := rt.repo.ServerSettings(r.Context())
+	stored, err := serversettings.Get(r.Context(), rt.db)
 	if err != nil {
 		http.Error(w, "database not ready", 503)
 		return
@@ -427,6 +428,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database not ready", 503)
 		return
 	}
+	settings := stored.Doc
 	methods, ok := settings["authActiveAuthMethods"].([]any)
 	if !ok {
 		methods = []any{"local"}
@@ -456,11 +458,11 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, 200, payload, httputil.ForRequest(r))
 }
 func (rt *Runtime) settingsAllowIframe() bool {
-	settings, err := rt.repo.ServerSettings(context.Background())
+	settings, err := serversettings.Get(context.Background(), rt.db)
 	if err != nil {
 		return false
 	}
-	return settings["allowIframe"] == true || os.Getenv("ALLOW_IFRAME") == "1"
+	return settings.Doc["allowIframe"] == true || os.Getenv("ALLOW_IFRAME") == "1"
 }
 
 func isPublicCover(path string) bool {

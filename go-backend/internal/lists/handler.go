@@ -1,6 +1,7 @@
 package lists
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,16 +19,15 @@ import (
 // Handler owns authenticated HTTP routes and persistence for playlists and
 // collections. Runtime supplies the existing authorization decisions.
 type Handler struct {
-	db               *sql.DB
-	emit             events.Emitter
-	canView          func(context.Context, store.User, string) (bool, error)
-	canAccessLibrary func(store.User, string) bool
+	db      *sql.DB
+	emit    events.Emitter
+	canView func(context.Context, store.User, string) (bool, error)
 }
 
 // New ignores its item reader: lists load items through libitem. The
 // parameter stays until the runtime call site drops it.
-func New(db *sql.DB, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error), canAccessLibrary func(store.User, string) bool) *Handler {
-	return &Handler{db: db, emit: emit, canView: canView, canAccessLibrary: canAccessLibrary}
+func New(db *sql.DB, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error)) *Handler {
+	return &Handler{db: db, emit: emit, canView: canView}
 }
 
 func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
@@ -41,11 +41,6 @@ var stripMarkup = regexp.MustCompile(`<[^>]*>`)
 
 func cleanName(value string) string {
 	return html.UnescapeString(stripMarkup.ReplaceAllString(value, ""))
-}
-
-func boolValue(value any) bool {
-	result, _ := value.(bool)
-	return result
 }
 
 func playlistError(code int) error {
@@ -81,7 +76,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if h.canAccessLibrary(user, libraryID) {
+		if access.Of(user).Library(libraryID) {
 			out = append(out, dto)
 		}
 	}
@@ -91,7 +86,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	dto, libraryID, err := h.collection(r.Context(), id, user)
-	if errors.Is(err, sql.ErrNoRows) || err == nil && !h.canAccessLibrary(user, libraryID) {
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {
@@ -117,10 +112,10 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	} else if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !h.canAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
-	if !boolValue(store.DecodeJSONObject(user.Permissions)["delete"]) {
+	if !access.Of(user).Delete() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	dto, _, _ := h.collection(r.Context(), id, user)

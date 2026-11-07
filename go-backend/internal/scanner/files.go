@@ -43,11 +43,8 @@ type group struct {
 	files      []file
 	companions []file
 	isFile     bool
-	// existingID is set by the library scan once it matched this group to a
-	// stored item (path, then inode); empty means look it up.
-	existingID string
-	// brandNew marks groups the library scan found no stored item for.
-	brandNew bool
+	// old is the stored item this group rescans; nil means a new item.
+	old *existingItem
 }
 
 // bookMetadata mirrors the metadata keys supported by the v2.37.2 metadata.json
@@ -76,28 +73,6 @@ type imported struct {
 	scannedAudio []string
 }
 
-func groupKey(root, p, mediaType string) string {
-	rel, _ := filepath.Rel(root, p)
-	if mediaType == "podcast" {
-		parts := strings.Split(filepath.ToSlash(rel), "/")
-		if len(parts) > 1 {
-			return filepath.Join(root, filepath.FromSlash(parts[0]))
-		}
-	}
-	dir := filepath.Dir(p)
-	if dir == root {
-		return p
-	}
-	base := filepath.Base(dir)
-	if cdDirectory.MatchString(base) {
-		parent := filepath.Dir(dir)
-		if parent != root {
-			return parent
-		}
-	}
-	return dir
-}
-
 var cdDirectory = regexp.MustCompile(`(?i)^(cd|dis[ck])\s*\d{1,3}$`)
 
 func shouldIgnore(rel string) bool {
@@ -116,96 +91,15 @@ func shouldIgnore(rel string) bool {
 	}
 	return false
 }
-func sortedGroups(m map[string]*group) []*group {
-	out := make([]*group, 0, len(m))
-	for _, g := range m {
-		out = append(out, g)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].path < out[j].path })
-	return out
-}
-
 func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bool) (imported, error) {
-	var oldID, oldMediaID, oldPath, oldRel, oldIno, oldMediaType string
-	var oldFiles []byte
-	var oldMtime, oldCtime, oldBirthtime string
-	var oldMissing int
-	const existingColumns = `id,COALESCE(mediaId,''),path,relPath,COALESCE(ino,''),COALESCE(mediaType,''),libraryFiles,COALESCE(mtime,''),COALESCE(ctime,''),COALESCE(birthtime,''),COALESCE(isMissing,0)`
 	var err error
-	if g.brandNew {
-		err = sql.ErrNoRows
-	} else if g.existingID != "" {
-		err = s.db.QueryRowContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE id=?`, g.existingID).Scan(&oldID, &oldMediaID, &oldPath, &oldRel, &oldIno, &oldMediaType, &oldFiles, &oldMtime, &oldCtime, &oldBirthtime, &oldMissing)
-	} else {
-		err = s.db.QueryRowContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE libraryId=? AND path=?`, l.id, g.path).Scan(&oldID, &oldMediaID, &oldPath, &oldRel, &oldIno, &oldMediaType, &oldFiles, &oldMtime, &oldCtime, &oldBirthtime, &oldMissing)
+	added := g.old == nil
+	var old existingItem
+	if !added {
+		old = *g.old
 	}
-	// Upstream prefers exact path, then item inode, then item inode against its
-	// own library-file inodes. The reciprocal file-to-item-inode fallback only
-	// applies to single-file items; this grouped scanner deliberately omits it.
-	if err == sql.ErrNoRows && !g.brandNew {
-		rows, queryErr := s.db.QueryContext(ctx, `SELECT `+existingColumns+` FROM libraryItems WHERE libraryId=? ORDER BY rowid`, l.id)
-		if queryErr != nil {
-			return imported{}, queryErr
-		}
-		type candidate struct {
-			id, mediaID, path, rel, ino, mediaType string
-			files                                  []byte
-			mtime, ctime, birthtime                string
-			missing                                int
-		}
-		var candidates []candidate
-		for rows.Next() {
-			var c candidate
-			if queryErr = rows.Scan(&c.id, &c.mediaID, &c.path, &c.rel, &c.ino, &c.mediaType, &c.files, &c.mtime, &c.ctime, &c.birthtime, &c.missing); queryErr != nil {
-				rows.Close()
-				return imported{}, queryErr
-			}
-			candidates = append(candidates, c)
-		}
-		if queryErr = rows.Err(); queryErr != nil {
-			rows.Close()
-			return imported{}, queryErr
-		}
-		rows.Close()
-		var scannedInos []string
-		if info, statErr := os.Stat(g.path); statErr == nil {
-			scannedInos = append(scannedInos, inode(info))
-		}
-		for _, f := range g.files {
-			scannedInos = append(scannedInos, inode(f.info))
-		}
-		for _, f := range g.companions {
-			scannedInos = append(scannedInos, inode(f.info))
-		}
-		for _, c := range candidates {
-			// Upstream LibraryScanner.js:641-647: match the existing item inode
-			// to the scanned item/files, or an existing item's library-file
-			// inode to the scanned item/files. Both sides must be compared
-			// across the candidate and the scan group; a candidate's own file
-			// always matches its own directory inode (single-file items).
-			match := c.ino != "" && containsString(scannedInos, c.ino)
-			if !match {
-				var libraryFiles []map[string]any
-				_ = json.Unmarshal(c.files, &libraryFiles)
-				for _, lf := range libraryFiles {
-					if lfIno, ok := lf["ino"].(string); ok && lfIno != "" && containsString(scannedInos, lfIno) {
-						match = true
-						break
-					}
-				}
-			}
-			if match {
-				oldID, oldMediaID, oldPath, oldRel, oldIno, oldMediaType, oldFiles = c.id, c.mediaID, c.path, c.rel, c.ino, c.mediaType, c.files
-				oldMtime, oldCtime, oldBirthtime, oldMissing = c.mtime, c.ctime, c.birthtime, c.missing
-				err = nil
-				break
-			}
-		}
-	}
-	added := err == sql.ErrNoRows
-	if err != nil && !added {
-		return imported{}, err
-	}
+	oldID, oldMediaID, oldPath, oldRel, oldIno, oldMediaType, oldFiles := old.id, old.mediaID, old.path, old.relPath, old.ino, old.mediaType, old.files
+	oldMtime, oldCtime, oldBirthtime, oldMissing := old.mtime, old.ctime, old.birthtime, boolInt(old.missing)
 	itemID := oldID
 	if added {
 		itemID = uuid.NewString()

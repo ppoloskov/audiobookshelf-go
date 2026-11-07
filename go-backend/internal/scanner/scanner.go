@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/itemwrite"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -99,51 +100,15 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	if err != nil {
 		return result, err
 	}
-	st, err := os.Stat(itemPath)
+	g, err := s.collectItemGroup(ctx, itemPath, folder{id: folderID, path: folderPath}, false)
 	if err != nil {
 		return result, err
 	}
-	files := []file{}
-	if st.IsDir() {
-		err = filepath.WalkDir(itemPath, func(p string, d os.DirEntry, e error) error {
-			if e != nil {
-				return e
-			}
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if d.IsDir() {
-				if p != itemPath && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !audioExt(filepath.Ext(p)) && !scannableCompanion(filepath.Ext(p)) {
-				return nil
-			}
-			info, e := d.Info()
-			if e != nil {
-				return e
-			}
-			files = append(files, file{path: p, info: info, relPath: filepath.ToSlash(mustRel(itemPath, p))})
-			return nil
-		})
-	} else if audioExt(filepath.Ext(itemPath)) {
-		files = append(files, file{path: itemPath, info: st, relPath: filepath.Base(itemPath)})
-	}
-	if err != nil {
-		return result, err
-	}
-	if len(files) == 0 {
+	if g == nil {
 		return Result{Canceled: ctx.Err() != nil, Nothing: true}, nil
 	}
-	g := &group{path: itemPath, folder: folder{id: folderID, path: folderPath}}
-	for _, f := range files {
-		if audioExt(filepath.Ext(f.path)) {
-			g.files = append(g.files, f)
-		} else {
-			g.companions = append(g.companions, f)
-		}
+	if g.old, err = s.storedItemByID(ctx, itemID); err != nil {
+		return result, err
 	}
 	n, err := s.importGroup(ctx, l, g, true)
 	if err != nil {
@@ -487,38 +452,39 @@ func (s *Scanner) Start(ctx context.Context) error {
 	watchCtx, cancel := context.WithCancel(ctx)
 	s.watchCancel = cancel
 	s.mu.Unlock()
-	reset := func() { cancel(); s.mu.Lock(); s.watchCancel = nil; s.mu.Unlock() }
+	watcher, cronJobs, fw, roots, err := s.arm(watchCtx)
+	if err != nil {
+		cancel()
+		s.mu.Lock()
+		s.watchCancel = nil
+		s.mu.Unlock()
+		return err
+	}
+	cronJobs.Start()
+	go s.eventLoop(watchCtx, watcher, cronJobs, fw, roots)
+	return nil
+}
+
+// arm registers every watched library: fsnotify directories and cron scans.
+// roots maps each folder root to its library.
+func (s *Scanner) arm(ctx context.Context) (_ *fsnotify.Watcher, _ *cron.Cron, _ *fsWatcher, roots map[string]string, err error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		reset()
-		return err
+		return nil, nil, nil, nil, err
 	}
 	cronJobs := cron.New()
-	libraries, err := s.watchedLibraries(watchCtx)
+	defer func() {
+		if err != nil {
+			_ = watcher.Close()
+			cronJobs.Stop()
+		}
+	}()
+	libraries, err := s.watchedLibraries(ctx)
 	if err != nil {
-		_ = watcher.Close()
-		reset()
-		return err
+		return nil, nil, nil, nil, err
 	}
-	fw := newFSWatcher(watchCtx, s)
-	type rootRef struct{ libraryID string }
-	rootToLibrary := make(map[string]rootRef)
-	addDirs := func(root, from string) error {
-		return filepath.WalkDir(from, func(p string, d os.DirEntry, e error) error {
-			if e != nil {
-				return nil
-			}
-			if d.IsDir() {
-				if p != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
-					return filepath.SkipDir
-				}
-				if addErr := watcher.Add(p); addErr != nil && !errors.Is(addErr, os.ErrNotExist) {
-					return addErr
-				}
-			}
-			return nil
-		})
-	}
+	fw := newFSWatcher(ctx, s)
+	roots = map[string]string{}
 	for _, lib := range libraries {
 		if lib.disabled {
 			logging.Infof("[Watcher] updateLibrary: Library %q watcher disabled", lib.name) // Watcher.js:136
@@ -528,12 +494,9 @@ func (s *Scanner) Start(ctx context.Context) error {
 			for _, f := range lib.folders {
 				root := filepath.Clean(f.path)
 				watch.folders = append(watch.folders, watchedFolder{id: f.id, path: filepath.ToSlash(root)})
-				rootToLibrary[root] = rootRef{lib.id}
-				if walkErr := addDirs(root, root); walkErr != nil {
-					_ = watcher.Close()
-					cronJobs.Stop()
-					reset()
-					return fmt.Errorf("scanner: watch %q: %w", root, walkErr)
+				roots[root] = lib.id
+				if err := watchDirs(watcher, root, root); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("scanner: watch %q: %w", root, err)
 				}
 			}
 			fw.libraries[lib.id] = watch
@@ -541,83 +504,87 @@ func (s *Scanner) Start(ctx context.Context) error {
 		}
 		if strings.TrimSpace(lib.cron) != "" {
 			id := lib.id
-			if _, err = cronJobs.AddFunc(lib.cron, func() {
+			if _, err := cronJobs.AddFunc(lib.cron, func() {
 				go func() {
-					if _, scanErr := s.Scan(watchCtx, id); scanErr != nil {
+					if _, scanErr := s.Scan(ctx, id); scanErr != nil {
 						logging.Errorf("[CronManager] Scheduled scan of library %s failed: %v", id, scanErr)
 					}
 				}()
 			}); err != nil {
-				_ = watcher.Close()
-				cronJobs.Stop()
-				reset()
-				return fmt.Errorf("scanner: library %s cron: %w", id, err)
+				return nil, nil, nil, nil, fmt.Errorf("scanner: library %s cron: %w", id, err)
 			}
 		}
 	}
-	cronJobs.Start()
+	return watcher, cronJobs, fw, roots, nil
+}
+
+// watchDirs registers the visible directories at and below from.
+func watchDirs(watcher *fsnotify.Watcher, root, from string) error {
+	return walkVisible(root, from, func(p string, d os.DirEntry) error {
+		if d.IsDir() {
+			if err := watcher.Add(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// eventLoop turns fsnotify events into watcher file updates until ctx ends.
+func (s *Scanner) eventLoop(ctx context.Context, watcher *fsnotify.Watcher, cronJobs *cron.Cron, fw *fsWatcher, roots map[string]string) {
+	defer watcher.Close()
+	defer cronJobs.Stop()
+	defer fw.stop()
 	libraryOf := func(p string) (string, string) {
-		for root, ref := range rootToLibrary {
+		for root, id := range roots {
 			if p == root || strings.HasPrefix(p, root+string(os.PathSeparator)) {
-				return ref.libraryID, root
+				return id, root
 			}
 		}
 		return "", ""
 	}
-	go func() {
-		defer watcher.Close()
-		defer cronJobs.Stop()
-		defer fw.stop()
-		for {
-			select {
-			case <-watchCtx.Done():
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev, ok := <-watcher.Events:
+			if !ok {
 				return
-			case ev, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				libraryID, root := libraryOf(ev.Name)
-				if libraryID == "" {
-					continue
-				}
-				posix := filepath.ToSlash(ev.Name)
-				switch {
-				case ev.Op&fsnotify.Create != 0:
-					// Files already inside a directory that appeared before its
-					// watch was registered produce no events of their own.
-					if st, statErr := os.Stat(ev.Name); statErr == nil && st.IsDir() {
-						_ = addDirs(root, ev.Name)
-						_ = filepath.WalkDir(ev.Name, func(p string, d os.DirEntry, e error) error {
-							if e != nil {
-								return nil
-							}
-							if d.IsDir() {
-								if p != ev.Name && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
-									return filepath.SkipDir
-								}
-								return nil
-							}
-							fw.onFile(libraryID, filepath.ToSlash(p), "added")
-							return nil
-						})
-					} else {
-						fw.onFile(libraryID, posix, "added")
-					}
-				case ev.Op&(fsnotify.Remove|fsnotify.Rename) != 0:
-					// "change" (Write/Chmod) events are ignored, as upstream does
-					// (Watcher.js:64-66).
-					fw.onFile(libraryID, posix, "deleted")
-				}
-			case watchErr, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				logging.Errorf("[Watcher] %v", watchErr) // Watcher.js:86
 			}
+			libraryID, root := libraryOf(ev.Name)
+			if libraryID == "" {
+				continue
+			}
+			posix := filepath.ToSlash(ev.Name)
+			switch {
+			case ev.Op&fsnotify.Create != 0:
+				// Files already inside a directory that appeared before its
+				// watch was registered produce no events of their own.
+				if st, statErr := os.Stat(ev.Name); statErr == nil && st.IsDir() {
+					_ = watchDirs(watcher, root, ev.Name)
+					_ = walkVisible(root, ev.Name, func(p string, d os.DirEntry) error {
+						if !d.IsDir() {
+							fw.onFile(libraryID, filepath.ToSlash(p), "added")
+						}
+						return nil
+					})
+				} else {
+					fw.onFile(libraryID, posix, "added")
+				}
+			case ev.Op&(fsnotify.Remove|fsnotify.Rename) != 0:
+				// "change" (Write/Chmod) events are ignored, as upstream does
+				// (Watcher.js:64-66).
+				fw.onFile(libraryID, posix, "deleted")
+			}
+		case watchErr, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logging.Errorf("[Watcher] %v", watchErr) // Watcher.js:86
 		}
-	}()
-	return nil
+	}
 }
+
 func (s *Scanner) Close() {
 	s.mu.Lock()
 	if s.watchCancel != nil {
@@ -787,150 +754,27 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		return result, errors.New("scanner: library has no folders")
 	}
 	s.ensureFilterData(ctx, libraryID, l.mediaType)
-	groups := map[string]*group{}
+	var ordered []*group
 	for _, f := range folders {
 		root, err := filepath.Abs(filepath.Clean(f.path))
 		if err != nil {
 			return result, err
 		}
 		f.path = root
-		ignoredDirs := map[string]bool{}
-		var discovered []file
-		err = filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
-			if e != nil {
-				if errors.Is(e, os.ErrNotExist) {
-					return nil
-				}
-				return e
-			}
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if d.IsDir() {
-				if p != root && (shouldIgnore(mustRel(root, p)) || ignoredDirs[p]) {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			rel, _ := filepath.Rel(root, p)
-			if d.Name() == ".ignore" {
-				dir := filepath.Dir(p)
-				if dir != root {
-					ignoredDirs[dir] = true
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			for ignored := range ignoredDirs {
-				if strings.HasPrefix(p, ignored+string(filepath.Separator)) {
-					return nil
-				}
-			}
-			ext := strings.ToLower(filepath.Ext(p))
-			if filepath.Dir(rel) == "." && !(l.mediaType == "book" && (audioExt(ext) || (!l.audiobooksOnly && ebookExt(ext)))) {
-				return nil
-			}
-			if shouldIgnore(rel) || (!audioExt(ext) && (l.mediaType != "book" || l.audiobooksOnly || !ebookExt(ext)) && !scannableCompanion(ext)) {
-				return nil
-			}
-			info, e := d.Info()
-			if e != nil {
-				return nil
-			}
-			discovered = append(discovered, file{path: p, info: info})
-			return nil
-		})
-		if err != nil && !errors.Is(err, context.Canceled) {
-			continue
-		}
+		discovered, err := walkFiles(ctx, root, l.wantFile)
 		if errors.Is(err, context.Canceled) {
 			break
 		}
-		// rra orders by depth ascending; within a depth, order is by path.
-		sort.SliceStable(discovered, func(i, j int) bool {
-			di, dj := strings.Count(mustRel(root, discovered[i].path), string(filepath.Separator)), strings.Count(mustRel(root, discovered[j].path), string(filepath.Separator))
-			if di != dj {
-				return di < dj
-			}
-			return discovered[i].path < discovered[j].path
-		})
-		var media, other []file
-		for _, item := range discovered {
-			ext := filepath.Ext(item.path)
-			if strings.EqualFold(ext, ".epub") || ebookExt(ext) {
-				if l.mediaType == "book" && !l.audiobooksOnly {
-					media = append(media, item)
-				} else {
-					other = append(other, item)
-				}
-			} else if audioExt(ext) {
-				media = append(media, item)
-			} else {
-				other = append(other, item)
-			}
+		if err != nil {
+			continue
 		}
-		for _, item := range media {
-			rel, _ := filepath.Rel(root, item.path)
-			parts := strings.Split(filepath.ToSlash(filepath.Dir(rel)), "/")
-			if filepath.Dir(rel) == "." {
-				parts = nil
-			}
-			keyRel := ""
-			if len(parts) == 0 {
-				keyRel = filepath.Base(item.path)
-				g := &group{path: item.path, folder: f, isFile: true}
-				item.relPath = filepath.Base(item.path)
-				groups[item.path] = g
-				g.files = append(g.files, item)
-				continue
-			}
-			for i, part := range parts {
-				keyRel = filepath.Join(keyRel, part)
-				key := filepath.Join(root, keyRel)
-				if g := groups[key]; g != nil {
-					item.relPath = filepath.ToSlash(filepath.Join(filepath.Join(parts[i+1:]...), filepath.Base(item.path)))
-					g.files = append(g.files, item)
-					break
-				}
-				remaining := len(parts) - i - 1
-				if remaining == 0 {
-					item.relPath = filepath.Base(item.path)
-					groups[key] = &group{path: key, folder: f, files: []file{item}}
-					break
-				}
-				if remaining == 1 && cdDirectory.MatchString(parts[i+1]) {
-					item.relPath = filepath.ToSlash(filepath.Join(parts[i+1], filepath.Base(item.path)))
-					groups[key] = &group{path: key, folder: f, files: []file{item}}
-					break
-				}
-			}
-		}
-		for _, item := range other {
-			rel, _ := filepath.Rel(root, item.path)
-			dirrel := filepath.ToSlash(filepath.Dir(rel))
-			parts := strings.Split(dirrel, "/")
-			if dirrel == "." {
-				parts = nil
-			}
-			keyRel := ""
-			for _, part := range parts {
-				if part == "." {
-					continue
-				}
-				keyRel = filepath.Join(keyRel, part)
-				if g := groups[filepath.Join(root, keyRel)]; g != nil {
-					item.relPath = filepath.ToSlash(mustRel(g.path, item.path))
-					g.companions = append(g.companions, item)
-					break
-				}
-			}
-		}
+		ordered = append(ordered, groupFiles(f, discovered, l.mediaExt)...)
 	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].path < ordered[j].path })
 	existing, err := s.loadExistingItems(ctx, libraryID)
 	if err != nil {
 		return result, err
 	}
-	ordered := sortedGroups(groups)
 	byPath := make(map[string]*group, len(ordered))
 	for _, g := range ordered {
 		byPath[g.path] = g
@@ -976,7 +820,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 			}
 		} else {
 			consumed[g] = true
-			g.existingID = ex.id
+			g.old = &ex
 			n, e := s.importGroup(ctx, l, g, force)
 			if e != nil {
 				return result, e
@@ -1005,7 +849,6 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		if ctx.Err() != nil {
 			break
 		}
-		g.brandNew = true
 		n, e := s.importGroup(ctx, l, g, force)
 		if e != nil {
 			return result, e
@@ -1081,17 +924,19 @@ func (t *scanTally) merge(n imported) {
 	t.seriesRemoved = append(t.seriesRemoved, n.seriesRemoved...)
 }
 
+// existingItem is a stored library item row as the scans need it.
 type existingItem struct {
-	id, path, ino string
-	missing       bool
-	files         []byte
+	id, mediaID, path, relPath, ino, mediaType string
+	missing                                    bool
+	files                                      []byte
+	mtime, ctime, birthtime                    string
 }
 
-// loadExistingItems returns the library's stored items in rowid order. The
-// upstream query has no ORDER BY, so its order is whatever index SQLite picks;
+// queryItems reads stored items matching a WHERE/ORDER clause. The upstream
+// library query has no ORDER BY, so its order is whatever index SQLite picks;
 // on the pinned stack that is insertion order.
-func (s *Scanner) loadExistingItems(ctx context.Context, libraryID string) ([]existingItem, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,path,COALESCE(ino,''),COALESCE(isMissing,0),libraryFiles FROM libraryItems WHERE libraryId=? ORDER BY rowid`, libraryID)
+func (s *Scanner) queryItems(ctx context.Context, clause string, args ...any) ([]existingItem, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,COALESCE(mediaId,''),path,COALESCE(relPath,''),COALESCE(ino,''),COALESCE(mediaType,''),COALESCE(isMissing,0),libraryFiles,COALESCE(mtime,''),COALESCE(ctime,''),COALESCE(birthtime,'') FROM libraryItems WHERE `+clause, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1100,13 +945,26 @@ func (s *Scanner) loadExistingItems(ctx context.Context, libraryID string) ([]ex
 	for rows.Next() {
 		var e existingItem
 		var missing int
-		if err := rows.Scan(&e.id, &e.path, &e.ino, &missing, &e.files); err != nil {
+		if err := rows.Scan(&e.id, &e.mediaID, &e.path, &e.relPath, &e.ino, &e.mediaType, &missing, &e.files, &e.mtime, &e.ctime, &e.birthtime); err != nil {
 			return nil, err
 		}
 		e.missing = missing != 0
 		out = append(out, e)
 	}
 	return out, rows.Err()
+}
+
+func (s *Scanner) loadExistingItems(ctx context.Context, libraryID string) ([]existingItem, error) {
+	return s.queryItems(ctx, `libraryId=? ORDER BY rowid`, libraryID)
+}
+
+// storedItemByID is the row a single-item rescan updates.
+func (s *Scanner) storedItemByID(ctx context.Context, id string) (*existingItem, error) {
+	items, err := s.queryItems(ctx, `id=?`, id)
+	if err != nil || len(items) == 0 {
+		return nil, fmt.Errorf("scanner: item %q: %w", id, cmp.Or(err, sql.ErrNoRows))
+	}
+	return &items[0], nil
 }
 
 func groupInodes(g *group) []string {

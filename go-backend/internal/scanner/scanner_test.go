@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1424,19 +1423,6 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 			t.Fatalf("root group=%+v", g)
 		}
 	})
-	t.Run("CD folder folds into book", func(t *testing.T) {
-		root := t.TempDir()
-		p := filepath.Join(root, "Author", "Series", "Book", "CD1", "track.mp3")
-		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(p, []byte("audio"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		if got := groupKey(root, p, "book"); got != filepath.Join(root, "Author", "Series", "Book") {
-			t.Fatalf("groupKey=%q", got)
-		}
-	})
 	t.Run("dot component and temporary extension ignored", func(t *testing.T) {
 		for _, p := range []string{"Author/.hidden/book.mp3", "Author/book.TMP"} {
 			if !shouldIgnore(p) {
@@ -1519,87 +1505,17 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 	})
 }
 
-// discoverGroupsForTest mirrors scanLibrary's depth-ordered media claims and
-// subsequent shallowest-ancestor companion claims without probing audio.
+// discoverGroupsForTest walks and groups a tree the way the library scan does.
 func discoverGroupsForTest(t *testing.T, root, mediaType string) map[string]*group {
 	t.Helper()
-	root, err := filepath.Abs(root)
+	l := library{mediaType: mediaType}
+	files, err := walkFiles(context.Background(), root, l.wantFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var discovered []file
-	if err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			info, e := d.Info()
-			if e != nil {
-				return e
-			}
-			discovered = append(discovered, file{path: p, info: info})
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	sort.SliceStable(discovered, func(i, j int) bool {
-		a, b := mustRel(root, discovered[i].path), mustRel(root, discovered[j].path)
-		da, db := strings.Count(a, string(filepath.Separator)), strings.Count(b, string(filepath.Separator))
-		if da != db {
-			return da < db
-		}
-		return discovered[i].path < discovered[j].path
-	})
 	groups := map[string]*group{}
-	for _, item := range discovered {
-		rel, _ := filepath.Rel(root, item.path)
-		if audioExt(filepath.Ext(item.path)) {
-			if mediaType == "podcast" && filepath.Dir(rel) == "." {
-				continue
-			}
-			parts := strings.Split(filepath.ToSlash(filepath.Dir(rel)), "/")
-			if filepath.Dir(rel) == "." {
-				groups[item.path] = &group{path: item.path, files: []file{item}, isFile: true}
-				continue
-			}
-			keyRel := ""
-			for i, part := range parts {
-				keyRel = filepath.Join(keyRel, part)
-				key := filepath.Join(root, keyRel)
-				if g := groups[key]; g != nil {
-					g.files = append(g.files, item)
-					break
-				}
-				remaining := len(parts) - i - 1
-				if remaining == 0 || (remaining == 1 && cdDirectory.MatchString(parts[i+1])) {
-					groups[key] = &group{path: key, files: []file{item}}
-					break
-				}
-			}
-		}
-	}
-	for _, item := range discovered {
-		if audioExt(filepath.Ext(item.path)) || !scannableCompanion(filepath.Ext(item.path)) {
-			continue
-		}
-		rel, _ := filepath.Rel(root, item.path)
-		dirrel := filepath.ToSlash(filepath.Dir(rel))
-		parts := strings.Split(dirrel, "/")
-		if dirrel == "." {
-			parts = nil
-		}
-		keyRel := ""
-		for _, part := range parts {
-			if part == "." {
-				continue
-			}
-			keyRel = filepath.Join(keyRel, part)
-			if g := groups[filepath.Join(root, keyRel)]; g != nil {
-				g.companions = append(g.companions, item)
-				break
-			}
-		}
+	for _, g := range groupFiles(folder{path: root}, files, l.mediaExt) {
+		groups[g.path] = g
 	}
 	return groups
 }

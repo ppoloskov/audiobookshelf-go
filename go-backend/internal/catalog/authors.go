@@ -5,6 +5,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -119,30 +120,6 @@ func jsTruthy(v any) bool {
 	}
 }
 
-// userAllows is `!!user.permissions?.<key> && user.isActive` (User.js:560-571)
-// for the update, delete, upload and download permissions.
-func userAllows(user store.User, key string) bool {
-	var permissions struct {
-		Update   any `json:"update"`
-		Delete   any `json:"delete"`
-		Upload   any `json:"upload"`
-		Download any `json:"download"`
-	}
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	var granted any
-	switch key {
-	case "update":
-		granted = permissions.Update
-	case "delete":
-		granted = permissions.Delete
-	case "upload":
-		granted = permissions.Upload
-	case "download":
-		granted = permissions.Download
-	}
-	return user.IsActive && jsTruthy(granted)
-}
-
 // authorRequest is AuthorController.middleware (AuthorController.js:427-442):
 // an unknown author or one in a library the user cannot access is a 404, and
 // DELETE needs the delete permission, PATCH and POST the update permission.
@@ -154,14 +131,14 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 	if err != nil {
 		return a, httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, a.libraryID) {
+	if !access.Of(user).Library(a.libraryID) {
 		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
-	case r.Method == http.MethodDelete && !userAllows(user, "delete"):
+	case r.Method == http.MethodDelete && !access.Of(user).Delete():
 		logging.Warnf(`[AuthorController] User "%s" attempted to delete without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
-	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !userAllows(user, "update"):
+	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.Of(user).Update():
 		logging.Warnf(`[AuthorController] User "%s" attempted to update without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
 	}
@@ -173,7 +150,7 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 // libraryItemsBookFilters.getFilteredLibraryItems, 'authors' group, addedAt
 // descending): only items the user may see (explicit and tag permissions).
 func (h *Handler) authorItemIDs(ctx context.Context, user store.User, author authorRecord) ([]string, error) {
-	permissionSQL, permissionArgs := mediaPermission(user, "b")
+	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
 	args := append([]any{author.libraryID, author.id}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`+permissionSQL+` ORDER BY li.createdAt DESC`, args...)
 	if err != nil {
@@ -816,7 +793,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return err
 	}
-	if !userAllows(user, "upload") {
+	if !access.Of(user).Upload() {
 		logging.Warnf(`User "%s" attempted to upload an image without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

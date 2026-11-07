@@ -2,6 +2,7 @@
 package notifications
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"context"
@@ -34,7 +35,7 @@ func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
 func (h *Handler) Routes(mux *http.ServeMux) {
 	route := func(pattern string, f httputil.Handler) {
 		mux.Handle(pattern, httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !admin(user.Type) {
+			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
 				return httputil.Status(http.StatusForbidden, "")
 			}
 			return f(w, r)
@@ -77,7 +78,6 @@ func (h *Handler) save(ctx context.Context, v map[string]any) error {
 	return e
 }
 
-func admin(t string) bool { return t == "admin" || t == "root" }
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 	s, e := h.load(r.Context())
 	if e != nil {

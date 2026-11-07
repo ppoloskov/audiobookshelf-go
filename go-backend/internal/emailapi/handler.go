@@ -2,8 +2,10 @@
 package emailapi
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -42,7 +44,7 @@ func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler
 func (h *Handler) Routes(mux *http.ServeMux) {
 	adminOnly := func(f httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !admin(user) {
+			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
 				return httputil.Status(http.StatusNotFound, "")
 			}
 			return f(w, r)
@@ -55,7 +57,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/emails/send-ebook-to-device", httputil.Handler(h.sendEbook))
 }
 
-func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
 	var raw []byte
 	e := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
@@ -223,16 +224,19 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if e != nil {
 		return httputil.Status(404, "Library item not found")
 	}
-	if !libraryAllowed(u, folder) {
+	perms := access.Of(u)
+	if !perms.IsAdmin() && !perms.Library(folder) {
 		return httputil.Status(403, "")
 	}
 	if mediaType != "book" {
 		return httputil.Status(404, "Ebook file not found")
 	}
-	var explicit int
+	var explicit bool
 	var tagsRaw, ebookRaw []byte
 	e = h.db.QueryRowContext(r.Context(), `SELECT explicit,tags,ebookFile FROM books WHERE id=?`, mediaID).Scan(&explicit, &tagsRaw, &ebookRaw)
-	if e != nil || !canAccessContent(u, explicit, tagsRaw) {
+	var tags []string
+	_ = json.Unmarshal(tagsRaw, &tags)
+	if e != nil || !perms.Content(libitem.Access{Explicit: explicit, Tags: tags}) {
 		return httputil.Status(403, "")
 	}
 	var ebook struct {
@@ -448,9 +452,9 @@ func deviceAllowed(d map[string]any, u store.User) bool {
 	}
 	switch level {
 	case "adminOrUp":
-		return admin(u)
+		return access.AdminUser(u)
 	case "userOrUp":
-		return admin(u) || u.Type == "user"
+		return access.AdminUser(u) || u.Type == "user"
 	case "guestOrUp":
 		return true
 	case "specificUsers":
@@ -461,56 +465,6 @@ func deviceAllowed(d map[string]any, u store.User) bool {
 		}
 	}
 	return false
-}
-func libraryAllowed(u store.User, id string) bool {
-	if admin(u) {
-		return true
-	}
-	var p map[string]any
-	_ = json.Unmarshal(u.Permissions, &p)
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	for _, v := range anyArray(p["librariesAccessible"]) {
-		if v == id {
-			return true
-		}
-	}
-	return false
-}
-func canAccessContent(u store.User, explicit int, tagsRaw []byte) bool {
-	var p map[string]any
-	_ = json.Unmarshal(u.Permissions, &p)
-	if explicit != 0 && p["accessExplicitContent"] != true {
-		return false
-	}
-	var tags []string
-	_ = json.Unmarshal(tagsRaw, &tags)
-	if p["accessAllTags"] == true {
-		return true
-	}
-	var selected []string
-	_ = json.Unmarshal(mustJSON(p["itemTagsSelected"]), &selected)
-	deny := p["selectedTagsNotAccessible"] == true
-	if len(tags) == 0 {
-		return deny
-	}
-	matched := false
-	for _, tag := range tags {
-		has := false
-		for _, s := range selected {
-			if tag == s {
-				has = true
-			}
-		}
-		if deny && has {
-			return false
-		}
-		if !deny && has {
-			matched = true
-		}
-	}
-	return deny || matched
 }
 func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
 func write(w http.ResponseWriter, v any) {

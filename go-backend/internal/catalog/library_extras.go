@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -14,7 +15,7 @@ import (
 
 func (h *Handler) narrators(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
@@ -60,10 +61,10 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 	// Narrator renames and removals patch the filter data upstream
 	// (LibraryController.js:1170,1214); reloading it keeps the same content.
 	defer h.filters.Invalidate(libraryID)
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !canUpdateCatalog(user) {
+	if !access.Of(user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	decoded, err := url.QueryUnescape(encodedID)
@@ -149,10 +150,10 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if user.Type != "root" && user.Type != "admin" {
+	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)

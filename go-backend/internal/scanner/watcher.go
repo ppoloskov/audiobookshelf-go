@@ -347,38 +347,6 @@ const (
 	scanRemoved
 )
 
-// updateGroup keeps the insertion order JavaScript object keys have.
-type updateGroup struct {
-	keys  []string
-	files map[string][]string
-}
-
-func (g *updateGroup) add(key, rel string, single bool) {
-	if _, ok := g.files[key]; !ok {
-		g.keys = append(g.keys, key)
-	}
-	if single {
-		g.files[key] = nil
-		return
-	}
-	g.files[key] = append(g.files[key], rel)
-}
-
-func (g *updateGroup) isSingle(key string) bool {
-	files, ok := g.files[key]
-	return ok && files == nil
-}
-
-func (g *updateGroup) drop(key string) {
-	delete(g.files, key)
-	for i, k := range g.keys {
-		if k == key {
-			g.keys = append(g.keys[:i:i], g.keys[i+1:]...)
-			break
-		}
-	}
-}
-
 func isMediaFileExt(mediaType, ext string, audiobooksOnly bool) bool {
 	if ext == "" {
 		return false
@@ -400,13 +368,11 @@ func isScannableNonMedia(ext string) bool {
 // groupFileUpdates is scandir.groupFileItemsIntoLibraryItemDirs with
 // includeNonMediaFiles=true (scandir.js:37-110).
 func groupFileUpdates(mediaType string, relPaths []string, audiobooksOnly bool) *updateGroup {
-	out := &updateGroup{files: map[string][]string{}}
 	var media, other []string
 	for _, rel := range relPaths {
 		rel = strings.TrimPrefix(rel, "/")
-		deep := strings.Count(rel, "/")
 		ext := filepath.Ext(rel)
-		if !(deep > 0 || (mediaType == "book" && isMediaFileExt(mediaType, ext, audiobooksOnly))) {
+		if !(strings.Contains(rel, "/") || (mediaType == "book" && isMediaFileExt(mediaType, ext, audiobooksOnly))) {
 			continue
 		}
 		if isMediaFileExt(mediaType, ext, audiobooksOnly) || isScannableNonMedia(ext) {
@@ -415,42 +381,7 @@ func groupFileUpdates(mediaType string, relPaths []string, audiobooksOnly bool) 
 			other = append(other, rel)
 		}
 	}
-	for _, rel := range media {
-		dirparts := splitNonEmpty(filepath.ToSlash(filepath.Dir(rel)))
-		name := filepath.Base(rel)
-		if len(dirparts) == 0 {
-			out.add(name, name, true)
-			continue
-		}
-		cur := ""
-		for i := 0; i < len(dirparts); i++ {
-			cur = joinSlash(cur, dirparts[i])
-			rest := dirparts[i+1:]
-			if _, ok := out.files[cur]; ok {
-				out.add(cur, joinSlash(strings.Join(rest, "/"), name), false)
-				break
-			} else if len(rest) == 0 {
-				out.add(cur, name, false)
-				break
-			} else if len(rest) == 1 && cdDirectory.MatchString(rest[0]) {
-				out.add(cur, joinSlash(rest[0], name), false)
-				break
-			}
-		}
-	}
-	for _, rel := range other {
-		dirparts := strings.Split(filepath.ToSlash(filepath.Dir(rel)), "/")
-		name := filepath.Base(rel)
-		cur := ""
-		for i := 0; i < len(dirparts); i++ {
-			cur = joinSlash(cur, dirparts[i])
-			if _, ok := out.files[cur]; ok {
-				out.add(cur, joinSlash(strings.Join(dirparts[i+1:], "/"), name), false)
-				break
-			}
-		}
-	}
-	return out
+	return claimGroups(media, other)
 }
 
 func splitNonEmpty(s string) []string {
@@ -629,7 +560,6 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 			results[itemDir] = scanNothing
 			continue
 		}
-		g.brandNew = true
 		n, e := s.importGroup(ctx, l, g, false)
 		if e != nil {
 			return results, e
@@ -700,7 +630,9 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 	if g == nil {
 		return scanNothing, nil
 	}
-	g.existingID = itemID
+	if g.old, err = s.storedItemByID(ctx, itemID); err != nil {
+		return scanNothing, err
+	}
 	n, err := s.importGroup(ctx, l, g, true)
 	if err != nil {
 		return scanNothing, err
@@ -731,37 +663,15 @@ func (s *Scanner) collectItemGroup(ctx context.Context, itemPath string, f folde
 	}
 	var files []file
 	if st.IsDir() && !isFile {
-		err = filepath.WalkDir(itemPath, func(p string, d os.DirEntry, e error) error {
-			if e != nil {
-				return e
-			}
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if d.IsDir() {
-				if p != itemPath && (strings.HasPrefix(d.Name(), ".") || d.Name() == "@eaDir") {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if shouldIgnore(mustRel(itemPath, p)) || (!audioExt(filepath.Ext(p)) && !scannableCompanion(filepath.Ext(p))) {
-				return nil
-			}
-			info, e := d.Info()
-			if e != nil {
-				return e
-			}
-			files = append(files, file{path: p, info: info, relPath: filepath.ToSlash(mustRel(itemPath, p))})
-			return nil
+		files, err = walkFiles(ctx, itemPath, func(rel string) bool {
+			ext := filepath.Ext(rel)
+			return audioExt(ext) || scannableCompanion(ext)
 		})
 	} else if audioExt(filepath.Ext(itemPath)) || ebookExt(filepath.Ext(itemPath)) {
 		files = append(files, file{path: itemPath, info: st, relPath: filepath.Base(itemPath)})
 	}
-	if err != nil {
+	if err != nil || len(files) == 0 {
 		return nil, err
-	}
-	if len(files) == 0 {
-		return nil, nil
 	}
 	g := &group{path: itemPath, folder: f, isFile: isFile}
 	for _, fl := range files {

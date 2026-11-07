@@ -1,6 +1,7 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -167,7 +168,7 @@ func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 }
 
 func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	rows, err := h.queries().ListFeeds(r.Context())
@@ -244,7 +245,7 @@ func (req openFeedRequest) valid() (serverAddress, slug string, ok bool) {
 // order upstream runs them, which differs between the item route and the
 // collection and series routes.
 func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User, entityType string) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	ctx := r.Context()
@@ -259,7 +260,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 		if src, err = h.loadItemSource(ctx, id); err != nil {
 			return feedEntityError(err)
 		}
-		if !libraryAccess(u, src.LibraryID) {
+		if !access.Of(u).Library(src.LibraryID) {
 			return httputil.Status(403, "")
 		}
 	case "collection":
@@ -430,7 +431,7 @@ func (h *Handler) createFeed(ctx context.Context, userID, entityType, entityID s
 
 // closeFeed is RSSFeedController.closeRSSFeed and RssFeedManager.handleCloseFeed.
 func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")

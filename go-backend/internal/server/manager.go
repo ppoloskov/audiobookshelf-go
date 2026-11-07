@@ -1,6 +1,7 @@
 package server
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -93,6 +94,7 @@ func (m *Manager) updateBackupPath(ctx context.Context, path string) error {
 		return err
 	}
 	_, err = m.database.DB().ExecContext(ctx, `UPDATE settings SET value=? WHERE key='server-settings'`, updated)
+	serversettings.Invalidate(m.database.DB())
 	return err
 }
 

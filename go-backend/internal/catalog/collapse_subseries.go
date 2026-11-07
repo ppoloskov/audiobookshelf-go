@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -160,8 +161,9 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 	}
 	total := len(books)
 	accessible := make([]*subseriesBook, 0, len(books))
+	perms := access.Of(user)
 	for _, b := range books {
-		if userCanAccessItem(user, b.access) {
+		if perms.Item(b.access) {
 			accessible = append(accessible, b)
 		}
 	}

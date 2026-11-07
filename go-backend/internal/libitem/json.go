@@ -1,8 +1,6 @@
 package libitem
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"net/url"
 	"strings"
@@ -158,13 +156,6 @@ func SortingPrefixes(settings []byte) []string {
 		}
 	}
 	return out
-}
-
-// LoadSortingPrefixes reads the server's sortingPrefixes once for a request.
-func LoadSortingPrefixes(ctx context.Context, db *sql.DB) []string {
-	var raw []byte
-	_ = db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw)
-	return SortingPrefixes(raw)
 }
 
 // TitleIgnorePrefix moves a leading sorting prefix to the end ("The Hobbit"

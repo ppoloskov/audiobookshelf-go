@@ -1,0 +1,984 @@
+{
+"users": [
+{
+"id": 0,
+"type": "root",
+"active": true,
+"permissions": null
+},
+{
+"id": 1,
+"type": "root",
+"active": true,
+"permissions": "null"
+},
+{
+"id": 2,
+"type": "root",
+"active": true,
+"permissions": "{}"
+},
+{
+"id": 3,
+"type": "root",
+"active": true,
+"permissions": "[]"
+},
+{
+"id": 4,
+"type": "root",
+"active": true,
+"permissions": "bad"
+},
+{
+"id": 5,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 6,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 7,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 8,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 9,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 10,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 11,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 12,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 13,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 14,
+"type": "root",
+"active": true,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 15,
+"type": "root",
+"active": true,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 16,
+"type": "root",
+"active": false,
+"permissions": null
+},
+{
+"id": 17,
+"type": "root",
+"active": false,
+"permissions": "null"
+},
+{
+"id": 18,
+"type": "root",
+"active": false,
+"permissions": "{}"
+},
+{
+"id": 19,
+"type": "root",
+"active": false,
+"permissions": "[]"
+},
+{
+"id": 20,
+"type": "root",
+"active": false,
+"permissions": "bad"
+},
+{
+"id": 21,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 22,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 23,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 24,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 25,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 26,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 27,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 28,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 29,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 30,
+"type": "root",
+"active": false,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 31,
+"type": "root",
+"active": false,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 32,
+"type": "admin",
+"active": true,
+"permissions": null
+},
+{
+"id": 33,
+"type": "admin",
+"active": true,
+"permissions": "null"
+},
+{
+"id": 34,
+"type": "admin",
+"active": true,
+"permissions": "{}"
+},
+{
+"id": 35,
+"type": "admin",
+"active": true,
+"permissions": "[]"
+},
+{
+"id": 36,
+"type": "admin",
+"active": true,
+"permissions": "bad"
+},
+{
+"id": 37,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 38,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 39,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 40,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 41,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 42,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 43,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 44,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 45,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 46,
+"type": "admin",
+"active": true,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 47,
+"type": "admin",
+"active": true,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 48,
+"type": "admin",
+"active": false,
+"permissions": null
+},
+{
+"id": 49,
+"type": "admin",
+"active": false,
+"permissions": "null"
+},
+{
+"id": 50,
+"type": "admin",
+"active": false,
+"permissions": "{}"
+},
+{
+"id": 51,
+"type": "admin",
+"active": false,
+"permissions": "[]"
+},
+{
+"id": 52,
+"type": "admin",
+"active": false,
+"permissions": "bad"
+},
+{
+"id": 53,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 54,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 55,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 56,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 57,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 58,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 59,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 60,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 61,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 62,
+"type": "admin",
+"active": false,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 63,
+"type": "admin",
+"active": false,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 64,
+"type": "user",
+"active": true,
+"permissions": null
+},
+{
+"id": 65,
+"type": "user",
+"active": true,
+"permissions": "null"
+},
+{
+"id": 66,
+"type": "user",
+"active": true,
+"permissions": "{}"
+},
+{
+"id": 67,
+"type": "user",
+"active": true,
+"permissions": "[]"
+},
+{
+"id": 68,
+"type": "user",
+"active": true,
+"permissions": "bad"
+},
+{
+"id": 69,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 70,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 71,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 72,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 73,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 74,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 75,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 76,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 77,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 78,
+"type": "user",
+"active": true,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 79,
+"type": "user",
+"active": true,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 80,
+"type": "user",
+"active": false,
+"permissions": null
+},
+{
+"id": 81,
+"type": "user",
+"active": false,
+"permissions": "null"
+},
+{
+"id": 82,
+"type": "user",
+"active": false,
+"permissions": "{}"
+},
+{
+"id": 83,
+"type": "user",
+"active": false,
+"permissions": "[]"
+},
+{
+"id": 84,
+"type": "user",
+"active": false,
+"permissions": "bad"
+},
+{
+"id": 85,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 86,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 87,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 88,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 89,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 90,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 91,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 92,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 93,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 94,
+"type": "user",
+"active": false,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 95,
+"type": "user",
+"active": false,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 96,
+"type": "guest",
+"active": true,
+"permissions": null
+},
+{
+"id": 97,
+"type": "guest",
+"active": true,
+"permissions": "null"
+},
+{
+"id": 98,
+"type": "guest",
+"active": true,
+"permissions": "{}"
+},
+{
+"id": 99,
+"type": "guest",
+"active": true,
+"permissions": "[]"
+},
+{
+"id": 100,
+"type": "guest",
+"active": true,
+"permissions": "bad"
+},
+{
+"id": 101,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 102,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 103,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 104,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 105,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 106,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 107,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 108,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 109,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 110,
+"type": "guest",
+"active": true,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 111,
+"type": "guest",
+"active": true,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+},
+{
+"id": 112,
+"type": "guest",
+"active": false,
+"permissions": null
+},
+{
+"id": 113,
+"type": "guest",
+"active": false,
+"permissions": "null"
+},
+{
+"id": 114,
+"type": "guest",
+"active": false,
+"permissions": "{}"
+},
+{
+"id": 115,
+"type": "guest",
+"active": false,
+"permissions": "[]"
+},
+{
+"id": 116,
+"type": "guest",
+"active": false,
+"permissions": "bad"
+},
+{
+"id": 117,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true, \"delete\": true, \"download\": true, \"upload\": true}"
+},
+{
+"id": 118,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": true, \"accessExplicitContent\": false, \"update\": false, \"delete\": false, \"download\": false, \"upload\": false}"
+},
+{
+"id": 119,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [\"lib1\"], \"accessAllTags\": true, \"accessExplicitContent\": true, \"update\": true}"
+},
+{
+"id": 120,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"librariesAccessible\": [], \"accessAllTags\": true}"
+},
+{
+"id": 121,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"librariesAccessible\": [\"lib2\"], \"accessAllTags\": true}"
+},
+{
+"id": 122,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": false, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\"], \"selectedTagsNotAccessible\": false, \"accessExplicitContent\": true, \"librariesAccessible\": [\"lib1\", \"lib2\"]}"
+},
+{
+"id": 123,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [\"a\", \"b\"], \"selectedTagsNotAccessible\": true, \"accessExplicitContent\": true}"
+},
+{
+"id": 124,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": false}"
+},
+{
+"id": 125,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": true, \"accessAllTags\": false, \"itemTagsSelected\": [], \"selectedTagsNotAccessible\": true}"
+},
+{
+"id": 126,
+"type": "guest",
+"active": false,
+"permissions": "{\"accessAllLibraries\": \"yes\", \"accessAllTags\": 1, \"update\": 1, \"delete\": \"x\", \"download\": true, \"upload\": true, \"accessExplicitContent\": \"true\"}"
+},
+{
+"id": 127,
+"type": "guest",
+"active": false,
+"permissions": "{\"update\": true, \"delete\": true, \"download\": true, \"upload\": true, \"librariesAccessible\": [\"lib2\"]}"
+}
+],
+"items": [
+{
+"lib": "lib1",
+"explicit": false,
+"tags": []
+},
+{
+"lib": "lib1",
+"explicit": false,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib1",
+"explicit": false,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib1",
+"explicit": false,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib1",
+"explicit": false,
+"tags": [
+"b",
+"c"
+]
+},
+{
+"lib": "lib1",
+"explicit": true,
+"tags": []
+},
+{
+"lib": "lib1",
+"explicit": true,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib1",
+"explicit": true,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib1",
+"explicit": true,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib1",
+"explicit": true,
+"tags": [
+"b",
+"c"
+]
+},
+{
+"lib": "lib2",
+"explicit": false,
+"tags": []
+},
+{
+"lib": "lib2",
+"explicit": false,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib2",
+"explicit": false,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib2",
+"explicit": false,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib2",
+"explicit": false,
+"tags": [
+"b",
+"c"
+]
+},
+{
+"lib": "lib2",
+"explicit": true,
+"tags": []
+},
+{
+"lib": "lib2",
+"explicit": true,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib2",
+"explicit": true,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib2",
+"explicit": true,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib2",
+"explicit": true,
+"tags": [
+"b",
+"c"
+]
+},
+{
+"lib": "lib3",
+"explicit": false,
+"tags": []
+},
+{
+"lib": "lib3",
+"explicit": false,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib3",
+"explicit": false,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib3",
+"explicit": false,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib3",
+"explicit": false,
+"tags": [
+"b",
+"c"
+]
+},
+{
+"lib": "lib3",
+"explicit": true,
+"tags": []
+},
+{
+"lib": "lib3",
+"explicit": true,
+"tags": [
+"a"
+]
+},
+{
+"lib": "lib3",
+"explicit": true,
+"tags": [
+"a",
+"b"
+]
+},
+{
+"lib": "lib3",
+"explicit": true,
+"tags": [
+"c"
+]
+},
+{
+"lib": "lib3",
+"explicit": true,
+"tags": [
+"b",
+"c"
+]
+}
+]
+}

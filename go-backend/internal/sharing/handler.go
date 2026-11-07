@@ -92,27 +92,9 @@ func (h *Handler) publicRoutes(mux *http.ServeMux) {
 	mux.Handle("PATCH /public/share/{slug}/progress", httputil.Handler(h.shareProgress))
 }
 
-func admin(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
-
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
-}
-func libraryAccess(u store.User, id string) bool {
-	var p map[string]any
-	if json.Unmarshal(u.Permissions, &p) != nil {
-		return false
-	}
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	a, _ := p["librariesAccessible"].([]any)
-	for _, v := range a {
-		if v == id {
-			return true
-		}
-	}
-	return false
 }
 
 // hostPrefix is req.originalHostPrefix (server/Server.js:324): the request

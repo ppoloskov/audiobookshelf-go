@@ -2,6 +2,7 @@
 package lists
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"errors"
@@ -70,7 +71,7 @@ func Playlist(ctx context.Context, db *sql.DB, id string) (map[string]any, strin
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}
-	prefixes := libitem.LoadSortingPrefixes(ctx, db)
+	prefixes := serversettings.Load(ctx, db).SortingPrefixes
 	playlistItems := make([]any, 0, len(entries))
 	for _, e := range entries {
 		it, ok := byID[e.LibraryItemID]
@@ -126,7 +127,7 @@ func Collection(ctx context.Context, db *sql.DB, id string, canView func(context
 	if err != nil {
 		return nil, "", err
 	}
-	prefixes := libitem.LoadSortingPrefixes(ctx, db)
+	prefixes := serversettings.Load(ctx, db).SortingPrefixes
 	books := make([]any, len(loaded))
 	for i, it := range loaded {
 		books[i] = it.Expanded(prefixes)

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -27,7 +28,7 @@ type folderInput struct {
 }
 
 func adminUser(user store.User) bool {
-	return user.IsActive && (user.Type == "root" || user.Type == "admin")
+	return user.IsActive && access.AdminUser(user)
 }
 
 func defaultLibrarySettings(mediaType string) map[string]any {

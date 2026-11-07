@@ -3,9 +3,9 @@
 package server
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -158,25 +158,14 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request, path string) {
 		}
 		// LibraryController.findAll filters on a non-empty librariesAccessible
 		// array and does not special-case accessAllLibraries.
-		allowed := stringArray(user.Permissions, "librariesAccessible")
-		if len(allowed) > 0 {
-			set := make(map[string]struct{}, len(allowed))
-			for _, id := range allowed {
-				set[id] = struct{}{}
+		perms := access.Of(user)
+		filtered := make([]map[string]any, 0, len(libraries))
+		for _, lib := range libraries {
+			if id, ok := lib["id"].(string); ok && perms.ListLibrary(id) {
+				filtered = append(filtered, lib)
 			}
-			filtered := make([]map[string]any, 0, len(libraries))
-			for _, lib := range libraries {
-				if id, ok := lib["id"].(string); ok {
-					if _, permitted := set[id]; permitted {
-						filtered = append(filtered, lib)
-					}
-				}
-			}
-			libraries = filtered
 		}
-		if libraries == nil {
-			libraries = []map[string]any{}
-		}
+		libraries = filtered
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraries": libraries}, httputil.ForRequest(r))
 		return
 	}
@@ -215,16 +204,6 @@ func (h *Handler) authenticate(r *http.Request) (auth.Claims, store.User, error)
 		return empty, store.User{}, errors.New("inactive or missing user")
 	}
 	return claims, user, nil
-}
-
-func stringArray(raw json.RawMessage, key string) []string {
-	var object map[string]json.RawMessage
-	if json.Unmarshal(raw, &object) != nil {
-		return nil
-	}
-	var values []string
-	_ = json.Unmarshal(object[key], &values)
-	return values
 }
 
 func (h *Handler) unsupported(w http.ResponseWriter) {

@@ -1,6 +1,8 @@
 package emailapi
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"bufio"
 	"context"
@@ -197,8 +199,7 @@ func TestCanAccessContentTagMatrix(t *testing.T) {
 					name := fmt.Sprintf("all=%v/deny=%v/selected=%v/tags=%v", all, deny, selected, tags)
 					t.Run(name, func(t *testing.T) {
 						permissions, _ := json.Marshal(map[string]any{"accessExplicitContent": true, "accessAllTags": all, "selectedTagsNotAccessible": deny, "itemTagsSelected": selected})
-						rawTags, _ := json.Marshal(tags)
-						got := canAccessContent(store.User{Permissions: permissions}, 0, rawTags)
+						got := access.Of(store.User{Permissions: permissions}).Content(libitem.Access{Tags: tags})
 						want := all
 						if !all {
 							if deny {
@@ -225,14 +226,6 @@ func TestCanAccessContentTagMatrix(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-func TestCanAccessContentAllowlistPartialOverlap(t *testing.T) {
-	permissions, _ := json.Marshal(map[string]any{"accessExplicitContent": true, "itemTagsSelected": []string{"x"}})
-	tags, _ := json.Marshal([]string{"x", "y"})
-	if !canAccessContent(store.User{Permissions: permissions}, 0, tags) {
-		t.Fatal("allowlist must accept an item with at least one selected tag")
 	}
 }
 

@@ -1,6 +1,7 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -77,7 +78,7 @@ type createShareRequest struct {
 // ShareManager.scheduleMediaItemShare, but the request still answers 201 and
 // emits share_open.
 func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var req createShareRequest
@@ -158,7 +159,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 // deleteShare is ShareController.deleteMediaItemShare and
 // ShareManager.removeMediaItemShare.
 func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")

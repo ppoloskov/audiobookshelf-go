@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -157,6 +158,7 @@ func assertBookPrefixValues(t *testing.T, h *Handler, user store.User) {
 		if _, err := h.db.Exec(`UPDATE settings SET value=? WHERE key='server-settings'`, value); err != nil {
 			t.Fatal(err)
 		}
+		serversettings.Invalidate(h.db)
 	}
 	set(`{"sortingIgnorePrefix":false}`)
 	if got := h.titlePrefix(ctx, "The Book"); got != "Book, The" {

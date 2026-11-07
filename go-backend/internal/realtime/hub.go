@@ -3,6 +3,7 @@
 package realtime
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"context"
 	"database/sql"
@@ -10,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -47,7 +47,7 @@ type client struct {
 	user        *store.User
 	connectedAt time.Time
 	testEmit    func(string)
-	grants      grants // decoded from user.Permissions when the user is set
+	grants      access.Permissions // decoded from user.Permissions when the user is set
 }
 
 // AddTestClient registers an authenticated event recipient without a network
@@ -55,7 +55,7 @@ type client struct {
 func (h *Hub) AddTestClient(id string, user store.User) {
 	h.mu.Lock()
 	copy := user
-	h.clients[id] = &client{user: &copy, grants: parseGrants(copy.Permissions)}
+	h.clients[id] = &client{user: &copy, grants: access.Of(copy)}
 	h.mu.Unlock()
 }
 
@@ -231,7 +231,7 @@ func (h *Hub) connected(s *Socket, path string) {
 	})
 	s.On("message_all_users", func(args []any, _ Ack) {
 		user, ok := h.userFor(id)
-		if !ok || !isAdmin(user) {
+		if !ok || !access.AdminUser(user) {
 			logging.Error("[SocketAuthority] Non-admin user sent the message_all_users event") // SocketAuthority.js:246
 			return
 		}
@@ -362,7 +362,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 	if c := h.clients[id]; c != nil {
 		previous = c.user
 		copy := user
-		c.user, c.grants = &copy, parseGrants(copy.Permissions)
+		c.user, c.grants = &copy, access.Of(copy)
 	}
 	h.mu.Unlock()
 	// SocketAuthority.js:336-345
@@ -376,7 +376,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 
 	h.Emit("@admins", "user_online", h.publicUser(user))
 	initial := map[string]any{"userId": user.ID, "username": user.Username}
-	if isAdmin(user) {
+	if access.AdminUser(user) {
 		initial["usersOnline"] = h.usersOnline()
 	}
 	s.Emit("init", initial)
@@ -453,7 +453,7 @@ func (h *Hub) Emit(userID, event string, payload any) {
 		case "*":
 			userPayload, allowed = payloadForUser(&c.grants, payload)
 		case "@admins":
-			allowed = isAdmin(*c.user)
+			allowed = access.AdminUser(*c.user)
 		default:
 			allowed = c.user.ID == userID
 		}
@@ -485,7 +485,7 @@ func (h *Hub) EmitSocket(socketID, event string, payload any) bool {
 // requireAdmin is SocketAuthority.requireAdminSocket (SocketAuthority.js:88).
 func (h *Hub) requireAdmin(id, eventName string) (store.User, bool) {
 	user, ok := h.userFor(id)
-	if ok && isAdmin(user) {
+	if ok && access.AdminUser(user) {
 		return user, true
 	}
 	logging.Warnf("[SocketAuthority] Unauthorized %s socket event from socket %s", eventName, id)
@@ -559,49 +559,13 @@ func (h *Hub) publicUserWithLookup(user store.User, lookup func(string) any) map
 	}
 }
 
-// grants are a user's library/item permissions, decoded once per connection.
-type grants struct {
-	allLibraries, explicit, allTags, tagsExcluded bool
-	libraries, tags                               []string
-}
-
-func parseGrants(raw json.RawMessage) grants {
-	var p struct {
-		AllLibraries bool     `json:"accessAllLibraries"`
-		Libraries    []string `json:"librariesAccessible"`
-		Explicit     bool     `json:"accessExplicitContent"`
-		AllTags      bool     `json:"accessAllTags"`
-		Tags         []string `json:"itemTagsSelected"`
-		TagsExcluded bool     `json:"selectedTagsNotAccessible"`
-	}
-	_ = json.Unmarshal(raw, &p)
-	return grants{p.AllLibraries, p.Explicit, p.AllTags, p.TagsExcluded, p.Libraries, p.Tags}
-}
-
-func (g *grants) library(id string) bool { return g.allLibraries || slices.Contains(g.libraries, id) }
-
-// item applies the library, explicit and tag rules to one item's access inputs.
-func (g *grants) item(a libitem.Access) bool {
-	if !g.library(a.LibraryID) || (a.Explicit && !g.explicit) {
-		return false
-	}
-	if g.allTags {
-		return true
-	}
-	hit := slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(g.tags, t) })
-	if g.tagsExcluded {
-		return !hit
-	}
-	return hit
-}
-
 // accessor is implemented by the typed item payloads (libitem.Expanded, ...).
 type accessor interface{ Access() libitem.Access }
 
-func filter[T accessor](g *grants, values []T) (any, bool) {
+func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
 	out := make([]T, 0, len(values))
 	for _, v := range values {
-		if g.item(v.Access()) {
+		if g.Item(v.Access()) {
 			out = append(out, v)
 		}
 	}
@@ -613,9 +577,9 @@ func filter[T accessor](g *grants, values []T) (any, bool) {
 // payload that carries a libraryId (collections, item_removed) is limited to
 // the library check; global payloads are unrestricted. A map that looks like an
 // item (has "media") is never delivered: item payloads must be typed.
-func payloadAccessible(g *grants, payload any) bool {
+func payloadAccessible(g *access.Permissions, payload any) bool {
 	if a, ok := payload.(accessor); ok {
-		return g.item(a.Access())
+		return g.Item(a.Access())
 	}
 	metadata, ok := payload.(map[string]any)
 	if !ok {
@@ -628,10 +592,10 @@ func payloadAccessible(g *grants, payload any) bool {
 	if _, isItem := metadata["media"]; isItem {
 		return false
 	}
-	return g.library(libraryID)
+	return g.Library(libraryID)
 }
 
-func payloadForUser(g *grants, payload any) (any, bool) {
+func payloadForUser(g *access.Permissions, payload any) (any, bool) {
 	switch values := payload.(type) {
 	case []libitem.Expanded:
 		return filter(g, values)
@@ -672,8 +636,6 @@ func hasAccessMetadata(raw any) bool {
 	_, ok = item["libraryId"].(string)
 	return ok
 }
-
-func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
 
 func first(args []any) any {
 	if len(args) == 0 {

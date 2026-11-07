@@ -4,6 +4,7 @@
 package audiotools
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -96,7 +97,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 		return h.batch(w, r, requestUser(r))
 	}))
 	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		if !isAdmin(requestUser(r)) {
+		if !access.AdminUser(requestUser(r)) {
 			return httputil.Status(403, "")
 		}
 		return h.cancelEncode(w, r.PathValue("id"))
@@ -110,7 +111,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, store.User, item) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user := requestUser(r)
-		if !isAdmin(user) {
+		if !access.AdminUser(user) {
 			return httputil.Status(403, "")
 		}
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
@@ -120,7 +121,7 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stor
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if !canAccess(user, it.library) {
+		if !access.AdminUser(user) && !access.Of(user).Library(it.library) {
 			return httputil.Status(403, "")
 		}
 		return action(w, r, user, it)
@@ -142,8 +143,6 @@ func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())
 	return user
 }
-
-func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
 
 func (h *Handler) Tasks(ctx context.Context, includeQueue bool) (any, error) {
 	h.mu.Lock()
@@ -313,7 +312,7 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 }
 
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !isAdmin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var body struct {
@@ -331,7 +330,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) er
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		if !canAccess(u, it.library) {
+		if !access.AdminUser(u) && !access.Of(u).Library(it.library) {
 			return httputil.Status(403, "")
 		}
 		if it.typ != "book" || len(it.files) == 0 {
@@ -671,23 +670,6 @@ func ffmpegPath() string {
 	return "ffmpeg"
 }
 
-func canAccess(u store.User, library string) bool {
-	if u.Type == "admin" || u.Type == "root" {
-		return true
-	}
-	var p map[string]any
-	_ = json.Unmarshal(u.Permissions, &p)
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	ids, _ := p["librariesAccessible"].([]any)
-	for _, v := range ids {
-		if v == library {
-			return true
-		}
-	}
-	return false
-}
 func randomID() string { var b [16]byte; _, _ = rand.Read(b[:]); return fmt.Sprintf("%x", b[:]) }
 func str(v any) string { s, _ := v.(string); return s }
 func num(v any) float64 {

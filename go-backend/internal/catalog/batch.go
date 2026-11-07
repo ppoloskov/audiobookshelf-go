@@ -3,6 +3,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"encoding/json"
 	"io"
@@ -60,15 +61,16 @@ func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]batch
 // (LibraryItemController.js:48-56): every item must pass
 // User.checkCanAccessLibraryItem (library, explicit content and tags).
 func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items []batchItem) (bool, error) {
+	perms := access.Of(user)
 	for _, item := range items {
-		if !userCanAccessLibrary(user, item.libraryID) {
+		if !perms.Library(item.libraryID) {
 			return false, nil
 		}
 		table := map[string]string{"book": "books", "podcast": "podcasts"}[item.mediaType]
 		if table == "" {
 			return false, nil
 		}
-		permissionSQL, permissionArgs := mediaPermission(user, "b")
+		permissionSQL, permissionArgs := perms.MediaClause("b")
 		var visible int
 		query := `SELECT COUNT(*) FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.id=?` + permissionSQL
 		if err := h.db.QueryRowContext(ctx, query, append([]any{item.id}, permissionArgs...)...).Scan(&visible); err != nil {
@@ -132,7 +134,7 @@ func looselyOne(value string) bool {
 // its files when hard=1), then the series and authors it leaves empty.
 func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	if !userAllows(user, "delete") {
+	if !access.Of(user).Delete() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to delete without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}
@@ -176,7 +178,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 // the end, and the answer counts the items that changed.
 func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	if !userAllows(user, "update") {
+	if !access.Of(user).Update() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to batch update without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

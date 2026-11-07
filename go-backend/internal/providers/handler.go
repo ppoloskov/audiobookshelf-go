@@ -3,6 +3,7 @@
 package providers
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -60,7 +61,7 @@ func (h *Handler) endpoint(name string) string {
 func (h *Handler) Routes(mux *http.ServeMux) {
 	admin := func(fn httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !isAdmin(user) {
+			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
 				return httputil.Status(http.StatusForbidden, "")
 			}
 			return fn(w, r)
@@ -92,8 +93,6 @@ func stream(w http.ResponseWriter, status int, v any) error {
 	httputil.WriteJSON(w, status, v)
 	return nil
 }
-
-func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }
 
 type customProvider struct {
 	ID              string          `json:"id"`

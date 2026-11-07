@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -303,7 +304,7 @@ func signedToken(t *testing.T, secret string, claims map[string]any) string {
 	return unsigned + "." + encode(mac.Sum(nil))
 }
 
-func grantsOf(u store.User) *grants { g := parseGrants(u.Permissions); return &g }
+func grantsOf(u store.User) *access.Permissions { g := access.Of(u); return &g }
 
 func TestPayloadForUserFiltersTypedItemSlices(t *testing.T) {
 	user := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)}

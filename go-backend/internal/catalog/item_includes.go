@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"net/http"
@@ -24,12 +25,10 @@ type itemIncludes struct {
 	share   bool
 }
 
-func isAdminOrUp(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
-
 // requestItemIncludes reads include= from the request. mediaItemShare is only
 // attached for admins (`!!user?.isAdminOrUp && include.includes('share')`).
 func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
-	return itemIncludes{rssFeed: includeHas(r, "rssfeed"), share: isAdminOrUp(user) && includeHas(r, "share")}
+	return itemIncludes{rssFeed: includeHas(r, "rssfeed"), share: access.AdminUser(user) && includeHas(r, "share")}
 }
 
 // attachItemIncludes sets rssFeed (the item's feed, Feed.toOldJSONMinified)

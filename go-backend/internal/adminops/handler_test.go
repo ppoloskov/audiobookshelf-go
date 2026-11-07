@@ -1,6 +1,7 @@
 package adminops
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -91,6 +92,9 @@ func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 	db := adminopsDB(t)
 	h := New(db, config.Config{}, nil)
 	u := store.User{Type: "admin"}
+	if _, err := serversettings.Get(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
 	req := httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"language":"fr","tokenSecret":"attacker","unlisted":true}`))
 	w := httptest.NewRecorder()
 	serve(h, w, req, u)
@@ -109,6 +113,9 @@ func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 		if _, ok := settings[k]; ok {
 			t.Fatalf("secret setting %s leaked", k)
 		}
+	}
+	if cached, err := serversettings.Get(req.Context(), db); err != nil || cached.Doc["language"] != "fr" {
+		t.Fatalf("cached settings stale after PATCH: %v %v", cached.Doc["language"], err)
 	}
 	var raw string
 	if e := db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); e != nil {

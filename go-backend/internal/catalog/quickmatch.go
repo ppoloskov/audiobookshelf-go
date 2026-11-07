@@ -6,6 +6,8 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -175,20 +177,6 @@ func storedNumber(v any) float64 {
 	return 0
 }
 
-// serverSettings reads the server-settings row.
-func (h *Handler) serverSettings(ctx context.Context) map[string]json.RawMessage {
-	var raw []byte
-	settings := map[string]json.RawMessage{}
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err == nil {
-		_ = json.Unmarshal(raw, &settings)
-	}
-	return settings
-}
-
-func settingTrue(settings map[string]json.RawMessage, key string) bool {
-	return string(settings[key]) == "true"
-}
-
 // saveCoverFromURL is CoverManager.downloadCoverFromUrlNew (CoverManager.js:
 // 300-345): the cover is stored with the item when the server setting says so,
 // otherwise under the metadata items folder.
@@ -221,7 +209,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 	if err != nil {
 		return wire.QuickMatchResult{}, err
 	}
-	settings := h.serverSettings(ctx)
+	settings := serversettings.Load(ctx, h.db).Doc
 	provider := options.provider
 	if provider == "" {
 		provider = "google"
@@ -234,12 +222,12 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 	if searchAuthor == "" && item.mediaType == "book" {
 		searchAuthor = item.authorName()
 	}
-	if options.overrideCover == nil && options.overrideDetails == nil && settingTrue(settings, "scannerPreferMatchedMetadata") {
+	if options.overrideCover == nil && options.overrideDetails == nil && settings["scannerPreferMatchedMetadata"] == true {
 		options.overrideCover, options.overrideDetails = optionalBool(true), optionalBool(true)
 	}
 	overrideCover := options.overrideCover != nil && *options.overrideCover
 	overrideDetails := options.overrideDetails != nil && *options.overrideDetails
-	withItem := settingTrue(settings, "storeCoverWithItem")
+	withItem := settings["storeCoverWithItem"] == true
 
 	columns := newColumnSet(item.media)
 	hasUpdated := false
@@ -538,7 +526,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 	if !allowed {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !userAllows(user, "update") {
+	if !access.Of(user).Update() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to update without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

@@ -1,6 +1,8 @@
 package userapi
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"database/sql"
 	"encoding/json"
 	"math"
@@ -145,12 +147,12 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}
-	prefixes := libitem.LoadSortingPrefixes(r.Context(), h.db)
-	perms := store.DecodeJSONObject(user.Permissions)
+	prefixes := serversettings.Load(r.Context(), h.db).SortingPrefixes
+	perms := access.Of(user)
 	result := make([]libitem.Minified, 0)
 	for _, p := range entries {
 		it, ok := byID[p.itemID]
-		if !ok || !it.Access().AllowedBy(perms) {
+		if !ok || !perms.Item(it.Access()) {
 			continue
 		}
 		li := it.Minified(prefixes)
@@ -223,7 +225,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 			continue
 		}
 		users, _ := d["users"].([]any)
-		accessible := d["availabilityOption"] == "adminOrUp" && isAdmin(user)
+		accessible := d["availabilityOption"] == "adminOrUp" && access.AdminUser(user)
 		for _, uid := range users {
 			if uid == user.ID {
 				accessible = true
@@ -253,7 +255,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	for _, entry := range combined {
 		d, _ := entry.(map[string]any)
 		users, _ := d["users"].([]any)
-		if d["availabilityOption"] == "adminOrUp" && isAdmin(user) {
+		if d["availabilityOption"] == "adminOrUp" && access.AdminUser(user) {
 			visible = append(visible, d)
 			continue
 		}

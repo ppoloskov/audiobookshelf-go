@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -51,7 +52,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 			}
 			h := New(db, config.Config{}, nil)
 			user := store.User{ID: "shelf-user", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":false}`)}
-			permission, permissionArgs := mediaPermission(user, "b")
+			permission, permissionArgs := access.Of(user).MediaClause("b")
 			query := `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)` + permission + ` ORDER BY mp.updatedAt DESC LIMIT ?`
 			args := []any{"l1", user.ID}
 			args = append(args, permissionArgs...)

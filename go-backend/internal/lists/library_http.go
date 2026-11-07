@@ -1,6 +1,7 @@
 package lists
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"database/sql"
 	"errors"
 	"math"
@@ -23,7 +24,7 @@ import (
 // 403 before the existence lookup, 404 "Library not found", then limit and
 // page must be non-negative integers.
 func (h *Handler) libraryListPagination(r *http.Request, user store.User, libraryID string) (limit, page int, err error) {
-	if !h.canAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return 0, 0, httputil.Status(http.StatusForbidden, "")
 	}
 	var exists int

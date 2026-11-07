@@ -4,6 +4,8 @@
 package playback
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -167,7 +169,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
-	if !canAccess(user, item) {
+	if !access.Of(user).Item(item.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if len(item.Files) == 0 {
@@ -221,7 +223,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	}
 	// PlaybackSession.toJSONForClient embeds libraryItem.toOldJSONExpanded()
 	// (server/objects/PlaybackSession.js:86-116).
-	itemJSON := item.Item.Expanded(libitem.LoadSortingPrefixes(r.Context(), h.db))
+	itemJSON := item.Item.Expanded(serversettings.Load(r.Context(), h.db).SortingPrefixes)
 	sessionID, err := ids.New()
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
@@ -435,7 +437,7 @@ func (h *Handler) openSession(user store.User, id string) (*session, error) {
 	if s == nil {
 		return nil, httputil.Status(http.StatusNotFound, "")
 	}
-	if s.UserID != user.ID && !isAdmin(user) {
+	if s.UserID != user.ID && !access.AdminUser(user) {
 		return nil, httputil.Status(http.StatusForbidden, "")
 	}
 	return s, nil
@@ -626,7 +628,7 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 
 func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
-	if !isAdmin(user) {
+	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	validSort := map[string]string{"displayTitle": "displayTitle", "duration": "duration", "playMethod": "playMethod", "startTime": "startTime", "currentTime": "currentTime", "timeListening": "timeListening", "updatedAt": "updatedAt", "createdAt": "createdAt"}
@@ -714,7 +716,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
-	if !isAdmin(user) {
+	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.OpenSessions(), "shareSessions": []any{}})
@@ -744,7 +746,7 @@ func (h *Handler) OpenSessions() []map[string]any {
 func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	id := r.PathValue("id")
-	if !canDelete(user) {
+	if !access.Of(user).Delete() {
 		return httputil.Status(403, "")
 	}
 	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)
@@ -764,7 +766,7 @@ func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) er
 
 func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
-	if !isAdmin(user) {
+	if !access.AdminUser(user) {
 		return httputil.Status(403, "")
 	}
 	var body struct {
@@ -975,17 +977,6 @@ func validUUID(v string) bool {
 		}
 	}
 	return true
-}
-func canDelete(u store.User) bool {
-	if !u.IsActive {
-		return false
-	}
-	var p map[string]any
-	if json.Unmarshal(u.Permissions, &p) != nil {
-		return false
-	}
-	allow, _ := p["delete"].(bool)
-	return allow
 }
 func timeFromPayload(v any) int64 {
 	if ms, ok := asFloat(v); ok {
@@ -1346,47 +1337,6 @@ func parseAudioFile(raw map[string]any) (audioFile, error) {
 	return f, nil
 }
 
-func canAccess(user store.User, item *itemData) bool {
-	var p map[string]any
-	if json.Unmarshal(user.Permissions, &p) != nil {
-		return false
-	}
-	all, _ := p["accessAllLibraries"].(bool)
-	if !all && !slices.Contains(stringSlice(p["librariesAccessible"]), item.LibraryID) {
-		return false
-	}
-	access := item.Access()
-	if access.Explicit {
-		allowed, _ := p["accessExplicitContent"].(bool)
-		if !allowed {
-			return false
-		}
-	}
-	allTags, _ := p["accessAllTags"].(bool)
-	if allTags {
-		return true
-	}
-	selected := stringSlice(p["itemTagsSelected"])
-	selectedNot, _ := p["selectedTagsNotAccessible"].(bool)
-	if len(access.Tags) == 0 {
-		return selectedNot
-	}
-	if selectedNot {
-		for _, t := range access.Tags {
-			if slices.Contains(selected, t) {
-				return false
-			}
-		}
-		return true
-	}
-	for _, t := range access.Tags {
-		if slices.Contains(selected, t) {
-			return true
-		}
-	}
-	return false
-}
-func isAdmin(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
 func cleanDevice(in map[string]any) map[string]any {
 	out := map[string]any{}
 	allowed := []string{"id", "userId", "deviceId", "ipAddress", "browserName", "browserVersion", "osName", "osVersion", "deviceType", "clientVersion", "manufacturer", "model", "sdkVersion", "clientName", "deviceName"}

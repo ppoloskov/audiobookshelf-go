@@ -3,6 +3,8 @@
 package podcasts
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"bufio"
 	"compress/flate"
 	"compress/gzip"
@@ -86,7 +88,7 @@ func (h *Handler) SetQuickMatchHandler(fn func(context.Context, string, bool) (i
 func (h *Handler) Routes(mux *http.ServeMux) {
 	adminOnly := func(fn httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			if !admin(requestUser(r)) {
+			if !access.AdminUser(requestUser(r)) {
 				return httputil.Status(403, "")
 			}
 			return fn(w, r)
@@ -140,9 +142,10 @@ func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, libitem.Ite
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if !canAccessPodcast(user, item) ||
-			r.Method == http.MethodDelete && !canDeletePodcast(user) ||
-			(r.Method == http.MethodPatch || r.Method == http.MethodPost) && !canUpdatePodcast(user) {
+		perms := access.Of(user)
+		if !perms.IsAdmin() && !perms.Item(item.Access()) ||
+			r.Method == http.MethodDelete && !perms.IsAdmin() && !perms.Delete() ||
+			(r.Method == http.MethodPatch || r.Method == http.MethodPost) && !perms.IsAdmin() && !perms.Update() {
 			return httputil.Status(403, "")
 		}
 		return fn(w, r, item)
@@ -174,7 +177,7 @@ func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-	if !admin(requestUser(r)) {
+	if !access.AdminUser(requestUser(r)) {
 		return httputil.Status(403, "")
 	}
 	var episodes []map[string]any
@@ -221,23 +224,6 @@ func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item lib
 		}
 	}
 	return httputil.JSON(w, r, map[string]any{"numEpisodesUpdated": updated})
-}
-
-func canUpdatePodcast(u store.User) bool {
-	if admin(u) {
-		return true
-	}
-	var p map[string]any
-	_ = json.Unmarshal(u.Permissions, &p)
-	return p["update"] == true
-}
-func canDeletePodcast(u store.User) bool {
-	if admin(u) {
-		return true
-	}
-	var p map[string]any
-	_ = json.Unmarshal(u.Permissions, &p)
-	return p["delete"] == true
 }
 
 func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
@@ -415,7 +401,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item lib
 }
 
 func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-	if !admin(requestUser(r)) {
+	if !access.AdminUser(requestUser(r)) {
 		return httputil.Status(403, "")
 	}
 	if str(item.Podcast.FeedURL) == "" {
@@ -502,7 +488,7 @@ func (h *Handler) loadItem(ctx context.Context, id string) (libitem.Item, error)
 
 // expanded is the item's socket and detail JSON.
 func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expanded {
-	return it.Expanded(libitem.LoadSortingPrefixes(ctx, h.db))
+	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes)
 }
 
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
@@ -510,10 +496,6 @@ func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []map[stri
 	var raw []byte
 	_ = h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw)
 	return store.DecodeJSONSlice[map[string]any](raw)
-}
-
-func canAccessPodcast(u store.User, it libitem.Item) bool {
-	return admin(u) || it.Access().AllowedBy(store.DecodeJSONObject(u.Permissions))
 }
 
 func str(s *string) string {
@@ -653,7 +635,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	if schedule != "" && !cronspec.Valid(schedule) {
 		return libitem.Item{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
 	}
-	settings := h.serverSettings(ctx)
+	settings := serversettings.Load(ctx, h.db).Doc
 	if schedule == "" {
 		schedule, _ = settings["podcastEpisodeSchedule"].(string)
 		if schedule == "" {
@@ -871,19 +853,6 @@ func sanitizePodcastFilename(title string) string {
 		return "Podcast"
 	}
 	return title
-}
-
-func (h *Handler) serverSettings(ctx context.Context) map[string]any {
-	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-		return map[string]any{}
-	}
-	var settings map[string]any
-	_ = json.Unmarshal(raw, &settings)
-	if settings == nil {
-		settings = map[string]any{}
-	}
-	return settings
 }
 
 func (h *Handler) startSchedules() {
@@ -1176,7 +1145,6 @@ func validFeedURL(raw string) string {
 	}
 	return u.String()
 }
-func admin(u store.User) bool { return u.Type == "admin" || u.Type == "root" }
 
 func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())

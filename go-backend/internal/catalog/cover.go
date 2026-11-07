@@ -7,6 +7,8 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -339,9 +341,7 @@ func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string,
 // {success, cover} JSON answer carrying an express-style weak ETag.
 func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 	user, itemID := requestUser(r), r.PathValue("id")
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	if !user.IsActive || permissions["upload"] != true {
+	if !access.Of(user).Upload() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var libraryID, itemPath, mediaType, mediaID string
@@ -352,7 +352,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		}
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var fileHeader *multipart.FileHeader
@@ -387,13 +387,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Status(http.StatusBadRequest, fmt.Sprintf("Invalid image type %s (Supported: %s)", extension, supportedCoverTypes))
 		}
 	}
-	var storeWithItem bool
-	var settingsRaw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
-		var settings map[string]any
-		_ = json.Unmarshal(settingsRaw, &settings)
-		storeWithItem, _ = settings["storeCoverWithItem"].(bool)
-	}
+	storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc["storeCoverWithItem"].(bool)
 	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
 	if storeWithItem && isFile == 0 {
 		coverDir = itemPath

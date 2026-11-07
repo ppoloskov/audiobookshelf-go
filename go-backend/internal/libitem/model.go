@@ -7,9 +7,6 @@ package libitem
 
 import (
 	"database/sql"
-	"slices"
-
-	"audiobookshelf-compat/internal/jsonvalue"
 )
 
 // Item is a library item row with its media. Exactly one of Book and Podcast
@@ -213,26 +210,6 @@ func (m Minified) MediaID() string { return mediaID(m.Media) }
 func (f Full) Access() Access     { return f.Head.access(f.Media) }
 func (e Expanded) Access() Access { return e.Head.access(e.Media) }
 func (m Minified) Access() Access { return m.Head.access(m.Media) }
-
-// AllowedBy is User.checkCanAccessLibraryItem for a user's permissions object:
-// library, explicit-content and tag rules (admins are the caller's concern).
-func (a Access) AllowedBy(perms map[string]any) bool {
-	if perms["accessAllLibraries"] != true && !slices.Contains(jsonvalue.Strings(perms["librariesAccessible"]), a.LibraryID) {
-		return false
-	}
-	if a.Explicit && perms["accessExplicitContent"] != true {
-		return false
-	}
-	if perms["accessAllTags"] == true {
-		return true
-	}
-	inverted := perms["selectedTagsNotAccessible"] == true
-	if len(a.Tags) == 0 {
-		return inverted
-	}
-	selected := jsonvalue.Strings(perms["itemTagsSelected"])
-	return slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(selected, t) }) != inverted
-}
 
 func nullStr(s sql.NullString) *string {
 	if !s.Valid {

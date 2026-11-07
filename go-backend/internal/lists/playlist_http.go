@@ -1,6 +1,7 @@
 package lists
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"errors"
@@ -28,7 +29,7 @@ func (h *Handler) listPlaylists(w http.ResponseWriter, r *http.Request) error {
 	out := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
 		item, libraryID, err := Playlist(r.Context(), h.db, id)
-		if errors.Is(err, sql.ErrNoRows) || (err == nil && !h.canAccessLibrary(user, libraryID)) {
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && !access.Of(user).Library(libraryID)) {
 			continue
 		}
 		if err != nil {
@@ -55,7 +56,7 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 	if playlist.Userid.String != user.ID {
 		return nil, "", http.StatusForbidden, nil
 	}
-	if !h.canAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return nil, "", http.StatusNotFound, nil
 	}
 	item, _, err := Playlist(r.Context(), h.db, id)
@@ -78,7 +79,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
 	if jsonvalue.Truthy(body["description"]) && !descOK {
 		return httputil.Status(400, "Invalid playlist description")
 	}
-	if !h.canAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(403, "")
 	}
 	items, ok := body["items"].([]any)
@@ -555,7 +556,7 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 
 func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Request, user store.User, collectionID string) error {
 	dto, libraryID, err := h.collection(r.Context(), collectionID, user)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && !h.canAccessLibrary(user, libraryID)) {
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && !access.Of(user).Library(libraryID)) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"net/http"
@@ -53,7 +54,7 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 		return true, nil
 	}
 	value, _ = decodeFilterValue(value)
-	permission, args := mediaPermission(user, "b")
+	permission, args := access.Of(user).MediaClause("b")
 	base := ` FROM books b JOIN bookSeries bs ON bs.bookId=b.id WHERE bs.seriesId=?`
 	query := `SELECT COUNT(*)` + base
 	queryArgs := []any{seriesID}
@@ -98,7 +99,7 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 }
 
 func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
-	permission, args := mediaPermission(user, "b")
+	permission, args := access.Of(user).MediaClause("b")
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission+` ORDER BY CASE WHEN bs.sequence IS NULL OR bs.sequence='' THEN 1 ELSE 0 END,bs.sequence COLLATE NOCASE`, append([]any{seriesID}, args...)...)
 	if err != nil {
 		return nil, err

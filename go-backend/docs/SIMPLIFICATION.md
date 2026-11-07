@@ -65,6 +65,7 @@ and nulls, because TS reads those back.
 | M4 (C1): one typed item model, internal/libitem | (this commit) | 42,578 → 41,812 | −766 (libitem +~1,050 included) | 10,347 → 10,155 | packages books/ and items/ deleted; catalog podcast/book map builders, podcasts/item.go serializer, playback and sharing schema readers, lists per-entry SELECTs, dead wire book types; map[string]any 990 → 900, []any 326 → 301 |
 | M5 (C1d + C2): typed item decorators; one item-mutation write path (internal/itemwrite) | (this commit) | 41,812 → 41,475 | −337 (new itemwrite + mutation.go +661 included) | 10,155 → 10,015 | toMap round trip, realtime map item path, sync/quickMatch author+series copies, column builders, orphan check copies, finalizeScan loops, taxonomy bodies; map[string]any 900 → 852 |
 | M6 (C3 + C4): filters/sort as tables; shelves as definitions; one permission clause | (this commit) | 41,475 → 41,204 | −271 | 10,015 → 9,874 | filterClause (55), podcastFilterClause, three order builders, podcastPermissionClause, userMediaClause and personalized hand loops (37) replaced by catalog/query.go tables and one shelf loop |
+| M7 (P + S): one permission owner (internal/access), cached server settings (internal/serversettings), scanner walk/group pipeline | (this commit) | 41,204 → 40,817 | −387 | 9,874 → 9,703 | ~10 per-package permission helpers and ~12 admin checks, 4 per-request settings SELECTs, 5 directory walks, 2 grouping algorithms, the per-item stored-row lookup in importGroup |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -139,3 +140,22 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
   (`media.metadata.author`, `media.numTracks`) still answers 500, as before.
 - Permission code outside catalog (podcasts, emailapi, playback, sharing) still
   has its own copies; next packet.
+
+### M7 notes
+
+- Recorded before the refactor and unchanged after: access/testdata/decisions.json
+  (old helpers' decisions over 128 users × 30 items) and
+  scanner/testdata/scan_golden.json (rows, sidecars and events for full scan,
+  rename/delete/add, a watcher batch and a forced item scan).
+- Toward TS `User.js:557-571`: the update/delete/download/upload flags are
+  `isActive && !!flag` everywhere (inactive non-admins can no longer update or
+  delete podcasts or collections; non-boolean truthy flags count); explicit
+  podcasts are hidden from inactive users as catalog already did.
+- Server settings are cached per database handle and invalidated by all three
+  writers (PATCH /api/settings and sorting prefixes, backup path, token
+  secret); a restore opens a new handle. Identity and the scanner still read
+  the row directly.
+- The scanner's single-item scan and watcher now follow the library scan's
+  ignore rules (.ignore directories, temporary extensions, dot directories).
+- Left in the scanner: typed audio files and sidecar (arch-scanner §6.4/6.7),
+  one ffprobe implementation (§6.5).

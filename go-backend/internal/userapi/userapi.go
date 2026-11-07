@@ -3,6 +3,7 @@
 package userapi
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -311,7 +312,7 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return wire.MediaProgress{}, err
 	}
-	if libraryID != "" && !canAccessLibrary(store.DecodeJSONObject(user.Permissions), libraryID) {
+	if libraryID != "" && !access.Of(user).Library(libraryID) {
 		return wire.MediaProgress{}, &progressdto.StatusError{Status: http.StatusForbidden, Message: "Forbidden"}
 	}
 	return progressdto.Apply(ctx, h.db, user.ID, p)
@@ -405,7 +406,7 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 }
 
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current store.User) error {
-	if !isAdmin(current) {
+	if !access.AdminUser(current) {
 		return httputil.Status(403, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt FROM users`)
@@ -429,7 +430,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current stor
 }
 
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) error {
-	if !isAdmin(current) {
+	if !access.AdminUser(current) {
 		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
@@ -522,7 +523,7 @@ func (h *Handler) userListening(w http.ResponseWriter, r *http.Request, current 
 	if kind != "listening-sessions" && kind != "listening-stats" {
 		return httputil.Status(404, "")
 	}
-	if !isAdmin(current) && current.ID != id {
+	if !access.AdminUser(current) && current.ID != id {
 		return httputil.Status(403, "")
 	}
 	if _, err := h.targetUser(r.Context(), id); err != nil {
@@ -1032,24 +1033,19 @@ type itemAccess struct{ exists, allowed bool }
 
 // CanReadItem exposes the existing per-user item ACL decision to the list route owner.
 func (h *Handler) CanReadItem(ctx context.Context, user store.User, itemID string) (bool, error) {
-	access, err := h.canAccessItem(ctx, user, itemID)
-	return access.allowed, err
-}
-
-// AllowsLibrary exposes the existing library ACL decision to the list route owner.
-func (h *Handler) AllowsLibrary(user store.User, libraryID string) bool {
-	return canAccessLibrary(store.DecodeJSONObject(user.Permissions), libraryID)
+	ia, err := h.canAccessItem(ctx, user, itemID)
+	return ia.allowed, err
 }
 
 func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID string) (itemAccess, error) {
-	access, err := libitem.LoadAccess(ctx, h.db, itemID)
+	a, err := libitem.LoadAccess(ctx, h.db, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return itemAccess{}, nil
 	}
 	if err != nil {
 		return itemAccess{}, err
 	}
-	return itemAccess{exists: true, allowed: access.AllowedBy(store.DecodeJSONObject(user.Permissions))}, nil
+	return itemAccess{exists: true, allowed: access.Of(user).Item(a)}, nil
 }
 
 // decorateAdminProgress adds the media fields UserController.findOne attaches
@@ -1159,7 +1155,6 @@ func int64Pointer(value any) *int64 {
 	}
 	return &n
 }
-func isAdmin(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
 
 func minimalBrowserUser(user store.User, hideRootToken bool) map[string]any {
 	permissionsMap := store.DecodeJSONObject(user.Permissions)
@@ -1224,7 +1219,7 @@ func withUser(fn func(http.ResponseWriter, *http.Request, store.User) error) htt
 // adminOnly is withUser for routes only root and admin users may call.
 func adminOnly(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
 	return withUser(func(w http.ResponseWriter, r *http.Request, user store.User) error {
-		if !isAdmin(user) {
+		if !access.AdminUser(user) {
 			return httputil.Status(403, "")
 		}
 		return fn(w, r, user)
@@ -1280,18 +1275,6 @@ func jsonArray(raw json.RawMessage) []any {
 	}
 	return out
 }
-func canAccessLibrary(p map[string]any, id string) bool {
-	if boolValue(p["accessAllLibraries"]) {
-		return true
-	}
-	for _, lib := range jsonvalue.Strings(p["librariesAccessible"]) {
-		if lib == id {
-			return true
-		}
-	}
-	return false
-}
-func boolValue(v any) bool { b, _ := v.(bool); return b }
 func jsonNumber(v any) (float64, bool) {
 	switch n := v.(type) {
 	case float64:

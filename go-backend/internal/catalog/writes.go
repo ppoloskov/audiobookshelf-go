@@ -1,10 +1,12 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/serversettings"
 	"bytes"
 	"context"
 	"database/sql"
@@ -29,12 +31,10 @@ func (h *Handler) writableItem(ctx context.Context, id string, user store.User) 
 	if err != nil {
 		return scope, false, err
 	}
-	if !userCanAccessLibrary(user, scope.libraryID) {
+	if !access.Of(user).Library(scope.libraryID) {
 		return scope, false, nil
 	}
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	return scope, user.IsActive && permissions["update"] == true, nil
+	return scope, access.Of(user).Update(), nil
 }
 
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
@@ -248,12 +248,10 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		return http.StatusInternalServerError, "database read failed"
 	}
 	if user != nil {
-		if !userCanAccessLibrary(*user, scope.libraryID) {
+		if !access.Of(*user).Library(scope.libraryID) {
 			return http.StatusForbidden, ""
 		}
-		var permissions map[string]any
-		_ = json.Unmarshal(user.Permissions, &permissions)
-		if !user.IsActive || permissions["delete"] != true {
+		if !access.Of(*user).Delete() {
 			return http.StatusForbidden, ""
 		}
 	}
@@ -592,14 +590,8 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(500, validationError)
 	}
 	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
-	var settingsRaw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
-		var settings map[string]any
-		_ = json.Unmarshal(settingsRaw, &settings)
-		storeWithItem, _ := settings["storeCoverWithItem"].(bool)
-		if storeWithItem && isFile == 0 {
-			coverDir = itemPath
-		}
+	if storeWithItem, _ := serversettings.Load(r.Context(), h.db).Doc["storeCoverWithItem"].(bool); storeWithItem && isFile == 0 {
+		coverDir = itemPath
 	}
 	coverPath := body.Cover
 	if !strings.HasPrefix(coverPath, coverDir) {

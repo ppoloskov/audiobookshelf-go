@@ -2,9 +2,11 @@
 package adminops
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -115,7 +117,6 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 	mux.Handle("POST /api/upload", write(h.upload))
 }
 
-func admin(user store.User) bool { return user.Type == "root" || user.Type == "admin" }
 func (h *Handler) settings(r *http.Request) (map[string]any, error) {
 	var raw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
@@ -140,6 +141,7 @@ func (h *Handler) saveSettings(r *http.Request, m map[string]any) error {
 	if n != 1 {
 		return errors.New("server-settings row missing")
 	}
+	serversettings.Invalidate(h.db)
 	if h.settingsChanged != nil {
 		return h.settingsChanged(r.Context(), m)
 	}
@@ -157,7 +159,7 @@ func (h *Handler) browserSettings(m map[string]any) map[string]any {
 	return out
 }
 func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var patch map[string]any
@@ -200,7 +202,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	return nil
 }
 func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.User, patch bool) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	m, e := h.settings(r)
@@ -297,7 +299,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 	return nil
 }
 func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var p struct {
@@ -384,7 +386,7 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.U
 	return httputil.OK(w, r)
 }
 func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		logging.Errorf("[MiscController] Non-admin user %q attempted to get logger data", u.Username) // MiscController.js:779
 		return httputil.Status(403, "")
 	}
@@ -393,7 +395,7 @@ func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request, u store.Use
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.User, itemsOnly bool) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	root := filepath.Join(h.cfg.MetadataPath, "cache")
@@ -422,7 +424,7 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, u store.Use
 }
 
 func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var booksSize, booksCount, podcastsSize, podcastsCount int64
@@ -444,7 +446,7 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request, u store.Us
 }
 
 func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	var body struct {
@@ -471,7 +473,7 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request, u st
 	return httputil.OK(w, r)
 }
 func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	values := []string{}
@@ -505,7 +507,7 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, u store.U
 	return nil
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column, oldKey, newKey string) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	if h.itemChanged == nil {
@@ -540,7 +542,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 	return nil
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store.User, column string) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	if h.itemChanged == nil {
@@ -614,7 +616,7 @@ func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func(
 func sqlDate() string { return dbtime.Now() }
 
 func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	year, err := strconv.Atoi(r.PathValue("year"))
@@ -740,7 +742,7 @@ func topTimes(o *orderedTimes, key string) []map[string]any {
 }
 
 func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !admin(u) {
+	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
 	p := r.URL.Query().Get("path")
@@ -772,7 +774,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 	return nil
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !canUpload(u) {
+	if !access.Of(u).Upload() {
 		return httputil.Status(403, "")
 	}
 	var p struct {
@@ -789,7 +791,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	if e != nil {
 		return httputil.Status(404, "")
 	}
-	if !canAccessLibrary(u, libraryID) {
+	if !access.AdminUser(u) && !access.Of(u).Library(libraryID) {
 		return httputil.Status(403, "")
 	}
 	base, _ := filepath.Abs(filepath.Clean(p.FolderPath))
@@ -823,34 +825,6 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false})
 	return nil
 }
-func canUpload(u store.User) bool {
-	var p map[string]any
-	if json.Unmarshal(u.Permissions, &p) != nil {
-		return false
-	}
-	v, _ := p["upload"].(bool)
-	return v && u.IsActive
-}
-func canAccessLibrary(u store.User, id string) bool {
-	if admin(u) {
-		return true
-	}
-	var p map[string]any
-	if json.Unmarshal(u.Permissions, &p) != nil {
-		return false
-	}
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	a, _ := p["librariesAccessible"].([]any)
-	for _, v := range a {
-		if v == id {
-			return true
-		}
-	}
-	return false
-}
-
 func containsAny(a []any, s string) bool {
 	for _, v := range a {
 		if v == s {

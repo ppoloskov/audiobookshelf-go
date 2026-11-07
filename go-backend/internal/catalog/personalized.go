@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -73,7 +74,7 @@ var podcastShelves = []shelfDef{
 
 func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -96,10 +97,10 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	defs := bookShelves
 	switch mediaType {
 	case "book":
-		e.perm, e.permArgs = mediaPermission(user, "b")
+		e.perm, e.permArgs = access.Of(user).MediaClause("b")
 	case "podcast":
 		defs = podcastShelves
-		e.perm, e.permArgs = mediaPermission(user, "p")
+		e.perm, e.permArgs = access.Of(user).MediaClause("p")
 	default:
 		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
@@ -282,4 +283,3 @@ func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 	}
 	return q, err
 }
-

@@ -4,6 +4,8 @@
 package identity
 
 import (
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/serversettings"
 	"bytes"
 	"context"
 	"crypto/hmac"
@@ -167,6 +169,7 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 			if n, _ := result.RowsAffected(); n != 1 {
 				return nil, errors.New("identity: server-settings row disappeared while storing token secret")
 			}
+			serversettings.Invalidate(db)
 		}
 	}
 	if len(h.secret) == 0 {
@@ -684,24 +687,12 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	} else {
 		userDTO["email"] = nil
 	}
-	permissions := decodeMap(user.Permissions)
-	accessible := stringSlice(permissions["librariesAccessible"])
+	perms := access.Of(user)
 	defaultLibrary := any(nil)
-	if permissions["accessAllLibraries"] == true {
-		if len(libraryIDs) > 0 {
-			defaultLibrary = libraryIDs[0]
-		}
-	} else {
-		for _, id := range libraryIDs {
-			for _, allowed := range accessible {
-				if id == allowed {
-					defaultLibrary = id
-					break
-				}
-			}
-			if defaultLibrary != nil {
-				break
-			}
+	for _, id := range libraryIDs {
+		if perms.Library(id) {
+			defaultLibrary = id
+			break
 		}
 	}
 	serverSettings, err := h.browserServerSettings(ctx)

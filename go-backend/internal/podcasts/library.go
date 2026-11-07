@@ -1,9 +1,9 @@
 package podcasts
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -23,7 +23,7 @@ func (h *Handler) libraryRoute(recent bool) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, libraryID := requestUser(r), r.PathValue("id")
 		// LibraryController.middleware (server/controllers/LibraryController.js:1475).
-		if !canAccessLibrary(user, libraryID) {
+		if perms := access.Of(user); !perms.IsAdmin() && !perms.Library(libraryID) {
 			return httputil.Status(http.StatusForbidden, "")
 		}
 		var mediaType string
@@ -75,26 +75,6 @@ func libraryPaging(r *http.Request) (limit, page int, bad string) {
 	return limit, page, ""
 }
 
-func canAccessLibrary(u store.User, libraryID string) bool {
-	if admin(u) {
-		return true
-	}
-	var p map[string]any
-	if json.Unmarshal(u.Permissions, &p) != nil {
-		return false
-	}
-	if p["accessAllLibraries"] == true {
-		return true
-	}
-	ids, _ := p["librariesAccessible"].([]any)
-	for _, id := range ids {
-		if id == libraryID {
-			return true
-		}
-	}
-	return false
-}
-
 // libraryDownloadQueue is PodcastManager.getDownloadQueueDetails(libraryId)
 // (server/managers/PodcastManager.js:509): the current download only when it
 // belongs to the library, and the queued downloads of that library.
@@ -128,7 +108,7 @@ type recentEpisode struct {
 // because Sequelize emits LIMIT offset,0.
 func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID string, limit, offset int) ([]recentEpisode, error) {
 	episodes := make([]recentEpisode, 0)
-	permission, args := podcastPermissionSQL(user)
+	permission, args := access.Of(user).MediaClause("p")
 	query := `SELECT pe.id, li.id FROM podcastEpisodes pe
 		JOIN podcasts p ON p.id = pe.podcastId
 		JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'
@@ -185,29 +165,4 @@ func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID
 		episodes = append(episodes, recentEpisode{episode.Expanded(item.ID), item.Full().Media, item.LibraryID})
 	}
 	return episodes, nil
-}
-
-// podcastPermissionSQL is getUserPermissionPodcastWhereQuery
-// (libraryItemsPodcastFilters.js:13) for a query that aliases podcasts as p.
-func podcastPermissionSQL(user store.User) (string, []any) {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	parts := []string{}
-	args := []any{}
-	if permissions["accessExplicitContent"] != true {
-		parts = append(parts, " AND p.explicit=0")
-	}
-	if permissions["accessAllTags"] != true {
-		if selected, _ := permissions["itemTagsSelected"].([]any); len(selected) > 0 {
-			marks := strings.TrimRight(strings.Repeat("?,", len(selected)), ",")
-			count := `(SELECT count(*) FROM json_each(p.tags) WHERE json_valid(p.tags) AND json_each.value IN (` + marks + `))`
-			if permissions["selectedTagsNotAccessible"] == true {
-				parts = append(parts, " AND "+count+"=0")
-			} else {
-				parts = append(parts, " AND "+count+">=1")
-			}
-			args = append(args, selected...)
-		}
-	}
-	return strings.Join(parts, ""), args
 }

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
@@ -17,12 +18,6 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
-
-func canUpdateCatalog(user store.User) bool {
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	return user.IsActive && permissions["update"] == true
-}
 
 func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
@@ -51,10 +46,10 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	type access struct{ id, libraryID, mediaType string }
-	items := make(map[string]access, len(ids))
+	type itemRef struct{ id, libraryID, mediaType string }
+	items := make(map[string]itemRef, len(ids))
 	for rows.Next() {
-		var item access
+		var item itemRef
 		if err := rows.Scan(&item.id, &item.libraryID, &item.mediaType); err != nil {
 			rows.Close()
 			return httputil.Internal("database read failed", err)
@@ -82,19 +77,20 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	visibleIDs := make([]string, 0, len(items))
+	perms := access.Of(user)
 	for _, id := range ids {
 		ref, ok := items[id]
 		if !ok {
 			continue
 		}
-		if !userCanAccessLibrary(user, ref.libraryID) {
+		if !perms.Library(ref.libraryID) {
 			return httputil.Status(http.StatusForbidden, "")
 		}
 		mediaAlias := "b"
 		if ref.mediaType == "podcast" {
 			mediaAlias = "p"
 		}
-		permission, permissionArgs := mediaPermission(user, "b")
+		permission, permissionArgs := perms.MediaClause("b")
 		var visible int
 		query := `SELECT COUNT(*) FROM libraryItems li JOIN ` + map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType] + ` ` + mediaAlias + ` ON ` + mediaAlias + `.id=li.mediaId WHERE li.id=?` + permission
 		if _, exists := map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType]; !exists {
@@ -127,10 +123,10 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, scope.libraryID) {
+	if !access.Of(user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !canUpdateCatalog(user) {
+	if !access.Of(user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {
@@ -213,7 +209,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	itemID := r.PathValue("id")
-	if user.Type != "root" && user.Type != "admin" {
+	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var libraryID, mediaID, mediaType string
@@ -225,7 +221,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var audioRaw []byte
@@ -287,7 +283,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	itemID := r.PathValue("id")
 	ino := r.PathValue("ino")
-	if user.Type != "root" && user.Type != "admin" {
+	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var libraryID, mediaType, mediaID string
@@ -298,7 +294,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var filesRaw []byte
@@ -355,10 +351,10 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, scope.libraryID) {
+	if !access.Of(user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !canUpdateCatalog(user) {
+	if !access.Of(user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {
@@ -432,10 +428,10 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, scope.libraryID) {
+	if !access.Of(user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !canUpdateCatalog(user) {
+	if !access.Of(user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {

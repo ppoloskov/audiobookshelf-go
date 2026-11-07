@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/access"
 	"cmp"
 	"database/sql"
 	"errors"
@@ -14,7 +15,7 @@ import (
 // items leave empty (LibraryController.js:650-722).
 func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var found string

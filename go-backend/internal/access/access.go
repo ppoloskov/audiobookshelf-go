@@ -1,0 +1,103 @@
+// Package access is the single owner of user permission decisions. A
+// Permissions value is decoded once from a user row and answers every library,
+// item, action and SQL-scope question (User.js:548-690).
+package access
+
+import (
+	"encoding/json"
+	"slices"
+	"strings"
+
+	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/store"
+)
+
+// Permissions is a user's decoded permissions object plus the row's type and
+// active flag. Action flags stay untyped because upstream tests them for JS
+// truthiness (`!!permissions.update`).
+type Permissions struct {
+	Type   string `json:"-"`
+	Active bool   `json:"-"`
+
+	AllLibraries bool     `json:"accessAllLibraries"`
+	Libraries    []string `json:"librariesAccessible"`
+	Explicit     bool     `json:"accessExplicitContent"`
+	AllTags      bool     `json:"accessAllTags"`
+	Tags         []string `json:"itemTagsSelected"`
+	TagsExcluded bool     `json:"selectedTagsNotAccessible"`
+	UpdateFlag   any      `json:"update"`
+	DeleteFlag   any      `json:"delete"`
+	DownloadFlag any      `json:"download"`
+	UploadFlag   any      `json:"upload"`
+}
+
+// Of decodes the permissions of a user row. Malformed JSON grants nothing.
+func Of(u store.User) Permissions {
+	p := Permissions{Type: u.Type, Active: u.IsActive}
+	_ = json.Unmarshal(u.Permissions, &p)
+	return p
+}
+
+// IsAdmin is root or admin (User.isAdminOrUp).
+func (p Permissions) IsAdmin() bool { return p.Type == "root" || p.Type == "admin" }
+
+func (p Permissions) can(flag any) bool { return p.Active && jsonvalue.Truthy(flag) }
+
+func (p Permissions) Update() bool   { return p.can(p.UpdateFlag) }
+func (p Permissions) Delete() bool   { return p.can(p.DeleteFlag) }
+func (p Permissions) Download() bool { return p.can(p.DownloadFlag) }
+func (p Permissions) Upload() bool   { return p.can(p.UploadFlag) }
+
+// Library is User.checkCanAccessLibrary; admins are the caller's concern.
+func (p Permissions) Library(id string) bool {
+	return p.AllLibraries || slices.Contains(p.Libraries, id)
+}
+
+// ListLibrary is LibraryController.findAll's filter: only a non-empty
+// librariesAccessible list restricts, accessAllLibraries is ignored.
+func (p Permissions) ListLibrary(id string) bool {
+	return len(p.Libraries) == 0 || slices.Contains(p.Libraries, id)
+}
+
+// Item is User.checkCanAccessLibraryItem: library, explicit and tag rules.
+func (p Permissions) Item(a libitem.Access) bool {
+	return p.Library(a.LibraryID) && p.Content(a)
+}
+
+// Content is Item without the library rule (Access.LibraryID is ignored).
+func (p Permissions) Content(a libitem.Access) bool {
+	if a.Explicit && !p.Explicit {
+		return false
+	}
+	if p.AllTags {
+		return true
+	}
+	if len(a.Tags) == 0 {
+		return p.TagsExcluded
+	}
+	return slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(p.Tags, t) }) != p.TagsExcluded
+}
+
+// MediaClause is the AND clause hiding explicit media and media whose tags the
+// user may not see, on the media row aliased alias (books b, podcasts p).
+func (p Permissions) MediaClause(alias string) (string, []any) {
+	clause, args := "", []any(nil)
+	if !p.Explicit || !p.Active {
+		clause += " AND " + alias + ".explicit=0"
+	}
+	if !p.AllTags && len(p.Tags) > 0 {
+		compare := ">0"
+		if p.TagsExcluded {
+			compare = "=0"
+		}
+		clause += " AND (SELECT count(*) FROM json_each(" + alias + ".tags) WHERE json_each.value IN (" + strings.TrimSuffix(strings.Repeat("?,", len(p.Tags)), ",") + "))" + compare
+		for _, tag := range p.Tags {
+			args = append(args, tag)
+		}
+	}
+	return clause, args
+}
+
+// AdminUser is root or admin by the user row alone, without decoding permissions.
+func AdminUser(u store.User) bool { return u.Type == "root" || u.Type == "admin" }

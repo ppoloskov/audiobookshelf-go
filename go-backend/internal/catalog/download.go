@@ -4,8 +4,8 @@ package catalog
 
 import (
 	"archive/zip"
+	"audiobookshelf-compat/internal/access"
 	"database/sql"
-	"encoding/json"
 	"io"
 	"io/fs"
 	"mime"
@@ -65,12 +65,10 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		}
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, libraryID) {
+	if !access.Of(user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	var permissions map[string]any
-	_ = json.Unmarshal(user.Permissions, &permissions)
-	if !user.IsActive || permissions["download"] != true {
+	if !access.Of(user).Download() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if isFile != 0 {

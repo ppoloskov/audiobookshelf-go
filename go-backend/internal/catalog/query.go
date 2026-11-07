@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -248,47 +245,4 @@ func decodeFilterValue(value string) (string, error) {
 		}
 	}
 	return value, errors.New("filter is not base64")
-}
-
-// Permissions. Every catalog list query scopes media rows with
-// mediaPermission; libraries and single items use the two checks below.
-
-// mediaPermission is the AND clause hiding explicit media and media whose tags
-// the user may not see, on the media row aliased alias (books b, podcasts p).
-func mediaPermission(user store.User, alias string) (string, []any) {
-	permissions := decodeObject(user.Permissions)
-	clause, args := "", []any(nil)
-	if permissions["accessExplicitContent"] != true || !user.IsActive {
-		clause += " AND " + alias + ".explicit=0"
-	}
-	if tags := jsonvalue.Strings(permissions["itemTagsSelected"]); permissions["accessAllTags"] != true && len(tags) > 0 {
-		compare := ">0"
-		if permissions["selectedTagsNotAccessible"] == true {
-			compare = "=0"
-		}
-		clause += " AND (SELECT count(*) FROM json_each(" + alias + ".tags) WHERE json_each.value IN (" + placeholders(len(tags)) + "))" + compare
-		for _, tag := range tags {
-			args = append(args, tag)
-		}
-	}
-	return clause, args
-}
-
-
-func userCanAccessLibrary(user store.User, id string) bool {
-	permissions := decodeObject(user.Permissions)
-	return permissions["accessAllLibraries"] == true || slices.Contains(jsonvalue.Strings(permissions["librariesAccessible"]), id)
-}
-
-// userCanListLibrary: LibraryController.findAll filters only a non-empty
-// librariesAccessible list; it does not special-case accessAllLibraries.
-func userCanListLibrary(user store.User, id string) bool {
-	ids := jsonvalue.Strings(decodeObject(user.Permissions)["librariesAccessible"])
-	return len(ids) == 0 || slices.Contains(ids, id)
-}
-
-// userCanAccessItem is User.checkCanAccessLibraryItem: library, explicit and
-// tag rules (admins are the caller's concern).
-func userCanAccessItem(user store.User, access libitem.Access) bool {
-	return access.AllowedBy(decodeObject(user.Permissions))
 }
