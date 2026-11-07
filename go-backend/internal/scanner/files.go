@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -63,16 +64,6 @@ type bookMetadata struct {
 type seriesMetadata struct {
 	Name     string `json:"name"`
 	Sequence string `json:"sequence"`
-}
-
-// authorAddedEvent is a freshly created Author's toOldJSON(): asin,
-// description and imagePath are undefined and so absent (Author.js:177-188).
-type authorAddedEvent struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	LibraryID string `json:"libraryId"`
-	AddedAt   int64  `json:"addedAt"`
-	UpdatedAt int64  `json:"updatedAt"`
 }
 
 type imported struct {
@@ -385,8 +376,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		return imported{}, txerr
 	}
 	defer tx.Rollback()
-	var addedAuthors []authorAddedEvent
-	var affectedAuthors []string
+	var changes itemwrite.Changes
 	tally := &imported{}
 	if l.mediaType == "podcast" {
 		if added {
@@ -432,118 +422,24 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 			}
 		}
 		if added || rescanMedia {
-			// Authors: add the scanned ones; on rescans drop links no longer in
-			// the scanned metadata (BookScanner.js:114-143).
-			for _, authorName := range authors {
-				authorName = strings.TrimSpace(authorName)
-				if authorName == "" {
-					continue
-				}
-				var aid string
-				authorExisted := false
-				if err = tx.QueryRowContext(ctx, `SELECT id FROM authors WHERE name=? AND libraryId=? LIMIT 1`, authorName, l.id).Scan(&aid); err == sql.ErrNoRows {
-					aid = uuid.NewString()
-					authorCreated := time.Now().UTC().UnixMilli() + int64(len(affectedAuthors))
-					authorTime := dbtime.Format(time.UnixMilli(authorCreated))
-					if _, err = tx.ExecContext(ctx, `INSERT INTO authors(id,name,lastFirst,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, aid, authorName, lastFirst(authorName), l.id, authorTime, authorTime); err != nil {
-						return imported{}, err
-					}
-					// Sequelize toOldJSON() of a freshly created author leaves
-					// asin, description and imagePath undefined, so they are
-					// absent from the event (Author.js:177-188, BookScanner.js:604).
-					addedAuthors = append(addedAuthors, authorAddedEvent{ID: aid, Name: authorName, LibraryID: l.id, AddedAt: authorCreated, UpdatedAt: authorCreated})
-				} else if err != nil {
-					return imported{}, err
-				} else {
-					authorExisted = true
-				}
-				affectedAuthors = append(affectedAuthors, aid)
-				linkResult, linkErr := tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookAuthors WHERE bookId=? AND authorId=?)`, uuid.NewString(), mediaID, aid, now, mediaID, aid)
-				if linkErr != nil {
-					return imported{}, linkErr
-				}
-				if added || !authorExisted {
-					s.filters.AddAuthor(l.id, authorName, aid) // BookScanner.js:241,602
-				}
-				// Only a link added to an existing author changes its book count
-				// (BookScanner.js:75, 211-219).
-				if linked, _ := linkResult.RowsAffected(); linked > 0 && authorExisted {
-					tally.authorsChanged = append(tally.authorsChanged, aid)
-				}
-			}
-			if !added && len(authors) > 0 {
-				rows, qerr := tx.QueryContext(ctx, `SELECT ba.authorId,a.name FROM bookAuthors ba JOIN authors a ON a.id=ba.authorId WHERE ba.bookId=?`, mediaID)
-				if qerr != nil {
-					return imported{}, qerr
-				}
-				var drop []string
-				for rows.Next() {
-					var aid, name string
-					if e := rows.Scan(&aid, &name); e != nil {
-						rows.Close()
-						return imported{}, e
-					}
-					if !containsString(authors, name) {
-						drop = append(drop, aid)
-					}
-				}
-				rows.Close()
-				for _, aid := range drop {
-					if _, e := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=? AND authorId=?`, mediaID, aid); e != nil {
-						return imported{}, e
-					}
-					tally.authorsChanged = append(tally.authorsChanged, aid)
-					tally.authorsRemoved = append(tally.authorsRemoved, aid)
-				}
+			// Authors and series: link the scanned ones; on rescans drop links
+			// no longer in the scanned metadata (BookScanner.js:114-143). Names
+			// match by exact case.
+			rules := itemwrite.Rules{Exact: true, Replace: !added && len(authors) > 0, KeepSequence: true}
+			if _, err = changes.LinkAuthors(ctx, tx, l.id, mediaID, authors, rules); err != nil {
+				return imported{}, err
 			}
 			if series != "" {
-				var sid string
-				seriesCreated := false
-				if err = tx.QueryRowContext(ctx, `SELECT id FROM series WHERE name=? AND libraryId=? LIMIT 1`, series, l.id).Scan(&sid); err == sql.ErrNoRows {
-					seriesCreated = true
-					sid = uuid.NewString()
-					if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, sid, series, scannerTitleSortKey(series, l.sortingPrefixes), l.id, now, now); err != nil {
-						return imported{}, err
-					}
-				} else if err != nil {
+				rules.Replace = !added
+				if _, err = changes.LinkSeries(ctx, tx, l.id, mediaID, []itemwrite.Series{{Name: series, Sequence: seq}}, l.sortingPrefixes, rules); err != nil {
 					return imported{}, err
 				}
-				if _, err = tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) SELECT ?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM bookSeries WHERE bookId=? AND seriesId=?)`, uuid.NewString(), mediaID, sid, seq, now, mediaID, sid); err != nil {
-					return imported{}, err
-				}
-				if added || seriesCreated {
-					s.filters.AddSeries(l.id, series, sid) // BookScanner.js:279,595
-				}
-				if !added && seq != "" {
-					if _, err = tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=? AND COALESCE(sequence,'')<>?`, seq, mediaID, sid, seq); err != nil {
-						return imported{}, err
-					}
-				}
 			}
-			if !added && series != "" {
-				rows, qerr := tx.QueryContext(ctx, `SELECT bs.seriesId,s.name FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId=?`, mediaID)
-				if qerr != nil {
-					return imported{}, qerr
-				}
-				var drop []string
-				for rows.Next() {
-					var sid, name string
-					if e := rows.Scan(&sid, &name); e != nil {
-						rows.Close()
-						return imported{}, e
-					}
-					if name != series {
-						drop = append(drop, sid)
-					}
-				}
-				rows.Close()
-				for _, sid := range drop {
-					if _, e := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=? AND seriesId=?`, mediaID, sid); e != nil {
-						return imported{}, e
-					}
-					tally.seriesRemoved = append(tally.seriesRemoved, sid)
-				}
-			}
+			// Only a link added to an existing author changes its book count
+			// (BookScanner.js:75, 211-219).
+			tally.authorsChanged = append(append(tally.authorsChanged, changes.AuthorsRelinked...), changes.AuthorsUnlinked...)
+			tally.authorsRemoved = append(tally.authorsRemoved, changes.AuthorsUnlinked...)
+			tally.seriesRemoved = append(tally.seriesRemoved, changes.SeriesUnlinked...)
 		}
 	}
 	extra := `{}`
@@ -584,11 +480,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 			s.filters.AddPublishedDecade(l.id, strconv.Itoa(year/10*10))
 		}
 	}
-	if s.emit != nil {
-		for _, payload := range addedAuthors {
-			s.emit("*", "author_added", payload)
-		}
-	}
+	itemwrite.Env{Filters: s.filters, Emit: s.emit}.Announce(l.id, &changes)
 	tally.scannedAudio = scannedNew
 	tally.id, tally.added, tally.updated = itemID, added, itemChanged || (!added && coverChanged)
 	return *tally, nil

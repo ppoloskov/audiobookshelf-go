@@ -1042,14 +1042,14 @@ func (h *Handler) AllowsLibrary(user store.User, libraryID string) bool {
 }
 
 func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID string) (itemAccess, error) {
-	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
+	access, err := libitem.LoadAccess(ctx, h.db, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return itemAccess{}, nil
 	}
 	if err != nil {
 		return itemAccess{}, err
 	}
-	return itemAccess{exists: true, allowed: it.Access().AllowedBy(store.DecodeJSONObject(user.Permissions))}, nil
+	return itemAccess{exists: true, allowed: access.AllowedBy(store.DecodeJSONObject(user.Permissions))}, nil
 }
 
 // decorateAdminProgress adds the media fields UserController.findOne attaches

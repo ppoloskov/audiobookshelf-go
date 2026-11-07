@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -133,10 +134,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(displayOrder),0)+1 FROM libraries`).Scan(&order); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	id := makeUUID()
-	if id == "" {
-		return httputil.Internal("failed to create library", errors.New("could not generate a library id"))
-	}
+	id := uuid.NewString()
 	now := dbNow()
 	settingsJSON, _ := json.Marshal(settings)
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -148,10 +146,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range paths {
-		folderID := makeUUID()
-		if folderID == "" {
-			return httputil.Internal("database write failed", errors.New("could not generate a library folder id"))
-		}
+		folderID := uuid.NewString()
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, folderID, folderPath, id, now, now); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
@@ -401,7 +396,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range newFolders {
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, makeUUID(), folderPath, id, dbNow(), dbNow()); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, uuid.NewString(), folderPath, id, dbNow(), dbNow()); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 	}

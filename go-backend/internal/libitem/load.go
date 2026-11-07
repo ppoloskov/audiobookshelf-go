@@ -69,6 +69,29 @@ func Load(ctx context.Context, db *sql.DB, ids []string, opt Options) ([]Item, e
 	return out, nil
 }
 
+// LoadAccess reads only the permission inputs of one item (library, media
+// explicit flag and tags) in a single query. It returns sql.ErrNoRows when the
+// item or its media row is missing, as LoadOne does.
+func LoadAccess(ctx context.Context, db *sql.DB, id string) (Access, error) {
+	var a Access
+	var explicit sql.NullInt64
+	var tags []byte
+	var mediaID sql.NullString
+	err := db.QueryRowContext(ctx, `SELECT li.libraryId, COALESCE(b.id,p.id), COALESCE(b.explicit,p.explicit), COALESCE(b.tags,p.tags)
+FROM libraryItems li
+LEFT JOIN books b ON li.mediaType='book' AND b.id=li.mediaId
+LEFT JOIN podcasts p ON li.mediaType='podcast' AND p.id=li.mediaId
+WHERE li.id=?`, id).Scan(&a.LibraryID, &mediaID, &explicit, &tags)
+	if err != nil {
+		return Access{}, err
+	}
+	if !mediaID.Valid {
+		return Access{}, sql.ErrNoRows
+	}
+	a.Explicit, a.Tags = explicit.Int64 != 0, store.DecodeJSONSlice[string](tags)
+	return a, nil
+}
+
 // LoadOne is Load for a single id; it returns sql.ErrNoRows when the item or
 // its media row is missing.
 func LoadOne(ctx context.Context, db *sql.DB, id string, opt Options) (Item, error) {

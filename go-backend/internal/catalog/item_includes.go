@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -32,27 +33,27 @@ func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
 }
 
 // attachItemIncludes sets rssFeed (the item's feed, Feed.toOldJSONMinified)
-// and mediaItemShare (an open share of the book) on a rendered item when
-// present. Feeds belong to library items (Feed.js:416-421: entityType
+// and mediaItemShare (an open share of the book) on a rendered item's extras
+// when present. Feeds belong to library items (Feed.js:416-421: entityType
 // 'libraryItem', entityId the library item id); shares to the book's media id
 // and only for books.
-func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, item map[string]any) error {
+func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, head libitem.Head, mediaID string, extras *libitem.Extras) error {
 	if inc.rssFeed {
-		feed, ok, err := h.feedMinified(ctx, "libraryItem", stringValue(item["id"]))
+		feed, ok, err := h.feedMinified(ctx, "libraryItem", head.ID)
 		if err != nil {
 			return err
 		}
 		if ok {
-			item["rssFeed"] = feed
+			extras.RSSFeed = feed
 		}
 	}
-	if inc.share && item["mediaType"] == "book" {
-		share, err := h.openMediaItemShare(ctx, mediaID(item))
+	if inc.share && head.MediaType == "book" {
+		share, err := h.openMediaItemShare(ctx, mediaID)
 		if err != nil {
 			return err
 		}
 		if share != nil {
-			item["mediaItemShare"] = share
+			extras.MediaItemShare = share
 		}
 	}
 	return nil

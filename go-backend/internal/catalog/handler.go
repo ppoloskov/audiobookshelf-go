@@ -49,63 +49,49 @@ func (h *Handler) numEpisodesIncomplete(ctx context.Context, userID, podcastID s
 	return numEpisodes - finished, nil
 }
 
-// toMap renders a libitem value as the JSON object callers decorate per request.
-func toMap(v any) (map[string]any, error) {
-	raw, err := json.Marshal(v)
+// loadItems loads ids with one libitem.Load; missing ids are skipped.
+func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]libitem.Item, error) {
+	return libitem.Load(ctx, h.db, ids, libitem.Options{Episodes: episodes})
+}
+
+// minifiedItems renders ids in the shelf shape in id order; a missing id is
+// sql.ErrNoRows.
+func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]libitem.Minified, error) {
+	items, err := h.loadItems(ctx, ids, false)
 	if err != nil {
 		return nil, err
 	}
-	var m map[string]any
-	return m, json.Unmarshal(raw, &m)
-}
-
-// mediaID is the id of the book or podcast of a rendered item.
-func mediaID(item map[string]any) string {
-	media, _ := item["media"].(map[string]any)
-	return stringValue(media["id"])
-}
-
-// renderItem renders it in the given shape ("full", "expanded", "minified" or
-// "list") as a generic object.
-func renderItem(it libitem.Item, shape string, prefixes []string) (map[string]any, error) {
-	switch shape {
-	case "full":
-		return toMap(it.Full())
-	case "expanded":
-		return toMap(it.Expanded(prefixes))
-	case "list":
-		return toMap(it.ListRow(prefixes))
+	if len(items) != len(ids) {
+		return nil, sql.ErrNoRows
 	}
-	return toMap(it.Minified(prefixes))
-}
-
-// itemMaps loads ids with one libitem.Load and renders each found item in id
-// order; missing ids are skipped.
-func (h *Handler) itemMaps(ctx context.Context, ids []string, shape string) ([]map[string]any, error) {
-	items, err := libitem.Load(ctx, h.db, ids, libitem.Options{Episodes: shape == "full" || shape == "expanded"})
-	if err != nil {
-		return nil, err
-	}
-	var prefixes []string
-	if shape != "full" {
-		prefixes = h.sortingPrefixes(ctx)
-	}
-	out := make([]map[string]any, len(items))
+	prefixes := h.sortingPrefixes(ctx)
+	out := make([]libitem.Minified, len(items))
 	for i, it := range items {
-		if out[i], err = renderItem(it, shape, prefixes); err != nil {
-			return nil, err
-		}
+		out[i] = it.Minified(prefixes)
 	}
 	return out, nil
 }
 
-// minifiedItems is itemMaps for the shelf shape; a missing id is sql.ErrNoRows.
-func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]map[string]any, error) {
-	out, err := h.itemMaps(ctx, ids, "minified")
-	if err == nil && len(out) != len(ids) {
-		err = sql.ErrNoRows
+// expandedItems renders ids in the expanded shape in id order; missing ids are
+// skipped.
+func (h *Handler) expandedItems(ctx context.Context, ids []string) ([]libitem.Expanded, error) {
+	items, err := h.loadItems(ctx, ids, true)
+	if err != nil {
+		return nil, err
 	}
-	return out, err
+	prefixes := h.sortingPrefixes(ctx)
+	out := make([]libitem.Expanded, len(items))
+	for i, it := range items {
+		out[i] = it.Expanded(prefixes)
+	}
+	return out, nil
+}
+
+// itemMaps is expandedItems under its old name, kept for authors.go and
+// batch_chapters.go, which only ask for the "expanded" shape. The shape
+// argument is ignored.
+func (h *Handler) itemMaps(ctx context.Context, ids []string, _ string) ([]libitem.Expanded, error) {
+	return h.expandedItems(ctx, ids)
 }
 
 func orderClause(sortBy string, desc, ignorePrefix bool) (string, error) {
@@ -530,6 +516,12 @@ func deref(n *int64) any {
 	return *n
 }
 func stringValue(v any) string { s, _ := v.(string); return s }
+func nonEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
 func valueOrNull(s string) any {
 	if s == "" {
 		return nil
@@ -1484,7 +1476,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]map[string]any, error) {
+func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
 	permission, args := userMediaClause(user, "book")
 	queryArgs := append([]any{seriesID}, args...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission, queryArgs...)
@@ -1521,11 +1513,7 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 	for i, ref := range refs {
 		ids[i] = ref.id
 	}
-	result, err := h.minifiedItems(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return h.minifiedItems(ctx, ids)
 }
 
 func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
@@ -1578,10 +1566,10 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 		ids := make([]string, 0, len(books))
 		finished := make([]string, 0)
 		for _, book := range books {
-			itemID := stringValue(book["id"])
+			itemID := book.ID
 			ids = append(ids, itemID)
 			var isFinished bool
-			_ = h.db.QueryRowContext(r.Context(), `SELECT COALESCE(isFinished,0) FROM mediaProgresses WHERE userId=? AND mediaItemId=?`, user.ID, mediaID(book)).Scan(&isFinished)
+			_ = h.db.QueryRowContext(r.Context(), `SELECT COALESCE(isFinished,0) FROM mediaProgresses WHERE userId=? AND mediaItemId=?`, user.ID, book.MediaID()).Scan(&isFinished)
 			if isFinished {
 				finished = append(finished, itemID)
 			}
@@ -1714,13 +1702,10 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	prefixes := libitem.SortingPrefixes(settingsJSON)
-	results := make([]map[string]any, 0, len(pageItems))
+	results := make([]libitem.Minified, 0, len(pageItems))
 	for _, it := range pageItems {
-		item, err := renderItem(it, "list", prefixes)
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item); err != nil {
+		item := it.ListRow(prefixes)
+		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, it.MediaID, &item.Extras); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if mediaType == "podcast" && includeHas(r, "numepisodesincomplete") {
@@ -1728,9 +1713,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}
-			if incomplete != 0 {
-				item["numEpisodesIncomplete"] = incomplete
-			}
+			item.NumEpisodesIncomplete = incomplete
 		}
 		if collapse && mediaType == "book" {
 			series, err := h.collapsedSeriesJSON(r.Context(), it.MediaID, collapsed)
@@ -1738,7 +1721,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 				return httputil.Internal("database read failed", err)
 			}
 			if series != nil {
-				item["collapsedSeries"] = series
+				item.CollapsedSeries = series
 			}
 		}
 		results = append(results, item)
@@ -1772,39 +1755,32 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 	if !userCanAccessLibrary(user, it.LibraryID) || !userCanAccessMedia(user, it.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	shape, prefixes := "full", []string(nil)
-	if expanded {
-		shape, prefixes = "expanded", h.sortingPrefixes(r.Context())
+	if !expanded {
+		return httputil.JSON(w, r, it.Full())
 	}
-	item, err := renderItem(it, shape, prefixes)
-	if err != nil {
+	item := it.Expanded(h.sortingPrefixes(r.Context()))
+	if err := h.expandedItemIncludes(r, user, item.Head, item.MediaID(), &item.Extras); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if expanded {
-		if err := h.expandedItemIncludes(r, user, item); err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-	}
-	httputil.WriteJSON(w, http.StatusOK, item, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, item)
 }
 
 // expandedItemIncludes applies the include= entities of upstream
 // LibraryItemController.findOne (server/controllers/LibraryItemController.js:71-96).
 // Upstream splits include on "," without trimming or lowercasing.
-func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item map[string]any) error {
+func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head libitem.Head, mediaID string, extras *libitem.Extras) error {
 	includes := strings.Split(r.URL.Query().Get("include"), ",")
 	has := func(v string) bool { return slices.Contains(includes, v) }
-	itemID, _ := item["id"].(string)
+	itemID := head.ID
 	if has("progress") {
 		progress, err := progressdto.ReadOne(r.Context(), h.db, user.ID, itemID, r.URL.Query().Get("episode"))
 		if err != nil {
 			return err
 		}
 		if progress == nil {
-			item["userMediaProgress"] = nil
+			extras.UserMediaProgress = libitem.JSONNull
 		} else {
-			item["userMediaProgress"] = progress
+			extras.UserMediaProgress = progress
 		}
 	}
 	if has("rssfeed") {
@@ -1813,26 +1789,30 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item ma
 			return err
 		}
 		if ok {
-			item["rssFeed"] = feed
+			extras.RSSFeed = feed
 		} else {
-			item["rssFeed"] = nil
+			extras.RSSFeed = libitem.JSONNull
 		}
 	}
-	if item["mediaType"] == "podcast" && has("downloads") && h.downloads != nil {
+	if head.MediaType == "podcast" && has("downloads") && h.downloads != nil {
 		queued, current := h.downloads.EpisodeDownloads(itemID)
-		item["episodeDownloadsQueued"] = queued
+		extras.EpisodeDownloadsQueued = queued
 		if current != nil {
-			item["episodesDownloading"] = []wire.EpisodeDownload{*current}
+			extras.EpisodesDownloading = []wire.EpisodeDownload{*current}
 		}
 	}
 	// LibraryItemController.findOne: `item.mediaItemShare = ShareManager.
 	// findByMediaItemId(item.media.id)`, null when no open share exists.
-	if has("share") && isAdminOrUp(user) && item["mediaType"] == "book" {
-		share, err := h.openMediaItemShare(r.Context(), mediaID(item))
+	if has("share") && isAdminOrUp(user) && head.MediaType == "book" {
+		share, err := h.openMediaItemShare(r.Context(), mediaID)
 		if err != nil {
 			return err
 		}
-		item["mediaItemShare"] = share
+		if share == nil {
+			extras.MediaItemShare = libitem.JSONNull
+		} else {
+			extras.MediaItemShare = share
+		}
 	}
 	return nil
 }
@@ -1884,28 +1864,32 @@ func stringValues(value any) []string {
 	return values
 }
 
-// ItemJSON returns the upstream legacy full item representation, or the
-// expanded minified superset when expanded is true. Callers enforce permissions.
-func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (map[string]any, error) {
-	shape := "full"
+// ItemJSON returns the upstream legacy full item (libitem.Full), or the
+// expanded item (libitem.Expanded) when expanded is true. The value marshals to
+// the item JSON; callers enforce permissions.
+func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (any, error) {
 	if expanded {
-		shape = "expanded"
+		out, err := h.expandedItems(ctx, []string{itemID})
+		if err == nil && len(out) == 0 {
+			err = sql.ErrNoRows
+		}
+		if err != nil {
+			return nil, err
+		}
+		return out[0], nil
 	}
-	out, err := h.itemMaps(ctx, []string{itemID}, shape)
-	if err == nil && len(out) == 0 {
-		err = sql.ErrNoRows
-	}
+	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{Episodes: true})
 	if err != nil {
 		return nil, err
 	}
-	return out[0], nil
+	return it.Full(), nil
 }
 
 // ItemMinifiedJSON returns the upstream shelf/collection item shape.
-func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[string]any, error) {
+func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (libitem.Minified, error) {
 	out, err := h.minifiedItems(ctx, []string{itemID})
 	if err != nil {
-		return nil, err
+		return libitem.Minified{}, err
 	}
 	return out[0], nil
 }
@@ -2220,19 +2204,16 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	if err := rows.Close(); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	expanded, err := h.itemMaps(r.Context(), ids, "expanded")
+	expanded, err := h.expandedItems(r.Context(), ids)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	items := make([]map[string]any, 0, len(expanded))
+	items := make([]libraryItemHit, 0, len(expanded))
 	for _, item := range expanded {
 		if mediaType == "podcast" {
-			m := item["media"].(map[string]any)
-			m["episodes"] = []any{}
-			m["numEpisodes"] = 0
-			m["size"] = 0
+			item.Media = withoutEpisodes(item.Media)
 		}
-		items = append(items, map[string]any{"libraryItem": item})
+		items = append(items, libraryItemHit{item})
 	}
 	tags, err := h.searchJSONValues(r.Context(), libraryID, table, "tags", query, limit)
 	if err != nil {
@@ -2297,7 +2278,7 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	for i, x := range refs {
 		itemIDs[i] = x.itemID
 	}
-	expanded, err := h.itemMaps(ctx, itemIDs, "expanded")
+	expanded, err := h.expandedItems(ctx, itemIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -2307,21 +2288,35 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	out := make([]wire.ItemMatch, 0, len(refs))
 	for i, x := range refs {
 		item := expanded[i]
-		media := item["media"].(map[string]any)
-		var recent any
-		episodes, _ := media["episodes"].([]any)
-		for _, ep := range episodes {
-			if m, _ := ep.(map[string]any); m["id"] == x.episodeID {
-				recent = ep
+		item.RecentEpisode = libitem.JSONNull
+		if media, ok := item.Media.(libitem.PodcastMedia); ok {
+			episodes, _ := media.Episodes.([]libitem.EpisodeExpanded)
+			for _, ep := range episodes {
+				if ep.ID == x.episodeID {
+					item.RecentEpisode = ep
+				}
 			}
 		}
-		media["episodes"] = []any{}
-		media["numEpisodes"] = 0
-		media["size"] = 0
-		item["recentEpisode"] = recent
+		item.Media = withoutEpisodes(item.Media)
 		out = append(out, wire.ItemMatch{LibraryItem: item})
 	}
 	return out, nil
+}
+
+// libraryItemHit is one {libraryItem} entry of the search response.
+type libraryItemHit struct {
+	LibraryItem libitem.Expanded `json:"libraryItem"`
+}
+
+// withoutEpisodes empties a podcast media value's episodes, count and size, as
+// the search responses send podcasts.
+func withoutEpisodes(media any) any {
+	if p, ok := media.(libitem.PodcastMedia); ok {
+		zero := int64(0)
+		p.Episodes, p.NumEpisodes, p.Size = []libitem.EpisodeExpanded{}, &zero, &zero
+		return p
+	}
+	return media
 }
 
 func (h *Handler) searchJSONValues(ctx context.Context, libraryID, table, column, query string, limit int) ([]map[string]any, error) {
@@ -2424,16 +2419,16 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		if err != nil {
 			return nil, err
 		}
-		rendered, err := h.itemMaps(ctx, itemIDs, "full")
+		loaded, err := h.loadItems(ctx, itemIDs, true)
 		if err != nil {
 			return nil, err
 		}
-		books := make([]any, 0, len(rendered))
-		for _, item := range rendered {
-			if media, ok := item["media"].(map[string]any); ok && item["mediaType"] == "book" {
-				if metadata, ok := media["metadata"].(map[string]any); ok {
-					metadata["authors"], metadata["series"] = []any{}, []any{}
-				}
+		books := make([]libitem.Full, 0, len(loaded))
+		for _, it := range loaded {
+			item := it.Full()
+			if media, ok := item.Media.(libitem.BookFull); ok && item.MediaType == "book" {
+				media.Metadata.Authors, media.Metadata.Series = []libitem.Author{}, []libitem.SeriesRef{}
+				item.Media = media
 			}
 			books = append(books, item)
 		}

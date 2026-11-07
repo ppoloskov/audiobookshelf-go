@@ -68,7 +68,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 			}
 			gotIDs := make([]string, 0, len(items))
 			for _, item := range items {
-				gotIDs = append(gotIDs, item["id"].(string))
+				gotIDs = append(gotIDs, item.ID)
 				encoded, err := json.Marshal(item)
 				if err != nil {
 					t.Fatal(err)
@@ -80,15 +80,15 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 				media := decoded["media"].(map[string]any)
 				metadata := media["metadata"].(map[string]any)
 				if metadata["titleIgnorePrefix"] == nil && metadata["title"] != nil {
-					t.Errorf("item %s lacks title prefix: %#v", item["id"], metadata)
+					t.Errorf("item %s lacks title prefix: %#v", item.ID, metadata)
 				}
-				if item["libraryFiles"] != nil || decoded["numFiles"] != float64(0) {
-					t.Errorf("item %s envelope files=%#v numFiles=%#v", item["id"], item["libraryFiles"], decoded["numFiles"])
+				if decoded["libraryFiles"] != nil || decoded["numFiles"] != float64(0) {
+					t.Errorf("item %s envelope files=%#v numFiles=%#v", item.ID, decoded["libraryFiles"], decoded["numFiles"])
 				}
-				if item["id"] == "i8" && (metadata["title"] != nil || metadata["titleIgnorePrefix"] != nil) {
+				if item.ID == "i8" && (metadata["title"] != nil || metadata["titleIgnorePrefix"] != nil) {
 					t.Errorf("nullable title projection=%#v", metadata)
 				}
-				if item["id"] == "i20" && (metadata["title"] != "The Book 020" || metadata["titleIgnorePrefix"] != "Book 020, The") {
+				if item.ID == "i20" && (metadata["title"] != "The Book 020" || metadata["titleIgnorePrefix"] != "Book 020, The") {
 					t.Errorf("title/prefix projection=%#v", metadata)
 				}
 			}
@@ -101,7 +101,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 			if !reflect.DeepEqual(gotIDs, wantIDs) {
 				t.Fatalf("IDs=%v, want %v", gotIDs, wantIDs)
 			}
-			encoded, err := json.Marshal(items[0]["media"])
+			encoded, err := json.Marshal(items[0].Media)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -124,7 +124,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 	user := store.User{ID: "shelf-user", IsActive: true}
 	r := httptest.NewRequest("GET", "/", nil)
 	duplicates, err := h.personalizedItems(r, user, `SELECT 'i8' UNION ALL SELECT 'i8'`, nil)
-	if err != nil || len(duplicates) != 2 || duplicates[0]["id"] != "i8" || duplicates[1]["id"] != "i8" {
+	if err != nil || len(duplicates) != 2 || duplicates[0].ID != "i8" || duplicates[1].ID != "i8" {
 		t.Fatalf("duplicate selection result=%v err=%v", duplicates, err)
 	}
 	missing, err := h.personalizedItems(r, user, `SELECT 'missing-item'`, nil)

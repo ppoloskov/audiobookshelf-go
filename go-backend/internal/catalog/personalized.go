@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -73,18 +74,18 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database read failed", err)
 		}
 		if spec.id == "continue-listening" || spec.id == "listen-again" {
-			audio := make([]map[string]any, 0, len(items))
-			reading := make([]map[string]any, 0, len(items))
+			audio := make([]libitem.Minified, 0, len(items))
+			reading := make([]libitem.Minified, 0, len(items))
 			for _, item := range items {
 				var tracks int
-				var ebookFormat any
-				if media, ok := item["media"].(map[string]any); ok {
-					tracks = int(number(media["numTracks"]))
-					ebookFormat = media["ebookFormat"]
+				var hasEbookFormat bool
+				if media, ok := item.Media.(libitem.BookMinified); ok {
+					tracks = media.NumTracks
+					hasEbookFormat = len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null"
 				}
 				if tracks > 0 {
 					audio = append(audio, item)
-				} else if ebookFormat != nil {
+				} else if hasEbookFormat {
 					reading = append(reading, item)
 				}
 			}
@@ -168,7 +169,7 @@ func (h *Handler) appendNewestAuthors(r *http.Request, user store.User, libraryI
 
 type episodeShelfRow struct {
 	itemID  string
-	episode map[string]any
+	episode libitem.EpisodeJSON
 }
 
 func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, user store.User, libraryID string, limit int) error {
@@ -241,23 +242,26 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 				rows.Close()
 				return httputil.Internal("database read failed", e)
 			}
-			enclosure := any(nil)
+			var enclosure *libitem.Enclosure
 			if enclosureURL.Valid {
-				enclosure = map[string]any{"url": enclosureURL.String, "type": store.NullString(enclosureType), "length": func() any {
-					if enclosureSize.Valid {
-						return strconv.FormatInt(enclosureSize.Int64, 10)
-					}
-					return nil
-				}()}
+				enclosure = &libitem.Enclosure{URL: enclosureURL.String, Type: store.NullStringPtr(enclosureType)}
+				if enclosureSize.Valid {
+					length := strconv.FormatInt(enclosureSize.Int64, 10)
+					enclosure.Length = &length
+				}
 			}
 			audio := decodeObject(audioRaw)
 			extra := decodeObject(extraRaw)
-			episodeJSON := map[string]any{"libraryItemId": itemID, "podcastId": stringValue(audio["podcastId"]), "id": episodeID, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": func() any {
-				if index.Valid {
-					return index.Int64
-				}
-				return nil
-			}(), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "title": store.NullString(title), "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(pubDate), "chapters": decodeArray(chaptersRaw), "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs)}
+			var episodeIndex *int64
+			if index.Valid {
+				episodeIndex = &index.Int64
+			}
+			episodeJSON := libitem.EpisodeJSON{LibraryItemID: itemID, PodcastID: stringValue(audio["podcastId"]), ID: episodeID,
+				OldEpisodeID: nonEmpty(stringValue(extra["oldEpisodeId"])), Index: episodeIndex, Season: store.NullStringPtr(season),
+				Episode: store.NullStringPtr(episode), EpisodeType: store.NullStringPtr(episodeType), Title: store.NullStringPtr(title),
+				Subtitle: store.NullStringPtr(subtitle), Description: store.NullStringPtr(description), Enclosure: enclosure,
+				GUID: nonEmpty(stringValue(extra["guid"])), PubDate: store.NullStringPtr(pubDate), Chapters: decodeArray(chaptersRaw),
+				AudioFile: audio, PublishedAt: pub, AddedAt: createdMs, UpdatedAt: updatedMs}
 			records = append(records, episodeShelfRow{itemID, episodeJSON})
 		}
 		if err := rows.Err(); err != nil {
@@ -273,9 +277,9 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		for i, item := range entities {
-			records[i].episode["podcastId"] = mediaID(item)
-			item["recentEpisode"] = records[i].episode
+		for i := range entities {
+			records[i].episode.PodcastID = entities[i].MediaID()
+			entities[i].RecentEpisode = records[i].episode
 		}
 		if len(entities) > 0 {
 			shelf := wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: spec.kind, Entities: entities, Total: total}
@@ -311,25 +315,25 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	for _, item := range entities {
-		if e := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item); e != nil {
+	for i := range entities {
+		item := &entities[i]
+		if e := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, item.MediaID(), &item.Extras); e != nil {
 			return httputil.Internal("database read failed", e)
 		}
 		// LibraryFilters.getLibraryItemsMostRecentlyAdded podcast branch
 		// (server/utils/queries/libraryFilters.js:113-128).
-		media, _ := item["media"].(map[string]any)
-		podcastID, _ := media["id"].(string)
-		if size := number(item["size"]); size != 0 && number(media["size"]) == 0 {
-			media["size"] = size
+		media, _ := item.Media.(libitem.PodcastMedia)
+		if item.Size != nil && *item.Size != 0 && (media.Size == nil || *media.Size == 0) {
+			size := *item.Size
+			media.Size = &size
+			item.Media = media
 		}
 		if includeHas(r, "numepisodesincomplete") {
-			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, podcastID)
+			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, media.ID)
 			if incErr != nil {
 				return httputil.Internal("database read failed", incErr)
 			}
-			if incomplete != 0 {
-				item["numEpisodesIncomplete"] = incomplete
-			}
+			item.NumEpisodesIncomplete = incomplete
 		}
 	}
 	if len(entities) > 0 {
@@ -366,7 +370,7 @@ func podcastPermissionClause(user store.User) (string, []any) {
 	return strings.Join(parts, ""), args
 }
 
-func (h *Handler) personalizedItems(r *http.Request, user store.User, query string, args []any) ([]map[string]any, error) {
+func (h *Handler) personalizedItems(r *http.Request, user store.User, query string, args []any) ([]libitem.Minified, error) {
 	rows, err := h.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		return nil, err
@@ -393,8 +397,9 @@ func (h *Handler) personalizedItems(r *http.Request, user store.User, query stri
 		return nil, err
 	}
 	includes := requestItemIncludes(r, user)
-	for _, item := range items {
-		if err := h.attachItemIncludes(r.Context(), includes, item); err != nil {
+	for i := range items {
+		item := &items[i]
+		if err := h.attachItemIncludes(r.Context(), includes, item.Head, item.MediaID(), &item.Extras); err != nil {
 			return nil, err
 		}
 	}

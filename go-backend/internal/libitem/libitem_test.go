@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 
@@ -127,6 +128,17 @@ func TestLibitemPodcastWithoutEpisodes(t *testing.T) {
 	}
 	if a := it.Access(); !a.Explicit {
 		t.Fatal("podcast explicit flag missing from Access")
+	}
+	gotAccess, err := LoadAccess(ctx, db, "li-p1")
+	if err != nil || !reflect.DeepEqual(gotAccess, it.Access()) {
+		t.Fatalf("LoadAccess = %+v, %v; want %+v", gotAccess, err, it.Access())
+	}
+	if _, err := LoadAccess(ctx, db, "missing"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("LoadAccess of a missing item: %v", err)
+	}
+	exec(t, db, `INSERT INTO libraryItems (id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,size,libraryFiles,createdAt,updatedAt,libraryId) VALUES ('li-orphan','/o','o','nope','podcast',0,0,0,1,'[]',?,?,'lib')`, now, now)
+	if _, err := LoadAccess(ctx, db, "li-orphan"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("LoadAccess without a media row: %v", err)
 	}
 	list := it.ListRow([]string{"a"}).Media.(PodcastMedia)
 	if *list.NumEpisodes != 7 || *list.Size != 99 || *list.Metadata.TitleIgnorePrefix != "Show, A" {

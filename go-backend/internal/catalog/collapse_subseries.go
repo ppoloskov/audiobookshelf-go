@@ -200,8 +200,8 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 	for i, li := range items {
 		filtered := li.seriesByID(seriesID)
 		item := rendered[i]
-		editBookMetadata(item, func(metadata map[string]any) {
-			metadata["series"] = &wire.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
+		editBookMetadata(&item, func(metadata *libitem.BookMetadataMinified) {
+			metadata.Series = &wire.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {
 			ids := make([]string, 0, len(c.books))
@@ -209,7 +209,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 				ids = append(ids, b.itemID)
 			}
 			name := c.name
-			item["collapsedSeries"] = &wire.CollapsedSubseries{
+			item.CollapsedSeries = &wire.CollapsedSubseries{
 				ID: c.id, Name: &name, NameIgnorePrefix: c.nameIgnorePrefix, LibraryItemIDs: ids, NumBooks: len(c.books),
 				SeriesSequenceList: seriesSequenceList(c),
 			}

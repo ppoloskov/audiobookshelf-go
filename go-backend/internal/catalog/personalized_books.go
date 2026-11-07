@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -36,12 +37,11 @@ func (h *Handler) bookLibrarySettings(ctx context.Context, libraryID string) boo
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
-// editBookMetadata edits the metadata object of a rendered book item.
-func editBookMetadata(item map[string]any, edit func(metadata map[string]any)) {
-	if media, ok := item["media"].(map[string]any); ok && item["mediaType"] == "book" {
-		if metadata, ok := media["metadata"].(map[string]any); ok {
-			edit(metadata)
-		}
+// editBookMetadata edits the metadata of a rendered book item.
+func editBookMetadata(item *libitem.Minified, edit func(metadata *libitem.BookMetadataMinified)) {
+	if media, ok := item.Media.(libitem.BookMinified); ok {
+		edit(&media.Metadata)
+		item.Media = media
 	}
 }
 
@@ -194,20 +194,21 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 		return nil, 0, err
 	}
 	items := make([]any, 0, len(rendered))
-	for i, item := range rendered {
+	for i := range rendered {
+		item := &rendered[i]
 		// The continue-series and discover queries only load feeds; they never
 		// set mediaItemShare (libraryItemsBookFilters.js:707-826, 886-1017).
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item); err != nil {
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item.Head, item.MediaID(), &item.Extras); err != nil {
 			return nil, 0, err
 		}
 		c := chosenBooks[i]
-		editBookMetadata(item, func(metadata map[string]any) {
+		editBookMetadata(item, func(metadata *libitem.BookMetadataMinified) {
 			// book.series = [] before toOldJSONMinified, then metadata.series
 			// is replaced with the continued series.
-			metadata["seriesName"] = ""
-			metadata["series"] = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
+			metadata.SeriesName = ""
+			metadata.Series = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
 		})
-		items = append(items, item)
+		items = append(items, *item)
 	}
 	return items, count, nil
 }
@@ -340,11 +341,11 @@ func (h *Handler) recentSeriesShelf(r *http.Request, user store.User, libraryID 
 			return nil, 0, err
 		}
 		e.Books = make([]any, 0, len(books))
-		for _, item := range books {
-			editBookMetadata(item, func(metadata map[string]any) {
-				metadata["authorName"], metadata["authorNameLF"], metadata["seriesName"] = "", "", ""
+		for i := range books {
+			editBookMetadata(&books[i], func(metadata *libitem.BookMetadataMinified) {
+				metadata.AuthorName, metadata.AuthorNameLF, metadata.SeriesName = "", "", ""
 			})
-			e.Books = append(e.Books, item)
+			e.Books = append(e.Books, books[i])
 		}
 		out = append(out, e)
 	}
@@ -432,11 +433,12 @@ func (h *Handler) discoverShelf(r *http.Request, user store.User, libraryID stri
 		return nil, 0, err
 	}
 	items := make([]any, 0, len(rendered))
-	for _, item := range rendered {
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item); err != nil {
+	for i := range rendered {
+		item := &rendered[i]
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item.Head, item.MediaID(), &item.Extras); err != nil {
 			return nil, 0, err
 		}
-		items = append(items, item)
+		items = append(items, *item)
 	}
 	return items, count, nil
 }

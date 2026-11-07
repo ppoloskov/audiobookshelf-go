@@ -430,3 +430,94 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 		t.Fatalf("numBooks authors = %v", payload.Authors)
 	}
 }
+
+// TestScanRelationTable pins the scanner's author and series maintenance (packet
+// C2 characterisation): author names match by exact case, a rescan relinks to
+// the sidecar's list, an unlinked author with an asin stays, an unlinked one
+// without goes with author_removed, a changed sequence is rewritten, and a
+// dropped series goes with series_removed.
+func TestScanRelationTable(t *testing.T) {
+	root := t.TempDir()
+	itemDir := filepath.Join(root, "Book")
+	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fakeFFprobe(t)
+	if err := os.WriteFile(filepath.Join(itemDir, "track.mp3"), []byte("audio"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := filepath.Join(itemDir, "metadata.json")
+	write := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(sidecar, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db := scannerTestDB(t, root)
+	emit, events := captureEvents()
+	s, err := newScannerForTest(db, config.Config{}, emit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	state := func() string {
+		t.Helper()
+		var authors, links, series string
+		for query, dst := range map[string]*string{
+			`SELECT COALESCE(group_concat(name,','),'') FROM (SELECT name FROM authors ORDER BY name)`:                                                              &authors,
+			`SELECT COALESCE(group_concat(name,','),'') FROM (SELECT a.name FROM bookAuthors ba JOIN authors a ON a.id=ba.authorId ORDER BY ba.createdAt,ba.rowid)`: &links,
+			`SELECT COALESCE(group_concat(s.name||'#'||COALESCE(bs.sequence,''),',') ,'') FROM bookSeries bs JOIN series s ON s.id=bs.seriesId`:                     &series,
+		} {
+			if err := db.QueryRow(query).Scan(dst); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var seriesRows string
+		_ = db.QueryRow(`SELECT COALESCE(group_concat(name,','),'') FROM series`).Scan(&seriesRows)
+		return "authors=" + authors + " links=" + links + " series=" + series + " seriesRows=" + seriesRows
+	}
+	names := func(name string) string {
+		var out []string
+		for _, e := range eventsNamed(events, name) {
+			if p, ok := e.payload.(map[string]any); ok {
+				out = append(out, p["id"].(string))
+			} else {
+				out = append(out, "x")
+			}
+		}
+		return strings.Join(out, ",")
+	}
+	write(`{"title":"T","authors":["john","John"],"series":[{"name":"Saga","sequence":"1"}]}`)
+	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := state(), "authors=John,john links=john,John series=Saga#1 seriesRows=Saga"; got != want {
+		t.Fatalf("first scan\n got %s\nwant %s", got, want)
+	}
+	if got := len(eventsNamed(events, "author_added")); got != 2 {
+		t.Fatalf("author_added %d", got)
+	}
+	if _, err := db.Exec(`UPDATE authors SET asin='B000' WHERE name='john'`); err != nil {
+		t.Fatal(err)
+	}
+	write(`{"title":"T","authors":["Other"],"series":[{"name":"Saga","sequence":"2"}]}`)
+	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := state(), "authors=Other,john links=Other series=Saga#2 seriesRows=Saga"; got != want {
+		t.Fatalf("rescan\n got %s\nwant %s", got, want)
+	}
+	if got := len(eventsNamed(events, "author_removed")); got != 1 {
+		t.Fatalf("author_removed %d (%s)", got, names("author_removed"))
+	}
+	write(`{"title":"T","authors":["Other"],"series":[{"name":"Next","sequence":"1"}]}`)
+	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := state(), "authors=Other,john links=Other series=Next#1 seriesRows=Next"; got != want {
+		t.Fatalf("series swap\n got %s\nwant %s", got, want)
+	}
+	if got := len(eventsNamed(events, "series_removed")); got != 1 {
+		t.Fatalf("series_removed %d", got)
+	}
+}

@@ -6,6 +6,7 @@ package scanner
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/itemwrite"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -1173,34 +1174,7 @@ func (s *Scanner) finalizeScan(ctx context.Context, libraryID string, t *scanTal
 			s.emit("*", "authors_num_books_updated", authorsNumBooksUpdated{LibraryID: libraryID, Authors: authors})
 		}
 	}
-	for _, id := range uniqueStrings(t.authorsRemoved) {
-		var n int
-		_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM authors WHERE id=? AND COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND NOT EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.authorId=authors.id)`, id).Scan(&n)
-		if n == 0 {
-			continue
-		}
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, id); err != nil {
-			return err
-		}
-		s.filters.RemoveAuthor(libraryID, id)
-		if s.emit != nil {
-			s.emit("*", "author_removed", map[string]any{"id": id, "libraryId": libraryID})
-		}
-	}
-	for _, id := range uniqueStrings(t.seriesRemoved) {
-		var n int
-		_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM series WHERE id=? AND NOT EXISTS(SELECT 1 FROM bookSeries bs WHERE bs.seriesId=series.id)`, id).Scan(&n)
-		if n == 0 {
-			continue
-		}
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM series WHERE id=?`, id); err != nil {
-			return err
-		}
-		s.filters.RemoveSeries(libraryID, id)
-		if s.emit != nil {
-			s.emit("*", "series_removed", map[string]any{"id": id, "libraryId": libraryID})
-		}
-	}
+	itemwrite.Env{DB: s.db, Filters: s.filters, Emit: s.emit}.Sweep(ctx, t.authorsRemoved, t.seriesRemoved)
 	return nil
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -162,8 +163,8 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Status(status, message)
 		}
 		// The series check runs before the authors check (js:610-615).
-		h.checkRemoveEmptySeries(ctx, linked.series)
-		h.checkRemoveAuthorsWithNoBooks(ctx, linked.authors)
+		h.env().SweepSeries(ctx, linked.series)
+		h.env().SweepAuthors(ctx, linked.authors)
 	}
 	h.resetIssues(ctx, libraryID) // Database.resetLibraryIssuesFilterData
 	return httputil.OK(w, r)
@@ -233,7 +234,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		byID[item.id] = item
 	}
 	itemsUpdated := 0
-	var seriesRemoved, authorsRemoved []string
+	var unlinked itemwrite.Changes
 	for _, entry := range parsed {
 		item := byID[entry.id]
 		payload := entry.payload
@@ -256,32 +257,17 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		for _, se := range result.sync.seriesAdded {
-			h.filters.AddSeries(item.libraryID, se.Name, se.ID)
-		}
-		seriesRemoved = append(seriesRemoved, result.sync.seriesRemoved...)
-		authorsRemoved = append(authorsRemoved, result.sync.authorsRemoved...)
-		if h.emit != nil {
-			for _, event := range result.sync.events {
-				h.emit("*", event.name, event.payload)
-			}
-		}
-		for _, au := range result.sync.authorsAdded {
-			h.filters.AddAuthor(item.libraryID, au.Name, au.ID)
-		}
+		unlinked.Merge(result.changes)
+		h.env().Announce(item.libraryID, &result.changes)
 		if !result.updated {
 			continue
 		}
-		if err := h.saveMetadataFiles(ctx, []string{item.id}); err != nil {
+		if err := h.ItemChanged(ctx, item.id); err != nil {
 			return httputil.Internal("metadata file write failed", err)
 		}
 		logging.Debugf("[LibraryItemController] Updated library item media %q", item.id)
-		if expanded, err := h.ItemJSON(ctx, item.id, true); err == nil && h.emit != nil {
-			h.emit("*", "item_updated", expanded)
-		}
 		itemsUpdated++
 	}
-	h.checkRemoveEmptySeries(ctx, seriesRemoved)
-	h.checkRemoveAuthorsWithNoBooks(ctx, authorsRemoved)
+	h.env().Sweep(ctx, unlinked.AuthorsUnlinked, unlinked.SeriesUnlinked)
 	return httputil.JSON(w, r, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
 }

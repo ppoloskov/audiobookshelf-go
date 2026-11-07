@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -96,7 +97,7 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 	return count > 0, nil
 }
 
-func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user store.User) ([]map[string]any, error) {
+func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
 	permission, args := userMediaClause(user, "book")
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission+` ORDER BY CASE WHEN bs.sequence IS NULL OR bs.sequence='' THEN 1 ELSE 0 END,bs.sequence COLLATE NOCASE`, append([]any{seriesID}, args...)...)
 	if err != nil {
@@ -122,9 +123,5 @@ func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user 
 	for i, row := range refs {
 		ids[i] = row.id
 	}
-	out, err := h.minifiedItems(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return h.minifiedItems(ctx, ids)
 }

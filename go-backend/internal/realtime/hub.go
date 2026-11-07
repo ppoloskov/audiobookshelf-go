@@ -608,61 +608,27 @@ func filter[T accessor](g *grants, values []T) (any, bool) {
 	return out, len(out) > 0
 }
 
-// mediaAccess reads the access inputs of an untyped media value: a map, or any
-// value that marshals to an object with an id (fails closed otherwise).
-func mediaAccess(libraryID string, media any) (libitem.Access, bool) {
-	a := libitem.Access{LibraryID: libraryID}
-	if m, ok := media.(map[string]any); ok {
-		a.Tags = stringsValue(m["tags"])
-		a.Explicit = boolValue(m["explicit"])
-		if md, ok := m["metadata"].(map[string]any); ok {
-			a.Explicit = a.Explicit || boolValue(md["explicit"])
-		}
-		return a, true
-	}
-	var v struct {
-		ID       string   `json:"id"`
-		Tags     []string `json:"tags"`
-		Metadata struct {
-			Explicit bool `json:"explicit"`
-		} `json:"metadata"`
-	}
-	raw, err := json.Marshal(media)
-	if err != nil || json.Unmarshal(raw, &v) != nil || v.ID == "" {
-		return a, false
-	}
-	a.Tags, a.Explicit = v.Tags, v.Metadata.Explicit
-	return a, true
-}
-
-// payloadAccessible filters a non-item payload that may still carry a library
-// (collections, item_removed) or an untyped item map.
+// payloadAccessible filters one payload. Typed item payloads (libitem.Full,
+// Expanded, Minified) apply the library, explicit and tag rules. Any other
+// payload that carries a libraryId (collections, item_removed) is limited to
+// the library check; global payloads are unrestricted. A map that looks like an
+// item (has "media") is never delivered: item payloads must be typed.
 func payloadAccessible(g *grants, payload any) bool {
 	if a, ok := payload.(accessor); ok {
 		return g.item(a.Access())
 	}
 	metadata, ok := payload.(map[string]any)
 	if !ok {
-		return true // global events without item/library metadata are unrestricted.
-	}
-	libraryID, hasLibrary := metadata["libraryId"].(string)
-	media, hasMedia := metadata["media"]
-	if !hasLibrary {
-		if item, ok := metadata["item"].(map[string]any); ok {
-			libraryID, hasLibrary = item["libraryId"].(string)
-			media, hasMedia = item["media"]
-		}
-	}
-	if !hasLibrary || libraryID == "" {
 		return true
 	}
-	// Collection events carry a top-level libraryId but no media; upstream
-	// broadcasts them after the library check and has no item/tag ACL to apply.
-	if !hasMedia {
-		return g.library(libraryID)
+	libraryID, _ := metadata["libraryId"].(string)
+	if libraryID == "" {
+		return true
 	}
-	access, ok := mediaAccess(libraryID, media)
-	return ok && g.item(access)
+	if _, isItem := metadata["media"]; isItem {
+		return false
+	}
+	return g.library(libraryID)
 }
 
 func payloadForUser(g *grants, payload any) (any, bool) {
@@ -674,25 +640,18 @@ func payloadForUser(g *grants, payload any) (any, bool) {
 	case []libitem.Full:
 		return filter(g, values)
 	case []any:
-		if !slices.ContainsFunc(values, hasAccessMetadata) {
-			return payload, true
-		}
 		filtered := make([]any, 0, len(values))
+		restricted := false
 		for _, value := range values {
+			if hasAccessMetadata(value) {
+				restricted = true
+			}
 			if payloadAccessible(g, value) {
 				filtered = append(filtered, value)
 			}
 		}
-		return filtered, len(filtered) > 0
-	case []map[string]any:
-		if !slices.ContainsFunc(values, func(m map[string]any) bool { return hasAccessMetadata(m) }) {
+		if !restricted {
 			return payload, true
-		}
-		filtered := make([]map[string]any, 0, len(values))
-		for _, value := range values {
-			if payloadAccessible(g, value) {
-				filtered = append(filtered, value)
-			}
 		}
 		return filtered, len(filtered) > 0
 	default:
@@ -700,16 +659,17 @@ func payloadForUser(g *grants, payload any) (any, bool) {
 	}
 }
 
+// hasAccessMetadata reports whether a list element carries access inputs: a
+// typed item or a map with a libraryId.
 func hasAccessMetadata(raw any) bool {
+	if _, ok := raw.(accessor); ok {
+		return true
+	}
 	item, ok := raw.(map[string]any)
 	if !ok {
 		return false
 	}
-	if _, ok := item["libraryId"].(string); ok {
-		return true
-	}
-	nested, _ := item["item"].(map[string]any)
-	_, ok = nested["libraryId"].(string)
+	_, ok = item["libraryId"].(string)
 	return ok
 }
 
@@ -753,27 +713,6 @@ func truthy(value any) bool {
 		return false
 	}
 	return true
-}
-
-func boolValue(value any) bool {
-	b, _ := value.(bool)
-	return b
-}
-
-func stringsValue(value any) []string {
-	switch values := value.(type) {
-	case []string:
-		return values
-	case []any:
-		result := make([]string, 0, len(values))
-		for _, value := range values {
-			if s, ok := value.(string); ok {
-				result = append(result, s)
-			}
-		}
-		return result
-	}
-	return nil
 }
 
 func tokenType(token string) string {

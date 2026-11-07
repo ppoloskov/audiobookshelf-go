@@ -63,6 +63,7 @@ and nulls, because TS reads those back.
 | M2: one error framing (httputil.Fail); per-package write helpers deleted; catalog round 2 | (this commit) | 43,348 → 42,743 | −605 | 10,406 → 10,380 | ~20 helpers (bare, text, reply, reject, plainError, dbFail, …) and catalog adapters gone; error bodies follow the TS send/sendStatus choice |
 | M3: ADR-002 sweep (key-order/byte-fidelity code deleted) | (this commit) | 42,743 → 42,578 | −165 | 10,380 → 10,347 | httputil Streamed/WithoutContentLength/WithoutETag, catalog writeJSONWithETag, OIDC ordered rewriter, playback ordered metadata structs; byte/order test assertions now compare values |
 | M4 (C1): one typed item model, internal/libitem | (this commit) | 42,578 → 41,812 | −766 (libitem +~1,050 included) | 10,347 → 10,155 | packages books/ and items/ deleted; catalog podcast/book map builders, podcasts/item.go serializer, playback and sharing schema readers, lists per-entry SELECTs, dead wire book types; map[string]any 990 → 900, []any 326 → 301 |
+| M5 (C1d + C2): typed item decorators; one item-mutation write path (internal/itemwrite) | (this commit) | 41,812 → 41,475 | −337 (new itemwrite + mutation.go +661 included) | 10,155 → 10,015 | toMap round trip, realtime map item path, sync/quickMatch author+series copies, column builders, orphan check copies, finalizeScan loops, taxonomy bodies; map[string]any 900 → 852 |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -106,3 +107,20 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
   `map[string]any` through a JSON round trip (`toMap`) so its decorators can
   keep writing map keys. That costs one extra marshal per item and keeps
   realtime's map access path alive. Typing the catalog decorators deletes both.
+
+### M5 notes
+
+- Characterisation tests recorded against the old code before the refactor:
+  catalog/relations_characterization_test.go (PATCH, batch, quick match),
+  scanner TestScanRelationTable, adminops taxonomy golden table.
+- Values moved toward TS: a series created by PATCH stores `nameIgnorePrefix`
+  as the stripped name (TS `Series.js:80` `getTitleIgnorePrefix`); the scanner
+  uses the shared last-first author form, stores a new series sequence as
+  NULL, adds newly linked authors/series to filter data and closes the feeds
+  of series it removes. Event order on single-item writes: series sweep,
+  item announcement, author sweep.
+- Single-item access check is one query again (`libitem.LoadAccess`).
+- Realtime filters only typed item payloads; a map payload with `media` is
+  never delivered (every item emitter now sends libitem values).
+- Left: shared image fetch (`cover.go`/`authors.go`), and catalog still has a
+  second SetItemChanged wiring.

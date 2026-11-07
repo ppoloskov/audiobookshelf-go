@@ -112,7 +112,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
-	updatedItems := make([]map[string]any, 0, len(books))
+	updatedIDs := make([]string, 0, len(books))
 	for _, row := range books {
 		next := make([]string, 0, len(row.narrators)+1)
 		for _, narrator := range row.narrators {
@@ -136,12 +136,12 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), row.bookID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		if item, err := h.ItemJSON(r.Context(), row.itemID, true); err == nil {
-			updatedItems = append(updatedItems, item)
-		}
+		updatedIDs = append(updatedIDs, row.itemID)
 	}
-	if len(updatedItems) > 0 && h.emit != nil {
-		h.emit("*", "items_updated", updatedItems)
+	if len(updatedIDs) > 0 && h.emit != nil {
+		if updatedItems, err := h.expandedItems(r.Context(), updatedIDs); err == nil && len(updatedItems) > 0 {
+			h.emit("*", "items_updated", updatedItems)
+		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": len(books)}, httputil.ForRequest(r))
 	return nil

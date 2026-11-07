@@ -31,7 +31,7 @@ type Handler struct {
 	cfg             config.Config
 	emit            func(userID, event string, payload any)
 	settingsChanged func(context.Context, map[string]any) error
-	itemChanged     func(context.Context, string) (any, error)
+	itemChanged     func(context.Context, string) error
 	watcherUpdate   func(context.Context, string, string, string, string) error
 }
 
@@ -42,7 +42,10 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 func (h *Handler) SetSettingsChanged(fn func(context.Context, map[string]any) error) {
 	h.settingsChanged = fn
 }
-func (h *Handler) SetItemChanged(fn func(context.Context, string) (any, error)) { h.itemChanged = fn }
+
+// SetItemChanged installs the end of an item mutation: the metadata file and
+// the item_updated event of one library item.
+func (h *Handler) SetItemChanged(fn func(context.Context, string) error) { h.itemChanged = fn }
 func (h *Handler) SetWatcherUpdate(fn func(context.Context, string, string, string, string) error) {
 	h.watcherUpdate = fn
 }
@@ -513,65 +516,25 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		return httputil.Status(400, "")
 	}
 	old, newv := p[oldKey], p[newKey]
-	merged, changed := false, 0
-	for _, table := range []string{"books", "podcasts"} {
-		rows, e := h.db.QueryContext(r.Context(), `SELECT id,`+column+` FROM `+table+` WHERE `+column+` IS NOT NULL`)
-		if e != nil {
-			continue
+	merged := false
+	changed, err := h.rewriteTaxonomy(r.Context(), column, func(list []string) ([]string, bool) {
+		merged = merged || slices.Contains(list, newv)
+		if !slices.Contains(list, old) {
+			return nil, false
 		}
-		type item struct {
-			id   string
-			tags []string
-		}
-		items := []item{}
-		for rows.Next() {
-			var id string
-			var raw []byte
-			if rows.Scan(&id, &raw) != nil {
-				continue
-			}
-			var a []string
-			if json.Unmarshal(raw, &a) == nil {
-				has := false
-				for _, v := range a {
-					if v == old {
-						has = true
-					}
-					if v == newv {
-						merged = true
-					}
-				}
-				if has {
-					out := []string{}
-					for _, v := range a {
-						if v == old {
-							continue
-						}
-						if !slices.Contains(out, v) {
-							out = append(out, v)
-						}
-					}
-					if !slices.Contains(out, newv) {
-						out = append(out, newv)
-					}
-					items = append(items, item{id, out})
-				}
+		out := []string{}
+		for _, v := range list {
+			if v != old && !slices.Contains(out, v) {
+				out = append(out, v)
 			}
 		}
-		rows.Close()
-		for _, it := range items {
-			b, _ := json.Marshal(it.tags)
-			res, e := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, string(b), sqlDate(), it.id)
-			if e == nil {
-				n, _ := res.RowsAffected()
-				if n > 0 {
-					changed++
-					if e := h.changedItem(r.Context(), it.id); e != nil {
-						return httputil.Internal("failed to update item metadata", e)
-					}
-				}
-			}
+		if !slices.Contains(out, newv) {
+			out = append(out, newv)
 		}
+		return out, true
+	})
+	if err != nil {
+		return httputil.Internal("failed to update item metadata", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed})
 	return nil
@@ -594,63 +557,61 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, u store
 		return httputil.Status(400, "")
 	}
 	target := string(raw)
-	changed := 0
-	for _, table := range []string{"books", "podcasts"} {
-		rows, e := h.db.QueryContext(r.Context(), `SELECT id,`+column+` FROM `+table+` WHERE `+column+` IS NOT NULL`)
-		if e != nil {
-			continue
+	changed, err := h.rewriteTaxonomy(r.Context(), column, func(list []string) ([]string, bool) {
+		if !slices.Contains(list, target) {
+			return nil, false
 		}
-		type item struct {
-			id  string
-			arr []string
-		}
-		items := []item{}
-		for rows.Next() {
-			var id string
-			var b []byte
-			if rows.Scan(&id, &b) != nil {
-				continue
-			}
-			var a []string
-			if json.Unmarshal(b, &a) == nil && slices.Contains(a, target) {
-				out := []string{}
-				for _, v := range a {
-					if v != target {
-						out = append(out, v)
-					}
-				}
-				items = append(items, item{id, out})
-			}
-		}
-		rows.Close()
-		for _, it := range items {
-			b, _ := json.Marshal(it.arr)
-			res, e := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, string(b), sqlDate(), it.id)
-			if e == nil {
-				n, _ := res.RowsAffected()
-				if n > 0 {
-					changed++
-					if e := h.changedItem(r.Context(), it.id); e != nil {
-						return httputil.Internal("failed to update item metadata", e)
-					}
-				}
-			}
-		}
+		return slices.DeleteFunc(slices.Clone(list), func(v string) bool { return v == target }), true
+	})
+	if err != nil {
+		return httputil.Internal("failed to update item metadata", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed})
 	return nil
 }
-func sqlDate() string { return dbtime.Now() }
-func (h *Handler) changedItem(ctx context.Context, id string) error {
-	payload, err := h.itemChanged(ctx, id)
-	if err != nil {
-		return err
+
+// rewriteTaxonomy applies edit to the tags or genres list of every book and
+// podcast, stores the lists it changed and reports each of those items as
+// changed. It returns how many items it updated.
+func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func([]string) ([]string, bool)) (int, error) {
+	changed := 0
+	for _, table := range []string{"books", "podcasts"} {
+		rows, err := h.db.QueryContext(ctx, `SELECT m.id,li.id,m.`+column+` FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id WHERE m.`+column+` IS NOT NULL`)
+		if err != nil {
+			continue
+		}
+		type update struct{ mediaID, itemID, list string }
+		var updates []update
+		for rows.Next() {
+			var u update
+			var raw []byte
+			var list []string
+			if rows.Scan(&u.mediaID, &u.itemID, &raw) != nil || json.Unmarshal(raw, &list) != nil {
+				continue
+			}
+			if edited, ok := edit(list); ok {
+				b, _ := json.Marshal(edited)
+				u.list = string(b)
+				updates = append(updates, u)
+			}
+		}
+		rows.Close()
+		for _, u := range updates {
+			res, err := h.db.ExecContext(ctx, `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, u.list, sqlDate(), u.mediaID)
+			if err != nil {
+				continue
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				changed++
+				if err := h.itemChanged(ctx, u.itemID); err != nil {
+					return changed, err
+				}
+			}
+		}
 	}
-	if h.emit != nil {
-		h.emit("*", "item_updated", payload)
-	}
-	return nil
+	return changed, nil
 }
+func sqlDate() string { return dbtime.Now() }
 
 func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !admin(u) {

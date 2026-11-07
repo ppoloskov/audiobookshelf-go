@@ -187,6 +187,26 @@ func (h Head) access(media any) Access {
 	return a
 }
 
+// mediaID is the id of a serialized media value ("" for an unknown one).
+func mediaID(media any) string {
+	switch m := media.(type) {
+	case BookFull:
+		return m.ID
+	case BookMinified:
+		return m.ID
+	case BookExpanded:
+		return m.ID
+	case PodcastMedia:
+		return m.ID
+	}
+	return ""
+}
+
+// MediaID is the id of the item's book or podcast.
+func (f Full) MediaID() string     { return mediaID(f.Media) }
+func (e Expanded) MediaID() string { return mediaID(e.Media) }
+func (m Minified) MediaID() string { return mediaID(m.Media) }
+
 func (f Full) Access() Access     { return f.Head.access(f.Media) }
 func (e Expanded) Access() Access { return e.Head.access(e.Media) }
 func (m Minified) Access() Access { return m.Head.access(m.Media) }

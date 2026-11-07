@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"mime"
 	"net"
@@ -225,19 +226,6 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 		items[i] = item
 	}
 	h.emit("*", "items_updated", items)
-}
-
-// saveMetadataFiles is libraryItem.saveMetadataFile for each item.
-func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error {
-	if h.itemChanged == nil {
-		return nil
-	}
-	for _, id := range itemIDs {
-		if err := h.itemChanged(ctx, id); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // authorFindOne is AuthorController.findOne (AuthorController.js:40-88).
@@ -626,10 +614,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		}
 		now := dbNow()
 		for _, bookID := range bookIDs {
-			linkID := makeUUID()
-			if linkID == "" {
-				return httputil.Internal("internal error", errors.New("generate book author id"))
-			}
+			linkID := uuid.NewString()
 			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.id, now); err != nil {
 				return httputil.Internal("database write failed", err)
 			}

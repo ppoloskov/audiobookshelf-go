@@ -359,11 +359,11 @@ func TestBookProjectionValues(t *testing.T) {
 		t.Run(tc.id, func(t *testing.T) {
 			for _, view := range []struct {
 				name string
-				load func() (map[string]any, error)
+				load func() (any, error)
 			}{
-				{"full", func() (map[string]any, error) { return h.ItemJSON(t.Context(), tc.id, false) }},
-				{"minified", func() (map[string]any, error) { return h.ItemMinifiedJSON(t.Context(), tc.id) }},
-				{"expanded", func() (map[string]any, error) { return h.ItemJSON(t.Context(), tc.id, true) }},
+				{"full", func() (any, error) { return h.ItemJSON(t.Context(), tc.id, false) }},
+				{"minified", func() (any, error) { return h.ItemMinifiedJSON(t.Context(), tc.id) }},
+				{"expanded", func() (any, error) { return h.ItemJSON(t.Context(), tc.id, true) }},
 			} {
 				t.Run(view.name, func(t *testing.T) {
 					itemValue, err := view.load()
@@ -437,11 +437,11 @@ func TestBookProjectionValues(t *testing.T) {
 
 	for _, view := range []struct {
 		name string
-		load func() (map[string]any, error)
+		load func() (any, error)
 	}{
-		{"full", func() (map[string]any, error) { return h.ItemJSON(t.Context(), "i2", false) }},
-		{"minified", func() (map[string]any, error) { return h.ItemMinifiedJSON(t.Context(), "i2") }},
-		{"expanded", func() (map[string]any, error) { return h.ItemJSON(t.Context(), "i2", true) }},
+		{"full", func() (any, error) { return h.ItemJSON(t.Context(), "i2", false) }},
+		{"minified", func() (any, error) { return h.ItemMinifiedJSON(t.Context(), "i2") }},
+		{"expanded", func() (any, error) { return h.ItemJSON(t.Context(), "i2", true) }},
 	} {
 		itemValue, err := view.load()
 		if err != nil {

@@ -212,16 +212,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			}
 			return sc.Refresh(ctx)
 		})
-		rt.adminops.SetItemChanged(func(ctx context.Context, mediaID string) (any, error) {
-			var itemID string
-			if err := db.QueryRowContext(ctx, `SELECT id FROM libraryItems WHERE mediaId=? LIMIT 1`, mediaID).Scan(&itemID); err != nil {
-				return nil, err
-			}
-			if err := sc.WriteMetadata(ctx, itemID); err != nil {
-				return nil, err
-			}
-			return rt.catalog.ItemJSON(ctx, itemID, true)
-		})
+		rt.adminops.SetItemChanged(rt.catalog.ItemChanged)
 		if err := sc.Start(context.Background()); err != nil {
 			rt.Close()
 			return nil, err

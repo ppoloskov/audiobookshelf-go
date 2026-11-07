@@ -76,9 +76,11 @@ func TestNewRegistersLegacyAndPrefixedSocketPaths(t *testing.T) {
 
 func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing.T) {
 	user := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)}
-	allowed := map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}
-	wrongLibrary := map[string]any{"libraryId": "lib-2", "media": map[string]any{"tags": []any{"mystery"}}}
-	wrongTag := map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"romance"}}}
+	book := func(libraryID string, explicit bool, tags ...string) libitem.Expanded {
+		return libitem.Expanded{Head: libitem.Head{ID: "li-" + libraryID, LibraryID: libraryID},
+			Media: libitem.BookExpanded{ID: "book-1", Tags: tags, Metadata: libitem.BookMetadataExpanded{BookMetadataFull: libitem.BookMetadataFull{Explicit: explicit}}}}
+	}
+	allowed, wrongLibrary, wrongTag := book("lib-1", false, "mystery"), book("lib-2", false, "mystery"), book("lib-1", false, "romance")
 	if !payloadAccessible(grantsOf(user), allowed) {
 		t.Fatal("expected allowed library and tag payload to pass")
 	}
@@ -91,22 +93,15 @@ func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing
 	if !payloadAccessible(grantsOf(user), map[string]any{"message": "global"}) {
 		t.Fatal("global payload without item metadata should pass")
 	}
-	typedAllowed := map[string]any{
-		"libraryId": "lib-1",
-		"media":     map[string]any{"id": "book-1", "tags": []any{"mystery"}, "metadata": map[string]any{"explicit": false}},
+	if payloadAccessible(grantsOf(user), book("lib-1", true, "mystery")) {
+		t.Fatal("explicit book passed without explicit-content permission")
 	}
-	if !payloadAccessible(grantsOf(user), typedAllowed) {
-		t.Fatal("typed book media with an accessible tag should pass")
+	podcast := libitem.Minified{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}
+	if !payloadAccessible(grantsOf(user), podcast) {
+		t.Fatal("podcast with an accessible tag should pass")
 	}
-	typedExplicit := map[string]any{
-		"libraryId": "lib-1",
-		"media":     map[string]any{"id": "book-2", "tags": []any{"mystery"}, "metadata": map[string]any{"explicit": true}},
-	}
-	if payloadAccessible(grantsOf(user), typedExplicit) {
-		t.Fatal("typed explicit book media passed without explicit-content permission")
-	}
-	if payloadAccessible(grantsOf(user), map[string]any{"libraryId": "lib-1", "media": struct{}{}}) {
-		t.Fatal("unrecognized media must fail closed")
+	if payloadAccessible(grantsOf(user), map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}) {
+		t.Fatal("an untyped item map must not be delivered")
 	}
 	collection := map[string]any{"id": "collection-1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
 	if !payloadAccessible(grantsOf(user), collection) {
@@ -129,10 +124,14 @@ func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing
 	if _, send := payloadForUser(grantsOf(noLibrary), collection); send {
 		t.Fatal("collection broadcast was sent to a user without library access")
 	}
-	filtered, send := payloadForUser(grantsOf(user), []any{allowed, wrongLibrary})
-	items, ok := filtered.([]any)
+	filtered, send := payloadForUser(grantsOf(user), []libitem.Expanded{allowed, wrongLibrary})
+	items, ok := filtered.([]libitem.Expanded)
 	if !send || !ok || len(items) != 1 {
 		t.Fatalf("item-list broadcast filter = %#v, send=%v", filtered, send)
+	}
+	mixed, send := payloadForUser(grantsOf(user), []any{allowed, wrongLibrary})
+	if list, ok := mixed.([]any); !send || !ok || len(list) != 1 {
+		t.Fatalf("untyped item-list broadcast filter = %#v, send=%v", mixed, send)
 	}
 }
 
@@ -184,9 +183,8 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	}
 	hub.SetDispatcher(func(_ context.Context, action Action) error {
 		if action.Event == "cancel_scan" {
-			hub.Emit("*", "probe_item", map[string]any{
-				"libraryId": "lib-1", "media": map[string]any{"tags": []string{"mystery"}},
-			})
+			hub.Emit("*", "probe_item", libitem.Expanded{Head: libitem.Head{LibraryID: "lib-1"},
+				Media: libitem.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
 			if action.Ack != nil {
 				action.Ack("scan_cancelled")
 			}
