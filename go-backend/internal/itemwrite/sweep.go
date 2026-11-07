@@ -1,14 +1,18 @@
 package itemwrite
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -63,6 +67,13 @@ func (e Env) SweepSeries(ctx context.Context, ids []string) {
 	}
 }
 
+// sweep deletes the parents in ids that no junction row references (and that
+// pass guard) in ONE statement, so a book linked by a concurrent request
+// between "is it orphaned?" and the delete keeps its parent: the junction's
+// ON DELETE CASCADE would otherwise drop that new link. Only rows this
+// statement removed are forgotten and announced, so overlapping sweeps never
+// announce a removal twice. It runs after the edit committed and ignores the
+// request's cancellation: a client that disconnects must not leave orphans.
 func (e Env) sweep(ctx context.Context, parent, junction, col, guard string, ids []string, event string, forget func(libraryID, id string)) []string {
 	seen := map[string]bool{}
 	var args []any
@@ -75,25 +86,35 @@ func (e Env) sweep(ctx context.Context, parent, junction, col, guard string, ids
 	if len(args) == 0 {
 		return nil
 	}
+	ctx = context.WithoutCancel(ctx)
 	marks := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
-	rows, err := e.DB.QueryContext(ctx, fmt.Sprintf(`SELECT id,libraryId FROM %[1]s WHERE id IN (%[2]s) AND %[3]sNOT EXISTS(SELECT 1 FROM %[4]s j WHERE j.%[5]s=%[1]s.id) ORDER BY rowid`, parent, marks, guard, junction, col), args...)
+	rows, err := e.DB.QueryContext(ctx, fmt.Sprintf(`DELETE FROM %[1]s WHERE id IN (%[2]s) AND %[3]sNOT EXISTS(SELECT 1 FROM %[4]s j WHERE j.%[5]s=%[1]s.id) RETURNING rowid,id,libraryId`, parent, marks, guard, junction, col), args...)
 	if err != nil {
+		logging.Errorf("[itemwrite] remove orphan %s: %v", parent, err)
 		return nil
 	}
-	type orphan struct{ id, libraryID string }
+	type orphan struct {
+		rowid         int64
+		id, libraryID string
+	}
 	var orphans []orphan
 	for rows.Next() {
 		var o orphan
-		if rows.Scan(&o.id, &o.libraryID) == nil {
-			orphans = append(orphans, o)
-		}
-	}
-	rows.Close()
-	var removed []string
-	for _, o := range orphans {
-		if _, err := e.DB.ExecContext(ctx, `DELETE FROM `+parent+` WHERE id=?`, o.id); err != nil {
+		var libraryID sql.NullString
+		if err := rows.Scan(&o.rowid, &o.id, &libraryID); err != nil {
+			logging.Errorf("[itemwrite] remove orphan %s: %v", parent, err)
 			continue
 		}
+		o.libraryID = libraryID.String
+		orphans = append(orphans, o)
+	}
+	if err := rows.Err(); err != nil {
+		logging.Errorf("[itemwrite] remove orphan %s: %v", parent, err)
+	}
+	rows.Close()
+	slices.SortFunc(orphans, func(a, b orphan) int { return cmp.Compare(a.rowid, b.rowid) })
+	removed := make([]string, 0, len(orphans))
+	for _, o := range orphans {
 		forget(o.libraryID, o.id)
 		removed = append(removed, o.id)
 		e.emit(event, map[string]any{"id": o.id, "libraryId": o.libraryID})
@@ -104,10 +125,18 @@ func (e Env) sweep(ctx context.Context, parent, junction, col, guard string, ids
 // closeFeeds closes every feed of an entity: the row goes and rss_feed_closed
 // carries the feed (RssFeedManager.handleCloseFeed, :355-361).
 func (e Env) closeFeeds(ctx context.Context, entityID string) {
+	ctx = context.WithoutCancel(ctx)
 	q := sqlc.New(e.DB)
 	for {
 		feed, err := q.GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityID: entityID})
-		if err != nil || q.DeleteFeed(ctx, feed.ID) != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return
+		}
+		if err == nil {
+			err = q.DeleteFeed(ctx, feed.ID)
+		}
+		if err != nil {
+			logging.Errorf("[itemwrite] close feeds of %s: %v", entityID, err)
 			return
 		}
 		e.emit("rss_feed_closed", map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}})

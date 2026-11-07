@@ -68,6 +68,7 @@ and nulls, because TS reads those back.
 | M7 (P + S): one permission owner (internal/access), cached server settings (internal/serversettings), scanner walk/group pipeline | (this commit) | 41,204 → 40,817 | −387 | 9,874 → 9,703 | ~10 per-package permission helpers and ~12 admin checks, 4 per-request settings SELECTs, 5 directory walks, 2 grouping algorithms, the per-item stored-row lookup in importGroup |
 | M8: review fixes (authorization, settings lifecycle) + M-b providers + M-c playback/podcasts typing | (this commit) | 40,817 → 40,725 | −92 | 9,703 → 9,558 | provider map building and helpers; playback openJSON/clientJSON maps and payload helpers; podcasts xmlNode parser and checkNew copy; map[string]any 823 → 675 |
 | M9 (S2): scanner inode index and importGroup gather/plan/apply | (this commit) | 40,725 → 40,899 | **+174 (approved growth exception)** | 9,558 → 9,569 (+11 total; max function 105 → 34) | quadratic matchGroupByInode replaced by a per-scan index; importGroup (291 lines, complexity 105) split into gather / pure plan / apply / afterImport |
+| M10: itemwrite orphan-sweep safety fix | (this commit) | 40,899 → 40,928 | +29 (correctness fix) | 9,569 → 9,570 | check-then-delete replaced by one DELETE … NOT EXISTS … RETURNING |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -234,3 +235,23 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
     item's id.
   - Typed audio files (arch-scanner §6.4) and a single ffprobe implementation
     (§6.5) are still open.
+
+### M10: orphan cleanup safety review (itemwrite/sweep.go)
+
+Defects found and fixed:
+- **Lost links under concurrency (data loss).** The sweep selected orphan
+  authors/series and then deleted them by id without re-checking. A request
+  that linked a book in between had that new link removed by
+  `bookAuthors`/`bookSeries` `ON DELETE CASCADE`. Now one
+  `DELETE … WHERE … NOT EXISTS(…) RETURNING`. TestSweepNeverDropsAConcurrentLink
+  (1,500 races, one-connection pool as in production) fails 5/5 on the old code
+  and passes on the new.
+- **Double announcements.** Overlapping sweeps could both emit `author_removed`
+  / `series_removed` and edit filter data for one removal. Only rows this
+  statement deleted are announced now (TestOverlappingSweepsAnnounceOnce).
+- **Silent failures.** Query, scan, `rows.Err` and feed-close errors were
+  dropped. They are logged now. A NULL `libraryId` no longer drops the row from
+  the sweep.
+- **Cancellation.** The sweep runs after the edit committed, so it now ignores
+  the request's cancellation. A disconnecting client no longer leaves orphans
+  (TestSweepIgnoresRequestCancellation).
