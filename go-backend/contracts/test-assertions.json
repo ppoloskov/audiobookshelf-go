@@ -246,7 +246,7 @@
       "disposition": "diagnostic",
       "expectation": "The Express SHA-1 weak-tag spelling is not a client contract; retain the old vector only in the tagged diagnostic lane.",
       "replacementTargets": [
-        "internal/catalog/cover_test.go#TestWriteJSONWithETagConditionalRequests"
+        "internal/httputil/handler_test.go#TestJSONConditionalGet"
       ],
       "diagnosticTargets": [
         "internal/httputil/etag_representation_diagnostic_test.go#TestExpressETagMatchesExpress",
@@ -295,10 +295,7 @@
       "disposition": "replaced",
       "expectation": "Preserve success/body fields/types/MIME and actual wire length; validate the advertised validator as opaque syntax.",
       "replacementTargets": [
-        "internal/catalog/cover_test.go#TestWriteJSONWithETagSetsExpressHeaders",
-        "internal/catalog/cover_test.go#TestWriteJSONWithETagConditionalRequests",
-        "internal/catalog/cover_test.go#TestWriteJSONWithETagChangedValueIsFresh",
-        "internal/catalog/cover_test.go#TestWriteJSONWithETagHeadSuppressesBody"
+        "internal/httputil/handler_test.go#TestJSONConditionalGet"
       ],
       "diagnosticTargets": [
         "internal/catalog/etag_representation_diagnostic_test.go#TestTSRepresentationR01Catalog"
@@ -393,11 +390,9 @@
       "originSymbol": "TestWriteJSONStreamedKeepsEncoderFraming",
       "assertionCount": 1,
       "countUnit": "exact streamed JSON bytes including encoder newline",
-      "disposition": "replaced",
-      "expectation": "Require one complete document with a=1 and EOF after whitespace; keep absent length and HEAD empty body/MIME checks.",
-      "replacementTargets": [
-        "internal/httputil/json_test.go#TestWriteJSONStreamedKeepsEncoderFraming"
-      ],
+      "disposition": "diagnostic",
+      "expectation": "Require one complete document with a=1 and EOF after whitespace; keep absent length and HEAD empty body/MIME checks. Retired from the default lane by ADR-002 (docs/SIMPLIFICATION.md): encoder framing and an absent Content-Length are not contract, and the options were deleted.",
+      "replacementTargets": [],
       "diagnosticTargets": [
         "internal/httputil/ts_representation_diagnostic_test.go#TestTSRepresentationR03"
       ]
@@ -424,12 +419,12 @@
       "originSymbol": "TestWriteJSONWithoutContentLength",
       "assertionCount": 1,
       "countUnit": "exact array serialization assertion",
-      "disposition": "replaced",
-      "expectation": "Keep the no-length option and decode one array document with independent value [1].",
-      "replacementTargets": [
-        "internal/httputil/json_test.go#TestWriteJSONWithoutContentLength"
+      "disposition": "diagnostic",
+      "expectation": "Keep the no-length option and decode one array document with independent value [1]. Retired from the default lane by ADR-002 (docs/SIMPLIFICATION.md): encoder framing and an absent Content-Length are not contract, and the options were deleted.",
+      "replacementTargets": [],
+      "diagnosticTargets": [
+        "internal/httputil/ts_representation_diagnostic_test.go#TestTSRepresentationR03"
       ],
-      "diagnosticTargets": [],
       "candidateClass": "adjacentHeadOrOptionAssertionOutsideCandidateLabelCount"
     },
     {
@@ -612,8 +607,8 @@
   "retainedControls": [
     {
       "id": "C-R01-conditional",
-      "path": "internal/catalog/cover_test.go",
-      "symbol": "TestWriteJSONWithETagConditionalRequests",
+      "path": "internal/httputil/handler_test.go",
+      "symbol": "TestJSONConditionalGet",
       "assertionCount": 7,
       "countUnit": "weak/strong/list/wildcard/nonmatch/method cases",
       "expectation": "Opaque validator replay, fresh values for nonmatches, empty 304 and methods that ignore validators.",
@@ -621,29 +616,11 @@
     },
     {
       "id": "C-R01-head",
-      "path": "internal/catalog/cover_test.go",
-      "symbol": "TestWriteJSONWithETagHeadSuppressesBody",
+      "path": "internal/httputil/handler_test.go",
+      "symbol": "TestJSONConditionalGet",
       "assertionCount": 2,
       "countUnit": "ordinary HEAD and conditional HEAD cases",
       "expectation": "HEAD response body suppression and conditional status behavior.",
-      "disposition": "retained"
-    },
-    {
-      "id": "C-R01-status-options",
-      "path": "internal/httputil/text_test.go",
-      "symbol": "TestSendStatusOptionsDropHeaders",
-      "assertionCount": 1,
-      "countUnit": "option behavior group",
-      "expectation": "WithoutContentLength and WithoutETag continue to suppress their headers.",
-      "disposition": "retained"
-    },
-    {
-      "id": "C-R01-text-options",
-      "path": "internal/httputil/sendtext_test.go",
-      "symbol": "TestSendTextOptions",
-      "assertionCount": 1,
-      "countUnit": "option behavior group",
-      "expectation": "Custom MIME and omitted length/ETag remain covered.",
       "disposition": "retained"
     },
     {
