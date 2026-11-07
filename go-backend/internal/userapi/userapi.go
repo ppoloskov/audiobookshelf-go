@@ -18,8 +18,8 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -35,7 +35,6 @@ type Handler struct {
 	db                 *sql.DB
 	tokenSecret        []byte
 	emit               events.Emitter
-	items              items.Reader
 	invalidateSessions func(context.Context, string, string) (string, string, error)
 	changePassword     func(context.Context, string, string, string) error
 	setRefreshCookie   func(http.ResponseWriter, *http.Request, string)
@@ -45,14 +44,13 @@ type Handler struct {
 
 // New takes the token secret identity resolved at startup, so both packages
 // sign with the same key.
-func New(db *sql.DB, tokenSecret []byte, emit func(userID, event string, payload any), itemReader items.Reader) (*Handler, error) {
+// itemReader is unused: items load through libitem. The parameter stays until
+// the runtime call site drops it.
+func New(db *sql.DB, tokenSecret []byte, emit func(userID, event string, payload any)) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
 	}
-	if itemReader == nil {
-		return nil, errors.New("userapi: item reader is nil")
-	}
-	return &Handler{db: db, tokenSecret: tokenSecret, emit: events.Emitter(emit), items: itemReader}, nil
+	return &Handler{db: db, tokenSecret: tokenSecret, emit: events.Emitter(emit)}, nil
 }
 
 func (h *Handler) SetCredentialHooks(invalidate func(context.Context, string, string) (string, string, error), changePassword func(context.Context, string, string, string) error, setCookie func(http.ResponseWriter, *http.Request, string)) {
@@ -1044,26 +1042,14 @@ func (h *Handler) AllowsLibrary(user store.User, libraryID string) bool {
 }
 
 func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID string) (itemAccess, error) {
-	var libraryID, mediaType string
-	var explicit int
-	var rawTags []byte
-	err := h.db.QueryRowContext(ctx, `SELECT li.libraryId, li.mediaType, COALESCE(b.explicit,p.explicit,0), COALESCE(b.tags,p.tags,'[]') FROM libraryItems li LEFT JOIN books b ON li.mediaType='book' AND b.id=li.mediaId LEFT JOIN podcasts p ON li.mediaType='podcast' AND p.id=li.mediaId WHERE li.id=?`, itemID).Scan(&libraryID, &mediaType, &explicit, &rawTags)
+	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
 	if errors.Is(err, sql.ErrNoRows) {
 		return itemAccess{}, nil
 	}
 	if err != nil {
 		return itemAccess{}, err
 	}
-	perms := store.DecodeJSONObject(user.Permissions)
-	if !canAccessLibrary(perms, libraryID) {
-		return itemAccess{exists: true}, nil
-	}
-	if explicit != 0 && !boolValue(perms["accessExplicitContent"]) {
-		return itemAccess{exists: true}, nil
-	}
-	var tags []string
-	_ = json.Unmarshal(rawTags, &tags)
-	return itemAccess{exists: true, allowed: canAccessTags(perms, tags)}, nil
+	return itemAccess{exists: true, allowed: it.Access().AllowedBy(store.DecodeJSONObject(user.Permissions))}, nil
 }
 
 // decorateAdminProgress adds the media fields UserController.findOne attaches
@@ -1301,34 +1287,6 @@ func canAccessLibrary(p map[string]any, id string) bool {
 	for _, lib := range jsonvalue.Strings(p["librariesAccessible"]) {
 		if lib == id {
 			return true
-		}
-	}
-	return false
-}
-func canAccessTags(p map[string]any, tags []string) bool {
-	if boolValue(p["accessAllTags"]) {
-		return true
-	}
-	selected := jsonvalue.Strings(p["itemTagsSelected"])
-	inverted := boolValue(p["selectedTagsNotAccessible"])
-	if len(tags) == 0 {
-		return inverted
-	}
-	if inverted {
-		for _, tag := range tags {
-			for _, sel := range selected {
-				if tag == sel {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	for _, tag := range tags {
-		for _, sel := range selected {
-			if tag == sel {
-				return true
-			}
 		}
 	}
 	return false

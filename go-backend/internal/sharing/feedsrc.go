@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
 )
 
 // feedSource is the feed-shaped view of a library item, collection or series:
@@ -154,39 +154,6 @@ func nodeBasename(name, ext string) string {
 	return base
 }
 
-func (h *Handler) bookAuthors(ctx context.Context, bookID string) ([]string, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT a.name FROM bookAuthors ba JOIN authors a ON a.id=ba.authorId WHERE ba.bookId=? ORDER BY ba.createdAt ASC, ba.rowid ASC`, bookID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []string{}
-	for rows.Next() {
-		var name sql.NullString
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		out = append(out, name.String)
-	}
-	return out, rows.Err()
-}
-
-type bookRowScan struct {
-	bookData
-	files, chapters                   []byte
-	explicit                          sql.NullInt64
-	updated, itemCreated, itemUpdated any
-}
-
-func (s *bookRowScan) finish() {
-	s.Explicit = s.explicit.Int64 != 0
-	s.UpdatedAt = asTime(s.updated)
-	s.ItemCreated = asTime(s.itemCreated)
-	s.ItemUpdated = asTime(s.itemUpdated)
-	_ = json.Unmarshal(s.files, &s.Files)
-	_ = json.Unmarshal(s.chapters, &s.Chapters)
-}
-
 // bookEpisodes is FeedEpisode.getFeedEpisodeObjFromAudiobookTrack for every
 // included track of one book (server/models/FeedEpisode.js:130-176). pubStart
 // plus offset*1min is the pubDate, written in the server's local time with a
@@ -240,103 +207,82 @@ func bookEpisodes(b bookData, pubStart time.Time, offset int) []feedEpisodeSourc
 	return out
 }
 
-func joinAuthors(names []string) string { return strings.Join(names, ", ") }
+// bookFromItem is the feed's view of a loaded book item.
+func bookFromItem(it libitem.Item) bookData {
+	b := it.Book
+	bd := bookData{ID: b.ID, Title: deref(b.Title), Description: nullable(b.Description), CoverPath: nullable(b.CoverPath), Language: nullable(b.Language),
+		Explicit: b.Explicit, UpdatedAt: msTime(b.UpdatedAt), ItemID: it.ID, LibraryID: it.LibraryID, ItemCreated: msTime(it.AddedAt), ItemUpdated: msTime(it.UpdatedAt)}
+	remarshal(b.AudioFiles, &bd.Files)
+	remarshal(b.Chapters, &bd.Chapters)
+	for _, a := range b.Authors {
+		bd.Authors = append(bd.Authors, a.Name)
+	}
+	return bd
+}
+
+func remarshal(from, to any) {
+	raw, _ := json.Marshal(from)
+	_ = json.Unmarshal(raw, to)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func nullable(s *string) sql.NullString { return sql.NullString{String: deref(s), Valid: s != nil} }
+
+func msTime(ms *int64) time.Time {
+	if ms == nil {
+		return time.Time{}
+	}
+	return time.UnixMilli(*ms)
+}
 
 // loadItemSource reads a library item the way LibraryItem.getExpandedById and
 // Feed.getFeedObjForLibraryItem do.
 func (h *Handler) loadItemSource(ctx context.Context, id string) (*feedSource, error) {
-	var libraryID, mediaID, mediaType sql.NullString
-	var itemUpdated any
-	var itemCreated any
-	err := h.db.QueryRowContext(ctx, `SELECT libraryId,mediaId,mediaType,updatedAt,createdAt FROM libraryItems WHERE id=?`, id).Scan(&libraryID, &mediaID, &mediaType, &itemUpdated, &itemCreated)
+	it, err := libitem.LoadOne(ctx, h.db, id, libitem.Options{Episodes: true})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errFeedEntityMissing
 	}
 	if err != nil {
 		return nil, err
 	}
-	src := &feedSource{LibraryID: libraryID.String, SiteURL: "/item/" + id, EntityUpdatedAt: asTime(itemUpdated)}
-	switch mediaType.String {
-	case "book":
-		var b bookRowScan
-		var title sql.NullString
-		err = h.db.QueryRowContext(ctx, `SELECT title,description,coverPath,language,explicit,chapters,audioFiles,updatedAt FROM books WHERE id=?`, mediaID.String).Scan(&title, &b.Description, &b.CoverPath, &b.Language, &b.explicit, &b.chapters, &b.files, &b.updated)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errFeedEntityMissing
-		}
-		if err != nil {
-			return nil, err
-		}
-		b.Title = title.String
-		b.finish()
-		if b.UpdatedAt.After(src.EntityUpdatedAt) {
-			src.EntityUpdatedAt = b.UpdatedAt
-		}
-		if b.Authors, err = h.bookAuthors(ctx, mediaID.String); err != nil {
-			return nil, err
-		}
-		src.Title, src.Description, src.Language, src.Explicit, src.CoverPath = b.Title, b.Description, b.Language, b.Explicit, b.CoverPath
-		src.Author = sql.NullString{String: joinAuthors(b.Authors), Valid: true}
-		src.PodcastType = "serial"
-		src.Episodes = bookEpisodes(b.bookData, asTime(itemCreated), 0)
-	case "podcast":
-		if err = h.loadPodcastSource(ctx, mediaID.String, src); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errFeedEntityMissing
+	src := &feedSource{LibraryID: it.LibraryID, SiteURL: "/item/" + id, EntityUpdatedAt: msTime(it.UpdatedAt)}
+	if it.Book == nil {
+		podcastSource(it.Podcast, src)
+		return src, nil
 	}
+	b := bookFromItem(it)
+	if b.UpdatedAt.After(src.EntityUpdatedAt) {
+		src.EntityUpdatedAt = b.UpdatedAt
+	}
+	src.Title, src.Description, src.Language, src.Explicit, src.CoverPath = b.Title, b.Description, b.Language, b.Explicit, b.CoverPath
+	src.Author = sql.NullString{String: strings.Join(b.Authors, ", "), Valid: true}
+	src.PodcastType = "serial"
+	src.Episodes = bookEpisodes(b, b.ItemCreated, 0)
 	return src, nil
 }
 
-// loadPodcastSource is Feed.getFeedObjForLibraryItem for a podcast plus
+// podcastSource is Feed.getFeedObjForLibraryItem for a podcast plus
 // FeedEpisode.createFromPodcastEpisodes (server/models/FeedEpisode.js:87).
-func (h *Handler) loadPodcastSource(ctx context.Context, podcastID string, src *feedSource) error {
-	var title, podcastType sql.NullString
-	var explicit sql.NullInt64
-	err := h.db.QueryRowContext(ctx, `SELECT title,author,description,coverPath,language,podcastType,explicit FROM podcasts WHERE id=?`, podcastID).Scan(&title, &src.Author, &src.Description, &src.CoverPath, &src.Language, &podcastType, &explicit)
-	if errors.Is(err, sql.ErrNoRows) {
-		return errFeedEntityMissing
-	}
-	if err != nil {
-		return err
-	}
-	src.Title = title.String
-	src.PodcastType = podcastType.String
-	src.Explicit = explicit.Int64 != 0
-	rows, err := h.db.QueryContext(ctx, `SELECT title,description,pubDate,season,episode,episodeType,audioFile,updatedAt FROM podcastEpisodes WHERE podcastId=? ORDER BY rowid`, podcastID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var epTitle sql.NullString
-		var ep feedEpisodeSource
-		var audio []byte
-		var updated any
-		if err := rows.Scan(&epTitle, &ep.Description, &ep.PubDate, &ep.Season, &ep.Episode, &ep.EpisodeType, &audio, &updated); err != nil {
-			return err
-		}
+func podcastSource(p *libitem.Podcast, src *feedSource) {
+	src.Title, src.Author, src.Description, src.CoverPath, src.Language = deref(p.Title), nullable(p.Author), nullable(p.Description), nullable(p.CoverPath), nullable(p.Language)
+	src.PodcastType = deref(p.Type)
+	src.Explicit = p.Explicit
+	for _, e := range p.Episodes {
 		var af audioFileJSON
-		_ = json.Unmarshal(audio, &af)
-		ep.Title = epTitle.String
-		ep.Filename = af.Metadata.Filename
-		ep.EnclosureSize = sizeValue(af.Metadata.Size)
-		ep.Duration = sql.NullFloat64{Float64: af.Duration, Valid: true}
-		if af.MimeType != nil {
-			ep.EnclosureType = sql.NullString{String: *af.MimeType, Valid: true}
-		}
-		if af.Metadata.Path != nil {
-			ep.FilePath = sql.NullString{String: *af.Metadata.Path, Valid: true}
-		}
-		ep.Explicit = src.Explicit
-		if t := asTime(updated); t.After(src.EntityUpdatedAt) {
+		remarshal(e.AudioFile, &af)
+		ep := feedEpisodeSource{Title: deref(e.Title), Description: nullable(e.Description), PubDate: nullable(e.PubDate), Season: nullable(e.Season),
+			Episode: nullable(e.Episode), EpisodeType: nullable(e.EpisodeType), Filename: af.Metadata.Filename, EnclosureSize: sizeValue(af.Metadata.Size),
+			Duration: sql.NullFloat64{Float64: af.Duration, Valid: true}, EnclosureType: nullable(af.MimeType), FilePath: nullable(af.Metadata.Path), Explicit: src.Explicit}
+		if t := msTime(e.UpdatedAt); t.After(src.EntityUpdatedAt) {
 			src.EntityUpdatedAt = t
 		}
 		src.Episodes = append(src.Episodes, ep)
-	}
-	if err := rows.Err(); err != nil {
-		return err
 	}
 	// Sorted by pubDate: newest first for episodic, oldest first for serial.
 	// new Date(invalid) is NaN, which compares as equal (stable sort).
@@ -355,7 +301,6 @@ func (h *Handler) loadPodcastSource(ctx context.Context, podcastID string, src *
 		}
 		return a-b < 0
 	})
-	return nil
 }
 
 // aggregateEntity is a collection or series with its books: the entity row and
@@ -379,24 +324,29 @@ func (h *Handler) loadCollectionEntity(ctx context.Context, id string) (aggregat
 	if err != nil {
 		return aggregateEntity{}, err
 	}
-	agg := aggregateEntity{name: c.Name, desc: c.Description, updated: c.Updatedat}
-	for _, r := range rows {
-		agg.books = append(agg.books, bookFromCollectionRow(r))
+	itemIDs := make([]string, len(rows))
+	for i, r := range rows {
+		itemIDs[i] = r.ItemID
 	}
-	return agg, nil
+	agg := aggregateEntity{name: c.Name, desc: c.Description, updated: c.Updatedat}
+	agg.books, err = h.loadBooks(ctx, itemIDs)
+	return agg, err
 }
 
-// bookFromCollectionRow maps a collection book row from the generated query.
-// The JSON columns decode as the series scan decodes them.
-func bookFromCollectionRow(r sqlc.ListCollectionBookSourcesRow) bookData {
-	s := bookRowScan{
-		explicit: r.Explicit, files: []byte(r.Audiofiles.String), chapters: []byte(r.Chapters.String),
-		updated: r.Updatedat, itemCreated: r.ItemCreatedAt, itemUpdated: r.ItemUpdatedAt,
+// loadBooks loads the book items in one batch and returns them in the order of
+// itemIDs.
+func (h *Handler) loadBooks(ctx context.Context, itemIDs []string) ([]bookData, error) {
+	items, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	if err != nil {
+		return nil, err
 	}
-	s.ID, s.Title, s.Description, s.CoverPath, s.Language = r.ID, r.Title.String, r.Description, r.Coverpath, r.Language
-	s.ItemID, s.LibraryID = r.ItemID, r.LibraryID.String
-	s.finish()
-	return s.bookData
+	var books []bookData
+	for _, it := range items {
+		if it.Book != nil {
+			books = append(books, bookFromItem(it))
+		}
+	}
+	return books, nil
 }
 
 // loadSeriesEntity reads a series and its books in sequence order. Series are
@@ -410,25 +360,24 @@ func (h *Handler) loadSeriesEntity(ctx context.Context, id string) (aggregateEnt
 	if err != nil {
 		return agg, err
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT b.id,b.title,b.description,b.coverPath,b.language,b.explicit,b.chapters,b.audioFiles,b.updatedAt,li.id,li.libraryId,li.createdAt,li.updatedAt FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=? ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, bs.rowid ASC`, id)
+	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=? ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, bs.rowid ASC`, id)
 	if err != nil {
 		return agg, err
 	}
 	defer rows.Close()
+	var itemIDs []string
 	for rows.Next() {
-		var s bookRowScan
-		var title, itemID, libraryID sql.NullString
-		if err := rows.Scan(&s.ID, &title, &s.Description, &s.CoverPath, &s.Language, &s.explicit, &s.chapters, &s.files, &s.updated, &itemID, &libraryID, &s.itemCreated, &s.itemUpdated); err != nil {
+		var itemID string
+		if err := rows.Scan(&itemID); err != nil {
 			return aggregateEntity{}, err
 		}
-		s.Title, s.ItemID, s.LibraryID = title.String, itemID.String, libraryID.String
-		s.finish()
-		agg.books = append(agg.books, s.bookData)
+		itemIDs = append(itemIDs, itemID)
 	}
 	if err := rows.Err(); err != nil {
 		return aggregateEntity{}, err
 	}
-	return agg, nil
+	agg.books, err = h.loadBooks(ctx, itemIDs)
+	return agg, err
 }
 
 // loadAggregateSource reads a collection or series and its books
@@ -450,9 +399,6 @@ func (h *Handler) loadAggregateSource(ctx context.Context, entityType, id string
 	src.OwnUpdatedAt = src.EntityUpdatedAt
 	var withTracks []bookData
 	for i := range books {
-		if books[i].Authors, err = h.bookAuthors(ctx, books[i].ID); err != nil {
-			return nil, err
-		}
 		n := len(books[i].included())
 		src.BookTrackCount += n
 		if t := newerOf(books[i].ItemUpdated, books[i].UpdatedAt); t.After(src.ChildrenUpdatedAt) {

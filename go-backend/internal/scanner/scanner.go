@@ -24,7 +24,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"github.com/fsnotify/fsnotify"
@@ -46,25 +46,19 @@ type Scanner struct {
 	runs               map[string]context.CancelFunc
 	watchCancel        context.CancelFunc
 	podcastFeedFetcher func(context.Context, string) ([]map[string]any, error)
-	items              items.Reader
-	// filters is the shared library filter data cache the scanner patches
-	// (nil when the item reader has none).
+	// filters is the shared library filter data cache the scanner patches.
 	filters      *filterdata.Cache
 	filterLoader filterdata.Provider
 }
 
-func New(db *sql.DB, cfg config.Config, emit events.Emitter, itemReader items.Reader) (*Scanner, error) {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters filterdata.Provider) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
 	}
-	if itemReader == nil {
-		return nil, errors.New("scanner: item reader is nil")
+	if filters == nil {
+		return nil, errors.New("scanner: filter data provider is nil")
 	}
-	s := &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), items: itemReader}
-	if provider, ok := itemReader.(filterdata.Provider); ok {
-		s.filterLoader, s.filters = provider, provider.FilterCache()
-	}
-	return s, nil
+	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filterLoader: filters, filters: filters.FilterCache()}, nil
 }
 
 func (s *Scanner) Scan(ctx context.Context, libraryID string) (Result, error) {
@@ -157,7 +151,7 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	if n.updated {
 		result.Updated = 1
 		if s.emit != nil {
-			if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil {
+			if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
 				s.emit("*", "item_updated", item)
 			}
 		}
@@ -942,7 +936,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	}
 	consumed := map[*group]bool{}
 	tally := &scanTally{}
-	var updatedItems []map[string]any
+	var updatedItems []libitem.Expanded
 	emitUpdated := func() {
 		if len(updatedItems) > 0 && s.emit != nil {
 			s.emit("*", "items_updated", updatedItems)
@@ -975,7 +969,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 				if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=?,lastScan=?,lastScanVersion=? WHERE id=?`, now, now, "2.37.2", ex.id); e != nil {
 					return result, e
 				}
-				if item, e := s.items.ItemJSON(ctx, ex.id, true); e == nil {
+				if item, e := s.itemEvent(ctx, ex.id); e == nil {
 					updatedItems = append(updatedItems, item)
 				}
 			}
@@ -990,7 +984,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 			if n.updated {
 				result.Updated++
 				scanDebug(l, "Library item %q was updated", ex.path)
-				if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil {
+				if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
 					updatedItems = append(updatedItems, item)
 				}
 			}
@@ -1002,7 +996,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	emitUpdated()
 
 	// Then new items.
-	var addedItems []map[string]any
+	var addedItems []libitem.Expanded
 	for _, g := range ordered {
 		if consumed[g] {
 			continue
@@ -1019,7 +1013,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		if n.added {
 			result.Added++
 			scanDebug(l, "Created new library item %q with id %q", mustRel(g.folder.path, g.path), n.id) // LibraryItemScanner.js:194
-			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil {
+			if item, e := s.itemEvent(ctx, n.id); e == nil {
 				addedItems = append(addedItems, item)
 			}
 		}

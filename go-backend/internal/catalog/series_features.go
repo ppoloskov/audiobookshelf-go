@@ -118,13 +118,13 @@ func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user 
 		return nil, err
 	}
 	rows.Close()
-	out := make([]map[string]any, 0, len(refs))
-	for _, row := range refs {
-		item, err := h.ItemMinifiedJSON(ctx, row.id)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, item)
+	ids := make([]string, len(refs))
+	for i, row := range refs {
+		ids[i] = row.id
+	}
+	out, err := h.minifiedItems(ctx, ids)
+	if err != nil {
+		return nil, err
 	}
 	return out, nil
 }

@@ -3,10 +3,10 @@ package userapi
 import (
 	"database/sql"
 	"encoding/json"
-	"maps"
 	"math"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/libitem"
 
 	"audiobookshelf-compat/internal/store"
 )
@@ -119,63 +120,56 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		return httputil.Internal("database read failed", err)
 	}
 	type progress struct {
-		id, itemID, typ, mediaID string
-		updated                  any
+		itemID, typ, mediaID string
+		updated              any
 	}
-	items := make([]progress, 0, len(rows))
+	entries := make([]progress, 0, len(rows))
+	seen := map[string]bool{}
+	var itemIDs []string
 	for _, row := range rows {
 		var data map[string]any
 		_ = json.Unmarshal([]byte(row.Extradata.String), &data)
 		itemID, _ := data["libraryItemId"].(string)
-		items = append(items, progress{id: row.ID, itemID: itemID, typ: row.Mediaitemtype.String, mediaID: row.Mediaitemid.String, updated: row.Updatedat})
+		if itemID == "" || seen[row.ID] {
+			continue
+		}
+		seen[row.ID] = true
+		entries = append(entries, progress{itemID: itemID, typ: row.Mediaitemtype.String, mediaID: row.Mediaitemid.String, updated: row.Updatedat})
+		itemIDs = append(itemIDs, itemID)
 	}
-	result := make([]map[string]any, 0)
-	seen := map[string]bool{}
-	for _, p := range items {
-		if p.itemID == "" || seen[p.id] {
+	loaded, err := libitem.Load(r.Context(), h.db, itemIDs, libitem.Options{Episodes: true})
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	byID := make(map[string]libitem.Item, len(loaded))
+	for _, it := range loaded {
+		byID[it.ID] = it
+	}
+	prefixes := libitem.LoadSortingPrefixes(r.Context(), h.db)
+	perms := store.DecodeJSONObject(user.Permissions)
+	result := make([]libitem.Minified, 0)
+	for _, p := range entries {
+		it, ok := byID[p.itemID]
+		if !ok || !it.Access().AllowedBy(perms) {
 			continue
 		}
-		seen[p.id] = true
-		access, err := h.canAccessItem(r.Context(), user, p.itemID)
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if !access.allowed {
-			continue
-		}
-		li, err := h.items.ItemMinifiedJSON(r.Context(), p.itemID)
-		if err != nil {
-			continue
-		}
-		li["progressLastUpdate"] = dbtime.Millis(p.updated)
-		if p.typ == "podcastEpisode" {
-			full, e := h.items.ItemJSON(r.Context(), p.itemID, true)
-			if e == nil {
-				media, _ := full["media"].(map[string]any)
-				// findAllExpandedWhere loads the episodes, so the minified media
-				// reports their count and total size (MeController.js:490).
-				copyEpisodeTotals(li, media)
-				if episodes, ok := media["episodes"].([]map[string]any); ok {
-					for _, episode := range episodes {
-						if episode["id"] == p.mediaID {
-							// Upstream sends episode.toOldJSON, not the expanded
-							// form (MeController.js getAllLibraryItemsInProgress).
-							trimmed := maps.Clone(episode)
-							delete(trimmed, "audioTrack")
-							delete(trimmed, "size")
-							delete(trimmed, "duration")
-							li["recentEpisode"] = trimmed
-							break
-						}
-					}
-				}
+		li := it.Minified(prefixes)
+		li.ProgressLastUpdate, _ = dbtime.Millis(p.updated).(int64)
+		if media, ok := li.Media.(libitem.PodcastMedia); ok && p.typ == "podcastEpisode" {
+			// findAllExpandedWhere loads the episodes, so the minified media
+			// reports their count and total size (MeController.js:490).
+			loadedMedia, _ := it.Expanded(prefixes).Media.(libitem.PodcastMedia)
+			media.NumEpisodes, media.Size = loadedMedia.NumEpisodes, loadedMedia.Size
+			li.Media = media
+			// Upstream sends episode.toOldJSON, not the expanded form
+			// (MeController.js getAllLibraryItemsInProgress).
+			if i := slices.IndexFunc(it.Podcast.Episodes, func(e libitem.Episode) bool { return e.ID == p.mediaID }); i >= 0 {
+				li.RecentEpisode = it.Podcast.Episodes[i].JSON(it.ID)
 			}
 		}
 		result = append(result, li)
 	}
-	sort.SliceStable(result, func(i, j int) bool {
-		return numberValue(result[i]["progressLastUpdate"]) > numberValue(result[j]["progressLastUpdate"])
-	})
+	sort.SliceStable(result, func(i, j int) bool { return result[i].ProgressLastUpdate > result[j].ProgressLastUpdate })
 	if limit < 0 {
 		limit = 25
 	}
@@ -457,16 +451,4 @@ func topMonth(m map[int]int) any {
 		return nil
 	}
 	return map[string]any{"month": bestMonth, "time": best}
-}
-
-// copyEpisodeTotals sets numEpisodes and size on a minified item's media from
-// the expanded media. Upstream minifies library items whose episodes ARE
-// loaded in some responses (items in progress, a freshly added playlist
-// episode) and whose episodes are NOT in others (shelves, playlist reloads);
-// the shared minified reader models the latter.
-func copyEpisodeTotals(minified map[string]any, expandedMedia map[string]any) {
-	if media, ok := minified["media"].(map[string]any); ok {
-		media["numEpisodes"] = expandedMedia["numEpisodes"]
-		media["size"] = expandedMedia["size"]
-	}
 }

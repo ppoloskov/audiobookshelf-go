@@ -4,10 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
+	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/store"
 	"modernc.org/sqlite"
 )
 
@@ -188,5 +192,26 @@ func TestQueryCounterIncludesPreparedReads(t *testing.T) {
 	}
 	if got := counter.reads(); got != 2 {
 		t.Fatalf("direct and prepared query count = %d, want 2", got)
+	}
+}
+
+// A page with include= used to build each row with its own queries (83 reads
+// for 20 rows); every page shape now loads through one libitem.Load.
+func TestIncludePageQueryCountIndependentOfPageSize(t *testing.T) {
+	counts := map[int]int64{}
+	for _, size := range []int{10, 50} {
+		db, counter := catalogFixtureWithQueryCount(t)
+		seedBookPage(t, db, size)
+		h := New(db, config.Config{}, nil)
+		user := store.User{ID: "u", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
+		counter.reset()
+		page := requestBookPage(t, h, user, fmt.Sprintf("/api/libraries/l1/items?limit=%d&include=numepisodesincomplete", size))
+		counts[size] = counter.reads()
+		if got := len(page["results"].([]any)); got != size {
+			t.Fatalf("page of %d returned %d rows", size, got)
+		}
+	}
+	if counts[10] != counts[50] || counts[10] > 8 {
+		t.Fatalf("include page reads 10=%d 50=%d, want equal and at most 8", counts[10], counts[50])
 	}
 }

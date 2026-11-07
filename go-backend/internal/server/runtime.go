@@ -110,18 +110,18 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
-	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit, catalogHandler)
+	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit)
 	if err != nil {
 		podcastsHandler.Close()
 		sc.Close()
 		hub.Close()
 		return nil, err
 	}
-	listHandler := lists.New(db, catalogHandler, hub.Emit, userapiHandler.CanReadItem, userapiHandler.AllowsLibrary)
+	listHandler := lists.New(db, hub.Emit, userapiHandler.CanReadItem, userapiHandler.AllowsLibrary)
 	rt := &Runtime{
 		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
 		catalog:       catalogHandler,
-		playback:      playback.New(db, cfg, hub.Emit, catalogHandler),
+		playback:      playback.New(db, cfg, hub.Emit),
 		userapi:       userapiHandler,
 		adminops:      adminops.New(db, cfg, hub.Emit),
 		emailapi:      emailapi.New(db, cfg, hub.Emit),

@@ -12,7 +12,6 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -20,14 +19,15 @@ import (
 // collections. Runtime supplies the existing authorization decisions.
 type Handler struct {
 	db               *sql.DB
-	items            items.Reader
 	emit             events.Emitter
 	canView          func(context.Context, store.User, string) (bool, error)
 	canAccessLibrary func(store.User, string) bool
 }
 
-func New(db *sql.DB, itemReader items.Reader, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error), canAccessLibrary func(store.User, string) bool) *Handler {
-	return &Handler{db: db, items: itemReader, emit: emit, canView: canView, canAccessLibrary: canAccessLibrary}
+// New ignores its item reader: lists load items through libitem. The
+// parameter stays until the runtime call site drops it.
+func New(db *sql.DB, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error), canAccessLibrary func(store.User, string) bool) *Handler {
+	return &Handler{db: db, emit: emit, canView: canView, canAccessLibrary: canAccessLibrary}
 }
 
 func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
@@ -56,7 +56,7 @@ func playlistError(code int) error {
 }
 
 func (h *Handler) collection(ctx context.Context, id string, user store.User) (map[string]any, string, error) {
-	return Collection(ctx, h.db, h.items, id, func(ctx context.Context, itemID string) (bool, error) {
+	return Collection(ctx, h.db, id, func(ctx context.Context, itemID string) (bool, error) {
 		return h.canView(ctx, user, itemID)
 	})
 }

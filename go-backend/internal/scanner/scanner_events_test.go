@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,16 +56,20 @@ func eventsNamed(list *[]capturedEvent, name string) []capturedEvent {
 	return out
 }
 
+// payloadItems decodes an item event payload (one item or a list) by value.
 func payloadItems(t *testing.T, payload any) []map[string]any {
 	t.Helper()
-	values := anySlice(payload)
-	items := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		m, ok := value.(map[string]any)
-		if !ok {
-			t.Fatalf("payload item %T is not an object", value)
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var items []map[string]any
+	if json.Unmarshal(raw, &items) != nil {
+		var one map[string]any
+		if err := json.Unmarshal(raw, &one); err != nil {
+			t.Fatalf("payload %T is not an item or item list: %v", payload, err)
 		}
-		items = append(items, m)
+		items = []map[string]any{one}
 	}
 	return items
 }

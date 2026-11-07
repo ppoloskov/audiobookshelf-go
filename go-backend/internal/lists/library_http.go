@@ -142,7 +142,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error
 	}
 	playlists := make([]namedPlaylist, 0, len(ids))
 	for _, id := range ids {
-		item, _, err := Playlist(r.Context(), h.db, h.items, id)
+		item, _, err := Playlist(r.Context(), h.db, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}

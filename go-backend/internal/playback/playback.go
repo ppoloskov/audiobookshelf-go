@@ -30,7 +30,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -41,7 +41,6 @@ type Handler struct {
 	db       *sql.DB
 	cfg      config.Config
 	emit     events.Emitter
-	items    items.Reader
 	mu       sync.RWMutex
 	sessions map[string]*session
 	localIDs map[string]string
@@ -59,25 +58,23 @@ type session struct {
 	StartedAt, UpdatedAt                                    int64
 	Date, DayOfWeek                                         string
 	MediaMetadata                                           map[string]any
-	Chapters                                                []any
+	Chapters                                                []map[string]any
 	AudioTracks                                             []map[string]any
-	Item                                                    map[string]any
+	Item                                                    any
 	Device                                                  map[string]any
 	Files                                                   []audioFile
 	stream                                                  *transcode
 }
 
 type itemData struct {
-	ID, LibraryID, MediaID, MediaType string
-	Title, Author                     string
-	CoverPath                         any
-	Duration                          float64
-	Metadata                          map[string]any
-	Chapters                          []any
-	Tags                              []string
-	Files                             []audioFile
-	Episodes                          []episodeData
-	Explicit                          bool
+	libitem.Item
+	Title, Author string
+	CoverPath     any
+	Duration      float64
+	Metadata      map[string]any
+	Chapters      []map[string]any
+	Files         []audioFile
+	Episodes      []episodeData
 }
 
 type audioFile struct {
@@ -98,8 +95,7 @@ type episodeData struct {
 	ID, Title string
 	Audio     audioFile
 	Duration  float64
-	Chapters  []any
-	JSON      map[string]any
+	Chapters  []map[string]any
 }
 
 type transcode struct {
@@ -119,11 +115,11 @@ type transcode struct {
 
 // New uses the existing database and configuration. It doesn't initialize a
 // playbackSessions table or any other schema.
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any), itemReader items.Reader) *Handler {
+func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
 	if emit == nil {
 		emit = func(string, string, any) {}
 	}
-	return &Handler{db: db, cfg: cfg, emit: emit, items: itemReader, sessions: map[string]*session{}, localIDs: map[string]string{}}
+	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*session{}, localIDs: map[string]string{}}
 }
 
 // Close stops every in-memory session and waits briefly for FFmpeg children.
@@ -224,12 +220,8 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 		playMethod = 2
 	}
 	// PlaybackSession.toJSONForClient embeds libraryItem.toOldJSONExpanded()
-	// (server/objects/PlaybackSession.js:86-116); the shared item reader owns
-	// that serializer.
-	itemJSON, err := h.items.ItemJSON(r.Context(), item.ID, true)
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
+	// (server/objects/PlaybackSession.js:86-116).
+	itemJSON := item.Item.Expanded(libitem.LoadSortingPrefixes(r.Context(), h.db))
 	sessionID, err := ids.New()
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
@@ -279,238 +271,70 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData, error) {
-	var li struct {
-		id, libraryID, mediaID, mediaType string
-		title, author, path, relPath, ino sql.NullString
-		isFile, isMissing, isInvalid      int
-		mtime, ctime, birthtime, lastScan any
-		scanVersion                       sql.NullString
-		libraryFiles, extraData           []byte
-		size                              any
-		created, updated                  any
-		folderID                          sql.NullString
-	}
-	err := h.db.QueryRowContext(ctx, `SELECT id,libraryId,mediaId,mediaType,title,authorNamesFirstLast,path,relPath,ino,isFile,isMissing,isInvalid,mtime,ctime,birthtime,lastScan,lastScanVersion,libraryFiles,extraData,size,createdAt,updatedAt,libraryFolderId FROM libraryItems WHERE id = ?`, id).Scan(&li.id, &li.libraryID, &li.mediaID, &li.mediaType, &li.title, &li.author, &li.path, &li.relPath, &li.ino, &li.isFile, &li.isMissing, &li.isInvalid, &li.mtime, &li.ctime, &li.birthtime, &li.lastScan, &li.scanVersion, &li.libraryFiles, &li.extraData, &li.size, &li.created, &li.updated, &li.folderID)
+	it, err := libitem.LoadOne(ctx, h.db, id, libitem.Options{Episodes: true})
 	if err != nil {
 		return nil, err
 	}
-	if li.isMissing != 0 || li.isInvalid != 0 {
+	if it.IsMissing || it.IsInvalid {
 		return nil, sql.ErrNoRows
 	}
-	out := &itemData{ID: li.id, LibraryID: li.libraryID, MediaID: li.mediaID, MediaType: li.mediaType, Title: li.title.String, Author: li.author.String, Tags: []string{}, Files: []audioFile{}}
-	var media map[string]any
-	if li.mediaType == "book" {
-		media, err = h.loadBook(ctx, li.mediaID, li.id, &out.Files, &out.Metadata, &out.Chapters, &out.Tags, &out.Title, &out.Author, &out.CoverPath, &out.Duration)
-	} else if li.mediaType == "podcast" {
-		media, err = h.loadPodcast(ctx, li.mediaID, li.id, episodeID, &out.Episodes, &out.Files, &out.Metadata, &out.Chapters, &out.Tags, &out.Title, &out.Author, &out.CoverPath, &out.Duration)
+	out := &itemData{Item: it, Files: []audioFile{}, Chapters: []map[string]any{}}
+	var metadata any
+	if b := it.Book; b != nil {
+		out.Title, out.Author, out.CoverPath, out.Chapters = deref(b.Title), b.AuthorName(), coverAny(b.CoverPath), b.Chapters
+		if b.Duration != nil {
+			out.Duration = *b.Duration
+		}
+		for _, raw := range b.AudioFiles {
+			f, err := parseAudioFile(raw)
+			if err != nil {
+				return nil, err
+			}
+			if !f.Exclude {
+				f.Index = numberOr(f.Index, len(out.Files))
+				out.Files = append(out.Files, f)
+			}
+		}
+		metadata = it.Full().Media.(libitem.BookFull).Metadata
 	} else {
-		return nil, fmt.Errorf("unsupported media type %q", li.mediaType)
+		p := it.Podcast
+		out.Title, out.Author, out.CoverPath = deref(p.Title), deref(p.Author), coverAny(p.CoverPath)
+		for _, e := range p.Episodes {
+			if f, err := parseAudioFile(e.AudioFile); err == nil {
+				out.Episodes = append(out.Episodes, episodeData{ID: e.ID, Title: deref(e.Title), Audio: f, Duration: f.Duration, Chapters: e.Chapters})
+			}
+		}
+		metadata = it.Full().Media.(libitem.PodcastMedia).Metadata
 	}
+	raw, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err
 	}
+	_ = json.Unmarshal(raw, &out.Metadata)
 	if episodeID != "" {
-		found := false
-		for _, ep := range out.Episodes {
-			if ep.ID == episodeID {
-				found = true
-				out.Files = []audioFile{ep.Audio}
-				out.Duration = ep.Duration
-				out.Chapters = ep.Chapters
-				out.Title = ep.Title
-				break
-			}
-		}
-		if !found {
+		i := slices.IndexFunc(out.Episodes, func(e episodeData) bool { return e.ID == episodeID })
+		if i < 0 {
 			return nil, sql.ErrNoRows
 		}
+		ep := out.Episodes[i]
+		out.Files, out.Duration, out.Chapters, out.Title = []audioFile{ep.Audio}, ep.Duration, ep.Chapters, ep.Title
 	}
-	out.Explicit, _ = media["explicit"].(bool)
 	return out, nil
 }
 
-func (h *Handler) loadBook(ctx context.Context, id, itemID string, files *[]audioFile, metadata *map[string]any, chapters *[]any, tags *[]string, title, author *string, cover *any, duration *float64) (map[string]any, error) {
-	var t, subtitle, year, published, publisher, description, isbn, asin, language, coverPath sql.NullString
-	var explicit, abridged int
-	var narrators, audio, chapterRaw, tagsRaw, genres []byte
-	var dur sql.NullFloat64
-	err := h.db.QueryRowContext(ctx, `SELECT title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,narrators,coverPath,duration,audioFiles,chapters,tags,genres FROM books WHERE id = ?`, id).Scan(&t, &subtitle, &year, &published, &publisher, &description, &isbn, &asin, &language, &explicit, &abridged, &narrators, &coverPath, &dur, &audio, &chapterRaw, &tagsRaw, &genres)
-	if err != nil {
-		return nil, err
+func deref(s *string) string {
+	if s == nil {
+		return ""
 	}
-	*title = t.String
-	*cover = store.NullString(coverPath)
-	if dur.Valid {
-		*duration = dur.Float64
-	}
-	var au, ge []string
-	_ = json.Unmarshal(narrators, &au)
-	_ = json.Unmarshal(genres, &ge)
-	_ = json.Unmarshal(tagsRaw, tags)
-	if au == nil {
-		au = []string{}
-	}
-	if ge == nil {
-		ge = []string{}
-	}
-	if *tags == nil {
-		*tags = []string{}
-	}
-	authors := []map[string]any{}
-	rows, e := h.db.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC`, id)
-	if e == nil {
-		for rows.Next() {
-			var x, y string
-			if rows.Scan(&x, &y) == nil {
-				authors = append(authors, map[string]any{"id": x, "name": y})
-			}
-		}
-		rows.Close()
-	}
-	series := []map[string]any{}
-	rows, e = h.db.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC`, id)
-	if e == nil {
-		for rows.Next() {
-			var x, y string
-			var seq sql.NullString
-			if rows.Scan(&x, &y, &seq) == nil {
-				series = append(series, map[string]any{"id": x, "name": y, "sequence": seq.String})
-			}
-		}
-		rows.Close()
-	}
-	var rawFiles []map[string]any
-	if err = json.Unmarshal(audio, &rawFiles); err != nil {
-		return nil, fmt.Errorf("decode book audio files: %w", err)
-	}
-	for _, rf := range rawFiles {
-		f, e := parseAudioFile(rf)
-		if e != nil {
-			return nil, e
-		}
-		if !f.Exclude {
-			f.Index = numberOr(f.Index, len(*files))
-			*files = append(*files, f)
-		}
-	}
-	var ch []any
-	_ = json.Unmarshal(chapterRaw, &ch)
-	if ch == nil {
-		ch = []any{}
-	}
-	*chapters = ch
-	authorName, authorLF := joinAuthors(authors, false), joinAuthors(authors, true)
-	seriesName := joinSeries(series)
-	oldMeta := map[string]any{"title": t.String, "subtitle": store.NullString(subtitle), "authors": authors, "narrators": au, "series": series, "genres": ge, "publishedYear": store.NullString(year), "publishedDate": store.NullString(published), "publisher": store.NullString(publisher), "description": store.NullString(description), "isbn": store.NullString(isbn), "asin": store.NullString(asin), "language": store.NullString(language), "explicit": explicit != 0, "abridged": abridged != 0}
-	*metadata = oldMeta
-	*author = authorName
-	expanded := map[string]any{}
-	for k, v := range oldMeta {
-		expanded[k] = v
-	}
-	descriptionPlain := any(nil)
-	if description.Valid && description.String != "" {
-		descriptionPlain = stripTags(description.String)
-	}
-	expanded["titleIgnorePrefix"] = h.titleIgnorePrefix(ctx, t.String)
-	expanded["authorName"] = authorName
-	expanded["authorNameLF"] = authorLF
-	expanded["narratorName"] = strings.Join(au, ", ")
-	expanded["seriesName"] = seriesName
-	expanded["descriptionPlain"] = descriptionPlain
-	return map[string]any{"explicit": explicit != 0, "metadata": expanded}, nil
+	return *s
 }
 
-func (h *Handler) loadPodcast(ctx context.Context, id, itemID, episodeID string, episodes *[]episodeData, files *[]audioFile, metadata *map[string]any, chapters *[]any, tags *[]string, title, author *string, cover *any, duration *float64) (map[string]any, error) {
-	var t, a, rd, feed, image, desc, page, itunes, artist, lang, ptype, coverPath sql.NullString
-	var explicit, auto int
-	var genres, tagsRaw []byte
-	var schedule sql.NullString
-	var last any
-	var maxKeep, maxNew int
-	err := h.db.QueryRowContext(ctx, `SELECT title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres FROM podcasts WHERE id=?`, id).Scan(&t, &a, &rd, &feed, &image, &desc, &page, &itunes, &artist, &lang, &ptype, &explicit, &auto, &schedule, &last, &maxKeep, &maxNew, &coverPath, &tagsRaw, &genres)
-	if err != nil {
-		return nil, err
+// coverAny is a nullable cover path as the session's dynamic JSON value.
+func coverAny(s *string) any {
+	if s == nil {
+		return nil
 	}
-	*title = t.String
-	*author = a.String
-	*cover = store.NullString(coverPath)
-	_ = json.Unmarshal(tagsRaw, tags)
-	var ge []string
-	_ = json.Unmarshal(genres, &ge)
-	rows, err := h.db.QueryContext(ctx, `SELECT id,"index",season,episode,episodeType,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,audioFile,chapters,extraData,publishedAt,createdAt,updatedAt FROM podcastEpisodes WHERE podcastId=? ORDER BY createdAt ASC`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var eid, et string
-		var idx, season, episodeNo, episodeType, subtitle, description, enclosureURL, enclosureType sql.NullString
-		var enclosureSize, published, created, updated any
-		var raw, chraw, extraRaw []byte
-		if err := rows.Scan(&eid, &idx, &season, &episodeNo, &episodeType, &et, &subtitle, &description, &enclosureURL, &enclosureSize, &enclosureType, &raw, &chraw, &extraRaw, &published, &created, &updated); err != nil {
-			return nil, err
-		}
-		var af map[string]any
-		if json.Unmarshal(raw, &af) != nil {
-			continue
-		}
-		f, e := parseAudioFile(af)
-		if e != nil {
-			continue
-		}
-		var ch []any
-		_ = json.Unmarshal(chraw, &ch)
-		if ch == nil {
-			ch = []any{}
-		}
-		var extra map[string]any
-		_ = json.Unmarshal(extraRaw, &extra)
-		enclosure := any(nil)
-		if enclosureURL.Valid {
-			length := any(nil)
-			if enclosureSize != nil {
-				length = fmt.Sprint(enclosureSize)
-			}
-			enclosure = map[string]any{"url": enclosureURL.String, "type": store.NullString(enclosureType), "length": length}
-		}
-		f.Index = 1
-		track := map[string]any{}
-		for k, v := range audioJSON(f) {
-			track[k] = v
-		}
-		track["index"] = 1
-		track["startOffset"] = 0
-		track["title"] = f.Metadata["filename"]
-		track["contentUrl"] = "/api/items/" + itemID + "/file/" + f.Ino
-		oldID := any(nil)
-		if extra != nil {
-			oldID = extra["oldEpisodeId"]
-		}
-		jsonEpisode := map[string]any{"libraryItemId": itemID, "podcastId": id, "id": eid, "oldEpisodeId": oldID, "index": store.NullString(idx), "season": store.NullString(season), "episode": store.NullString(episodeNo), "episodeType": store.NullString(episodeType), "title": et, "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": nil, "pubDate": nil, "chapters": ch, "audioFile": audioJSON(f), "publishedAt": dbtime.Millis(published), "addedAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "audioTrack": track, "size": f.Metadata["size"], "duration": f.Duration}
-		if extra != nil {
-			if extra["guid"] != nil {
-				jsonEpisode["guid"] = extra["guid"]
-			}
-		}
-		if pub, ok := published.(string); ok {
-			jsonEpisode["pubDate"] = pub
-		}
-		ep := episodeData{ID: eid, Title: et, Audio: f, Duration: f.Duration, Chapters: ch, JSON: jsonEpisode}
-		*episodes = append(*episodes, ep)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	oldMeta := map[string]any{"title": t.String, "author": a.String, "description": store.NullString(desc), "releaseDate": store.NullString(rd), "genres": ge, "feedUrl": store.NullString(feed), "imageUrl": store.NullString(image), "itunesPageUrl": store.NullString(page), "itunesId": store.NullString(itunes), "itunesArtistId": store.NullString(artist), "explicit": explicit != 0, "language": store.NullString(lang), "type": store.NullString(ptype)}
-	*metadata = oldMeta
-	*chapters = []any{}
-	expanded := map[string]any{}
-	for k, v := range oldMeta {
-		expanded[k] = v
-	}
-	expanded["titleIgnorePrefix"] = h.titleIgnorePrefix(ctx, t.String)
-	return map[string]any{"explicit": explicit != 0, "metadata": expanded}, nil
+	return *s
 }
 
 type progress struct {
@@ -1130,29 +954,6 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, obj map[str
 	return map[string]any{"id": id, "success": true, "progressSynced": synced}, ""
 }
 
-func (h *Handler) titleIgnorePrefix(ctx context.Context, title string) string {
-	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-		return title
-	}
-	var settings struct {
-		SortingPrefixes []string `json:"sortingPrefixes"`
-	}
-	if json.Unmarshal(raw, &settings) != nil {
-		return title
-	}
-	for _, prefix := range settings.SortingPrefixes {
-		if strings.HasPrefix(strings.ToLower(title), strings.ToLower(prefix)+" ") {
-			rest := title[len(prefix)+1:]
-			if prefix != "" {
-				prefix = strings.ToUpper(prefix[:1]) + prefix[1:]
-			}
-			return rest + ", " + prefix
-		}
-	}
-	return title
-}
-
 func (h *Handler) publicUser(user store.User, s *session) map[string]any {
 	client := s.clientJSON()
 	client["libraryItem"] = nil
@@ -1554,7 +1355,8 @@ func canAccess(user store.User, item *itemData) bool {
 	if !all && !slices.Contains(stringSlice(p["librariesAccessible"]), item.LibraryID) {
 		return false
 	}
-	if item.Explicit {
+	access := item.Access()
+	if access.Explicit {
 		allowed, _ := p["accessExplicitContent"].(bool)
 		if !allowed {
 			return false
@@ -1566,18 +1368,18 @@ func canAccess(user store.User, item *itemData) bool {
 	}
 	selected := stringSlice(p["itemTagsSelected"])
 	selectedNot, _ := p["selectedTagsNotAccessible"].(bool)
-	if len(item.Tags) == 0 {
+	if len(access.Tags) == 0 {
 		return selectedNot
 	}
 	if selectedNot {
-		for _, t := range item.Tags {
+		for _, t := range access.Tags {
 			if slices.Contains(selected, t) {
 				return false
 			}
 		}
 		return true
 	}
-	for _, t := range item.Tags {
+	for _, t := range access.Tags {
 		if slices.Contains(selected, t) {
 			return true
 		}
@@ -1757,57 +1559,6 @@ func audioJSON(f audioFile) map[string]any {
 	return out
 }
 
-func joinAuthors(authors []map[string]any, lastFirst bool) string {
-	parts := make([]string, 0, len(authors))
-	for _, a := range authors {
-		name, _ := a["name"].(string)
-		if lastFirst {
-			name = toLastFirst(name)
-		}
-		parts = append(parts, name)
-	}
-	return strings.Join(parts, ", ")
-}
-func toLastFirst(name string) string {
-	if strings.Contains(name, ",") {
-		return name
-	}
-	fields := strings.Fields(name)
-	if len(fields) < 2 {
-		return name
-	}
-	return strings.Join(fields[1:], " ") + ", " + fields[0]
-}
-func joinSeries(series []map[string]any) string {
-	parts := make([]string, 0, len(series))
-	for _, s := range series {
-		name, _ := s["name"].(string)
-		seq, _ := s["sequence"].(string)
-		if seq != "" {
-			name += " #" + seq
-		}
-		parts = append(parts, name)
-	}
-	return strings.Join(parts, ", ")
-}
-func stripTags(s string) string {
-	var b strings.Builder
-	in := false
-	for _, r := range s {
-		if r == '<' {
-			in = true
-			continue
-		}
-		if r == '>' {
-			in = false
-			continue
-		}
-		if !in {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
 func number(v any, fallback float64) float64 {
 	if n, ok := asFloat(v); ok {
 		return n

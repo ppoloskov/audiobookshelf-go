@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -113,13 +114,20 @@ func (h *Handler) libraryDownloadQueue(libraryID string) wire.EpisodeDownloadQue
 	return out
 }
 
+// recentEpisode is an expanded episode with its bare podcast and library.
+type recentEpisode struct {
+	libitem.EpisodeExpanded
+	Podcast   any    `json:"podcast"`
+	LibraryID string `json:"libraryId"`
+}
+
 // recentEpisodes is libraryItemsPodcastFilters.getRecentEpisodes
 // (server/utils/queries/libraryItemsPodcastFilters.js:520): the newest
 // unfinished episodes of the library by publishedAt, each carrying its
 // podcast without episodes and the libraryId. A zero limit yields no rows
 // because Sequelize emits LIMIT offset,0.
-func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID string, limit, offset int) ([]map[string]any, error) {
-	episodes := make([]map[string]any, 0)
+func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID string, limit, offset int) ([]recentEpisode, error) {
+	episodes := make([]recentEpisode, 0)
 	permission, args := podcastPermissionSQL(user)
 	query := `SELECT pe.id, li.id FROM podcastEpisodes pe
 		JOIN podcasts p ON p.id = pe.podcastId
@@ -150,25 +158,31 @@ func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
-	items := map[string]podcastItem{}
+	itemIDs := make([]string, len(refs))
+	for i, x := range refs {
+		itemIDs[i] = x.itemID
+	}
+	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{Episodes: true})
+	if err != nil {
+		return nil, fmt.Errorf("podcasts: load items: %w", err)
+	}
+	items := make(map[string]libitem.Item, len(loaded))
+	for _, it := range loaded {
+		items[it.ID] = it
+	}
 	for _, x := range refs {
 		item, ok := items[x.itemID]
-		if !ok {
-			if item, err = h.loadItem(ctx, x.itemID); err != nil {
-				return nil, fmt.Errorf("podcasts: load item %s: %w", x.itemID, err)
-			}
-			items[x.itemID] = item
+		if !ok || item.Podcast == nil {
+			continue
 		}
-		episode, ok := item.episode(x.episodeID)
+		episode, ok := episodeOf(item, x.episodeID)
 		if !ok {
 			continue
 		}
-		out := episode.expandedJSON(item.ID)
-		bare := item
+		bare := *item.Podcast
 		bare.Episodes = nil
-		out["podcast"] = bare.legacyJSON()["media"]
-		out["libraryId"] = item.LibraryID
-		episodes = append(episodes, out)
+		item.Podcast = &bare
+		episodes = append(episodes, recentEpisode{episode.Expanded(item.ID), item.Full().Media, item.LibraryID})
 	}
 	return episodes, nil
 }

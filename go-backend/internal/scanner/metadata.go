@@ -15,17 +15,16 @@ import (
 )
 
 // WriteItemMetadata writes the pinned v2.37.2 metadata.json sidecar shape from
-// an expanded legacy library-item DTO. settings accepts storeMetadataWithItem
+// an expanded library item's media. settings accepts storeMetadataWithItem
 // and metadataFileFormat from ServerSettings.
-func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemID string, itemJSON map[string]any, settings map[string]any) error {
+func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemID, mediaType string, itemMedia any, settings map[string]any) error {
 	if db == nil {
 		return errors.New("scanner: metadata database is nil")
 	}
 	if itemID == "" {
 		return errors.New("scanner: metadata item id is empty")
 	}
-	mediaType, _ := itemJSON["mediaType"].(string)
-	mediaRaw, err := json.Marshal(itemJSON["media"])
+	mediaRaw, err := json.Marshal(itemMedia)
 	if err != nil {
 		return fmt.Errorf("scanner: encode expanded item media: %w", err)
 	}
@@ -87,7 +86,6 @@ func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemI
 // WriteMetadata loads the actual library item and related media metadata from
 // the existing database and persists its source-compatible sidecar.
 func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
-	var item map[string]any
 	var itemPath, mediaType, mediaID string
 	var isFile int
 	if err := s.db.QueryRowContext(ctx, `SELECT path,mediaType,mediaId,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&itemPath, &mediaType, &mediaID, &isFile); err != nil {
@@ -183,7 +181,6 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 	} else {
 		return fmt.Errorf("scanner: unsupported metadata media type %q", mediaType)
 	}
-	item = map[string]any{"id": itemID, "path": itemPath, "mediaType": mediaType, "isFile": isFile != 0, "media": media}
 	settings := map[string]any{"storeMetadataWithItem": false, "metadataFileFormat": "json"}
 	var settingsRaw []byte
 	if err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
@@ -191,7 +188,7 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	return WriteItemMetadata(ctx, s.db, s.cfg, itemID, item, settings)
+	return WriteItemMetadata(ctx, s.db, s.cfg, itemID, mediaType, media, settings)
 }
 
 func decodeJSONValue(raw []byte) any {

@@ -3,7 +3,6 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	itemapi "audiobookshelf-compat/internal/items"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -80,15 +78,9 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 			for _, item := range items {
 				var tracks int
 				var ebookFormat any
-				switch media := item["media"].(type) {
-				case map[string]any:
+				if media, ok := item["media"].(map[string]any); ok {
 					tracks = int(number(media["numTracks"]))
 					ebookFormat = media["ebookFormat"]
-				case wire.BookMinified:
-					tracks = media.NumTracks
-					if len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null" {
-						ebookFormat = media.EbookFormat
-					}
 				}
 				if tracks > 0 {
 					audio = append(audio, item)
@@ -260,7 +252,12 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			}
 			audio := decodeObject(audioRaw)
 			extra := decodeObject(extraRaw)
-			episodeJSON := map[string]any{"libraryItemId": itemID, "podcastId": stringValue(audio["podcastId"]), "id": episodeID, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(index), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "title": store.NullString(title), "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(pubDate), "chapters": decodeArray(chaptersRaw), "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs)}
+			episodeJSON := map[string]any{"libraryItemId": itemID, "podcastId": stringValue(audio["podcastId"]), "id": episodeID, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": func() any {
+				if index.Valid {
+					return index.Int64
+				}
+				return nil
+			}(), "season": store.NullString(season), "episode": store.NullString(episode), "episodeType": store.NullString(episodeType), "title": store.NullString(title), "subtitle": store.NullString(subtitle), "description": store.NullString(description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(pubDate), "chapters": decodeArray(chaptersRaw), "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(createdMs), "updatedAt": deref(updatedMs)}
 			records = append(records, episodeShelfRow{itemID, episodeJSON})
 		}
 		if err := rows.Err(); err != nil {
@@ -268,15 +265,17 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 			return httputil.Internal("database read failed", err)
 		}
 		rows.Close()
-		entities := make([]map[string]any, 0, len(records))
-		for _, record := range records {
-			item, e := h.ItemMinifiedJSON(r.Context(), record.itemID)
-			if e != nil {
-				return httputil.Internal("database read failed", e)
-			}
-			record.episode["podcastId"] = item["media"].(map[string]any)["id"]
-			item["recentEpisode"] = record.episode
-			entities = append(entities, item)
+		recordIDs := make([]string, len(records))
+		for i, record := range records {
+			recordIDs[i] = record.itemID
+		}
+		entities, e := h.minifiedItems(r.Context(), recordIDs)
+		if e != nil {
+			return httputil.Internal("database read failed", e)
+		}
+		for i, item := range entities {
+			records[i].episode["podcastId"] = mediaID(item)
+			item["recentEpisode"] = records[i].episode
 		}
 		if len(entities) > 0 {
 			shelf := wire.Shelf{ID: spec.id, Label: spec.label, LabelStringKey: spec.key, Type: spec.kind, Entities: entities, Total: total}
@@ -308,13 +307,12 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		return httputil.Internal("database read failed", err)
 	}
 	ids.Close()
-	entities := make([]map[string]any, 0, len(itemIDs))
-	for _, id := range itemIDs {
-		item, e := h.ItemMinifiedJSON(r.Context(), id)
-		if e == nil {
-			e = h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), id, item["media"], func(k string, v any) { item[k] = v })
-		}
-		if e != nil {
+	entities, err := h.minifiedItems(r.Context(), itemIDs)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	for _, item := range entities {
+		if e := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item); e != nil {
 			return httputil.Internal("database read failed", e)
 		}
 		// LibraryFilters.getLibraryItemsMostRecentlyAdded podcast branch
@@ -323,13 +321,6 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 		podcastID, _ := media["id"].(string)
 		if size := number(item["size"]); size != 0 && number(media["size"]) == 0 {
 			media["size"] = size
-		}
-		if includeHas(r, "rssfeed") {
-			if feed, ok, feedErr := h.feedMinified(r.Context(), "libraryItem", id); feedErr != nil {
-				return httputil.Internal("database read failed", feedErr)
-			} else if ok {
-				item["rssFeed"] = feed
-			}
 		}
 		if includeHas(r, "numepisodesincomplete") {
 			incomplete, incErr := h.numEpisodesIncomplete(r.Context(), user.ID, podcastID)
@@ -340,7 +331,6 @@ func (h *Handler) personalizedPodcasts(w http.ResponseWriter, r *http.Request, u
 				item["numEpisodesIncomplete"] = incomplete
 			}
 		}
-		entities = append(entities, item)
 	}
 	if len(entities) > 0 {
 		shelves = append(shelves, wire.Shelf{ID: "recently-added", Label: "Recently Added", LabelStringKey: "LabelRecentlyAdded", Type: "podcast", Entities: entities, Total: total})
@@ -398,71 +388,15 @@ func (h *Handler) personalizedItems(r *http.Request, user store.User, query stri
 		return nil, err
 	}
 
-	includes := requestItemIncludes(r, user)
-	if includes == (itemIncludes{}) && len(ids) > 0 {
-		records, err := itemapi.LoadMany(r.Context(), h.db, ids)
-		if err != nil {
-			return nil, err
-		}
-		mediaIDs := make([]string, 0, len(records))
-		bookShelf := true
-		for _, record := range records {
-			if record.MediaType != "book" {
-				bookShelf = false
-				continue
-			}
-			mediaIDs = append(mediaIDs, record.MediaID)
-		}
-		if bookShelf {
-			for _, id := range ids {
-				if _, ok := records[id]; !ok {
-					return nil, sql.ErrNoRows
-				}
-			}
-			books, err := bookdomain.LoadMany(r.Context(), h.db, mediaIDs)
-			if err != nil {
-				return nil, err
-			}
-			var settings []byte
-			_ = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
-			prefixes := sortingPrefixesFromJSON(settings)
-			items := make([]map[string]any, 0, len(ids))
-			for _, id := range ids {
-				record := records[id]
-				book, ok := books[record.MediaID]
-				if !ok {
-					return nil, sql.ErrNoRows
-				}
-				var prefix *string
-				if title := book.Title(); title != nil {
-					value := catalogTitlePrefixAtEnd(*title, prefixes)
-					prefix = &value
-				}
-				media, err := book.Minified(prefix)
-				if err != nil {
-					return nil, err
-				}
-				item := recordToMap(record)
-				delete(item, "lastScan")
-				delete(item, "scanVersion")
-				delete(item, "libraryFiles")
-				item["media"] = media
-				items = append(items, item)
-			}
-			return items, nil
-		}
+	items, err := h.minifiedItems(r.Context(), ids)
+	if err != nil {
+		return nil, err
 	}
-
-	items := make([]map[string]any, 0, len(ids))
-	for _, id := range ids {
-		item, err := h.ItemMinifiedJSON(r.Context(), id)
-		if err != nil {
+	includes := requestItemIncludes(r, user)
+	for _, item := range items {
+		if err := h.attachItemIncludes(r.Context(), includes, item); err != nil {
 			return nil, err
 		}
-		if err := h.attachItemIncludes(r.Context(), includes, id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
 	}
 	return items, nil
 }

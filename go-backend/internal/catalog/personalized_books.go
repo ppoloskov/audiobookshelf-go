@@ -36,10 +36,12 @@ func (h *Handler) bookLibrarySettings(ctx context.Context, libraryID string) boo
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
-func withBookMinified(item map[string]any, edit func(*wire.BookMinified)) {
-	if media, ok := item["media"].(wire.BookMinified); ok {
-		edit(&media)
-		item["media"] = media
+// editBookMetadata edits the metadata object of a rendered book item.
+func editBookMetadata(item map[string]any, edit func(metadata map[string]any)) {
+	if media, ok := item["media"].(map[string]any); ok && item["mediaType"] == "book" {
+		if metadata, ok := media["metadata"].(map[string]any); ok {
+			edit(metadata)
+		}
 	}
 }
 
@@ -62,6 +64,11 @@ func (h *Handler) queryStrings(ctx context.Context, query string, args ...any) (
 
 // continueSeriesShelf mirrors libraryItemsBookFilters.getContinueSeriesLibraryItems
 // (server/utils/queries/libraryItemsBookFilters.js:704-836).
+type seriesRow struct {
+	id, name    string
+	maxSequence *float64
+}
+
 func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryID string, limit int) ([]any, int, error) {
 	ctx := r.Context()
 	settings := h.bookLibrarySettings(ctx, libraryID)
@@ -102,10 +109,6 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 	if err != nil {
 		return nil, 0, err
 	}
-	type seriesRow struct {
-		id, name    string
-		maxSequence *float64
-	}
 	series := make([]seriesRow, 0)
 	for rows.Next() {
 		var s seriesRow
@@ -126,7 +129,12 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 	rows.Close()
 
 	permission, permissionArgs := userMediaClause(user, "book")
-	items := make([]any, 0, len(series))
+	type chosenBook struct {
+		series   seriesRow
+		itemID   string
+		sequence *string
+	}
+	chosenBooks := make([]chosenBook, 0, len(series))
 	for _, s := range series {
 		// The series' bookSeries rows whose book the user has not finished,
 		// ordered by CAST(sequence AS FLOAT) ASC NULLS LAST.
@@ -175,22 +183,29 @@ func (h *Handler) continueSeriesShelf(r *http.Request, user store.User, libraryI
 				continue
 			}
 		}
-		chosen := candidates[index]
-		item, err := h.ItemMinifiedJSON(ctx, chosen.itemID)
-		if err != nil {
-			return nil, 0, err
-		}
+		chosenBooks = append(chosenBooks, chosenBook{s, candidates[index].itemID, candidates[index].sequence})
+	}
+	chosenIDs := make([]string, len(chosenBooks))
+	for i, c := range chosenBooks {
+		chosenIDs[i] = c.itemID
+	}
+	rendered, err := h.minifiedItems(ctx, chosenIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]any, 0, len(rendered))
+	for i, item := range rendered {
 		// The continue-series and discover queries only load feeds; they never
 		// set mediaItemShare (libraryItemsBookFilters.js:707-826, 886-1017).
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, chosen.itemID, item["media"], func(k string, v any) { item[k] = v }); err != nil {
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item); err != nil {
 			return nil, 0, err
 		}
-		name := s.name
-		withBookMinified(item, func(media *wire.BookMinified) {
+		c := chosenBooks[i]
+		editBookMetadata(item, func(metadata map[string]any) {
 			// book.series = [] before toOldJSONMinified, then metadata.series
 			// is replaced with the continued series.
-			media.Metadata.SeriesName = ""
-			media.Metadata.Series = &wire.BookSeries{ID: s.id, Name: name, Sequence: chosen.sequence}
+			metadata["seriesName"] = ""
+			metadata["series"] = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
 		})
 		items = append(items, item)
 	}
@@ -316,16 +331,18 @@ func (h *Handler) recentSeriesShelf(r *http.Request, user store.User, libraryID 
 			}
 			return naturalCompare(*a, *b) < 0
 		})
-		e.Books = make([]any, 0, len(members))
-		for _, m := range members {
-			item, err := h.ItemMinifiedJSON(ctx, m.itemID)
-			if err != nil {
-				return nil, 0, err
-			}
-			withBookMinified(item, func(media *wire.BookMinified) {
-				media.Metadata.AuthorName = ""
-				media.Metadata.AuthorNameLF = ""
-				media.Metadata.SeriesName = ""
+		memberIDs := make([]string, len(members))
+		for i, m := range members {
+			memberIDs[i] = m.itemID
+		}
+		books, err := h.minifiedItems(ctx, memberIDs)
+		if err != nil {
+			return nil, 0, err
+		}
+		e.Books = make([]any, 0, len(books))
+		for _, item := range books {
+			editBookMetadata(item, func(metadata map[string]any) {
+				metadata["authorName"], metadata["authorNameLF"], metadata["seriesName"] = "", "", ""
 			})
 			e.Books = append(e.Books, item)
 		}
@@ -410,13 +427,13 @@ func (h *Handler) discoverShelf(r *http.Request, user store.User, libraryID stri
 	if err != nil {
 		return nil, 0, err
 	}
-	items := make([]any, 0, len(itemIDs))
-	for _, id := range itemIDs {
-		item, err := h.ItemMinifiedJSON(ctx, id)
-		if err != nil {
-			return nil, 0, err
-		}
-		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, id, item["media"], func(k string, v any) { item[k] = v }); err != nil {
+	rendered, err := h.minifiedItems(ctx, itemIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]any, 0, len(rendered))
+	for _, item := range rendered {
+		if err := h.attachItemIncludes(ctx, itemIncludes{rssFeed: includeHas(r, "rssfeed")}, item); err != nil {
 			return nil, 0, err
 		}
 		items = append(items, item)

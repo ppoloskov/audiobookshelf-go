@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -16,7 +17,7 @@ func TestCanAccessPodcastExplicitContentPermission(t *testing.T) {
 		"accessExplicitContent": false,
 	})
 	u := store.User{Type: "user", Permissions: permissions}
-	item := podcastItem{Explicit: true}
+	item := libitem.Item{Podcast: &libitem.Podcast{Explicit: true}}
 	if canAccessPodcast(u, item) {
 		t.Fatal("explicit podcast must be denied without explicit-content permission")
 	}

@@ -16,11 +16,10 @@ import (
 	"testing"
 	"time"
 
-	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/wire"
 	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
 )
@@ -270,7 +269,7 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 				t.Fatal(err)
 			}
 			assertGolden(fixture.Name, "itemExpandedJSON", expanded)
-			fullMedia, err := h.bookFull(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			fullMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "full")
 			if err != nil {
 				t.Fatalf("full builder: %v", err)
 			}
@@ -281,7 +280,7 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 			}
 			assertDualRun(fixture.Name, "full", fullMedia, legacyFull)
 
-			minifiedMedia, err := h.bookMinified(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			minifiedMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "minified")
 			if err != nil {
 				t.Fatalf("minified builder: %v", err)
 			}
@@ -292,7 +291,7 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 			}
 			assertDualRun(fixture.Name, "minified", minifiedMedia, legacyMinified)
 
-			expandedMedia, err := h.bookExpanded(t.Context(), fixture.Book.ID, fixture.Item.ID)
+			expandedMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "expanded")
 			if err != nil {
 				t.Fatalf("expanded builder: %v", err)
 			}
@@ -581,28 +580,18 @@ func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[strin
 	return authors, series, nil
 }
 
-func (h *Handler) bookFull(ctx context.Context, bookID, itemID string) (wire.BookFull, error) {
-	book, err := bookdomain.Load(ctx, h.db, bookID)
+func (h *Handler) bookMedia(ctx context.Context, itemID, shape string) (any, error) {
+	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
 	if err != nil {
-		return wire.BookFull{}, err
+		return nil, err
 	}
-	return book.Full(itemID)
-}
-
-func (h *Handler) bookMinified(ctx context.Context, bookID, itemID string) (wire.BookMinified, error) {
-	book, err := bookdomain.Load(ctx, h.db, bookID)
-	if err != nil {
-		return wire.BookMinified{}, err
+	switch shape {
+	case "full":
+		return it.Full().Media, nil
+	case "expanded":
+		return it.Expanded(h.sortingPrefixes(ctx)).Media, nil
 	}
-	return book.Minified(h.bookTitlePrefix(ctx, book.Title()))
-}
-
-func (h *Handler) bookExpanded(ctx context.Context, bookID, itemID string) (wire.BookExpanded, error) {
-	book, err := bookdomain.Load(ctx, h.db, bookID)
-	if err != nil {
-		return wire.BookExpanded{}, err
-	}
-	return book.Expanded(itemID, h.bookTitlePrefix(ctx, book.Title()))
+	return it.Minified(h.sortingPrefixes(ctx)).Media, nil
 }
 
 func includedAudioCount(audio []map[string]any) int {

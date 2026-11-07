@@ -20,6 +20,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -27,7 +28,7 @@ import (
 
 type downloadTask struct {
 	id                               string
-	item                             podcastItem
+	item                             libitem.Item
 	episode                          map[string]any
 	url, filename                    string
 	auto                             bool
@@ -46,7 +47,7 @@ func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 	libraryID := d.item.LibraryID
 	out := wire.EpisodeDownload{
 		ID: d.id, EpisodeDisplayTitle: &title, URL: d.url, LibraryItemID: d.item.ID, IsFinished: d.finished, Failed: d.failed,
-		AppendRandomID: d.appendID, CreatedAt: d.createdAt, PodcastExplicit: d.item.Explicit,
+		AppendRandomID: d.appendID, CreatedAt: d.createdAt, PodcastExplicit: d.item.Podcast.Explicit,
 		Season: d.episode["season"], Episode: d.episode["episode"], EpisodeType: kind, PublishedAt: d.episode["publishedAt"], GUID: d.episode["guid"],
 	}
 	if libraryID != "" {
@@ -58,13 +59,11 @@ func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 	if d.finishedAt != 0 {
 		out.FinishedAt = &d.finishedAt
 	}
-	if d.item.Title.Valid {
-		out.PodcastTitle = &d.item.Title.String
-	}
+	out.PodcastTitle = d.item.Podcast.Title
 	return out
 }
 
-func (h *Handler) enqueue(item podcastItem, episodes []map[string]any, auto bool) error {
+func (h *Handler) enqueue(item libitem.Item, episodes []map[string]any, auto bool) error {
 	var added []*downloadTask
 	for _, episode := range episodes {
 		enc, ok := episode["enclosure"].(map[string]any)
@@ -437,8 +436,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	filesJSON, _ := json.Marshal(files)
 	var sizeTotal int64
 	for _, f := range files {
-		var m map[string]any
-		_ = json.Unmarshal(mustJSON(f["metadata"]), &m)
+		m, _ := f["metadata"].(map[string]any)
 		if v, ok := m["size"].(float64); ok {
 			sizeTotal += int64(v)
 		} else if v, ok := m["size"].(int64); ok {
@@ -460,7 +458,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	if err != nil {
 		return err
 	}
-	if d.auto && updated.MaxKeep > 0 {
+	if d.auto && updated.Podcast.MaxEpisodesToKeep > 0 {
 		if err = h.trimOldestEpisode(d.ctx, updated, episodeID); err != nil {
 			return err
 		}
@@ -469,20 +467,21 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 			return err
 		}
 	}
-	h.emit("@admins", "item_updated", updated.oldJSON())
-	episode, ok := updated.episode(episodeID)
-	if ok {
-		event := episode.expandedJSON(d.item.ID)
-		event["libraryItem"] = updated.oldJSON()
-		h.emit("*", "episode_added", event)
+	expanded := h.expanded(d.ctx, updated)
+	h.emit("@admins", "item_updated", expanded)
+	if episode, ok := episodeOf(updated, episodeID); ok {
+		h.emit("*", "episode_added", struct {
+			libitem.EpisodeExpanded
+			LibraryItem libitem.Expanded `json:"libraryItem"`
+		}{episode.Expanded(d.item.ID), expanded})
 	}
 	return nil
 }
 
-func (h *Handler) trimOldestEpisode(ctx context.Context, item podcastItem, justAdded string) error {
+func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, justAdded string) error {
 	var published int
 	_ = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=? AND publishedAt IS NOT NULL`, item.MediaID).Scan(&published)
-	if published <= item.MaxKeep {
+	if int64(published) <= item.Podcast.MaxEpisodesToKeep {
 		return nil
 	}
 	rows, err := h.db.QueryContext(ctx, `SELECT id,audioFile FROM podcastEpisodes WHERE podcastId=? AND publishedAt IS NOT NULL ORDER BY publishedAt ASC`, item.MediaID)
@@ -503,8 +502,7 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item podcastItem, justA
 		}
 		var audio map[string]any
 		_ = json.Unmarshal([]byte(audioRaw.String), &audio)
-		var metadata map[string]any
-		_ = json.Unmarshal(mustJSON(audio["metadata"]), &metadata)
+		metadata, _ := audio["metadata"].(map[string]any)
 		path, _ := metadata["path"].(string)
 		ino := fmt.Sprint(audio["ino"])
 		if path != "" {
@@ -520,9 +518,7 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item podcastItem, justA
 		return nil
 	}
 	files := []map[string]any{}
-	var existing []map[string]any
-	_ = json.Unmarshal([]byte(item.LibraryFiles.String), &existing)
-	for _, f := range existing {
+	for _, f := range h.rawLibraryFiles(ctx, item.ID) {
 		if f["ino"] != candidate.ino {
 			files = append(files, f)
 		}

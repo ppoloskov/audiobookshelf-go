@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/libitem"
 )
 
 type gatedRoundTripper struct {
@@ -27,7 +28,7 @@ func TestDownloadCompletionStatusPollingIsSynchronized(t *testing.T) {
 	rt := &gatedRoundTripper{entered: make(chan struct{}), release: make(chan struct{})}
 	h.client = &http.Client{Transport: rt}
 	d := &downloadTask{
-		id: "download", item: podcastItem{ID: "item", Path: t.TempDir()},
+		id: "download", item: libitem.Item{ID: "item", Path: t.TempDir(), Podcast: &libitem.Podcast{}},
 		episode: map[string]any{"title": "Episode"}, url: "http://fixture.test/episode.mp3",
 		createdAt: 1,
 	}

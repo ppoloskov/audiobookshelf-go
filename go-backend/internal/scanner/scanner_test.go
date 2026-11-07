@@ -606,8 +606,8 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if len(events) != 4 || events[0].name != "task_started" || events[1].scope != "*" || events[1].name != "author_added" || events[2].name != "items_added" || events[2].scope != "*" || events[3].name != "task_finished" {
 		t.Fatalf("source-scoped metadata events = %+v", events)
 	}
-	addedItems, ok := events[2].payload.([]map[string]any)
-	if !ok || len(addedItems) != 1 || addedItems[0]["id"] == nil || addedItems[0]["path"] == nil || addedItems[0]["mediaType"] != "book" {
+	addedItems := payloadItems(t, events[2].payload)
+	if len(addedItems) != 1 || addedItems[0]["id"] == nil || addedItems[0]["path"] == nil || addedItems[0]["mediaType"] != "book" {
 		t.Fatalf("expanded items_added payload = %#v", events[2].payload)
 	}
 	mediaRaw, _ := json.Marshal(addedItems[0]["media"])
@@ -878,10 +878,7 @@ func TestScanEmitsAddedAndUpdatedItemsInChunksOfTen(t *testing.T) {
 		var chunks [][]string
 		for _, e := range events {
 			if e.name == event {
-				items, ok := e.payload.([]map[string]any)
-				if !ok {
-					t.Fatalf("%s payload type %T", event, e.payload)
-				}
+				items := payloadItems(t, e.payload)
 				ids := make([]string, len(items))
 				for i, item := range items {
 					ids[i], _ = item["id"].(string)

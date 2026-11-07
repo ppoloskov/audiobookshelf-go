@@ -3,7 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,7 +16,6 @@ import (
 
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 func canUpdateCatalog(user store.User) bool {
@@ -82,7 +81,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 			ids = append(ids, id)
 		}
 	}
-	selected := make([]map[string]any, 0, len(items))
+	visibleIDs := make([]string, 0, len(items))
 	for _, id := range ids {
 		ref, ok := items[id]
 		if !ok {
@@ -108,11 +107,11 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		if visible == 0 {
 			return httputil.Status(http.StatusForbidden, "")
 		}
-		item, err := h.ItemJSON(r.Context(), id, true)
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		selected = append(selected, item)
+		visibleIDs = append(visibleIDs, id)
+	}
+	selected, err := h.itemMaps(r.Context(), visibleIDs, "expanded")
+	if err != nil {
+		return httputil.Internal("database read failed", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraryItems": selected}, httputil.ForRequest(r))
 	return nil
@@ -244,15 +243,11 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	if missing != 0 || mediaType != "book" || audioCount == 0 {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
-	item, err := h.ItemJSON(r.Context(), itemID, false)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
+	item, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{})
+	if err != nil || item.Book == nil {
+		return httputil.Internal("database read failed", errors.Join(err, fmt.Errorf("item %s is not a book", itemID)))
 	}
-	media, ok := item["media"].(wire.BookFull)
-	if !ok {
-		return httputil.Internal("database read failed", fmt.Errorf("media of the item is %T, not a book", item["media"]))
-	}
-	metadata := media.Metadata
+	metadata := item.Book
 	authorNames := make([]string, 0, len(metadata.Authors))
 	for _, author := range metadata.Authors {
 		authorNames = append(authorNames, author.Name)
@@ -458,7 +453,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 			break
 		}
 	}
-	if selected < 0 || itemapi.FileType(fileMetadataExt(files[selected])) != "ebook" {
+	if selected < 0 || libitem.FileType(fileMetadataExt(files[selected])) != "ebook" {
 		return httputil.Status(http.StatusBadRequest, "Invalid ebook file id")
 	}
 	var primary any
@@ -478,7 +473,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 		primaryIno = stringValue(m["ino"])
 	}
 	for _, file := range files {
-		if itemapi.FileType(fileMetadataExt(file)) == "ebook" {
+		if libitem.FileType(fileMetadataExt(file)) == "ebook" {
 			file["isSupplementary"] = stringValue(file["ino"]) != primaryIno
 		}
 	}

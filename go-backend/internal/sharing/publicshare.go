@@ -13,6 +13,7 @@ import (
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -132,22 +133,17 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	if share.MediaItemType != "book" {
 		return httputil.Status(404, "Media item not found")
 	}
-	var itemID, libraryID, mediaID sql.NullString
-	if err := h.db.QueryRowContext(ctx, `SELECT id,libraryId,mediaId FROM libraryItems WHERE mediaId=? LIMIT 1`, share.MediaItemID).Scan(&itemID, &libraryID, &mediaID); err != nil {
+	var itemID string
+	if err := h.db.QueryRowContext(ctx, `SELECT id FROM libraryItems WHERE mediaId=? LIMIT 1`, share.MediaItemID).Scan(&itemID); err != nil {
 		return httputil.Status(404, "Media item not found")
 	}
-	var title, cover sql.NullString
-	var duration sql.NullFloat64
-	var audioRaw, chaptersRaw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT title,coverPath,duration,audioFiles,chapters FROM books WHERE id=?`, share.MediaItemID).Scan(&title, &cover, &duration, &audioRaw, &chaptersRaw); err != nil {
+	item, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
+	if err != nil || item.Book == nil {
 		return httputil.Status(404, "Media item not found")
 	}
-	authors, err := h.bookAuthors(ctx, share.MediaItemID)
-	if err != nil {
-		return httputil.Internal("Internal server error", err)
-	}
+	book := item.Book
 	var files []shareAudioFile
-	_ = json.Unmarshal(audioRaw, &files)
+	remarshal(book.AudioFiles, &files)
 	tracks := []shareTrack{}
 	total := 0.0
 	for _, f := range files {
@@ -173,8 +169,6 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	if sid == "" {
 		sid, _ = ids.New()
 	}
-	chapters := []any{}
-	_ = json.Unmarshal(chaptersRaw, &chapters)
 	now := time.Now().UnixMilli()
 	device, err := h.shareDevice(ctx, r, sid)
 	if err != nil {
@@ -182,12 +176,12 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	}
 	s := &shareSession{
 		BookID: share.MediaItemID, Device: device,
-		ID: sid, ShareID: share.ID, Slug: slug, ItemID: itemID.String, LibraryID: libraryID.String, Title: title.String,
-		Author: joinAuthors(authors), CoverPath: cover.String, Duration: duration.Float64, Current: start, Start: start,
-		Updated: now, Tracks: tracks, Metadata: h.oldBookMetadata(ctx, share.MediaItemID), Chapters: chapters,
+		ID: sid, ShareID: share.ID, Slug: slug, ItemID: item.ID, LibraryID: item.LibraryID, Title: deref(book.Title),
+		Author: book.AuthorName(), CoverPath: deref(book.CoverPath), Duration: deref64(book.Duration), Current: start, Start: start,
+		Updated: now, Tracks: tracks, Metadata: item.Full().Media.(libitem.BookFull).Metadata, Chapters: book.Chapters,
 	}
 	var librarySettings []byte
-	_ = h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, libraryID.String).Scan(&librarySettings)
+	_ = h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, item.LibraryID).Scan(&librarySettings)
 	var ls struct {
 		CoverAspectRatio *float64 `json:"coverAspectRatio"`
 	}
@@ -201,6 +195,13 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	http.SetCookie(w, &http.Cookie{Name: "share_session_id", Value: sid, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
 	write(w, payload)
 	return nil
+}
+
+func deref64(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
 }
 
 func nonEmpty(s *string) *string {

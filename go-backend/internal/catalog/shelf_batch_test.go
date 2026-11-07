@@ -13,7 +13,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -135,7 +135,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 
 func TestItemBatchQueryCounts(t *testing.T) {
 	db, counter := catalogFixtureWithQueryCount(t)
-	seedBookPage(t, db, 126) // 251 rows, crossing the 250-ID chunk boundary.
+	seedBookPage(t, db, 126) // 251 rows: one IN-list chunk (500) per table.
 
 	for _, test := range []struct {
 		name      string
@@ -143,23 +143,25 @@ func TestItemBatchQueryCounts(t *testing.T) {
 		wantReads int64
 		wantRows  int
 	}{
+		// libitem.Load reads libraryItems, books, authors and series once each;
+		// duplicate ids repeat their item in the result.
 		{name: "empty", wantReads: 0, wantRows: 0},
-		{name: "one", ids: []string{"i2"}, wantReads: 1, wantRows: 1},
-		{name: "250 with duplicate", ids: append(itemIDsForShelf(250), "i2"), wantReads: 1, wantRows: 250},
-		{name: "251", ids: itemIDsForShelf(251), wantReads: 2, wantRows: 251},
+		{name: "one", ids: []string{"i2"}, wantReads: 4, wantRows: 1},
+		{name: "250 with duplicate", ids: append(itemIDsForShelf(250), "i2"), wantReads: 4, wantRows: 251},
+		{name: "251", ids: itemIDsForShelf(251), wantReads: 4, wantRows: 251},
 		{name: "missing", ids: []string{"missing"}, wantReads: 1, wantRows: 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			counter.reset()
-			got, err := itemapi.LoadMany(context.Background(), db, test.ids)
+			got, err := libitem.Load(context.Background(), db, test.ids, libitem.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
 			if len(got) != test.wantRows {
-				t.Fatalf("LoadMany returned %d rows, want %d", len(got), test.wantRows)
+				t.Fatalf("libitem.Load returned %d rows, want %d", len(got), test.wantRows)
 			}
 			if reads := counter.reads(); reads != test.wantReads {
-				t.Fatalf("LoadMany issued %d reads, want %d", reads, test.wantReads)
+				t.Fatalf("libitem.Load issued %d reads, want %d", reads, test.wantReads)
 			}
 		})
 	}

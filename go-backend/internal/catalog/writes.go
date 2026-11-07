@@ -22,6 +22,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
@@ -119,23 +120,6 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
 }
 
 var errUnsupportedMedia = errors.New("unsupported media type")
-
-// sortingPrefixes is the server setting the series prefix form is built from.
-func (h *Handler) sortingPrefixes(ctx context.Context) []string {
-	prefixes := []string{"the", "a"}
-	var settingsRaw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
-		if values, ok := decodeObject(settingsRaw)["sortingPrefixes"].([]any); ok {
-			prefixes = make([]string, 0, len(values))
-			for _, value := range values {
-				if s, ok := value.(string); ok {
-					prefixes = append(prefixes, s)
-				}
-			}
-		}
-	}
-	return prefixes
-}
 
 // titleIgnorePrefix is utils.getTitleIgnorePrefix (utils/index.js:176-202):
 // the title without a leading sorting prefix, "" for an empty title.
@@ -745,7 +729,7 @@ func (h *Handler) syncBookSeries(ctx context.Context, tx *sql.Tx, bookID, librar
 			if id == "" {
 				return false, fmt.Errorf("generate series id")
 			}
-			if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, name, catalogTitlePrefixAtEnd(name, prefixes), libraryID, now, now); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, name, libitem.TitleIgnorePrefix(name, prefixes), libraryID, now, now); err != nil {
 				return false, err
 			}
 		} else if err != nil {

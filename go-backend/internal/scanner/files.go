@@ -570,8 +570,8 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 		if e := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); e == nil {
 			_ = json.Unmarshal(settingsRaw, &settings)
 		}
-		if item, e := s.items.ItemJSON(ctx, itemID, true); e == nil {
-			_ = WriteItemMetadata(ctx, s.db, s.cfg, itemID, item, settings)
+		if item, e := s.itemEvent(ctx, itemID); e == nil {
+			_ = WriteItemMetadata(ctx, s.db, s.cfg, itemID, item.MediaType, item.Media, settings)
 		}
 	}
 	if added && l.mediaType == "book" {

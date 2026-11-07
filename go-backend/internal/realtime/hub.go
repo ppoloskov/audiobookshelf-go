@@ -18,7 +18,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -47,6 +47,7 @@ type client struct {
 	user        *store.User
 	connectedAt time.Time
 	testEmit    func(string)
+	grants      grants // decoded from user.Permissions when the user is set
 }
 
 // AddTestClient registers an authenticated event recipient without a network
@@ -54,7 +55,7 @@ type client struct {
 func (h *Hub) AddTestClient(id string, user store.User) {
 	h.mu.Lock()
 	copy := user
-	h.clients[id] = &client{user: &copy}
+	h.clients[id] = &client{user: &copy, grants: parseGrants(copy.Permissions)}
 	h.mu.Unlock()
 }
 
@@ -361,7 +362,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 	if c := h.clients[id]; c != nil {
 		previous = c.user
 		copy := user
-		c.user = &copy
+		c.user, c.grants = &copy, parseGrants(copy.Permissions)
 	}
 	h.mu.Unlock()
 	// SocketAuthority.js:336-345
@@ -450,7 +451,7 @@ func (h *Hub) Emit(userID, event string, payload any) {
 		userPayload := payload
 		switch userID {
 		case "*":
-			userPayload, allowed = payloadForUser(*c.user, payload)
+			userPayload, allowed = payloadForUser(&c.grants, payload)
 		case "@admins":
 			allowed = isAdmin(*c.user)
 		default:
@@ -558,7 +559,88 @@ func (h *Hub) publicUserWithLookup(user store.User, lookup func(string) any) map
 	}
 }
 
-func payloadAccessible(user store.User, payload any) bool {
+// grants are a user's library/item permissions, decoded once per connection.
+type grants struct {
+	allLibraries, explicit, allTags, tagsExcluded bool
+	libraries, tags                               []string
+}
+
+func parseGrants(raw json.RawMessage) grants {
+	var p struct {
+		AllLibraries bool     `json:"accessAllLibraries"`
+		Libraries    []string `json:"librariesAccessible"`
+		Explicit     bool     `json:"accessExplicitContent"`
+		AllTags      bool     `json:"accessAllTags"`
+		Tags         []string `json:"itemTagsSelected"`
+		TagsExcluded bool     `json:"selectedTagsNotAccessible"`
+	}
+	_ = json.Unmarshal(raw, &p)
+	return grants{p.AllLibraries, p.Explicit, p.AllTags, p.TagsExcluded, p.Libraries, p.Tags}
+}
+
+func (g *grants) library(id string) bool { return g.allLibraries || slices.Contains(g.libraries, id) }
+
+// item applies the library, explicit and tag rules to one item's access inputs.
+func (g *grants) item(a libitem.Access) bool {
+	if !g.library(a.LibraryID) || (a.Explicit && !g.explicit) {
+		return false
+	}
+	if g.allTags {
+		return true
+	}
+	hit := slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(g.tags, t) })
+	if g.tagsExcluded {
+		return !hit
+	}
+	return hit
+}
+
+// accessor is implemented by the typed item payloads (libitem.Expanded, ...).
+type accessor interface{ Access() libitem.Access }
+
+func filter[T accessor](g *grants, values []T) (any, bool) {
+	out := make([]T, 0, len(values))
+	for _, v := range values {
+		if g.item(v.Access()) {
+			out = append(out, v)
+		}
+	}
+	return out, len(out) > 0
+}
+
+// mediaAccess reads the access inputs of an untyped media value: a map, or any
+// value that marshals to an object with an id (fails closed otherwise).
+func mediaAccess(libraryID string, media any) (libitem.Access, bool) {
+	a := libitem.Access{LibraryID: libraryID}
+	if m, ok := media.(map[string]any); ok {
+		a.Tags = stringsValue(m["tags"])
+		a.Explicit = boolValue(m["explicit"])
+		if md, ok := m["metadata"].(map[string]any); ok {
+			a.Explicit = a.Explicit || boolValue(md["explicit"])
+		}
+		return a, true
+	}
+	var v struct {
+		ID       string   `json:"id"`
+		Tags     []string `json:"tags"`
+		Metadata struct {
+			Explicit bool `json:"explicit"`
+		} `json:"metadata"`
+	}
+	raw, err := json.Marshal(media)
+	if err != nil || json.Unmarshal(raw, &v) != nil || v.ID == "" {
+		return a, false
+	}
+	a.Tags, a.Explicit = v.Tags, v.Metadata.Explicit
+	return a, true
+}
+
+// payloadAccessible filters a non-item payload that may still carry a library
+// (collections, item_removed) or an untyped item map.
+func payloadAccessible(g *grants, payload any) bool {
+	if a, ok := payload.(accessor); ok {
+		return g.item(a.Access())
+	}
 	metadata, ok := payload.(map[string]any)
 	if !ok {
 		return true // global events without item/library metadata are unrestricted.
@@ -574,103 +656,61 @@ func payloadAccessible(user store.User, payload any) bool {
 	if !hasLibrary || libraryID == "" {
 		return true
 	}
-	var permissions map[string]any
-	if len(user.Permissions) > 0 {
-		_ = json.Unmarshal(user.Permissions, &permissions)
-	}
-	if permissions == nil || !boolValue(permissions["accessAllLibraries"]) {
-		if !slices.Contains(stringsValue(permissions["librariesAccessible"]), libraryID) {
-			return false
-		}
-	}
 	// Collection events carry a top-level libraryId but no media; upstream
 	// broadcasts them after the library check and has no item/tag ACL to apply.
 	if !hasMedia {
-		return true
+		return g.library(libraryID)
 	}
-	access, ok := itemapi.AccessMedia(media)
-	if !ok {
-		return false
-	}
-	if access.Explicit && !boolValue(permissions["accessExplicitContent"]) {
-		return false
-	}
-	if boolValue(permissions["accessAllTags"]) {
-		return true
-	}
-	userTags := stringsValue(permissions["itemTagsSelected"])
-	itemTags := access.Tags
-	if boolValue(permissions["selectedTagsNotAccessible"]) {
-		if len(itemTags) == 0 {
-			return true
-		}
-		for _, tag := range itemTags {
-			if slices.Contains(userTags, tag) {
-				return false
-			}
-		}
-		return true
-	}
-	if len(itemTags) == 0 {
-		return false
-	}
-	for _, tag := range itemTags {
-		if slices.Contains(userTags, tag) {
-			return true
-		}
-	}
-	return false
+	access, ok := mediaAccess(libraryID, media)
+	return ok && g.item(access)
 }
 
-func payloadForUser(user store.User, payload any) (any, bool) {
+func payloadForUser(g *grants, payload any) (any, bool) {
 	switch values := payload.(type) {
+	case []libitem.Expanded:
+		return filter(g, values)
+	case []libitem.Minified:
+		return filter(g, values)
+	case []libitem.Full:
+		return filter(g, values)
 	case []any:
-		if !hasAccessMetadata(values) {
+		if !slices.ContainsFunc(values, hasAccessMetadata) {
 			return payload, true
 		}
 		filtered := make([]any, 0, len(values))
 		for _, value := range values {
-			if payloadAccessible(user, value) {
+			if payloadAccessible(g, value) {
 				filtered = append(filtered, value)
 			}
 		}
 		return filtered, len(filtered) > 0
 	case []map[string]any:
-		items := make([]any, len(values))
-		for i, value := range values {
-			items[i] = value
-		}
-		if !hasAccessMetadata(items) {
+		if !slices.ContainsFunc(values, func(m map[string]any) bool { return hasAccessMetadata(m) }) {
 			return payload, true
 		}
 		filtered := make([]map[string]any, 0, len(values))
 		for _, value := range values {
-			if payloadAccessible(user, value) {
+			if payloadAccessible(g, value) {
 				filtered = append(filtered, value)
 			}
 		}
 		return filtered, len(filtered) > 0
 	default:
-		return payload, payloadAccessible(user, payload)
+		return payload, payloadAccessible(g, payload)
 	}
 }
 
-func hasAccessMetadata(items []any) bool {
-	for _, raw := range items {
-		item, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		if _, ok := item["libraryId"].(string); ok {
-			return true
-		}
-		if nested, ok := item["item"].(map[string]any); ok {
-			if _, ok := nested["libraryId"].(string); ok {
-				return true
-			}
-		}
+func hasAccessMetadata(raw any) bool {
+	item, ok := raw.(map[string]any)
+	if !ok {
+		return false
 	}
-	return false
+	if _, ok := item["libraryId"].(string); ok {
+		return true
+	}
+	nested, _ := item["item"].(map[string]any)
+	_, ok = nested["libraryId"].(string)
+	return ok
 }
 
 func isAdmin(user store.User) bool { return user.Type == "admin" || user.Type == "root" }

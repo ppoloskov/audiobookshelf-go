@@ -2,9 +2,9 @@ package scanner
 
 import (
 	"context"
-	"encoding/json"
+	"slices"
 
-	"audiobookshelf-compat/internal/wire"
+	"audiobookshelf-compat/internal/libitem"
 )
 
 // audioMetaTagKeys are the AudioMetaTags own properties
@@ -18,64 +18,46 @@ var audioMetaTagKeys = []string{
 	"tagISRC", "tagMusicBrainzTrackId", "tagMusicBrainzAlbumId", "tagMusicBrainzAlbumArtistId", "tagMusicBrainzArtistId",
 }
 
-// rescanItemJSON serializes a rescanned item for a realtime event. Audio files
-// that were scanned during this rescan and appended to the book are still
+// itemEvent loads an item as the realtime events carry it (expanded). Audio
+// files that were scanned during this rescan and appended to the book are still
 // AudioFile instances when upstream serializes them: structuredClone copies
 // their own properties instead of calling toJSON, so the event carries every
 // metaTags key (null when unset), the scan-only metadata.wasModified flag and
 // no mimeType getter (Book.js:629,683; BookScanner.js:100-103). Later reads
 // come from the database and have the plain shape.
-func (s *Scanner) rescanItemJSON(ctx context.Context, itemID string, scannedPaths []string) (map[string]any, error) {
-	item, err := s.items.ItemJSON(ctx, itemID, true)
-	if err != nil || len(scannedPaths) == 0 {
-		return item, err
+func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...string) (libitem.Expanded, error) {
+	it, err := libitem.LoadOne(ctx, s.db, itemID, libitem.Options{Episodes: true})
+	if err != nil {
+		return libitem.Expanded{}, err
 	}
-	media, ok := item["media"].(wire.BookExpanded)
-	if !ok {
-		return item, nil
+	var settings []byte
+	_ = s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
+	item := it.Expanded(libitem.SortingPrefixes(settings))
+	if media, ok := item.Media.(libitem.BookExpanded); ok && len(scannedPaths) > 0 {
+		instanceShape(media.AudioFiles, scannedPaths)
+		instanceShape(media.Tracks, scannedPaths)
 	}
-	scanned := make(map[string]bool, len(scannedPaths))
-	for _, p := range scannedPaths {
-		scanned[p] = true
-	}
-	media.AudioFiles = instanceShape(media.AudioFiles, scanned)
-	media.Tracks = instanceShape(media.Tracks, scanned)
-	item["media"] = media
 	return item, nil
 }
 
-func instanceShape(raw json.RawMessage, scanned map[string]bool) json.RawMessage {
-	var entries []map[string]json.RawMessage
-	if json.Unmarshal(raw, &entries) != nil {
-		return raw
-	}
-	null := json.RawMessage("null")
+// instanceShape rewrites, in place, the entries whose path was scanned.
+func instanceShape(entries []map[string]any, scanned []string) {
 	for _, entry := range entries {
-		var meta map[string]json.RawMessage
-		_ = json.Unmarshal(entry["metadata"], &meta)
-		var path string
-		_ = json.Unmarshal(meta["path"], &path)
-		if !scanned[path] {
+		meta, _ := entry["metadata"].(map[string]any)
+		if path, _ := meta["path"].(string); meta == nil || !slices.Contains(scanned, path) {
 			continue
 		}
-		meta["wasModified"] = json.RawMessage("false")
-		entry["metadata"], _ = json.Marshal(meta)
+		meta["wasModified"] = false
 		delete(entry, "mimeType")
-		var tags map[string]json.RawMessage
-		_ = json.Unmarshal(entry["metaTags"], &tags)
+		tags, _ := entry["metaTags"].(map[string]any)
 		if tags == nil {
-			tags = map[string]json.RawMessage{}
+			tags = map[string]any{}
+			entry["metaTags"] = tags
 		}
 		for _, key := range audioMetaTagKeys {
 			if _, ok := tags[key]; !ok {
-				tags[key] = null
+				tags[key] = nil
 			}
 		}
-		entry["metaTags"], _ = json.Marshal(tags)
 	}
-	out, err := json.Marshal(entries)
-	if err != nil {
-		return raw
-	}
-	return out
 }

@@ -22,93 +22,15 @@ import (
 	"strings"
 	"time"
 
-	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/filterdata"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
-
-func recordToMap(record itemapi.Record) map[string]any {
-	item := map[string]any{
-		"id": record.ID, "ino": store.NullString(record.Ino), "oldLibraryItemId": valueOrNull(record.OldLibraryItemID),
-		"libraryId": record.LibraryID, "folderId": store.NullString(record.FolderID), "path": record.Path, "relPath": record.RelPath,
-		"isFile": record.IsFile, "addedAt": deref(record.AddedAt), "updatedAt": deref(record.UpdatedAt), "isMissing": record.IsMissing, "isInvalid": record.IsInvalid,
-		"mediaType": record.MediaType, "scanVersion": store.NullString(record.ScanVersion), "libraryFiles": record.LibraryFiles, "numFiles": len(record.LibraryFiles),
-	}
-	for key, value := range map[string]*int64{"mtimeMs": record.MTimeMS, "ctimeMs": record.CTimeMS, "birthtimeMs": record.BirthtimeMS, "lastScan": record.LastScan} {
-		if value != nil {
-			item[key] = *value
-		}
-	}
-	if record.Size != nil {
-		item["size"] = record.Size
-	}
-	return item
-}
-
-// podcastBase builds the keys shared by every upstream Podcast serializer
-// (server/models/Podcast.js:431 toOldJSON, :459 toOldJSONMinified). It carries
-// no size, numEpisodes, episodes or libraryItemId; each caller adds the ones
-// its upstream shape has.
-func (h *Handler) podcastBase(ctx context.Context, podcastID string) (map[string]any, error) {
-	var id, title, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesID, itunesArtistID, language, podcastType, autoSchedule, coverPath sql.NullString
-	var explicit, autoDownload int64
-	var lastCheck any
-	var maxKeep, maxNew sql.NullInt64
-	var tagsRaw, genresRaw []byte
-	err := h.db.QueryRowContext(ctx, `SELECT id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres FROM podcasts WHERE id=?`, podcastID).Scan(&id, &title, &author, &releaseDate, &feedURL, &imageURL, &description, &itunesPageURL, &itunesID, &itunesArtistID, &language, &podcastType, &explicit, &autoDownload, &autoSchedule, &lastCheck, &maxKeep, &maxNew, &coverPath, &tagsRaw, &genresRaw)
-	if err != nil {
-		return nil, err
-	}
-	check, err := dbtime.OptionalMillis(lastCheck)
-	if err != nil {
-		return nil, err
-	}
-	if check != nil && *check == 0 {
-		check = nil
-	}
-	metadata := map[string]any{"title": store.NullString(title), "author": store.NullString(author), "description": store.NullString(description), "releaseDate": store.NullString(releaseDate), "genres": decodeStrings(genresRaw), "feedUrl": store.NullString(feedURL), "imageUrl": store.NullString(imageURL), "itunesPageUrl": store.NullString(itunesPageURL), "itunesId": store.NullString(itunesID), "itunesArtistId": store.NullString(itunesArtistID), "language": store.NullString(language), "explicit": explicit != 0, "type": store.NullString(podcastType)}
-	return map[string]any{"id": id.String, "metadata": metadata, "coverPath": store.NullString(coverPath), "tags": decodeStrings(tagsRaw), "autoDownloadEpisodes": autoDownload != 0, "autoDownloadSchedule": store.NullString(autoSchedule), "lastEpisodeCheck": deref(check), "maxEpisodesToKeep": maxKeep.Int64, "maxNewEpisodesToDownload": maxNew.Int64}, nil
-}
-
-// podcastOldJSON is Podcast.toOldJSON (server/models/Podcast.js:431), served
-// by GET /api/items/:id without expanded=1: episodes in their plain shape and
-// neither size nor numEpisodes.
-func (h *Handler) podcastOldJSON(ctx context.Context, podcastID, itemID string) (map[string]any, error) {
-	media, err := h.podcastBase(ctx, podcastID)
-	if err != nil {
-		return nil, err
-	}
-	episodes, err := h.podcastEpisodes(ctx, podcastID, itemID, false)
-	if err != nil {
-		return nil, err
-	}
-	media["libraryItemId"] = itemID
-	media["episodes"] = episodes
-	return media, nil
-}
-
-// podcastMinifiedJSON is Podcast.toOldJSONMinified (server/models/Podcast.js:459)
-// for a podcast loaded WITHOUT its episodes, which is how every shelf,
-// playlist and list query upstream loads it: numEpisodes and size read 0
-// unless the caller overrides them (LibraryItem.getByFilterAndSort does,
-// server/models/LibraryItem.js:307-312).
-func (h *Handler) podcastMinifiedJSON(ctx context.Context, podcastID string) (map[string]any, error) {
-	media, err := h.podcastBase(ctx, podcastID)
-	if err != nil {
-		return nil, err
-	}
-	metadata := media["metadata"].(map[string]any)
-	metadata["titleIgnorePrefix"] = h.titlePrefix(ctx, stringValue(metadata["title"]))
-	media["numEpisodes"] = 0
-	media["size"] = 0
-	return media, nil
-}
 
 // numEpisodesIncomplete is podcasts.numEpisodes minus the user's finished
 // progress rows tagged with the podcast
@@ -127,158 +49,63 @@ func (h *Handler) numEpisodesIncomplete(ctx context.Context, userID, podcastID s
 	return numEpisodes - finished, nil
 }
 
-// podcastListJSON is the media object of a library list row for a podcast:
-// the minified shape with numEpisodes read from the podcasts column and size
-// taken from the library item when the unloaded podcast reports 0
-// (LibraryItem.getByFilterAndSort, server/models/LibraryItem.js:310-312).
-func (h *Handler) podcastListJSON(ctx context.Context, podcastID string, item map[string]any) (map[string]any, error) {
-	media, err := h.podcastMinifiedJSON(ctx, podcastID)
+// toMap renders a libitem value as the JSON object callers decorate per request.
+func toMap(v any) (map[string]any, error) {
+	raw, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	var numEpisodes sql.NullInt64
-	if err := h.db.QueryRowContext(ctx, `SELECT numEpisodes FROM podcasts WHERE id=?`, podcastID).Scan(&numEpisodes); err != nil {
-		return nil, err
-	}
-	media["numEpisodes"] = numEpisodes.Int64
-	if size := number(item["size"]); size != 0 {
-		media["size"] = size
-	}
-	return media, nil
+	var m map[string]any
+	return m, json.Unmarshal(raw, &m)
 }
 
-func (h *Handler) podcastEpisodes(ctx context.Context, podcastID, itemID string, expanded bool) ([]map[string]any, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt FROM podcastEpisodes WHERE podcastId=? ORDER BY createdAt ASC`, podcastID)
+// mediaID is the id of the book or podcast of a rendered item.
+func mediaID(item map[string]any) string {
+	media, _ := item["media"].(map[string]any)
+	return stringValue(media["id"])
+}
+
+// renderItem renders it in the given shape ("full", "expanded", "minified" or
+// "list") as a generic object.
+func renderItem(it libitem.Item, shape string, prefixes []string) (map[string]any, error) {
+	switch shape {
+	case "full":
+		return toMap(it.Full())
+	case "expanded":
+		return toMap(it.Expanded(prefixes))
+	case "list":
+		return toMap(it.ListRow(prefixes))
+	}
+	return toMap(it.Minified(prefixes))
+}
+
+// itemMaps loads ids with one libitem.Load and renders each found item in id
+// order; missing ids are skipped.
+func (h *Handler) itemMaps(ctx context.Context, ids []string, shape string) ([]map[string]any, error) {
+	items, err := libitem.Load(ctx, h.db, ids, libitem.Options{Episodes: shape == "full" || shape == "expanded"})
 	if err != nil {
 		return nil, err
 	}
-	type episodeRow struct {
-		id                                                                                               string
-		index                                                                                            sql.NullInt64
-		season, episode, episodeType, title, subtitle, description, pubDate, enclosureURL, enclosureType sql.NullString
-		enclosureSize                                                                                    sql.NullInt64
-		published, created, updated                                                                      any
-		audio, chapters, extra                                                                           []byte
+	var prefixes []string
+	if shape != "full" {
+		prefixes = h.sortingPrefixes(ctx)
 	}
-	data := make([]episodeRow, 0)
-	for rows.Next() {
-		var e episodeRow
-		if err := rows.Scan(&e.id, &e.index, &e.season, &e.episode, &e.episodeType, &e.title, &e.subtitle, &e.description, &e.pubDate, &e.enclosureURL, &e.enclosureSize, &e.enclosureType, &e.published, &e.audio, &e.chapters, &e.extra, &e.created, &e.updated); err != nil {
-			rows.Close()
+	out := make([]map[string]any, len(items))
+	for i, it := range items {
+		if out[i], err = renderItem(it, shape, prefixes); err != nil {
 			return nil, err
 		}
-		data = append(data, e)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	out := make([]map[string]any, 0, len(data))
-	for _, e := range data {
-		pub, err := dbtime.OptionalMillis(e.published)
-		if err != nil {
-			return nil, err
-		}
-		if pub != nil && *pub == 0 {
-			pub = nil
-		}
-		created, err := dbtime.OptionalMillis(e.created)
-		if err != nil {
-			return nil, err
-		}
-		updated, err := dbtime.OptionalMillis(e.updated)
-		if err != nil {
-			return nil, err
-		}
-		extra := decodeObject(e.extra)
-		var enclosure any
-		if e.enclosureURL.Valid && e.enclosureURL.String != "" {
-			var length any
-			if e.enclosureSize.Valid {
-				length = strconv.FormatInt(e.enclosureSize.Int64, 10)
-			}
-			enclosure = map[string]any{"url": e.enclosureURL.String, "type": store.NullString(e.enclosureType), "length": length}
-		}
-		audio := decodeObject(e.audio)
-		chapters := decodeArray(e.chapters)
-		ep := map[string]any{"libraryItemId": itemID, "podcastId": podcastID, "id": e.id, "oldEpisodeId": valueOrNull(stringValue(extra["oldEpisodeId"])), "index": nullInt(e.index), "season": store.NullString(e.season), "episode": store.NullString(e.episode), "episodeType": store.NullString(e.episodeType), "title": store.NullString(e.title), "subtitle": store.NullString(e.subtitle), "description": store.NullString(e.description), "enclosure": enclosure, "guid": valueOrNull(stringValue(extra["guid"])), "pubDate": store.NullString(e.pubDate), "chapters": chapters, "audioFile": audio, "publishedAt": deref(pub), "addedAt": deref(created), "updatedAt": deref(updated)}
-		if expanded {
-			track := map[string]any{}
-			for k, v := range audio {
-				track[k] = v
-			}
-			meta, _ := audio["metadata"].(map[string]any)
-			track["startOffset"] = 0
-			track["title"] = meta["filename"]
-			track["index"] = 1
-			track["contentUrl"] = "/api/items/" + itemID + "/file/" + url.PathEscape(stringValue(audio["ino"]))
-			ep["audioTrack"] = track
-			ep["size"] = number(meta["size"])
-			ep["duration"] = audio["duration"]
-		}
-		out = append(out, ep)
 	}
 	return out, nil
 }
 
-// expandedPodcastItem is Podcast.toOldJSONExpanded (server/models/Podcast.js:482):
-// the minified keys with the loaded episodes' count and size, plus
-// libraryItemId and the expanded episodes.
-func (h *Handler) expandedPodcastItem(ctx context.Context, item map[string]any, podcastID, itemID string) (map[string]any, error) {
-	media, err := h.podcastMinifiedJSON(ctx, podcastID)
-	if err != nil {
-		return nil, err
+// minifiedItems is itemMaps for the shelf shape; a missing id is sql.ErrNoRows.
+func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]map[string]any, error) {
+	out, err := h.itemMaps(ctx, ids, "minified")
+	if err == nil && len(out) != len(ids) {
+		err = sql.ErrNoRows
 	}
-	episodes, err := h.podcastEpisodes(ctx, podcastID, itemID, true)
-	if err != nil {
-		return nil, err
-	}
-	media["numEpisodes"] = len(episodes)
-	media["size"] = episodesSize(episodes)
-	media["libraryItemId"] = itemID
-	media["episodes"] = episodes
-	item["media"] = media
-	if _, ok := item["lastScan"]; !ok {
-		item["lastScan"] = nil
-	}
-	return item, nil
-}
-
-func nullInt(n sql.NullInt64) any {
-	if !n.Valid {
-		return nil
-	}
-	return n.Int64
-}
-func episodesSize(episodes []map[string]any) int64 {
-	var n int64
-	for _, e := range episodes {
-		if audio, ok := e["audioFile"].(map[string]any); ok {
-			if meta, ok := audio["metadata"].(map[string]any); ok {
-				n += number(meta["size"])
-			}
-		}
-	}
-	return n
-}
-
-func (h *Handler) expandedBookItem(ctx context.Context, item map[string]any, bookID, itemID string) (map[string]any, error) {
-	book, err := bookdomain.Load(ctx, h.db, bookID)
-	if err != nil {
-		return nil, err
-	}
-	media, err := book.Expanded(itemID, h.bookTitlePrefix(ctx, book.Title()))
-	if err != nil {
-		return nil, err
-	}
-	item["media"] = media
-	if _, ok := item["lastScan"]; !ok {
-		item["lastScan"] = nil
-	}
-	return item, nil
+	return out, err
 }
 
 func orderClause(sortBy string, desc, ignorePrefix bool) (string, error) {
@@ -709,35 +536,16 @@ func valueOrNull(s string) any {
 	}
 	return s
 }
-func (h *Handler) titlePrefix(ctx context.Context, title string) string {
+
+// sortingPrefixes reads the server's sortingPrefixes setting.
+func (h *Handler) sortingPrefixes(ctx context.Context) []string {
 	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-		raw = nil
-	}
-	return catalogTitlePrefixAtEnd(title, sortingPrefixesFromJSON(raw))
+	_ = h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw)
+	return libitem.SortingPrefixes(raw)
 }
 
-func sortingPrefixesFromJSON(raw []byte) []string {
-	prefixes := []string{"the", "a"}
-	values, ok := decodeObject(raw)["sortingPrefixes"].([]any)
-	if !ok {
-		return prefixes
-	}
-	prefixes = make([]string, 0, len(values))
-	for _, value := range values {
-		if text, ok := value.(string); ok {
-			prefixes = append(prefixes, text)
-		}
-	}
-	return prefixes
-}
-
-func (h *Handler) bookTitlePrefix(ctx context.Context, title *string) *string {
-	if title == nil {
-		return nil
-	}
-	prefix := h.titlePrefix(ctx, *title)
-	return &prefix
+func (h *Handler) titlePrefix(ctx context.Context, title string) string {
+	return libitem.TitleIgnorePrefix(title, h.sortingPrefixes(ctx))
 }
 
 // seriesPrefixFreeName is the nameIgnorePrefix of Series.toOldJSON
@@ -748,19 +556,6 @@ func (h *Handler) seriesPrefixFreeName(ctx context.Context, name sql.NullString)
 		return nil
 	}
 	return h.titlePrefix(ctx, name.String)
-}
-
-func catalogTitlePrefixAtEnd(title string, prefixes []string) string {
-	for _, prefix := range prefixes {
-		if len(title) > len(prefix) && strings.EqualFold(title[:len(prefix)], prefix) && title[len(prefix)] == ' ' {
-			capPrefix := prefix
-			if len(capPrefix) > 0 {
-				capPrefix = strings.ToUpper(capPrefix[:1]) + capPrefix[1:]
-			}
-			return title[len(prefix)+1:] + ", " + capPrefix
-		}
-	}
-	return title
 }
 
 // lastFirst is Author.getLastFirst for a non-empty name
@@ -778,6 +573,12 @@ func number(v any) int64 {
 	return 0
 }
 
+// DownloadQueue reports a library item's podcast episode downloads: the ones
+// queued and the one running now when it belongs to the item.
+type DownloadQueue interface {
+	EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload)
+}
+
 type emitFunc func(userID, event string, payload any)
 
 // Handler reads library and media catalog data from an existing database.
@@ -792,7 +593,7 @@ type Handler struct {
 	libraryChanged func(libraryID string)
 	itemChanged    func(context.Context, string) error
 	filters        *filterdata.Cache
-	downloads      itemapi.DownloadQueue
+	downloads      DownloadQueue
 	authorFinder   AuthorFinder
 	finder         BookFinder
 	episodes       func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
@@ -803,7 +604,7 @@ type Option func(*Handler)
 
 // WithDownloadQueue supplies the podcast download queue that
 // GET /api/items/:id?include=downloads reports.
-func WithDownloadQueue(queue itemapi.DownloadQueue) Option {
+func WithDownloadQueue(queue DownloadQueue) Option {
 	return func(h *Handler) { h.downloads = queue }
 }
 
@@ -1716,13 +1517,13 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 		}
 		return naturalLess(refs[i].sequence, refs[j].sequence)
 	})
-	result := make([]map[string]any, 0, len(refs))
-	for _, ref := range refs {
-		item, err := h.ItemMinifiedJSON(ctx, ref.id)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, item)
+	ids := make([]string, len(refs))
+	for i, ref := range refs {
+		ids[i] = ref.id
+	}
+	result, err := h.minifiedItems(ctx, ids)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
@@ -1779,12 +1580,8 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 		for _, book := range books {
 			itemID := stringValue(book["id"])
 			ids = append(ids, itemID)
-			mediaID := ""
-			if access, ok := itemapi.AccessMedia(book["media"]); ok {
-				mediaID = access.ID
-			}
 			var isFinished bool
-			_ = h.db.QueryRowContext(r.Context(), `SELECT COALESCE(isFinished,0) FROM mediaProgresses WHERE userId=? AND mediaItemId=?`, user.ID, mediaID).Scan(&isFinished)
+			_ = h.db.QueryRowContext(r.Context(), `SELECT COALESCE(isFinished,0) FROM mediaProgresses WHERE userId=? AND mediaItemId=?`, user.ID, mediaID(book)).Scan(&isFinished)
 			if isFinished {
 				finished = append(finished, itemID)
 			}
@@ -1844,7 +1641,6 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	}
 	collapse := r.URL.Query().Get("collapseseries") == "1"
 	include := normalizedInclude(r)
-	batchBookPage := mediaType == "book" && !collapse && include == ""
 	ignorePrefix := false
 	var settingsJSON []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsJSON); err == nil {
@@ -1900,7 +1696,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems li JOIN `+mediaTable+` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?`+whereSQL, countArgs...).Scan(&total); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	query := `SELECT ` + itemapi.RowColumns + `
+	query := `SELECT li.id
 	FROM libraryItems li JOIN ` + mediaTable + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?` + whereSQL + order
 	args := append([]any{libraryID, mediaType}, filterArgs...)
 	args = append(args, permissionArgs...)
@@ -1909,106 +1705,43 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 		query += ` LIMIT ? OFFSET ?`
 		args = append(args, limit, page*limit)
 	}
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
+	pageIDs, err := h.queryStrings(r.Context(), query, args...)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	type libraryItemRow struct {
-		item    map[string]any
-		mediaID string
-	}
-	items := make([]libraryItemRow, 0)
-	for rows.Next() {
-		record, err := itemapi.ScanRecord(rows)
-		if err != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", err)
-		}
-		items = append(items, libraryItemRow{item: recordToMap(record), mediaID: record.MediaID})
-	}
-	if err := rows.Err(); err != nil {
+	pageItems, err := libitem.Load(r.Context(), h.db, pageIDs, libitem.Options{})
+	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if err := rows.Close(); err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	var pageBooks map[string]bookdomain.Book
-	var pagePrefixes []string
-	if batchBookPage {
-		bookIDs := make([]string, 0, len(items))
-		for _, row := range items {
-			bookIDs = append(bookIDs, row.mediaID)
-		}
-		pageBooks, err = bookdomain.LoadMany(r.Context(), h.db, bookIDs)
+	prefixes := libitem.SortingPrefixes(settingsJSON)
+	results := make([]map[string]any, 0, len(pageItems))
+	for _, it := range pageItems {
+		item, err := renderItem(it, "list", prefixes)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		pagePrefixes = sortingPrefixesFromJSON(settingsJSON)
-	}
-	results := make([]map[string]any, 0, len(items))
-	for _, row := range items {
-		delete(row.item, "lastScan")
-		delete(row.item, "scanVersion")
-		delete(row.item, "libraryFiles")
-		var media map[string]any
-		if mediaType == "book" {
-			var book bookdomain.Book
-			if batchBookPage {
-				var ok bool
-				book, ok = pageBooks[row.mediaID]
-				if !ok {
-					err = sql.ErrNoRows
-				}
-			} else {
-				book, err = bookdomain.Load(r.Context(), h.db, row.mediaID)
-			}
-			if err == nil {
-				var titlePrefix *string
-				if batchBookPage {
-					if title := book.Title(); title != nil {
-						value := catalogTitlePrefixAtEnd(*title, pagePrefixes)
-						titlePrefix = &value
-					}
-				} else {
-					titlePrefix = h.bookTitlePrefix(r.Context(), book.Title())
-				}
-				bookMedia, projectionErr := book.Minified(titlePrefix)
-				err = projectionErr
-				if err == nil {
-					row.item["media"] = bookMedia
-				}
-			}
-		} else {
-			media, err = h.podcastListJSON(r.Context(), row.mediaID, row.item)
-		}
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if media != nil {
-			row.item["media"] = media
-		}
-		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), row.item["id"].(string), row.item["media"], func(k string, v any) { row.item[k] = v }); err != nil {
+		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if mediaType == "podcast" && includeHas(r, "numepisodesincomplete") {
-			incomplete, err := h.numEpisodesIncomplete(r.Context(), user.ID, row.mediaID)
+			incomplete, err := h.numEpisodesIncomplete(r.Context(), user.ID, it.MediaID)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}
 			if incomplete != 0 {
-				row.item["numEpisodesIncomplete"] = incomplete
+				item["numEpisodesIncomplete"] = incomplete
 			}
 		}
 		if collapse && mediaType == "book" {
-			series, err := h.collapsedSeriesJSON(r.Context(), row.mediaID, collapsed)
+			series, err := h.collapsedSeriesJSON(r.Context(), it.MediaID, collapsed)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}
 			if series != nil {
-				row.item["collapsedSeries"] = series
+				item["collapsedSeries"] = series
 			}
 		}
-		results = append(results, row.item)
+		results = append(results, item)
 	}
 	payload := map[string]any{
 		"results": results, "total": total, "limit": limit, "page": page,
@@ -2028,20 +1761,26 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 	user, itemID := requestUser(r), r.PathValue("id")
-	item, err := h.ItemJSON(r.Context(), itemID, r.URL.Query().Get("expanded") == "1")
+	expanded := r.URL.Query().Get("expanded") == "1"
+	it, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{Episodes: true})
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !userCanAccessLibrary(user, item["libraryId"].(string)) {
+	if !userCanAccessLibrary(user, it.LibraryID) || !userCanAccessMedia(user, it.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !userCanAccessItem(user, item) {
-		return httputil.Status(http.StatusForbidden, "")
+	shape, prefixes := "full", []string(nil)
+	if expanded {
+		shape, prefixes = "expanded", h.sortingPrefixes(r.Context())
 	}
-	if r.URL.Query().Get("expanded") == "1" {
+	item, err := renderItem(it, shape, prefixes)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if expanded {
 		if err := h.expandedItemIncludes(r, user, item); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
@@ -2089,7 +1828,7 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item ma
 	// LibraryItemController.findOne: `item.mediaItemShare = ShareManager.
 	// findByMediaItemId(item.media.id)`, null when no open share exists.
 	if has("share") && isAdminOrUp(user) && item["mediaType"] == "book" {
-		share, err := h.openMediaItemShare(r.Context(), itemMediaAccess(item["media"]))
+		share, err := h.openMediaItemShare(r.Context(), mediaID(item))
 		if err != nil {
 			return err
 		}
@@ -2098,17 +1837,9 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, item ma
 	return nil
 }
 
-func userCanAccessItem(user store.User, item map[string]any) bool {
-	access, ok := itemapi.AccessMedia(item["media"])
-	if !ok {
-		return false
-	}
-	return userCanAccessMedia(user, access)
-}
-
 // userCanAccessMedia is User.checkCanAccessLibraryItem's explicit and tag
 // checks (server/models/User.js:658-683) on a book's access fields.
-func userCanAccessMedia(user store.User, access itemapi.MediaAccess) bool {
+func userCanAccessMedia(user store.User, access libitem.Access) bool {
 	var permissions map[string]any
 	_ = json.Unmarshal(user.Permissions, &permissions)
 	if access.Explicit && permissions["accessExplicitContent"] != true {
@@ -2156,83 +1887,27 @@ func stringValues(value any) []string {
 // ItemJSON returns the upstream legacy full item representation, or the
 // expanded minified superset when expanded is true. Callers enforce permissions.
 func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (map[string]any, error) {
-	item, mediaID, err := h.loadItem(ctx, itemID)
+	shape := "full"
+	if expanded {
+		shape = "expanded"
+	}
+	out, err := h.itemMaps(ctx, []string{itemID}, shape)
+	if err == nil && len(out) == 0 {
+		err = sql.ErrNoRows
+	}
 	if err != nil {
 		return nil, err
 	}
-	if item["mediaType"] == "book" {
-		if expanded {
-			return h.expandedBookItem(ctx, item, mediaID, itemID)
-		}
-		book, err := bookdomain.Load(ctx, h.db, mediaID)
-		if err != nil {
-			return nil, err
-		}
-		media, err := book.Full(itemID)
-		if err != nil {
-			return nil, err
-		}
-		item["media"] = media
-		delete(item, "numFiles")
-		delete(item, "size")
-		return item, nil
-	}
-	if item["mediaType"] == "podcast" {
-		if expanded {
-			return h.expandedPodcastItem(ctx, item, mediaID, itemID)
-		}
-		media, err := h.podcastOldJSON(ctx, mediaID, itemID)
-		if err != nil {
-			return nil, err
-		}
-		item["media"] = media
-		delete(item, "numFiles")
-		delete(item, "size")
-		return item, nil
-	}
-	return nil, fmt.Errorf("unsupported media type %q", item["mediaType"])
+	return out[0], nil
 }
 
 // ItemMinifiedJSON returns the upstream shelf/collection item shape.
 func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (map[string]any, error) {
-	item, mediaID, err := h.loadItem(ctx, itemID)
+	out, err := h.minifiedItems(ctx, []string{itemID})
 	if err != nil {
 		return nil, err
 	}
-	delete(item, "lastScan")
-	delete(item, "scanVersion")
-	delete(item, "libraryFiles")
-	var media any
-	if item["mediaType"] == "book" {
-		book, loadErr := bookdomain.Load(ctx, h.db, mediaID)
-		err = loadErr
-		if loadErr == nil {
-			media, err = book.Minified(h.bookTitlePrefix(ctx, book.Title()))
-		}
-	} else if item["mediaType"] == "podcast" {
-		media, err = h.podcastMinifiedJSON(ctx, mediaID)
-	} else {
-		return nil, fmt.Errorf("unsupported media type %q", item["mediaType"])
-	}
-	if err != nil {
-		return nil, err
-	}
-	if media != nil {
-		item["media"] = media
-	}
-	return item, nil
-}
-
-func (h *Handler) loadItem(ctx context.Context, itemID string) (map[string]any, string, error) {
-	records, err := itemapi.LoadMany(ctx, h.db, []string{itemID})
-	if err != nil {
-		return nil, "", err
-	}
-	record, ok := records[itemID]
-	if !ok {
-		return nil, "", sql.ErrNoRows
-	}
-	return recordToMap(record), record.MediaID, nil
+	return out[0], nil
 }
 
 func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
@@ -2306,7 +1981,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	target := ""
 	if fileID != "" {
 		for _, file := range decodeArray(raw) {
-			if stringValue(file["ino"]) == fileID && itemapi.FileType(fileMetadataExt(file)) == "ebook" {
+			if stringValue(file["ino"]) == fileID && libitem.FileType(fileMetadataExt(file)) == "ebook" {
 				target = filePath(file)
 				break
 			}
@@ -2545,12 +2220,12 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	if err := rows.Close(); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	items := make([]map[string]any, 0, len(ids))
-	for _, id := range ids {
-		item, e := h.ItemJSON(r.Context(), id, true)
-		if e != nil {
-			return httputil.Internal("database read failed", e)
-		}
+	expanded, err := h.itemMaps(r.Context(), ids, "expanded")
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	items := make([]map[string]any, 0, len(expanded))
+	for _, item := range expanded {
 		if mediaType == "podcast" {
 			m := item["media"].(map[string]any)
 			m["episodes"] = []any{}
@@ -2618,16 +2293,25 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
+	itemIDs := make([]string, len(refs))
+	for i, x := range refs {
+		itemIDs[i] = x.itemID
+	}
+	expanded, err := h.itemMaps(ctx, itemIDs, "expanded")
+	if err != nil {
+		return nil, err
+	}
+	if len(expanded) != len(refs) {
+		return nil, sql.ErrNoRows
+	}
 	out := make([]wire.ItemMatch, 0, len(refs))
-	for _, x := range refs {
-		item, err := h.ItemJSON(ctx, x.itemID, true)
-		if err != nil {
-			return nil, err
-		}
+	for i, x := range refs {
+		item := expanded[i]
 		media := item["media"].(map[string]any)
 		var recent any
-		for _, ep := range media["episodes"].([]map[string]any) {
-			if ep["id"] == x.episodeID {
+		episodes, _ := media["episodes"].([]any)
+		for _, ep := range episodes {
+			if m, _ := ep.(map[string]any); m["id"] == x.episodeID {
 				recent = ep
 			}
 		}
@@ -2740,16 +2424,16 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		if err != nil {
 			return nil, err
 		}
-		books := make([]any, 0, len(itemIDs))
-		for _, id := range itemIDs {
-			item, err := h.ItemJSON(ctx, id, false)
-			if err != nil {
-				return nil, err
-			}
-			if media, ok := item["media"].(wire.BookFull); ok {
-				media.Metadata.Authors = []wire.BookAuthor{}
-				media.Metadata.Series = []wire.BookSeries{}
-				item["media"] = media
+		rendered, err := h.itemMaps(ctx, itemIDs, "full")
+		if err != nil {
+			return nil, err
+		}
+		books := make([]any, 0, len(rendered))
+		for _, item := range rendered {
+			if media, ok := item["media"].(map[string]any); ok && item["mediaType"] == "book" {
+				if metadata, ok := media["metadata"].(map[string]any); ok {
+					metadata["authors"], metadata["series"] = []any{}, []any{}
+				}
 			}
 			books = append(books, item)
 		}

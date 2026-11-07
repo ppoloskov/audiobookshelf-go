@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	bookdomain "audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
@@ -37,7 +36,7 @@ type subseriesSeries struct {
 // subseriesBook is one library item of the filtered series: the Book model
 // with its libraryItem, as libraryHelpers.handleCollapseSubseries loads it.
 type subseriesBook struct {
-	access                   itemapi.MediaAccess
+	access                   libitem.Access
 	itemID, libraryID        string
 	title, titleIgnorePrefix string
 	size                     sql.NullInt64
@@ -189,15 +188,20 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 		items = items[start:end]
 	}
 
+	itemIDs := make([]string, len(items))
+	for i, li := range items {
+		itemIDs[i] = li.itemID
+	}
+	rendered, err := h.minifiedItems(ctx, itemIDs)
+	if err != nil {
+		return nil, 0, err
+	}
 	results := make([]any, 0, len(items))
-	for _, li := range items {
+	for i, li := range items {
 		filtered := li.seriesByID(seriesID)
-		item, err := h.ItemMinifiedJSON(ctx, li.itemID)
-		if err != nil {
-			return nil, 0, err
-		}
-		withBookMinified(item, func(media *wire.BookMinified) {
-			media.Metadata.Series = &wire.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
+		item := rendered[i]
+		editBookMetadata(item, func(metadata map[string]any) {
+			metadata["series"] = &wire.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {
 			ids := make([]string, 0, len(c.books))
@@ -257,7 +261,7 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 		return nil, false, err
 	}
 	var books []*subseriesBook
-	var bookIDs []string
+	var itemIDs []string
 	for rows.Next() {
 		var b subseriesBook
 		var libraryID, title, titleIgnorePrefix sql.NullString
@@ -268,46 +272,25 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 		}
 		b.libraryID, b.title, b.titleIgnorePrefix = libraryID.String, title.String, titleIgnorePrefix.String
 		books = append(books, &b)
-		bookIDs = append(bookIDs, bookID)
+		itemIDs = append(itemIDs, b.itemID)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		return nil, false, err
 	}
 	rows.Close()
+	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(loaded) != len(books) {
+		return nil, false, sql.ErrNoRows
+	}
+	prefixes := h.sortingPrefixes(ctx)
 	for i, b := range books {
-		book, err := bookdomain.Load(ctx, h.db, bookIDs[i])
-		if err != nil {
-			return nil, false, err
-		}
-		media, err := book.Minified(h.bookTitlePrefix(ctx, book.Title()))
-		if err != nil {
-			return nil, false, err
-		}
-		b.access = itemapi.MediaAccess{ID: media.ID, Explicit: media.Metadata.Explicit, Tags: media.Tags}
-		seriesRows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId=? ORDER BY bs.rowid`, bookIDs[i])
-		if err != nil {
-			return nil, false, err
-		}
-		for seriesRows.Next() {
-			var s subseriesSeries
-			var name sql.NullString
-			if err := seriesRows.Scan(&s.id, &name, &s.sequence); err != nil {
-				seriesRows.Close()
-				return nil, false, err
-			}
-			s.name = name.String
-			b.series = append(b.series, s)
-		}
-		err = seriesRows.Err()
-		seriesRows.Close()
-		if err != nil {
-			return nil, false, err
-		}
-		// Prefix lookups read server settings; the pool has one connection,
-		// so they wait until the series cursor is closed.
-		for j := range b.series {
-			b.series[j].nameIgnorePrefix = h.titlePrefix(ctx, b.series[j].name)
+		b.access = loaded[i].Access()
+		for _, s := range loaded[i].Book.Series {
+			b.series = append(b.series, subseriesSeries{id: s.ID, name: s.Name, nameIgnorePrefix: libitem.TitleIgnorePrefix(s.Name, prefixes), sequence: s.Sequence})
 		}
 	}
 	return books, true, nil

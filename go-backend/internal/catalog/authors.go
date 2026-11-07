@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"mime"
 	"net"
 	"net/http"
@@ -27,6 +26,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
@@ -215,14 +215,14 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 	if len(itemIDs) == 0 || h.emit == nil {
 		return
 	}
-	items := make([]any, 0, len(itemIDs))
-	for _, id := range itemIDs {
-		item, err := h.ItemJSON(ctx, id, true)
-		if err != nil {
-			logging.Errorf("[AuthorController] items_updated: item %s: %v", id, err)
-			continue
-		}
-		items = append(items, item)
+	expanded, err := h.itemMaps(ctx, itemIDs, "expanded")
+	if err != nil {
+		logging.Errorf("[AuthorController] items_updated: %v", err)
+		return
+	}
+	items := make([]any, len(expanded))
+	for i, item := range expanded {
+		items[i] = item
 	}
 	h.emit("*", "items_updated", items)
 }
@@ -266,12 +266,13 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 			}
 			detail.Series = &groups
 		}
-		for _, id := range ids {
-			item, err := h.ItemMinifiedJSON(r.Context(), id)
-			if err != nil {
-				return httputil.Internal("database read failed", err)
-			}
-			raw, err := json.Marshal(item)
+		loaded, err := libitem.Load(r.Context(), h.db, ids, libitem.Options{})
+		if err != nil {
+			return httputil.Internal("database read failed", err)
+		}
+		prefixes := h.sortingPrefixes(r.Context())
+		for _, it := range loaded {
+			raw, err := json.Marshal(it.Minified(prefixes))
 			if err != nil {
 				return httputil.Internal("internal error", err)
 			}
@@ -307,43 +308,52 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 	}
 	var order []string
 	groups := map[string]*group{}
-	for _, itemID := range itemIDs {
-		rows, err := h.db.QueryContext(ctx, `SELECT s.id,s.name,s.nameIgnorePrefix,bs.sequence FROM libraryItems li JOIN bookSeries bs ON bs.bookId=li.mediaId JOIN series s ON s.id=bs.seriesId WHERE li.id=? ORDER BY bs.createdAt ASC, bs.rowid`, itemID)
+	type membership struct {
+		id                   string
+		name, prefix, number sql.NullString
+	}
+	memberships := map[string][]membership{}
+	if len(itemIDs) > 0 {
+		args := make([]any, len(itemIDs))
+		for i, id := range itemIDs {
+			args[i] = id
+		}
+		rows, err := h.db.QueryContext(ctx, `SELECT li.id,s.id,s.name,s.nameIgnorePrefix,bs.sequence FROM libraryItems li JOIN bookSeries bs ON bs.bookId=li.mediaId JOIN series s ON s.id=bs.seriesId WHERE li.id IN (`+placeholders(len(itemIDs))+`) ORDER BY bs.createdAt ASC, bs.rowid`, args...)
 		if err != nil {
 			return nil, err
 		}
-		type seriesRow struct {
-			id                   string
-			name, prefix, number sql.NullString
-		}
-		var memberships []seriesRow
 		for rows.Next() {
-			var s seriesRow
-			if err := rows.Scan(&s.id, &s.name, &s.prefix, &s.number); err != nil {
+			var itemID string
+			var m membership
+			if err := rows.Scan(&itemID, &m.id, &m.name, &m.prefix, &m.number); err != nil {
 				rows.Close()
 				return nil, err
 			}
-			memberships = append(memberships, s)
+			memberships[itemID] = append(memberships[itemID], m)
 		}
 		if err := rows.Close(); err != nil {
 			return nil, err
 		}
-		if len(memberships) == 0 {
+	}
+	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	if err != nil {
+		return nil, err
+	}
+	prefixes := h.sortingPrefixes(ctx)
+	for _, it := range loaded {
+		if len(memberships[it.ID]) == 0 {
 			continue
 		}
-		base, err := h.ItemMinifiedJSON(ctx, itemID)
-		if err != nil {
-			return nil, err
-		}
-		media, ok := base["media"].(wire.BookMinified)
+		base := it.Minified(prefixes)
+		media, ok := base.Media.(libitem.BookMinified)
 		if !ok {
-			return nil, fmt.Errorf("item %s has no book media", itemID)
+			return nil, fmt.Errorf("item %s has no book media", it.ID)
 		}
-		for _, s := range memberships {
-			withSeries := maps.Clone(base)
+		for _, s := range memberships[it.ID] {
 			m := media
 			m.Metadata.Series = wire.BookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
-			withSeries["media"] = m
+			withSeries := base
+			withSeries.Media = m
 			raw, err := json.Marshal(withSeries)
 			if err != nil {
 				return nil, err

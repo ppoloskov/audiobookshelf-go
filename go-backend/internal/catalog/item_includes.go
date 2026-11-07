@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
-	itemapi "audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -33,31 +32,27 @@ func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
 }
 
 // attachItemIncludes sets rssFeed (the item's feed, Feed.toOldJSONMinified)
-// and mediaItemShare (an open share of the book) through set when present.
-// Feeds belong to library items (Feed.js:416-421: entityType 'libraryItem',
-// entityId the library item id); shares to the book's media id and only for
-// books.
-func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, itemID string, media any, set func(key string, value any)) error {
+// and mediaItemShare (an open share of the book) on a rendered item when
+// present. Feeds belong to library items (Feed.js:416-421: entityType
+// 'libraryItem', entityId the library item id); shares to the book's media id
+// and only for books.
+func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, item map[string]any) error {
 	if inc.rssFeed {
-		feed, ok, err := h.feedMinified(ctx, "libraryItem", itemID)
+		feed, ok, err := h.feedMinified(ctx, "libraryItem", stringValue(item["id"]))
 		if err != nil {
 			return err
 		}
 		if ok {
-			set("rssFeed", feed)
+			item["rssFeed"] = feed
 		}
 	}
-	if inc.share {
-		book, isBook := media.(wire.BookMinified)
-		if !isBook {
-			return nil
-		}
-		share, err := h.openMediaItemShare(ctx, book.ID)
+	if inc.share && item["mediaType"] == "book" {
+		share, err := h.openMediaItemShare(ctx, mediaID(item))
 		if err != nil {
 			return err
 		}
 		if share != nil {
-			set("mediaItemShare", share)
+			item["mediaItemShare"] = share
 		}
 	}
 	return nil
@@ -105,10 +100,4 @@ func isoMillis(ms *int64) *string {
 	}
 	text := time.UnixMilli(*ms).UTC().Format("2006-01-02T15:04:05.000Z")
 	return &text
-}
-
-// itemMediaAccess exposes the media id of a minified or expanded item.
-func itemMediaAccess(media any) string {
-	access, _ := itemapi.AccessMedia(media)
-	return access.ID
 }

@@ -1,6 +1,7 @@
 package lists
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 	"audiobookshelf-compat/internal/jsonvalue"
 
 	"audiobookshelf-compat/internal/db/sqlc"
-	itemapi "audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 )
@@ -26,7 +27,7 @@ func (h *Handler) listPlaylists(w http.ResponseWriter, r *http.Request) error {
 	}
 	out := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
-		item, libraryID, err := Playlist(r.Context(), h.db, h.items, id)
+		item, libraryID, err := Playlist(r.Context(), h.db, id)
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && !h.canAccessLibrary(user, libraryID)) {
 			continue
 		}
@@ -57,7 +58,7 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 	if !h.canAccessLibrary(user, libraryID) {
 		return nil, "", http.StatusNotFound, nil
 	}
-	item, _, err := Playlist(r.Context(), h.db, h.items, id)
+	item, _, err := Playlist(r.Context(), h.db, id)
 	return item, libraryID, 0, err
 }
 
@@ -152,7 +153,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("Failed to create playlist", err)
 	}
-	item, _, err := Playlist(r.Context(), h.db, h.items, id)
+	item, _, err := Playlist(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -286,7 +287,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 	}
-	item, _, err := Playlist(r.Context(), h.db, h.items, id)
+	item, _, err := Playlist(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -414,27 +415,16 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		count++
 		changed = true
 	}
-	item, _, err := Playlist(r.Context(), h.db, h.items, id)
+	item, _, err := Playlist(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	if !batch && changed && refs[0].episodeID != "" {
-		// PlaylistController.addItem (PlaylistController.js:321-328) appends the
-		// added episode with the library item it already loaded WITH episodes,
-		// unlike a reloaded playlist whose podcasts have none.
 		entries, _ := item["items"].([]any)
-		if len(entries) > 0 {
-			if entry, ok := entries[len(entries)-1].(map[string]any); ok && entry["episodeId"] == refs[0].episodeID {
-				if full, e := h.items.ItemJSON(r.Context(), refs[0].libraryItemID, true); e == nil {
-					if media, ok := full["media"].(map[string]any); ok {
-						if minified, ok := entry["libraryItem"].(map[string]any); ok {
-							if minifiedMedia, ok := minified["media"].(map[string]any); ok {
-								minifiedMedia["numEpisodes"] = media["numEpisodes"]
-								minifiedMedia["size"] = media["size"]
-							}
-						}
-					}
-				}
+		if last := len(entries) - 1; last >= 0 {
+			if e, ok := entries[last].(playlistEntry); ok && e.EpisodeID == refs[0].episodeID {
+				e.LibraryItem = h.withEpisodeTotals(r.Context(), e)
+				entries[last] = e
 			}
 		}
 	}
@@ -502,23 +492,15 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request, id string, user store.User, remove map[string]bool) error {
-	finalDTO, _, preErr := Playlist(r.Context(), h.db, h.items, id)
+	finalDTO, _, preErr := Playlist(r.Context(), h.db, id)
 	if preErr != nil {
 		return httputil.Internal("database read failed", preErr)
 	}
 	if currentItems, ok := finalDTO["items"].([]any); ok {
 		remaining := make([]any, 0, len(currentItems))
 		for _, raw := range currentItems {
-			entry, _ := raw.(map[string]any)
-			mediaID := jsonvalue.String(entry["episodeId"])
-			if mediaID == "" {
-				if libraryItem, ok := entry["libraryItem"].(map[string]any); ok {
-					if access, ok := itemapi.AccessMedia(libraryItem["media"]); ok {
-						mediaID = access.ID
-					}
-				}
-			}
-			if !remove[mediaID] {
+			entry, _ := raw.(playlistEntry)
+			if !remove[entry.MediaID] {
 				remaining = append(remaining, raw)
 			}
 		}
@@ -600,14 +582,8 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		return httputil.Internal("Failed to create playlist", err)
 	}
 	for i, raw := range books {
-		item, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		mediaID := ""
-		if access, ok := itemapi.AccessMedia(item["media"]); ok {
-			mediaID = access.ID
-		}
+		book, _ := raw.(libitem.Expanded).Media.(libitem.BookExpanded)
+		mediaID := book.ID
 		if mediaID == "" {
 			continue
 		}
@@ -622,7 +598,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if err = tx.Commit(); err != nil {
 		return httputil.Internal("Failed to create playlist", err)
 	}
-	item, _, err := Playlist(r.Context(), h.db, h.items, id)
+	item, _, err := Playlist(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -630,4 +606,24 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		h.emit(user.ID, "playlist_added", item)
 	}
 	return httputil.JSON(w, r, item)
+}
+
+// withEpisodeTotals is the entry's minified podcast with numEpisodes and size
+// of its loaded episodes: PlaylistController.addItem appends the added episode
+// with the library item it loaded WITH episodes (PlaylistController.js:321-328),
+// unlike a reloaded playlist whose podcasts have none.
+func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistEntry) any {
+	minified, ok := e.LibraryItem.(libitem.Minified)
+	podcast, isPodcast := minified.Media.(libitem.PodcastMedia)
+	if !ok || !isPodcast {
+		return e.LibraryItem
+	}
+	full, err := libitem.LoadOne(ctx, h.db, e.LibraryItemID, libitem.Options{Episodes: true})
+	if err != nil {
+		return e.LibraryItem
+	}
+	loaded, _ := full.Expanded(nil).Media.(libitem.PodcastMedia)
+	podcast.NumEpisodes, podcast.Size = loaded.NumEpisodes, loaded.Size
+	minified.Media = podcast
+	return minified
 }

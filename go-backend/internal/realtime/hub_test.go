@@ -17,8 +17,8 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 
 	_ "modernc.org/sqlite"
 )
@@ -79,65 +79,57 @@ func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing
 	allowed := map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}
 	wrongLibrary := map[string]any{"libraryId": "lib-2", "media": map[string]any{"tags": []any{"mystery"}}}
 	wrongTag := map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"romance"}}}
-	if !payloadAccessible(user, allowed) {
+	if !payloadAccessible(grantsOf(user), allowed) {
 		t.Fatal("expected allowed library and tag payload to pass")
 	}
-	if payloadAccessible(user, wrongLibrary) {
+	if payloadAccessible(grantsOf(user), wrongLibrary) {
 		t.Fatal("payload from inaccessible library passed")
 	}
-	if payloadAccessible(user, wrongTag) {
+	if payloadAccessible(grantsOf(user), wrongTag) {
 		t.Fatal("payload with inaccessible tag passed")
 	}
-	if !payloadAccessible(user, map[string]any{"message": "global"}) {
+	if !payloadAccessible(grantsOf(user), map[string]any{"message": "global"}) {
 		t.Fatal("global payload without item metadata should pass")
 	}
 	typedAllowed := map[string]any{
 		"libraryId": "lib-1",
-		"media": wire.BookExpanded{
-			ID:       "book-1",
-			Tags:     []string{"mystery"},
-			Metadata: wire.BookMetadataExpanded{BookMetadataFull: wire.BookMetadataFull{Explicit: false}},
-		},
+		"media":     map[string]any{"id": "book-1", "tags": []any{"mystery"}, "metadata": map[string]any{"explicit": false}},
 	}
-	if !payloadAccessible(user, typedAllowed) {
+	if !payloadAccessible(grantsOf(user), typedAllowed) {
 		t.Fatal("typed book media with an accessible tag should pass")
 	}
 	typedExplicit := map[string]any{
 		"libraryId": "lib-1",
-		"media": wire.BookExpanded{
-			ID:       "book-2",
-			Tags:     []string{"mystery"},
-			Metadata: wire.BookMetadataExpanded{BookMetadataFull: wire.BookMetadataFull{Explicit: true}},
-		},
+		"media":     map[string]any{"id": "book-2", "tags": []any{"mystery"}, "metadata": map[string]any{"explicit": true}},
 	}
-	if payloadAccessible(user, typedExplicit) {
+	if payloadAccessible(grantsOf(user), typedExplicit) {
 		t.Fatal("typed explicit book media passed without explicit-content permission")
 	}
-	if payloadAccessible(user, map[string]any{"libraryId": "lib-1", "media": struct{}{}}) {
+	if payloadAccessible(grantsOf(user), map[string]any{"libraryId": "lib-1", "media": struct{}{}}) {
 		t.Fatal("unrecognized media must fail closed")
 	}
 	collection := map[string]any{"id": "collection-1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
-	if !payloadAccessible(user, collection) {
+	if !payloadAccessible(grantsOf(user), collection) {
 		t.Fatal("collection event with library access should be delivered")
 	}
 	libraryOnly := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"]}`)}
-	if !payloadAccessible(libraryOnly, collection) {
+	if !payloadAccessible(grantsOf(libraryOnly), collection) {
 		t.Fatal("collection event should not require item/tag permissions")
 	}
-	if payloadAccessible(user, map[string]any{"id": "collection-2", "libraryId": "lib-2", "name": "Other", "books": []any{}}) {
+	if payloadAccessible(grantsOf(user), map[string]any{"id": "collection-2", "libraryId": "lib-2", "name": "Other", "books": []any{}}) {
 		t.Fatal("collection event without library access passed")
 	}
 	noLibrary := store.User{Permissions: []byte(`{"librariesAccessible":["lib-2"]}`)}
-	if payloadAccessible(noLibrary, collection) {
+	if payloadAccessible(grantsOf(noLibrary), collection) {
 		t.Fatal("collection event was delivered to a user without library access")
 	}
-	if _, send := payloadForUser(user, collection); !send {
+	if _, send := payloadForUser(grantsOf(user), collection); !send {
 		t.Fatal("collection broadcast was not sent to a user with library access")
 	}
-	if _, send := payloadForUser(noLibrary, collection); send {
+	if _, send := payloadForUser(grantsOf(noLibrary), collection); send {
 		t.Fatal("collection broadcast was sent to a user without library access")
 	}
-	filtered, send := payloadForUser(user, []any{allowed, wrongLibrary})
+	filtered, send := payloadForUser(grantsOf(user), []any{allowed, wrongLibrary})
 	items, ok := filtered.([]any)
 	if !send || !ok || len(items) != 1 {
 		t.Fatalf("item-list broadcast filter = %#v, send=%v", filtered, send)
@@ -311,4 +303,20 @@ func signedToken(t *testing.T, secret string, claims map[string]any) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(unsigned))
 	return unsigned + "." + encode(mac.Sum(nil))
+}
+
+func grantsOf(u store.User) *grants { g := parseGrants(u.Permissions); return &g }
+
+func TestPayloadForUserFiltersTypedItemSlices(t *testing.T) {
+	user := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)}
+	item := func(lib string, tags ...string) libitem.Expanded {
+		return libitem.Expanded{Head: libitem.Head{LibraryID: lib}, Media: libitem.BookExpanded{ID: "b", Tags: tags}}
+	}
+	got, send := payloadForUser(grantsOf(user), []libitem.Expanded{item("lib-1", "mystery"), item("lib-2", "mystery"), item("lib-1", "romance")})
+	if list, ok := got.([]libitem.Expanded); !send || !ok || len(list) != 1 {
+		t.Fatalf("typed filter = %#v, send=%v", got, send)
+	}
+	if _, send := payloadForUser(grantsOf(user), item("lib-1", "romance")); send {
+		t.Fatal("typed item with an inaccessible tag was sent")
+	}
 }

@@ -599,7 +599,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 					if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, now, existing.id); e != nil {
 						return results, e
 					}
-					if item, e := s.items.ItemJSON(ctx, existing.id, true); e == nil && s.emit != nil {
+					if item, e := s.itemEvent(ctx, existing.id); e == nil && s.emit != nil {
 						s.emit("*", "item_updated", item)
 					}
 					results[itemDir] = scanRemoved
@@ -636,7 +636,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		}
 		tally.merge(n)
 		if n.added {
-			if item, e := s.items.ItemJSON(ctx, n.id, true); e == nil && s.emit != nil {
+			if item, e := s.itemEvent(ctx, n.id); e == nil && s.emit != nil {
 				s.emit("*", "item_added", item)
 			}
 			results[itemDir] = scanAdded
@@ -709,7 +709,7 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 		return scanNothing, nil
 	}
 	tally.merge(n)
-	if item, e := s.rescanItemJSON(ctx, n.id, n.scannedAudio); e == nil && s.emit != nil {
+	if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil && s.emit != nil {
 		s.emit("*", "item_updated", item)
 	}
 	if err := s.finalizeScan(ctx, libraryID, &scanTally{authorsChanged: n.authorsChanged, authorsRemoved: n.authorsRemoved, seriesRemoved: n.seriesRemoved}); err != nil {

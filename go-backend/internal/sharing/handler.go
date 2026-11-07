@@ -3,7 +3,6 @@ package sharing
 
 import (
 	"archive/zip"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -46,8 +45,8 @@ type shareSession struct {
 	Start       float64
 	Updated     int64
 	Tracks      []shareTrack
-	Metadata    map[string]any
-	Chapters    []any
+	Metadata    any
+	Chapters    []map[string]any
 	CoverAspect *float64
 	Device      map[string]any
 	BookID      string
@@ -95,42 +94,6 @@ func (h *Handler) publicRoutes(mux *http.ServeMux) {
 
 func admin(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
 
-// oldBookMetadata is Book.oldMetadataToJSON (server/models/Book.js:550):
-// authors and series in bookAuthors/bookSeries createdAt order, NULL columns
-// as null.
-func (h *Handler) oldBookMetadata(ctx context.Context, id string) map[string]any {
-	var title, subtitle, year, date, publisher, desc, isbn, asin, language sql.NullString
-	var exp, abr int
-	var narr, genres []byte
-	_ = h.db.QueryRowContext(ctx, `SELECT title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,narrators,genres FROM books WHERE id=?`, id).Scan(&title, &subtitle, &year, &date, &publisher, &desc, &isbn, &asin, &language, &exp, &abr, &narr, &genres)
-	narrators, genreList := []string{}, []string{}
-	_ = json.Unmarshal(narr, &narrators)
-	_ = json.Unmarshal(genres, &genreList)
-	authors := []map[string]any{}
-	rows, e := h.db.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC, ba.rowid ASC`, id)
-	if e == nil {
-		for rows.Next() {
-			var i, n string
-			if rows.Scan(&i, &n) == nil {
-				authors = append(authors, map[string]any{"id": i, "name": n})
-			}
-		}
-		rows.Close()
-	}
-	series := []map[string]any{}
-	rows, e = h.db.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC, bs.rowid ASC`, id)
-	if e == nil {
-		for rows.Next() {
-			var i, n string
-			var seq sql.NullString
-			if rows.Scan(&i, &n, &seq) == nil {
-				series = append(series, map[string]any{"id": i, "name": n, "sequence": store.NullString(seq)})
-			}
-		}
-		rows.Close()
-	}
-	return map[string]any{"title": title.String, "subtitle": store.NullString(subtitle), "authors": authors, "narrators": narrators, "series": series, "genres": genreList, "publishedYear": store.NullString(year), "publishedDate": store.NullString(date), "publisher": store.NullString(publisher), "description": store.NullString(desc), "isbn": store.NullString(isbn), "asin": store.NullString(asin), "language": store.NullString(language), "explicit": exp != 0, "abridged": abr != 0}
-}
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)

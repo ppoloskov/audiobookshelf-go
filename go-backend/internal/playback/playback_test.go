@@ -2,7 +2,6 @@ package playback
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
@@ -155,17 +154,6 @@ func TestPlaybackSessionDeviceAndEmptyMediaArraysMatchOldJSON(t *testing.T) {
 	}
 }
 
-// stubItems stands in for the catalog reader on this minimal schema.
-type stubItems struct{}
-
-func (stubItems) ItemJSON(_ context.Context, id string, _ bool) (map[string]any, error) {
-	return map[string]any{"id": id}, nil
-}
-
-func (stubItems) ItemMinifiedJSON(_ context.Context, id string) (map[string]any, error) {
-	return map[string]any{"id": id}, nil
-}
-
 func TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles(t *testing.T) {
 	h, user, itemID, _ := fixture(t)
 	if _, err := os.Stat("/usr/bin/ffmpeg"); err != nil {
@@ -211,7 +199,7 @@ func TestPodcastEpisodeTrackFallbackAndFileRoute(t *testing.T) {
 	if _, err := h.db.Exec(`UPDATE libraryItems SET mediaType='podcast',mediaId='podcast-one' WHERE id=?`, itemID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.db.Exec(`INSERT INTO podcasts (id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,createdAt,updatedAt) VALUES ('podcast-one','Pod','Host',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,0,3,NULL,'[]','[]',?,?)`, time.Now().Format(time.RFC3339Nano), time.Now().Format(time.RFC3339Nano)); err != nil {
+	if _, err := h.db.Exec(`INSERT INTO podcasts (id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,numEpisodes,createdAt,updatedAt) VALUES ('podcast-one','Pod','Host',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,NULL,0,3,NULL,'[]','[]',1,?,?)`, time.Now().Format(time.RFC3339Nano), time.Now().Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
 	af, _ := json.Marshal(map[string]any{"index": 1, "ino": "ep-file", "metadata": map[string]any{"filename": "episode.wav", "ext": ".wav", "path": mediaPath, "size": 1000}, "duration": 3, "exclude": false})
@@ -290,9 +278,9 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 	t.Cleanup(func() { db.Close() })
 	stmts := []string{
 		`CREATE TABLE libraryItems (id TEXT PRIMARY KEY,libraryId TEXT,mediaId TEXT,mediaType TEXT,title TEXT,authorNamesFirstLast TEXT,path TEXT,relPath TEXT,ino TEXT,isFile INTEGER,isMissing INTEGER,isInvalid INTEGER,mtime TEXT,ctime TEXT,birthtime TEXT,lastScan TEXT,lastScanVersion TEXT,libraryFiles TEXT,extraData TEXT,size INTEGER,createdAt TEXT,updatedAt TEXT,libraryFolderId TEXT)`,
-		`CREATE TABLE books (id TEXT PRIMARY KEY,title TEXT,subtitle TEXT,publishedYear TEXT,publishedDate TEXT,publisher TEXT,description TEXT,isbn TEXT,asin TEXT,language TEXT,explicit INTEGER,abridged INTEGER,narrators TEXT,coverPath TEXT,duration REAL,audioFiles TEXT,chapters TEXT,tags TEXT,genres TEXT)`,
+		`CREATE TABLE books (id TEXT PRIMARY KEY,title TEXT,subtitle TEXT,publishedYear TEXT,publishedDate TEXT,publisher TEXT,description TEXT,isbn TEXT,asin TEXT,language TEXT,explicit INTEGER,abridged INTEGER,narrators TEXT,coverPath TEXT,duration REAL,audioFiles TEXT,chapters TEXT,tags TEXT,genres TEXT,ebookFile TEXT,updatedAt TEXT)`,
 		`CREATE TABLE authors (id TEXT,name TEXT)`, `CREATE TABLE bookAuthors (bookId TEXT,authorId TEXT,createdAt TEXT)`, `CREATE TABLE series (id TEXT,name TEXT)`, `CREATE TABLE bookSeries (bookId TEXT,seriesId TEXT,sequence TEXT,createdAt TEXT)`,
-		`CREATE TABLE podcasts (id TEXT,title TEXT,author TEXT,releaseDate TEXT,feedURL TEXT,imageURL TEXT,description TEXT,itunesPageURL TEXT,itunesId TEXT,itunesArtistId TEXT,language TEXT,podcastType TEXT,explicit INTEGER,autoDownloadEpisodes INTEGER,autoDownloadSchedule TEXT,lastEpisodeCheck TEXT,maxEpisodesToKeep INTEGER,maxNewEpisodesToDownload INTEGER,coverPath TEXT,tags TEXT,genres TEXT,createdAt TEXT,updatedAt TEXT)`,
+		`CREATE TABLE podcasts (id TEXT,title TEXT,author TEXT,releaseDate TEXT,feedURL TEXT,imageURL TEXT,description TEXT,itunesPageURL TEXT,itunesId TEXT,itunesArtistId TEXT,language TEXT,podcastType TEXT,explicit INTEGER,autoDownloadEpisodes INTEGER,autoDownloadSchedule TEXT,lastEpisodeCheck TEXT,maxEpisodesToKeep INTEGER,maxNewEpisodesToDownload INTEGER,coverPath TEXT,tags TEXT,genres TEXT,numEpisodes INTEGER,createdAt TEXT,updatedAt TEXT)`,
 		`CREATE TABLE podcastEpisodes (id TEXT,podcastId TEXT,"index" INTEGER,season TEXT,episode TEXT,episodeType TEXT,title TEXT,subtitle TEXT,description TEXT,enclosureURL TEXT,enclosureSize INTEGER,enclosureType TEXT,pubDate TEXT,audioFile TEXT,chapters TEXT,extraData TEXT,publishedAt TEXT,createdAt TEXT,updatedAt TEXT)`,
 		`CREATE TABLE libraries (id TEXT PRIMARY KEY,settings TEXT)`,
 		`CREATE TABLE devices (id TEXT PRIMARY KEY,deviceId TEXT,clientName TEXT,clientVersion TEXT,ipAddress TEXT,deviceName TEXT,deviceVersion TEXT,extraData TEXT,userId TEXT,createdAt TEXT,updatedAt TEXT)`,
@@ -308,11 +296,11 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 	writeWAV(t, path)
 	raw, _ := json.Marshal([]map[string]any{{"index": 1, "ino": "audio-one", "metadata": map[string]any{"filename": "test.wav", "ext": ".wav", "path": path, "size": 441044}, "duration": 3.0, "bitRate": 705600, "channels": 1, "codec": "pcm_s16le", "format": "wav", "exclude": false}})
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = db.Exec(`INSERT INTO libraryItems VALUES ('item-one','library-one','book-one','book','Book','Author',?,'test.wav','item-ino',0,0,0,?,?,?,NULL,NULL,'[]','{}',441044,?,?,'folder-one')`, path, path, now, now, now, now)
+	_, err = db.Exec(`INSERT INTO libraryItems VALUES ('item-one','library-one','book-one','book','Book','Author',?,'test.wav','item-ino',0,0,0,?,?,?,NULL,NULL,'[]','{}',441044,?,?,'folder-one')`, path, now, now, now, now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec(`INSERT INTO books VALUES ('book-one','Book',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,'[]',NULL,3,?,'[]','[]','[]')`, string(raw))
+	_, err = db.Exec(`INSERT INTO books VALUES ('book-one','Book',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,'[]',NULL,3,?,'[]','[]','[]',NULL,NULL)`, string(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +317,7 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{MetadataPath: t.TempDir()}
-	h := New(db, cfg, nil, stubItems{})
+	h := New(db, cfg, nil)
 	user := store.User{ID: "user-one", Username: "tester", Type: "user", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	return h, user, "item-one", path
 }

@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/store"
@@ -36,13 +35,12 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	itemReader := catalog.New(db, cfg, nil)
-	h, err := New(db, []byte("userapi-test-secret"), emit, itemReader)
+	h, err := New(db, []byte("userapi-test-secret"), emit)
 	if err != nil {
 		panic(err)
 	}
 	routes := http.NewServeMux()
-	listHandler := lists.New(db, itemReader, func(userID, event string, payload any) {
+	listHandler := lists.New(db, func(userID, event string, payload any) {
 		if h.emit != nil {
 			h.emit(userID, event, payload)
 		}
@@ -83,9 +81,13 @@ func userFixture(t *testing.T) (*sql.DB, store.User) {
 		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt DATETIME, extraData TEXT, podcastId TEXT, userId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE libraries (id TEXT PRIMARY KEY)`,
 		`CREATE TABLE libraryItems (id TEXT PRIMARY KEY, mediaId TEXT, mediaType TEXT, libraryId TEXT, libraryFolderId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime DATETIME, ctime DATETIME, birthtime DATETIME, createdAt DATETIME, updatedAt DATETIME, lastScan DATETIME, lastScanVersion INTEGER, isMissing INTEGER, isInvalid INTEGER, size INTEGER, extraData TEXT, libraryFiles TEXT, ino TEXT)`,
-		`CREATE TABLE books (id TEXT PRIMARY KEY, explicit INTEGER, tags TEXT)`,
-		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, explicit INTEGER, tags TEXT)`,
-		`CREATE TABLE podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT)`,
+		`CREATE TABLE books (id TEXT PRIMARY KEY, title TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators TEXT, audioFiles TEXT, ebookFile TEXT, chapters TEXT, tags TEXT, genres TEXT, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck DATETIME, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags TEXT, genres TEXT, numEpisodes INTEGER, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE podcastEpisodes (id TEXT PRIMARY KEY, "index" INTEGER, season TEXT, episode TEXT, episodeType TEXT, title TEXT, subtitle TEXT, description TEXT, pubDate TEXT, enclosureURL TEXT, enclosureSize INTEGER, enclosureType TEXT, publishedAt DATETIME, audioFile TEXT, chapters TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME, podcastId TEXT)`,
+		`CREATE TABLE authors (id TEXT PRIMARY KEY, name TEXT, lastFirst TEXT, libraryId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE series (id TEXT PRIMARY KEY, name TEXT, nameIgnorePrefix TEXT, libraryId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
+		`CREATE TABLE bookAuthors (id TEXT PRIMARY KEY, bookId TEXT, authorId TEXT, createdAt DATETIME)`,
+		`CREATE TABLE bookSeries (id TEXT PRIMARY KEY, sequence TEXT, bookId TEXT, seriesId TEXT, createdAt DATETIME)`,
 		`CREATE TABLE apiKeys (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, expiresAt DATETIME, lastUsedAt DATETIME, isActive INTEGER NOT NULL DEFAULT 0, permissions TEXT, userId TEXT, createdByUserId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE playlists (id TEXT PRIMARY KEY, name TEXT, description TEXT, libraryId TEXT, userId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, playlistId TEXT, createdAt DATETIME)`,

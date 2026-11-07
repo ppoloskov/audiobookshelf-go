@@ -62,6 +62,7 @@ and nulls, because TS reads those back.
 | M1: handlers return error; Handle chains → mux | (this commit) | 44,674 → 43,348 | −1,326 (prod +2,560 / −4,036) | 10,809 → 10,406 | 8 hand routers and the legacy adapter deleted; JSON 200 GET/HEAD gains ETag/304; unknown routes 404 |
 | M2: one error framing (httputil.Fail); per-package write helpers deleted; catalog round 2 | (this commit) | 43,348 → 42,743 | −605 | 10,406 → 10,380 | ~20 helpers (bare, text, reply, reject, plainError, dbFail, …) and catalog adapters gone; error bodies follow the TS send/sendStatus choice |
 | M3: ADR-002 sweep (key-order/byte-fidelity code deleted) | (this commit) | 42,743 → 42,578 | −165 | 10,380 → 10,347 | httputil Streamed/WithoutContentLength/WithoutETag, catalog writeJSONWithETag, OIDC ordered rewriter, playback ordered metadata structs; byte/order test assertions now compare values |
+| M4 (C1): one typed item model, internal/libitem | (this commit) | 42,578 → 41,812 | −766 (libitem +~1,050 included) | 10,347 → 10,155 | packages books/ and items/ deleted; catalog podcast/book map builders, podcasts/item.go serializer, playback and sharing schema readers, lists per-entry SELECTs, dead wire book types; map[string]any 990 → 900, []any 326 → 301 |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -88,3 +89,20 @@ podcasts, notifications and emailapi; `Runtime.legacyChain`, `features()`,
 `legacyRouter`, `isPublicPlayback`, the sharing/playback public
 pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
 `PathUnescape` 400 branches that the mux's decoded `PathValue` makes dead.
+
+### M4 (C1) notes
+
+- Queries: a library page with `include=` drops from 83 to 8 queries for 20
+  rows (constant in page size); collapsed-series pages from 104 to 29; shelves,
+  series books, author items, subseries, search, batch/get, playlists,
+  collections, items-in-progress and recent episodes load once per list
+  instead of once per item. Known regression: the single-item access check in
+  userapi now loads the item (about 4 queries instead of 1).
+- Values that moved toward TS: a NULL series sequence in a persisted play
+  session's mediaMetadata is `null` (TS `Book.oldMetadataToJSON`), not `""`;
+  podcast title prefixes use the server's sortingPrefixes; an item whose
+  media row is missing is a 404 instead of a 500.
+- Remaining: catalog still renders the typed libitem structs into
+  `map[string]any` through a JSON round trip (`toMap`) so its decorators can
+  keep writing map keys. That costs one extra marshal per item and keeps
+  realtime's map access path alive. Typing the catalog decorators deletes both.

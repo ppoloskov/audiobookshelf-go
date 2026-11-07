@@ -18,9 +18,11 @@ logs and recovery chronology are in the
 [docs/SIMPLIFICATION.md](docs/SIMPLIFICATION.md) for the ADR and the measured
 ledger. Every feature package now registers method patterns on one mux; the
 `Handle(w, r, user) bool` chains and the runtime's legacy adapter are gone
-(identity keeps its auth-ordered Handle). Next: one httputil error framing per
-Express/`http.Error` shape, which deletes the per-package write helpers, and the
-second catalog round (authors, batch, series, writes, quickmatch).
+(identity keeps its auth-ordered Handle). M2 (one error framing), M3
+(ADR-002: JSON by value) and M4 (C1, typed item model `internal/libitem`;
+`books`/`items` deleted) followed. Next: type catalog's item decorators
+(removes the `toMap` round trip and realtime's map access path), then C2 (one
+media-write path) and C3/C4 (filter table, shelf definitions). See the ledger.
 
 Last runtime commit **82110311**, preceding audit documentation commit **2fb4cde9**.
 B01–B09, I01–I06, L01–L05, PR01–PR07, MC-05/F1, S9b-R1 and D01 are accepted.

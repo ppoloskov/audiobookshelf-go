@@ -20,6 +20,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
@@ -664,7 +665,7 @@ func (h *Handler) quickMatchSeries(ctx context.Context, tx *sql.Tx, item quickMa
 				if _, err = tx.ExecContext(ctx, `INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, entry.name, titleIgnorePrefix(entry.name, prefixes), item.libraryID, now, now); err != nil {
 					return false, err
 				}
-				*events = append(*events, syncEvent{"series_added", wire.SeriesCreated{ID: id, Name: entry.name, NameIgnorePrefix: catalogTitlePrefixAtEnd(entry.name, prefixes), AddedAt: dbTimeMillis(now), UpdatedAt: dbTimeMillis(now), LibraryID: item.libraryID}})
+				*events = append(*events, syncEvent{"series_added", wire.SeriesCreated{ID: id, Name: entry.name, NameIgnorePrefix: libitem.TitleIgnorePrefix(entry.name, prefixes), AddedAt: dbTimeMillis(now), UpdatedAt: dbTimeMillis(now), LibraryID: item.libraryID}})
 				*added = append(*added, filterdata.Named{ID: id, Name: entry.name})
 			} else if err != nil {
 				return false, err
