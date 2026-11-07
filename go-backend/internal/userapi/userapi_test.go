@@ -35,7 +35,7 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	h, err := New(db, []byte("userapi-test-secret"), emit)
+	h, err := New(db, []byte("userapi-test-secret"), emit, nil)
 	if err != nil {
 		panic(err)
 	}

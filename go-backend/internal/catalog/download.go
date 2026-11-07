@@ -65,10 +65,10 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		}
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !access.Of(user).Download() {
+	if !access.For(r.Context(), user).Download() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if isFile != 0 {

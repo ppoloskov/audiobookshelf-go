@@ -161,7 +161,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 	}
 	total := len(books)
 	accessible := make([]*subseriesBook, 0, len(books))
-	perms := access.Of(user)
+	perms := access.For(ctx, user)
 	for _, b := range books {
 		if perms.Item(b.access) {
 			accessible = append(accessible, b)

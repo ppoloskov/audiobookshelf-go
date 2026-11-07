@@ -17,7 +17,7 @@ import (
 )
 
 func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !access.Of(u).Upload() {
+	if !access.For(r.Context(), u).Upload() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil || r.MultipartForm == nil || len(r.MultipartForm.File) == 0 {
@@ -39,7 +39,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) e
 		}
 		return httputil.Internal("Internal server error", err)
 	}
-	if !access.AdminUser(u) && !access.Of(u).Library(libraryID) {
+	if !access.AdminUser(u) && !access.For(r.Context(), u).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var folderPath string

@@ -18,6 +18,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -469,6 +470,49 @@ func (h *Hub) Emit(userID, event string, payload any) {
 			d.client.socket.Emit(event, d.payload)
 		}
 	}
+}
+
+// Refresh re-reads a user's row after an admin changed or deleted it and
+// applies it to that user's connections. Upstream keeps the user object loaded
+// at socket auth (UserController.js:347 and :402 only emit to the actor and to
+// admins), so a revoked user keeps receiving events; we fail closed instead:
+// connections take the new permissions, and those of a deleted or deactivated
+// user are disconnected, as socket auth already refuses them.
+func (h *Hub) Refresh(ctx context.Context, userID string) error {
+	h.mu.RLock()
+	db := h.db
+	h.mu.RUnlock()
+	row, err := sqlc.New(db).GetUserByID(ctx, userID)
+	var user store.User
+	if err == nil {
+		user, err = store.UserFromRow(row)
+	}
+	gone := errors.Is(err, sql.ErrNoRows)
+	if err != nil && !gone {
+		return err
+	}
+	var drop []*Socket
+	h.mu.Lock()
+	for _, c := range h.clients {
+		if c.user == nil || c.user.ID != userID {
+			continue
+		}
+		if gone || !user.IsActive {
+			c.grants = access.Permissions{} // denies item events until the disconnect lands
+			if c.socket != nil {
+				drop = append(drop, c.socket)
+			}
+			continue
+		}
+		user.LastSeen = c.user.LastSeen
+		copy := user
+		c.user, c.grants = &copy, access.Of(copy)
+	}
+	h.mu.Unlock()
+	for _, s := range drop {
+		s.Disconnect()
+	}
+	return nil
 }
 
 // EmitSocket emits to one active socket connection identified by socket ID.

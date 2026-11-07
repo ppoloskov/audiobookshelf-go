@@ -257,7 +257,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("Internal Server Error", err)
 	}
-	if !access.Of(user).Item(item.Access()) {
+	if !access.For(r.Context(), user).Item(item.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if len(item.Files) == 0 {
@@ -758,7 +758,7 @@ func (h *Handler) OpenSessions() []map[string]any {
 func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) error {
 	user, _ := store.UserFromContext(r.Context())
 	id := r.PathValue("id")
-	if !access.Of(user).Delete() {
+	if !access.For(r.Context(), user).Delete() {
 		return httputil.Status(403, "")
 	}
 	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)

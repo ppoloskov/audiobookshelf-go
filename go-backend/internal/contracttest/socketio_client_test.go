@@ -22,6 +22,7 @@ type sioClient struct {
 	writeMu sync.Mutex
 	opened  chan struct{} // Engine.IO open packet ("0{...}") received
 	joined  chan struct{} // namespace connect acknowledged ("40{...}") received
+	done    chan struct{} // closed when the server ended the connection
 	// onEvent is called from the read goroutine for each event packet.
 	onEvent func(name string, payload any)
 }
@@ -43,7 +44,7 @@ func dialSocketIO(baseURL, path string, timeout time.Duration) (*sioClient, erro
 	if err != nil {
 		return nil, err
 	}
-	c := &sioClient{ws: ws, opened: make(chan struct{}), joined: make(chan struct{})}
+	c := &sioClient{ws: ws, opened: make(chan struct{}), joined: make(chan struct{}), done: make(chan struct{})}
 	go c.read()
 	if err := c.waitFor(c.opened, timeout, "Engine.IO open packet"); err != nil {
 		_ = ws.Close()
@@ -92,6 +93,7 @@ func (c *sioClient) write(frame string) error {
 // read handles incoming packets until the connection closes: pings are answered,
 // the handshake packets are signalled, events are passed to onEvent.
 func (c *sioClient) read() {
+	defer close(c.done)
 	for {
 		var frame string
 		if err := websocket.Message.Receive(c.ws, &frame); err != nil {

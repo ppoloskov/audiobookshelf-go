@@ -341,7 +341,7 @@ func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string,
 // {success, cover} JSON answer carrying an express-style weak ETag.
 func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 	user, itemID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Upload() {
+	if !access.For(r.Context(), user).Upload() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var libraryID, itemPath, mediaType, mediaID string
@@ -352,7 +352,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		}
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var fileHeader *multipart.FileHeader

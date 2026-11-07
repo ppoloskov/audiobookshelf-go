@@ -526,7 +526,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 	if !allowed {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to update without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

@@ -76,7 +76,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if access.Of(user).Library(libraryID) {
+		if access.For(r.Context(), user).Library(libraryID) {
 			out = append(out, dto)
 		}
 	}
@@ -86,7 +86,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	dto, libraryID, err := h.collection(r.Context(), id, user)
-	if errors.Is(err, sql.ErrNoRows) || err == nil && !access.Of(user).Library(libraryID) {
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
 	if err != nil {
@@ -112,10 +112,10 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	} else if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
-	if !access.Of(user).Delete() {
+	if !access.For(r.Context(), user).Delete() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	dto, _, _ := h.collection(r.Context(), id, user)

@@ -774,7 +774,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request, u store.Use
 	return nil
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !access.Of(u).Upload() {
+	if !access.For(r.Context(), u).Upload() {
 		return httputil.Status(403, "")
 	}
 	var p struct {
@@ -791,7 +791,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	if e != nil {
 		return httputil.Status(404, "")
 	}
-	if !access.AdminUser(u) && !access.Of(u).Library(libraryID) {
+	if !access.AdminUser(u) && !access.For(r.Context(), u).Library(libraryID) {
 		return httputil.Status(403, "")
 	}
 	base, _ := filepath.Abs(filepath.Clean(p.FolderPath))

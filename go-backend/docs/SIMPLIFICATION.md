@@ -69,6 +69,7 @@ and nulls, because TS reads those back.
 | M8: review fixes (authorization, settings lifecycle) + M-b providers + M-c playback/podcasts typing | (this commit) | 40,817 → 40,725 | −92 | 9,703 → 9,558 | provider map building and helpers; playback openJSON/clientJSON maps and payload helpers; podcasts xmlNode parser and checkNew copy; map[string]any 823 → 675 |
 | M9 (S2): scanner inode index and importGroup gather/plan/apply | (this commit) | 40,725 → 40,899 | **+174 (approved growth exception)** | 9,558 → 9,569 (+11 total; max function 105 → 34) | quadratic matchGroupByInode replaced by a per-scan index; importGroup (291 lines, complexity 105) split into gather / pure plan / apply / afterImport |
 | M10: itemwrite orphan-sweep safety fix | (this commit) | 40,899 → 40,928 | +29 (correctness fix) | 9,569 → 9,570 | check-then-delete replaced by one DELETE … NOT EXISTS … RETURNING |
+| M11 (PERM2): request-scoped permissions; realtime revocation | (this commit) | 40,928 → 41,020 | +92 (approved priority; security) | 9,570 → 9,593 | ~100 per-helper access.Of decodes replaced by one per request |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -255,3 +256,23 @@ Defects found and fixed:
 - **Cancellation.** The sweep runs after the edit committed, so it now ignores
   the request's cancellation. A disconnecting client no longer leaves orphans
   (TestSweepIgnoresRequestCancellation).
+
+### M11 (PERM2) notes
+
+- Permissions are decoded once per request. The runtime calls
+  `access.WithRequest` after authentication, and handlers call `access.For`,
+  which reuses the snapshot only for the request's own user (same id, type,
+  isActive and permission bytes) and decodes any other user's row. Nothing is
+  cached across requests. Decodes per request: library items 3 → 1, item read
+  2 → 1, personalized page 3 → 1 (`TestRequestDecodesPermissionsOnce`).
+- **Realtime revocation, a deliberate deviation from TS (fail closed).** TS
+  keeps the user object a socket authenticated with (`SocketAuthority.js:104-125`).
+  `user_updated` goes only to the acting admin (`UserController.js:347`), and
+  `user_removed` goes only to admins (`:402`), so an established socket keeps
+  receiving item events after its access is removed. Go refreshes a
+  connection's user and grants after an admin PATCH of the user, so access is
+  removed and restored. A deactivated or deleted user's sockets are closed.
+  Tests: `TestSocketFollowsUserUpdates` (library and tag removal/restoration,
+  deactivation) and `TestSocketClosesWhenUserDeleted`. Both fail with the
+  refresh disabled.
+- The refresh callback is a `userapi.New` argument (no new Set* injector).

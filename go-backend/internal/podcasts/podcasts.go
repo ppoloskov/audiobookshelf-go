@@ -142,7 +142,7 @@ func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, libitem.Ite
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		perms := access.Of(user)
+		perms := access.For(r.Context(), user)
 		if !perms.IsAdmin() && !perms.Item(item.Access()) ||
 			r.Method == http.MethodDelete && !perms.IsAdmin() && !perms.Delete() ||
 			(r.Method == http.MethodPatch || r.Method == http.MethodPost) && !perms.IsAdmin() && !perms.Update() {

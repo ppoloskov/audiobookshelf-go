@@ -35,7 +35,7 @@ type libraryRecord struct {
 // when limit or page is not a non-negative integer.
 func (h *Handler) libraryAccess(r *http.Request, user store.User) (libraryRecord, error) {
 	id := r.PathValue("id")
-	if !access.Of(user).Library(id) {
+	if !access.For(r.Context(), user).Library(id) {
 		logging.Warnf("[LibraryController] Library %s not accessible to user %s", id, user.Username)
 		return libraryRecord{}, httputil.Status(http.StatusForbidden, "")
 	}
@@ -118,7 +118,7 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -227,7 +227,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
-	if !access.Of(user).Download() {
+	if !access.For(r.Context(), user).Download() {
 		logging.Warnf(`User "%s" attempted to download without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

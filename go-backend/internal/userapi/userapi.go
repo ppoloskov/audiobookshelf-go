@@ -41,17 +41,25 @@ type Handler struct {
 	setRefreshCookie   func(http.ResponseWriter, *http.Request, string)
 	usersOnline        func() []map[string]any
 	openSessions       func() []map[string]any
+	userChanged        func(ctx context.Context, userID string) error
+}
+
+func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
+	if h.userChanged != nil {
+		if err := h.userChanged(ctx, id); err != nil {
+			logging.Errorf("[UserController] Failed to refresh sockets of user %s: %v", id, err)
+		}
+	}
 }
 
 // New takes the token secret identity resolved at startup, so both packages
-// sign with the same key.
-// itemReader is unused: items load through libitem. The parameter stays until
-// the runtime call site drops it.
-func New(db *sql.DB, tokenSecret []byte, emit func(userID, event string, payload any)) (*Handler, error) {
+// sign with the same key. userChanged (optional) runs after an admin updates
+// or deletes a user, so live connections stop using the old permissions.
+func New(db *sql.DB, tokenSecret []byte, emit func(userID, event string, payload any), userChanged func(context.Context, string) error) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
 	}
-	return &Handler{db: db, tokenSecret: tokenSecret, emit: events.Emitter(emit)}, nil
+	return &Handler{db: db, tokenSecret: tokenSecret, emit: events.Emitter(emit), userChanged: userChanged}, nil
 }
 
 func (h *Handler) SetCredentialHooks(invalidate func(context.Context, string, string) (string, string, error), changePassword func(context.Context, string, string, string) error, setCookie func(http.ResponseWriter, *http.Request, string)) {
@@ -312,7 +320,7 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return wire.MediaProgress{}, err
 	}
-	if libraryID != "" && !access.Of(user).Library(libraryID) {
+	if libraryID != "" && !access.For(ctx, user).Library(libraryID) {
 		return wire.MediaProgress{}, &progressdto.StatusError{Status: http.StatusForbidden, Message: "Forbidden"}
 	}
 	return progressdto.Apply(ctx, h.db, user.ID, p)
@@ -632,6 +640,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current sto
 		return httputil.Internal("database write failed", err)
 	}
 	logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
+	h.notifyUserChanged(r.Context(), id)
 	if h.emit != nil {
 		h.emit("admin", "user_removed", browserUser(u, []any{}, jsonArray(u.Bookmarks)))
 	}
@@ -764,6 +773,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 			h.setRefreshCookie(w, r, refresh)
 		}
 	}
+	h.notifyUserChanged(r.Context(), u.ID)
 	u.Permissions = encoded
 	serialized, err := h.browserUserDB(r.Context(), u, []any{}, jsonArray(u.Bookmarks))
 	if err != nil {
@@ -1045,7 +1055,7 @@ func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID str
 	if err != nil {
 		return itemAccess{}, err
 	}
-	return itemAccess{exists: true, allowed: access.Of(user).Item(a)}, nil
+	return itemAccess{exists: true, allowed: access.For(ctx, user).Item(a)}, nil
 }
 
 // decorateAdminProgress adds the media fields UserController.findOne attaches

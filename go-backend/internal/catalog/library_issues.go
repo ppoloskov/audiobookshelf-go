@@ -15,7 +15,7 @@ import (
 // items leave empty (LibraryController.js:650-722).
 func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var found string

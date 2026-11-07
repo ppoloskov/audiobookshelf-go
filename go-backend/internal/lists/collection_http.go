@@ -19,7 +19,7 @@ import (
 
 func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
@@ -39,7 +39,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error
 	// Collection.create persists `description || null` upstream; an empty
 	// string therefore round-trips as JSON null, not as an empty string
 	// (store.TextOrNull writes NULL for it).
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(403, "")
 	}
 	bookIDs := jsonvalue.Strings(body["books"])
@@ -102,10 +102,10 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error
 		return httputil.Internal("database read failed", err)
 	}
 	libraryID, name, desc := c.Libraryid.String, c.Name.String, c.Description
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(404, "")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
 	oldName, oldDesc := name, desc
@@ -197,10 +197,10 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) e
 	} else if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
 	body, _ := httputil.DecodeObjectRequest(r)
@@ -360,10 +360,10 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
@@ -414,10 +414,10 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
 	var mediaID string

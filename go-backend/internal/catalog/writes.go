@@ -31,10 +31,10 @@ func (h *Handler) writableItem(ctx context.Context, id string, user store.User) 
 	if err != nil {
 		return scope, false, err
 	}
-	if !access.Of(user).Library(scope.libraryID) {
+	if !access.For(ctx, user).Library(scope.libraryID) {
 		return scope, false, nil
 	}
-	return scope, access.Of(user).Update(), nil
+	return scope, access.For(ctx, user).Update(), nil
 }
 
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
@@ -248,10 +248,10 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 		return http.StatusInternalServerError, "database read failed"
 	}
 	if user != nil {
-		if !access.Of(*user).Library(scope.libraryID) {
+		if !access.For(ctx, *user).Library(scope.libraryID) {
 			return http.StatusForbidden, ""
 		}
-		if !access.Of(*user).Delete() {
+		if !access.For(ctx, *user).Delete() {
 			return http.StatusForbidden, ""
 		}
 	}

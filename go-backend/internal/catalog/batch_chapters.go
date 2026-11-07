@@ -77,7 +77,7 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	visibleIDs := make([]string, 0, len(items))
-	perms := access.Of(user)
+	perms := access.For(r.Context(), user)
 	for _, id := range ids {
 		ref, ok := items[id]
 		if !ok {
@@ -123,10 +123,10 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(scope.libraryID) {
+	if !access.For(r.Context(), user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {
@@ -221,7 +221,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var audioRaw []byte
@@ -294,7 +294,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var filesRaw []byte
@@ -351,10 +351,10 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(scope.libraryID) {
+	if !access.For(r.Context(), user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {
@@ -428,10 +428,10 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(scope.libraryID) {
+	if !access.For(r.Context(), user).Library(scope.libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if scope.mediaType != "book" {

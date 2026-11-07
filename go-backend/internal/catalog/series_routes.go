@@ -58,7 +58,7 @@ type seriesItem struct{ itemID, bookID string }
 // (libraryItemsBookFilters.js:1079-1082): the series' books the user may see,
 // ordered by sequence as a number, books without one last.
 func (h *Handler) seriesItems(ctx context.Context, user store.User, s seriesRecord) ([]seriesItem, error) {
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(ctx, user).MediaClause("b")
 	args := append([]any{s.libraryID, s.id}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN bookSeries bs ON bs.bookId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND bs.seriesId=?`+permissionSQL+` ORDER BY CAST(bs.sequence AS FLOAT) ASC NULLS LAST, li.rowid`, args...)
 	if err != nil {
@@ -96,10 +96,10 @@ func (h *Handler) seriesRequest(r *http.Request, user store.User) (seriesRecord,
 		return s, nil, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
-	case r.Method == http.MethodDelete && !access.Of(user).Delete():
+	case r.Method == http.MethodDelete && !access.For(r.Context(), user).Delete():
 		logging.Warnf(`[SeriesController] User "%s" attempted to delete without permission`, user.Username)
 		return s, nil, httputil.Status(http.StatusForbidden, "")
-	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.Of(user).Update():
+	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.For(r.Context(), user).Update():
 		logging.Warnf(`[SeriesController] User "%s" attempted to update without permission`, user.Username)
 		return s, nil, httputil.Status(http.StatusForbidden, "")
 	}

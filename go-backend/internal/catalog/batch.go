@@ -61,7 +61,7 @@ func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]batch
 // (LibraryItemController.js:48-56): every item must pass
 // User.checkCanAccessLibraryItem (library, explicit content and tags).
 func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items []batchItem) (bool, error) {
-	perms := access.Of(user)
+	perms := access.For(ctx, user)
 	for _, item := range items {
 		if !perms.Library(item.libraryID) {
 			return false, nil
@@ -134,7 +134,7 @@ func looselyOne(value string) bool {
 // its files when hard=1), then the series and authors it leaves empty.
 func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	if !access.Of(user).Delete() {
+	if !access.For(r.Context(), user).Delete() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to delete without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}
@@ -178,7 +178,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 // the end, and the answer counts the items that changed.
 func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	if !access.Of(user).Update() {
+	if !access.For(r.Context(), user).Update() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to batch update without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

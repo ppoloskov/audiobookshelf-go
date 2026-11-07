@@ -74,7 +74,7 @@ var podcastShelves = []shelfDef{
 
 func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -97,10 +97,10 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	defs := bookShelves
 	switch mediaType {
 	case "book":
-		e.perm, e.permArgs = access.Of(user).MediaClause("b")
+		e.perm, e.permArgs = access.For(r.Context(), user).MediaClause("b")
 	case "podcast":
 		defs = podcastShelves
-		e.perm, e.permArgs = access.Of(user).MediaClause("p")
+		e.perm, e.permArgs = access.For(r.Context(), user).MediaClause("p")
 	default:
 		return httputil.Status(http.StatusNotFound, "Library not found")
 	}

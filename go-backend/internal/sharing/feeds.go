@@ -260,7 +260,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 		if src, err = h.loadItemSource(ctx, id); err != nil {
 			return feedEntityError(err)
 		}
-		if !access.Of(u).Library(src.LibraryID) {
+		if !access.For(r.Context(), u).Library(src.LibraryID) {
 			return httputil.Status(403, "")
 		}
 	case "collection":

@@ -23,7 +23,7 @@ func (h *Handler) libraryRoute(recent bool) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, libraryID := requestUser(r), r.PathValue("id")
 		// LibraryController.middleware (server/controllers/LibraryController.js:1475).
-		if perms := access.Of(user); !perms.IsAdmin() && !perms.Library(libraryID) {
+		if perms := access.For(r.Context(), user); !perms.IsAdmin() && !perms.Library(libraryID) {
 			return httputil.Status(http.StatusForbidden, "")
 		}
 		var mediaType string
@@ -108,7 +108,7 @@ type recentEpisode struct {
 // because Sequelize emits LIMIT offset,0.
 func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID string, limit, offset int) ([]recentEpisode, error) {
 	episodes := make([]recentEpisode, 0)
-	permission, args := access.Of(user).MediaClause("p")
+	permission, args := access.For(ctx, user).MediaClause("p")
 	query := `SELECT pe.id, li.id FROM podcastEpisodes pe
 		JOIN podcasts p ON p.id = pe.podcastId
 		JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'

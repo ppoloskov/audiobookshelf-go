@@ -24,7 +24,7 @@ import (
 // 403 before the existence lookup, 404 "Library not found", then limit and
 // page must be non-negative integers.
 func (h *Handler) libraryListPagination(r *http.Request, user store.User, libraryID string) (limit, page int, err error) {
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return 0, 0, httputil.Status(http.StatusForbidden, "")
 	}
 	var exists int

@@ -158,7 +158,7 @@ func (h *Handler) api(w http.ResponseWriter, r *http.Request, path string) {
 		}
 		// LibraryController.findAll filters on a non-empty librariesAccessible
 		// array and does not special-case accessAllLibraries.
-		perms := access.Of(user)
+		perms := access.For(r.Context(), user)
 		filtered := make([]map[string]any, 0, len(libraries))
 		for _, lib := range libraries {
 			if id, ok := lib["id"].(string); ok && perms.ListLibrary(id) {

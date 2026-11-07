@@ -4,9 +4,12 @@
 package access
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
@@ -36,6 +39,7 @@ type Permissions struct {
 // completely (malformed JSON or a field of the wrong type) grants nothing:
 // json.Unmarshal can fill earlier fields before failing on a later one.
 func Of(u store.User) Permissions {
+	decodes.Add(1)
 	p := Permissions{Type: u.Type, Active: u.IsActive}
 	if json.Unmarshal(u.Permissions, &p) != nil {
 		return Permissions{Type: u.Type, Active: u.IsActive}
@@ -114,3 +118,32 @@ func (p Permissions) MediaClause(alias string) (string, []any) {
 
 // AdminUser is root or admin by the user row alone, without decoding permissions.
 func AdminUser(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
+
+var decodes atomic.Int64
+
+// Decodes counts Of calls, so tests can prove a request decodes once.
+func Decodes() int64 { return decodes.Load() }
+
+type requestKey struct{}
+
+type snapshot struct {
+	user  store.User
+	perms Permissions
+}
+
+// WithRequest decodes u once and carries the result in the request context.
+// There is no cache beyond the request: the snapshot dies with the context.
+func WithRequest(ctx context.Context, u store.User) context.Context {
+	return context.WithValue(ctx, requestKey{}, snapshot{u, Of(u)})
+}
+
+// For is Of(u) that reuses the request's snapshot when u is the user the
+// snapshot was decoded from (same row identity, type, state and permissions
+// document); any other user, such as an admin route's target, decodes afresh.
+func For(ctx context.Context, u store.User) Permissions {
+	if s, ok := ctx.Value(requestKey{}).(snapshot); ok && s.user.ID == u.ID && s.user.Type == u.Type &&
+		s.user.IsActive == u.IsActive && bytes.Equal(s.user.Permissions, u.Permissions) {
+		return s.perms
+	}
+	return Of(u)
+}

@@ -121,7 +121,7 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stor
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if !access.AdminUser(user) && !access.Of(user).Library(it.library) {
+		if !access.AdminUser(user) && !access.For(r.Context(), user).Library(it.library) {
 			return httputil.Status(403, "")
 		}
 		return action(w, r, user, it)
@@ -330,7 +330,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) er
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		if !access.AdminUser(u) && !access.Of(u).Library(it.library) {
+		if !access.AdminUser(u) && !access.For(r.Context(), u).Library(it.library) {
 			return httputil.Status(403, "")
 		}
 		if it.typ != "book" || len(it.files) == 0 {

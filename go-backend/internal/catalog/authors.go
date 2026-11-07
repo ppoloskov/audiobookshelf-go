@@ -131,14 +131,14 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 	if err != nil {
 		return a, httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(a.libraryID) {
+	if !access.For(r.Context(), user).Library(a.libraryID) {
 		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
-	case r.Method == http.MethodDelete && !access.Of(user).Delete():
+	case r.Method == http.MethodDelete && !access.For(r.Context(), user).Delete():
 		logging.Warnf(`[AuthorController] User "%s" attempted to delete without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
-	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.Of(user).Update():
+	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.For(r.Context(), user).Update():
 		logging.Warnf(`[AuthorController] User "%s" attempted to update without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
 	}
@@ -150,7 +150,7 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 // libraryItemsBookFilters.getFilteredLibraryItems, 'authors' group, addedAt
 // descending): only items the user may see (explicit and tag permissions).
 func (h *Handler) authorItemIDs(ctx context.Context, user store.User, author authorRecord) ([]string, error) {
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(ctx, user).MediaClause("b")
 	args := append([]any{author.libraryID, author.id}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`+permissionSQL+` ORDER BY li.createdAt DESC`, args...)
 	if err != nil {
@@ -793,7 +793,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return err
 	}
-	if !access.Of(user).Upload() {
+	if !access.For(r.Context(), user).Upload() {
 		logging.Warnf(`User "%s" attempted to upload an image without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}

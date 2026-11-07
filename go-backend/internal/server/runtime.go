@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/adminops"
 	"audiobookshelf-compat/internal/audiotools"
 	"audiobookshelf-compat/internal/backup"
@@ -111,7 +112,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
-	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit)
+	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit, hub.Refresh)
 	if err != nil {
 		podcastsHandler.Close()
 		sc.Close()
@@ -356,7 +357,11 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store
 	if _, pattern := rt.routes.Handler(r); pattern == "" {
 		return false
 	}
-	rt.routes.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+	ctx := store.ContextWithUser(r.Context(), user)
+	if user.ID != "" {
+		ctx = access.WithRequest(ctx, user)
+	}
+	rt.routes.ServeHTTP(w, r.WithContext(ctx))
 	return true
 }
 

@@ -253,7 +253,7 @@ func (h *Handler) SetItemChanged(callback func(context.Context, string) error) {
 
 func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(id) {
+	if !access.For(r.Context(), user).Library(id) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -286,7 +286,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
 		settings                                     []byte
 	}
 	selected := make([]libraryRow, 0)
-	perms := access.Of(user)
+	perms := access.For(r.Context(), user)
 	for rows.Next() {
 		var row libraryRow
 		if err := rows.Scan(&row.id, &row.name, &row.order, &row.icon, &row.mediaType, &row.provider, &row.lastScan, &row.version, &row.settings, &row.createdAt, &row.updatedAt); err != nil {
@@ -374,7 +374,7 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(id) {
+	if !access.For(r.Context(), user).Library(id) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var name, icon, mediaType, provider, version sql.NullString
@@ -432,7 +432,7 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(id) {
+	if !access.For(r.Context(), user).Library(id) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -763,7 +763,7 @@ func orString(s sql.NullString, fallback string) string {
 
 func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var exists int
@@ -801,7 +801,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request) error {
 	filtered := make([]authorRow, 0, len(data))
 	for _, a := range data {
 		var count int64
-		where, args := access.Of(user).MediaClause("b")
+		where, args := access.For(r.Context(), user).MediaClause("b")
 		q := `SELECT COUNT(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id=ba.bookId WHERE ba.authorId=?` + where
 		params := append([]any{a.id}, args...)
 		if err := h.db.QueryRowContext(r.Context(), q, params...).Scan(&count); err != nil {
@@ -912,7 +912,7 @@ func authorPagination(r *http.Request) (int, int, bool) {
 
 func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -929,7 +929,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 	filter := r.URL.Query().Get("filter")
 	settings := decodeObject(settingsRaw)
 	hideSingle, _ := settings["hideSingleBookSeries"].(bool)
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	hasPermissionFilter := permissionSQL != ""
 	rows, err := h.db.QueryContext(r.Context(), `SELECT s.id,s.name,s.nameIgnorePrefix,s.description,s.createdAt,s.updatedAt,s.libraryId,(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id) AS bookCount,(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS duration,(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS recent FROM series s WHERE s.libraryId=?`, libraryID)
 	if err != nil {
@@ -1082,7 +1082,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
-	permission, args := access.Of(user).MediaClause("b")
+	permission, args := access.For(ctx, user).MediaClause("b")
 	queryArgs := append([]any{seriesID}, args...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission, queryArgs...)
 	if err != nil {
@@ -1123,7 +1123,7 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 
 func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID, seriesID := requestUser(r), r.PathValue("id"), r.PathValue("seriesId")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var name, nameIgnore, description sql.NullString
@@ -1136,7 +1136,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	visibleSQL, args := access.Of(user).MediaClause("b")
+	visibleSQL, args := access.For(r.Context(), user).MediaClause("b")
 	var count int64
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=?`+visibleSQL, append([]any{seriesID}, args...)...).Scan(&count); err != nil {
 		return httputil.Internal("database read failed", err)
@@ -1217,7 +1217,7 @@ func (h *Handler) libraryFolders(ctx context.Context, libraryID string) ([]map[s
 
 func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var mediaType string
@@ -1259,7 +1259,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusNotImplemented, err.Error())
 	}
 	var total int
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	var collapsed collapsedSeries
 	if collapse && mediaType == "book" {
 		if collapsed, err = h.collapseSeries(r.Context(), libraryID, filterValue, filterWhere, filterArgs, permissionSQL, permissionArgs); err != nil {
@@ -1349,7 +1349,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Item(it.Access()) {
+	if !access.For(r.Context(), user).Item(it.Access()) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if !expanded {
@@ -1471,7 +1471,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	var target string
@@ -1487,7 +1487,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if download {
-		if !access.Of(user).Download() {
+		if !access.For(r.Context(), user).Download() {
 			return httputil.Status(http.StatusForbidden, "")
 		}
 		if mimeType := audioMIMEType(filepath.Ext(target)); mimeType != "" {
@@ -1522,7 +1522,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	target := ""
@@ -1714,7 +1714,7 @@ func fileMetadataExt(file map[string]any) any {
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.Of(user).Library(libraryID) {
+	if !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -1737,7 +1737,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) error {
 	} else if mediaType != "book" {
 		return httputil.Status(http.StatusNotImplemented, "unsupported library media type")
 	}
-	permissionSQL, permissionArgs := access.Of(user).MediaClause("b")
+	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	querySQL := `SELECT li.id FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND (lower(b.title) LIKE lower(?) OR `
 	if mediaType == "book" {
 		querySQL += `lower(b.subtitle) LIKE lower(?) OR lower(b.asin) LIKE lower(?) OR lower(b.isbn) LIKE lower(?))`
@@ -1975,7 +1975,7 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		return nil, err
 	}
 	rows.Close()
-	permission, permissionArgs := access.Of(user).MediaClause("b")
+	permission, permissionArgs := access.For(ctx, user).MediaClause("b")
 	out := make([]map[string]any, 0, len(matches))
 	for _, m := range matches {
 		itemIDs, err := h.queryStrings(ctx, `SELECT li.id FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE bs.seriesId=?`+permission+` ORDER BY bs.rowid`, append([]any{m.id}, permissionArgs...)...)

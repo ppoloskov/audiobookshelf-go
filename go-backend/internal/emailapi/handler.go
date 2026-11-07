@@ -224,7 +224,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if e != nil {
 		return httputil.Status(404, "Library item not found")
 	}
-	perms := access.Of(u)
+	perms := access.For(r.Context(), u)
 	if !perms.IsAdmin() && !perms.Library(folder) {
 		return httputil.Status(403, "")
 	}
