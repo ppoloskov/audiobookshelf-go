@@ -20,7 +20,7 @@
     "go-backend/internal/providers/handler.go": "afd81935eeaa152e463b8ac3a2744e58b8e7aa5c8112fd14a819c8b6375469c1",
     "go-backend/internal/userapi/userapi.go": "d9712c3c91c137466faae2ce3e6f763b90338134df17b0977fbefe19255e8b00",
     "go-backend/internal/playback/playback.go": "4094ba58a869d62b49952653f95fa692d70397c4c715890c34405d77357cd8e3",
-    "go-backend/internal/scanner/scanner.go": "99d1bab62d58aa9a5b69e923c2da59b0eeca16d6c66945ce874343d067cb2bb3",
+    "go-backend/internal/scanner/scanner.go": "6136eaa435c048e1a0028b1a80bd10d7ddcf84137dfbb307ab6a8f45cbe189dc",
     "go-backend/internal/sharing/handler.go": "059640efcd6eebd29b7c305db0e90b98c15196f9817e0be54123def50296ddc2"
   },
   "limitations": [

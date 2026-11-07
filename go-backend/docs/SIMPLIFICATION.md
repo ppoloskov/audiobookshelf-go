@@ -67,6 +67,7 @@ and nulls, because TS reads those back.
 | M6 (C3 + C4): filters/sort as tables; shelves as definitions; one permission clause | (this commit) | 41,475 → 41,204 | −271 | 10,015 → 9,874 | filterClause (55), podcastFilterClause, three order builders, podcastPermissionClause, userMediaClause and personalized hand loops (37) replaced by catalog/query.go tables and one shelf loop |
 | M7 (P + S): one permission owner (internal/access), cached server settings (internal/serversettings), scanner walk/group pipeline | (this commit) | 41,204 → 40,817 | −387 | 9,874 → 9,703 | ~10 per-package permission helpers and ~12 admin checks, 4 per-request settings SELECTs, 5 directory walks, 2 grouping algorithms, the per-item stored-row lookup in importGroup |
 | M8: review fixes (authorization, settings lifecycle) + M-b providers + M-c playback/podcasts typing | (this commit) | 40,817 → 40,725 | −92 | 9,703 → 9,558 | provider map building and helpers; playback openJSON/clientJSON maps and payload helpers; podcasts xmlNode parser and checkNew copy; map[string]any 823 → 675 |
+| M9 (S2): scanner inode index and importGroup gather/plan/apply | (this commit) | 40,725 → 40,899 | **+174 (approved growth exception)** | 9,558 → 9,569 (+11 total; max function 105 → 34) | quadratic matchGroupByInode replaced by a per-scan index; importGroup (291 lines, complexity 105) split into gather / pure plan / apply / afterImport |
 
 ### M1 behaviour changes (all toward TS/Express)
 
@@ -189,7 +190,47 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
   attribute names case-insensitive (htmlparser2 lowercases); feed episode
   `guid` null and `chapters` [] when missing (`podcastUtils.js:278-288`);
   `enclosure.length` accepts a number or a string.
-- **Not landed, pending owner review**: S2 (scanner matcher index and
-  importGroup plan/apply split). It is +173 production lines against a +60
-  budget (AGENTS.md growth review); its invariant tests (matching rules,
-  linear matching, 13 plan cases) are ready in a saved patch.
+- S2 was held back here for review and landed in M9.
+
+### M9 (S2) growth review
+
+- **Approval:** the owner approved the exception (2026-11-07). +60 was a review
+  threshold; the narrow baseline raise is +174 handwritten lines, +11 total
+  complexity (each new function adds a base point) and +3 `map[string]any`
+  (audio and chapter maps carried in planInput/itemPlan).
+- **Benefit, measured:**
+  - Largest scanner function 105 → 34 (`plan`); `scanLibrary` 47 → 42;
+    functions above complexity 15 unchanged at 145.
+  - Matching is O(items + groups + files) instead of O(items × groups) with an
+    os.Stat per candidate. BenchmarkMatch (old algorithm kept test-only for
+    comparison), 4 vCPU:
+
+    | stored items | old | new | speedup |
+    |---|---|---|---|
+    | 1,000 | 24.0 ms / 264k allocs | 1.85 ms / 12k allocs | 13× |
+    | 10,000 | 2.54 s / 25.7M allocs | 24.4 ms / 123k allocs | 104× |
+    | 50,000 | 57.4 s (worker run, BENCH_OLD_LARGE=1) | 125 ms / 616k allocs | ~460× |
+
+    New grows ~67× from 1k to 50k items (linear); old ~2,300× (quadratic).
+- **Semantics preserved:**
+  - The matcher returns the same group as the old function: path first, then
+    the earliest unclaimed group in scan order holding the item's inode or a
+    stored file inode. An agreement test runs both algorithms on the same
+    inputs.
+  - Tests: matching rules and linear work (matcher_test.go), 13 pure plan cases
+    (plan_test.go), scan_golden unchanged, partial failure
+    (import_failure_test.go), watcher add/rename/delete ordering with identity
+    preserved (watcher_order_test.go), plus the existing cancellation, rename,
+    sidecar, `.ignore` and identity tests.
+  - Checks: race tests for the scanner, the full CI mirror, and the TS rollback
+    check (TS reopens the Go database: progress, bookmarks and 8 sessions
+    match).
+- **Remaining risks (they predate S2 and are pinned by tests, not changed):**
+  - A failed item import aborts the whole scan. Items already committed stay
+    committed, but their buffered items_added/items_updated events are
+    dropped, and lastScan is not stamped. A retry succeeds.
+  - The watcher matches a directory created after a delete by inode, so an
+    inode reused by the filesystem can attach the new directory to the deleted
+    item's id.
+  - Typed audio files (arch-scanner §6.4) and a single ffprobe implementation
+    (§6.5) are still open.

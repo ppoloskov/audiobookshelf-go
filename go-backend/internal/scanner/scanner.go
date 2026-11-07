@@ -775,11 +775,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	if err != nil {
 		return result, err
 	}
-	byPath := make(map[string]*group, len(ordered))
-	for _, g := range ordered {
-		byPath[g.path] = g
-	}
-	consumed := map[*group]bool{}
+	matcher := newGroupMatcher(ordered)
 	tally := &scanTally{}
 	var updatedItems []libitem.Expanded
 	emitUpdated := func() {
@@ -794,13 +790,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		if ctx.Err() != nil {
 			break
 		}
-		g := byPath[ex.path]
-		if g != nil && consumed[g] {
-			g = nil
-		}
-		if g == nil {
-			g = matchGroupByInode(ex, ordered, consumed)
-		}
+		g := matcher.match(ex)
 		if g == nil {
 			if l.mediaType == "podcast" {
 				if _, statErr := os.Stat(ex.path); statErr == nil {
@@ -819,7 +809,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 				}
 			}
 		} else {
-			consumed[g] = true
+			matcher.claim(g)
 			g.old = &ex
 			n, e := s.importGroup(ctx, l, g, force)
 			if e != nil {
@@ -842,10 +832,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 
 	// Then new items.
 	var addedItems []libitem.Expanded
-	for _, g := range ordered {
-		if consumed[g] {
-			continue
-		}
+	for _, g := range matcher.unclaimed() {
 		if ctx.Err() != nil {
 			break
 		}
@@ -965,41 +952,6 @@ func (s *Scanner) storedItemByID(ctx context.Context, id string) (*existingItem,
 		return nil, fmt.Errorf("scanner: item %q: %w", id, cmp.Or(err, sql.ErrNoRows))
 	}
 	return &items[0], nil
-}
-
-func groupInodes(g *group) []string {
-	var inos []string
-	if info, err := os.Stat(g.path); err == nil {
-		inos = append(inos, inode(info))
-	}
-	for _, f := range g.files {
-		inos = append(inos, inode(f.info))
-	}
-	for _, f := range g.companions {
-		inos = append(inos, inode(f.info))
-	}
-	return inos
-}
-
-// matchGroupByInode finds the unclaimed scanned group a stored item moved to
-// (LibraryScanner.js:171-178).
-func matchGroupByInode(ex existingItem, groups []*group, consumed map[*group]bool) *group {
-	stored := parseStoredLibraryFiles(ex.files)
-	for _, g := range groups {
-		if consumed[g] {
-			continue
-		}
-		inos := groupInodes(g)
-		if ex.ino != "" && containsString(inos, ex.ino) {
-			return g
-		}
-		for _, lf := range stored {
-			if lf.Ino != "" && containsString(inos, lf.Ino) {
-				return g
-			}
-		}
-	}
-	return nil
 }
 
 // finalizeScan emits author book-count changes, then removes authors and
