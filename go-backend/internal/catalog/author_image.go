@@ -104,7 +104,7 @@ func axiosMessage(err error) string {
 
 // authorUploadImage is AuthorController.uploadImage (AuthorController.js:267-304).
 func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	a, err := h.authorRequest(r, user)
 	if err != nil {
 		return err
@@ -161,7 +161,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 
 // authorDeleteImage is AuthorController.deleteImage (AuthorController.js:313-329).
 func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, requestUser(r))
+	a, err := h.authorRequest(r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}

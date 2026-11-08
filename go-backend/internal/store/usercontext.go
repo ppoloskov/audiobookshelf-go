@@ -1,6 +1,10 @@
 package store
 
-import "context"
+import (
+	"context"
+	"net/http"
+	"strings"
+)
 
 type userContextKey struct{}
 
@@ -17,4 +21,19 @@ func ContextWithUser(ctx context.Context, user User) context.Context {
 func UserFromContext(ctx context.Context) (User, bool) {
 	user, ok := ctx.Value(userContextKey{}).(User)
 	return user, ok
+}
+
+// RequestUser is the user the routing layer authenticated for r (the zero User
+// on public routes).
+func RequestUser(r *http.Request) User {
+	user, _ := UserFromContext(r.Context())
+	return user
+}
+
+// Placeholders is the "?,?,?" list of n SQL parameters ("" when n <= 0).
+func Placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }

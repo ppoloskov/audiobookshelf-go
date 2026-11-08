@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/store"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -11,11 +10,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
-}
 
 // jsonBodyObject is express.json for a handler that reads named keys: a
 // request whose content type is not JSON has an empty body object, and a body

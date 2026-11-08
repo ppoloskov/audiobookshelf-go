@@ -94,7 +94,7 @@ func (h *Handler) finishItemWrites(ctx context.Context, writes ...itemWrite) err
 	env := h.env()
 	env.SweepSeries(ctx, unlinked.SeriesUnlinked)
 	for _, w := range writes {
-		env.Announce(w.libraryID, &w.changes)
+		w.changes.Announce(w.libraryID, env.Filters, env.Emit)
 	}
 	env.SweepAuthors(ctx, unlinked.AuthorsUnlinked)
 	for _, w := range writes {

@@ -2,6 +2,7 @@ package lists
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -34,7 +35,7 @@ func paginate[T any](items []T, limit, page int) []T {
 // libraryCollections serves GET /api/libraries/:id/collections
 // (LibraryController.getCollectionsForLibrary, server/controllers/LibraryController.js:814).
 func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("libraryID")
+	user, libraryID := store.RequestUser(r), r.PathValue("libraryID")
 	lib, err := httputil.OpenLibrary(r, h.db, access.For(r.Context(), user).Library, libraryID)
 	if err != nil {
 		return err
@@ -89,7 +90,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) err
 // libraryPlaylists serves GET /api/libraries/:id/playlists
 // (LibraryController.getUserPlaylistsForLibrary, server/controllers/LibraryController.js:853).
 func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("libraryID")
+	user, libraryID := store.RequestUser(r), r.PathValue("libraryID")
 	lib, err := httputil.OpenLibrary(r, h.db, access.For(r.Context(), user).Library, libraryID)
 	if err != nil {
 		return err

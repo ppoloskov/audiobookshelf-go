@@ -19,7 +19,7 @@ import (
 )
 
 func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
@@ -96,7 +96,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
@@ -161,7 +161,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	ino := r.PathValue("ino")
 	if !access.AdminUser(user) {
@@ -207,7 +207,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
@@ -272,7 +272,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	ino := r.PathValue("ino")
 	scope, err := h.itemFor(r.Context(), user, itemID, true)

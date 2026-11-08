@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/store"
 	"net/http"
 )
 
@@ -42,7 +43,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 			return httputil.Internal("database read failed", err)
 		}
 		if len(collapsed.excludeBookIDs) > 0 {
-			permissionSQL += ` AND b.id NOT IN (` + placeholders(len(collapsed.excludeBookIDs)) + `)`
+			permissionSQL += ` AND b.id NOT IN (` + store.Placeholders(len(collapsed.excludeBookIDs)) + `)`
 			for _, id := range collapsed.excludeBookIDs {
 				permissionArgs = append(permissionArgs, id)
 			}

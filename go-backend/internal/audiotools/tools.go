@@ -105,18 +105,13 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stri
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		return action(w, r, requestUser(r).ID, it)
+		return action(w, r, store.RequestUser(r).ID, it)
 	})
 }
 
 func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) error {
 	httputil.WriteJSON(w, http.StatusOK, h.Tasks(strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,")))
 	return nil
-}
-
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
 }
 
 func (h *Handler) Tasks(includeQueue bool) any {
@@ -239,7 +234,7 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, userID string, i
 }
 
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
-	userID := requestUser(r).ID
+	userID := store.RequestUser(r).ID
 	var body struct {
 		LibraryItemIDs []string `json:"libraryItemIds"`
 	}

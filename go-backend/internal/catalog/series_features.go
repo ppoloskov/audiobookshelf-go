@@ -66,7 +66,7 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 		query += clause
 		queryArgs = append(queryArgs, clauseArgs...)
 	case "progress":
-		value, _ = decodeFilterValue(value)
+		value = decodeFilterValue(value)
 		switch value {
 		case "not-finished":
 			query += ` AND (NOT EXISTS(SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? ) OR EXISTS(SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND COALESCE(mp.isFinished,0)=0))`

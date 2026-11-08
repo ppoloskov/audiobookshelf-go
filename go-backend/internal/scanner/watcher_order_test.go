@@ -58,7 +58,7 @@ func TestWatcherBatchEventOrder(t *testing.T) {
 		{"Auth/New Name/a.mp3", "added"},
 		{"Auth/Doomed/d.mp3", "deleted"},
 	} {
-		upd = append(upd, fileUpdate{path: R(u.rel), relPath: u.rel, folderID: "folder-1", libraryID: "lib-1", kind: u.kind})
+		upd = append(upd, fileUpdate{path: R(u.rel), relPath: u.rel, folderID: "folder-1", libraryID: "lib-1"})
 	}
 	*evs = nil
 	{

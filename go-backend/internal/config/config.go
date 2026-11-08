@@ -22,6 +22,10 @@ type Config struct {
 	Source         string
 	JWTSecret      string
 	Auth           Auth
+	// MaxFailedEpisodeChecks is MAX_FAILED_EPISODE_CHECKS (Server.js:119):
+	// failed episode checks before a podcast's auto-download is switched off;
+	// 0 never switches it off.
+	MaxFailedEpisodeChecks int
 }
 
 // Auth is the token lifetime and login rate-limit environment. The zero value
@@ -142,6 +146,7 @@ func LoadArgs(args []string) (Config, error) {
 		ConfigPath: configPath, MetadataPath: metadataPath,
 		RouterBasePath: base, ClientPath: clientPath, Source: source,
 		JWTSecret: os.Getenv("JWT_SECRET_KEY"), Auth: authFromEnv(),
+		MaxFailedEpisodeChecks: envInt("MAX_FAILED_EPISODE_CHECKS", 24, true),
 	}, nil
 }
 

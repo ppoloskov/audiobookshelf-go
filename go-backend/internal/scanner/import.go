@@ -382,5 +382,5 @@ func (s *Scanner) afterImport(ctx context.Context, p itemPlan, changes *itemwrit
 		}
 		s.filters.AddBook(l.id, values)
 	}
-	itemwrite.Env{Filters: s.filters, Emit: s.emit}.Announce(l.id, changes)
+	changes.Announce(l.id, s.filters, s.emit)
 }

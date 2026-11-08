@@ -160,9 +160,7 @@ func filterSQL(raw string, podcast bool, user store.User) (string, []any, error)
 		group, value, hasValue = raw, "", false
 	}
 	if hasValue {
-		if decoded, err := decodeFilterValue(value); err == nil {
-			value = decoded
-		}
+		value = decodeFilterValue(value)
 	}
 	def, known := filterDefs[group]
 	if group == "" || (podcast && !(known && def.podcast)) {
@@ -196,7 +194,7 @@ func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user stor
 	value := ""
 	if strings.HasPrefix(filter, "series.") {
 		_, value, _ = strings.Cut(filter, ".")
-		value, _ = decodeFilterValue(value)
+		value = decodeFilterValue(value)
 	} else if sortBy == "sequence" && !podcast {
 		sortBy = "media.metadata.title"
 	}
@@ -225,22 +223,33 @@ func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user stor
 	return " ORDER BY " + clause + " " + dir, args, err
 }
 
-// plainFilterValues are filter values clients send unencoded; any other value
-// is base64 (libraryFilters.decode).
-var plainFilterValues = map[string]bool{"no-series": true, "no-ebook": true, "ebook": true, "issues": true, "authors": true, "series": true, "genres": true, "tags": true, "narrators": true,
-	"not-finished": true, "not-started": true, "finished": true, "in-progress": true, "audio-in-progress": true, "ebook-in-progress": true, "ebook-finished": true,
-	"multi": true, "none": true, "supplementary": true, "no-supplementary": true, "share-open": true, "feed-open": true, "recent": true}
-
-// decodeFilterValue decodes a filter value. Node's base64 decoder is lenient
-// about alphabet and padding, so all four Go encodings are tried.
-func decodeFilterValue(value string) (string, error) {
-	if plainFilterValues[value] {
-		return value, nil
-	}
-	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if b, err := enc.DecodeString(value); err == nil {
-			return string(b), nil
+// decodeFilterValue is libraryFilters.decode (libraryFilters.js:13-20):
+// Buffer.from(decodeURIComponent(text), 'base64').toString(). Node's decoder
+// accepts both alphabets and skips characters outside them. Every filter
+// value goes through it, as upstream does.
+func decodeFilterValue(text string) string {
+	var clean strings.Builder
+	for _, c := range text {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '+', c == '/':
+			clean.WriteRune(c)
+		case c == '-':
+			clean.WriteByte('+')
+		case c == '_':
+			clean.WriteByte('/')
+		case c == '=':
+			// Decoding stops at the first padding character.
+			decoded, _ := base64.RawStdEncoding.DecodeString(trimPartial(clean.String()))
+			return string(decoded)
 		}
 	}
-	return value, errors.New("filter is not base64")
+	decoded, _ := base64.RawStdEncoding.DecodeString(trimPartial(clean.String()))
+	return string(decoded)
+}
+
+func trimPartial(s string) string {
+	if len(s)%4 == 1 {
+		return s[:len(s)-1]
+	}
+	return s
 }

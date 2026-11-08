@@ -175,7 +175,7 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 
 // authorFindOne is AuthorController.findOne (AuthorController.js:40-88).
 func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	a, err := h.authorRequest(r, user)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 		for i, id := range itemIDs {
 			args[i] = id
 		}
-		rows, err := h.db.QueryContext(ctx, `SELECT li.id,s.id,s.name,s.nameIgnorePrefix,bs.sequence FROM libraryItems li JOIN bookSeries bs ON bs.bookId=li.mediaId JOIN series s ON s.id=bs.seriesId WHERE li.id IN (`+placeholders(len(itemIDs))+`) ORDER BY bs.createdAt ASC, bs.rowid`, args...)
+		rows, err := h.db.QueryContext(ctx, `SELECT li.id,s.id,s.name,s.nameIgnorePrefix,bs.sequence FROM libraryItems li JOIN bookSeries bs ON bs.bookId=li.mediaId JOIN series s ON s.id=bs.seriesId WHERE li.id IN (`+store.Placeholders(len(itemIDs))+`) ORDER BY bs.createdAt ASC, bs.rowid`, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +385,7 @@ func authorLastFirst(name *string) *string {
 
 // authorUpdate is AuthorController.update (AuthorController.js:96-224).
 func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	a, err := h.authorRequest(r, user)
 	if err != nil {
 		return err
@@ -559,7 +559,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 
 // authorDelete is AuthorController.delete (AuthorController.js:233-258).
 func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, requestUser(r))
+	a, err := h.authorRequest(r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}

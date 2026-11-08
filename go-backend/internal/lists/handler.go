@@ -28,11 +28,6 @@ func New(db *sql.DB, emit events.Emitter) *Handler {
 	return &Handler{db: db, emit: emit}
 }
 
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
-}
-
 var stripMarkup = regexp.MustCompile(`<[^>]*>`)
 
 func cleanName(value string) string {
@@ -58,7 +53,7 @@ func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, e
 }
 
 func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	ids, err := sqlc.New(h.db).ListCollectionIDs(r.Context())
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -80,7 +75,7 @@ func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	dto, libraryID, err := h.collection(r.Context(), id, user)
 	if errors.Is(err, sql.ErrNoRows) || err == nil && !access.For(r.Context(), user).Library(libraryID) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
@@ -101,7 +96,7 @@ func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
@@ -123,7 +118,7 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) getPlaylist(w http.ResponseWriter, r *http.Request) error {
-	item, _, code, err := h.ownedPlaylist(r, r.PathValue("id"), requestUser(r))
+	item, _, code, err := h.ownedPlaylist(r, r.PathValue("id"), store.RequestUser(r))
 	if code != 0 {
 		return playlistError(code)
 	}

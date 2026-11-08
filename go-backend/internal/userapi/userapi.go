@@ -869,13 +869,8 @@ func (h *Handler) userByID(ctx context.Context, id string) (store.User, error) {
 	return store.UserFromRow(row)
 }
 
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
-}
-
 func withUser(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
-	return func(w http.ResponseWriter, r *http.Request) error { return fn(w, r, requestUser(r)) }
+	return func(w http.ResponseWriter, r *http.Request) error { return fn(w, r, store.RequestUser(r)) }
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {

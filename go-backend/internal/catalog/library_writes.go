@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -34,11 +35,11 @@ func defaultLibrarySettings(mediaType string) map[string]any {
 	if mediaType == "podcast" {
 		return map[string]any{"coverAspectRatio": 1, "disableWatcher": false, "autoScanCronExpression": nil, "podcastSearchRegion": "us", "markAsFinishedPercentComplete": nil, "markAsFinishedTimeRemaining": 10}
 	}
-	return map[string]any{"coverAspectRatio": 1, "disableWatcher": false, "autoScanCronExpression": nil, "skipMatchingMediaWithAsin": false, "skipMatchingMediaWithIsbn": false, "audiobooksOnly": false, "epubsAllowScriptedContent": false, "hideSingleBookSeries": false, "onlyShowLaterBooksInContinueSeries": false, "metadataPrecedence": []string{"folderStructure", "audioMetatags", "nfoFile", "txtFiles", "opfFile", "absMetadata"}, "markAsFinishedPercentComplete": nil, "markAsFinishedTimeRemaining": 10}
+	return map[string]any{"coverAspectRatio": 1, "disableWatcher": false, "autoScanCronExpression": nil, "skipMatchingMediaWithAsin": false, "skipMatchingMediaWithIsbn": false, "audiobooksOnly": false, "epubsAllowScriptedContent": false, "hideSingleBookSeries": false, "onlyShowLaterBooksInContinueSeries": false, "metadataPrecedence": serversettings.DefaultMetadataPrecedence(), "markAsFinishedPercentComplete": nil, "markAsFinishedTimeRemaining": 10}
 }
 
 func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !adminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
@@ -186,7 +187,7 @@ func readStringField(body map[string]json.RawMessage, key, fallback string) stri
 }
 
 func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	defer h.filters.ResetIssues(r.Context(), h.db, id) // LibraryController.js:513
 	if !adminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
@@ -407,7 +408,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	defer h.filters.Invalidate(id) // LibraryController.js:591
 	if !adminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
@@ -500,7 +501,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !adminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}

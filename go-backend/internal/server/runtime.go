@@ -126,8 +126,11 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 			}
 			return rt.scanner.Refresh(ctx)
 		},
-		ItemChanged:   rt.catalog.ItemChanged,
-		WatcherUpdate: rt.scanner.UpdateWatchedPath,
+		ItemChanged: rt.catalog.ItemChanged,
+		WatcherUpdate: func(_ context.Context, libraryID, path, kind string) error {
+			rt.scanner.UpdateWatchedPath(libraryID, path, kind)
+			return nil
+		},
 	})
 	rt.emailapi = emailapi.New(db, emit)
 	rt.sharing = sharing.New(db, cfg, emit)
@@ -327,11 +330,8 @@ func backupOptions(settings map[string]any, manager *Manager) backup.Options {
 	settings = maps.Clone(settings)
 	serversettings.ApplyEnv(settings)
 	backupPath, _ := settings["backupPath"].(string)
-	maxSize, _ := settings["maxBackupSize"].(float64)
-	if maxSize <= 0 {
-		maxSize = 100
-	}
-	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: serversettings.EnvBackupPath() != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
+	maxSize, _ := settings["maxBackupSize"].(float64) // 0 is unlimited: BackupManager.js:46
+	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: serversettings.EnvBackupPath() != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 0), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
 }
 
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }

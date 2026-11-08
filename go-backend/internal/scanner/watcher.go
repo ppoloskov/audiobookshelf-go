@@ -28,7 +28,7 @@ var (
 const watcherMaxPolls = 200 // Watcher.js:233 (600s safety)
 
 type fileUpdate struct {
-	path, relPath, folderID, libraryID, kind string
+	path, relPath, folderID, libraryID string
 }
 
 type watchedFolder struct{ id, path string }
@@ -70,16 +70,19 @@ func (w *fsWatcher) stop() {
 	}
 }
 
-// onFile is Watcher.onFileAdded / onFileRemoved (Watcher.js:162-190).
+// onFile is Watcher.onFileAdded / onFileRemoved / onFileRename (Watcher.js:188-232).
 func (w *fsWatcher) onFile(libraryID, p, kind string) {
-	if kind == "added" {
+	switch kind {
+	case "added":
 		logging.Debugf("[Watcher] File Added %s", p) // Watcher.js:192
-	} else {
+	case "deleted":
 		logging.Debugf("[Watcher] File Removed %s", p) // Watcher.js:213
+	default:
+		logging.Debugf("[Watcher] Rename => %s", p) // Watcher.js:231
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if !w.addUpdate(libraryID, p, kind) {
+	if !w.addUpdate(libraryID, p) {
 		return
 	}
 	if kind == "added" && !w.being[p] {
@@ -126,7 +129,7 @@ func (w *fsWatcher) waitForFileToAdd(p string, last int64, loop int) {
 }
 
 // addUpdate is Watcher.addFileUpdate (Watcher.js:271-322); the caller holds mu.
-func (w *fsWatcher) addUpdate(libraryID, p, kind string) bool {
+func (w *fsWatcher) addUpdate(libraryID, p string) bool {
 	for _, u := range w.pending {
 		if u.path == p {
 			return false
@@ -155,7 +158,7 @@ func (w *fsWatcher) addUpdate(libraryID, p, kind string) bool {
 		w.task = newWatcherTask(lib)
 		w.s.emit.TaskStarted(*w.task)
 	}
-	w.pending = append(w.pending, fileUpdate{path: p, relPath: relPath, folderID: folder.id, libraryID: libraryID, kind: kind})
+	w.pending = append(w.pending, fileUpdate{path: p, relPath: relPath, folderID: folder.id, libraryID: libraryID})
 	w.armTimer()
 	return true
 }
@@ -238,7 +241,12 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 	order, groups := groupUpdatesByFolder(updates)
 	for _, folderID := range order {
 		group := groups[folderID]
-		results, err := s.scanFolderUpdates(ctx, group[0].libraryID, folderID, group)
+		runCtx, end, err := s.beginWait(ctx, group[0].libraryID)
+		if err != nil {
+			break // the watcher stopped
+		}
+		results, err := s.scanFolderUpdates(runCtx, group[0].libraryID, folderID, group)
+		end()
 		if err != nil {
 			logging.Errorf("[LibraryScanner] Scanning %d file updates in folder %q of library %s failed: %v", len(group), folderID, group[0].libraryID, err)
 			continue

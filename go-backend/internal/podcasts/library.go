@@ -17,7 +17,7 @@ import (
 // GET /api/libraries/:id/episode-downloads.
 func (h *Handler) libraryRoute(recent bool) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		user, libraryID := requestUser(r), r.PathValue("id")
+		user, libraryID := store.RequestUser(r), r.PathValue("id")
 		lib, err := httputil.OpenLibrary(r, h.db, access.For(r.Context(), user).Library, libraryID)
 		if err != nil {
 			return err

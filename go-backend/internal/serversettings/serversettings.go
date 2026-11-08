@@ -95,6 +95,12 @@ func withDefaults(metadataPath string) map[string]any {
 	return doc
 }
 
+// DefaultMetadataPrecedence is the order in which a book library merges its
+// metadata sources when none is stored; a new library stores it too.
+func DefaultMetadataPrecedence() []string {
+	return []string{"folderStructure", "audioMetatags", "nfoFile", "txtFiles", "opfFile", "absMetadata"}
+}
+
 // ApplyEnv lets BACKUP_PATH and ALLOW_IFRAME win over the document's values.
 func ApplyEnv(doc map[string]any) {
 	if value := EnvBackupPath(); value != "" {

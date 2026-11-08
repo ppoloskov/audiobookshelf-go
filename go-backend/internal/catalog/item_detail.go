@@ -33,7 +33,7 @@ func (h *Handler) numEpisodesIncomplete(ctx context.Context, userID, podcastID s
 }
 
 func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
-	user, itemID := requestUser(r), r.PathValue("id")
+	user, itemID := store.RequestUser(r), r.PathValue("id")
 	expanded := r.URL.Query().Get("expanded") == "1"
 	it, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{Episodes: true})
 	if errors.Is(err, sql.ErrNoRows) {

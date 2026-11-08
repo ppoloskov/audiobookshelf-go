@@ -29,7 +29,6 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/cronspec"
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
@@ -59,11 +58,7 @@ type Handler struct {
 }
 
 func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
-	maxFailed := 24
-	if raw, err := strconv.Atoi(os.Getenv("MAX_FAILED_EPISODE_CHECKS")); err == nil && raw >= 0 {
-		maxFailed = raw
-	}
-	h := &Handler{db: db, cfg: cfg, emit: emit, client: httputil.SafeClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: maxFailed}
+	h := &Handler{db: db, cfg: cfg, emit: emit, client: httputil.SafeClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: cfg.MaxFailedEpisodeChecks}
 	h.startSchedules()
 	return h
 }
@@ -106,7 +101,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 // then the update/delete permission by HTTP method.
 func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, libitem.Item) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		user, id := requestUser(r), r.PathValue("id")
+		user, id := store.RequestUser(r), r.PathValue("id")
 		item, err := h.loadItem(r.Context(), id)
 		if errors.Is(err, sql.ErrNoRows) {
 			var other string
@@ -156,7 +151,7 @@ func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-	if !access.AdminUser(requestUser(r)) {
+	if !access.AdminUser(store.RequestUser(r)) {
 		return httputil.Status(403, "")
 	}
 	var episodes []Episode
@@ -343,7 +338,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item lib
 }
 
 func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-	if !access.AdminUser(requestUser(r)) {
+	if !access.AdminUser(store.RequestUser(r)) {
 		return httputil.Status(403, "")
 	}
 	if str(item.Podcast.FeedURL) == "" {
@@ -428,7 +423,7 @@ func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeI
 		return err
 	}
 	defer tx.Rollback()
-	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(ctx, episodeID); err != nil {
+	if err = store.RemoveFromPlaylists(ctx, tx, []string{episodeID}); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID); err != nil {
@@ -1010,11 +1005,6 @@ func validFeedURL(raw string) string {
 		return ""
 	}
 	return u.String()
-}
-
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
 }
 
 // SetHTTPClientForTests swaps the outbound client so a local fixture server can

@@ -219,7 +219,7 @@ func TestScanGolden(t *testing.T) {
 		{"Author E/Watched/w.mp3", "added"}, {"Author E/Watched/w.txt", "added"},
 		{"Author E/New Book/n.mp3", "deleted"}, {"Author F/Moving/m.mp3", "deleted"}, {"Author F/m.mp3", "added"},
 	} {
-		upd = append(upd, fileUpdate{path: R(u.rel), relPath: u.rel, folderID: "folder-1", libraryID: "lib-1", kind: u.kind})
+		upd = append(upd, fileUpdate{path: R(u.rel), relPath: u.rel, folderID: "folder-1", libraryID: "lib-1"})
 	}
 	res, err := s.scanFolderUpdates(ctx, "lib-1", "folder-1", upd)
 	record("watcher batch", res, err)

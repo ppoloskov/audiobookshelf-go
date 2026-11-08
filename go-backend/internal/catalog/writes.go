@@ -3,7 +3,6 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/cronspec"
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
@@ -77,7 +76,7 @@ func (h *Handler) itemFor(ctx context.Context, user store.User, id string, write
 }
 
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
@@ -234,7 +233,7 @@ func seriesEntries(raw json.RawMessage) ([]itemwrite.Series, bool) {
 }
 
 func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	itemID := r.PathValue("id")
 	fileID := r.PathValue("ino")
 	scope, err := h.itemFor(r.Context(), user, itemID, true)
@@ -300,7 +299,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if err := sqlc.New(tx).DeletePodcastEpisodePlaylistEntries(r.Context(), episodeID); err != nil {
+		if err := store.RemoveFromPlaylists(r.Context(), tx, []string{episodeID}); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {

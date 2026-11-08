@@ -15,7 +15,7 @@ var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
 
 // authorMatch is AuthorController.match (AuthorController.js:337-383).
 func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, requestUser(r))
+	a, err := h.authorRequest(r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}

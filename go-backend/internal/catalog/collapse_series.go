@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"strings"
 )
@@ -29,10 +30,7 @@ type collapsedSeries struct {
 // series in first-appearance order with their books in row order.
 func (h *Handler) collapseSeries(ctx context.Context, libraryID, filterValue, filterSQL string, filterArgs []any, permissionSQL string, permissionArgs []any) (collapsedSeries, error) {
 	group, raw, _ := strings.Cut(filterValue, ".")
-	value, err := decodeFilterValue(raw)
-	if err != nil {
-		value = raw
-	}
+	value := decodeFilterValue(raw)
 	where := filterSQL + permissionSQL
 	args := append([]any{libraryID}, filterArgs...)
 	args = append(args, permissionArgs...)
@@ -149,6 +147,6 @@ func collapsedTitleOrder(c collapsedSeries, ignorePrefix, desc bool) (string, []
 	for _, id := range c.includeIDs {
 		args = append(args, id)
 	}
-	in := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
+	in := store.Placeholders(len(args))
 	return ` ORDER BY IFNULL((SELECT ` + seriesColumn + ` FROM bookSeries AS bs, series AS s WHERE bs.seriesId = s.id AND bs.bookId = b.id AND bs.id IN (` + in + `)), ` + itemColumn + `) COLLATE NOCASE ` + dir, args
 }

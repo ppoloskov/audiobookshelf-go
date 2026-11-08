@@ -748,3 +748,18 @@ Open for the owner (not refactor): podcast notification events are never fired.
 `identity/oidc.go`: a failed user re-read after applying OIDC groups/permissions returned an empty user with a nil error,
 so the login could issue a session for a blank user; it now fails the login. Ratchet raised by the fix itself (+4 lines,
 +2 complexity: the two error checks).
+
+### Fix wave E1 + E2 (verifier round 2, 2026-11-08)
+Fixed: watcher batches go through the scan lifecycle (`beginWait`: queue behind a running scan; Cancel/Close stop them);
+library settings decoded once; one default metadata precedence (`serversettings.DefaultMetadataPrecedence`);
+UpdateWatchedPath queues to the watcher like TS (MiscController.js:593-612) instead of a forced full scan; backup
+defaults in one place; `config.MaxFailedEpisodeChecks` (Server.js:119); one filter-value decoder (port of
+libraryFilters.decode; all clients checked base64-encode values: official app, Absorb; the plain-word fallback only
+worked in Go); `Changes.Announce` (no nil-DB Env); `store.Placeholders`, `store.RequestUser` (five copies deleted);
+`store.RemoveFromPlaylists` used by item delete, library-file episode delete and podcast episode delete.
+Bugs fixed (TS proof): maxBackupSize 0 is unlimited (BackupManager.js:46 `|| Infinity`), not a 100 GB cap; episode
+deletes leave no empty playlists or order gaps (Playlist.js:172-208); a filter value with a stray character decodes as
+Node does (libraryFilters.js:13-20); watcher batches could race a library scan and ignored Cancel.
+Ratchet raised by the bug fixes: +30 handwritten lines, +1 []any (scan-run queueing and playlist renumbering);
+complexity −9.
+Open for the owner: TS emits playlist_updated/playlist_removed when deletes change playlists; Go does not.

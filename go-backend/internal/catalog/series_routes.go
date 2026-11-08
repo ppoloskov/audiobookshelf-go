@@ -91,7 +91,7 @@ func (h *Handler) seriesRequest(r *http.Request, user store.User) (seriesRecord,
 
 // seriesFindOne is SeriesController.findOne (SeriesController.js:35-62).
 func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	s, items, err := h.seriesRequest(r, user)
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (h *Handler) seriesDetailOf(ctx context.Context, user store.User, s seriesR
 // string name and description are read; a change is saved and announced with
 // series_updated. The prefix column is not recomputed, as upstream.
 func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
-	s, _, err := h.seriesRequest(r, requestUser(r))
+	s, _, err := h.seriesRequest(r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}

@@ -114,12 +114,12 @@ func TestLibraryQueryTable(t *testing.T) {
 		"genres." + b64("fiction"), "genres." + b64("science"), "genres." + b64("none"), "tags." + b64("red"), "tags." + b64("blue"), "tags." + b64("sci"),
 		"narrators." + b64("Nora"), "narrators." + b64("Omar"), "languages." + b64("en"), "languages." + b64("fr"),
 		"publishers." + b64("Pub A"), "publishers." + b64("Pub B"), "authors." + b64("a1"), "authors." + b64("a2"),
-		"series." + b64("s1"), "series." + b64("s2"), "series.no-series",
-		"progress.not-finished", "progress.not-started", "progress.finished", "progress.in-progress", "progress.audio-in-progress", "progress.ebook-in-progress", "progress.ebook-finished", "progress.bogus",
-		"tracks.none", "tracks.multi", "tracks.single", "tracks." + b64("x"),
-		"ebooks.ebook", "ebooks.no-ebook", "ebooks.supplementary", "ebooks.no-supplementary", "ebooks.bogus",
+		"series." + b64("s1"), "series." + b64("s2"), "series." + b64("no-series"),
+		"progress." + b64("not-finished"), "progress." + b64("not-started"), "progress." + b64("finished"), "progress." + b64("in-progress"), "progress." + b64("audio-in-progress"), "progress." + b64("ebook-in-progress"), "progress." + b64("ebook-finished"), "progress." + b64("bogus"),
+		"tracks." + b64("none"), "tracks." + b64("multi"), "tracks." + b64("single"), "tracks." + b64("x"),
+		"ebooks." + b64("ebook"), "ebooks." + b64("no-ebook"), "ebooks." + b64("supplementary"), "ebooks." + b64("no-supplementary"), "ebooks." + b64("bogus"),
 		"publishedDecades." + b64("1990"), "publishedDecades." + b64("2000"), "publishedDecades." + b64("2010"), "publishedDecades." + b64("abc"),
-		"missing.authors", "missing.series", "missing.issues", "missing.asin", "missing.isbn", "missing.subtitle", "missing.publishedYear", "missing.description", "missing.publisher", "missing.language", "missing.cover", "missing.genres", "missing.tags", "missing.narrators", "missing.chapters", "missing.bogus",
+		"missing." + b64("authors"), "missing." + b64("series"), "missing." + b64("issues"), "missing." + b64("asin"), "missing." + b64("isbn"), "missing." + b64("subtitle"), "missing." + b64("publishedYear"), "missing." + b64("description"), "missing." + b64("publisher"), "missing." + b64("language"), "missing." + b64("cover"), "missing." + b64("genres"), "missing." + b64("tags"), "missing." + b64("narrators"), "missing." + b64("chapters"), "missing." + b64("bogus"),
 		"bogus.x", "bogus", "genres", "languages", ".x", "genres.!!notbase64!!", "series." + b64("s1") + "x"}
 	sorts := []string{"", "addedAt", "size", "birthtimeMs", "mtimeMs", "media.duration", "media.metadata.publishedYear", "media.metadata.authorName", "media.metadata.authorNameLF",
 		"media.metadata.title", "media.metadata.author", "media.numTracks", "sequence", "progress", "progress.updatedAt", "progress.createdAt", "progress.finishedAt", "progress.bogus", "bogus"}
@@ -142,7 +142,7 @@ func TestLibraryQueryTable(t *testing.T) {
 	}
 	for _, s := range []string{"", "media.metadata.title", "addedAt", "sequence"} {
 		for _, d := range []string{"0", "1"} {
-			for _, f := range []string{"", "series." + b64("s1"), "progress.finished", "missing.authors", "genres." + b64("fiction")} {
+			for _, f := range []string{"", "series." + b64("s1"), "progress." + b64("finished"), "missing." + b64("authors"), "genres." + b64("fiction")} {
 				requests = append(requests, request{"l1", "collapseseries=1&sort=" + s + "&desc=" + d + "&filter=" + f})
 			}
 		}

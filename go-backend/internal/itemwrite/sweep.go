@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 )
 
 // Env is what the follow-up of a relation edit touches once its transaction has
@@ -26,17 +26,20 @@ type Env struct {
 
 // Announce patches the filter data with the newly linked series and authors
 // and sends the events the edits collected (LibraryItemController.js:240-265).
-func (e Env) Announce(libraryID string, c *Changes) {
+// It needs no database, so a caller without an Env can use it.
+func (c *Changes) Announce(libraryID string, filters *filterdata.Cache, emit events.Emitter) {
 	for _, se := range c.SeriesAdded {
-		e.Filters.AddSeries(libraryID, se.Name, se.ID)
+		filters.AddSeries(libraryID, se.Name, se.ID)
 	}
 	for _, ev := range c.Events {
-		e.Emit.ToAll(ev.Name, ev.Payload)
+		emit.ToAll(ev.Name, ev.Payload)
 	}
 	for _, au := range c.AuthorsAdded {
-		e.Filters.AddAuthor(libraryID, au.Name, au.ID)
+		filters.AddAuthor(libraryID, au.Name, au.ID)
 	}
 }
+
+// Announce is Changes.Announce with the Env's filter data and emitter.
 
 func (e Env) Sweep(ctx context.Context, authorIDs, seriesIDs []string) {
 	e.SweepAuthors(ctx, authorIDs)
@@ -80,7 +83,7 @@ func (e Env) sweep(ctx context.Context, parent, junction, col, guard string, ids
 		return nil
 	}
 	ctx = context.WithoutCancel(ctx)
-	marks := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
+	marks := store.Placeholders(len(args))
 	rows, err := e.DB.QueryContext(ctx, fmt.Sprintf(`DELETE FROM %[1]s WHERE id IN (%[2]s) AND %[3]sNOT EXISTS(SELECT 1 FROM %[4]s j WHERE j.%[5]s=%[1]s.id) RETURNING rowid,id,libraryId`, parent, marks, guard, junction, col), args...)
 	if err != nil {
 		logging.Errorf("[itemwrite] remove orphan %s: %v", parent, err)

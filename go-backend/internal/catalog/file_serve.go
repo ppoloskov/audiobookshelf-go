@@ -19,7 +19,7 @@ import (
 
 func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 	download := strings.HasSuffix(r.Pattern, "/download")
-	user, itemID, ino := requestUser(r), r.PathValue("id"), r.PathValue("ino")
+	user, itemID, ino := store.RequestUser(r), r.PathValue("id"), r.PathValue("ino")
 	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
-	user, itemID, fileID := requestUser(r), r.PathValue("id"), r.PathValue("fileId")
+	user, itemID, fileID := store.RequestUser(r), r.PathValue("id"), r.PathValue("fileId")
 	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
 		return err

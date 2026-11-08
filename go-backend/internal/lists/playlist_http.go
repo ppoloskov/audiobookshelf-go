@@ -21,7 +21,7 @@ import (
 )
 
 func (h *Handler) listPlaylists(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	ids, err := sqlc.New(h.db).ListUserPlaylistIDs(r.Context(), user.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -64,7 +64,7 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 }
 
 func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
 		return httputil.Status(400, "Invalid playlist data")
@@ -163,7 +163,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	if _, _, code, err := h.ownedPlaylist(r, id, user); code != 0 {
 		return playlistError(code)
 	} else if err != nil {
@@ -297,7 +297,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	item, _, code, err := h.ownedPlaylist(r, id, user)
 	if code != 0 {
 		return playlistError(code)
@@ -432,7 +432,7 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 }
 
 func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	if _, _, code, err := h.ownedPlaylist(r, id, user); code != 0 {
 		return playlistError(code)
 	} else if err != nil {
@@ -465,7 +465,7 @@ func (h *Handler) removePlaylistItems(w http.ResponseWriter, r *http.Request) er
 }
 
 func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request) error {
-	id, user := r.PathValue("id"), requestUser(r)
+	id, user := r.PathValue("id"), store.RequestUser(r)
 	parts := strings.Split(r.PathValue("itemPath"), "/")
 	libraryItemID, episodeID := parts[0], ""
 	if len(parts) > 1 {

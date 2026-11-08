@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
-	"strings"
 )
 
 // itemsExpandedWhere is LibraryItem.findAllExpandedWhere({ id: ids })
@@ -24,7 +23,7 @@ func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]itemS
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, stringArgs(ids)...)
+	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+store.Placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, stringArgs(ids)...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +73,7 @@ func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items
 // 558-621): each item is removed like ApiRouter.handleDeleteLibraryItem (with
 // its files when hard=1), then the series and authors it leaves empty.
 func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !access.For(r.Context(), user).Delete() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to delete without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
@@ -118,7 +117,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 // PATCH /api/items/:id/media, the emptied series and authors are removed at
 // the end, and the answer counts the items that changed.
 func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !access.For(r.Context(), user).Update() {
 		logging.Warnf(`[LibraryItemController] User "%s" attempted to batch update without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
@@ -215,7 +214,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 // ids, in findAllExpandedWhere order; unknown ids are skipped and one item the
 // user may not see refuses the whole request.
 func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
-	user, ctx := requestUser(r), r.Context()
+	user, ctx := store.RequestUser(r), r.Context()
 	var request struct {
 		IDs []string `json:"libraryItemIds"`
 	}
@@ -246,13 +245,6 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"libraryItems": selected})
-}
-
-func placeholders(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return strings.TrimRight(strings.Repeat("?,", n), ",")
 }
 
 func stringArgs(values []string) []any {

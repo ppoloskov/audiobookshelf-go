@@ -8,7 +8,6 @@ import (
 	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"net/http"
 	"regexp"
 	"sort"
@@ -70,44 +69,14 @@ func collapseSubseriesFilter(r *http.Request) (seriesID string, ok bool) {
 	if group != "series" || r.URL.Query().Get("collapseseries") != "1" {
 		return "", false
 	}
-	if nodeBase64Decode(rest) == "no-series" {
+	if decodeFilterValue(rest) == "no-series" {
 		return "", false
 	}
 	if !hasDot {
 		return "", true
 	}
 	value, _, _ := strings.Cut(rest, ".")
-	return nodeBase64Decode(value), true
-}
-
-// nodeBase64Decode is libraryFilters.decode (libraryFilters.js:13-20):
-// Buffer.from(decodeURIComponent(text), 'base64').toString(). Node's decoder
-// accepts both alphabets and skips characters outside them.
-func nodeBase64Decode(text string) string {
-	var clean strings.Builder
-	for _, c := range text {
-		switch {
-		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '+', c == '/':
-			clean.WriteRune(c)
-		case c == '-':
-			clean.WriteByte('+')
-		case c == '_':
-			clean.WriteByte('/')
-		case c == '=':
-			// Decoding stops at the first padding character.
-			decoded, _ := base64.RawStdEncoding.DecodeString(trimPartial(clean.String()))
-			return string(decoded)
-		}
-	}
-	decoded, _ := base64.RawStdEncoding.DecodeString(trimPartial(clean.String()))
-	return string(decoded)
-}
-
-func trimPartial(s string) string {
-	if len(s)%4 == 1 {
-		return s[:len(s)-1]
-	}
-	return s
+	return decodeFilterValue(value), true
 }
 
 // collapseSubseries serves GET /api/libraries/:id/items for a series filter

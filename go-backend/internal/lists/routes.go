@@ -1,6 +1,7 @@
 package lists
 
 import (
+	"audiobookshelf-compat/internal/store"
 	"net/http"
 
 	"audiobookshelf-compat/internal/httputil"
@@ -33,7 +34,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/playlists/{id}", httputil.Handler(h.deletePlaylist))
 	mux.Handle("POST /api/playlists/{id}/{action}", httputil.Handler(h.playlistAction))
 	mux.Handle("POST /api/playlists/{id}/batch/add", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		return h.addPlaylistItem(w, r, r.PathValue("id"), requestUser(r), true)
+		return h.addPlaylistItem(w, r, r.PathValue("id"), store.RequestUser(r), true)
 	}))
 	mux.Handle("POST /api/playlists/{id}/batch/remove", httputil.Handler(h.removePlaylistItems))
 	mux.Handle("DELETE /api/playlists/{id}/item/{itemPath...}", httputil.Handler(h.removePlaylistItem))
@@ -42,7 +43,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 func (h *Handler) playlistAction(w http.ResponseWriter, r *http.Request) error {
-	id, action, user := r.PathValue("id"), r.PathValue("action"), requestUser(r)
+	id, action, user := r.PathValue("id"), r.PathValue("action"), store.RequestUser(r)
 	switch {
 	case id == "collection":
 		return h.createPlaylistFromCollection(w, r, user, action)

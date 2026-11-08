@@ -13,6 +13,7 @@ import (
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 	"context"
 	"database/sql"
@@ -452,7 +453,7 @@ func matchOptionsFromBody(body map[string]json.RawMessage, keys ...string) quick
 // itemMatch is LibraryItemController.match (LibraryItemController.js:526-548)
 // behind LibraryItemController.middleware (:1220-1249).
 func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	id := r.PathValue("id")
 	scope, err := h.loadItem(r.Context(), id)
 	if err != nil {
@@ -481,7 +482,7 @@ func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 // only; the request is answered at once and the matching runs on, ending with
 // batch_quickmatch_complete to the requesting user.
 func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !adminUser(user) {
 		logging.Warnf(`Non-admin user "%s" other than admin attempted to batch quick match library items`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")

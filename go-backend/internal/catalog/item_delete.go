@@ -14,7 +14,7 @@ import (
 )
 
 func (h *Handler) deleteItem(w http.ResponseWriter, r *http.Request) error {
-	user, ctx := requestUser(r), r.Context()
+	user, ctx := store.RequestUser(r), r.Context()
 	item, err := h.loadItem(ctx, r.PathValue("id"))
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 			return nil
 		}
 		var rows *sql.Rows
-		if rows, err = tx.QueryContext(ctx, `SELECT `+column+` FROM `+table+` WHERE `+by+` IN (`+placeholders(len(ids))+`)`, stringArgs(ids)...); err != nil {
+		if rows, err = tx.QueryContext(ctx, `SELECT `+column+` FROM `+table+` WHERE `+by+` IN (`+store.Placeholders(len(ids))+`)`, stringArgs(ids)...); err != nil {
 			return nil
 		}
 		defer rows.Close()
@@ -126,13 +126,13 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 		if err != nil || len(ids) == 0 {
 			return
 		}
-		_, err = tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE `+by+` IN (`+placeholders(len(ids))+`)`, stringArgs(ids)...)
+		_, err = tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE `+by+` IN (`+store.Placeholders(len(ids))+`)`, stringArgs(ids)...)
 	}
 	q := sqlc.New(tx)
 	mediaIDs := append(append([]string{}, bookIDs...), episodeIDs...)
 	exec("mediaProgresses", "mediaItemId", mediaIDs)
 	if err == nil && len(mediaIDs) > 0 {
-		err = deletePlaylistMedia(ctx, q, mediaIDs)
+		err = store.RemoveFromPlaylists(ctx, tx, mediaIDs)
 	}
 	if err == nil && len(itemIDs) > 0 {
 		err = q.DeleteLibraryItemFeedsByItemIDs(ctx, store.Texts(itemIDs))
@@ -150,34 +150,4 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	exec("podcasts", "id", podcastIDs)
 	exec("libraryItems", "id", itemIDs)
 	return authors, series, err
-}
-
-func deletePlaylistMedia(ctx context.Context, q *sqlc.Queries, mediaIDs []string) error {
-	for _, id := range mediaIDs {
-		if err := q.DeletePlaylistMediaItemsByMediaID(ctx, id); err != nil {
-			return err
-		}
-	}
-	playlistIDs, err := q.ListAllPlaylistIDs(ctx)
-	if err != nil {
-		return err
-	}
-	for _, playlistID := range playlistIDs {
-		entryIDs, e := q.ListPlaylistMediaItemIDs(ctx, playlistID)
-		if e != nil {
-			return e
-		}
-		if len(entryIDs) == 0 {
-			if e = q.DeletePlaylist(ctx, playlistID); e != nil {
-				return e
-			}
-			continue
-		}
-		for order, id := range entryIDs {
-			if e = q.UpdatePlaylistMediaItemOrder(ctx, sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(order + 1), ID: id}); e != nil {
-				return e
-			}
-		}
-	}
-	return nil
 }

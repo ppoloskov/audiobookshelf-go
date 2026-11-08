@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"sort"
-	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
@@ -18,7 +17,7 @@ import (
 )
 
 func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	if !access.For(r.Context(), user).Update() {
 		return httputil.Status(403, "")
 	}
@@ -90,7 +89,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	c, err := sqlc.New(h.db).GetCollection(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(404, "")
@@ -182,7 +181,7 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error
 // are filtered before the query; adding a batch with no valid books is an
 // error, while removing unknown books is an idempotent no-op.
 func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) error {
-	user, id, action := requestUser(r), r.PathValue("id"), r.PathValue("action")
+	user, id, action := store.RequestUser(r), r.PathValue("id"), r.PathValue("action")
 	if action != "add" && action != "remove" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
@@ -208,7 +207,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) e
 		logging.RequestDebug(r, "responding 500: the request body has no valid books array")
 		return httputil.Status(500, "Invalid request body")
 	}
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(itemIDs)), ",")
+	placeholders := store.Placeholders(len(itemIDs))
 	args := make([]any, 0, len(itemIDs)+2)
 	for _, itemID := range itemIDs {
 		args = append(args, itemID)
@@ -348,7 +347,7 @@ func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) error {
-	user, id := requestUser(r), r.PathValue("id")
+	user, id := store.RequestUser(r), r.PathValue("id")
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")
@@ -400,7 +399,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) error {
-	user, id, itemID := requestUser(r), r.PathValue("id"), r.PathValue("itemID")
+	user, id, itemID := store.RequestUser(r), r.PathValue("id"), r.PathValue("itemID")
 	libraryID, err := h.collectionLibraryID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Collection not found")

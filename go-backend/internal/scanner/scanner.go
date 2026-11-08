@@ -47,8 +47,9 @@ type Scanner struct {
 	cfg         config.Config
 	emit        events.Emitter
 	mu          sync.Mutex
-	runs        map[string]context.CancelFunc
+	runs        map[string]*run
 	watchCancel context.CancelFunc
+	fw          *fsWatcher
 	filters     *filterdata.Cache
 }
 
@@ -59,11 +60,18 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters *filterdata
 	if filters == nil {
 		return nil, errors.New("scanner: filter data provider is nil")
 	}
-	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filters: filters}, nil
+	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]*run), filters: filters}, nil
+}
+
+// run is one registered scan of a library; done closes when it ends.
+type run struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // begin registers a running scan of the library, which at most one may be at a
-// time; the returned func ends it. The context ends when Cancel is called.
+// time (library scans, item scans and watcher batches alike); the returned func
+// ends it. The context ends when Cancel is called.
 func (s *Scanner) begin(ctx context.Context, libraryID string) (context.Context, func(), error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -71,9 +79,34 @@ func (s *Scanner) begin(ctx context.Context, libraryID string) (context.Context,
 		logging.Errorf("[LibraryScanner] Already scanning %s", libraryID) // LibraryScanner.js:53
 		return ctx, nil, errors.New("scanner: library scan already running")
 	}
+	return s.register(ctx, libraryID)
+}
+
+// beginWait is begin for a watcher batch, which must not be dropped: it waits
+// for the running scan of the library to end.
+func (s *Scanner) beginWait(ctx context.Context, libraryID string) (context.Context, func(), error) {
+	for {
+		s.mu.Lock()
+		r, busy := s.runs[libraryID]
+		if !busy {
+			defer s.mu.Unlock()
+			return s.register(ctx, libraryID)
+		}
+		s.mu.Unlock()
+		select {
+		case <-r.done:
+		case <-ctx.Done():
+			return ctx, nil, ctx.Err()
+		}
+	}
+}
+
+// register adds the run; the caller holds mu and the library has none.
+func (s *Scanner) register(ctx context.Context, libraryID string) (context.Context, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
-	s.runs[libraryID] = cancel
-	return ctx, func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }, nil
+	r := &run{cancel: cancel, done: make(chan struct{})}
+	s.runs[libraryID] = r
+	return ctx, func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock(); close(r.done) }, nil
 }
 
 // scanItemForce refreshes one existing library item as the item scan route
@@ -94,49 +127,26 @@ func (s *Scanner) scanItemForce(ctx context.Context, itemID string) (Result, err
 
 func (s *Scanner) Cancel(libraryID string) {
 	s.mu.Lock()
-	cancel := s.runs[libraryID]
+	r := s.runs[libraryID]
 	s.mu.Unlock()
-	if cancel != nil {
-		cancel()
+	if r != nil {
+		r.cancel()
 	}
 }
 
-// UpdateWatchedPath applies one watcher notification (kind add, unlink or
-// rename, as POST /api/watcher/update validates it). The scanner reconciles the
-// containing library because its import pipeline commits complete book groups;
-// this preserves additions, removals, and renames without constructing partial
-// libraryFiles records.
-func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath, kind string) error {
-	absPath, err := filepath.Abs(filepath.Clean(watchedPath))
-	if err != nil {
-		return err
+// UpdateWatchedPath queues one watcher notification (kind add, unlink or
+// rename, as POST /api/watcher/update validates it) on the internal watcher, as
+// Watcher.onFileAdded / onFileRemoved / onFileRename do (MiscController.js:
+// 593-612): the batch is rescanned after the pending delay. A path outside the
+// library's watched folders is dropped, as Watcher.addFileUpdate does.
+func (s *Scanner) UpdateWatchedPath(libraryID, watchedPath, kind string) {
+	s.mu.Lock()
+	fw := s.fw
+	s.mu.Unlock()
+	if fw == nil {
+		return
 	}
-	folders, err := s.folders(ctx, libraryID)
-	if err != nil {
-		return err
-	}
-	inside := false
-	for _, f := range folders {
-		root, e := filepath.Abs(filepath.Clean(f.path))
-		if e != nil {
-			continue
-		}
-		rel, e := filepath.Rel(root, absPath)
-		if e == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			inside = true
-			break
-		}
-	}
-	if !inside {
-		return fmt.Errorf("scanner: watcher path is outside library folders")
-	}
-	if kind != "unlink" {
-		if _, err := os.Stat(absPath); err != nil {
-			return err
-		}
-	}
-	_, err = s.Scan(ctx, libraryID, true)
-	return err
+	fw.onFile(libraryID, filepath.ToSlash(filepath.Clean(watchedPath)), map[string]string{"add": "added", "unlink": "deleted", "rename": "renamed"}[kind])
 }
 
 // Scan's force rescans items even when no file changed.
@@ -375,11 +385,15 @@ func (s *Scanner) Start(ctx context.Context) error {
 	s.watchCancel = cancel
 	s.mu.Unlock()
 	watcher, cronJobs, fw, roots, err := s.arm(watchCtx)
+	s.mu.Lock()
 	if err != nil {
 		cancel()
-		s.mu.Lock()
 		s.watchCancel = nil
-		s.mu.Unlock()
+	} else {
+		s.fw = fw
+	}
+	s.mu.Unlock()
+	if err != nil {
 		return err
 	}
 	cronJobs.Start()
@@ -512,8 +526,8 @@ func (s *Scanner) Close() {
 		s.watchCancel()
 		s.watchCancel = nil
 	}
-	for _, c := range s.runs {
-		c()
+	for _, r := range s.runs {
+		r.cancel()
 	}
 	s.mu.Unlock()
 }
@@ -549,10 +563,8 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 			rows.Close()
 			return nil, err
 		}
-		var settings map[string]any
-		_ = json.Unmarshal(raw, &settings)
-		l.cron, _ = settings["autoScanCronExpression"].(string)
-		l.disabled, _ = settings["disableWatcher"].(bool)
+		settings := decodeLibrarySettings(raw)
+		l.cron, l.disabled = settings.AutoScanCronExpression, settings.DisableWatcher
 		out = append(out, l)
 	}
 	if err := rows.Err(); err != nil {
@@ -574,6 +586,25 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 	return out, nil
 }
 
+// librarySettings is the part of libraries.settings the scanner reads.
+type librarySettings struct {
+	AutoScanCronExpression string   `json:"autoScanCronExpression"`
+	DisableWatcher         bool     `json:"disableWatcher"`
+	AudiobooksOnly         bool     `json:"audiobooksOnly"`
+	MetadataPrecedence     []string `json:"metadataPrecedence"`
+}
+
+// decodeLibrarySettings reads the stored settings once; a missing or unreadable
+// field has its zero value and an empty precedence is the default order.
+func decodeLibrarySettings(raw []byte) librarySettings {
+	var settings librarySettings
+	_ = json.Unmarshal(raw, &settings)
+	if len(settings.MetadataPrecedence) == 0 {
+		settings.MetadataPrecedence = serversettings.DefaultMetadataPrecedence()
+	}
+	return settings
+}
+
 type library struct {
 	id, name, mediaType string
 	audiobooksOnly      bool
@@ -589,17 +620,8 @@ func (s *Scanner) library(ctx context.Context, id string) (library, error) {
 	var raw, extra []byte
 	err := s.db.QueryRowContext(ctx, `SELECT id,name,mediaType,settings,extraData FROM libraries WHERE id=?`, id).Scan(&l.id, &l.name, &l.mediaType, &raw, &extra)
 	if err == nil {
-		var settings struct {
-			AudiobooksOnly     bool     `json:"audiobooksOnly"`
-			MetadataPrecedence []string `json:"metadataPrecedence"`
-		}
-		if json.Unmarshal(raw, &settings) != nil {
-			settings.MetadataPrecedence = nil
-		}
+		settings := decodeLibrarySettings(raw)
 		l.audiobooksOnly, l.metadataPrecedence = settings.AudiobooksOnly, settings.MetadataPrecedence
-		if len(l.metadataPrecedence) == 0 {
-			l.metadataPrecedence = defaultMetadataPrecedence()
-		}
 		server := serversettings.Load(ctx, s.db)
 		l.parseSubtitle = server.Bool("scannerParseSubtitle")
 		l.sortingPrefixes = server.SortingPrefixes()

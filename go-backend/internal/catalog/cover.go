@@ -252,7 +252,7 @@ func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string,
 // updatedAt bumped, an item_updated event emitted after the commit, and the
 // {success, cover} JSON answer carrying an express-style weak ETag.
 func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
-	user, itemID := requestUser(r), r.PathValue("id")
+	user, itemID := store.RequestUser(r), r.PathValue("id")
 	if !access.For(r.Context(), user).Upload() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
@@ -420,7 +420,7 @@ func escapeJSONString(value string) string {
 }
 
 func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request) error {
-	scope, err := h.itemFor(r.Context(), requestUser(r), r.PathValue("id"), true)
+	scope, err := h.itemFor(r.Context(), store.RequestUser(r), r.PathValue("id"), true)
 	if err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 	itemID := r.PathValue("id")
-	scope, err := h.itemFor(r.Context(), requestUser(r), itemID, true)
+	scope, err := h.itemFor(r.Context(), store.RequestUser(r), itemID, true)
 	if err != nil {
 		return err
 	}

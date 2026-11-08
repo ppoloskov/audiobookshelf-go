@@ -54,8 +54,8 @@ func TestNodeBase64DecodeMatchesBufferFrom(t *testing.T) {
 		"bm8tc2VyaWVz": "no-series", "bm8tc2VyaWVz==": "no-series", "YWJj": "abc", "YWI=": "ab", "YW": "a", "Y": "", "": "",
 		"YW-_": "ao\xbf", "Y W\nJj": "abc",
 	} {
-		if got := nodeBase64Decode(in); got != want {
-			t.Errorf("nodeBase64Decode(%q) = %q, want %q", in, got, want)
+		if got := decodeFilterValue(in); got != want {
+			t.Errorf("decodeFilterValue(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

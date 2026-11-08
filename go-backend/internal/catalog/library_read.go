@@ -24,7 +24,7 @@ func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib 
 }
 
 func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
+	user := store.RequestUser(r)
 	includeStats := strings.Contains(","+r.URL.Query().Get("include")+",", ",stats,")
 	ids, err := h.queryStrings(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder ASC`)
 	if err != nil {

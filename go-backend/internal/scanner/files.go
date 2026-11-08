@@ -177,12 +177,6 @@ func readABSMetadata(g *group, itemID, metadataPath string) (bookMetadata, bool)
 	return result, true
 }
 
-var defaultMetadataSourceOrder = []string{"folderStructure", "audioMetatags", "nfoFile", "txtFiles", "opfFile", "absMetadata"}
-
-func defaultMetadataPrecedence() []string {
-	return append([]string(nil), defaultMetadataSourceOrder...)
-}
-
 func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, order []string, audioTags map[string]string, abs bookMetadata, hasABS bool) bookMetadata {
 	m := bookMetadata{Title: title, Authors: splitMetadataList(author)}
 	if series != "" {

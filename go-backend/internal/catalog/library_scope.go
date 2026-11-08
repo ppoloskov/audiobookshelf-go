@@ -30,7 +30,7 @@ type libraryScope struct {
 // LibraryController.js:1475-1499) for every route under /api/libraries/:id.
 func (h *Handler) inLibrary(fn func(http.ResponseWriter, *http.Request, libraryScope) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		user := requestUser(r)
+		user := store.RequestUser(r)
 		lib, err := httputil.OpenLibrary(r, h.db, access.For(r.Context(), user).Library, r.PathValue("id"))
 		if err != nil {
 			return err

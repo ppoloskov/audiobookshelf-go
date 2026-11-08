@@ -1200,7 +1200,7 @@ func TestBookProgressFiltersAndSortUseCurrentUser(t *testing.T) {
 	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/libraries/l1/items?filter=progress.in-progress&sort=progress", nil)
+	req := httptest.NewRequest("GET", "/api/libraries/l1/items?filter=progress.aW4tcHJvZ3Jlc3M&sort=progress", nil)
 	if !h.Handle(w, req, u) || w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}

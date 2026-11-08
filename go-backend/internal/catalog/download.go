@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"io"
 	"io/fs"
@@ -22,7 +23,7 @@ import (
 // ENOENT -> 404 'File not found', otherwise 500 'Download failed'
 // (LibraryItemController.js:152-160), and only until headers are sent.
 func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
-	user, itemID := requestUser(r), r.PathValue("id")
+	user, itemID := store.RequestUser(r), r.PathValue("id")
 	var libraryID, itemPath, relPath, mediaType, title string
 	var isFile int
 	title = ""
