@@ -23,7 +23,7 @@
         "relPath": "ep.wav",
         "size": 4044
       },
-      "mimeType": "audio/wav",
+      "mimeType": "audio/mpeg",
       "timeBase": "1/8000",
       "trackNumFromFilename": null,
       "trackNumFromMeta": null
@@ -78,7 +78,7 @@
         "relPath": "ep.wav",
         "size": 4044
       },
-      "mimeType": "audio/wav",
+      "mimeType": "audio/mpeg",
       "timeBase": "1/8000",
       "trackNumFromFilename": null,
       "trackNumFromMeta": null
@@ -131,7 +131,7 @@
         "relPath": "ep.wav",
         "size": 4044
       },
-      "mimeType": "audio/wav",
+      "mimeType": "audio/mpeg",
       "timeBase": "1/8000",
       "trackNumFromFilename": null,
       "trackNumFromMeta": null
@@ -184,7 +184,7 @@
         "relPath": "ep.wav",
         "size": 4044
       },
-      "mimeType": "audio/wav",
+      "mimeType": "audio/mpeg",
       "timeBase": "1/8000",
       "trackNumFromFilename": null,
       "trackNumFromMeta": null

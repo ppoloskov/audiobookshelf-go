@@ -94,25 +94,16 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 // user to the request context before dispatch (store.ContextWithUser).
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/tasks", httputil.Handler(h.tasksRoute))
-	mux.Handle("POST /api/tools/batch/embed-metadata", adminOnly(h.batch))
-	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", adminOnly(h.cancelEncode))
+	mux.Handle("POST /api/tools/batch/embed-metadata", access.RequireAdmin(403, h.batch))
+	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", access.RequireAdmin(403, h.cancelEncode))
 	mux.Handle("POST /api/tools/item/{id}/encode-m4b", h.itemRoute(h.encode))
 	mux.Handle("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
-}
-
-func adminOnly(next httputil.Handler) httputil.Handler {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		if !access.AdminUser(requestUser(r)) {
-			return httputil.Status(403, "")
-		}
-		return next(w, r)
-	}
 }
 
 // itemRoute answers a tool on one library item: admins only, and the item must
 // exist.
 func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, string, item) error) httputil.Handler {
-	return adminOnly(func(w http.ResponseWriter, r *http.Request) error {
+	return access.RequireAdmin(403, func(w http.ResponseWriter, r *http.Request) error {
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
 		if errors.Is(err, sql.ErrNoRows) {
 			return httputil.Status(404, "")

@@ -76,14 +76,6 @@ func (d Data) clone() Data {
 	return d
 }
 
-// Provider is what the scanner needs from the catalog: load a library's filter
-// data when no cached copy exists (upstream does this at the start of every
-// scan) and reach the cache to patch it.
-type Provider interface {
-	EnsureFilterData(ctx context.Context, libraryID, mediaType string) error
-	FilterCache() *Cache
-}
-
 // Load builds a library's filter data from the database
 // (libraryFilters.getFilterData, libraryFilters.js:455-461): the distinct,
 // case-insensitively sorted values of its items, and its authors and series by
@@ -230,14 +222,6 @@ func (c *Cache) Fresh(libraryID string) (Data, bool) {
 	return d.clone(), true
 }
 
-// Has reports whether any entry (fresh or expired) exists. The scanner still
-// guards its own issue recount with it; it can call ResetIssues instead.
-func (c *Cache) Has(libraryID string) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.libs[libraryID] != nil
-}
-
 // Get serves the entry while it is fresh and otherwise reloads and stores it
 // (libraryFilters.js:449-466).
 func (c *Cache) Get(ctx context.Context, db *sql.DB, libraryID, mediaType string) (Data, error) {
@@ -339,28 +323,23 @@ func (c *Cache) RemoveSeries(libraryID, id string) {
 	})
 }
 
-func (c *Cache) AddGenres(libraryID string, genres []string) {
-	c.with(libraryID, func(d *Data) { d.Genres = appendUnique(d.Genres, genres...) })
+// BookValues are the filter values a newly added book contributes.
+type BookValues struct {
+	Genres, Tags, Narrators, Languages, Publishers, PublishedDecades []string
 }
 
-func (c *Cache) AddTags(libraryID string, tags []string) {
-	c.with(libraryID, func(d *Data) { d.Tags = appendUnique(d.Tags, tags...) })
-}
-
-func (c *Cache) AddNarrators(libraryID string, narrators []string) {
-	c.with(libraryID, func(d *Data) { d.Narrators = appendUnique(d.Narrators, narrators...) })
-}
-
-func (c *Cache) AddPublisher(libraryID, publisher string) {
-	c.with(libraryID, func(d *Data) { d.Publishers = appendUnique(d.Publishers, publisher) })
-}
-
-func (c *Cache) AddPublishedDecade(libraryID, decade string) {
-	c.with(libraryID, func(d *Data) { d.PublishedDecades = appendUnique(d.PublishedDecades, decade) })
-}
-
-func (c *Cache) AddLanguage(libraryID, language string) {
-	c.with(libraryID, func(d *Data) { d.Languages = appendUnique(d.Languages, language) })
+// AddBook appends a new book's values to an existing entry, as the scanner's
+// Database.addGenres/addTags/addNarrators/... calls do; a missing entry is
+// left alone.
+func (c *Cache) AddBook(libraryID string, v BookValues) {
+	c.with(libraryID, func(d *Data) {
+		d.Genres = appendUnique(d.Genres, v.Genres...)
+		d.Tags = appendUnique(d.Tags, v.Tags...)
+		d.Narrators = appendUnique(d.Narrators, v.Narrators...)
+		d.Publishers = appendUnique(d.Publishers, v.Publishers...)
+		d.PublishedDecades = appendUnique(d.PublishedDecades, v.PublishedDecades...)
+		d.Languages = appendUnique(d.Languages, v.Languages...)
+	})
 }
 
 // StoreNumIssues is Database.resetLibraryIssuesFilterData's outcome.

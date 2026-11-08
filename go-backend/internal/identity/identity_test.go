@@ -201,7 +201,7 @@ func TestAPIKeyAuthenticationAndInitOneTime(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
 	now := time.Now().UTC()
-	if _, err := db.Exec(`INSERT INTO apiKeys (id, isActive, expiresAt, lastUsedAt, userId, updatedAt) VALUES (?, 1, ?, NULL, ?, ?)`, "key-1", now.Add(time.Hour).Format(time.RFC3339Nano), "user-1", now.Format(time.RFC3339Nano)); err != nil {
+	if _, err := db.Exec(`INSERT INTO apiKeys (id, name, isActive, expiresAt, lastUsedAt, userId, createdAt, updatedAt) VALUES (?, 'test', 1, ?, NULL, ?, ?, ?)`, "key-1", now.Add(time.Hour).Format(time.RFC3339Nano), "user-1", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
 	keyToken, err := handler.IssueAPIKeyToken("key-1", "test", 0)
@@ -244,7 +244,7 @@ func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 		`CREATE TABLE settings (key TEXT PRIMARY KEY, value JSON)`,
 		`CREATE TABLE libraries (id TEXT PRIMARY KEY, displayOrder INTEGER)`,
 		`CREATE TABLE sessions (id TEXT PRIMARY KEY, ipAddress TEXT, userAgent TEXT, refreshToken TEXT NOT NULL, expiresAt DATETIME NOT NULL, createdAt DATETIME NOT NULL, updatedAt DATETIME NOT NULL, userId TEXT NOT NULL, lastRefreshToken TEXT, lastRefreshTokenExpiresAt DATETIME)`,
-		`CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt DATETIME, lastUsedAt DATETIME, userId TEXT, updatedAt DATETIME)`,
+		`CREATE TABLE apiKeys (id TEXT PRIMARY KEY, name TEXT, description TEXT, expiresAt DATETIME, lastUsedAt DATETIME, isActive INTEGER, permissions TEXT, userId TEXT, createdByUserId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt DATETIME, extraData TEXT, podcastId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 	}
 	for _, query := range schema {

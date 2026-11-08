@@ -10,6 +10,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 // Read returns the user's progress in the order upstream first loads it.
@@ -20,55 +21,71 @@ import (
 // mediaItemId. Upstream then appends rows created later in the process
 // lifetime (User.js createUpdateMediaProgressFromPayload push); that cache
 // artifact is not reproduced here, a restart reloads index order in both.
-func Read(ctx context.Context, db *sql.DB, userID string) ([]any, error) {
+func Read(ctx context.Context, db *sql.DB, userID string) ([]wire.MediaProgress, error) {
 	rows, err := sqlc.New(db).ListMediaProgressByUser(ctx, store.Text(userID))
 	if err != nil {
 		return nil, err
 	}
-	out := make([]any, 0, len(rows))
+	out := make([]wire.MediaProgress, 0, len(rows))
 	for _, m := range rows {
-		var extra map[string]any
-		_ = json.Unmarshal([]byte(m.Extradata.String), &extra)
-		var libID, progress any
-		if extra != nil {
-			libID = extra["libraryItemId"]
-			progress = extra["progress"]
-		}
-		if progress == nil {
-			progress = 0
-		}
-		var episode any
-		if m.Mediaitemtype.String == "podcastEpisode" {
-			episode = m.Mediaitemid.String
-		}
-		out = append(out, map[string]any{"id": m.ID, "userId": m.Userid.String, "libraryItemId": libID, "episodeId": episode, "mediaItemId": m.Mediaitemid.String, "mediaItemType": m.Mediaitemtype.String, "duration": number(m.Duration), "progress": progress, "currentTime": number(m.Currenttime), "isFinished": m.Isfinished.Int64 != 0, "hideFromContinueListening": m.Hidefromcontinuelistening.Int64 != 0, "ebookLocation": store.NullString(m.Ebooklocation), "ebookProgress": number(m.Ebookprogress), "lastUpdate": dbtime.Millis(m.Updatedat), "startedAt": dbtime.Millis(m.Createdat), "finishedAt": dbtime.Millis(m.Finishedat)})
+		out = append(out, fromRow(m))
 	}
 	return out, nil
+}
+
+// fromRow is a stored progress row as the browser receives it.
+func fromRow(m sqlc.Mediaprogress) wire.MediaProgress {
+	var extra struct {
+		LibraryItemID *string  `json:"libraryItemId"`
+		Progress      *float64 `json:"progress"`
+	}
+	_ = json.Unmarshal([]byte(m.Extradata.String), &extra)
+	p := wire.MediaProgress{
+		ID: m.ID, UserID: m.Userid.String, LibraryItemID: extra.LibraryItemID, MediaItemID: m.Mediaitemid.String,
+		MediaItemType: m.Mediaitemtype.String, Duration: floatPtr(m.Duration), CurrentTime: floatPtr(m.Currenttime),
+		IsFinished: m.Isfinished.Int64 != 0, HideFromContinueListening: m.Hidefromcontinuelistening.Int64 != 0,
+		EbookLocation: store.NullStringPtr(m.Ebooklocation), EbookProgress: floatPtr(m.Ebookprogress),
+		LastUpdate: millisPtr(m.Updatedat), StartedAt: millisPtr(m.Createdat), FinishedAt: millisPtr(m.Finishedat),
+	}
+	if extra.Progress != nil {
+		p.Progress = *extra.Progress
+	}
+	if p.MediaItemType == "podcastEpisode" {
+		p.EpisodeID = &m.Mediaitemid.String
+	}
+	return p
 }
 
 // ReadOne mirrors upstream User.getOldMediaProgress(libraryItemId, episodeId)
 // (server/models/User.js:716): the first progress whose extraData
 // libraryItemId matches, restricted to episodeId when given; nil when absent.
-func ReadOne(ctx context.Context, db *sql.DB, userID, libraryItemID, episodeID string) (map[string]any, error) {
+func ReadOne(ctx context.Context, db *sql.DB, userID, libraryItemID, episodeID string) (*wire.MediaProgress, error) {
 	all, err := Read(ctx, db, userID)
 	if err != nil {
 		return nil, err
 	}
-	for _, entry := range all {
-		p := entry.(map[string]any)
-		if episodeID != "" && p["mediaItemId"] != episodeID {
+	for i, p := range all {
+		if episodeID != "" && p.MediaItemID != episodeID {
 			continue
 		}
-		if p["libraryItemId"] == libraryItemID {
-			return p, nil
+		if p.LibraryItemID != nil && *p.LibraryItemID == libraryItemID {
+			return &all[i], nil
 		}
 	}
 	return nil, nil
 }
 
-func number(v sql.NullFloat64) any {
+func floatPtr(v sql.NullFloat64) *float64 {
 	if !v.Valid {
 		return nil
 	}
-	return v.Float64
+	return &v.Float64
+}
+
+func millisPtr(v any) *int64 {
+	ms, ok := dbtime.Millis(v).(int64)
+	if !ok {
+		return nil
+	}
+	return &ms
 }

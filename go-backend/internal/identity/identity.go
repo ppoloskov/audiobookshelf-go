@@ -5,7 +5,9 @@ package identity
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/settingsdoc"
 	"bytes"
 	"context"
 	"crypto/hmac"
@@ -448,11 +450,9 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 		logging.Warn("[Server] Creating root user with no password") // Server.js:490
 	}
 	if body.NewRoot.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(body.NewRoot.Password), 8)
-		if err != nil {
+		if passwordHash, err = h.HashPassword(body.NewRoot.Password); err != nil {
 			return &httputil.Error{Status: 500, Cause: err}
 		}
-		passwordHash = string(hash)
 	}
 	id, err := ids.New()
 	if err != nil {
@@ -463,8 +463,8 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	now := dbtime.Format(time.Now())
-	err = sqlc.New(tx).InsertRootUser(r.Context(), sqlc.InsertRootUserParams{
-		ID: id, Username: store.Text(username), Pash: store.Text(passwordHash), Token: store.Text(legacyToken),
+	err = sqlc.New(tx).InsertUser(r.Context(), sqlc.InsertUserParams{
+		ID: id, Username: store.Text(username), Pash: store.Text(passwordHash), Type: store.Text("root"), Token: store.Text(legacyToken), Isactive: sql.NullInt64{Int64: 1, Valid: true},
 		Permissions: store.Text(encodeJSON(access.Defaults("root"))), Extradata: store.Text(users.NewUserExtraData("")), Createdat: now, Updatedat: now,
 	})
 	if err == nil {
@@ -595,7 +595,10 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
 		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}
-	emailSettings, _ := h.loadSettings(ctx, "email-settings")
+	emailSettings, err := settingsdoc.Load(ctx, h.db, settingsdoc.EmailKey, nil)
+	if err != nil {
+		return nil, err
+	}
 	devices := filterDevices(emailSettings, user)
 	return map[string]any{"user": userDTO, "userDefaultLibraryId": defaultLibrary, "serverSettings": serverSettings, "ereaderDevices": devices, "Source": h.cfg.Source}, nil
 }
@@ -655,44 +658,15 @@ func icuZoneName(zone string) string {
 	return zone
 }
 
+// filterDevices is the e-reader devices the user may send to (EmailSettings.getEReaderDevices).
 func filterDevices(settings map[string]any, user store.User) []any {
-	devices, _ := settings["ereaderDevices"].([]any)
 	result := []any{}
-	for _, raw := range devices {
-		device, ok := raw.(map[string]any)
-		if !ok || device["name"] == nil || device["email"] == nil {
-			continue
-		}
-		availability, _ := device["availabilityOption"].(string)
-		if availability == "" {
-			availability = "adminOrUp"
-		}
-		allowed := availability == "guestOrUp" || (availability == "adminOrUp" && (user.Type == "root" || user.Type == "admin")) || (availability == "userOrUp" && user.Type != "guest")
-		if availability == "specificUsers" {
-			for _, id := range stringSlice(device["users"]) {
-				allowed = allowed || id == user.ID
-			}
-		}
-		if allowed {
+	for _, raw := range jsonvalue.Array(settings["ereaderDevices"]) {
+		if device, ok := raw.(map[string]any); ok && device["name"] != nil && device["email"] != nil && settingsdoc.DeviceAllowed(device, user) {
 			result = append(result, device)
 		}
 	}
 	return result
-}
-
-func (h *Handler) loadSettings(ctx context.Context, key string) (map[string]any, error) {
-	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ? LIMIT 1`, key).Scan(&raw); err != nil {
-		return nil, err
-	}
-	var value map[string]any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return nil, err
-	}
-	if value == nil {
-		value = map[string]any{}
-	}
-	return value, nil
 }
 
 func (h *Handler) userByUsername(ctx context.Context, username string) (store.User, error) {
@@ -1023,6 +997,12 @@ func (h *Handler) InvalidateUserSessions(ctx context.Context, userID, currentRef
 	return "", "", err
 }
 
+// HashPassword is the bcrypt hash stored in users.pash.
+func (*Handler) HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	return string(hash), err
+}
+
 // VerifyPassword applies the pinned local strategy's passwordless-root and
 // bcrypt comparison rules, returning the upstream error text on failure.
 func (h *Handler) VerifyPassword(ctx context.Context, userID, password string) error {
@@ -1054,11 +1034,9 @@ func (h *Handler) ChangePassword(ctx context.Context, userID, password, newPassw
 	}
 	encoded := ""
 	if newPassword != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), 8)
-		if err != nil {
+		if encoded, err = h.HashPassword(newPassword); err != nil {
 			return errors.New("Hash failed")
 		}
-		encoded = string(hash)
 	}
 	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: store.Text(encoded), Updatedat: dbtime.Format(time.Now()), ID: userID})
 }
@@ -1073,17 +1051,18 @@ func (h *Handler) SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, 
 // ApiKey.js:139-155 deactivates expired keys in a separate batch operation;
 // per-request auth never writes to the row.
 func (h *Handler) apiKeyUser(ctx context.Context, keyID string) (store.User, error) {
-	var active int64
-	var expires nullableDate
-	var userID sql.NullString
-	err := h.db.QueryRowContext(ctx, `SELECT isActive, expiresAt, userId FROM apiKeys WHERE id = ? LIMIT 1`, keyID).Scan(&active, &expires, &userID)
-	if err != nil || active == 0 || !userID.Valid || userID.String == "" {
+	key, err := h.queries().GetApiKey(ctx, keyID)
+	if err != nil || key.Isactive == 0 || key.Userid.String == "" {
 		return store.User{}, errors.New("identity: invalid API key")
 	}
-	if expires.Valid && !expires.Time.After(time.Now()) {
+	expires, err := dbtime.OptionalMillis(key.Expiresat)
+	if err != nil {
+		return store.User{}, errors.New("identity: invalid API key")
+	}
+	if expires != nil && *expires <= time.Now().UnixMilli() {
 		return store.User{}, errors.New("identity: expired API key")
 	}
-	user, err := h.userByID(ctx, userID.String)
+	user, err := h.userByID(ctx, key.Userid.String)
 	if err != nil || !user.IsActive {
 		return store.User{}, errors.New("identity: inactive or missing API key user")
 	}

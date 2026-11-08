@@ -3,10 +3,10 @@ package emailapi
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/settingsdoc"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -32,25 +32,17 @@ import (
 
 type Handler struct {
 	db   *sql.DB
-	cfg  config.Config
 	emit func(string, string, any)
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
-	return &Handler{db: db, cfg: cfg, emit: emit}
+func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
+	return &Handler{db: db, emit: emit}
 }
 
 // Routes registers the email routes (server/routers/ApiRouter.js /emails). A
 // non-admin is answered 404 on the admin routes.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	adminOnly := func(f httputil.Handler) httputil.Handler {
-		return func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
-				return httputil.Status(http.StatusNotFound, "")
-			}
-			return f(w, r)
-		}
-	}
+	adminOnly := func(f httputil.Handler) httputil.Handler { return access.RequireAdmin(http.StatusNotFound, f) }
 	mux.Handle("GET /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, false) }))
 	mux.Handle("PATCH /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, true) }))
 	mux.Handle("POST /api/emails/test", adminOnly(h.sendTest))
@@ -59,30 +51,10 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
-	var raw []byte
-	e := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
-	if e != nil {
-		if e == sql.ErrNoRows {
-			return map[string]any{
-				"id": "email-settings", "host": nil, "port": 465, "secure": true,
-				"rejectUnauthorized": true, "user": nil, "pass": nil,
-				"testAddress": nil, "fromAddress": nil, "ereaderDevices": []any{},
-			}, nil
-		}
-		return nil, e
-	}
-	var m map[string]any
-	e = json.Unmarshal(raw, &m)
-	return m, e
+	return settingsdoc.Load(ctx, h.db, settingsdoc.EmailKey, settingsdoc.EmailDefaults())
 }
 func (h *Handler) save(ctx context.Context, m map[string]any) error {
-	b, e := json.Marshal(m)
-	if e != nil {
-		return e
-	}
-	now := dbtime.Now()
-	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
-	return e
+	return settingsdoc.Save(ctx, h.db, settingsdoc.EmailKey, m)
 }
 func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) error {
 	m, e := h.load(r.Context())
@@ -201,7 +173,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if device == nil {
 		return httputil.Status(404, "Ereader device not found")
 	}
-	if !deviceAllowed(device, u) {
+	if !settingsdoc.DeviceAllowed(device, u) {
 		return httputil.Status(403, "")
 	}
 	var folder, mediaID, mediaType string
@@ -245,7 +217,6 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if e = verifySMTP(r.Context(), m); e != nil {
 		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 	}
-	from, _ := m["fromAddress"].(string)
 	if e = sendMail(r.Context(), m, device["email"].(string), "Here is your Ebook!", "", &attachment{name: ebook.Metadata.Filename, data: data}); e != nil {
 		message := e.Error()
 		if message == "" {
@@ -253,7 +224,6 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 		}
 		return httputil.Status(http.StatusBadRequest, message)
 	}
-	_ = from
 	return httputil.OK(w, r)
 }
 
@@ -429,28 +399,6 @@ func device(m map[string]any, name string) map[string]any {
 	}
 	return nil
 }
-func deviceAllowed(d map[string]any, u store.User) bool {
-	level, _ := d["availabilityOption"].(string)
-	if level == "" {
-		level = "adminOrUp"
-	}
-	switch level {
-	case "adminOrUp":
-		return access.AdminUser(u)
-	case "userOrUp":
-		return access.AdminUser(u) || u.Type == "user"
-	case "guestOrUp":
-		return true
-	case "specificUsers":
-		for _, id := range jsonvalue.Array(d["users"]) {
-			if id == u.ID {
-				return true
-			}
-		}
-	}
-	return false
-}
-func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)

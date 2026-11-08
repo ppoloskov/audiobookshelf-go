@@ -25,9 +25,9 @@ func TestParseUserAgent(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			b, bv, o, ov := ParseUserAgent(tc.UA)
-			if b != tc.Browser || bv != tc.BrowserVersion || o != tc.OSName || ov != tc.OSVersion {
-				t.Fatalf("got (%q,%q,%q,%q), want (%q,%q,%q,%q)", b, bv, o, ov, tc.Browser, tc.BrowserVersion, tc.OSName, tc.OSVersion)
+			got := Parse(tc.UA)
+			if got.Browser != tc.Browser || got.BrowserVersion != tc.BrowserVersion || got.OSName != tc.OSName || got.OSVersion != tc.OSVersion {
+				t.Fatalf("got %+v, want (%q,%q,%q,%q)", got, tc.Browser, tc.BrowserVersion, tc.OSName, tc.OSVersion)
 			}
 		})
 	}

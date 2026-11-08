@@ -10,6 +10,22 @@ import (
 	"database/sql"
 )
 
+const countOtherUsersNamed = `-- name: CountOtherUsersNamed :one
+SELECT COUNT(*) FROM users WHERE username = ? AND id <> ?
+`
+
+type CountOtherUsersNamedParams struct {
+	Username sql.NullString
+	ID       string
+}
+
+func (q *Queries) CountOtherUsersNamed(ctx context.Context, arg CountOtherUsersNamedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOtherUsersNamed, arg.Username, arg.ID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRootUsers = `-- name: CountRootUsers :one
 SELECT COUNT(*) FROM users WHERE type = 'root'
 `
@@ -140,17 +156,6 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString
 	return i, err
 }
 
-const getUserEmail = `-- name: GetUserEmail :one
-SELECT email FROM users WHERE id = ?
-`
-
-func (q *Queries) GetUserEmail(ctx context.Context, id string) (sql.NullString, error) {
-	row := q.db.QueryRowContext(ctx, getUserEmail, id)
-	var email sql.NullString
-	err := row.Scan(&email)
-	return email, err
-}
-
 const getUserIDByOldUserID = `-- name: GetUserIDByOldUserID :one
 SELECT id FROM users
 WHERE (CASE WHEN json_valid(extraData) THEN json_extract(extraData, '$.oldUserId') END) = CAST(?1 AS TEXT)
@@ -164,28 +169,34 @@ func (q *Queries) GetUserIDByOldUserID(ctx context.Context, oldUserID string) (s
 	return id, err
 }
 
-const insertOIDCUser = `-- name: InsertOIDCUser :exec
+const insertUser = `-- name: InsertUser :exec
 INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt)
-VALUES (?, ?, ?, NULL, 'user', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, '[]', ?, ?, ?)
 `
 
-type InsertOIDCUserParams struct {
+type InsertUserParams struct {
 	ID          string
 	Username    sql.NullString
 	Email       sql.NullString
+	Pash        sql.NullString
+	Type        sql.NullString
 	Token       sql.NullString
+	Isactive    sql.NullInt64
 	Permissions sql.NullString
 	Extradata   sql.NullString
 	Createdat   any
 	Updatedat   any
 }
 
-func (q *Queries) InsertOIDCUser(ctx context.Context, arg InsertOIDCUserParams) error {
-	_, err := q.db.ExecContext(ctx, insertOIDCUser,
+func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
+	_, err := q.db.ExecContext(ctx, insertUser,
 		arg.ID,
 		arg.Username,
 		arg.Email,
+		arg.Pash,
+		arg.Type,
 		arg.Token,
+		arg.Isactive,
 		arg.Permissions,
 		arg.Extradata,
 		arg.Createdat,
@@ -194,34 +205,46 @@ func (q *Queries) InsertOIDCUser(ctx context.Context, arg InsertOIDCUserParams) 
 	return err
 }
 
-const insertRootUser = `-- name: InsertRootUser :exec
-INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt)
-VALUES (?, ?, NULL, ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?)
+const listUsers = `-- name: ListUsers :many
+SELECT id, username, email, pash, type, token, isactive, islocked, lastseen, permissions, bookmarks, extradata, createdat, updatedat FROM users
 `
 
-type InsertRootUserParams struct {
-	ID          string
-	Username    sql.NullString
-	Pash        sql.NullString
-	Token       sql.NullString
-	Permissions sql.NullString
-	Extradata   sql.NullString
-	Createdat   any
-	Updatedat   any
-}
-
-func (q *Queries) InsertRootUser(ctx context.Context, arg InsertRootUserParams) error {
-	_, err := q.db.ExecContext(ctx, insertRootUser,
-		arg.ID,
-		arg.Username,
-		arg.Pash,
-		arg.Token,
-		arg.Permissions,
-		arg.Extradata,
-		arg.Createdat,
-		arg.Updatedat,
-	)
-	return err
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.Pash,
+			&i.Type,
+			&i.Token,
+			&i.Isactive,
+			&i.Islocked,
+			&i.Lastseen,
+			&i.Permissions,
+			&i.Bookmarks,
+			&i.Extradata,
+			&i.Createdat,
+			&i.Updatedat,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateUserBookmarks = `-- name: UpdateUserBookmarks :exec
@@ -281,6 +304,37 @@ type UpdateUserPermissionsParams struct {
 
 func (q *Queries) UpdateUserPermissions(ctx context.Context, arg UpdateUserPermissionsParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPermissions, arg.Permissions, arg.Updatedat, arg.ID)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE users SET username = ?, email = ?, pash = ?, token = ?, type = ?, isActive = ?, permissions = ?, updatedAt = ? WHERE id = ?
+`
+
+type UpdateUserProfileParams struct {
+	Username    sql.NullString
+	Email       sql.NullString
+	Pash        sql.NullString
+	Token       sql.NullString
+	Type        sql.NullString
+	Isactive    sql.NullInt64
+	Permissions sql.NullString
+	Updatedat   any
+	ID          string
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserProfile,
+		arg.Username,
+		arg.Email,
+		arg.Pash,
+		arg.Token,
+		arg.Type,
+		arg.Isactive,
+		arg.Permissions,
+		arg.Updatedat,
+		arg.ID,
+	)
 	return err
 }
 

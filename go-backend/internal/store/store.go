@@ -33,7 +33,7 @@ type Store struct{ db *sql.DB }
 type User struct {
 	ID          string          `json:"id"`
 	Username    string          `json:"username"`
-	Email       string          `json:"email"`
+	Email       *string         `json:"email"` // nil for SQL NULL; "" is a stored empty string
 	Password    string          `json:"pash"`
 	Type        string          `json:"type"`
 	Token       string          `json:"token"`
@@ -163,7 +163,7 @@ func UserFromRow(r sqlc.User) (User, error) {
 	u := User{
 		ID:       r.ID,
 		Username: r.Username.String,
-		Email:    r.Email.String,
+		Email:    NullStringPtr(r.Email),
 		Password: r.Pash.String,
 		Type:     r.Type.String,
 		Token:    r.Token.String,

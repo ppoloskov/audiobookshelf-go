@@ -71,6 +71,7 @@ and nulls, because TS reads those back.
 | M10: itemwrite orphan-sweep safety fix | (this commit) | 40,899 → 40,928 | +29 (correctness fix) | 9,569 → 9,570 | check-then-delete replaced by one DELETE … NOT EXISTS … RETURNING |
 | M11 (PERM2): request-scoped permissions; realtime revocation | (this commit) | 40,928 → 41,020 | +92 (approved priority; security) | 9,570 → 9,593 | ~100 per-helper access.Of decodes replaced by one per request |
 | M12 (refactor waves A+B, docs/REFACTOR-LOG.md) | (this commit) | 41,020 → 39,324 | −1,696 | 9,593 → 8,944 | read-only mode, abs-compat, duplicate settings/DB/text/coercion helpers, private-IP checks, filter-data round trips, catalog-only wire types |
+| M13 (refactor wave C) | (this commit) | 39,324 → 38,906 | −418 | 8,944 → 8,805 | duplicate image downloaders, library prologues, ffprobe/MIME tables, device upserts, admin checks, settings-row readers; userapi raw SQL |
 
 ### M1 behaviour changes (all toward TS/Express)
 

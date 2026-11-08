@@ -1,4 +1,4 @@
-package userapi
+package identity
 
 import "testing"
 
@@ -10,13 +10,13 @@ func TestParseDateStringReadsEveryStoredSpelling(t *testing.T) {
 		"2024-01-01T00:00:00.123",
 		"2024-01-01 02:00:00.123 +02:00",
 	} {
-		if got := parseDateString(text); got.UnixMilli() != want {
-			t.Errorf("parseDateString(%q) = %v (%d), want %d", text, got, got.UnixMilli(), want)
+		if got := parseDate(text); got.UnixMilli() != want {
+			t.Errorf("parseDate(%q) = %v (%d), want %d", text, got, got.UnixMilli(), want)
 		}
 	}
 	for _, text := range []string{"", "nope"} {
-		if got := parseDateString(text); !got.IsZero() {
-			t.Errorf("parseDateString(%q) = %v, want the zero time", text, got)
+		if got := parseDate(text); !got.IsZero() {
+			t.Errorf("parseDate(%q) = %v, want the zero time", text, got)
 		}
 	}
 }

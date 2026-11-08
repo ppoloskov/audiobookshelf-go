@@ -20,11 +20,13 @@ import (
 // once per client (or per SSRFFilterDisabled call), never per request.
 type filterPolicy struct {
 	off       bool
+	proxy     bool // EXP_PROXY_SUPPORT: only 301 and 302 are followed
 	whitelist []string
 }
 
 func policyFromEnv() filterPolicy {
-	p := filterPolicy{off: os.Getenv("DISABLE_SSRF_REQUEST_FILTER") == "1" || os.Getenv("EXP_PROXY_SUPPORT") == "1"}
+	p := filterPolicy{proxy: os.Getenv("EXP_PROXY_SUPPORT") == "1"}
+	p.off = p.proxy || os.Getenv("DISABLE_SSRF_REQUEST_FILTER") == "1"
 	for _, host := range strings.Split(os.Getenv("SSRF_REQUEST_FILTER_WHITELIST"), ",") {
 		if host = strings.TrimSpace(host); host != "" {
 			p.whitelist = append(p.whitelist, host)
@@ -80,7 +82,9 @@ func PublicAddress(ip netip.Addr) bool {
 // public-address rule runs when each connection is dialed, so it covers the
 // first request and every redirect target (a redirect to a new host dials
 // again and is judged on its own host). It follows at most 5 redirects, like
-// axios. It has no overall timeout: callers bound a request with its context.
+// axios. With EXP_PROXY_SUPPORT=1 TS sets axios maxRedirects to 0 and re-issues
+// only 301 and 302 responses itself (server/Server.js:89-104), so any other
+// redirect status is the final, failing response. It has no overall timeout: callers bound a request with its context.
 func SafeClient() *http.Client {
 	policy := policyFromEnv()
 	dialer := &net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second}
@@ -113,7 +117,10 @@ func SafeClient() *http.Client {
 			return nil, lastErr
 		},
 	}
-	return &http.Client{Transport: transport, CheckRedirect: func(_ *http.Request, via []*http.Request) error {
+	return &http.Client{Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if code := req.Response.StatusCode; policy.proxy && code != http.StatusMovedPermanently && code != http.StatusFound {
+			return http.ErrUseLastResponse
+		}
 		if len(via) > 5 {
 			return errors.New("stopped after 5 redirects")
 		}

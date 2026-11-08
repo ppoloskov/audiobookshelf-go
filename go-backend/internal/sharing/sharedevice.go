@@ -3,16 +3,11 @@ package sharing
 import (
 	"audiobookshelf-compat/internal/version"
 	"context"
-	"database/sql"
-	"encoding/json"
-	"errors"
 	"net"
 	"net/http"
 	"strings"
 
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/deviceinfo"
-	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -22,41 +17,22 @@ import (
 // and no user. The devices row is reused by deviceId, otherwise created with a
 // NULL userId. The returned map is DeviceInfo.toJSON, which drops null keys.
 func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSessionID string) (map[string]any, error) {
-	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(r.UserAgent())
+	ua := deviceinfo.Parse(r.UserAgent())
 	const clientName = "Abs Web Share"
 	deviceName := ""
-	if osName != "" && browser != "" {
-		deviceName = osName + " " + orDefault(osVersion, "N/A") + " " + browser
+	if ua.OSName != "" && ua.Browser != "" {
+		deviceName = ua.OSName + " " + orDefault(ua.OSVersion, "N/A") + " " + ua.Browser
 	}
 	ip := clientIP(r)
-	extra := map[string]string{}
-	for key, value := range map[string]string{"osName": osName, "osVersion": osVersion, "browserName": browser} {
-		if value != "" {
-			extra[key] = value
-		}
-	}
-	extraRaw, _ := json.Marshal(extra)
-	now := dbtime.Now()
-	id, err := ids.New()
-	if err != nil {
-		return nil, err
-	}
-	var existing string
-	err = h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? LIMIT 1`, shareSessionID).Scan(&existing)
-	switch {
-	case err == nil:
-		id = existing
-		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`,
-			clientName, version.Server, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, id)
-	case errors.Is(err, sql.ErrNoRows):
-		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,NULL,?,?)`,
-			id, shareSessionID, clientName, version.Server, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, now)
-	}
+	id, _, err := store.UpsertDevice(ctx, h.db, store.Device{
+		DeviceID: shareSessionID, ClientName: clientName, ClientVersion: version.Server, IPAddress: ip,
+		DeviceName: deviceName, DeviceVersion: ua.BrowserVersion, Info: ua,
+	})
 	if err != nil {
 		return nil, err
 	}
 	info := map[string]any{"id": id, "deviceId": shareSessionID, "clientVersion": version.Server, "clientName": clientName}
-	for key, value := range map[string]string{"ipAddress": ip, "browserName": browser, "browserVersion": browserVersion, "osName": osName, "osVersion": osVersion, "deviceName": deviceName} {
+	for key, value := range map[string]string{"ipAddress": ip, "browserName": ua.Browser, "browserVersion": ua.BrowserVersion, "osName": ua.OSName, "osVersion": ua.OSVersion, "deviceName": deviceName} {
 		if value != "" {
 			info[key] = value
 		}

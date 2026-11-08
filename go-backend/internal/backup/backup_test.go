@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/version"
 	_ "modernc.org/sqlite"
@@ -261,7 +262,7 @@ func TestUploadInvalidExtensionUsesExpressSend(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/backups/upload", &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	res := httptest.NewRecorder()
-	h.upload(res, req)
+	httputil.Handler(h.upload).ServeHTTP(res, req)
 	want := "Invalid backup file"
 	if res.Code != http.StatusInternalServerError || res.Body.String() != want || res.Header().Get("Content-Type") != "text/html; charset=utf-8" || res.Header().Get("ETag") != `W/"13-bxUZ24wsDGbPFzFAIqXhoyNKTHE"` {
 		t.Fatalf("response = %d %q headers=%v", res.Code, res.Body.String(), res.Header())

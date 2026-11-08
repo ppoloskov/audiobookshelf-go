@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"slices"
 	"strings"
 	"sync/atomic"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
@@ -162,6 +164,18 @@ var decodes atomic.Int64
 
 // Decodes counts Of calls, so tests can prove a request decodes once.
 func Decodes() int64 { return decodes.Load() }
+
+// RequireAdmin runs next for root and admin users and answers denied (an empty
+// body, Express res.sendStatus) to anyone else. Most admin routes answer 403;
+// the /api/emails ones answer 404 (EmailController.js adminMiddleware).
+func RequireAdmin(denied int, next httputil.Handler) httputil.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if user, _ := store.UserFromContext(r.Context()); !AdminUser(user) {
+			return httputil.Status(denied, "")
+		}
+		return next(w, r)
+	}
+}
 
 type requestKey struct{}
 

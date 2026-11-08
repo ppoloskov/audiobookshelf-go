@@ -5,6 +5,7 @@ package playback
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/version"
 	"bytes"
@@ -694,14 +695,14 @@ func parseAudioFile(raw map[string]any) (audioFile, error) {
 	if format == "" {
 		format, _ = f.Metadata["format"].(string)
 	}
-	f.MimeType = mimeForFormat(format)
+	f.MimeType = filekind.AudioMime("." + format)
 	f.Duration = max(f.Duration, 0)
 	return f, nil
 }
 
 func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) error {
 	if mime == "" {
-		mime = mimeForFormat(strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), "."))
+		mime = filekind.AudioMime(filepath.Ext(path))
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -718,34 +719,6 @@ func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) error
 	}
 	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
 	return nil
-}
-
-func mimeForFormat(ext string) string {
-	switch strings.ToLower(ext) {
-	case "mp3", "mpeg", "mpg":
-		return "audio/mpeg"
-	case "m4b", "m4a", "mp4":
-		return "audio/mp4"
-	case "ogg", "oga", "opus":
-		return "audio/ogg"
-	case "aac":
-		return "audio/aac"
-	case "flac":
-		return "audio/flac"
-	case "wma":
-		return "audio/x-ms-wma"
-	case "aiff", "aif":
-		return "audio/x-aiff"
-	case "webm", "webma":
-		return "audio/webm"
-	case "mka":
-		return "audio/x-matroska"
-	case "awb":
-		return "audio/amr-wb"
-	case "caf":
-		return "audio/x-caf"
-	}
-	return "audio/mpeg"
 }
 
 func allSupported(files []audioFile, supported []string) bool {

@@ -7,13 +7,6 @@ type Info struct {
 	Browser, BrowserVersion, OSName, OSVersion, DeviceType string
 }
 
-// ParseUserAgent is Parse without the device type, for the callers that
-// build device records.
-func ParseUserAgent(ua string) (browser, browserVersion, osName, osVersion string) {
-	i := Parse(ua)
-	return i.Browser, i.BrowserVersion, i.OSName, i.OSVersion
-}
-
 // Parse extracts the browser, operating system and device type shared by
 // device records and the session list. Recognition is intentionally narrow.
 func Parse(ua string) (info Info) {

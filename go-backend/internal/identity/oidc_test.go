@@ -2,6 +2,7 @@ package identity
 
 import (
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/settingsdoc"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -267,7 +268,7 @@ func TestOIDCAutoRegisterAndMobileRedirectAllowlist(t *testing.T) {
 	provider = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) }))
 	defer provider.Close()
 	configureOIDC(t, db, provider.URL, nil)
-	settings, err := handler.loadSettings(t.Context(), "server-settings")
+	settings, err := settingsdoc.Load(t.Context(), db, "server-settings", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +436,7 @@ func TestOIDCMobileRedirectStateMismatchUsesExpressTextResponse(t *testing.T) {
 func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
-	settings, err := handler.loadSettings(t.Context(), "server-settings")
+	settings, err := settingsdoc.Load(t.Context(), db, "server-settings", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

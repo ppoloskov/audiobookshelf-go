@@ -17,16 +17,17 @@ const (
 
 type entry struct{ kind, mime string }
 
-// An audio entry without a MIME type is served as audio/mpeg.
+// An audio entry without a MIME type is not in TS AudioMimeType
+// (server/utils/constants.js:36-58); AudioMime still reports audio/mpeg for it.
 var table = map[string]entry{
-	".mp3": {Audio, ""}, ".wav": {Audio, ""},
+	".mp3": {Audio, "audio/mpeg"}, ".wav": {Audio, ""},
 	".m4b": {Audio, "audio/mp4"}, ".m4a": {Audio, "audio/mp4"}, ".mp4": {Audio, "audio/mp4"},
 	".ogg": {Audio, "audio/ogg"}, ".oga": {Audio, "audio/ogg"}, ".opus": {Audio, "audio/ogg"},
 	".aac": {Audio, "audio/aac"}, ".flac": {Audio, "audio/flac"}, ".wma": {Audio, "audio/x-ms-wma"},
 	".aiff": {Audio, "audio/x-aiff"}, ".aif": {Audio, "audio/x-aiff"},
 	".webm": {Audio, "audio/webm"}, ".webma": {Audio, "audio/webm"},
 	".mka": {Audio, "audio/x-matroska"}, ".awb": {Audio, "audio/amr-wb"}, ".caf": {Audio, "audio/x-caf"},
-	".mpg": {Audio, ""}, ".mpeg": {Audio, ""},
+	".mpg": {Audio, "audio/mpeg"}, ".mpeg": {Audio, "audio/mpeg"},
 	".jpg": {Image, ""}, ".jpeg": {Image, ""}, ".png": {Image, ""}, ".webp": {Image, ""},
 	".epub": {Ebook, ""}, ".pdf": {Ebook, ""}, ".mobi": {Ebook, ""}, ".azw3": {Ebook, ""}, ".cbz": {Ebook, ""}, ".cbr": {Ebook, ""},
 	".opf": {Metadata, ""}, ".abs": {Metadata, ""}, ".xml": {Metadata, ""}, ".json": {Metadata, ""},
@@ -61,3 +62,7 @@ func AudioMime(ext string) string {
 	}
 	return "audio/mpeg"
 }
+
+// KnownAudioMime is getAudioMimeTypeFromExtname (fileUtils.js:424-431): the
+// MIME type of an audio extension TS names, "" for any other file.
+func KnownAudioMime(ext string) string { return table[strings.ToLower(ext)].mime }

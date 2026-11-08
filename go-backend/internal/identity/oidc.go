@@ -572,7 +572,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 		}
 		created = true
 		if h.userAddedEmitter != nil {
-			h.userAddedEmitter(users.UserDTO(user, []any{}))
+			h.userAddedEmitter(users.UserDTO(user, nil))
 		}
 	}
 	if !user.IsActive {
@@ -675,8 +675,8 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 		return store.User{}, err
 	}
 	now := dbtime.Format(time.Now())
-	err = h.queries().InsertOIDCUser(ctx, sqlc.InsertOIDCUserParams{
-		ID: id, Username: store.Text(username), Email: email, Token: store.Text(token),
+	err = h.queries().InsertUser(ctx, sqlc.InsertUserParams{
+		ID: id, Username: store.Text(username), Email: email, Type: store.Text("user"), Token: store.Text(token), Isactive: sql.NullInt64{Int64: 1, Valid: true},
 		Permissions: store.Text(encodeJSON(access.Defaults("user"))), Extradata: store.Text(users.NewUserExtraData(sub)), Createdat: now, Updatedat: now,
 	})
 	if err != nil {

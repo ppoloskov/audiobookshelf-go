@@ -56,16 +56,9 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 	return h
 }
 
-// FilterCache exposes the library filter data cache to the scanner, which
-// patches it the way upstream's scanner does.
+// FilterCache exposes the library filter data cache to the scanner and the
+// server, which patch and invalidate it.
 func (h *Handler) FilterCache() *filterdata.Cache { return h.filters }
-
-// EnsureFilterData loads a library's filter data when none is cached, as
-// libraryFilters.getFilterData does at the start of every scan.
-func (h *Handler) EnsureFilterData(ctx context.Context, libraryID, mediaType string) error {
-	_, err := h.filters.Get(ctx, h.db, libraryID, mediaType)
-	return err
-}
 
 // SetLibraryChanged installs the scanner watcher refresh callback. It runs
 // only after a catalog library mutation commits successfully.

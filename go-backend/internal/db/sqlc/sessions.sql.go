@@ -10,6 +10,22 @@ import (
 	"database/sql"
 )
 
+const countUserSessions = `-- name: CountUserSessions :one
+SELECT COUNT(*) FROM sessions WHERE userId = ? AND expiresAt > ?
+`
+
+type CountUserSessionsParams struct {
+	Userid    string
+	Expiresat any
+}
+
+func (q *Queries) CountUserSessions(ctx context.Context, arg CountUserSessionsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUserSessions, arg.Userid, arg.Expiresat)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteOtherSessionsByUserID = `-- name: DeleteOtherSessionsByUserID :exec
 DELETE FROM sessions WHERE userId = ? AND id <> ?
 `
@@ -49,6 +65,19 @@ DELETE FROM sessions WHERE userId = ?
 func (q *Queries) DeleteSessionsByUserID(ctx context.Context, userid string) error {
 	_, err := q.db.ExecContext(ctx, deleteSessionsByUserID, userid)
 	return err
+}
+
+const deleteUserSession = `-- name: DeleteUserSession :execresult
+DELETE FROM sessions WHERE id = ? AND userId = ?
+`
+
+type DeleteUserSessionParams struct {
+	ID     string
+	Userid string
+}
+
+func (q *Queries) DeleteUserSession(ctx context.Context, arg DeleteUserSessionParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, deleteUserSession, arg.ID, arg.Userid)
 }
 
 const getSessionByToken = `-- name: GetSessionByToken :one
@@ -136,6 +165,57 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.Userid,
 	)
 	return err
+}
+
+const listUserSessions = `-- name: ListUserSessions :many
+SELECT id, ipaddress, useragent, refreshtoken, expiresat, lastrefreshtoken, lastrefreshtokenexpiresat, createdat, updatedat, userid FROM sessions WHERE userId = ?1 AND expiresAt > ?2
+ORDER BY updatedAt DESC LIMIT ?4 OFFSET ?3
+`
+
+type ListUserSessionsParams struct {
+	UserID   string
+	Now      any
+	Skip     int64
+	PageSize int64
+}
+
+func (q *Queries) ListUserSessions(ctx context.Context, arg ListUserSessionsParams) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, listUserSessions,
+		arg.UserID,
+		arg.Now,
+		arg.Skip,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Session
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.Ipaddress,
+			&i.Useragent,
+			&i.Refreshtoken,
+			&i.Expiresat,
+			&i.Lastrefreshtoken,
+			&i.Lastrefreshtokenexpiresat,
+			&i.Createdat,
+			&i.Updatedat,
+			&i.Userid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const rotateSession = `-- name: RotateSession :execresult

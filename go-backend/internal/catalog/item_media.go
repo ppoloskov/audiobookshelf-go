@@ -7,14 +7,13 @@ import (
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
 	"sort"
 	"strings"
 )
@@ -223,18 +222,9 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if !h.pathAllowed(r.Context(), target, libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	probe := strings.TrimSpace(os.Getenv("FFPROBE_PATH"))
-	if probe == "" {
-		probe = "ffprobe"
-	}
-	cmd := exec.CommandContext(r.Context(), probe, "-hide_banner", "-loglevel", "fatal", "-show_error", "-show_format", "-show_streams", "-show_programs", "-show_chapters", "-show_private_data", "-print_format", "json", target)
-	output, err := cmd.Output()
+	result, err := mediatools.ProbeRaw(r.Context(), target)
 	if err != nil {
 		return httputil.Internal("ffprobe failed", err)
-	}
-	var result any
-	if err := json.Unmarshal(output, &result); err != nil {
-		return httputil.Internal("ffprobe returned invalid data", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, result, httputil.ForRequest(r))
 	return nil

@@ -5,6 +5,7 @@ package catalog
 import (
 	"archive/zip"
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
 	"database/sql"
 	"io"
@@ -15,34 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// audioMIMEType mirrors utils/constants.js AudioMimeType +
-// getAudioMimeTypeFromExtname (fileUtils.js:424-431); unknown extensions yield
-// "" and leave the default Content-Type in place.
-func audioMIMEType(ext string) string {
-	formatUpper := strings.TrimPrefix(strings.ToUpper(strings.TrimPrefix(ext, ".")), ".")
-	return map[string]string{
-		"MP3":   "audio/mpeg",
-		"M4B":   "audio/mp4",
-		"M4A":   "audio/mp4",
-		"MP4":   "audio/mp4",
-		"OGG":   "audio/ogg",
-		"OGA":   "audio/ogg",
-		"OPUS":  "audio/ogg",
-		"AAC":   "audio/aac",
-		"FLAC":  "audio/flac",
-		"WMA":   "audio/x-ms-wma",
-		"AIFF":  "audio/x-aiff",
-		"AIF":   "audio/x-aiff",
-		"WEBM":  "audio/webm",
-		"WEBMA": "audio/webm",
-		"MKA":   "audio/x-matroska",
-		"AWB":   "audio/amr-wb",
-		"CAF":   "audio/x-caf",
-		"MPEG":  "audio/mpeg",
-		"MPG":   "audio/mpeg",
-	}[formatUpper]
-}
 
 // itemDownload streams a library item: a single-file item is served directly
 // (Express res.download semantics: attachment disposition, configured audio
@@ -71,7 +44,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if isFile != 0 {
-		if mimeType := audioMIMEType(filepath.Ext(itemPath)); mimeType != "" {
+		if mimeType := filekind.KnownAudioMime(filepath.Ext(itemPath)); mimeType != "" {
 			w.Header().Set("Content-Type", mimeType)
 		}
 	}
@@ -86,7 +59,7 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		}
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
 		ext := strings.ToLower(filepath.Ext(itemPath))
-		if mimeType := audioMIMEType(ext); mimeType != "" {
+		if mimeType := filekind.KnownAudioMime(ext); mimeType != "" {
 			w.Header().Set("Content-Type", mimeType)
 		}
 		http.ServeFile(w, r, itemPath)

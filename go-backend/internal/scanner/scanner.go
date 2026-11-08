@@ -25,12 +25,12 @@ import (
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
@@ -51,18 +51,17 @@ type Scanner struct {
 	watchCancel        context.CancelFunc
 	podcastFeedFetcher func(context.Context, string) ([]map[string]any, error)
 	// filters is the shared library filter data cache the scanner patches.
-	filters      *filterdata.Cache
-	filterLoader filterdata.Provider
+	filters *filterdata.Cache
 }
 
-func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters filterdata.Provider) (*Scanner, error) {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters interface{ FilterCache() *filterdata.Cache }) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
 	}
 	if filters == nil {
 		return nil, errors.New("scanner: filter data provider is nil")
 	}
-	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filterLoader: filters, filters: filters.FilterCache()}, nil
+	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filters: filters.FilterCache()}, nil
 }
 
 // begin registers a running scan of the library, which at most one may be at a
@@ -223,27 +222,8 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Resul
 		logging.Infof("[LibraryScanner] Library scan %q completed in %s | %s", task.ID, elapsed, stats)
 	}
 	s.finishScanTask(task, result, err)
-	s.resetIssuesFilterData(ctx, libraryID) // LibraryController.js:1272
+	s.filters.ResetIssues(ctx, s.db, libraryID) // LibraryController.js:1272
 	return result, err
-}
-
-// ensureFilterData loads the library's filter data when not cached, as every
-// upstream scan does before it reads authors and series.
-func (s *Scanner) ensureFilterData(ctx context.Context, libraryID, mediaType string) {
-	if s.filterLoader != nil {
-		_ = s.filterLoader.EnsureFilterData(ctx, libraryID, mediaType)
-	}
-}
-
-// resetIssuesFilterData is Database.resetLibraryIssuesFilterData.
-func (s *Scanner) resetIssuesFilterData(ctx context.Context, libraryID string) {
-	if s.filters == nil || !s.filters.Has(libraryID) {
-		return
-	}
-	var n int
-	if s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID).Scan(&n) == nil {
-		s.filters.StoreNumIssues(libraryID, n)
-	}
 }
 
 func (s *Scanner) startScanTask(ctx context.Context, libraryID string) *watcherTask {
@@ -353,18 +333,9 @@ func elapsedPretty(seconds float64) string {
 // Routes registers the admin scan endpoints (LibraryController.scan,
 // LibraryItemController.scan, batchScan).
 func (s *Scanner) Routes(mux *http.ServeMux) {
-	mux.Handle("POST /api/items/batch/scan", adminOnly(s.batchScan))
-	mux.Handle("POST /api/libraries/{id}/scan", adminOnly(s.scanLibraryRoute))
-	mux.Handle("POST /api/items/{id}/scan", adminOnly(s.scanItemRoute))
-}
-
-func adminOnly(next httputil.Handler) httputil.Handler {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		if user, _ := store.UserFromContext(r.Context()); user.Type != "root" && user.Type != "admin" {
-			return httputil.Status(http.StatusForbidden, "")
-		}
-		return next(w, r)
-	}
+	mux.Handle("POST /api/items/batch/scan", access.RequireAdmin(http.StatusForbidden, s.batchScan))
+	mux.Handle("POST /api/libraries/{id}/scan", access.RequireAdmin(http.StatusForbidden, s.scanLibraryRoute))
+	mux.Handle("POST /api/items/{id}/scan", access.RequireAdmin(http.StatusForbidden, s.scanItemRoute))
 }
 
 func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
@@ -750,7 +721,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		logging.Warnf("[LibraryScanner] Library has no folders to scan %q", l.name) // LibraryScanner.js:58
 		return result, errors.New("scanner: library has no folders")
 	}
-	s.ensureFilterData(ctx, libraryID, l.mediaType)
+	_, _ = s.filters.Get(ctx, s.db, libraryID, l.mediaType)
 	var ordered []*group
 	for _, f := range folders {
 		root, err := filepath.Abs(filepath.Clean(f.path))

@@ -294,7 +294,7 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 			}
 		}
 		if changed {
-			s.resetIssuesFilterData(ctx, group[0].libraryID) // LibraryScanner.js:419-441
+			s.filters.ResetIssues(ctx, s.db, group[0].libraryID) // LibraryScanner.js:419-441
 		}
 	}
 	task.Data.ScanResults = &scanResults{Added: added, Updated: updated, Removed: &removed, Text: changesText(added, updated, removed), Elapsed: time.Now().UnixMilli() - task.StartedAt}
@@ -403,7 +403,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 	if err != nil {
 		return nil, err
 	}
-	s.ensureFilterData(ctx, libraryID, l.mediaType)
+	_, _ = s.filters.Get(ctx, s.db, libraryID, l.mediaType)
 	var f folder
 	if err := s.db.QueryRowContext(ctx, `SELECT id,path FROM libraryFolders WHERE id=? AND libraryId=?`, folderID, libraryID).Scan(&f.id, &f.path); err != nil {
 		return nil, err

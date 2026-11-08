@@ -1,10 +1,10 @@
 package playback
 
 import (
+	"audiobookshelf-compat/internal/mediatools"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"os"
@@ -24,7 +24,6 @@ type transcode struct {
 	mu           sync.Mutex
 	root         string
 	audioCodec   string
-	cmd          *exec.Cmd
 	ctx          context.Context
 	cancel       context.CancelFunc
 	startTime    float64
@@ -163,35 +162,25 @@ func (t *transcode) start(concat string) error {
 	t.mu.Lock()
 	startTime, segmentStart := t.startTime, t.segmentStart
 	t.mu.Unlock()
-	args := []string{"-hide_banner", "-loglevel", "error"}
+	var args []string
 	adjusted := math.Max(startTime-30, 0)
 	if adjusted > 0 {
 		args = append(args, "-ss", strconv.FormatFloat(math.Round(adjusted*10)/10, 'f', 1, 64)+"s")
 	}
 	args = append(args, "-f", "concat", "-safe", "0", "-i", concat, "-map", "0:a", "-c:a", t.audioCodec, "-f", "hls", "-copyts", "-avoid_negative_ts", "make_non_negative", "-max_delay", "5000000", "-max_muxing_queue_size", "2048", "-hls_time", strconv.Itoa(segmentSeconds), "-hls_segment_type", "mpegts", "-start_number", strconv.Itoa(segmentStart), "-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_allow_cache", "0", "-hls_segment_filename", filepath.Join(t.root, "output-%d.ts"), filepath.Join(t.root, "final-output.m3u8"))
-	cmd := exec.CommandContext(ctx, ffmpegExecutable(), args...)
-	cmd.Stdout = io.Discard
-	stderrTail := &tailBuffer{limit: 4096}
-	cmd.Stderr = stderrTail
 	done := make(chan struct{})
 	t.mu.Lock()
 	t.ctx = ctx
 	t.cancel = cancel
-	t.cmd = cmd
 	t.done = done
 	t.complete = false
 	t.resetting = false
 	t.mu.Unlock()
-	if err := cmd.Start(); err != nil {
-		cancel()
-		return fmt.Errorf("start FFmpeg: %w", err)
-	}
 	go func() {
 		defer close(done)
-		err := cmd.Wait()
+		err := mediatools.Run(ctx, args...)
 		t.mu.Lock()
 		t.complete = true
-		t.cmd = nil
 		t.mu.Unlock()
 		if err != nil && !errors.Is(err, context.Canceled) {
 			// Stream.js:318-321: a SIGKILL is the intentional stop on
@@ -205,7 +194,7 @@ func (t *transcode) start(concat string) error {
 			}
 			// Upstream runs ffmpeg with -loglevel error in production
 			// (Stream.js:268) and logs its failure.
-			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v: %s", t.root, err, stderrTail.String())
+			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v", t.root, err)
 			return
 		}
 		if err == nil {
@@ -215,29 +204,6 @@ func (t *transcode) start(concat string) error {
 		}
 	}()
 	return nil
-}
-
-// tailBuffer keeps the last limit bytes written to it (ffmpeg's stderr).
-type tailBuffer struct {
-	mu    sync.Mutex
-	limit int
-	data  []byte
-}
-
-func (b *tailBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.data = append(b.data, p...)
-	if len(b.data) > b.limit {
-		b.data = append([]byte(nil), b.data[len(b.data)-b.limit:]...)
-	}
-	return len(p), nil
-}
-
-func (b *tailBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return strings.TrimSpace(string(b.data))
 }
 
 func (t *transcode) promoteFinalPlaylist() error {

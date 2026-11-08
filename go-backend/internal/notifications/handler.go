@@ -3,9 +3,9 @@ package notifications
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/settingsdoc"
 	"audiobookshelf-compat/internal/version"
 	"context"
 	"crypto/rand"
@@ -20,8 +20,9 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
 )
+
+const notificationKey = "notification-settings"
 
 type Handler struct {
 	db   *sql.DB
@@ -36,12 +37,7 @@ func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
 // /notifications, /notificationdata); every one is admin only.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	route := func(pattern string, f httputil.Handler) {
-		mux.Handle(pattern, httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
-				return httputil.Status(http.StatusForbidden, "")
-			}
-			return f(w, r)
-		}))
+		mux.Handle(pattern, access.RequireAdmin(http.StatusForbidden, f))
 	}
 	route("GET /api/notifications", func(w http.ResponseWriter, r *http.Request) error { return h.get(w, r, false) })
 	route("PATCH /api/notifications", h.update)
@@ -53,31 +49,14 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	route("PATCH /api/notifications/{id}", h.updateNotification)
 }
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
-	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='notification-settings'`).Scan(&raw); err != nil {
-		if err == sql.ErrNoRows {
-			return map[string]any{
-				"id": "notification-settings", "appriseType": "api", "appriseApiUrl": nil,
-				"notifications": []any{}, "maxFailedAttempts": 5,
-				"maxNotificationQueue": 20, "notificationDelay": 1000,
-			}, nil
-		}
-		return nil, err
-	}
-	var v map[string]any
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
+	return settingsdoc.Load(ctx, h.db, notificationKey, map[string]any{
+		"id": notificationKey, "appriseType": "api", "appriseApiUrl": nil,
+		"notifications": []any{}, "maxFailedAttempts": 5,
+		"maxNotificationQueue": 20, "notificationDelay": 1000,
+	})
 }
 func (h *Handler) save(ctx context.Context, v map[string]any) error {
-	b, e := json.Marshal(v)
-	if e != nil {
-		return e
-	}
-	now := dbtime.Now()
-	_, e = h.db.ExecContext(ctx, `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('notification-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(b), now, now)
-	return e
+	return settingsdoc.Save(ctx, h.db, notificationKey, v)
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
@@ -292,8 +271,7 @@ func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) error {
 	if e != nil {
 		return httputil.Internal("database error", e)
 	}
-	data := events[len(events)-1].(map[string]any)
-	_, _ = h.deliverActive(r.Context(), s, "onTest", data["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
+	_, _ = h.deliverActive(r.Context(), s, "onTest", eventData("onTest")["testData"].(map[string]any), r.URL.Query().Get("fail") == "1")
 	return httputil.OK(w, r)
 }
 
@@ -469,12 +447,6 @@ func id() (string, error) {
 	b[8] = (b[8] & 0x3f) | 0x80
 	x := hex.EncodeToString(b)
 	return x[:8] + "-" + x[8:12] + "-" + x[12:16] + "-" + x[16:20] + "-" + x[20:], nil
-}
-func lastID(p string) string {
-	if i := strings.LastIndex(p, "/"); i >= 0 {
-		return p[i+1:]
-	}
-	return p
 }
 func write(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

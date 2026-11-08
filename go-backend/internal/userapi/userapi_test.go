@@ -1,7 +1,6 @@
 package userapi
 
 import (
-	"audiobookshelf-compat/internal/auth"
 	"context"
 	"crypto/sha1"
 	"database/sql"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -38,7 +38,11 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	h, err := New(db, testCredentials{secret: []byte("userapi-test-secret")}, emit, nil)
+	ident, err := identity.New(db, config.Config{JWTSecret: "userapi-test-secret"})
+	if err != nil {
+		panic(err)
+	}
+	h, err := New(db, ident, emit, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +86,9 @@ func userFixture(t *testing.T) (*sql.DB, store.User) {
 	stmts := []string{
 		`CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen DATETIME, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt DATETIME, extraData TEXT, podcastId TEXT, userId TEXT, createdAt DATETIME, updatedAt DATETIME)`,
-		`CREATE TABLE libraries (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE libraries (id TEXT PRIMARY KEY, displayOrder INTEGER)`,
+		`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)`,
+		`CREATE TABLE sessions (id TEXT PRIMARY KEY, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt DATETIME, lastRefreshToken TEXT, lastRefreshTokenExpiresAt DATETIME, createdAt DATETIME, updatedAt DATETIME, userId TEXT)`,
 		`CREATE TABLE libraryItems (id TEXT PRIMARY KEY, mediaId TEXT, mediaType TEXT, libraryId TEXT, libraryFolderId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime DATETIME, ctime DATETIME, birthtime DATETIME, createdAt DATETIME, updatedAt DATETIME, lastScan DATETIME, lastScanVersion INTEGER, isMissing INTEGER, isInvalid INTEGER, size INTEGER, extraData TEXT, libraryFiles TEXT, ino TEXT)`,
 		`CREATE TABLE books (id TEXT PRIMARY KEY, title TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators TEXT, audioFiles TEXT, ebookFile TEXT, chapters TEXT, tags TEXT, genres TEXT, createdAt DATETIME, updatedAt DATETIME)`,
 		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck DATETIME, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags TEXT, genres TEXT, numEpisodes INTEGER, createdAt DATETIME, updatedAt DATETIME)`,
@@ -183,9 +189,6 @@ func TestCollectionMissingUsesExpressSend(t *testing.T) {
 func TestDeleteMissingSessionUsesSendStatusNotFound(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE sessions (id TEXT, userId TEXT)`); err != nil {
-		t.Fatal(err)
-	}
 	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodDelete, "/api/me/sessions/00000000-0000-0000-0000-000000000000", nil), user) {
@@ -199,9 +202,6 @@ func TestDeleteMissingSessionUsesSendStatusNotFound(t *testing.T) {
 func TestDeleteMalformedSessionIDMatchesUpstreamValidation(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE sessions (id TEXT, userId TEXT)`); err != nil {
-		t.Fatal(err)
-	}
 	h := newUserAPIForTest(db, config.Config{}, nil)
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodDelete, "/api/me/sessions/not-a-uuid", nil), user) {
@@ -295,10 +295,10 @@ func TestProgressReadParsesSequelizeTimestamp(t *testing.T) {
 	if len(rows) != 1 {
 		t.Fatalf("got %d progress rows, want 1", len(rows))
 	}
-	progress := rows[0].(map[string]any)
+	progress := rows[0]
 	want := time.Date(2026, time.October, 28, 4, 28, 27, 188_000_000, time.UTC).UnixMilli()
-	if progress["lastUpdate"] != want || progress["startedAt"] != want {
-		t.Fatalf("timestamps = lastUpdate:%v startedAt:%v, want %d", progress["lastUpdate"], progress["startedAt"], want)
+	if progress.LastUpdate == nil || *progress.LastUpdate != want || progress.StartedAt == nil || *progress.StartedAt != want {
+		t.Fatalf("timestamps = lastUpdate:%v startedAt:%v, want %d", progress.LastUpdate, progress.StartedAt, want)
 	}
 }
 
@@ -329,11 +329,17 @@ func TestUserDTOUsesUpstreamNullAndArrayShapes(t *testing.T) {
 	if _, err := db.Exec(`UPDATE users SET email=NULL, permissions='{}' WHERE id='u1'`); err != nil {
 		t.Fatal(err)
 	}
-	user.Email = ""
+	user.Email = nil
 	user.Permissions = json.RawMessage(`{}`)
 	dto := users.ListedUserDTO(user, false)
 	if dto["email"] != nil {
 		t.Fatalf("email=%#v, want null", dto["email"])
+	}
+	// A stored empty string stays "" (User.js toOldJSONForBrowser returns the column as is).
+	empty := ""
+	user.Email = &empty
+	if got := users.ListedUserDTO(user, false)["email"]; got != "" {
+		t.Fatalf("email=%#v, want empty string", got)
 	}
 	for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
 		got, ok := dto[key].([]string)
@@ -446,19 +452,3 @@ func TestUserAdministrationAndAPIKeyReadCreate(t *testing.T) {
 func msPtr(v int64) *int64 { return &v }
 
 var _ = context.Background
-
-// testCredentials signs with a fixed secret; the session and password
-// operations belong to identity and are not exercised here.
-type testCredentials struct{ secret []byte }
-
-func (c testCredentials) IssueLegacyToken(userID, username string) (string, error) {
-	return auth.IssueLegacy(c.secret, userID, username)
-}
-func (c testCredentials) IssueAPIKeyToken(keyID, name string, expiresAtUnix int64) (string, error) {
-	return auth.IssueAPIKey(c.secret, keyID, name, expiresAtUnix)
-}
-func (testCredentials) ChangePassword(context.Context, string, string, string) error { return nil }
-func (testCredentials) InvalidateUserSessions(context.Context, string, string) (string, string, error) {
-	return "", "", nil
-}
-func (testCredentials) SetRefreshTokenCookie(http.ResponseWriter, *http.Request, string) {}

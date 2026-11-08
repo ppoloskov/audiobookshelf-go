@@ -21,19 +21,21 @@ SELECT id FROM users
 WHERE (CASE WHEN json_valid(extraData) THEN json_extract(extraData, '$.oldUserId') END) = CAST(sqlc.arg(old_user_id) AS TEXT)
 LIMIT 1;
 
--- name: GetUserEmail :one
-SELECT email FROM users WHERE id = ?;
+-- name: ListUsers :many
+SELECT * FROM users;
+
+-- name: CountOtherUsersNamed :one
+SELECT COUNT(*) FROM users WHERE username = ? AND id <> ?;
 
 -- name: CountRootUsers :one
 SELECT COUNT(*) FROM users WHERE type = 'root';
 
--- name: InsertRootUser :exec
+-- name: InsertUser :exec
 INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt)
-VALUES (?, ?, NULL, ?, 'root', ?, 1, 0, NULL, ?, '[]', ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, '[]', ?, ?, ?);
 
--- name: InsertOIDCUser :exec
-INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt)
-VALUES (?, ?, ?, NULL, 'user', ?, 1, 0, NULL, ?, '[]', ?, ?, ?);
+-- name: UpdateUserProfile :exec
+UPDATE users SET username = ?, email = ?, pash = ?, token = ?, type = ?, isActive = ?, permissions = ?, updatedAt = ? WHERE id = ?;
 
 -- name: UpdateUserType :exec
 UPDATE users SET type = ?, updatedAt = ? WHERE id = ?;

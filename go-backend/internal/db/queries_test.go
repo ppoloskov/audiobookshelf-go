@@ -47,8 +47,9 @@ func TestUserLookupsSkipMalformedExtraData(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO users (id, username, extraData, createdAt, updatedAt) VALUES ('bad', 'bad', 'not json', ?, ?)`, now, now); err != nil {
 		t.Fatal(err)
 	}
-	if err := q.InsertOIDCUser(ctx, sqlc.InsertOIDCUserParams{
+	if err := q.InsertUser(ctx, sqlc.InsertUserParams{
 		ID: "good", Username: sql.NullString{String: "good", Valid: true},
+		Type:        sql.NullString{String: "user", Valid: true},
 		Token:       sql.NullString{String: "tok", Valid: true},
 		Permissions: sql.NullString{String: "{}", Valid: true},
 		Extradata:   sql.NullString{String: `{"authOpenIDSub":"sub-1","oldUserId":"old-1"}`, Valid: true},
@@ -79,8 +80,9 @@ func TestUserWritesAreText(t *testing.T) {
 	ctx := context.Background()
 	now := dbtime.Format(time.Now())
 
-	if err := q.InsertRootUser(ctx, sqlc.InsertRootUserParams{
+	if err := q.InsertUser(ctx, sqlc.InsertUserParams{
 		ID: "root", Username: sql.NullString{String: "root", Valid: true},
+		Type:        sql.NullString{String: "root", Valid: true},
 		Pash:        sql.NullString{String: "hash", Valid: true},
 		Token:       sql.NullString{String: "tok", Valid: true},
 		Permissions: sql.NullString{String: `{"download":true}`, Valid: true},

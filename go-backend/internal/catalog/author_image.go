@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 )
 
 // purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
@@ -70,7 +68,7 @@ func (h *Handler) saveAuthorImage(ctx context.Context, authorID, imageURL string
 		return "", err.Error()
 	}
 	outputPath := h.authorImagePath(authorID, imageURL)
-	if err := downloadImageFile(ctx, imageURL, filepath.FromSlash(outputPath)); err != nil {
+	if err := httputil.DownloadImage(ctx, imageURL, filepath.FromSlash(outputPath)); err != nil {
 		message := axiosMessage(err)
 		if message == "" {
 			message = "Unknown error"
@@ -79,54 +77,6 @@ func (h *Handler) saveAuthorImage(ctx context.Context, authorID, imageURL string
 		return "", message
 	}
 	return outputPath, ""
-}
-
-// downloadImageFile is fileUtils.downloadFile with the image content-type
-// filter (fileUtils.js:292-358): a GET with a 30 second timeout through the
-// SSRF filter whose 2xx image/* (not svg) response body is written to filepath.
-func downloadImageFile(ctx context.Context, rawURL, filepath string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		return errors.New("Invalid URL")
-	}
-	transport := coverURLTransport()
-	if httputil.SSRFFilterDisabled(u.Hostname()) {
-		transport.DialContext = (&net.Dialer{}).DialContext
-	}
-	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) > 5 {
-			return errors.New("Maximum number of redirects exceeded")
-		}
-		return nil
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return errors.New("Invalid URL")
-	}
-	req.Header.Set("User-Agent", "audiobookshelf (+https://audiobookshelf.org)")
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("Request failed with status code %d", response.StatusCode)
-	}
-	contentType := response.Header.Get("Content-Type")
-	if !strings.HasPrefix(contentType, "image/") || contentType == "image/svg+xml" {
-		return fmt.Errorf("Invalid content type %q", contentType)
-	}
-	file, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(file, response.Body)
-	closeErr := file.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	return closeErr
 }
 
 // axiosMessage maps a Go transport error onto the message axios/Node report

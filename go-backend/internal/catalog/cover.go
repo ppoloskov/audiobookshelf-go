@@ -11,6 +11,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"context"
@@ -20,16 +21,11 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net"
 	"net/http"
-	"net/netip"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
@@ -145,11 +141,7 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 // or height that is absent is -1 so ffmpeg preserves the aspect ratio, and the
 // output filename selects the muxer exactly as upstream does.
 func resizeImage(ctx context.Context, input, output string, width, height int) error {
-	args := []string{"-hide_banner", "-loglevel", "error", "-y", "-i", input, "-vf", fmt.Sprintf("scale=%d:%d", width, height), output}
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run()
+	return mediatools.Run(ctx, "-y", "-i", input, "-vf", fmt.Sprintf("scale=%d:%d", width, height), output)
 }
 
 // streamCoverCache mirrors the cache-hit/done path: a bare chunked stream
@@ -240,90 +232,8 @@ func validateCoverImage(path string) (string, string) {
 	return ext, ""
 }
 
-func publicUnicastAddress(ip netip.Addr) bool {
-	if !ip.IsValid() || ip.Zone() != "" || ip.Is4In6() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
-		return false
-	}
-	prefixes := []string{
-		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "192.88.99.0/24",
-		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"2001:db8::/32", "2001:2::/48", "2001:3::/32", "2001:4:112::/48", "2001:10::/28",
-		"2001:20::/28", "64:ff9b::/96", "::ffff:0:0/96", "2002::/16", "2001::/32",
-	}
-	for _, raw := range prefixes {
-		prefix, _ := netip.ParsePrefix(raw)
-		if prefix.Contains(ip) {
-			return false
-		}
-	}
-	return true
-}
-
-func coverURLTransport() *http.Transport {
-	return &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, err
-		}
-		ip, parseErr := netip.ParseAddr(host)
-		if parseErr != nil {
-			ips, lookupErr := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-			if lookupErr != nil {
-				return nil, lookupErr
-			}
-			if len(ips) == 0 {
-				return nil, errors.New("host resolved to no addresses")
-			}
-			ip = ips[0]
-		}
-		if !publicUnicastAddress(ip) {
-			return nil, fmt.Errorf("call to %s is blocked", ip)
-		}
-		return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
-	}}
-}
-
 func downloadCoverFromURL(ctx context.Context, rawURL, tempPath string) (string, string) {
-	u, err := url.Parse(rawURL)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		return "", "Failed to download image from url"
-	}
-	transport := coverURLTransport()
-	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
-	experimentalProxySupport := os.Getenv("EXP_PROXY_SUPPORT") == "1"
-	if httputil.SSRFFilterDisabled(u.Hostname()) {
-		transport.DialContext = (&net.Dialer{}).DialContext
-	}
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if experimentalProxySupport && (req.Response == nil || (req.Response.StatusCode != http.StatusMovedPermanently && req.Response.StatusCode != http.StatusFound)) {
-			return http.ErrUseLastResponse
-		}
-		if len(via) >= 5 {
-			return errors.New("stopped after 5 redirects")
-		}
-		return nil
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return "", "Failed to download image from url"
-	}
-	req.Header.Set("User-Agent", "audiobookshelf (+https://audiobookshelf.org)")
-	response, err := client.Do(req)
-	if err != nil {
-		return "", "Failed to download image from url"
-	}
-	defer response.Body.Close()
-	contentType := response.Header.Get("Content-Type")
-	if response.StatusCode < 200 || response.StatusCode >= 300 || !strings.HasPrefix(contentType, "image/") || contentType == "image/svg+xml" {
-		return "", "Failed to download image from url"
-	}
-	temp, err := os.OpenFile(tempPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o666)
-	if err != nil {
-		return "", "Failed to download image from url"
-	}
-	_, copyErr := io.Copy(temp, response.Body)
-	closeErr := temp.Close()
-	if copyErr != nil || closeErr != nil {
+	if err := httputil.DownloadImage(ctx, rawURL, tempPath); err != nil {
 		return "", "Failed to download image from url"
 	}
 	ext, message := validateCoverImage(tempPath)

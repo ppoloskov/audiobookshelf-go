@@ -679,3 +679,22 @@ keeps ebooks like a full scan.
 Ratchet: 41,020 → 39,324 handwritten lines; complexity 9,593 → 8,944; map[string]any 678 → 600; []any 259 → 222;
 functions above 15 145 → 130; Set* injectors 18 → 17.
 Carried to Wave C: see the list below the next heading when it lands.
+
+### Wave C (2026-11-08)
+Done: catalog image downloads on `httputil.DownloadImage` (catalog's private-address checks deleted); one library-route
+prologue (`httputil.OpenLibrary`, catalog `inLibrary` wraps it); ffprobe/ffmpeg exec sites and MIME tables in catalog,
+podcasts, playback and sharing on `mediatools` / `filekind`; scanner on the filterdata API (`AddBook`, `Get`,
+`ResetIssues`) with the old mutators deleted; device upserts in playback/sharing on `store.UpsertDevice`; F15
+`access.RequireAdmin` in adminops, notifications, emailapi, audiotools, scanner, userapi; backup on `httputil.Handler`
+with one options builder, schedule helper and upsert; F14 rest (userapi raw SQL → sqlc; API-key and session lifecycle
+in identity); `internal/settingsdoc` owns the email/notification settings rows; `store.User.Email` distinguishes NULL
+from ''; progressdto returns typed progress.
+Bugs fixed: cover resize ignored FFMPEG_PATH; podcast `.wav` stored as audio/wav (TS AudioFile.mimeType →
+audio/mpeg); PATCH user with null/empty email cleared it (UserController.js:312); create user with email "" stores ""
+(:174); isActive on create uses JS truthiness (:176); a backup that can't be removed stays listed
+(BackupManager.js:393-401); backup_applied after the 200 (:263-266); legacy '' email renders '' (User.toOldJSONForBrowser).
+EXP_PROXY_SUPPORT=1: only 301/302 are followed (Server.js:89-104), in the shared SafeClient.
+Ratchet: 39,324 → 38,906 handwritten lines; complexity 8,944 → 8,805; map[string]any 600 → 582; []any 222 → 212.
+Still open: F6 typed events, F20 composition root (constructor wiring; runtime notes below), mediatools availability
+check (playback.ffmpegExecutable), podcasts/providers admin wrappers → access.RequireAdmin, clientIP copies
+(sharing/playback), backup.New's unused db, comments pass, tests pass, verifier loop.

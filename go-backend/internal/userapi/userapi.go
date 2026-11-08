@@ -25,26 +25,15 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/users"
 	"audiobookshelf-compat/internal/wire"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Handler struct {
 	db           *sql.DB
-	creds        Credentials
+	ident        Credentials
 	emit         events.Emitter
 	usersOnline  func() []map[string]any
 	openSessions func() []map[string]any
 	userChanged  func(ctx context.Context, userID string) error
-}
-
-// Credentials is what identity owns of the token and session lifecycle:
-// minting user and API-key tokens and changing a user's credentials.
-type Credentials interface {
-	IssueLegacyToken(userID, username string) (string, error)
-	IssueAPIKeyToken(keyID, name string, expiresAtUnix int64) (string, error)
-	ChangePassword(ctx context.Context, userID, password, newPassword string) error
-	InvalidateUserSessions(ctx context.Context, userID, currentRefreshToken string) (accessToken, refreshToken string, err error)
-	SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, refreshToken string)
 }
 
 func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
@@ -55,14 +44,31 @@ func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
 	}
 }
 
-// New takes identity (a Credentials) as creds. userChanged (optional) runs
-// after an admin updates or deletes a user, so live connections stop using the
-// old permissions.
-func New(db *sql.DB, creds Credentials, emit func(userID, event string, payload any), userChanged func(context.Context, string) error) (*Handler, error) {
+// Credentials is what identity owns of tokens, passwords, sessions and API
+// keys; the server passes the identity handler.
+type Credentials interface {
+	IssueLegacyToken(userID, username string) (string, error)
+	HashPassword(password string) (string, error)
+	ChangePassword(ctx context.Context, userID, password, newPassword string) error
+	InvalidateUserSessions(ctx context.Context, userID, currentRefreshToken string) (accessToken, refreshToken string, err error)
+	SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, refreshToken string)
+	UserSessions(ctx context.Context, userID, currentRefreshToken string, page, perPage int) (int, []users.SessionInfo, error)
+	DeleteUserSession(ctx context.Context, userID, sessionID string) (bool, error)
+	APIKeys(ctx context.Context) ([]users.APIKey, error)
+	APIKey(ctx context.Context, id string) (users.APIKey, error)
+	CreateAPIKey(ctx context.Context, in users.NewAPIKey) (users.APIKey, string, error)
+	UpdateAPIKey(ctx context.Context, id, ownerID string, active *bool) error
+	DeleteAPIKey(ctx context.Context, id string) (bool, error)
+}
+
+// New takes identity, which owns tokens, passwords, sessions and API keys.
+// userChanged (optional) runs after an admin updates or deletes a user, so live
+// connections stop using the old permissions.
+func New(db *sql.DB, ident Credentials, emit func(userID, event string, payload any), userChanged func(context.Context, string) error) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
 	}
-	return &Handler{db: db, creds: creds, emit: events.Emitter(emit), userChanged: userChanged}, nil
+	return &Handler{db: db, ident: ident, emit: events.Emitter(emit), userChanged: userChanged}, nil
 }
 
 func (h *Handler) SetOnlineData(users func() []map[string]any, sessions func() []map[string]any) {
@@ -114,7 +120,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 		"PATCH /api/users/{id}":               h.updateUser,
 		"PATCH /api/users/{id}/openid-unlink": h.openIDUnlink,
 	} {
-		mux.Handle(pattern, adminOnly(fn))
+		mux.Handle(pattern, access.RequireAdmin(http.StatusForbidden, withUser(fn)))
 	}
 }
 
@@ -169,12 +175,12 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 	if !oldOK || !newOK {
 		return httputil.Status(400, "Missing or invalid password or new password")
 	}
-	if err := h.creds.ChangePassword(r.Context(), user.ID, oldPassword, newPassword); err != nil {
+	if err := h.ident.ChangePassword(r.Context(), user.ID, oldPassword, newPassword); err != nil {
 		logging.Errorf("[LocalAuth] User %q failed to change password: %v", user.Username, err) // LocalAuthStrategy.js:178
 		return httputil.Status(400, err.Error())
 	}
 	logging.Infof("[LocalAuth] User %q changed password", user.Username) // LocalAuthStrategy.js:173
-	accessToken, refreshToken, err := h.creds.InvalidateUserSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
+	accessToken, refreshToken, err := h.ident.InvalidateUserSessions(r.Context(), user.ID, refreshTokenFromRequest(r))
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
@@ -182,7 +188,7 @@ func (h *Handler) updatePassword(w http.ResponseWriter, r *http.Request, user st
 		return httputil.JSON(w, r, map[string]any{"success": true, "user": map[string]any{"accessToken": accessToken, "refreshToken": refreshToken}})
 	}
 	if refreshToken != "" {
-		h.creds.SetRefreshTokenCookie(w, r, refreshToken)
+		h.ident.SetRefreshTokenCookie(w, r, refreshToken)
 	}
 	return httputil.OK(w, r)
 }
@@ -406,38 +412,19 @@ func (h *Handler) saveBookmarks(ctx context.Context, userID string, bookmarks []
 }
 
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request, current store.User) error {
-	userIDs, err := h.userIDs(r.Context())
+	rows, err := sqlc.New(h.db).ListUsers(r.Context())
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	listed := make([]any, 0, len(userIDs))
-	for _, id := range userIDs {
-		u, err := h.userByID(r.Context(), id)
+	listed := make([]any, 0, len(rows))
+	for _, row := range rows {
+		u, err := store.UserFromRow(row)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		listed = append(listed, users.ListedUserDTO(u, current.Type != "root"))
 	}
 	return httputil.JSON(w, r, map[string]any{"users": listed})
-}
-
-// userIDs lists every user id. The pool uses one connection, so each user is
-// loaded after this cursor closes.
-func (h *Handler) userIDs(ctx context.Context) ([]string, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id FROM users`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var userIDs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		userIDs = append(userIDs, id)
-	}
-	return userIDs, rows.Err()
 }
 
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current store.User) error {
@@ -457,19 +444,18 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	if typ != "user" && typ != "admin" && typ != "guest" {
 		return httputil.Status(400, "Invalid account type")
 	}
-	var exists int
-	err = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username = ?`, username).Scan(&exists)
+	taken, err := sqlc.New(h.db).CountOtherUsersNamed(r.Context(), sqlc.CountOtherUsersNamedParams{Username: store.Text(username), ID: ""})
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if exists > 0 {
+	if taken > 0 {
 		return httputil.Status(400, "Username already taken")
 	}
 	permissions := access.Defaults(typ)
 	patch, _ := body["permissions"].(map[string]any)
 	access.Patch(permissions, typ, patch, body)
 	encodedPerms, _ := json.Marshal(permissions)
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	hash, err := h.ident.HashPassword(password)
 	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
 	}
@@ -477,28 +463,30 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
 	}
-	email, _ := body["email"].(string)
-	// Upstream user create via Sequelize omits undefined fields; an absent
-	// email is stored as SQL NULL (models/User.js), and the browser DTO then
-	// serializes it as null.
-	var emailValue any = nil
-	if email != "" {
-		emailValue = email
-	}
-	active, _ := body["isActive"].(bool)
-	now := dbtime.Now()
-	token, err := h.creds.IssueLegacyToken(userID, username)
+	token, err := h.ident.IssueLegacyToken(userID, username)
 	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
 	}
-	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO users (id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, userID, username, emailValue, string(hash), typ, token, active, false, nil, string(encodedPerms), `[]`, users.NewUserExtraData(""), now, now); err != nil {
+	// UserController.js:174: a string email is stored as given, anything else as NULL.
+	email, hasEmail := body["email"].(string)
+	active := int64(0)
+	if jsonvalue.Truthy(body["isActive"]) {
+		active = 1
+	}
+	now := dbtime.Now()
+	err = sqlc.New(h.db).InsertUser(r.Context(), sqlc.InsertUserParams{
+		ID: userID, Username: store.Text(username), Email: sql.NullString{String: email, Valid: hasEmail}, Pash: store.Text(hash),
+		Type: store.Text(typ), Token: store.Text(token), Isactive: sql.NullInt64{Int64: active, Valid: true},
+		Permissions: store.Text(string(encodedPerms)), Extradata: store.Text(users.NewUserExtraData("")), Createdat: now, Updatedat: now,
+	})
+	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
 	}
 	newUser, err := h.userByID(r.Context(), userID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	serialized := users.UserDTO(newUser, []any{})
+	serialized := users.UserDTO(newUser, nil)
 	if h.emit != nil {
 		h.emit("admin", "user_added", serialized)
 	}
@@ -550,12 +538,12 @@ func (h *Handler) openIDUnlink(w http.ResponseWriter, r *http.Request, current s
 	}
 	extra["authOpenIDSub"] = nil
 	encoded, _ := json.Marshal(extra)
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE users SET extraData=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), id); err != nil {
+	if err := sqlc.New(h.db).UpdateUserExtraData(r.Context(), sqlc.UpdateUserExtraDataParams{Extradata: store.Text(string(encoded)), Updatedat: dbtime.Now(), ID: id}); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	u.ExtraData = encoded
 	if h.emit != nil {
-		h.emit(current.ID, "user_updated", users.UserDTO(u, []any{}))
+		h.emit(current.ID, "user_updated", users.UserDTO(u, nil))
 	}
 	return httputil.OK(w, r)
 }
@@ -570,10 +558,13 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request, current store.
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if err := h.decorateAdminProgress(r.Context(), progress); err != nil {
+	decorated, err := h.decorateAdminProgress(r.Context(), progress)
+	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return httputil.JSON(w, r, users.UserDTO(u, progress))
+	dto := users.UserDTO(u, nil)
+	dto["mediaProgress"] = decorated
+	return httputil.JSON(w, r, dto)
 }
 
 func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current store.User) error {
@@ -604,7 +595,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current sto
 	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
 		sessionsUpdated = n
 	}
-	if _, err = tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, id); err != nil {
+	if err = sqlc.New(tx).DeleteUser(r.Context(), id); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -613,7 +604,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current sto
 	logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
 	h.notifyUserChanged(r.Context(), id)
 	if h.emit != nil {
-		h.emit("admin", "user_removed", users.UserDTO(u, []any{}))
+		h.emit("admin", "user_removed", users.UserDTO(u, nil))
 	}
 	return httputil.JSON(w, r, map[string]any{"success": true})
 }
@@ -657,17 +648,16 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 		}
 	}
 	credentialsChanged := false
-	emailChanged := false
 	if name, ok := body["username"].(string); ok && name != "" && name != u.Username {
-		var exists int
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE username=? AND id<>?`, name, id).Scan(&exists); err != nil {
+		taken, err := sqlc.New(h.db).CountOtherUsersNamed(r.Context(), sqlc.CountOtherUsersNamedParams{Username: store.Text(name), ID: id})
+		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if exists != 0 {
+		if taken != 0 {
 			return httputil.Status(400, "Username already taken")
 		}
 		u.Username = name
-		token, err := h.creds.IssueLegacyToken(u.ID, u.Username)
+		token, err := h.ident.IssueLegacyToken(u.ID, u.Username)
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
@@ -675,21 +665,17 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 		credentialsChanged = true
 	}
 	if password, ok := body["password"].(string); ok && password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+		hash, err := h.ident.HashPassword(password)
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		u.Password = string(hash)
+		u.Password = hash
 		credentialsChanged = true
 	}
+	// UserController.js:312: only a non-empty email is applied; null and ""
+	// leave the stored value (NULL or otherwise) alone.
 	if email, ok := body["email"].(string); ok && email != "" {
-		u.Email = email
-		emailChanged = true
-	} else if email, exists := body["email"]; exists && (email == nil || email == "") {
-		// Upstream PATCH with null/empty email sets the column to SQL NULL
-		// (models/User.js); the browser DTO then serializes null.
-		u.Email = ""
-		emailChanged = true
+		u.Email = &email
 	}
 	if typ, ok := body["type"].(string); ok && typ != "" && u.Type != "root" {
 		if typ != "user" && typ != "admin" && typ != "guest" {
@@ -704,43 +690,60 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	patch, _ := body["permissions"].(map[string]any)
 	access.Patch(perms, u.Type, patch, body)
 	encoded, _ := json.Marshal(perms)
-	now := dbtime.Now()
-	var writeErr error
-	// The users row email must not be rewritten when the patch does not
-	// touch it: an absent-email row would otherwise flip SQL NULL to '':
-	// Sequelize update() only writes mutated attributes.
-	if emailChanged {
-		_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,email=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, store.NullIfEmpty(u.Email), u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
-	} else {
-		_, writeErr = h.db.ExecContext(r.Context(), `UPDATE users SET username=?,pash=?,token=?,type=?,isActive=?,permissions=?,updatedAt=? WHERE id=?`, u.Username, u.Password, u.Token, u.Type, u.IsActive, string(encoded), now, u.ID)
+	active := int64(0)
+	if u.IsActive {
+		active = 1
 	}
-	if writeErr != nil {
-		return httputil.Internal("database write failed", writeErr)
+	err = sqlc.New(h.db).UpdateUserProfile(r.Context(), sqlc.UpdateUserProfileParams{
+		Username: store.Text(u.Username), Email: sql.NullString{String: derefString(u.Email), Valid: u.Email != nil}, Pash: store.Text(u.Password),
+		Token: store.Text(u.Token), Type: store.Text(u.Type), Isactive: sql.NullInt64{Int64: active, Valid: true},
+		Permissions: store.Text(string(encoded)), Updatedat: dbtime.Now(), ID: u.ID,
+	})
+	if err != nil {
+		return httputil.Internal("database write failed", err)
 	}
 	if credentialsChanged {
-		_, refresh, err := h.creds.InvalidateUserSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
+		_, refresh, err := h.ident.InvalidateUserSessions(r.Context(), u.ID, refreshTokenFromRequest(r))
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		if refresh != "" && r.Header.Get("x-refresh-token") == "" {
-			h.creds.SetRefreshTokenCookie(w, r, refresh)
+			h.ident.SetRefreshTokenCookie(w, r, refresh)
 		}
 	}
 	h.notifyUserChanged(r.Context(), u.ID)
 	u.Permissions = encoded
-	serialized := users.UserDTO(u, []any{})
+	serialized := users.UserDTO(u, nil)
 	if h.emit != nil {
 		h.emit(current.ID, "user_updated", serialized)
 	}
 	return httputil.JSON(w, r, map[string]any{"success": true, "user": serialized})
 }
 
-func (h *Handler) listAPIKeys(w http.ResponseWriter, r *http.Request, current store.User) error {
-	keys, err := h.apiKeys(r.Context())
+func (h *Handler) listAPIKeys(w http.ResponseWriter, r *http.Request, _ store.User) error {
+	keys, err := h.ident.APIKeys(r.Context())
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"apiKeys": keys})
+}
+
+// createdAPIKey is the create response: ApiKeyController.js:100 spreads
+// apiKey.toJSON() of a freshly built instance, which has no description,
+// lastUsedAt, permissions or createdByUser; the nil fields shadow them.
+type createdAPIKey struct {
+	users.APIKey
+	Description   *struct{} `json:"description,omitempty"`
+	LastUsedAt    *struct{} `json:"lastUsedAt,omitempty"`
+	Permissions   *struct{} `json:"permissions,omitempty"`
+	CreatedByUser *struct{} `json:"createdByUser,omitempty"`
+	Token         string    `json:"apiKey"`
+}
+
+// updatedAPIKey is the update response: the instance JSON has no createdByUser.
+type updatedAPIKey struct {
+	users.APIKey
+	CreatedByUser *struct{} `json:"createdByUser,omitempty"`
 }
 
 func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
@@ -764,54 +767,23 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request, current s
 		return httputil.Status(403, "")
 	}
 	expiresIn := jsonvalue.Float(body["expiresIn"])
-	if body["expiresIn"] != nil && (expiresIn <= 0) {
+	if body["expiresIn"] != nil && expiresIn <= 0 {
 		return httputil.Status(400, "")
 	}
-	keyID, err := ids.New()
-	if err != nil {
-		return httputil.Internal("API key creation failed", err)
-	}
-	now := time.Now().UTC()
-	var expires any
-	if expiresIn > 0 {
-		expires = dbtime.Format(now.Add(time.Duration(expiresIn * float64(time.Second))))
-	}
-	var expiresAtUnix int64
-	if expiresIn > 0 {
-		expiresAtUnix = now.Unix() + int64(expiresIn)
-	}
-	token, err := h.creds.IssueAPIKeyToken(keyID, name, expiresAtUnix)
-	if err != nil {
-		return httputil.Internal("API key creation failed", err)
-	}
 	active, _ := body["isActive"].(bool)
-	if _, err = h.db.ExecContext(r.Context(), `INSERT INTO apiKeys (id,name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, keyID, name, nil, expires, nil, active, nil, userID, current.ID, dbtime.Format(now), dbtime.Format(now)); err != nil {
+	key, token, err := h.ident.CreateAPIKey(r.Context(), users.NewAPIKey{Name: name, UserID: userID, CreatedBy: current.ID, ExpiresIn: expiresIn, Active: active})
+	if err != nil {
 		return httputil.Internal("API key creation failed", err)
 	}
-	entry, err := h.apiKey(r.Context(), keyID)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	// Upstream create spreads apiKey.toJSON() from a freshly built instance
-	// (ApiKeyController.js:100): unpersisted attributes (description,
-	// lastUsedAt, permissions) are undefined and dropped; createdByUserId
-	// and user remain. The plain instance JSON has no createdByUser field.
-	delete(entry, "description")
-	delete(entry, "lastUsedAt")
-	delete(entry, "permissions")
-	delete(entry, "createdByUser")
-	entry["apiKey"] = token
-	return httputil.JSON(w, r, map[string]any{"apiKey": entry})
+	return httputil.JSON(w, r, map[string]any{"apiKey": createdAPIKey{APIKey: key, Token: token}})
 }
 
-func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
-	id := r.PathValue("id")
-	res, err := h.db.ExecContext(r.Context(), `DELETE FROM apiKeys WHERE id=?`, id)
+func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, _ store.User) error {
+	found, err := h.ident.DeleteAPIKey(r.Context(), r.PathValue("id"))
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if !found {
 		return httputil.Status(404, "")
 	}
 	return httputil.OK(w, r)
@@ -819,24 +791,21 @@ func (h *Handler) deleteAPIKey(w http.ResponseWriter, r *http.Request, current s
 
 func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current store.User) error {
 	id := r.PathValue("id")
-	var ownerID, ownerType string
-	err := h.db.QueryRowContext(r.Context(), `SELECT u.id,u.type FROM apiKeys a JOIN users u ON u.id=a.userId WHERE a.id=?`, id).Scan(&ownerID, &ownerType)
-	if errors.Is(err, sql.ErrNoRows) {
+	key, err := h.ident.APIKey(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && key.User == nil) {
 		return httputil.Status(404, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if ownerType == "root" && current.Type != "root" {
+	if key.User.Type == "root" && current.Type != "root" {
 		return httputil.Status(403, "")
 	}
 	body, err := httputil.DecodeObjectRequest(r)
 	if err != nil {
 		return httputil.Status(400, "")
 	}
-	var newOwner any = ownerID
-	var active any
-	setActive := false
+	owner := key.User.ID
 	if val, ok := body["userId"]; ok {
 		newID, ok := val.(string)
 		if !ok {
@@ -849,138 +818,26 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current s
 		if target.Type == "root" && current.Type != "root" {
 			return httputil.Status(403, "")
 		}
-		newOwner = newID
+		owner = newID
 	}
+	var active *bool
 	if val, ok := body["isActive"]; ok {
 		b, ok := val.(bool)
 		if !ok {
 			return httputil.Status(400, "")
 		}
-		active = b
-		setActive = true
+		active = &b
 	}
-	if setActive {
-		_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,isActive=?,updatedAt=? WHERE id=?`, newOwner, active, dbtime.Now(), id)
-	} else {
-		_, err = h.db.ExecContext(r.Context(), `UPDATE apiKeys SET userId=?,updatedAt=? WHERE id=?`, newOwner, dbtime.Now(), id)
-	}
-	if err != nil {
+	if err = h.ident.UpdateAPIKey(r.Context(), id, owner, active); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	key, err := h.apiKey(r.Context(), id)
+	// The response is the instance as loaded plus the update; lastUsedAt is
+	// the value as-loaded (ApiKeyController.js update).
+	key, err = h.ident.APIKey(r.Context(), id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	// Upstream update spreads apiKey.toJSON() from the instance it mutated
-	// (ApiKeyController.js:~100): the plain instance JSON has no
-	// createdByUser field, and lastUsedAt is the value as-loaded (the auth
-	// usage that happened between operations does not refresh it).
-	delete(key, "createdByUser")
-	return httputil.JSON(w, r, map[string]any{"apiKey": key})
-}
-
-func (h *Handler) apiKeys(ctx context.Context) ([]map[string]any, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id FROM apiKeys`)
-	if err != nil {
-		return nil, err
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	// The pool uses one connection; nested queries must run only after the
-	// outer cursor closes (see internal/scanner watchedLibraries comment).
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	out := make([]map[string]any, 0, len(ids))
-	for _, id := range ids {
-		entry, err := h.apiKey(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, entry)
-	}
-	return out, nil
-}
-func (h *Handler) apiKey(ctx context.Context, id string) (map[string]any, error) {
-	var name, description sql.NullString
-	var expires, lastUsed, created, updated any
-	var active int
-	var permissionsRaw []byte
-	var userID, creatorID sql.NullString
-	err := h.db.QueryRowContext(ctx, `SELECT name,description,expiresAt,lastUsedAt,isActive,permissions,userId,createdByUserId,createdAt,updatedAt FROM apiKeys WHERE id=?`, id).Scan(&name, &description, &expires, &lastUsed, &active, &permissionsRaw, &userID, &creatorID, &created, &updated)
-	if err != nil {
-		return nil, err
-	}
-	var perms any
-	if len(permissionsRaw) > 0 {
-		_ = json.Unmarshal(permissionsRaw, &perms)
-	}
-	user := map[string]any(nil)
-	creator := map[string]any(nil)
-	if userID.Valid {
-		if u, e := h.userByID(ctx, userID.String); e == nil {
-			user = map[string]any{"id": u.ID, "username": u.Username, "type": u.Type}
-		}
-	}
-	if creatorID.Valid {
-		if u, e := h.userByID(ctx, creatorID.String); e == nil {
-			creator = map[string]any{"id": u.ID, "username": u.Username, "type": u.Type}
-		}
-	}
-	return map[string]any{"id": id, "name": name.String, "description": store.NullString(description), "expiresAt": sequelizeISOString(expires), "lastUsedAt": sequelizeISOString(lastUsed), "isActive": active != 0, "permissions": perms, "userId": store.NullString(userID), "createdByUserId": store.NullString(creatorID), "createdAt": sequelizeISOString(created), "updatedAt": sequelizeISOString(updated), "user": user, "createdByUser": creator}, nil
-}
-
-// sequelizeISOString mirrors Sequelize model serialization of DATE attributes
-// (apiKey.toJSON() in ApiKeyController.js): ISO-8601 UTC strings with
-// millisecond precision, or null when the attribute is null.
-func sequelizeISOString(v any) any {
-	var t time.Time
-	switch value := v.(type) {
-	case nil:
-		return nil
-	case time.Time:
-		t = value
-	case int64:
-		t = time.UnixMilli(value)
-	case float64:
-		t = time.UnixMilli(int64(value))
-	case []byte:
-		return sequelizeISOString(parseDateBytes(value))
-	case string:
-		return sequelizeISOString(parseDateString(value))
-	default:
-		return nil
-	}
-	return t.UTC().Format("2006-01-02T15:04:05.000Z")
-}
-
-// parseDateBytes/parseDateString decode the SQLite driver DATETIME formats the
-// identity/userapi layer already handles elsewhere.
-func parseDateBytes(raw []byte) time.Time {
-	if len(raw) == 0 {
-		return time.Time{}
-	}
-	return parseDateString(string(raw))
-}
-
-func parseDateString(value string) time.Time {
-	if t, ok := dbtime.Parse(value); ok {
-		return t
-	}
-	// A zone-less ISO spelling dbtime does not know.
-	t, _ := time.Parse("2006-01-02T15:04:05.999999999", value)
-	return t
+	return httputil.JSON(w, r, map[string]any{"apiKey": updatedAPIKey{APIKey: key}})
 }
 
 type itemAccess struct{ exists, allowed bool }
@@ -1002,51 +859,52 @@ func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID str
 	return itemAccess{exists: true, allowed: access.For(ctx, user).Item(a)}, nil
 }
 
-// decorateAdminProgress adds the media fields UserController.findOne attaches
-// to each progress (server/controllers/UserController.js:86-98): displayTitle,
-// plus displaySubtitle for episodes, coverPath and mediaUpdatedAt (a JS Date,
-// so an ISO string). Keys stay absent when the media row is missing.
-func (h *Handler) decorateAdminProgress(ctx context.Context, progress []any) error {
-	for _, raw := range progress {
-		p, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		mediaItemID, _ := p["mediaItemId"].(string)
+// adminProgress is a progress with the media fields UserController.findOne
+// attaches (server/controllers/UserController.js:86-98): displayTitle, plus
+// displaySubtitle for episodes, coverPath and mediaUpdatedAt (a JS Date, so an
+// ISO string). A nil RawMessage leaves the key out (no media row); the JSON
+// text null keeps it as null.
+type adminProgress struct {
+	wire.MediaProgress
+	DisplayTitle    json.RawMessage `json:"displayTitle,omitempty"`
+	DisplaySubtitle json.RawMessage `json:"displaySubtitle,omitempty"`
+	CoverPath       json.RawMessage `json:"coverPath,omitempty"`
+	MediaUpdatedAt  json.RawMessage `json:"mediaUpdatedAt,omitempty"`
+}
+
+func jsonText(v any) json.RawMessage {
+	data, _ := json.Marshal(v)
+	return data
+}
+
+func (h *Handler) decorateAdminProgress(ctx context.Context, progress []wire.MediaProgress) ([]adminProgress, error) {
+	out := make([]adminProgress, 0, len(progress))
+	for _, p := range progress {
+		d := adminProgress{MediaProgress: p}
 		var title, subtitle, cover sql.NullString
 		var updated any
 		var err error
-		if p["mediaItemType"] == "podcastEpisode" {
-			err = h.db.QueryRowContext(ctx, `SELECT pe.title, po.title, po.coverPath, po.updatedAt FROM podcastEpisodes pe LEFT JOIN podcasts po ON po.id = pe.podcastId WHERE pe.id = ?`, mediaItemID).Scan(&title, &subtitle, &cover, &updated)
+		episode := p.MediaItemType == "podcastEpisode"
+		if episode {
+			err = h.db.QueryRowContext(ctx, `SELECT pe.title, po.title, po.coverPath, po.updatedAt FROM podcastEpisodes pe LEFT JOIN podcasts po ON po.id = pe.podcastId WHERE pe.id = ?`, p.MediaItemID).Scan(&title, &subtitle, &cover, &updated)
 		} else {
-			err = h.db.QueryRowContext(ctx, `SELECT title, NULL, coverPath, updatedAt FROM books WHERE id = ?`, mediaItemID).Scan(&title, &subtitle, &cover, &updated)
+			err = h.db.QueryRowContext(ctx, `SELECT title, NULL, coverPath, updatedAt FROM books WHERE id = ?`, p.MediaItemID).Scan(&title, &subtitle, &cover, &updated)
 		}
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
 		}
-		if err != nil {
-			return err
-		}
-		p["displayTitle"] = store.NullString(title)
-		if p["mediaItemType"] == "podcastEpisode" {
-			p["displaySubtitle"] = store.NullString(subtitle)
-		}
-		p["coverPath"] = store.NullString(cover)
-		p["mediaUpdatedAt"] = nil
-		switch v := updated.(type) {
-		case time.Time:
-			p["mediaUpdatedAt"] = dbtime.JSDate(v)
-		case string:
-			if t, ok := dbtime.Parse(v); ok {
-				p["mediaUpdatedAt"] = dbtime.JSDate(t)
+		if err == nil {
+			d.DisplayTitle, d.CoverPath, d.MediaUpdatedAt = jsonText(store.NullString(title)), jsonText(store.NullString(cover)), jsonText(nil)
+			if episode {
+				d.DisplaySubtitle = jsonText(store.NullString(subtitle))
 			}
-		case []byte:
-			if t, ok := dbtime.Parse(string(v)); ok {
-				p["mediaUpdatedAt"] = dbtime.JSDate(t)
+			if t := dbtime.Time(updated); !t.IsZero() {
+				d.MediaUpdatedAt = jsonText(dbtime.JSDate(t))
 			}
 		}
+		out = append(out, d)
 	}
-	return nil
+	return out, nil
 }
 
 func (h *Handler) userPayload(ctx context.Context, user store.User) (map[string]any, error) {
@@ -1055,6 +913,13 @@ func (h *Handler) userPayload(ctx context.Context, user store.User) (map[string]
 		return nil, err
 	}
 	return users.UserDTO(user, progress), nil
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func (h *Handler) userByID(ctx context.Context, id string) (store.User, error) {
@@ -1072,16 +937,6 @@ func requestUser(r *http.Request) store.User {
 
 func withUser(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error { return fn(w, r, requestUser(r)) }
-}
-
-// adminOnly is withUser for routes only root and admin users may call.
-func adminOnly(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
-	return withUser(func(w http.ResponseWriter, r *http.Request, user store.User) error {
-		if !access.AdminUser(user) {
-			return httputil.Status(403, "")
-		}
-		return fn(w, r, user)
-	})
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {

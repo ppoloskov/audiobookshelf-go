@@ -3,6 +3,7 @@ package sharing
 
 import (
 	"archive/zip"
+	"audiobookshelf-compat/internal/filekind"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -111,9 +112,11 @@ func hostPrefix(r *http.Request, base string) string {
 }
 func serveMedia(w http.ResponseWriter, r *http.Request, p string) {
 	ext := strings.ToLower(filepath.Ext(p))
-	mt := map[string]string{".m4b": "audio/mp4", ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".flac": "audio/flac", ".wav": "audio/wav", ".aac": "audio/aac", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}[ext]
-	if mt == "" {
-		mt = mime.TypeByExtension(ext)
+	// ShareController.js:209: audio takes the AudioMimeType of its extension
+	// (.wav has none there; Express infers audio/wav), anything else is inferred.
+	mt := mime.TypeByExtension(ext)
+	if filekind.IsAudio(ext) && ext != ".wav" {
+		mt = filekind.AudioMime(ext)
 	}
 	if mt != "" {
 		w.Header().Set("Content-Type", mt)

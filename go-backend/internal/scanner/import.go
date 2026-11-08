@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textsort"
@@ -399,14 +400,11 @@ func (s *Scanner) afterImport(ctx context.Context, p itemPlan, changes *itemwrit
 	}
 	if p.added && l.mediaType == "book" {
 		md := p.md
-		s.filters.AddNarrators(l.id, md.Narrators)
-		s.filters.AddGenres(l.id, md.Genres)
-		s.filters.AddTags(l.id, md.Tags)
-		s.filters.AddPublisher(l.id, md.Publisher)
-		s.filters.AddLanguage(l.id, md.Language)
+		values := filterdata.BookValues{Narrators: md.Narrators, Genres: md.Genres, Tags: md.Tags, Publishers: []string{md.Publisher}, Languages: []string{md.Language}}
 		if year, e := strconv.Atoi(md.PublishedYear); e == nil && year != 0 {
-			s.filters.AddPublishedDecade(l.id, strconv.Itoa(year/10*10))
+			values.PublishedDecades = []string{strconv.Itoa(year / 10 * 10)}
 		}
+		s.filters.AddBook(l.id, values)
 	}
 	itemwrite.Env{Filters: s.filters, Emit: s.emit}.Announce(l.id, changes)
 }

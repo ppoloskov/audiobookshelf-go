@@ -4,15 +4,11 @@ import (
 	"audiobookshelf-compat/internal/version"
 	"cmp"
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/http"
 
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/deviceinfo"
-	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -60,7 +56,7 @@ func (v *sdkVersion) UnmarshalJSON(b []byte) error {
 }
 
 func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Request, client clientDevice) (deviceInfo, error) {
-	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(r.UserAgent())
+	ua := deviceinfo.Parse(r.UserAgent())
 	clientVersion := cmp.Or(client.ClientVersion, version.Server)
 	manufacturer, model, sdk := client.Manufacturer, client.Model, string(client.SDKVersion)
 	clientName := client.ClientName
@@ -70,7 +66,7 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 			clientName = "Abs Android"
 		case model != "":
 			clientName = "Abs iOS"
-		case browser != "" && osName != "":
+		case ua.Browser != "" && ua.OSName != "":
 			clientName = "Abs Web"
 		default:
 			clientName = "Unknown"
@@ -81,47 +77,25 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	switch {
 	case sdk != "", model != "":
 		deviceName = cmp.Or(manufacturer, "Unknown") + " " + model
-	case browser != "":
-		deviceName = osName + " " + cmp.Or(osVersion, "N/A") + " " + browser
+	case ua.Browser != "":
+		deviceName = ua.OSName + " " + cmp.Or(ua.OSVersion, "N/A") + " " + ua.Browser
 	}
 	ip := r.RemoteAddr
 	if host, _, err := net.SplitHostPort(ip); err == nil {
 		ip = host
 	}
-	dbID, err := ids.New()
-	if err != nil {
-		return deviceInfo{}, err
-	}
-	deviceKey := cmp.Or(client.DeviceID, dbID)
-	var existing string
-	err = h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? AND userId=? LIMIT 1`, deviceKey, user.ID).Scan(&existing)
-	if err == nil {
-		dbID = existing
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return deviceInfo{}, err
-	}
-	extraRaw, _ := json.Marshal(struct {
-		Manufacturer string `json:"manufacturer,omitempty"`
-		Model        string `json:"model,omitempty"`
-		OSName       string `json:"osName,omitempty"`
-		OSVersion    string `json:"osVersion,omitempty"`
-		BrowserName  string `json:"browserName,omitempty"`
-	}{manufacturer, model, osName, osVersion, browser})
-	version := cmp.Or(sdk, browserVersion)
-	now := dbtime.Now()
-	if existing == "" {
-		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, dbID, deviceKey, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), user.ID, now, now)
-	} else {
-		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), now, dbID)
-	}
+	id, deviceID, err := store.UpsertDevice(ctx, h.db, store.Device{
+		DeviceID: client.DeviceID, UserID: user.ID, ClientName: clientName, ClientVersion: clientVersion, IPAddress: ip,
+		DeviceName: deviceName, DeviceVersion: cmp.Or(sdk, ua.BrowserVersion), Manufacturer: manufacturer, Model: model, Info: ua,
+	})
 	if err != nil {
 		return deviceInfo{}, err
 	}
 	// The observed v2.37.2 playback-session device DTO omits deviceName,
 	// manufacturer, model and sdkVersion entirely when no value exists
 	// (PlaybackSession.js:86-104 / DeviceInfo.js:43-67 fixture behavior).
-	return deviceInfo{ID: dbID, UserID: user.ID, DeviceID: deviceKey, IPAddress: ip, ClientVersion: clientVersion, ClientName: clientName, DeviceName: deviceName,
-		BrowserName: browser, BrowserVersion: browserVersion, OSName: osName, OSVersion: osVersion, Manufacturer: manufacturer, Model: model, SDKVersion: sdk}, nil
+	return deviceInfo{ID: id, UserID: user.ID, DeviceID: deviceID, IPAddress: ip, ClientVersion: clientVersion, ClientName: clientName, DeviceName: deviceName,
+		BrowserName: ua.Browser, BrowserVersion: ua.BrowserVersion, OSName: ua.OSName, OSVersion: ua.OSVersion, Manufacturer: manufacturer, Model: model, SDKVersion: sdk}, nil
 }
 
 func (d deviceInfo) description() string {

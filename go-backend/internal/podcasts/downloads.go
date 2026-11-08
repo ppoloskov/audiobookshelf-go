@@ -1,6 +1,8 @@
 package podcasts
 
 import (
+	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/mediatools"
 	"cmp"
 	"context"
 	"database/sql"
@@ -11,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -273,48 +274,13 @@ func (h *Handler) fetchEpisode(d *downloadTask) (string, error) {
 	return target, nil
 }
 
-type probeOutput struct {
-	Format struct {
-		Name, FormatName, FormatLongName, Duration, Size, BitRate string            `json:"-"`
-		NameTag                                                   string            `json:"name"`
-		FormatNameTag                                             string            `json:"format_name"`
-		FormatLongNameTag                                         string            `json:"format_long_name"`
-		DurationTag                                               string            `json:"duration"`
-		SizeTag                                                   string            `json:"size"`
-		BitRateTag                                                string            `json:"bit_rate"`
-		Tags                                                      map[string]string `json:"tags"`
-	} `json:"format"`
-	Streams []struct {
-		CodecType     string            `json:"codec_type"`
-		CodecName     string            `json:"codec_name"`
-		TimeBase      string            `json:"time_base"`
-		Channels      int               `json:"channels"`
-		ChannelLayout string            `json:"channel_layout"`
-		BitRate       string            `json:"bit_rate"`
-		Tags          map[string]string `json:"tags"`
-	} `json:"streams"`
-	Chapters []struct {
-		StartTime, EndTime string
-		Tags               map[string]string `json:"tags"`
-	} `json:"chapters"`
-}
-
-func (h *Handler) probeEpisode(ctx context.Context, path string) (probeOutput, error) {
-	bin := strings.TrimSpace(os.Getenv("FFPROBE_PATH"))
-	if bin == "" {
-		bin = "ffprobe"
-	}
-	cmd := exec.CommandContext(ctx, bin, "-v", "error", "-show_format", "-show_streams", "-show_chapters", "-of", "json", path)
-	raw, err := cmd.Output()
+func (h *Handler) probeEpisode(ctx context.Context, path string) (mediatools.Info, error) {
+	p, err := mediatools.Probe(ctx, path)
 	if err != nil {
-		return probeOutput{}, fmt.Errorf("ffprobe audio file: %w", err)
-	}
-	var p probeOutput
-	if err = json.Unmarshal(raw, &p); err != nil {
-		return p, err
+		return p, fmt.Errorf("ffprobe audio file: %w", err)
 	}
 	for _, s := range p.Streams {
-		if s.CodecType == "audio" {
+		if s.Type == "audio" {
 			return p, nil
 		}
 	}
@@ -341,29 +307,26 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	ext := filepath.Ext(path)
 	filename := filepath.Base(path)
 	rel := filename
-	duration, _ := strconv.ParseFloat(probe.Format.DurationTag, 64)
-	bitRate, _ := strconv.ParseInt(probe.Format.BitRateTag, 10, 64)
+	duration, _ := strconv.ParseFloat(probe.Format.Duration, 64)
+	bitRate, _ := strconv.ParseInt(probe.Format.BitRate, 10, 64)
 	size := st.Size()
-	var stream struct {
-		CodecName, TimeBase, ChannelLayout, BitRate string
-		Channels                                    int
-	}
+	var stream mediatools.Stream
 	for _, s := range probe.Streams {
-		if s.CodecType == "audio" {
-			stream.CodecName, stream.TimeBase, stream.ChannelLayout, stream.Channels, stream.BitRate = s.CodecName, s.TimeBase, s.ChannelLayout, s.Channels, s.BitRate
+		if s.Type == "audio" {
+			stream = s
 			break
 		}
 	}
 	if bitRate == 0 {
 		bitRate, _ = strconv.ParseInt(stream.BitRate, 10, 64)
 	}
-	format := probe.Format.FormatLongNameTag
+	format := probe.Format.LongName
 	if format == "" {
-		format = probe.Format.FormatNameTag
+		format = probe.Format.Name
 	}
-	mime := mimeForExt(ext)
+	mime := filekind.AudioMime(ext)
 	fileMeta := map[string]any{"filename": filename, "ext": ext, "path": filepath.ToSlash(path), "relPath": rel, "size": size, "mtimeMs": st.ModTime().UnixMilli(), "ctimeMs": st.ModTime().UnixMilli(), "birthtimeMs": st.ModTime().UnixMilli()}
-	audio := map[string]any{"index": 1, "ino": ino, "metadata": fileMeta, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": bitRate, "language": nil, "codec": stream.CodecName, "timeBase": stream.TimeBase, "channels": stream.Channels, "channelLayout": stream.ChannelLayout, "chapters": []any{}, "embeddedCoverArt": nil, "metaTags": map[string]any{}, "mimeType": mime}
+	audio := map[string]any{"index": 1, "ino": ino, "metadata": fileMeta, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": bitRate, "language": nil, "codec": stream.Codec, "timeBase": stream.TimeBase, "channels": stream.Channels, "channelLayout": stream.ChannelLayout, "chapters": []any{}, "embeddedCoverArt": nil, "metaTags": map[string]any{}, "mimeType": mime}
 	libFile := map[string]any{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
 	episodeID, err := ids.New()
 	if err != nil {
@@ -544,20 +507,4 @@ func episodeFilename(title, rawURL string) string {
 		title = "Episode"
 	}
 	return title + ext
-}
-func mimeForExt(ext string) string {
-	switch strings.ToLower(ext) {
-	case ".m4a", ".m4b", ".mp4":
-		return "audio/mp4"
-	case ".wav":
-		return "audio/wav"
-	case ".ogg", ".oga", ".opus":
-		return "audio/ogg"
-	case ".flac":
-		return "audio/flac"
-	case ".aac":
-		return "audio/aac"
-	default:
-		return "audio/mpeg"
-	}
 }

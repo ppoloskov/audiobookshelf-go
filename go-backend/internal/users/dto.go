@@ -7,11 +7,15 @@ import (
 
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/wire"
 )
 
 // UserDTO is User.toOldJSONForBrowser: the user as every client receives it.
 // The caller supplies the media progress overlay.
-func UserDTO(user store.User, progress []any) map[string]any {
+func UserDTO(user store.User, progress []wire.MediaProgress) map[string]any {
+	if progress == nil {
+		progress = []wire.MediaProgress{}
+	}
 	permissions := store.DecodeJSONObject(user.Permissions)
 	// User.js:604-606/629-630: these two are always serialized as arrays.
 	libraries := jsonvalue.Strings(permissions["librariesAccessible"])
@@ -29,7 +33,11 @@ func UserDTO(user store.User, progress []any) map[string]any {
 	if series == nil {
 		series = []any{}
 	}
-	var lastSeen, createdAt any
+	// users.email as stored: NULL is null, an empty string stays "" (User.js:614).
+	var email, lastSeen, createdAt any
+	if user.Email != nil {
+		email = *user.Email
+	}
 	if user.LastSeen != nil {
 		lastSeen = *user.LastSeen
 	}
@@ -37,7 +45,7 @@ func UserDTO(user store.User, progress []any) map[string]any {
 		createdAt = *user.CreatedAt
 	}
 	return map[string]any{
-		"id": user.ID, "username": user.Username, "email": store.NullIfEmpty(user.Email), "type": user.Type,
+		"id": user.ID, "username": user.Username, "email": email, "type": user.Type,
 		"token": user.Token, "mediaProgress": progress, "seriesHideFromContinueListening": series,
 		"bookmarks": store.DecodeJSONSlice[any](user.Bookmarks), "isActive": user.IsActive, "isLocked": user.IsLocked,
 		"lastSeen": lastSeen, "createdAt": createdAt, "permissions": permissions,

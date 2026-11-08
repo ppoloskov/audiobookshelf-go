@@ -39,3 +39,13 @@ DELETE FROM sessions WHERE userId = ?;
 
 -- name: DeleteOtherSessionsByUserID :exec
 DELETE FROM sessions WHERE userId = ? AND id <> ?;
+
+-- name: CountUserSessions :one
+SELECT COUNT(*) FROM sessions WHERE userId = ? AND expiresAt > ?;
+
+-- name: ListUserSessions :many
+SELECT * FROM sessions WHERE userId = sqlc.arg(user_id) AND expiresAt > sqlc.arg(now)
+ORDER BY updatedAt DESC LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(skip);
+
+-- name: DeleteUserSession :execresult
+DELETE FROM sessions WHERE id = ? AND userId = ?;

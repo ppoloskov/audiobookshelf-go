@@ -1,11 +1,9 @@
 package userapi
 
 import (
-	"database/sql"
 	"net/http"
 	"regexp"
 
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
@@ -26,31 +24,15 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 	if user.Type == "guest" {
 		return httputil.JSON(w, r, map[string]any{"sessions": []any{}, "total": 0, "numPages": 0, "page": page, "itemsPerPage": perPage})
 	}
-	var total int
-	now := dbtime.Now()
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM sessions WHERE userId=? AND expiresAt>?`, user.ID, now).Scan(&total); err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,ipAddress,userAgent,createdAt,updatedAt,refreshToken,lastRefreshToken FROM sessions WHERE userId=? AND expiresAt>? ORDER BY updatedAt DESC LIMIT ? OFFSET ?`, user.ID, now, perPage, perPage*page)
+	total, found, err := h.ident.UserSessions(r.Context(), user.ID, refreshTokenFromRequest(r), page, perPage)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	defer rows.Close()
-	refresh := refreshTokenFromRequest(r)
-	sessions := make([]any, 0)
-	for rows.Next() {
-		var id string
-		var ip, agent, token, last sql.NullString
-		var created, updated any
-		if err := rows.Scan(&id, &ip, &agent, &created, &updated, &token, &last); err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": deviceInfo(agent.String), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
+	sessions := make([]any, 0, len(found))
+	for _, s := range found {
+		sessions = append(sessions, map[string]any{"id": s.ID, "ipAddress": s.IPAddress, "userAgent": s.UserAgent, "deviceInfo": deviceInfo(derefString(s.UserAgent)), "createdAt": s.CreatedAt, "updatedAt": s.UpdatedAt, "current": s.Current})
 	}
-	if err := rows.Err(); err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	return httputil.JSON(w, r, map[string]any{"total": total, "numPages": int((total + perPage - 1) / perPage), "page": page, "itemsPerPage": perPage, "sessions": sessions})
+	return httputil.JSON(w, r, map[string]any{"total": total, "numPages": (total + perPage - 1) / perPage, "page": page, "itemsPerPage": perPage, "sessions": sessions})
 }
 
 func refreshTokenFromRequest(r *http.Request) string {
@@ -71,12 +53,11 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	if !uuidPattern.MatchString(id) {
 		return httputil.Status(400, "")
 	}
-	res, err := h.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE id=? AND userId=?`, id, user.ID)
+	found, err := h.ident.DeleteUserSession(r.Context(), user.ID, id)
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if !found {
 		return httputil.Status(404, "")
 	}
 	return httputil.OK(w, r)

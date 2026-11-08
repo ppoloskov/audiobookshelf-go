@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
@@ -48,7 +49,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 		if !access.For(r.Context(), user).Download() {
 			return httputil.Status(http.StatusForbidden, "")
 		}
-		if mimeType := audioMIMEType(filepath.Ext(target)); mimeType != "" {
+		if mimeType := filekind.KnownAudioMime(filepath.Ext(target)); mimeType != "" {
 			w.Header().Set("Content-Type", mimeType)
 		}
 	}
@@ -160,7 +161,10 @@ func (h *Handler) servePath(w http.ResponseWriter, r *http.Request, target strin
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	ext := strings.ToLower(filepath.Ext(target))
-	media := map[string]string{".m4b": "audio/mp4", ".m4a": "audio/mp4", ".aac": "audio/aac", ".mp3": "audio/mpeg", ".flac": "audio/flac", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".wav": "audio/wav"}[ext]
+	media := filekind.KnownAudioMime(ext)
+	if ext == ".wav" {
+		media = "audio/wav"
+	}
 	if media == "" {
 		media = mime.TypeByExtension(ext)
 	}

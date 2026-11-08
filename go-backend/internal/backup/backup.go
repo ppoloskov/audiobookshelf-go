@@ -13,12 +13,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/events"
@@ -48,14 +50,14 @@ type Options struct {
 }
 
 type Handler struct {
-	db       *sql.DB
-	cfg      config.Config
-	opt      Options
-	emitFunc events.Emitter
-	mu       sync.Mutex
-	backups  []Backup
-	cron     *cron.Cron
-	notify   NotificationFunc
+	db      *sql.DB
+	cfg     config.Config
+	opt     Options
+	emit    events.Emitter
+	mu      sync.Mutex
+	backups []Backup
+	cron    *cron.Cron
+	notify  NotificationFunc
 }
 
 // Backup uses the JSON field names emitted by the upstream Backup.toJSON().
@@ -72,32 +74,49 @@ type Backup struct {
 	ServerVersion string `json:"serverVersion"`
 }
 
-func New(db *sql.DB, cfg config.Config, opt Options, emit events.Emitter) (*Handler, error) {
-	if opt.BackupPath == "" {
-		opt.BackupPath = filepath.Join(cfg.MetadataPath, "backups")
+// withDefaults fills the backup directory and retention count a settings
+// document leaves out.
+func (h *Handler) withDefaults(opt Options) Options {
+	if strings.TrimSpace(opt.BackupPath) == "" {
+		opt.BackupPath = filepath.Join(h.cfg.MetadataPath, "backups")
 	}
 	if opt.BackupsToKeep <= 0 {
 		opt.BackupsToKeep = 2
 	}
+	return opt
+}
+
+// schedule starts the automatic backup cron for spec; a blank spec means
+// automatic backups are off and returns no cron.
+func (h *Handler) schedule(spec string) (*cron.Cron, error) {
+	if strings.TrimSpace(spec) == "" {
+		logging.Info("[BackupManager] Auto Backups are disabled") // BackupManager.js:77
+		return nil, nil
+	}
+	c := cronspec.New()
+	if _, err := c.AddFunc(spec, func() { _, _ = h.Create(context.Background()) }); err != nil {
+		return nil, fmt.Errorf("invalid backup schedule %q: %w", spec, err)
+	}
+	c.Start()
+	logging.Infof("[BackupManager] Starting backup schedule %s", spec) // BackupManager.js:94
+	return c, nil
+}
+
+func New(db *sql.DB, cfg config.Config, opt Options, emit events.Emitter) (*Handler, error) {
 	if emit == nil {
 		emit = func(string, string, any) {}
 	}
-	h := &Handler{db: db, cfg: cfg, opt: opt, emitFunc: emit}
-	if err := os.MkdirAll(opt.BackupPath, 0755); err != nil {
+	h := &Handler{db: db, cfg: cfg, emit: emit}
+	h.opt = h.withDefaults(opt)
+	if err := os.MkdirAll(h.opt.BackupPath, 0755); err != nil {
 		return nil, fmt.Errorf("create backup directory: %w", err)
 	}
 	if err := h.Reload(); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(opt.BackupSchedule) != "" {
-		h.cron = cronspec.New()
-		if _, err := h.cron.AddFunc(opt.BackupSchedule, func() { _, _ = h.Create(context.Background()) }); err != nil {
-			return nil, fmt.Errorf("invalid backup schedule %q: %w", opt.BackupSchedule, err)
-		}
-		h.cron.Start()
-		logging.Infof("[BackupManager] Starting backup schedule %s", opt.BackupSchedule) // BackupManager.js:94
-	} else {
-		logging.Info("[BackupManager] Auto Backups are disabled") // BackupManager.js:77
+	var err error
+	if h.cron, err = h.schedule(h.opt.BackupSchedule); err != nil {
+		return nil, err
 	}
 	return h, nil
 }
@@ -133,12 +152,7 @@ func (h *Handler) notifyEvent(ctx context.Context, name string, data map[string]
 // UpdateOptions applies already-persisted server backup settings. It refreshes
 // backup discovery and reschedules cron work without replacing runtime sockets.
 func (h *Handler) UpdateOptions(ctx context.Context, opt Options) error {
-	if strings.TrimSpace(opt.BackupPath) == "" {
-		opt.BackupPath = filepath.Join(h.cfg.MetadataPath, "backups")
-	}
-	if opt.BackupsToKeep <= 0 {
-		opt.BackupsToKeep = 2
-	}
+	opt = h.withDefaults(opt)
 	if err := os.MkdirAll(opt.BackupPath, 0755); err != nil {
 		return fmt.Errorf("create backup directory: %w", err)
 	}
@@ -154,14 +168,10 @@ func (h *Handler) UpdateOptions(ctx context.Context, opt Options) error {
 	if err := h.Reload(); err != nil {
 		return err
 	}
-	if strings.TrimSpace(opt.BackupSchedule) == "" {
-		return nil
+	c, err := h.schedule(opt.BackupSchedule)
+	if err != nil {
+		return err
 	}
-	c := cronspec.New()
-	if _, err := c.AddFunc(opt.BackupSchedule, func() { _, _ = h.Create(context.Background()) }); err != nil {
-		return fmt.Errorf("invalid backup schedule %q: %w", opt.BackupSchedule, err)
-	}
-	c.Start()
 	h.mu.Lock()
 	h.cron = c
 	h.mu.Unlock()
@@ -204,52 +214,47 @@ func (h *Handler) Reload() error {
 // the request context before dispatch (store.ContextWithUser). Every route
 // answers 403 to a user who is not an admin, before it looks at the backup.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	admin := func(fn http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			if u, _ := store.UserFromContext(r.Context()); u.Type != "admin" && u.Type != "root" {
-				w.WriteHeader(http.StatusForbidden)
-				return
-			}
-			fn(w, r)
-		}
-	}
+	admin := func(fn httputil.Handler) httputil.Handler { return access.RequireAdmin(http.StatusForbidden, fn) }
 	// onBackup resolves {id} first; an unknown backup answers 404.
-	onBackup := func(fn func(http.ResponseWriter, *http.Request, Backup)) http.HandlerFunc {
-		return admin(func(w http.ResponseWriter, r *http.Request) {
+	onBackup := func(fn func(http.ResponseWriter, *http.Request, Backup) error) httputil.Handler {
+		return admin(func(w http.ResponseWriter, r *http.Request) error {
 			b, ok := h.find(r.PathValue("id"))
 			if !ok {
-				httputil.SendStatus(w, http.StatusNotFound)
-				return
+				return httputil.Status(http.StatusNotFound, "")
 			}
-			fn(w, r, b)
+			return fn(w, r, b)
 		})
 	}
-	mux.HandleFunc("GET /api/backups", admin(h.listRoute))
-	mux.HandleFunc("POST /api/backups", admin(h.createRoute))
-	mux.HandleFunc("POST /api/backups/upload", admin(h.upload))
-	mux.HandleFunc("PATCH /api/backups/path", admin(h.updatePath))
-	mux.HandleFunc("GET /api/backups/{id}/download", onBackup(func(w http.ResponseWriter, r *http.Request, b Backup) {
+	mux.Handle("GET /api/backups", admin(h.listRoute))
+	mux.Handle("POST /api/backups", admin(h.createRoute))
+	mux.Handle("POST /api/backups/upload", admin(h.upload))
+	mux.Handle("PATCH /api/backups/path", admin(h.updatePath))
+	mux.Handle("GET /api/backups/{id}/download", onBackup(func(w http.ResponseWriter, r *http.Request, b Backup) error {
 		w.Header().Set("Content-Disposition", "attachment; filename="+b.Filename)
 		http.ServeFile(w, r, b.FullPath)
+		return nil
 	}))
-	mux.HandleFunc("GET /api/backups/{id}/apply", onBackup(h.apply))
-	mux.HandleFunc("DELETE /api/backups/{id}", onBackup(func(w http.ResponseWriter, _ *http.Request, b Backup) {
-		h.delete(w, b)
+	mux.Handle("GET /api/backups/{id}/apply", onBackup(h.apply))
+	mux.Handle("DELETE /api/backups/{id}", onBackup(func(w http.ResponseWriter, r *http.Request, b Backup) error {
+		h.remove(b)
+		return h.writeList(w, r)
 	}))
 }
 
-func (h *Handler) listRoute(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) writeList(w http.ResponseWriter, r *http.Request) error {
+	return httputil.JSON(w, r, map[string]any{"backups": h.list()})
+}
+
+func (h *Handler) listRoute(w http.ResponseWriter, r *http.Request) error {
 	opt := h.options()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet})
+	return httputil.JSON(w, r, map[string]any{"backups": h.list(), "backupLocation": opt.BackupPath, "backupPathEnvSet": opt.BackupPathEnvSet})
 }
 
-func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) error {
 	if _, err := h.Create(r.Context()); err != nil {
-		logging.RequestError(r, "backup failed", err)
-		http.Error(w, "backup failed", 500)
-		return
+		return httputil.Internal("backup failed", err)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
+	return h.writeList(w, r)
 }
 
 func (h *Handler) Create(ctx context.Context) (Backup, error) {
@@ -308,33 +313,15 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	if opt.MaxBackupSizeGB > 0 {
 		limit := int64(opt.MaxBackupSizeGB * 1_000_000_000)
 		processed, sizeErr := treeBytes(tmpDB, filepath.Join(h.cfg.MetadataPath, "items"), filepath.Join(h.cfg.MetadataPath, "authors"))
+		if sizeErr == nil && processed > limit {
+			sizeErr = fmt.Errorf("backup exceeds configured maximum size")
+		}
 		if sizeErr != nil {
 			_ = os.Remove(backup.FullPath)
 			return Backup{}, sizeErr
 		}
-		if processed > limit {
-			_ = os.Remove(backup.FullPath)
-			return Backup{}, fmt.Errorf("backup exceeds configured maximum size")
-		}
 	}
-	h.mu.Lock()
-	replaced := false
-	for i, prior := range h.backups {
-		if prior.ID == backup.ID {
-			h.backups[i] = backup
-			replaced = true
-			break
-		}
-	}
-	if !replaced {
-		h.backups = append(h.backups, backup)
-	}
-	sort.Slice(h.backups, func(i, j int) bool { return h.backups[i].CreatedAt < h.backups[j].CreatedAt })
-	excess := len(h.backups) - opt.BackupsToKeep
-	expired := append([]Backup(nil), h.backups[:max(0, excess)]...)
-	h.backups = h.backups[max(0, excess):]
-	h.mu.Unlock()
-	for _, old := range expired {
+	for _, old := range h.put(backup, opt.BackupsToKeep) {
 		if err := os.Remove(old.FullPath); err != nil {
 			logging.Errorf("[BackupManager] Failed to remove backup: %v", err) // BackupManager.js:400
 		} else {
@@ -344,184 +331,154 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	return backup, nil
 }
 
-func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
+// put adds b to the list (replacing a backup with the same id), keeps the list
+// ordered by creation time and returns the oldest backups beyond keep (all
+// when keep is not positive means none are dropped).
+func (h *Handler) put(b Backup, keep int) (expired []Backup) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if i := slices.IndexFunc(h.backups, func(x Backup) bool { return x.ID == b.ID }); i >= 0 {
+		h.backups[i] = b
+	} else {
+		h.backups = append(h.backups, b)
+	}
+	sort.Slice(h.backups, func(i, j int) bool { return h.backups[i].CreatedAt < h.backups[j].CreatedAt })
+	if excess := len(h.backups) - keep; keep > 0 && excess > 0 {
+		expired = append(expired, h.backups[:excess]...)
+		h.backups = h.backups[excess:]
+	}
+	return expired
+}
+
+func (h *Handler) upload(w http.ResponseWriter, r *http.Request) error {
 	opt := h.options()
+	invalid := func(err error) error { return httputil.Internal("Invalid backup file", err) }
+	moveFailed := func(err error) error {
+		return httputil.Internal("Failed to move backup file into backups directory", err)
+	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		logging.RequestError(r, "Invalid backup file", err)
-		http.Error(w, "Invalid backup file", 500)
-		return
+		return invalid(err)
 	}
 	f, header, err := r.FormFile("file")
 	if err != nil {
-		logging.RequestError(r, "Invalid backup file", err)
-		http.Error(w, "Invalid backup file", 500)
-		return
+		return invalid(err)
 	}
 	defer f.Close()
 	if filepath.Ext(header.Filename) != ".audiobookshelf" {
-		logging.RequestDebug(r, "responding 500: uploaded file "+header.Filename+" does not end in .audiobookshelf")
-		httputil.SendText(w, 500, "Invalid backup file")
-		return
+		return invalid(errors.New("uploaded file " + header.Filename + " does not end in .audiobookshelf"))
 	}
 	name := filepath.Base(header.Filename)
 	dest := filepath.Join(opt.BackupPath, name)
 	tmp, err := os.CreateTemp(opt.BackupPath, "upload-*.tmp")
 	if err != nil {
-		logging.RequestError(r, "Failed to move backup file into backups directory", err)
-		http.Error(w, "Failed to move backup file into backups directory", 500)
-		return
+		return moveFailed(err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	if _, err = io.Copy(tmp, f); err != nil {
-		tmp.Close()
-		logging.RequestError(r, "Failed to move backup file into backups directory", err)
-		http.Error(w, "Failed to move backup file into backups directory", 500)
-		return
+	_, err = io.Copy(tmp, f)
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
 	}
-	if err = tmp.Close(); err != nil {
-		logging.RequestError(r, "Failed to move backup file into backups directory", err)
-		http.Error(w, "Failed to move backup file into backups directory", 500)
-		return
+	if err != nil {
+		return moveFailed(err)
 	}
 	b, err := readBackup(tmpName)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
+		return httputil.Status(http.StatusBadRequest, err.Error())
 	}
 	b.Filename = name
 	b.FullPath = dest
 	b.BackupDirPath = opt.BackupPath
 	b.Path = filepath.Join("backups", name)
 	if err = os.Rename(tmpName, dest); err != nil {
-		logging.RequestError(r, "Failed to move backup file into backups directory", err)
-		http.Error(w, "Failed to move backup file into backups directory", 500)
-		return
+		return moveFailed(err)
 	}
 	if st, e := os.Stat(dest); e == nil {
 		b.FileSize = st.Size()
 	}
-	h.mu.Lock()
-	replaced := false
-	for i, x := range h.backups {
-		if x.ID == b.ID {
-			h.backups[i] = b
-			replaced = true
-			break
-		}
-	}
-	if !replaced {
-		h.backups = append(h.backups, b)
-	}
-	h.mu.Unlock()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
+	h.put(b, 0)
+	return h.writeList(w, r)
 }
 
-func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) error {
 	var body struct {
 		Path string `json:"path"`
 	}
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Path) == "" {
-		http.Error(w, "Invalid request body. Must include path.", 400)
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid request body. Must include path.")
 	}
 	path, err := filepath.Abs(filepath.Clean(body.Path))
 	if err != nil {
-		http.Error(w, "Invalid path", 400)
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid path")
 	}
 	opt := h.options()
 	if path == opt.BackupPath {
-		_, _ = io.WriteString(w, "Backup path unchanged")
-		return
+		httputil.SendText(w, http.StatusOK, "Backup path unchanged", httputil.ForRequest(r))
+		return nil
 	}
 	if err = os.MkdirAll(path, 0755); err != nil {
-		http.Error(w, "Invalid backup path \""+body.Path+"\"", 400)
-		return
-	}
-	if opt.UpdatePath == nil {
-		http.Error(w, "backup path updates are unavailable", 501)
-		return
+		return httputil.Status(http.StatusBadRequest, "Invalid backup path \""+body.Path+"\"")
 	}
 	logging.Infof("[BackupController] Updating backup path to %q from %q", path, opt.BackupPath) // BackupController.js:101
 	if opt.BackupPathEnvSet {
 		logging.Warn("[BackupController] Backup path is set in environment variable BACKUP_PATH. Backup path will be reverted on server restart.") // BackupController.js:105
 	}
 	if err = opt.UpdatePath(r.Context(), path); err != nil {
-		logging.RequestError(r, "failed to save backup path", err)
-		http.Error(w, "failed to save backup path", 500)
-		return
+		return httputil.Internal("failed to save backup path", err)
 	}
 	opt.BackupPath = path
 	if err = h.UpdateOptions(r.Context(), opt); err != nil {
-		logging.RequestError(r, "failed to reload backup path", err)
-		http.Error(w, "failed to reload backup path", 500)
-		return
+		return httputil.Internal("failed to reload backup path", err)
 	}
-	httputil.WriteJSON(w, 200, "OK")
+	return httputil.JSON(w, r, "OK")
 }
 
-func (h *Handler) delete(w http.ResponseWriter, b Backup) {
-	_ = os.Remove(b.FullPath)
+// remove deletes the archive and then forgets the backup; a backup whose file
+// cannot be removed stays listed (BackupManager.removeBackup, js:393-401).
+func (h *Handler) remove(b Backup) {
+	if err := os.Remove(b.FullPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		logging.Errorf("[BackupManager] Failed to remove backup: %v", err) // BackupManager.js:400
+		return
+	}
 	h.mu.Lock()
-	next := h.backups[:0]
-	for _, x := range h.backups {
-		if x.ID != b.ID {
-			next = append(next, x)
-		}
-	}
-	h.backups = next
+	h.backups = slices.DeleteFunc(h.backups, func(x Backup) bool { return x.ID == b.ID })
 	h.mu.Unlock()
-	httputil.WriteJSON(w, 200, map[string]any{"backups": h.list()})
+	logging.Infof("[BackupManager] Backup %q Removed", b.ID) // BackupManager.js:398
 }
 
-func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
+// apply extracts the archive to a staging directory and hands it to
+// opt.Restore, which replaces the database and metadata (BackupManager.js:201).
+func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) error {
 	opt := h.options()
-	if opt.Restore == nil {
-		http.Error(w, "backup restore is unavailable", 501)
-		return
-	}
 	logging.Infof("[BackupManager] Applying backup at %q", b.FullPath) // BackupManager.js:201
 	zipr, err := zip.OpenReader(b.FullPath)
 	if err != nil {
-		logging.RequestError(r, "Invalid backup file", err)
-		http.Error(w, "Invalid backup file", 500)
-		return
+		return httputil.Internal("Invalid backup file", err)
 	}
 	defer zipr.Close()
 	stage, err := os.MkdirTemp(h.cfg.ConfigPath, "backup-restore-")
 	if err != nil {
-		logging.RequestError(r, "Failed to prepare restore", err)
-		http.Error(w, "Failed to prepare restore", 500)
-		return
+		return httputil.Internal("Failed to prepare restore", err)
 	}
 	defer os.RemoveAll(stage)
-	var dbTemp string
 	items := filepath.Join(stage, "metadata-items")
 	authors := filepath.Join(stage, "metadata-authors")
-	if err = os.MkdirAll(items, 0755); err != nil {
-		logging.RequestError(r, "Failed to prepare restore", err)
-		http.Error(w, "Failed to prepare restore", 500)
-		return
+	for _, dir := range []string{items, authors} {
+		if err = os.MkdirAll(dir, 0755); err != nil {
+			return httputil.Internal("Failed to prepare restore", err)
+		}
 	}
-	if err = os.MkdirAll(authors, 0755); err != nil {
-		logging.RequestError(r, "Failed to prepare restore", err)
-		http.Error(w, "Failed to prepare restore", 500)
-		return
-	}
+	var dbTemp string
 	var total uint64
 	for _, f := range zipr.File {
 		if f.Name == "absdatabase.sqlite" {
 			dbTemp = filepath.Join(h.cfg.ConfigPath, "absdatabase-temp.sqlite")
 			if total+f.UncompressedSize64 > maxRestoreUncompressedBytes {
-				http.Error(w, "Backup contents exceed extraction limit", 400)
-				return
+				return httputil.Status(http.StatusBadRequest, "Backup contents exceed extraction limit")
 			}
 			total += f.UncompressedSize64
 			if err = extractEntry(f, dbTemp); err != nil {
-				logging.RequestError(r, "Failed to extract sqlite db from backup", err)
-				http.Error(w, "Failed to extract sqlite db from backup", 500)
-				return
+				return httputil.Internal("Failed to extract sqlite db from backup", err)
 			}
 			continue
 		}
@@ -539,12 +496,10 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 			continue
 		}
 		if f.Mode()&os.ModeSymlink != 0 {
-			http.Error(w, "Backup contains a symbolic link", 400)
-			return
+			return httputil.Status(http.StatusBadRequest, "Backup contains a symbolic link")
 		}
 		if total+f.UncompressedSize64 > maxRestoreUncompressedBytes {
-			http.Error(w, "Backup contents exceed extraction limit", 400)
-			return
+			return httputil.Status(http.StatusBadRequest, "Backup contents exceed extraction limit")
 		}
 		total += f.UncompressedSize64
 		rel := strings.TrimPrefix(strings.TrimSuffix(f.Name, "/"), strings.TrimSuffix(prefix, "/"))
@@ -554,35 +509,30 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) {
 		}
 		clean := filepath.Clean(filepath.FromSlash(rel))
 		if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
-			http.Error(w, "Backup contains an invalid path", 400)
-			return
+			return httputil.Status(http.StatusBadRequest, "Backup contains an invalid path")
 		}
 		out := filepath.Join(targetRoot, clean)
 		if f.FileInfo().IsDir() {
-			if err = os.MkdirAll(out, 0755); err != nil {
-				logging.RequestError(r, "Failed to extract backup metadata", err)
-				http.Error(w, "Failed to extract backup metadata", 500)
-				return
-			}
-		} else if err = extractEntry(f, out); err != nil {
-			logging.RequestError(r, "Failed to extract backup metadata", err)
-			http.Error(w, "Failed to extract backup metadata", 500)
-			return
+			err = os.MkdirAll(out, 0755)
+		} else {
+			err = extractEntry(f, out)
+		}
+		if err != nil {
+			return httputil.Internal("Failed to extract backup metadata", err)
 		}
 	}
 	if dbTemp == "" {
-		logging.RequestError(r, "Invalid backup file", errors.New("the archive does not include absdatabase.sqlite; it might be from an older Audiobookshelf server"))
-		http.Error(w, "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", 500)
-		return
+		return &httputil.Error{Status: http.StatusInternalServerError, Message: "Invalid backup file. Does not include absdatabase.sqlite. This might be from an older Audiobookshelf server.", Cause: errors.New("the archive does not include absdatabase.sqlite")}
 	}
 	defer os.Remove(dbTemp)
 	if err = opt.Restore(r.Context(), dbTemp, items, authors); err != nil {
-		logging.RequestError(r, "Failed to apply backup", err)
-		http.Error(w, "Failed to apply backup", 500)
-		return
+		return httputil.Internal("Failed to apply backup", err)
 	}
-	w.WriteHeader(200)
-	h.emit("*", "backup_applied", nil)
+	if err = httputil.OK(w, r); err != nil {
+		return err
+	}
+	h.emit("*", "backup_applied", nil) // BackupManager.js:263-266: sendStatus(200), then the event
+	return nil
 }
 
 func (h *Handler) list() []Backup {
@@ -798,5 +748,3 @@ func extractEntry(f *zip.File, dest string) error {
 	}
 	return e3
 }
-
-func (h *Handler) emit(user, event string, payload any) { h.emitFunc(user, event, payload) }

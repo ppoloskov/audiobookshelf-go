@@ -19,6 +19,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/settingsdoc"
 
 	"audiobookshelf-compat/internal/store"
 )
@@ -203,19 +204,9 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	// A database without an email-settings row starts from the defaults TS
 	// EmailSettings (objects/settings/EmailSettings.js) and emailapi's load use,
 	// and the write below creates the row, as TS's updateSetting does.
-	settings := map[string]any{"id": "email-settings", "host": nil, "port": 465, "secure": true,
-		"rejectUnauthorized": true, "user": nil, "pass": nil, "testAddress": nil, "fromAddress": nil}
-	var raw []byte
-	err = h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='email-settings'`).Scan(&raw)
-	if err != nil && err != sql.ErrNoRows {
+	settings, err := settingsdoc.Load(r.Context(), h.db, settingsdoc.EmailKey, settingsdoc.EmailDefaults())
+	if err != nil {
 		return httputil.Internal("database read failed", err)
-	}
-	if err == nil {
-		var stored map[string]any
-		_ = json.Unmarshal(raw, &stored)
-		if stored != nil {
-			settings = stored
-		}
 	}
 	all, _ := settings["ereaderDevices"].([]any)
 	kept := make([]any, 0)
@@ -246,9 +237,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 		names[name] = true
 	}
 	settings["ereaderDevices"] = combined
-	encoded, _ := json.Marshal(settings)
-	now := dbtime.Now()
-	if _, err := h.db.ExecContext(r.Context(), `INSERT INTO settings (key,value,createdAt,updatedAt) VALUES ('email-settings',?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updatedAt=excluded.updatedAt`, string(encoded), now, now); err != nil {
+	if err := settingsdoc.Save(r.Context(), h.db, settingsdoc.EmailKey, settings); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	visible := make([]any, 0)
