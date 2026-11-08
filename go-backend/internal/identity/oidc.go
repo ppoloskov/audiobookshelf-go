@@ -588,7 +588,9 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			}
 			return store.User{}, err
 		}
-		user, _ = h.userByID(ctx, user.ID)
+		if user, err = h.userByID(ctx, user.ID); err != nil {
+			return store.User{}, err
+		}
 	}
 	if cfg.advancedPermsClaim != "" && user.Type != "admin" && user.Type != "root" {
 		if err := h.applyOIDCPermissions(ctx, cfg, user, info); err != nil {
@@ -597,7 +599,9 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			}
 			return store.User{}, err
 		}
-		user, _ = h.userByID(ctx, user.ID)
+		if user, err = h.userByID(ctx, user.ID); err != nil {
+			return store.User{}, err
+		}
 	}
 	return user, nil
 }
