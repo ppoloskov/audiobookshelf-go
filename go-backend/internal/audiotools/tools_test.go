@@ -25,7 +25,7 @@ func TestFFMetadataEscapingAndChapterOrder(t *testing.T) {
 }
 
 func TestMergeCreatesM4BAndKeepsSourceBackup(t *testing.T) {
-	if _, err := exec.LookPath(ffmpegPath()); err != nil {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg unavailable")
 	}
 	root := t.TempDir()

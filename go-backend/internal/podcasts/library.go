@@ -3,12 +3,8 @@ package podcasts
 import (
 	"audiobookshelf-compat/internal/access"
 	"context"
-	"database/sql"
 	"fmt"
-	"math"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
@@ -22,27 +18,16 @@ import (
 func (h *Handler) libraryRoute(recent bool) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, libraryID := requestUser(r), r.PathValue("id")
-		// LibraryController.middleware (server/controllers/LibraryController.js:1475).
-		if perms := access.For(r.Context(), user); !perms.IsAdmin() && !perms.Library(libraryID) {
-			return httputil.Status(http.StatusForbidden, "")
-		}
-		var mediaType string
-		err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType)
-		if err == sql.ErrNoRows {
-			return httputil.Status(http.StatusNotFound, "Library not found")
-		}
+		lib, err := httputil.OpenLibrary(r, h.db, access.For(r.Context(), user).Library, libraryID)
 		if err != nil {
-			return httputil.Internal("database read failed", err)
+			return err
 		}
-		limit, page, bad := libraryPaging(r)
-		if bad != "" {
-			return httputil.Status(http.StatusBadRequest, "Invalid request. "+bad+" must be a positive integer")
-		}
+		limit, page := lib.Limit, lib.Page
 		if !recent {
 			return httputil.JSON(w, r, h.libraryDownloadQueue(libraryID))
 		}
 		// LibraryController.getRecentEpisodes (LibraryController.js:1280).
-		if mediaType != "podcast" {
+		if lib.MediaType != "podcast" {
 			return httputil.Status(http.StatusNotFound, "")
 		}
 		episodes, err := h.recentEpisodes(r.Context(), user, libraryID, limit, limit*page)
@@ -53,35 +38,13 @@ func (h *Handler) libraryRoute(recent bool) httputil.Handler {
 	}
 }
 
-// libraryPaging applies LibraryController.middleware's rule: a present limit
-// or page is Number()-ed (non-numeric becomes 0) and must be a non-negative
-// integer. bad names the offending key.
-func libraryPaging(r *http.Request) (limit, page int, bad string) {
-	values := map[string]*int{"limit": &limit, "page": &page}
-	for _, key := range []string{"limit", "page"} {
-		raw, present := r.URL.Query()[key]
-		if !present {
-			continue
-		}
-		n := 0.0
-		if v, err := strconv.ParseFloat(strings.TrimSpace(raw[0]), 64); err == nil || strings.TrimSpace(raw[0]) == "" {
-			n = v
-		}
-		if n != math.Trunc(n) || n < 0 || math.IsInf(n, 0) || math.IsNaN(n) {
-			return 0, 0, key
-		}
-		*values[key] = int(n)
-	}
-	return limit, page, ""
-}
-
 // libraryDownloadQueue is PodcastManager.getDownloadQueueDetails(libraryId)
 // (server/managers/PodcastManager.js:509): the current download only when it
 // belongs to the library, and the queued downloads of that library.
-func (h *Handler) libraryDownloadQueue(libraryID string) wire.EpisodeDownloadQueue {
+func (h *Handler) libraryDownloadQueue(libraryID string) EpisodeDownloadQueue {
 	h.queueMu.Lock()
 	defer h.queueMu.Unlock()
-	out := wire.EpisodeDownloadQueue{Queue: make([]wire.EpisodeDownload, 0)}
+	out := EpisodeDownloadQueue{Queue: make([]wire.EpisodeDownload, 0)}
 	for _, d := range h.queue {
 		if d.item.LibraryID == libraryID {
 			out.Queue = append(out.Queue, d.clientJSON())

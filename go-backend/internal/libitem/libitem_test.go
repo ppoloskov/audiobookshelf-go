@@ -221,20 +221,3 @@ func TestLibitemLoadQueryCountIsConstant(t *testing.T) {
 		t.Fatalf("queries: 1 item = %d, 120 items = %d, want 4 for both", one, many)
 	}
 }
-
-func TestLibitemPrefixes(t *testing.T) {
-	if got := SortingPrefixes(nil); fmt.Sprint(got) != "[the a]" {
-		t.Fatalf("default = %v", got)
-	}
-	if got := SortingPrefixes([]byte(`{"sortingPrefixes":["le",3,"la"]}`)); fmt.Sprint(got) != "[le la]" {
-		t.Fatalf("custom = %v", got)
-	}
-	if got := SortingPrefixes([]byte(`{"sortingPrefixes":[]}`)); len(got) != 0 {
-		t.Fatalf("empty list = %v", got)
-	}
-	for in, want := range map[string]string{"The Hobbit": "Hobbit, The", "the": "the", "Theory": "Theory", "A  b": " b, A"} {
-		if got := TitleIgnorePrefix(in, []string{"the", "a"}); got != want {
-			t.Errorf("%q -> %q, want %q", in, got, want)
-		}
-	}
-}

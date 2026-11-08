@@ -17,9 +17,9 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
 )
 
@@ -76,18 +76,6 @@ func (c *Clock) Now() string {
 	return dbtime.Format(t)
 }
 
-// TitleIgnorePrefix (the column value) is utils.getTitleIgnorePrefix (utils/index.js:176-202):
-// the title without a leading sorting prefix.
-func TitleIgnorePrefix(title string, prefixes []string) string {
-	lower := strings.ToLower(title)
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(lower, prefix+" ") {
-			return title[len(prefix)+1:]
-		}
-	}
-	return title
-}
-
 // kind is one relation: authors or series.
 type kind struct {
 	parent, junction, col string
@@ -120,7 +108,7 @@ func (c *Changes) LinkAuthors(ctx context.Context, tx *sql.Tx, libraryID, bookID
 
 // SetSeries links the book to the given series with their sequences.
 func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID string, series []Series, prefixes []string, r Rules) (bool, error) {
-	k := kind{parent: "series", junction: "bookSeries", col: "seriesId", prefixes: prefixes, derived: func(name string) string { return TitleIgnorePrefix(name, prefixes) }}
+	k := kind{parent: "series", junction: "bookSeries", col: "seriesId", prefixes: prefixes, derived: func(name string) string { return textsort.TitleIgnorePrefix(name, prefixes) }}
 	var wants []want
 	for _, s := range series {
 		if name := strings.TrimSpace(s.Name); name != "" {
@@ -241,7 +229,7 @@ func (c *Changes) relate(ctx context.Context, tx *sql.Tx, k kind, libraryID, boo
 			c.SeriesAdded = append(c.SeriesAdded, added)
 			if created && r.SeriesAdded {
 				ms, _ := dbtime.OptionalMillis(now)
-				c.Events = append(c.Events, Event{"series_added", wire.SeriesCreated{ID: id, Name: w.name, NameIgnorePrefix: libitem.TitleIgnorePrefix(w.name, k.prefixes), AddedAt: *ms, UpdatedAt: *ms, LibraryID: libraryID}})
+				c.Events = append(c.Events, Event{"series_added", wire.SeriesCreated{ID: id, Name: w.name, NameIgnorePrefix: textsort.PrefixAtEnd(w.name, k.prefixes), AddedAt: *ms, UpdatedAt: *ms, LibraryID: libraryID}})
 			}
 		case created:
 			payload, err := authorPayload(ctx, tx, id, true, 0)

@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,22 +10,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
 )
 
-// WriteItemMetadata writes the pinned v2.37.2 metadata.json sidecar shape from
-// an expanded library item's media. settings accepts storeMetadataWithItem
-// and metadataFileFormat from ServerSettings.
-func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemID, mediaType string, itemMedia any, settings map[string]any) error {
-	if db == nil {
-		return errors.New("scanner: metadata database is nil")
+// WriteMetadata writes the item's pinned v2.37.2 metadata.json sidecar, built
+// from the same expanded item the clients receive: beside the item when
+// storeMetadataWithItem is on (a podcast folder or a book folder), otherwise
+// under the metadata directory.
+func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
+	item, err := s.itemEvent(ctx, itemID)
+	if err != nil {
+		return fmt.Errorf("scanner: metadata item %q: %w", itemID, err)
 	}
-	if itemID == "" {
-		return errors.New("scanner: metadata item id is empty")
-	}
-	mediaRaw, err := json.Marshal(itemMedia)
+	mediaRaw, err := json.Marshal(item.Media)
 	if err != nil {
 		return fmt.Errorf("scanner: encode expanded item media: %w", err)
 	}
@@ -32,41 +29,24 @@ func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemI
 	if err := json.Unmarshal(mediaRaw, &media); err != nil {
 		return fmt.Errorf("scanner: decode expanded item media: %w", err)
 	}
-	if media == nil {
-		return errors.New("scanner: expanded item media is missing")
-	}
 	metadata, _ := media["metadata"].(map[string]any)
 	if metadata == nil {
 		return errors.New("scanner: expanded item metadata is missing")
 	}
-	format, _ := settings["metadataFileFormat"].(string)
-	if format != "json" {
-		format = "json"
-	}
-	withItem, _ := settings["storeMetadataWithItem"].(bool)
-	var itemPath string
-	var isFile int
-	if err := db.QueryRowContext(ctx, `SELECT path,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&itemPath, &isFile); err != nil {
-		return fmt.Errorf("scanner: metadata item %q: %w", itemID, err)
-	}
-	metadataDir := filepath.Join(cfg.MetadataPath, "items", itemID)
-	if withItem && (mediaType == "podcast" || isFile == 0) {
-		metadataDir = itemPath
-	} else {
-		withItem = false
-	}
-	if !withItem && cfg.MetadataPath == "" {
+	withItem := serversettings.Load(ctx, s.db).Bool("storeMetadataWithItem") && (item.MediaType == "podcast" || !item.IsFile)
+	metadataDir := filepath.Join(s.cfg.MetadataPath, "items", itemID)
+	if withItem {
+		metadataDir = item.Path
+	} else if s.cfg.MetadataPath == "" {
 		return errors.New("scanner: metadata path is empty")
 	}
 	if err := os.MkdirAll(metadataDir, 0755); err != nil {
 		return fmt.Errorf("scanner: create metadata directory: %w", err)
 	}
-	metadataPath := filepath.Join(metadataDir, "metadata."+format)
-	var payload map[string]any
-	if mediaType == "podcast" {
+	metadataPath := filepath.Join(metadataDir, "metadata.json")
+	payload := bookMetadataObject(media, metadata)
+	if item.MediaType == "podcast" {
 		payload = podcastMetadataObject(media, metadata)
-	} else {
-		payload = bookMetadataObject(media, metadata)
 	}
 	raw, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -76,135 +56,14 @@ func WriteItemMetadata(ctx context.Context, db *sql.DB, cfg config.Config, itemI
 		return fmt.Errorf("scanner: write metadata sidecar: %w", err)
 	}
 	if withItem {
-		if err := recordStoredSidecar(ctx, db, itemID, itemPath, metadataPath); err != nil {
-			return err
-		}
+		return recordStoredSidecar(ctx, s.db, itemID, item.Path, metadataPath)
 	}
 	return nil
 }
 
-// WriteMetadata loads the actual library item and related media metadata from
-// the existing database and persists its source-compatible sidecar.
-func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
-	var itemPath, mediaType, mediaID string
-	var isFile int
-	if err := s.db.QueryRowContext(ctx, `SELECT path,mediaType,mediaId,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&itemPath, &mediaType, &mediaID, &isFile); err != nil {
-		return err
-	}
-	media := map[string]any{"metadata": map[string]any{}}
-	metadata := media["metadata"].(map[string]any)
-	if mediaType == "book" {
-		var title, subtitle, year, publishedDate, publisher, description, isbn, asin, language sql.NullString
-		var explicit, abridged int64
-		var narrators, audio, ebook, chapters, tags, genres []byte
-		if err := s.db.QueryRowContext(ctx, `SELECT title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,narrators,audioFiles,ebookFile,chapters,tags,genres FROM books WHERE id=?`, mediaID).Scan(&title, &subtitle, &year, &publishedDate, &publisher, &description, &isbn, &asin, &language, &explicit, &abridged, &narrators, &audio, &ebook, &chapters, &tags, &genres); err != nil {
-			return err
-		}
-		metadata["title"] = store.NullString(title)
-		metadata["subtitle"] = store.NullString(subtitle)
-		metadata["publishedYear"] = store.NullString(year)
-		metadata["publishedDate"] = store.NullString(publishedDate)
-		metadata["publisher"] = store.NullString(publisher)
-		metadata["description"] = store.NullString(description)
-		metadata["isbn"] = store.NullString(isbn)
-		metadata["asin"] = store.NullString(asin)
-		metadata["language"] = store.NullString(language)
-		metadata["explicit"] = explicit != 0
-		metadata["abridged"] = abridged != 0
-		metadata["narrators"] = decodeJSONValue(narrators)
-		metadata["genres"] = decodeJSONValue(genres)
-		media["tags"] = decodeJSONValue(tags)
-		media["chapters"] = decodeJSONValue(chapters)
-		authorRows, err := s.db.QueryContext(ctx, `SELECT a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC`, mediaID)
-		if err != nil {
-			return err
-		}
-		var authors []map[string]any
-		for authorRows.Next() {
-			var name sql.NullString
-			if err := authorRows.Scan(&name); err != nil {
-				authorRows.Close()
-				return err
-			}
-			authors = append(authors, map[string]any{"name": name.String})
-		}
-		if err := authorRows.Err(); err != nil {
-			authorRows.Close()
-			return err
-		}
-		if err := authorRows.Close(); err != nil {
-			return err
-		}
-		metadata["authors"] = authors
-		seriesRows, err := s.db.QueryContext(ctx, `SELECT s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC`, mediaID)
-		if err != nil {
-			return err
-		}
-		var series []map[string]any
-		for seriesRows.Next() {
-			var name, sequence sql.NullString
-			if err := seriesRows.Scan(&name, &sequence); err != nil {
-				seriesRows.Close()
-				return err
-			}
-			series = append(series, map[string]any{"name": name.String, "sequence": store.NullString(sequence)})
-		}
-		if err := seriesRows.Err(); err != nil {
-			seriesRows.Close()
-			return err
-		}
-		if err := seriesRows.Close(); err != nil {
-			return err
-		}
-		metadata["series"] = series
-	} else if mediaType == "podcast" {
-		var title, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesID, itunesArtistID, language, podcastType sql.NullString
-		var explicit int64
-		var tags, genres []byte
-		if err := s.db.QueryRowContext(ctx, `SELECT title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,tags,genres FROM podcasts WHERE id=?`, mediaID).Scan(&title, &author, &releaseDate, &feedURL, &imageURL, &description, &itunesPageURL, &itunesID, &itunesArtistID, &language, &podcastType, &explicit, &tags, &genres); err != nil {
-			return err
-		}
-		metadata["title"] = store.NullString(title)
-		metadata["author"] = store.NullString(author)
-		metadata["releaseDate"] = store.NullString(releaseDate)
-		metadata["feedURL"] = store.NullString(feedURL)
-		metadata["imageURL"] = store.NullString(imageURL)
-		metadata["description"] = store.NullString(description)
-		metadata["itunesPageURL"] = store.NullString(itunesPageURL)
-		metadata["itunesId"] = store.NullString(itunesID)
-		metadata["itunesArtistId"] = store.NullString(itunesArtistID)
-		metadata["language"] = store.NullString(language)
-		metadata["podcastType"] = store.NullString(podcastType)
-		metadata["explicit"] = explicit != 0
-		metadata["genres"] = decodeJSONValue(genres)
-		media["tags"] = decodeJSONValue(tags)
-	} else {
-		return fmt.Errorf("scanner: unsupported metadata media type %q", mediaType)
-	}
-	settings := map[string]any{"storeMetadataWithItem": false, "metadataFileFormat": "json"}
-	var settingsRaw []byte
-	if err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settingsRaw); err == nil {
-		_ = json.Unmarshal(settingsRaw, &settings)
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	return WriteItemMetadata(ctx, s.db, s.cfg, itemID, mediaType, media, settings)
-}
-
-func decodeJSONValue(raw []byte) any {
-	if len(raw) == 0 || string(raw) == "null" {
-		return []any{}
-	}
-	var value any
-	if json.Unmarshal(raw, &value) != nil {
-		return []any{}
-	}
-	return value
-}
-
 func bookMetadataObject(media, metadata map[string]any) map[string]any {
 	authors := []string{}
-	if values := anySlice(metadata["authors"]); len(values) > 0 {
+	if values, _ := metadata["authors"].([]any); len(values) > 0 {
 		for _, v := range values {
 			if m, ok := v.(map[string]any); ok {
 				if name, _ := m["name"].(string); name != "" {
@@ -216,7 +75,7 @@ func bookMetadataObject(media, metadata map[string]any) map[string]any {
 		}
 	}
 	series := []string{}
-	if values := anySlice(metadata["series"]); len(values) > 0 {
+	if values, _ := metadata["series"].([]any); len(values) > 0 {
 		for _, v := range values {
 			m, ok := v.(map[string]any)
 			if !ok {
@@ -244,26 +103,6 @@ func valueOrEmpty(v any) any {
 		return []any{}
 	}
 	return v
-}
-func anySlice(v any) []any {
-	switch values := v.(type) {
-	case []any:
-		return values
-	case []map[string]any:
-		out := make([]any, len(values))
-		for i, value := range values {
-			out[i] = value
-		}
-		return out
-	case []string:
-		out := make([]any, len(values))
-		for i, value := range values {
-			out[i] = value
-		}
-		return out
-	default:
-		return nil
-	}
 }
 func truth(v any) bool { b, _ := v.(bool); return b }
 func firstValue(values map[string]any, keys ...string) any {

@@ -172,7 +172,7 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	if err := exec.Command("node", "-e", "require('socket.io-client')").Run(); err != nil {
 		t.Skip("socket.io-client@4 is not installed; set NODE_PATH to a directory containing it")
 	}
-	db, dbPath := testDB(t)
+	db, _ := testDB(t)
 	secret := "realtime-integration-secret"
 	authHandler, err := identity.New(db, config.Config{JWTSecret: secret})
 	if err != nil {
@@ -275,15 +275,6 @@ async function connect(path, token, opts, id, username) {
 	}
 	if _, err := time.Parse("2006-01-02 15:04:05.000 -07:00", updatedAt); err != nil {
 		t.Fatalf("Socket.IO auth wrote a non-Sequelize updatedAt value %q: %v", updatedAt, err)
-	}
-	repo, err := store.OpenReadOnly(dbPath)
-	if err != nil {
-		t.Fatalf("identity-facing read-only store could not reopen after socket auth: %v", err)
-	}
-	defer repo.Close()
-	user, err := repo.UserByID(context.Background(), "user-1")
-	if err != nil || user.LastSeen == nil || user.UpdatedAt == nil {
-		t.Fatalf("identity-facing user read after socket auth: user=%+v err=%v", user, err)
 	}
 }
 

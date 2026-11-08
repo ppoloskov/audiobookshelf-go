@@ -16,7 +16,6 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // shareRow is one mediaItemShares row as ShareManager keeps it in memory.
@@ -49,8 +48,8 @@ func shareResult(row sqlc.Mediaitemshare, err error) (shareRow, error) {
 }
 
 // wire is MediaItemShare.toJSONForClient: Date attributes as ISO strings.
-func (s shareRow) wire() wire.MediaItemShare {
-	out := wire.MediaItemShare{
+func (s shareRow) wire() MediaItemShare {
+	out := MediaItemShare{
 		ID: s.ID, MediaItemID: s.MediaItemID, MediaItemType: s.MediaItemType, Slug: s.Slug,
 		CreatedAt: dbtime.JSDate(s.CreatedAt), UpdatedAt: dbtime.JSDate(s.UpdatedAt),
 	}
@@ -97,7 +96,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return httputil.Status(400, "Invalid media item type")
 	}
 	ctx := r.Context()
-	q := h.queries()
+	q := sqlc.New(h.db)
 	existingMedia, err := q.GetShareMediaIDBySlugOrMedia(ctx, sqlc.GetShareMediaIDBySlugOrMediaParams{Slug: slug, MediaID: mediaID})
 	if err == nil {
 		if existingMedia.String == mediaID {
@@ -163,14 +162,14 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")
-	share, err := shareResult(h.queries().GetMediaItemShare(r.Context(), id))
+	share, err := shareResult(sqlc.New(h.db).GetMediaItemShare(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(404, "Media item share not found")
 	}
 	if err != nil {
 		return httputil.Internal("Internal server error", err)
 	}
-	if err = h.queries().DeleteMediaItemShare(r.Context(), id); err != nil {
+	if err = sqlc.New(h.db).DeleteMediaItemShare(r.Context(), id); err != nil {
 		return httputil.Internal("Internal server error", err)
 	}
 	h.dropShareSessions(id)
@@ -195,7 +194,7 @@ var errShareGone = errors.New("share expired")
 
 // findShare is ShareManager.findBySlug.
 func (h *Handler) findShare(ctx context.Context, slug string) (shareRow, error) {
-	return shareResult(h.queries().GetMediaItemShareBySlug(ctx, slug))
+	return shareResult(sqlc.New(h.db).GetMediaItemShareBySlug(ctx, slug))
 }
 
 // loadShare is findShare plus the expiry check of
@@ -207,7 +206,7 @@ func (h *Handler) loadShare(ctx context.Context, slug string) (shareRow, error) 
 		return shareRow{}, err
 	}
 	if !share.ExpiresAt.IsZero() && share.ExpiresAt.Before(time.Now()) {
-		_ = h.queries().DeleteMediaItemShare(ctx, share.ID)
+		_ = sqlc.New(h.db).DeleteMediaItemShare(ctx, share.ID)
 		h.dropShareSessions(share.ID)
 		if h.emit != nil {
 			h.emit("@admins", "share_closed", share.wire())

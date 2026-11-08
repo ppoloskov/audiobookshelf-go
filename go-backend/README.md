@@ -57,8 +57,7 @@ A new database is created only when the configured file is absent. An existing
 database must match the pinned migration version; it is never recreated or
 migrated implicitly. Build the web client with `npm ci && npm run generate` in
 `client/` and set `ABS_GO_CLIENT_PATH` to its `dist` if the default lookup
-fails. `ABS_GO_READ_ONLY=1` is a development option for a restricted read-only
-surface, not a full read-only mode.
+fails.
 
 ## Verify
 
@@ -92,7 +91,7 @@ rollback evidence stay unchanged. The machine-readable assertion/reconciliation
 manifests preserve explicit denominators; Monstrobook imports and scores were
 not changed. See the implementation report for actual checks and three skips.
 
-`cmd/abs-compat` compares GET/HEAD responses of two running servers ad hoc.
+`tools/parity` is the one harness that compares two running servers.
 
 ## Docker image
 
@@ -239,7 +238,7 @@ The following deletion wave removes 158 lines overall, leaving a net 36-line
 increase since pre-I05 and 23 fewer complexity points. Baselines were lowered
 with the existing tool; strict guards remain. S9a drops only ordered-key JSON
 scaffolding after real mutation-response tests; cache/range/MIME options remain.
-The restricted read-only HTTP mode was audited and is active, so its behavior
-is retained while duplicate prefix methods are gone. L04/L05 now complete list
+The restricted read-only HTTP mode (`ABS_GO_READ_ONLY`) was later removed by
+owner decision (F21); duplicate prefix methods are gone. L04/L05 now complete list
 HTTP ownership with another 29-line reduction; none of this proves a large
 consolidation wave. E01/E03 evidence and an end-to-end deletion case gate further extraction.

@@ -6,28 +6,21 @@ package bootstrap
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/version"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/config"
-	_ "modernc.org/sqlite"
 )
-
-const baseline = "2.37.2"
-
-// ErrReadOnlyDatabaseMissing is returned when read-only mode is requested but
-// the configured database file does not exist.
-var ErrReadOnlyDatabaseMissing = errors.New("bootstrap: database is absent in read-only mode")
 
 var ensureMu sync.Mutex
 
@@ -51,13 +44,11 @@ type settingsAsset struct {
 
 // Ensure creates config and metadata directories and initializes a database
 // only when absdatabase.sqlite is absent. Existing files are verified against
-// the pinned migrationsMeta state without writes. ABS_GO_READ_ONLY=1 prevents
-// all filesystem/database initialization.
+// the pinned migrationsMeta state without writes.
 func Ensure(cfg config.Config) error {
 	ensureMu.Lock()
 	defer ensureMu.Unlock()
-	readOnly := strings.TrimSpace(os.Getenv("ABS_GO_READ_ONLY")) == "1"
-	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
+	dbPath := store.DatabasePath(cfg.ConfigPath)
 	if _, err := os.Stat(dbPath); err == nil {
 		if err := verifyRacedExisting(dbPath); err != nil {
 			return err
@@ -68,16 +59,11 @@ func Ensure(cfg config.Config) error {
 		return fmt.Errorf("bootstrap: inspect database: %w", err)
 	}
 	logging.Infof("[Database] absdatabase.sqlite not found at %s", dbPath) // Database.js:166
-	if readOnly {
-		return ErrReadOnlyDatabaseMissing
-	}
 	if err := os.MkdirAll(cfg.ConfigPath, 0o755); err != nil {
 		return fmt.Errorf("bootstrap: create config directory: %w", err)
 	}
-	if cfg.MetadataPath != "" {
-		if err := os.MkdirAll(cfg.MetadataPath, 0o755); err != nil {
-			return fmt.Errorf("bootstrap: create metadata directory: %w", err)
-		}
+	if err := os.MkdirAll(cfg.MetadataPath, 0o755); err != nil {
+		return fmt.Errorf("bootstrap: create metadata directory: %w", err)
 	}
 	file, err := os.OpenFile(dbPath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
 	if err != nil {
@@ -116,37 +102,38 @@ func verifyRacedExisting(path string) error {
 }
 
 func verifyExisting(path string) error {
-	db, err := openReadOnly(path)
+	st, err := store.OpenUnchecked(path)
 	if err != nil {
 		return fmt.Errorf("bootstrap: open existing database: %w", err)
 	}
-	defer db.Close()
-	var version, maxVersion string
-	if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = 'version' LIMIT 1`).Scan(&version); err != nil {
+	defer st.Close()
+	db := st.DB()
+	var current, maxVersion string
+	if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = 'version' LIMIT 1`).Scan(&current); err != nil {
 		return fmt.Errorf("bootstrap: read migrationsMeta version: %w", err)
 	}
 	if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = 'maxVersion' LIMIT 1`).Scan(&maxVersion); err != nil {
 		return fmt.Errorf("bootstrap: read migrationsMeta maxVersion: %w", err)
 	}
-	if version != baseline || maxVersion != baseline {
-		return fmt.Errorf("bootstrap: existing database migration state is %q/%q; pinned baseline is %s", version, maxVersion, baseline)
+	if current != version.Server || maxVersion != version.Server {
+		return fmt.Errorf("bootstrap: existing database migration state is %q/%q; pinned baseline is %s", current, maxVersion, version.Server)
 	}
 	return nil
 }
 
 func initializeNew(path string, cfg config.Config) (retErr error) {
-	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)")
+	st, err := store.OpenUnchecked(path)
 	if err != nil {
 		return fmt.Errorf("bootstrap: open new database: %w", err)
 	}
 	defer func() {
-		if err := db.Close(); retErr == nil && err != nil {
+		if err := st.Close(); retErr == nil && err != nil {
 			retErr = fmt.Errorf("bootstrap: close initialized database: %w", err)
 		}
 	}()
-	db.SetMaxOpenConns(1)
+	db := st.DB()
 	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, `PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA user_version = 0;`); err != nil {
+	if _, err := db.ExecContext(ctx, `PRAGMA user_version = 0`); err != nil {
 		return fmt.Errorf("bootstrap: set SQLite pragmas: %w", err)
 	}
 	tx, err := db.BeginTx(ctx, nil)
@@ -186,13 +173,13 @@ func initializeNew(path string, cfg config.Config) (retErr error) {
 			continue
 		}
 		if row.Key == "server-settings" {
-			backupPath := os.Getenv("BACKUP_PATH")
+			backupPath := serversettings.EnvBackupPath()
 			if backupPath == "" {
 				backupPath = filepath.Join(cfg.MetadataPath, "backups")
 			}
 			row.Value["backupPath"] = backupPath
 			row.Value["authOpenIDTokenSigningAlgorithm"] = "RS256"
-			if os.Getenv("ALLOW_IFRAME") == "1" {
+			if serversettings.EnvAllowIframe() {
 				row.Value["allowIframe"] = true
 			}
 		}
@@ -210,29 +197,6 @@ func initializeNew(path string, cfg config.Config) (retErr error) {
 	}
 	committed = true
 	return nil
-}
-
-func openReadOnly(path string) (*sql.DB, error) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-	u := url.URL{Scheme: "file", Path: abs}
-	query := u.Query()
-	query.Set("mode", "ro")
-	query.Add("_pragma", "query_only(1)")
-	query.Add("_pragma", "busy_timeout(5000)")
-	u.RawQuery = query.Encode()
-	db, err := sql.Open("sqlite", u.String())
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
-		return nil, err
-	}
-	return db, nil
 }
 
 func sqlDate(t time.Time) string {

@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"slices"
 
@@ -30,9 +31,7 @@ func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...
 	if err != nil {
 		return libitem.Expanded{}, err
 	}
-	var settings []byte
-	_ = s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
-	item := it.Expanded(libitem.SortingPrefixes(settings))
+	item := it.Expanded(serversettings.Load(ctx, s.db).SortingPrefixes())
 	if media, ok := item.Media.(libitem.BookExpanded); ok && len(scannedPaths) > 0 {
 		instanceShape(media.AudioFiles, scannedPaths)
 		instanceShape(media.Tracks, scannedPaths)

@@ -135,13 +135,3 @@ func OK(w http.ResponseWriter, r *http.Request) error {
 	SendStatus(w, http.StatusOK, ForRequest(r))
 	return nil
 }
-
-// Decode reads one JSON value from the request body into v; a malformed body
-// is a 400.
-func Decode(r *http.Request, v any) error {
-	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		return Status(http.StatusBadRequest, "Invalid request body")
-	}
-	return nil
-}

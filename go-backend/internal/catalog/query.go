@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/store"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -8,9 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/store"
 )
 
 // Library item list queries are data. filterDefs and sortDefs hold the SQL of

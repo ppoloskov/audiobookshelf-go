@@ -6,9 +6,10 @@ package catalog
 import (
 	"archive/zip"
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/logging"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -18,55 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
-
-// libraryRecord is the part of a library row the routes below use.
-type libraryRecord struct {
-	id, name, mediaType, provider string
-	settings                      json.RawMessage
-}
-
-// libraryAccess is LibraryController.middleware (LibraryController.js:1475-1499):
-// 403 for a library the user cannot access, 404 'Library not found', and 400
-// when limit or page is not a non-negative integer.
-func (h *Handler) libraryAccess(r *http.Request, user store.User) (libraryRecord, error) {
-	id := r.PathValue("id")
-	if !access.For(r.Context(), user).Library(id) {
-		logging.Warnf("[LibraryController] Library %s not accessible to user %s", id, user.Username)
-		return libraryRecord{}, httputil.Status(http.StatusForbidden, "")
-	}
-	var library libraryRecord
-	var settings sql.NullString
-	err := h.db.QueryRowContext(r.Context(), `SELECT id,name,mediaType,provider,settings FROM libraries WHERE id=?`, id).Scan(&library.id, &library.name, &library.mediaType, &library.provider, &settings)
-	if errors.Is(err, sql.ErrNoRows) {
-		return library, httputil.Status(http.StatusNotFound, "Library not found")
-	}
-	if err != nil {
-		return library, httputil.Internal("database read failed", err)
-	}
-	library.settings = json.RawMessage(settings.String)
-	for _, key := range []string{"limit", "page"} {
-		raw, present := r.URL.Query()[key]
-		if !present {
-			continue
-		}
-		// `!isNaN(v) ? Number(v) : 0`, then it must be a non-negative integer.
-		n, parseErr := strconv.ParseFloat(strings.TrimSpace(raw[0]), 64)
-		if parseErr != nil {
-			if strings.TrimSpace(raw[0]) != "" {
-				n = 0
-			}
-		}
-		if n != float64(int64(n)) || n < 0 {
-			return library, httputil.Status(http.StatusBadRequest, "Invalid request. "+key+" must be a positive integer")
-		}
-	}
-	return library, nil
-}
 
 // opmlEscape is escapeForXML (libs/xml/escapeForXML.js).
 func opmlEscape(s string) string {
@@ -112,12 +65,8 @@ func generateOPML(podcasts []opmlPodcast) string {
 
 // libraryOPML is LibraryController.getOPMLFile (LibraryController.js:1306-1327):
 // the library's podcasts the user may see, as application/xml.
-func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	library, err := h.libraryAccess(r, user)
-	if err != nil {
-		return err
-	}
+func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request, library libraryScope) error {
+	user := library.user
 	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
 	if err != nil {
@@ -146,12 +95,8 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request) error {
 // libraryRemoveMetadata is LibraryController.removeAllMetadataFiles
 // (LibraryController.js:1333-1375): admins delete the metadata.json (or, with
 // ext=abs, metadata.abs) file of every item whose library files list one.
-func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	library, err := h.libraryAccess(r, user)
-	if err != nil {
-		return err
-	}
+func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request, library libraryScope) error {
+	user := library.user
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-admin user "%s" attempted to remove all metadata files`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
@@ -221,12 +166,8 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request) 
 // (LibraryController.js:1422-1465): the items named by ?ids (comma separated)
 // of this library as one zip, each item under its folder name (a single-file
 // item as that file), stored without compression.
-func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	library, err := h.libraryAccess(r, user)
-	if err != nil {
-		return err
-	}
+func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, library libraryScope) error {
+	user := library.user
 	if !access.For(r.Context(), user).Download() {
 		logging.Warnf(`User "%s" attempted to download without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")

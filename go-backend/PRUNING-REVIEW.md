@@ -20,8 +20,8 @@ scaffolding (42). Combined measured source falls **158 lines** and complexity
 codec full Go suite PASS. Tests protect real response values/headers and old
 nullable SQL semantics; no routes, security checks or stored formats removed.
 
-The read-only HTTP implementation was audited separately and is active via
-ABS_GO_READ_ONLY; its behavior is retained. PR05/PR06 are accepted in the
+The read-only HTTP implementation (ABS_GO_READ_ONLY) was audited separately;
+it was later removed by owner decision (F21). PR05/PR06 are accepted in the
 subsequent wave below; the later MC-05/S9b decision is recorded in its evidence report.
 See ROADMAP for actual DONE markers and TESTING.md for the fixed environment.
 

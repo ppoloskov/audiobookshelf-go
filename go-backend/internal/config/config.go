@@ -1,5 +1,5 @@
-// Package config contains the small set of process settings used by the first
-// experimental HTTP server slice.
+// Package config contains the process settings: ports, directories and the
+// few environment switches the server reads at startup.
 package config
 
 import (
@@ -12,8 +12,7 @@ import (
 )
 
 // Config is the normalized process configuration. CONFIG_PATH and
-// METADATA_PATH follow the upstream directory defaults; this read-only slice
-// never creates or mutates either directory.
+// METADATA_PATH follow the upstream directory defaults.
 type Config struct {
 	Port           int
 	Host           string
@@ -23,7 +22,6 @@ type Config struct {
 	ClientPath     string
 	Source         string
 	JWTSecret      string
-	ReadOnly       bool
 }
 
 // LoadArgs applies the command line options supported by index.js over the
@@ -96,7 +94,7 @@ func LoadArgs(args []string) (Config, error) {
 		Port: port, Host: strings.TrimSpace(host),
 		ConfigPath: configPath, MetadataPath: metadataPath,
 		RouterBasePath: base, ClientPath: clientPath, Source: source,
-		JWTSecret: os.Getenv("JWT_SECRET_KEY"), ReadOnly: os.Getenv("ABS_GO_READ_ONLY") == "1",
+		JWTSecret: os.Getenv("JWT_SECRET_KEY"),
 	}, nil
 }
 

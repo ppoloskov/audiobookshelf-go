@@ -1,6 +1,7 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/version"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -14,8 +15,6 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/store"
 )
-
-const serverVersion = "2.37.2"
 
 // shareDevice is PlaybackSessionManager.getDeviceInfo for a public share
 // visit (server/managers/PlaybackSessionManager.js:52): DeviceInfo.setData
@@ -48,15 +47,15 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 	case err == nil:
 		id = existing
 		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`,
-			clientName, serverVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, id)
+			clientName, version.Server, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, id)
 	case errors.Is(err, sql.ErrNoRows):
 		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,NULL,?,?)`,
-			id, shareSessionID, clientName, serverVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, now)
+			id, shareSessionID, clientName, version.Server, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(browserVersion), string(extraRaw), now, now)
 	}
 	if err != nil {
 		return nil, err
 	}
-	info := map[string]any{"id": id, "deviceId": shareSessionID, "clientVersion": serverVersion, "clientName": clientName}
+	info := map[string]any{"id": id, "deviceId": shareSessionID, "clientVersion": version.Server, "clientName": clientName}
 	for key, value := range map[string]string{"ipAddress": ip, "browserName": browser, "browserVersion": browserVersion, "osName": osName, "osVersion": osVersion, "deviceName": deviceName} {
 		if value != "" {
 			info[key] = value

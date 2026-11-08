@@ -7,6 +7,7 @@ import (
 
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/textsort"
 )
 
 // JSONNull sets a decorator to an explicit JSON null (the zero value omits it).
@@ -140,39 +141,6 @@ func (it Item) ListRow(prefixes []string) Minified {
 	return m
 }
 
-// SortingPrefixes reads sortingPrefixes from the server-settings JSON; non-string
-// entries are skipped and the default is ["the","a"].
-func SortingPrefixes(settings []byte) []string {
-	var parsed struct {
-		Prefixes []any `json:"sortingPrefixes"`
-	}
-	if json.Unmarshal(settings, &parsed) != nil || parsed.Prefixes == nil {
-		return []string{"the", "a"}
-	}
-	out := make([]string, 0, len(parsed.Prefixes))
-	for _, v := range parsed.Prefixes {
-		if s, ok := v.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// TitleIgnorePrefix moves a leading sorting prefix to the end ("The Hobbit"
-// becomes "Hobbit, The"), as getTitlePrefixAtEnd does.
-func TitleIgnorePrefix(title string, prefixes []string) string {
-	for _, prefix := range prefixes {
-		if len(title) > len(prefix) && strings.EqualFold(title[:len(prefix)], prefix) && title[len(prefix)] == ' ' {
-			capPrefix := prefix
-			if capPrefix != "" {
-				capPrefix = strings.ToUpper(capPrefix[:1]) + capPrefix[1:]
-			}
-			return title[len(prefix)+1:] + ", " + capPrefix
-		}
-	}
-	return title
-}
-
 // ---- books ----
 
 type BookMetadataFull struct {
@@ -278,7 +246,7 @@ func (b *Book) titlePrefix(prefixes []string) *string {
 	if b.Title == nil {
 		return nil
 	}
-	v := TitleIgnorePrefix(*b.Title, prefixes)
+	v := textsort.PrefixAtEnd(*b.Title, prefixes)
 	return &v
 }
 
@@ -491,7 +459,7 @@ func (p *Podcast) media(it Item, prefixes []string, full, expanded bool) Podcast
 		if p.Title != nil {
 			title = *p.Title
 		}
-		prefix := TitleIgnorePrefix(title, prefixes)
+		prefix := textsort.PrefixAtEnd(title, prefixes)
 		m.Metadata.TitleIgnorePrefix = &prefix
 		var n, size int64
 		m.NumEpisodes, m.Size = &n, &size

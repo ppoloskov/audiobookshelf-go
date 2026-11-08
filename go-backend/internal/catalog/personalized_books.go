@@ -1,6 +1,9 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"encoding/json"
 	"math"
@@ -9,29 +12,11 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // Book home-page shelves that LibraryItem.getPersonalizedShelves
 // (server/models/LibraryItem.js:384-491) adds for book libraries besides the
 // progress and recently-added shelves.
-
-type bookLibrarySettings struct {
-	HideSingleBookSeries               bool `json:"hideSingleBookSeries"`
-	OnlyShowLaterBooksInContinueSeries bool `json:"onlyShowLaterBooksInContinueSeries"`
-}
-
-func (h *Handler) bookLibrarySettings(ctx context.Context, libraryID string) bookLibrarySettings {
-	var raw []byte
-	var settings bookLibrarySettings
-	if h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, libraryID).Scan(&raw) == nil {
-		_ = json.Unmarshal(raw, &settings)
-	}
-	return settings
-}
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
@@ -70,7 +55,7 @@ type seriesRow struct {
 func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 	h, ctx, user, libraryID, limit := e.h, e.r.Context(), e.user, e.libraryID, e.limit
 	var q shelfQuery
-	settings := h.bookLibrarySettings(ctx, libraryID)
+	settings := e.settings
 	var extra struct {
 		SeriesHideFromContinueListening []string `json:"seriesHideFromContinueListening"`
 	}
@@ -196,7 +181,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 				// book.series = [] before toOldJSONMinified, then metadata.series
 				// is replaced with the continued series.
 				metadata.SeriesName = ""
-				metadata.Series = &wire.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
+				metadata.Series = &bookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
 			})
 		}
 		return attach(items)
@@ -240,9 +225,10 @@ done:
 func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	h, ctx, permission, permissionArgs := e.h, e.r.Context(), e.perm, e.permArgs
 	var q shelfQuery
+	prefixes := h.sortingPrefixes(ctx)
 	where := ` FROM series s WHERE s.libraryId = ? AND s.createdAt >= ?`
 	args := []any{e.libraryID, sixtyDaysAgo()}
-	if h.bookLibrarySettings(ctx, e.libraryID).HideSingleBookSeries {
+	if e.settings.HideSingleBookSeries {
 		where += ` AND (SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = s.id AND bs.bookId = b.id) > 1`
 	}
 	if permission != "" {
@@ -257,16 +243,17 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 		return q, err
 	}
 	defer rows.Close()
-	var entries []wire.SeriesShelfEntry
+	var entries []seriesShelfEntry
 	for rows.Next() {
-		var entry wire.SeriesShelfEntry
-		var created, updated any
-		if err := rows.Scan(&entry.ID, &entry.Name, &entry.Description, &created, &updated, &entry.LibraryID); err != nil {
+		var rec seriesRecord
+		if err := rows.Scan(&rec.id, &rec.name, &rec.description, &rec.createdAt, &rec.updatedAt, &rec.libraryID); err != nil {
 			return q, err
 		}
-		entry.AddedAt, _ = dbtime.OptionalMillis(created)
-		entry.UpdatedAt, _ = dbtime.OptionalMillis(updated)
-		entries = append(entries, entry)
+		view, err := newSeriesView(rec, prefixes)
+		if err != nil {
+			return q, err
+		}
+		entries = append(entries, seriesShelfEntry{seriesView: view})
 	}
 	if err := rows.Err(); err != nil {
 		return q, err
@@ -278,10 +265,6 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	members := make([]int, len(entries))
 	for i := range entries {
 		entry := &entries[i]
-		if entry.Name != nil {
-			prefixed := h.titlePrefix(ctx, *entry.Name)
-			entry.NameIgnorePrefix = &prefixed
-		}
 		if includeHas(e.r, "rssfeed") {
 			if feed, ok, err := h.feedMinified(ctx, "", entry.ID); err != nil {
 				return q, err
@@ -321,7 +304,7 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 			if b == nil || *b == "" {
 				return true
 			}
-			return naturalCompare(*a, *b) < 0
+			return textsort.NaturalBaseCompare(*a, *b) < 0
 		})
 		members[i] = len(books)
 		for _, m := range books {
@@ -344,45 +327,6 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 		return out, nil
 	}
 	return q, nil
-}
-
-// naturalCompare approximates ICU localeCompare with numeric collation and
-// base sensitivity: digit runs compare numerically, other text
-// case-insensitively.
-func naturalCompare(a, b string) int {
-	for a != "" && b != "" {
-		da, ra := leadingDigits(a)
-		db, rb := leadingDigits(b)
-		if da != "" && db != "" {
-			na, _ := strconv.ParseFloat(da, 64)
-			nb, _ := strconv.ParseFloat(db, 64)
-			if na != nb {
-				if na < nb {
-					return -1
-				}
-				return 1
-			}
-			a, b = ra, rb
-			continue
-		}
-		ca, cb := unicode.ToLower(rune(a[0])), unicode.ToLower(rune(b[0]))
-		if ca != cb {
-			if ca < cb {
-				return -1
-			}
-			return 1
-		}
-		a, b = a[1:], b[1:]
-	}
-	return len(a) - len(b)
-}
-
-func leadingDigits(s string) (string, string) {
-	i := 0
-	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
-		i++
-	}
-	return s[:i], s[i:]
 }
 
 // discover mirrors libraryItemsBookFilters.getDiscoverLibraryItems
@@ -440,14 +384,16 @@ func (e *shelfEnv) newestAuthors() (shelfQuery, error) {
 	defer rows.Close()
 	var authors []any
 	for rows.Next() {
-		var a wire.AuthorShelfEntry
-		var created, updated any
-		if err := rows.Scan(&a.ID, &a.ASIN, &a.Name, &a.Description, &a.ImagePath, &a.LibraryID, &created, &updated, &a.NumBooks); err != nil {
+		var a authorRecord
+		var numBooks int
+		if err := rows.Scan(&a.id, &a.asin, &a.name, &a.description, &a.imagePath, &a.libraryID, &a.createdAt, &a.updatedAt, &numBooks); err != nil {
 			return q, err
 		}
-		a.AddedAt, _ = dbtime.OptionalMillis(created)
-		a.UpdatedAt, _ = dbtime.OptionalMillis(updated)
-		authors = append(authors, a)
+		view, err := a.toOldJSON()
+		if err != nil {
+			return q, err
+		}
+		authors = append(authors, authorWithBooks{view, numBooks})
 	}
 	q.build = func([]shelfItem) ([]any, error) { return authors, nil }
 	return q, rows.Err()

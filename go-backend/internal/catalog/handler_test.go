@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -474,13 +476,13 @@ func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (m
 		return nil, err
 	}
 	metadata := media["metadata"].(map[string]any)
-	metadata["titleIgnorePrefix"] = h.titlePrefix(t.Context(), stringValue(metadata["title"]))
+	metadata["titleIgnorePrefix"] = textsort.PrefixAtEnd(stringValue(metadata["title"]), h.sortingPrefixes(t.Context()))
 	authors := metadata["authors"].([]map[string]any)
 	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
 	for _, author := range authors {
 		name := stringValue(author["name"])
 		authorNames = append(authorNames, name)
-		authorNamesLF = append(authorNamesLF, lastFirst(name))
+		authorNamesLF = append(authorNamesLF, nameparse.ToLastFirst(name))
 	}
 	metadata["authorName"] = strings.Join(authorNames, ", ")
 	metadata["authorNameLF"] = strings.Join(authorNamesLF, ", ")
@@ -660,10 +662,10 @@ func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded 
 	if err != nil {
 		return nil, err
 	}
-	narrators := decodeStrings(row.narrators)
-	genres, tags := decodeStrings(row.genres), decodeStrings(row.tags)
-	audio, chapters := decodeArray(row.audio), decodeArray(row.chapters)
-	ebook := decodeObject(row.ebook)
+	narrators := store.DecodeJSONSlice[string](row.narrators)
+	genres, tags := store.DecodeJSONSlice[string](row.genres), store.DecodeJSONSlice[string](row.tags)
+	audio, chapters := store.DecodeJSONSlice[map[string]any](row.audio), store.DecodeJSONSlice[map[string]any](row.chapters)
+	ebook := store.DecodeJSONObject(row.ebook)
 	if len(ebook) == 0 || string(row.ebook) == "null" {
 		ebook = nil
 	}
@@ -671,7 +673,7 @@ func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded 
 	for _, author := range authors {
 		name := stringValue(author["name"])
 		authorNames = append(authorNames, name)
-		authorNamesLF = append(authorNamesLF, lastFirst(name))
+		authorNamesLF = append(authorNamesLF, nameparse.ToLastFirst(name))
 	}
 	seriesNames := make([]string, 0, len(series))
 	for _, entry := range series {
@@ -688,7 +690,7 @@ func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded 
 		"explicit": row.explicit != 0, "abridged": row.abridged != 0,
 	}
 	minMetadata := map[string]any{
-		"title": store.NullString(row.title), "titleIgnorePrefix": h.titlePrefix(ctx, row.title.String), "subtitle": store.NullString(row.subtitle),
+		"title": store.NullString(row.title), "titleIgnorePrefix": textsort.PrefixAtEnd(row.title.String, h.sortingPrefixes(ctx)), "subtitle": store.NullString(row.subtitle),
 		"authorName": strings.Join(authorNames, ", "), "authorNameLF": strings.Join(authorNamesLF, ", "), "narratorName": strings.Join(narrators, ", "),
 		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": store.NullString(row.year), "publishedDate": store.NullString(row.publishedDate),
 		"publisher": store.NullString(row.publisher), "description": store.NullString(row.description), "isbn": store.NullString(row.isbn), "asin": store.NullString(row.asin),
@@ -885,30 +887,33 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 	requireOpaqueETag(t, w.Header().Get("ETag"))
 }
 
-func TestLibraryJSONIncludesNullLastScanVersion(t *testing.T) {
+func TestLibraryViewIncludesNullLastScanVersion(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
 	h := New(db, config.Config{}, nil)
 
-	got, err := h.libraryJSON(t.Context(), "l1")
+	got, err := h.libraryView(t.Context(), "l1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if value, ok := got["lastScanVersion"]; !ok || value != nil {
-		t.Fatalf("lastScanVersion should be present as null: %#v", got)
+	raw, _ := json.Marshal(got)
+	var fields map[string]any
+	_ = json.Unmarshal(raw, &fields)
+	if value, ok := fields["lastScanVersion"]; !ok || value != nil {
+		t.Fatalf("lastScanVersion should be present as null: %s", raw)
 	}
-	if _, ok := got["lastScan"]; !ok || got["lastScan"] != nil {
-		t.Fatalf("lastScan must remain present as null: %#v", got)
+	if value, ok := fields["lastScan"]; !ok || value != nil {
+		t.Fatalf("lastScan must remain present as null: %s", raw)
 	}
 	if _, err := db.Exec(`UPDATE libraries SET lastScanVersion='2.37.2' WHERE id='l1'`); err != nil {
 		t.Fatal(err)
 	}
-	got, err = h.libraryJSON(t.Context(), "l1")
+	got, err = h.libraryView(t.Context(), "l1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got["lastScanVersion"] != "2.37.2" {
-		t.Fatalf("lastScanVersion=%#v", got["lastScanVersion"])
+	if got.LastScanVersion == nil || *got.LastScanVersion != "2.37.2" {
+		t.Fatalf("lastScanVersion=%v", got.LastScanVersion)
 	}
 }
 
@@ -1362,7 +1367,7 @@ func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId=?`, id).Scan(&folderCount); err != nil {
 		t.Fatal(err)
 	}
-	if name != "Renamed" || folderCount != 2 || decodeObject(settingsRaw)["disableWatcher"] != true {
+	if name != "Renamed" || folderCount != 2 || store.DecodeJSONObject(settingsRaw)["disableWatcher"] != true {
 		t.Fatalf("name=%s folders=%d settings=%s", name, folderCount, settingsRaw)
 	}
 }
@@ -1846,4 +1851,16 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	}
 	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 	return true
+}
+
+func number(v any) int64 {
+	switch n := v.(type) {
+	case float64:
+		return int64(n)
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	}
+	return 0
 }

@@ -1,6 +1,11 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/textclean"
 	"bytes"
 	"context"
 	"database/sql"
@@ -10,10 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"audiobookshelf-compat/internal/events"
-	"audiobookshelf-compat/internal/itemwrite"
-	"audiobookshelf-compat/internal/textclean"
 )
 
 // env is what the follow-up of an author or series edit touches.
@@ -34,6 +35,20 @@ func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error
 	return nil
 }
 
+// itemUpdated announces item_updated with the expanded item
+// (SocketAuthority.libraryItemEmitter).
+func (h *Handler) itemUpdated(ctx context.Context, itemID string) error {
+	if h.emit == nil {
+		return nil
+	}
+	expanded, err := h.ItemJSON(ctx, itemID, true)
+	if err != nil {
+		return err
+	}
+	h.emit("*", "item_updated", expanded)
+	return nil
+}
+
 // ItemChanged is the end of an item mutation: the metadata file is rewritten
 // and item_updated carries the expanded item. The admin tag and genre routes
 // use it too.
@@ -41,9 +56,61 @@ func (h *Handler) ItemChanged(ctx context.Context, itemID string) error {
 	if err := h.saveMetadataFiles(ctx, []string{itemID}); err != nil {
 		return err
 	}
-	if h.emit != nil {
-		if expanded, err := h.ItemJSON(ctx, itemID, true); err == nil {
-			h.emit("*", "item_updated", expanded)
+	return h.itemUpdated(ctx, itemID)
+}
+
+// coverChanged follows an UPDATE of an item's coverPath: when it changed a row
+// the item is stamped, its cover cache dropped and item_updated sent.
+func (h *Handler) coverChanged(ctx context.Context, res sql.Result, itemID string) error {
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	if _, err := h.db.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), itemID); err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	h.purgeCoverCache(itemID)
+	if err := h.itemUpdated(ctx, itemID); err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	return nil
+}
+
+// itemWrite is one item's part of a media write: the relation changes its
+// edit collected and what the follow-up owes the item.
+type itemWrite struct {
+	itemID, libraryID string
+	changes           itemwrite.Changes
+	updated           bool // item_updated and the metadata file
+	reschedule        bool // the podcast's auto-download cron changed
+}
+
+// finishItemWrites is what every media write does once its transaction has
+// committed, in one order: series that lost their last book are removed, the
+// events and filter data of the new relations go out, authors that lost their
+// last book are removed (LibraryItemController.js:233-262), then each updated
+// item is saved and announced and podcast cron entries are refreshed
+// (LibraryItemController.js:273-280). A batch finishes once for all its items,
+// so a series another item of the batch relinks is not swept.
+func (h *Handler) finishItemWrites(ctx context.Context, writes ...itemWrite) error {
+	var unlinked itemwrite.Changes
+	for _, w := range writes {
+		unlinked.Merge(itemwrite.Changes{AuthorsUnlinked: w.changes.AuthorsUnlinked, SeriesUnlinked: w.changes.SeriesUnlinked})
+	}
+	env := h.env()
+	env.SweepSeries(ctx, unlinked.SeriesUnlinked)
+	for _, w := range writes {
+		env.Announce(w.libraryID, &w.changes)
+	}
+	env.SweepAuthors(ctx, unlinked.AuthorsUnlinked)
+	for _, w := range writes {
+		if !w.updated {
+			continue
+		}
+		if err := h.ItemChanged(ctx, w.itemID); err != nil {
+			return err
+		}
+		if w.reschedule && h.podcastScheduleChanged != nil {
+			h.podcastScheduleChanged(ctx, w.itemID)
 		}
 	}
 	return nil
@@ -210,7 +277,7 @@ func (c *columnSet) update(ctx context.Context, tx *sql.Tx, table, id string) er
 		args = append(args, c.set[name])
 	}
 	sets = append(sets, `"updatedAt"=?`)
-	args = append(args, dbNow(), id)
+	args = append(args, dbtime.Now(), id)
 	_, err := tx.ExecContext(ctx, `UPDATE `+table+` SET `+strings.Join(sets, ",")+` WHERE id=?`, args...)
 	return err
 }

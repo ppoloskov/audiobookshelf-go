@@ -19,5 +19,4 @@ test/
 /dist-server/
 /.claude/
 /go-backend/audiobookshelf-go
-/go-backend/abs-compat
 /go-backend/*.test

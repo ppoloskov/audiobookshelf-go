@@ -10,8 +10,7 @@ import "net/http"
 type Option func(*options)
 
 type options struct {
-	contentType string
-	request     *http.Request
+	request *http.Request
 }
 
 func apply(opts []Option) options {
@@ -20,11 +19,6 @@ func apply(opts []Option) options {
 		opt(&o)
 	}
 	return o
-}
-
-// ContentType overrides the Content-Type of a text response.
-func ContentType(contentType string) Option {
-	return func(o *options) { o.contentType = contentType }
 }
 
 // ForRequest makes a HEAD request receive the headers of the GET response

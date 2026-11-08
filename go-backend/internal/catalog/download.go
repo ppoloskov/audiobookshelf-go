@@ -5,6 +5,7 @@ package catalog
 import (
 	"archive/zip"
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/httputil"
 	"database/sql"
 	"io"
 	"io/fs"
@@ -13,8 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"audiobookshelf-compat/internal/httputil"
 )
 
 // audioMIMEType mirrors utils/constants.js AudioMimeType +
@@ -107,7 +106,9 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		flusher.Flush()
 	}
 	zipWriter := zip.NewWriter(w)
-	walkErr := filepath.WalkDir(itemPath, func(p string, entry fs.DirEntry, walkErr error) error {
+	// Headers are already sent; upstream logs and ends the response the same
+	// way once the zip has started streaming.
+	_ = filepath.WalkDir(itemPath, func(p string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -138,11 +139,6 @@ func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 		}
 		return nil
 	})
-	if walkErr != nil {
-		// Headers are already sent; upstream logs and ends the response the
-		// same way once the zip has started streaming.
-		_ = walkErr
-	}
 	_ = zipWriter.Close()
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -19,7 +18,9 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/server"
+	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/version"
 )
 
 // fatal logs at FATAL (console, daily log and crash log) and exits, the way
@@ -46,54 +47,36 @@ func main() {
 		fatal("[Server] configuration error: %v", err)
 	}
 	logging.Info("=== Starting Server ===")
-	logging.Infof("[Server] Init v%s (Go backend build %s)", server.Version, buildCommit)
+	logging.Infof("[Server] Init v%s (Go backend build %s)", version.Server, buildCommit)
 	logging.Infof("[Server] Go Version: %s", runtime.Version())
 	logging.Infof("[Server] Platform: %s", runtime.GOOS)
 	logging.Infof("[Server] Arch: %s", runtime.GOARCH)
 	if err := bootstrap.Ensure(cfg); err != nil {
 		fatal("[Server] bootstrap error: %v", err)
 	}
-	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
-	var db *store.Store
-	if cfg.ReadOnly {
-		db, err = store.OpenReadOnly(dbPath)
-	} else {
-		db, err = store.OpenReadWrite(dbPath)
-	}
+	dbPath := store.DatabasePath(cfg.ConfigPath)
+	db, err := store.Open(dbPath)
 	if err != nil {
 		fatal("[Database] Failed to connect to db %q: %v", dbPath, err)
 	}
 	logging.Infof("[Database] Db connection was successful (%s)", dbPath)
 	// Upstream applies logLevel when ServerSettings loads, then initializes
 	// the LogManager (server/Server.js:186).
-	if settings, settingsErr := db.ServerSettings(context.Background()); settingsErr == nil {
-		server.ApplyLoggingSettings(settings)
+	if settings, settingsErr := serversettings.Get(context.Background(), db.DB()); settingsErr == nil {
+		server.ApplyLoggingSettings(settings.Doc())
 	} else {
 		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
 	}
-	if !cfg.ReadOnly {
-		if err := logging.Default().OpenFiles(cfg.MetadataPath); err != nil {
-			logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
-		}
+	if err := logging.Default().OpenFiles(cfg.MetadataPath); err != nil {
+		logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
 	}
-	var handler http.Handler
-	if cfg.ReadOnly {
-		readOnlyHandler, err := server.NewHandler(context.Background(), cfg, db)
-		if err != nil {
-			fatal("[Server] cannot start: %v", err)
-		}
-		handler = readOnlyHandler
-		defer db.Close()
-	} else {
-		manager, err := server.NewManager(db, cfg)
-		if err != nil {
-			fatal("[Server] cannot start: %v", err)
-		}
-		handler = manager
-		defer manager.Close()
+	manager, err := server.NewManager(db, cfg)
+	if err != nil {
+		fatal("[Server] cannot start: %v", err)
 	}
+	defer manager.Close()
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second,
+	srv := &http.Server{Addr: addr, Handler: manager, ReadHeaderTimeout: 10 * time.Second,
 		ErrorLog: log.New(logging.Default().Writer(logging.LevelError, "http"), "", 0)}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -106,11 +89,7 @@ func main() {
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
-	mode := "read-write"
-	if cfg.ReadOnly {
-		mode = "read-only"
-	}
-	logging.Infof("Experimental Audiobookshelf Go backend v%s (build %s); %s mode; SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", server.Version, buildCommit, mode, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
+	logging.Infof("Experimental Audiobookshelf Go backend v%s (build %s); SOURCE=%s; listen=%s; config=%s; metadata=%s; routerBasePath=%q", version.Server, buildCommit, cfg.Source, addr, cfg.ConfigPath, cfg.MetadataPath, cfg.RouterBasePath)
 	basePath := cfg.RouterBasePath
 	if basePath == "" {
 		basePath = "/"

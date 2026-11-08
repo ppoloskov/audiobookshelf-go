@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
@@ -45,7 +45,7 @@ func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store
 		if err := rows.Scan(&id, &ip, &agent, &created, &updated, &token, &last); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": parseUA(agent.String), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
+		sessions = append(sessions, map[string]any{"id": id, "ipAddress": store.NullString(ip), "userAgent": store.NullString(agent), "deviceInfo": deviceInfo(agent.String), "createdAt": dbtime.Millis(created), "updatedAt": dbtime.Millis(updated), "current": refresh != "" && (refresh == token.String || refresh == last.String)})
 	}
 	if err := rows.Err(); err != nil {
 		return httputil.Internal("database read failed", err)
@@ -82,53 +82,21 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	return httputil.OK(w, r)
 }
 
-func parseUA(agent string) map[string]any {
+// deviceInfo is the client description of a session (parseUserAgent.js); keys
+// of unrecognised parts are absent and a User-Agent with none yields null.
+func deviceInfo(agent string) map[string]any {
 	if agent == "" {
 		return nil
 	}
-	ua := strings.ToLower(agent)
+	info := deviceinfo.Parse(agent)
 	result := map[string]any{}
-	switch {
-	case strings.Contains(ua, "firefox/"):
-		result["browserName"], result["browserVersion"] = "Firefox", uaVersion(agent, "Firefox/")
-	case strings.Contains(ua, "edg/"):
-		result["browserName"], result["browserVersion"] = "Edge", uaVersion(agent, "Edg/")
-	case strings.Contains(ua, "chrome/"):
-		result["browserName"], result["browserVersion"] = "Chrome", uaVersion(agent, "Chrome/")
-	case strings.Contains(ua, "safari/"):
-		result["browserName"], result["browserVersion"] = "Safari", uaVersion(agent, "Version/")
-	}
-	switch {
-	case strings.Contains(ua, "windows nt"):
-		result["osName"], result["osVersion"] = "Windows", uaVersion(agent, "Windows NT ")
-	case strings.Contains(ua, "android"):
-		result["osName"], result["osVersion"] = "Android", uaVersion(agent, "Android ")
-	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
-		result["osName"], result["osVersion"] = "iOS", uaVersion(agent, "OS ")
-	case strings.Contains(ua, "mac os"):
-		result["osName"], result["osVersion"] = "Mac OS", uaVersion(agent, "Mac OS X ")
-	case strings.Contains(ua, "linux"):
-		result["osName"] = "Linux"
-	}
-	if strings.Contains(ua, "mobile") || strings.Contains(ua, "iphone") || strings.Contains(ua, "android") {
-		result["deviceType"] = "mobile"
-	} else if strings.Contains(ua, "ipad") || strings.Contains(ua, "tablet") {
-		result["deviceType"] = "tablet"
+	for key, value := range map[string]string{"browserName": info.Browser, "browserVersion": info.BrowserVersion, "osName": info.OSName, "osVersion": info.OSVersion, "deviceType": info.DeviceType} {
+		if value != "" {
+			result[key] = value
+		}
 	}
 	if len(result) == 0 {
 		return nil
 	}
 	return result
-}
-
-func uaVersion(ua, token string) string {
-	index := strings.Index(ua, token)
-	if index < 0 {
-		return ""
-	}
-	value := ua[index+len(token):]
-	if end := strings.IndexAny(value, " ;)/"); end >= 0 {
-		value = value[:end]
-	}
-	return strings.ReplaceAll(value, "_", ".")
 }

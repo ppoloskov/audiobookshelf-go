@@ -22,13 +22,3 @@ type MediaProgress struct {
 	StartedAt                 *int64   `json:"startedAt"`
 	FinishedAt                *int64   `json:"finishedAt"`
 }
-
-// ProgressUpdatedEvent is the user_item_progress_updated socket payload
-// (PlaybackSessionManager.js:402): the stored progress with the session and
-// device that produced it.
-type ProgressUpdatedEvent struct {
-	ID                string        `json:"id"`
-	SessionID         string        `json:"sessionId"`
-	DeviceDescription string        `json:"deviceDescription"`
-	Data              MediaProgress `json:"data"`
-}

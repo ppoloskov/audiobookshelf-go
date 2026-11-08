@@ -159,7 +159,7 @@ func newTestManager(t *testing.T, cfg config.Config, username, password string) 
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatal(err)
 	}
-	database, err := store.OpenReadWrite(filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
+	database, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatal(err)
 	}
-	database, err := store.OpenReadWrite(filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
+	database, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 	if err != nil {
 		t.Fatal(err)
 	}

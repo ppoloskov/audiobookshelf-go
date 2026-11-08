@@ -119,7 +119,7 @@ func TestScanEmitsChunkedExpandedItems(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	res, err := s.Scan(context.Background(), "lib-1")
+	res, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestScanRemovesOnlyAuthorsUnlinkedByRescan(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO series(id,name,libraryId,createdAt,updatedAt) VALUES('empty-series','Orphaned Series','lib-1','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var count int
@@ -222,7 +222,7 @@ func TestScanRemovesOnlyAuthorsUnlinkedByRescan(t *testing.T) {
 	if err := os.WriteFile(sidecar, []byte(`{"title":"Real Title","authors":["Author A"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", true); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT COUNT(*) FROM authors WHERE name='Author B'`).Scan(&count); err != nil || count != 0 {
@@ -261,7 +261,7 @@ func TestScanSidecarDefaultLocationAndInItem(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Close)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var itemID string
@@ -282,7 +282,7 @@ func TestScanSidecarDefaultLocationAndInItem(t *testing.T) {
 	if err := os.Chtimes(filepath.Join(itemDir, "track.mp3"), stamp, stamp); err != nil {
 		t.Fatal(err)
 	}
-	res, err := s.Scan(context.Background(), "lib-1")
+	res, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Close)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := db.Query(`SELECT name,createdAt FROM authors WHERE libraryId='lib-1' ORDER BY createdAt`)
@@ -404,7 +404,7 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	*events = nil
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	countEvent = eventsNamed(events, "authors_num_books_updated")
@@ -488,7 +488,7 @@ func TestScanRelationTable(t *testing.T) {
 		return strings.Join(out, ",")
 	}
 	write(`{"title":"T","authors":["john","John"],"series":[{"name":"Saga","sequence":"1"}]}`)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := state(), "authors=John,john links=john,John series=Saga#1 seriesRows=Saga"; got != want {
@@ -501,7 +501,7 @@ func TestScanRelationTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	write(`{"title":"T","authors":["Other"],"series":[{"name":"Saga","sequence":"2"}]}`)
-	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", true); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := state(), "authors=Other,john links=Other series=Saga#2 seriesRows=Saga"; got != want {
@@ -511,7 +511,7 @@ func TestScanRelationTable(t *testing.T) {
 		t.Fatalf("author_removed %d (%s)", got, names("author_removed"))
 	}
 	write(`{"title":"T","authors":["Other"],"series":[{"name":"Next","sequence":"1"}]}`)
-	if _, err := s.ScanForce(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", true); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := state(), "authors=Other,john links=Other series=Next#1 seriesRows=Next"; got != want {

@@ -1,30 +1,17 @@
 package catalog
 
 import (
-	"audiobookshelf-compat/internal/access"
-	"cmp"
-	"database/sql"
-	"errors"
-	"net/http"
-
 	"audiobookshelf-compat/internal/httputil"
+	"cmp"
+	"net/http"
 )
 
 // removeLibraryItemsWithIssues is DELETE /api/libraries/:id/issues: it removes
 // every item flagged missing or invalid, then the authors and series those
 // items leave empty (LibraryController.js:650-722).
-func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	var found string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT id FROM libraries WHERE id=?`, libraryID).Scan(&found); errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "Library not found")
-	} else if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !adminUser(user) {
+func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
+	libraryID := lib.id
+	if !adminUser(lib.user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)

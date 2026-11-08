@@ -2,11 +2,14 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"context"
+	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,11 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
+	"github.com/google/uuid"
 )
 
 type folderInput struct {
@@ -136,7 +135,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	id := uuid.NewString()
-	now := dbNow()
+	now := dbtime.Now()
 	settingsJSON, _ := json.Marshal(settings)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -155,7 +154,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	result, err := h.libraryJSON(r.Context(), id)
+	view, err := h.libraryView(r.Context(), id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -163,7 +162,10 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	// Sequelize instance (LibraryController.create): unpersisted attributes
 	// like lastScanVersion are undefined and dropped from the JSON; the
 	// database-loaded instances returned by other routes emit them as null.
-	delete(result, "lastScanVersion")
+	result := struct {
+		libraryView
+		LastScanVersion *string `json:"lastScanVersion,omitempty"` // shadows the embedded field, left out
+	}{libraryView: view}
 	if h.libraryChanged != nil {
 		h.libraryChanged(id)
 	}
@@ -187,7 +189,7 @@ func readStringField(body map[string]json.RawMessage, key, fallback string) stri
 
 func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	defer h.resetIssues(r.Context(), id) // LibraryController.js:513
+	defer h.filters.ResetIssues(r.Context(), h.db, id) // LibraryController.js:513
 	if !adminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
@@ -231,8 +233,8 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 			fields["displayOrder"] = n
 		}
 	}
-	settings := decodeObject(settingsRaw)
-	oldSettings := decodeObject(settingsRaw)
+	settings := store.DecodeJSONObject(settingsRaw)
+	oldSettings := store.DecodeJSONObject(settingsRaw)
 	if settings == nil {
 		settings = defaultLibrarySettings(mediaType)
 	}
@@ -368,7 +370,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	}
 	hasUpdates := len(fields) > 0 || settingsChanged || len(newFolders) > 0
 	if !hasUpdates {
-		result, e := h.libraryJSON(r.Context(), id)
+		result, e := h.libraryView(r.Context(), id)
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
@@ -392,12 +394,12 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		args = append(args, string(settingsJSON))
 	}
 	sets = append(sets, `"updatedAt"=?`)
-	args = append(args, dbNow(), id)
+	args = append(args, dbtime.Now(), id)
 	if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range newFolders {
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, uuid.NewString(), folderPath, id, dbNow(), dbNow()); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, uuid.NewString(), folderPath, id, dbtime.Now(), dbtime.Now()); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 	}
@@ -409,7 +411,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	result, err := h.libraryJSON(r.Context(), id)
+	result, err := h.libraryView(r.Context(), id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -436,7 +438,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	if count == 0 {
 		return httputil.Status(404, "Library not found")
 	}
-	result, err := h.libraryJSON(r.Context(), id)
+	result, err := h.libraryView(r.Context(), id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -488,7 +490,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		}
 		eps.Close()
 	}
-	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result["name"]) // LibraryController.js:557
+	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result.Name) // LibraryController.js:557
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return httputil.Internal("database write failed", err)
@@ -638,7 +640,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 			return httputil.Internal("database read failed", err)
 		}
 		if float64(old) != row.NewOrder {
-			if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=?,updatedAt=? WHERE id=?`, row.NewOrder, dbNow(), row.ID); err != nil {
+			if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=?,updatedAt=? WHERE id=?`, row.NewOrder, dbtime.Now(), row.ID); err != nil {
 				return httputil.Internal("database write failed", err)
 			}
 		}
@@ -658,9 +660,9 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 		}
 	}
 	rows.Close()
-	result := make([]map[string]any, 0, len(ids))
+	result := make([]libraryView, 0, len(ids))
 	for _, id := range ids {
-		library, e := h.libraryJSON(r.Context(), id)
+		library, e := h.libraryView(r.Context(), id)
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
@@ -668,52 +670,4 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.ForRequest(r))
 	return nil
-}
-
-func (h *Handler) libraryJSON(ctx context.Context, id string) (map[string]any, error) {
-	var name, icon, mediaType, provider, lastVersion sql.NullString
-	var order sql.NullInt64
-	var lastScan, created, updated any
-	var settingsRaw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT name,displayOrder,icon,mediaType,provider,lastScan,lastScanVersion,settings,createdAt,updatedAt FROM libraries WHERE id=?`, id).Scan(&name, &order, &icon, &mediaType, &provider, &lastScan, &lastVersion, &settingsRaw, &created, &updated); err != nil {
-		return nil, err
-	}
-	folders, err := h.db.QueryContext(ctx, `SELECT id,path,createdAt FROM libraryFolders WHERE libraryId=? ORDER BY createdAt`, id)
-	if err != nil {
-		return nil, err
-	}
-	folderList := make([]map[string]any, 0)
-	for folders.Next() {
-		var folderID, folderPath string
-		var added any
-		if err := folders.Scan(&folderID, &folderPath, &added); err != nil {
-			folders.Close()
-			return nil, err
-		}
-		ms, e := dbtime.OptionalMillis(added)
-		if e != nil {
-			folders.Close()
-			return nil, e
-		}
-		folderList = append(folderList, map[string]any{"id": folderID, "fullPath": folderPath, "libraryId": id, "addedAt": deref(ms)})
-	}
-	if err := folders.Err(); err != nil {
-		folders.Close()
-		return nil, err
-	}
-	folders.Close()
-	createdMs, err := dbtime.OptionalMillis(created)
-	if err != nil {
-		return nil, err
-	}
-	updatedMs, err := dbtime.OptionalMillis(updated)
-	if err != nil {
-		return nil, err
-	}
-	scanMs, err := dbtime.OptionalMillis(lastScan)
-	if err != nil {
-		return nil, err
-	}
-	result := map[string]any{"id": id, "name": store.NullString(name), "folders": folderList, "displayOrder": order.Int64, "icon": store.NullString(icon), "mediaType": store.NullString(mediaType), "provider": store.NullString(provider), "settings": decodeObject(settingsRaw), "lastScan": deref(scanMs), "lastScanVersion": store.NullString(lastVersion), "createdAt": deref(createdMs), "lastUpdate": deref(updatedMs)}
-	return result, nil
 }

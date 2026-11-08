@@ -1,5 +1,6 @@
-// Package store provides read-only access to the pinned Audiobookshelf SQLite
-// schema. It deliberately does not initialize or migrate databases.
+// Package store owns the Audiobookshelf SQLite database: where the file lives,
+// how it is opened (one DSN, one set of pragmas), and the nullable-column
+// helpers. It deliberately does not initialize or migrate databases.
 package store
 
 import (
@@ -24,7 +25,7 @@ var (
 	ErrSchema   = errors.New("store: unsupported or incomplete Audiobookshelf schema")
 )
 
-// Store is a read-only handle to an existing Audiobookshelf database.
+// Store is a handle to an existing Audiobookshelf database.
 type Store struct{ db *sql.DB }
 
 // User is the database representation of the upstream Sequelize user model.
@@ -46,10 +47,30 @@ type User struct {
 	UpdatedAt   *int64          `json:"updatedAt"`
 }
 
-// OpenReadOnly opens an existing database without creating files or applying
-// schema changes. A schema check is performed before the handle is returned.
-func OpenReadOnly(path string) (*Store, error) {
-	if strings.TrimSpace(path) == "" {
+// DatabasePath is the database file inside the configuration directory.
+func DatabasePath(configPath string) string {
+	return filepath.Join(configPath, "absdatabase.sqlite")
+}
+
+// Open opens an existing database and checks that it has the tables and
+// columns this server uses. It never creates, migrates, or initializes one.
+func Open(path string) (*Store, error) {
+	s, err := OpenUnchecked(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateSchema(context.Background()); err != nil {
+		s.db.Close()
+		return nil, err
+	}
+	return s, nil
+}
+
+// OpenUnchecked is Open without the schema check, for bootstrap, which opens
+// a file that is still empty or whose migration state it is about to verify.
+// It is the only place that builds the DSN and applies the connection pragmas.
+func OpenUnchecked(path string) (*Store, error) {
+	if path == "" {
 		return nil, fmt.Errorf("store: database path is empty")
 	}
 	abs, err := filepath.Abs(path)
@@ -61,51 +82,35 @@ func OpenReadOnly(path string) (*Store, error) {
 	}
 	u := url.URL{Scheme: "file", Path: abs}
 	q := u.Query()
-	q.Set("mode", "ro")
-	q.Add("_pragma", "query_only(1)")
+	q.Set("mode", "rw")
+	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", "foreign_keys(1)")
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {
-		return nil, fmt.Errorf("store: open database read-only: %w", err)
+		return nil, fmt.Errorf("store: open database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	s := &Store{db: db}
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("store: connect to database: %w", err)
 	}
-	var queryOnly int
-	if err := db.QueryRow("PRAGMA query_only").Scan(&queryOnly); err != nil || queryOnly != 1 {
+	var foreignKeys int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&foreignKeys); err != nil || foreignKeys != 1 {
 		db.Close()
 		if err != nil {
-			return nil, fmt.Errorf("store: enable SQLite query_only: %w", err)
+			return nil, fmt.Errorf("store: enable SQLite foreign_keys: %w", err)
 		}
-		return nil, fmt.Errorf("store: SQLite query_only is not enabled")
+		return nil, fmt.Errorf("store: SQLite foreign_keys is not enabled")
 	}
-	if err := s.validateSchema(context.Background()); err != nil {
-		db.Close()
-		return nil, err
-	}
-	return s, nil
+	return &Store{db: db}, nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }
 
-// DB exposes the underlying database for integrations that need additional
-// read-only queries. SQLite query_only remains enabled on the connection.
+// DB exposes the underlying database handle to the packages that query it.
 func (s *Store) DB() *sql.DB { return s.db }
-
-func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
-	row, err := sqlc.New(s.db).GetUserByID(ctx, id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return User{}, ErrNotFound
-	}
-	if err != nil {
-		return User{}, fmt.Errorf("store: read user: %w", err)
-	}
-	return UserFromRow(row)
-}
 
 func (s *Store) validateSchema(ctx context.Context) error {
 	// These are the model columns used by this adapter at the v2.37.2 baseline.
@@ -151,24 +156,6 @@ func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]str
 	return cols, rows.Err()
 }
 
-// UserByIDOrOldID mirrors the upstream token lookup for IDs created before
-// the 2.3.0 user migration. It scans the stored extraData JSON in Go so it does
-// not depend on a SQLite JSON extension being available.
-func (s *Store) UserByIDOrOldID(ctx context.Context, id string) (User, error) {
-	u, err := s.UserByID(ctx, id)
-	if err == nil || !errors.Is(err, ErrNotFound) {
-		return u, err
-	}
-	matched, err := sqlc.New(s.db).GetUserIDByOldUserID(ctx, id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return User{}, ErrNotFound
-	}
-	if err != nil {
-		return User{}, fmt.Errorf("store: search legacy user id: %w", err)
-	}
-	return s.UserByID(ctx, matched)
-}
-
 // UserFromRow maps a users row from the generated queries to User. It is the
 // only place that converts user columns: NULL text becomes "", NULL flags
 // become false, DATETIME values go through dbtime, and JSON text is kept raw.
@@ -197,102 +184,6 @@ func UserFromRow(r sqlc.User) (User, error) {
 	u.Bookmarks = lenientJSON(r.Bookmarks.String)
 	u.ExtraData = lenientJSON(r.Extradata.String)
 	return u, nil
-}
-
-func (s *Store) ServerSettings(ctx context.Context) (map[string]any, error) {
-	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = 'server-settings' LIMIT 1`).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("store: read server settings: %w", err)
-	}
-	var settings map[string]any
-	if err := json.Unmarshal(raw, &settings); err != nil {
-		return nil, fmt.Errorf("store: decode server settings: %w", err)
-	}
-	if settings == nil {
-		settings = map[string]any{}
-	}
-	return settings, nil
-}
-
-// Libraries returns old-client Library.toOldJSON-compatible maps, ordered by
-// displayOrder. Permission filtering belongs to the caller.
-func (s *Store) Libraries(ctx context.Context) ([]map[string]any, error) {
-	selectCol := func(name string) string { return `"` + name + `"` }
-	rows, err := s.db.QueryContext(ctx, `SELECT `+selectCol("id")+`, `+selectCol("name")+`, `+selectCol("displayOrder")+`, `+selectCol("icon")+`, `+selectCol("mediaType")+`, `+selectCol("provider")+`, `+selectCol("lastScan")+`, `+
-		selectCol("lastScanVersion")+`, `+selectCol("settings")+`, `+selectCol("createdAt")+`, `+selectCol("updatedAt")+` FROM libraries ORDER BY displayOrder ASC`)
-	if err != nil {
-		return nil, fmt.Errorf("store: list libraries: %w", err)
-	}
-	type libraryRow struct {
-		item map[string]any
-		id   string
-	}
-	var libraries []libraryRow
-	for rows.Next() {
-		var id, name, icon, mediaType, provider, version sql.NullString
-		var order sql.NullInt64
-		var lastScan, created, updated any
-		var settings []byte
-		if err := rows.Scan(&id, &name, &order, &icon, &mediaType, &provider, &lastScan, &version, &settings, &created, &updated); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("store: scan library: %w", err)
-		}
-		last, err := dbtime.OptionalMillis(lastScan)
-		if err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("store: library lastScan: %w", err)
-		}
-		if last != nil && *last == 0 {
-			last = nil
-		} // upstream emits valueOf() || null
-		createdMs, err := dbtime.OptionalMillis(created)
-		if err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("store: library createdAt: %w", err)
-		}
-		updatedMs, err := dbtime.OptionalMillis(updated)
-		if err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("store: library updatedAt: %w", err)
-		}
-		settingsObject := map[string]any{}
-		if len(settings) > 0 && string(settings) != "null" {
-			if err := json.Unmarshal(settings, &settingsObject); err != nil {
-				rows.Close()
-				return nil, fmt.Errorf("store: decode library settings: %w", err)
-			}
-		}
-		item := map[string]any{"id": id.String, "name": name.String, "folders": []any{}, "displayOrder": order.Int64,
-			"icon": NullString(icon), "mediaType": NullString(mediaType), "provider": NullString(provider), "settings": settingsObject,
-			"lastScan": last, "lastScanVersion": version.String, "createdAt": createdMs, "lastUpdate": updatedMs}
-		if !version.Valid {
-			item["lastScanVersion"] = nil
-		}
-		libraries = append(libraries, libraryRow{item: item, id: id.String})
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, fmt.Errorf("store: list libraries: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	for _, lib := range libraries {
-		folders, err := s.libraryFolders(ctx, lib.id)
-		if err != nil {
-			return nil, err
-		}
-		lib.item["folders"] = folders
-	}
-	result := make([]map[string]any, len(libraries))
-	for i, lib := range libraries {
-		result[i] = lib.item
-	}
-	return result, nil
 }
 
 // NullString is a nullable text column as a JSON value: NULL becomes nil.
@@ -361,32 +252,6 @@ func NullIfEmpty(s string) any {
 		return nil
 	}
 	return s
-}
-
-func (s *Store) libraryFolders(ctx context.Context, libraryID string) ([]any, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, path, libraryId, createdAt FROM libraryFolders WHERE libraryId = ?`, libraryID)
-	if err != nil {
-		return nil, fmt.Errorf("store: list library folders: %w", err)
-	}
-	defer rows.Close()
-	folders := make([]any, 0)
-	for rows.Next() {
-		var id, path, parent string
-		var added any
-		if err := rows.Scan(&id, &path, &parent, &added); err != nil {
-			return nil, err
-		}
-		addedMs, err := dbtime.OptionalMillis(added)
-		if err != nil {
-			return nil, fmt.Errorf("store: folder createdAt: %w", err)
-		}
-		var addedAt any
-		if addedMs != nil {
-			addedAt = *addedMs
-		}
-		folders = append(folders, map[string]any{"id": id, "fullPath": path, "libraryId": parent, "addedAt": addedAt})
-	}
-	return folders, rows.Err()
 }
 
 func rawJSON(b []byte) (json.RawMessage, error) {

@@ -103,7 +103,7 @@ func TestSocketConnectAuthLoop(t *testing.T) {
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.OpenReadWrite(filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
+	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestSocketConnectAuthLoop(t *testing.T) {
 	if err := insertTestRoot(db, cfg, "runtime-test", "password"); err != nil {
 		t.Fatal(err)
 	}
-	rt, err := newRuntime(db.DB(), cfg, db, nil)
+	rt, err := newRuntime(db.DB(), cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

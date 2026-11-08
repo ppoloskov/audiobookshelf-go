@@ -71,7 +71,7 @@ type fixtureMeta struct {
 
 // Boot copies the fixture into t.TempDir(), rewrites the absolute seed paths
 // stored in the database, and serves it with the production open sequence
-// (bootstrap.Ensure, store.OpenReadWrite, server.NewManager). Everything is
+// (bootstrap.Ensure, store.Open, server.NewManager). Everything is
 // closed by t.Cleanup.
 func Boot(t testing.TB) *Install {
 	t.Helper()
@@ -110,7 +110,7 @@ func boot(t testing.TB, seeded bool) *Install {
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatalf("contracttest: bootstrap: %v", err)
 	}
-	st, err := store.OpenReadWrite(filepath.Join(dir, dbRelPath))
+	st, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 	if err != nil {
 		t.Fatalf("contracttest: open database: %v", err)
 	}
@@ -146,16 +146,14 @@ func boot(t testing.TB, seeded bool) *Install {
 	// Runs first (LIFO), while the server still runs: TS stores every text and
 	// JSON column as TEXT, so a BLOB anywhere is a Go write bug. It opens the
 	// file afresh: a backup apply reopens the database, which closes st.DB().
-	dbPath := filepath.Join(dir, dbRelPath)
 	t.Cleanup(func() {
-		db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
+		check, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 		if err != nil {
 			t.Errorf("contracttest: open database for the blob check: %v", err)
 			return
 		}
-		db.SetMaxOpenConns(1) // production uses one connection (tools/dbnest)
-		defer func() { _ = db.Close() }()
-		assertNoBlobText(t, db)
+		defer func() { _ = check.Close() }()
+		assertNoBlobText(t, check.DB())
 	})
 
 	return &Install{

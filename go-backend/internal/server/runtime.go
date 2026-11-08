@@ -1,3 +1,5 @@
+// Package server composes the Audiobookshelf runtime: every handler, the
+// realtime hub, and the manager that swaps them on backup restore.
 package server
 
 import (
@@ -36,13 +38,13 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/userapi"
+	"audiobookshelf-compat/internal/version"
 	"audiobookshelf-compat/internal/wire"
 )
 
 type Runtime struct {
 	cfg           config.Config
 	db            *sql.DB
-	repo          Repository
 	identity      *identity.Handler
 	realtime      *realtime.Hub
 	closeRealtime bool
@@ -63,17 +65,13 @@ type Runtime struct {
 	routes *http.ServeMux
 }
 
-// NewRuntime assembles the single-process implementation around an already
-// opened, schema-validated Audiobookshelf database.
-func NewRuntime(db *sql.DB, cfg config.Config, repo Repository) (*Runtime, error) {
-	return newRuntime(db, cfg, repo, nil)
-}
+func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }
 
-func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager, preservedHub ...*realtime.Hub) (*Runtime, error) {
+func newRuntime(db *sql.DB, cfg config.Config, manager *Manager, preservedHub ...*realtime.Hub) (*Runtime, error) {
 	if manager != nil {
 		// A restored database may carry a different logLevel.
-		if settings, err := repo.ServerSettings(context.Background()); err == nil {
-			ApplyLoggingSettings(settings)
+		if settings, err := serversettings.Get(context.Background(), db); err == nil {
+			ApplyLoggingSettings(settings.Doc())
 		}
 	}
 	ident, err := identity.New(db, cfg)
@@ -112,7 +110,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		hub.Close()
 		return nil, err
 	}
-	userapiHandler, err := userapi.New(db, ident.TokenSecret(), hub.Emit, hub.Refresh)
+	userapiHandler, err := userapi.New(db, ident, hub.Emit, hub.Refresh)
 	if err != nil {
 		podcastsHandler.Close()
 		sc.Close()
@@ -121,7 +119,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	}
 	listHandler := lists.New(db, hub.Emit, userapiHandler.CanReadItem)
 	rt := &Runtime{
-		cfg: cfg, db: db, repo: repo, identity: ident, realtime: hub, closeRealtime: closeHub,
+		cfg: cfg, db: db, identity: ident, realtime: hub, closeRealtime: closeHub,
 		catalog:       catalogHandler,
 		playback:      playback.New(db, cfg, hub.Emit),
 		userapi:       userapiHandler,
@@ -135,7 +133,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	}
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
-	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes})
+	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes, PodcastScheduleChanged: rt.podcasts.Reschedule})
 	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
 	rt.audiotools.Routes(rt.routes)
 	rt.providers.Routes(rt.routes)
@@ -144,7 +142,6 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 	}
 	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
 	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
-	rt.userapi.SetCredentialHooks(ident.InvalidateUserSessions, ident.ChangePassword, ident.SetRefreshTokenCookie)
 	rt.userapi.SetOnlineData(hub.UsersOnline, rt.playback.OpenSessions)
 	hub.SetSessionLookup(func(userID string) any {
 		for _, session := range rt.playback.OpenSessions() {
@@ -199,15 +196,7 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 		rt.catalog.SetLibraryChanged(func(string) { _ = sc.Refresh(context.Background()) })
 		rt.adminops.SetSettingsChanged(func(ctx context.Context, settings map[string]any) error {
 			if rt.backup != nil {
-				backupPath := strings.TrimSpace(os.Getenv("BACKUP_PATH"))
-				if backupPath == "" {
-					backupPath, _ = settings["backupPath"].(string)
-				}
-				maxSize, _ := settings["maxBackupSize"].(float64)
-				if maxSize <= 0 {
-					maxSize = 100
-				}
-				options := backup.Options{BackupPath: backupPath, BackupPathEnvSet: strings.TrimSpace(os.Getenv("BACKUP_PATH")) != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
+				options := backupOptions(settings, manager)
 				if err := rt.backup.UpdateOptions(ctx, options); err != nil {
 					return err
 				}
@@ -219,20 +208,12 @@ func newRuntime(db *sql.DB, cfg config.Config, repo Repository, manager *Manager
 			rt.Close()
 			return nil, err
 		}
-		settings, settingsErr := repo.ServerSettings(context.Background())
+		stored, settingsErr := serversettings.Get(context.Background(), db)
 		if settingsErr != nil {
 			rt.Close()
 			return nil, settingsErr
 		}
-		backupPath := strings.TrimSpace(os.Getenv("BACKUP_PATH"))
-		if backupPath == "" {
-			backupPath, _ = settings["backupPath"].(string)
-		}
-		maxSize, _ := settings["maxBackupSize"].(float64)
-		if maxSize <= 0 {
-			maxSize = 100
-		}
-		backupSettings := backup.Options{BackupPath: backupPath, BackupPathEnvSet: strings.TrimSpace(os.Getenv("BACKUP_PATH")) != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
+		backupSettings := backupOptions(stored.Doc(), manager)
 		rt.backup, err = backup.New(db, cfg, backupSettings, hub.Emit)
 		if err != nil {
 			rt.Close()
@@ -384,6 +365,21 @@ func routeAlias(path string) (string, bool) {
 	return canonical, pathpkg.Clean(canonical) == canonical
 }
 
+// backupOptions is the backup configuration the stored settings and
+// BACKUP_PATH describe; both the first start and every settings change use it.
+func backupOptions(settings map[string]any, manager *Manager) backup.Options {
+	envPath := strings.TrimSpace(serversettings.EnvBackupPath())
+	backupPath := envPath
+	if backupPath == "" {
+		backupPath, _ = settings["backupPath"].(string)
+	}
+	maxSize, _ := settings["maxBackupSize"].(float64)
+	if maxSize <= 0 {
+		maxSize = 100
+	}
+	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: envPath != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
+}
+
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }
 func logLevel(value any) (int, bool) {
 	switch v := value.(type) {
@@ -455,7 +451,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	payload := map[string]any{"app": "audiobookshelf", "serverVersion": Version, "isInit": roots > 0, "language": language, "authMethods": methods, "authFormData": form}
+	payload := map[string]any{"app": "audiobookshelf", "serverVersion": version.Server, "isInit": roots > 0, "language": language, "authMethods": methods, "authFormData": form}
 	if roots == 0 {
 		payload["ConfigPath"] = rt.cfg.ConfigPath
 		payload["MetadataPath"] = rt.cfg.MetadataPath
@@ -467,7 +463,7 @@ func (rt *Runtime) settingsAllowIframe() bool {
 	if err != nil {
 		return false
 	}
-	return settings.Doc()["allowIframe"] == true || os.Getenv("ALLOW_IFRAME") == "1"
+	return settings.AllowIframe()
 }
 
 func isPublicCover(path string) bool {

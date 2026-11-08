@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"audiobookshelf-compat/internal/serversettings"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -272,6 +273,7 @@ func TestOIDCAutoRegisterAndMobileRedirectAllowlist(t *testing.T) {
 	}
 	settings["authOpenIDAutoRegister"] = true
 	data, _ := json.Marshal(settings)
+	serversettings.Invalidate(db)
 	if _, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, string(data)); err != nil {
 		t.Fatal(err)
 	}
@@ -286,6 +288,7 @@ func TestOIDCAutoRegisterAndMobileRedirectAllowlist(t *testing.T) {
 
 	settings["authOpenIDMobileRedirectURIs"] = []any{"audiobookshelf://oauth"}
 	data, _ = json.Marshal(settings)
+	serversettings.Invalidate(db)
 	if _, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, string(data)); err != nil {
 		t.Fatal(err)
 	}
@@ -438,6 +441,7 @@ func TestOIDCLogoutBuildsEndSessionRedirectAndClearsCookies(t *testing.T) {
 	}
 	settings["authOpenIDLogoutURL"] = "https://issuer.example/logout?existing=1"
 	encoded, _ := json.Marshal(settings)
+	serversettings.Invalidate(db)
 	if _, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, string(encoded)); err != nil {
 		t.Fatal(err)
 	}
@@ -558,6 +562,7 @@ func TestOIDCLinksExistingUserByConfiguredUsername(t *testing.T) {
 func TestLocalLoginDisabledWhenNotActive(t *testing.T) {
 	db, h := identityFixture(t)
 	defer db.Close()
+	serversettings.Invalidate(db)
 	_, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, `{"id":"server-settings","tokenSecret":"test-secret","authActiveAuthMethods":["openid"]}`)
 	if err != nil {
 		t.Fatal(err)
@@ -602,6 +607,7 @@ func configureOIDC(t *testing.T, db *sql.DB, issuer string, override map[string]
 	if err != nil {
 		t.Fatal(err)
 	}
+	serversettings.Invalidate(db)
 	if _, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, string(data)); err != nil {
 		t.Fatal(err)
 	}
@@ -657,6 +663,7 @@ func TestOIDCRedirectURIUsesSubfolderSettingVerbatim(t *testing.T) {
 				"authOpenIDMobileRedirectURIs":       []any{"audiobookshelf://oauth"},
 			})
 			if tc.unset {
+				serversettings.Invalidate(db)
 				if _, err := db.Exec(`UPDATE settings SET value = json_remove(value, '$.authOpenIDSubfolderForRedirectURLs') WHERE key = 'server-settings'`); err != nil {
 					t.Fatal(err)
 				}

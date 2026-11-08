@@ -4,7 +4,10 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -14,104 +17,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
-
-func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	var request struct {
-		IDs []string `json:"libraryItemIds"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil || len(request.IDs) == 0 {
-		return httputil.Status(http.StatusForbidden, "Invalid payload")
-	}
-	ids := make([]string, 0, len(request.IDs))
-	seen := map[string]bool{}
-	for _, id := range request.IDs {
-		if id != "" && !seen[id] {
-			ids = append(ids, id)
-			seen[id] = true
-		}
-	}
-	if len(ids) == 0 {
-		return httputil.Status(http.StatusForbidden, "Invalid payload")
-	}
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,libraryId,mediaType FROM libraryItems WHERE id IN (`+placeholders(len(ids))+`)`, args...)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	type itemRef struct{ id, libraryID, mediaType string }
-	items := make(map[string]itemRef, len(ids))
-	for rows.Next() {
-		var item itemRef
-		if err := rows.Scan(&item.id, &item.libraryID, &item.mediaType); err != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", err)
-		}
-		items[item.id] = item
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return httputil.Internal("database read failed", err)
-	}
-	rows.Close()
-	// LibraryItem.findAllExpandedWhere (server/models/LibraryItem.js:150-183)
-	// orders the joined rows by bookAuthor.createdAt then bookSeries.createdAt,
-	// and Sequelize emits each item at its first joined row.
-	ordered, err := h.queryStrings(r.Context(), `SELECT li.id FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, args...)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	seenOrdered := map[string]bool{}
-	ids = ids[:0]
-	for _, id := range ordered {
-		if !seenOrdered[id] {
-			seenOrdered[id] = true
-			ids = append(ids, id)
-		}
-	}
-	visibleIDs := make([]string, 0, len(items))
-	perms := access.For(r.Context(), user)
-	for _, id := range ids {
-		ref, ok := items[id]
-		if !ok {
-			continue
-		}
-		if !perms.Library(ref.libraryID) {
-			return httputil.Status(http.StatusForbidden, "")
-		}
-		mediaAlias := "b"
-		if ref.mediaType == "podcast" {
-			mediaAlias = "p"
-		}
-		permission, permissionArgs := perms.MediaClause("b")
-		var visible int
-		query := `SELECT COUNT(*) FROM libraryItems li JOIN ` + map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType] + ` ` + mediaAlias + ` ON ` + mediaAlias + `.id=li.mediaId WHERE li.id=?` + permission
-		if _, exists := map[string]string{"book": "books", "podcast": "podcasts"}[ref.mediaType]; !exists {
-			return httputil.Status(http.StatusForbidden, "")
-		}
-		queryArgs := append([]any{id}, permissionArgs...)
-		if err := h.db.QueryRowContext(r.Context(), query, queryArgs...).Scan(&visible); err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if visible == 0 {
-			return httputil.Status(http.StatusForbidden, "")
-		}
-		visibleIDs = append(visibleIDs, id)
-	}
-	selected, err := h.itemMaps(r.Context(), visibleIDs, "expanded")
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"libraryItems": selected}, httputil.ForRequest(r))
-	return nil
-}
 
 func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
@@ -181,7 +87,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 		if chapters[i] == nil {
 			chapters[i] = map[string]any{"id": id, "title": chapter.Title, "start": chapter.Start, "end": chapter.End}
 		}
-		if i >= len(previous) || previous[i]["title"] != chapter.Title || floatValue(previous[i]["start"]) != chapter.Start || floatValue(previous[i]["end"]) != chapter.End {
+		if i >= len(previous) || previous[i]["title"] != chapter.Title || jsonvalue.Float(previous[i]["start"]) != chapter.Start || jsonvalue.Float(previous[i]["end"]) != chapter.End {
 			updated = true
 		}
 	}
@@ -191,15 +97,8 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET chapters=?,updatedAt=? WHERE id=?`, string(encoded), now, scope.mediaID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		if h.itemChanged != nil {
-			if err := h.itemChanged(r.Context(), itemID); err != nil {
-				return httputil.Internal("metadata file write failed", err)
-			}
-		}
-		if h.emit != nil {
-			if item, err := h.ItemJSON(r.Context(), itemID, true); err == nil {
-				h.emit("*", "item_updated", item)
-			}
+		if err := h.ItemChanged(r.Context(), itemID); err != nil {
+			return httputil.Internal("metadata file write failed", err)
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true, "updated": updated}, httputil.ForRequest(r))
@@ -231,7 +130,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	audioCount := 0
-	for _, file := range decodeArray(audioRaw) {
+	for _, file := range store.DecodeJSONSlice[map[string]any](audioRaw) {
 		if excluded, _ := file["exclude"].(bool); !excluded {
 			audioCount++
 		}
@@ -308,7 +207,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	target := ""
-	for _, file := range decodeArray(filesRaw) {
+	for _, file := range store.DecodeJSONSlice[map[string]any](filesRaw) {
 		if stringValue(file["ino"]) == ino {
 			target = filePath(file)
 			break
@@ -321,7 +220,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if !h.pathAllowed(r.Context(), target, libraryID, false) {
+	if !h.pathAllowed(r.Context(), target, libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	probe := strings.TrimSpace(os.Getenv("FFPROBE_PATH"))
@@ -373,7 +272,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&raw); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := decodeArray(raw)
+	files := store.DecodeJSONSlice[map[string]any](raw)
 	byIno := make(map[string]map[string]any, len(files))
 	for _, file := range files {
 		byIno[stringValue(file["ino"])] = file
@@ -389,7 +288,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	for _, ordered := range request.Ordered {
 		file := byIno[stringValue(ordered["ino"])]
 		file["manuallyVerified"] = true
-		excluded := truthy(ordered["exclude"])
+		excluded := jsonvalue.Truthy(ordered["exclude"])
 		file["exclude"] = excluded
 		if excluded {
 			file["index"] = -1
@@ -400,10 +299,10 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 		orderedFiles = append(orderedFiles, file)
 	}
 	sort.SliceStable(orderedFiles, func(i, j int) bool {
-		return floatValue(orderedFiles[i]["index"]) < floatValue(orderedFiles[j]["index"])
+		return jsonvalue.Float(orderedFiles[i]["index"]) < jsonvalue.Float(orderedFiles[j]["index"])
 	})
 	encoded, _ := json.Marshal(orderedFiles)
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET audioFiles=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), scope.mediaID); err != nil {
+	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET audioFiles=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), scope.mediaID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	item, err := h.ItemJSON(r.Context(), itemID, true)
@@ -441,7 +340,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&rawFiles, &rawAudio); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := decodeArray(rawFiles)
+	files := store.DecodeJSONSlice[map[string]any](rawFiles)
 	selected := -1
 	for i, file := range files {
 		if stringValue(file["ino"]) == ino {
@@ -453,7 +352,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 		return httputil.Status(http.StatusBadRequest, "Invalid ebook file id")
 	}
 	var primary any
-	if truthy(files[selected]["isSupplementary"]) {
+	if jsonvalue.Truthy(files[selected]["isSupplementary"]) {
 		primaryFile := make(map[string]any, len(files[selected]))
 		for key, value := range files[selected] {
 			if key != "isSupplementary" && key != "fileType" {
@@ -476,8 +375,8 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	filesJSON, _ := json.Marshal(files)
 	encodedPrimary, _ := json.Marshal(primary)
 	missing := 1
-	for _, audio := range decodeArray(rawAudio) {
-		if !truthy(audio["exclude"]) {
+	for _, audio := range store.DecodeJSONSlice[map[string]any](rawAudio) {
+		if !jsonvalue.Truthy(audio["exclude"]) {
 			missing = 0
 			break
 		}
@@ -485,47 +384,17 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if primary != nil {
 		missing = 0
 	}
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET ebookFile=?,updatedAt=? WHERE id=?`, string(encodedPrimary), dbNow(), scope.mediaID); err != nil {
+	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET ebookFile=?,updatedAt=? WHERE id=?`, string(encodedPrimary), dbtime.Now(), scope.mediaID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if _, err := h.db.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,isMissing=?,updatedAt=? WHERE id=?`, string(filesJSON), missing, dbNow(), itemID); err != nil {
+	if _, err := h.db.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,isMissing=?,updatedAt=? WHERE id=?`, string(filesJSON), missing, dbtime.Now(), itemID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if h.emit != nil {
-		if item, err := h.ItemJSON(r.Context(), itemID, true); err == nil {
-			h.emit("*", "item_updated", item)
-		}
+	if err := h.itemUpdated(r.Context(), itemID); err != nil {
+		return httputil.Internal("database read failed", err)
 	}
 	w.WriteHeader(http.StatusOK)
 	return nil
-}
-
-func truthy(value any) bool {
-	b, _ := value.(bool)
-	return b
-}
-
-func placeholders(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return strings.TrimRight(strings.Repeat("?,", n), ",")
-}
-
-func floatValue(value any) float64 {
-	switch v := value.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case json.Number:
-		n, _ := v.Float64()
-		return n
-	default:
-		return 0
-	}
 }
 
 func stringPointerValue(value *string) string {

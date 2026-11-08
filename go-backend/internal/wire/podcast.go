@@ -23,22 +23,3 @@ type EpisodeDownload struct {
 	PublishedAt         any     `json:"publishedAt"`
 	GUID                any     `json:"guid"`
 }
-
-// EpisodeDownloads is the body of GET /api/podcasts/:id/downloads.
-type EpisodeDownloads struct {
-	Downloads []EpisodeDownload `json:"downloads"`
-}
-
-// EpisodeDownloadQueue is the body of GET /api/libraries/:id/episode-downloads
-// (PodcastManager.getDownloadQueueDetails, server/managers/PodcastManager.js:509).
-// CurrentDownload is omitted when no download of the library is running.
-type EpisodeDownloadQueue struct {
-	CurrentDownload *EpisodeDownload  `json:"currentDownload,omitempty"`
-	Queue           []EpisodeDownload `json:"queue"`
-}
-
-// ItemMatch is one library item hit in a search response
-// ({libraryItem} entries of server/utils/queries/libraryItemsPodcastFilters.js search).
-type ItemMatch struct {
-	LibraryItem any `json:"libraryItem"`
-}

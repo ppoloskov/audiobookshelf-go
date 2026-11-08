@@ -6,17 +6,15 @@ package playback
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/version"
 	"bytes"
-	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"maps"
 	"math"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -25,13 +23,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -39,7 +35,6 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 type Handler struct {
@@ -50,9 +45,6 @@ type Handler struct {
 	sessions map[string]*session
 	localIDs map[string]string
 }
-
-// serverVersion is the pinned TS release the session JSON mirrors.
-const serverVersion = "2.37.2"
 
 // session is a playback session as TS PlaybackSession.toJSON writes it (GET
 // /api/sessions/open lists these, the client's sessions page reads them).
@@ -113,56 +105,13 @@ type sessionJSON struct {
 }
 
 func (s *session) view() sessionJSON {
-	return sessionJSON{session: s, BookID: nullID(s.BookID), EpisodeID: nullID(s.EpisodeID), ServerVersion: serverVersion}
+	return sessionJSON{session: s, BookID: nullID(s.BookID), EpisodeID: nullID(s.EpisodeID), ServerVersion: version.Server}
 }
 
 func (s *session) client() sessionJSON {
 	v := s.view()
 	v.AudioTracks, v.LibraryItem = s.tracks(), s.Item
 	return v
-}
-
-// deviceInfo is the session's device DTO (DeviceInfo.js toJSON): empty values
-// are omitted.
-type deviceInfo struct {
-	ID             string `json:"id"`
-	UserID         string `json:"userId"`
-	DeviceID       string `json:"deviceId"`
-	IPAddress      string `json:"ipAddress"`
-	ClientVersion  string `json:"clientVersion"`
-	ClientName     string `json:"clientName"`
-	DeviceName     string `json:"deviceName,omitempty"`
-	BrowserName    string `json:"browserName,omitempty"`
-	BrowserVersion string `json:"browserVersion,omitempty"`
-	OSName         string `json:"osName,omitempty"`
-	OSVersion      string `json:"osVersion,omitempty"`
-	Manufacturer   string `json:"manufacturer,omitempty"`
-	Model          string `json:"model,omitempty"`
-	SDKVersion     string `json:"sdkVersion,omitempty"`
-}
-
-// clientDevice is the deviceInfo a client sends.
-type clientDevice struct {
-	DeviceID      string     `json:"deviceId"`
-	ClientVersion string     `json:"clientVersion"`
-	ClientName    string     `json:"clientName"`
-	Manufacturer  string     `json:"manufacturer"`
-	Model         string     `json:"model"`
-	SDKVersion    sdkVersion `json:"sdkVersion"`
-}
-
-// sdkVersion is a JSON number (the Android app) or string, kept as text
-// (DeviceInfo.setData, server/objects/DeviceInfo.js:100).
-type sdkVersion string
-
-func (v *sdkVersion) UnmarshalJSON(b []byte) error {
-	var n json.Number
-	if json.Unmarshal(b, &n) != nil {
-		_ = json.Unmarshal(b, (*string)(v))
-		return nil
-	}
-	*v = sdkVersion(n)
-	return nil
 }
 
 type itemData struct {
@@ -186,21 +135,6 @@ type audioFile struct {
 	Exclude  bool           `json:"exclude"`
 	MimeType string         `json:"-"`
 	Fields   map[string]any `json:"-"`
-}
-
-type transcode struct {
-	mu            sync.Mutex
-	root          string
-	audioCodec    string
-	cmd           *exec.Cmd
-	ctx           context.Context
-	cancel        context.CancelFunc
-	startTime     float64
-	segmentStart  int
-	segmentLength int
-	complete      bool
-	resetting     bool
-	done          chan struct{}
 }
 
 // New uses the existing database and configuration. It doesn't initialize a
@@ -498,7 +432,7 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 		s.CurrentTime = *body.CurrentTime
 		s.TimeListening += *body.TimeListened
 		logging.Debugf("[PlaybackSessionManager] syncSession %q (Device: %s) | Total Time Listened: %v", s.ID, s.Device.description(), s.TimeListening) // PlaybackSessionManager.js:389
-		s.UpdatedAt = nowMS()
+		s.UpdatedAt = time.Now().UnixMilli()
 		s.Date = time.UnixMilli(s.UpdatedAt).Format("2006-01-02")
 		s.DayOfWeek = time.UnixMilli(s.UpdatedAt).Weekday().String()
 		if err := h.saveSession(r.Context(), s); err != nil {
@@ -529,7 +463,7 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 		}
 		h.emit(user.ID, "user_session_closed", s.ID)
 	}
-	sendOK(w)
+	httputil.OK(w, r)
 	return nil
 }
 
@@ -627,96 +561,8 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 	if err != nil {
 		return false, err
 	}
-	h.emit(userID, "user_item_progress_updated", wire.ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: s.Device.description(), Data: progress})
+	h.emit(userID, "user_item_progress_updated", ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: s.Device.description(), Data: progress})
 	return true, nil
-}
-
-func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
-	user, _ := store.UserFromContext(r.Context())
-	if !access.AdminUser(user) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	validSort := map[string]string{"displayTitle": "displayTitle", "duration": "duration", "playMethod": "playMethod", "startTime": "startTime", "currentTime": "currentTime", "timeListening": "timeListening", "updatedAt": "updatedAt", "createdAt": "createdAt"}
-	sortKey := r.URL.Query().Get("sort")
-	if _, ok := validSort[sortKey]; !ok {
-		sortKey = "updatedAt"
-	}
-	direction := "ASC"
-	if r.URL.Query().Get("desc") == "1" {
-		direction = "DESC"
-	}
-	perPage := 10
-	if n, e := strconv.Atoi(r.URL.Query().Get("itemsPerPage")); e == nil && n != 0 {
-		perPage = n
-	}
-	if perPage < 1 {
-		perPage = 10
-	}
-	page := 0
-	if n, e := strconv.Atoi(r.URL.Query().Get("page")); e == nil {
-		page = n
-	}
-	if page < 0 {
-		page = 0
-	}
-	userFilter := r.URL.Query().Get("user")
-	if !validUUID(userFilter) {
-		userFilter = ""
-	}
-	where := ""
-	args := []any{}
-	if userFilter != "" {
-		where = ` WHERE userId=?`
-		args = append(args, userFilter)
-	}
-	total, err := sqlc.New(h.db).CountPlaybackSessionsForUser(r.Context(), store.TextOrNull(userFilter))
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	query := `SELECT ` + store.PlaybackSessionColumns + ` FROM playbackSessions` + where + ` ORDER BY ` + validSort[sortKey] + ` ` + direction + ` LIMIT ? OFFSET ?`
-	args = append(args, perPage, perPage*page)
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	sessions := []store.PlaybackSessionRow{}
-	for rows.Next() {
-		s, err := store.ScanPlaybackSession(rows)
-		if err != nil {
-			_ = rows.Close()
-			return httputil.Internal("Internal Server Error", err)
-		}
-		sessions = append(sessions, s)
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		return httputil.Internal("Internal Server Error", err)
-	}
-	if err := rows.Close(); err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	result := []map[string]any{}
-	for _, s := range sessions {
-		device, err := store.LoadDeviceInfo(r.Context(), h.db, s.DeviceID.String)
-		if errors.Is(err, sql.ErrNoRows) {
-			device, err = nil, nil
-		}
-		if err != nil {
-			return httputil.Internal("Internal Server Error", err)
-		}
-		obj := s.LegacyJSON(device)
-		if u, err := sqlc.New(h.db).GetUserByID(r.Context(), s.UserID.String); err == nil && u.Username.Valid {
-			obj["user"] = map[string]any{"id": s.UserID.String, "username": u.Username.String}
-			wire.AddPlaybackSessionSpreadFields(obj)
-		}
-		result = append(result, obj)
-	}
-	payload := map[string]any{"total": total, "numPages": int(math.Ceil(float64(total) / float64(perPage))), "page": page, "itemsPerPage": perPage, "sessions": result}
-	if userFilter != "" {
-		payload["userId"] = userFilter
-	}
-	httputil.WriteJSON(w, 200, payload)
-	return nil
 }
 
 func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) error {
@@ -755,57 +601,6 @@ func (h *Handler) OpenSessions() []map[string]any {
 	return out
 }
 
-func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) error {
-	user, _ := store.UserFromContext(r.Context())
-	id := r.PathValue("id")
-	if !access.For(r.Context(), user).Delete() {
-		return httputil.Status(403, "")
-	}
-	exists, err := sqlc.New(h.db).CountPlaybackSessionByID(r.Context(), id)
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	if exists == 0 {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	h.removeOpenSession(id)
-	if err := sqlc.New(h.db).DeletePlaybackSession(r.Context(), id); err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	sendOK(w)
-	return nil
-}
-
-func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) error {
-	user, _ := store.UserFromContext(r.Context())
-	if !access.AdminUser(user) {
-		return httputil.Status(403, "")
-	}
-	var body struct {
-		Sessions []string `json:"sessions"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || len(body.Sessions) == 0 {
-		return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
-	}
-	for _, id := range body.Sessions {
-		if !validUUID(id) {
-			return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
-		}
-	}
-	for _, id := range body.Sessions {
-		h.removeOpenSession(id)
-	}
-	res, err := sqlc.New(h.db).DeletePlaybackSessionsByIDs(r.Context(), body.Sessions)
-	if err != nil {
-		return httputil.Internal("Failed to remove sessions", err)
-	}
-	if removed, rowsErr := res.RowsAffected(); rowsErr == nil {
-		logging.Infof("[SessionController] %d playback sessions removed by %q", removed, user.Username) // SessionController.js:238
-	}
-	sendOK(w)
-	return nil
-}
-
 func (h *Handler) removeOpenSession(id string) {
 	h.mu.Lock()
 	s := h.sessions[id]
@@ -814,193 +609,6 @@ func (h *Handler) removeOpenSession(id string) {
 	if s != nil && s.stream != nil {
 		_ = s.stream.close()
 	}
-}
-
-// epochMS is a time a client sends as epoch milliseconds, as a string of them
-// or as an RFC 3339 string; anything else is 0.
-type epochMS int64
-
-func (t *epochMS) UnmarshalJSON(b []byte) error {
-	var n float64
-	if json.Unmarshal(b, &n) == nil {
-		*t = epochMS(n)
-		return nil
-	}
-	var text string
-	if json.Unmarshal(b, &text) != nil {
-		return nil
-	}
-	if ms, err := strconv.ParseInt(text, 10, 64); err == nil {
-		*t = epochMS(ms)
-	} else if d, err := time.Parse(time.RFC3339Nano, text); err == nil {
-		*t = epochMS(d.UnixMilli())
-	}
-	return nil
-}
-
-// localSession is an offline session a client uploads (PlaybackSession.toJSON
-// as the app stored it).
-type localSession struct {
-	ID            string          `json:"id"`
-	LibraryItemID string          `json:"libraryItemId"`
-	EpisodeID     string          `json:"episodeId"`
-	DisplayTitle  string          `json:"displayTitle"`
-	DisplayAuthor string          `json:"displayAuthor"`
-	CoverPath     *string         `json:"coverPath"`
-	MediaPlayer   string          `json:"mediaPlayer"`
-	PlayMethod    *int            `json:"playMethod"`
-	Date          string          `json:"date"`
-	DayOfWeek     string          `json:"dayOfWeek"`
-	StartTime     float64         `json:"startTime"`
-	CurrentTime   float64         `json:"currentTime"`
-	TimeListening float64         `json:"timeListening"`
-	StartedAt     epochMS         `json:"startedAt"`
-	UpdatedAt     epochMS         `json:"updatedAt"`
-	MediaMetadata json.RawMessage `json:"mediaMetadata"`
-}
-
-// localResult is one entry of the local-all response.
-type localResult struct {
-	ID             nullID `json:"id"`
-	Success        bool   `json:"success"`
-	ProgressSynced *bool  `json:"progressSynced,omitempty"`
-	Error          string `json:"error,omitempty"`
-}
-
-func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error {
-	user, _ := store.UserFromContext(r.Context())
-	var body struct {
-		localSession
-		DeviceInfo clientDevice   `json:"deviceInfo"`
-		Sessions   []localSession `json:"sessions"`
-	}
-	if err := readBody(r, &body); err != nil {
-		return err
-	}
-	device, err := h.upsertDevice(r.Context(), user, r, body.DeviceInfo)
-	if err != nil {
-		return httputil.Internal("Internal Server Error", err)
-	}
-	if !strings.HasSuffix(r.URL.Path, "-all") {
-		if res := h.syncOneLocal(r.Context(), user, body.localSession, device); res.Error != "" {
-			logging.RequestDebug(r, "responding 500: "+res.Error)
-			return httputil.Status(500, res.Error)
-		}
-		sendOK(w)
-		return nil
-	}
-	results := make([]localResult, len(body.Sessions))
-	for i, ls := range body.Sessions {
-		results[i] = h.syncOneLocal(r.Context(), user, ls, device)
-	}
-	httputil.WriteJSON(w, 200, map[string]any{"results": results})
-	return nil
-}
-
-// localSessionID maps a client's play_local_* id to the server id it was
-// first stored under; any other client id is kept and a missing one is new.
-func (h *Handler) localSessionID(id string) (string, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if strings.HasPrefix(id, "play_local_") {
-		if h.localIDs[id] == "" {
-			generated, err := ids.New()
-			if err != nil {
-				return "", err
-			}
-			h.localIDs[id] = generated
-		}
-		return h.localIDs[id], nil
-	}
-	if id != "" {
-		return id, nil
-	}
-	return ids.New()
-}
-
-// overlayMetadata applies the keys of the client's mediaMetadata over the
-// item's, as the persisted legacy subset.
-func overlayMetadata(base any, client json.RawMessage) any {
-	switch m := base.(type) {
-	case libitem.BookMetadataFull:
-		_ = unmarshalLoose(client, &m)
-		return m
-	case libitem.PodcastMetadata:
-		_ = unmarshalLoose(client, &m)
-		m.TitleIgnorePrefix = nil
-		return m
-	}
-	return base
-}
-
-func (h *Handler) syncOneLocal(ctx context.Context, user store.User, ls localSession, device deviceInfo) localResult {
-	logging.Infof("[PlaybackSessionManager] Syncing local session %q (%s) (updatedAt: %d)", ls.DisplayTitle, ls.ID, ls.UpdatedAt) // PlaybackSessionManager.js:110
-	fail := func(msg string) localResult { return localResult{ID: nullID(ls.ID), Error: msg} }
-	item, err := h.loadItem(ctx, ls.LibraryItemID, ls.EpisodeID)
-	if err != nil {
-		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Media item not found for session %q (%s): %v", ls.DisplayTitle, ls.ID, err) // PlaybackSessionManager.js:132
-		return fail("Media item not found")
-	}
-	var libraryExists int
-	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryExists); err != nil || libraryExists == 0 {
-		logging.Errorf("[PlaybackSessionManager] syncLocalSession: Library not found for session %q (%s)", ls.DisplayTitle, ls.ID) // PlaybackSessionManager.js:142
-		return fail("Library not found")
-	}
-	id, err := h.localSessionID(ls.ID)
-	if err != nil {
-		logging.Errorf("[PlaybackSessionManager] syncLocalSession: could not create a session id for %q (%s): %v", ls.DisplayTitle, ls.ID, err)
-		return fail("Failed to save session")
-	}
-	updated, started := int64(ls.UpdatedAt), int64(ls.StartedAt)
-	if updated == 0 {
-		updated = nowMS()
-	}
-	if started == 0 {
-		started = updated
-	}
-	day, weekday := time.UnixMilli(updated).Format("2006-01-02"), time.UnixMilli(updated).Weekday().String()
-	if existing, _ := sqlc.New(h.db).CountPlaybackSessionByID(ctx, id); existing == 0 {
-		// A new local session is constructed from the client JSON
-		// (PlaybackSessionManager.js:182), keeping its date and dayOfWeek;
-		// only updates recompute them from updatedAt (:212-216).
-		if ls.Date != "" {
-			day = ls.Date
-		}
-		if ls.DayOfWeek != "" {
-			weekday = ls.DayOfWeek
-		}
-	}
-	if ls.DisplayTitle == "" {
-		ls.DisplayTitle = item.Title
-	}
-	if ls.DisplayAuthor == "" {
-		ls.DisplayAuthor = item.Author
-	}
-	if ls.MediaPlayer == "" {
-		ls.MediaPlayer = "unknown"
-	}
-	playMethod := 3
-	if ls.PlayMethod != nil {
-		playMethod = *ls.PlayMethod
-	}
-	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, EpisodeID: ls.EpisodeID, MediaType: item.MediaType,
-		DisplayTitle: ls.DisplayTitle, DisplayAuthor: ls.DisplayAuthor, CoverPath: ls.CoverPath, // coverPath also comes from the client JSON, not the library item
-		PlayMethod: playMethod, MediaPlayer: ls.MediaPlayer,
-		// PlaybackSessionManager.syncLocalSession (server/managers/PlaybackSessionManager.js:203)
-		// always replaces the client duration with the item's playback duration.
-		Duration: item.Duration, StartTime: ls.StartTime, CurrentTime: ls.CurrentTime, TimeListening: ls.TimeListening, StartedAt: started, UpdatedAt: updated,
-		Date: day, DayOfWeek: weekday, MediaMetadata: overlayMetadata(item.Metadata, ls.MediaMetadata), Chapters: item.Chapters, Device: device, Files: item.Files}
-	if ls.EpisodeID == "" {
-		s.BookID = item.MediaID
-	}
-	if err = h.saveSessionRecord(ctx, s); err != nil {
-		return fail("Failed to save session")
-	}
-	synced, err := h.syncProgress(ctx, user.ID, s, 0, &updated)
-	if err != nil {
-		return fail("Failed to sync progress")
-	}
-	return localResult{ID: nullID(id), Success: true, ProgressSynced: &synced}
 }
 
 func (h *Handler) publicUser(user store.User, s *session) map[string]any {
@@ -1026,283 +634,6 @@ func validUUID(v string) bool {
 	}
 	return true
 }
-
-func (d deviceInfo) description() string {
-	if d.Model != "" {
-		if d.SDKVersion != "" {
-			return d.Model + " SDK " + d.SDKVersion + " / v" + d.ClientVersion
-		}
-		return d.Model + " / v" + d.ClientVersion
-	}
-	return d.OSName + " " + d.OSVersion + " / " + d.BrowserName
-}
-func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
-	id, name := r.PathValue("id"), r.PathValue("name")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return httputil.Status(http.StatusMethodNotAllowed, "")
-	}
-	h.mu.RLock()
-	s := h.sessions[id]
-	h.mu.RUnlock()
-	if s == nil || s.stream == nil {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	t := s.stream
-	if filepath.Base(name) != name || name == "." || name == ".." {
-		return httputil.Status(400, "")
-	}
-	ext := filepath.Ext(name)
-	if ext != ".ts" && ext != ".m3u8" {
-		return httputil.Status(400, "")
-	}
-	path := filepath.Join(t.root, name)
-	rel, err := filepath.Rel(t.root, path)
-	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return httputil.Status(400, "")
-	}
-	if _, err := os.Stat(path); err != nil {
-		if ext == ".ts" {
-			if seg, ok := segmentNumber(name); ok {
-				if at := t.checkSegment(seg); at >= 0 {
-					h.emit("*", "stream_reset", map[string]any{"startTime": at, "streamId": id})
-				}
-			}
-		}
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	contentType := "video/mp2t"
-	if ext == ".m3u8" {
-		contentType = "application/vnd.apple.mpegurl"
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, name, st.ModTime(), f)
-	return nil
-}
-
-func (h *Handler) startTranscode(s *session, item *itemData, start float64) (*transcode, error) {
-	root := filepath.Join(h.cfg.MetadataPath, "streams", s.ID)
-	if err := os.MkdirAll(root, 0700); err != nil {
-		return nil, fmt.Errorf("create HLS stream directory: %w", err)
-	}
-	concat := filepath.Join(root, "files.txt")
-	var b strings.Builder
-	for _, f := range item.Files {
-		p, _ := f.Metadata["path"].(string)
-		if p == "" {
-			return nil, errors.New("audio track path is empty")
-		}
-		if _, err := os.Stat(p); err != nil {
-			return nil, fmt.Errorf("audio track is unavailable: %w", err)
-		}
-		b.WriteString("file '")
-		b.WriteString(strings.ReplaceAll(p, "'", "'\\''"))
-		b.WriteString("'\n")
-	}
-	if err := os.WriteFile(concat, []byte(b.String()), 0600); err != nil {
-		return nil, fmt.Errorf("write FFmpeg concat file: %w", err)
-	}
-	t := &transcode{root: root, audioCodec: transcodeAudioCodec(item.Files), startTime: start, segmentLength: 6, segmentStart: int(math.Floor(math.Max(start-30, 0) / 6))}
-	if err := t.generatePlaylist(s.Duration); err != nil {
-		return nil, err
-	}
-	if err := t.start(concat, s.Duration); err != nil {
-		return nil, err
-	}
-	return t, nil
-}
-
-// transcodeAudioCodec mirrors Stream.js: AAC is copied by default and only
-// the source's explicit MIME/codec set is re-encoded as AAC.
-func transcodeAudioCodec(files []audioFile) string {
-	if len(files) == 0 {
-		return "copy"
-	}
-	file := files[0]
-	codec := strings.ToLower(file.Codec)
-	switch file.MimeType {
-	case "audio/flac", "audio/ogg", "audio/x-ms-wma", "audio/x-aiff", "audio/webm", "audio/amr-wb", "audio/x-caf":
-		return "aac"
-	}
-	switch codec {
-	case "alac", "ac3", "eac3", "opus":
-		return "aac"
-	default:
-		return "copy"
-	}
-}
-
-func (t *transcode) generatePlaylist(duration float64) error {
-	num := int(math.Floor(duration / 6))
-	last := duration - float64(num*6)
-	var b strings.Builder
-	b.WriteString("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-ALLOW-CACHE:NO\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n")
-	for i := 0; i < num; i++ {
-		fmt.Fprintf(&b, "#EXTINF:6,\noutput-%d.ts\n", i)
-	}
-	if last > 0 {
-		fmt.Fprintf(&b, "#EXTINF:%v,\noutput-%d.ts\n", last, num)
-	}
-	b.WriteString("#EXT-X-ENDLIST")
-	return os.WriteFile(filepath.Join(t.root, "output.m3u8"), []byte(b.String()), 0600)
-}
-
-func (t *transcode) start(concat string, duration float64) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	args := []string{"-hide_banner", "-loglevel", "error"}
-	adjusted := math.Max(t.startTime-30, 0)
-	if adjusted > 0 {
-		args = append(args, "-ss", strconv.FormatFloat(math.Round(adjusted*10)/10, 'f', 1, 64)+"s")
-	}
-	args = append(args, "-f", "concat", "-safe", "0", "-i", concat, "-map", "0:a", "-c:a", t.audioCodec, "-f", "hls", "-copyts", "-avoid_negative_ts", "make_non_negative", "-max_delay", "5000000", "-max_muxing_queue_size", "2048", "-hls_time", "6", "-hls_segment_type", "mpegts", "-start_number", strconv.Itoa(t.segmentStart), "-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_allow_cache", "0", "-hls_segment_filename", filepath.Join(t.root, "output-%d.ts"), filepath.Join(t.root, "final-output.m3u8"))
-	cmd := exec.CommandContext(ctx, ffmpegExecutable(), args...)
-	cmd.Stdout = io.Discard
-	stderrTail := &tailBuffer{limit: 4096}
-	cmd.Stderr = stderrTail
-	done := make(chan struct{})
-	t.mu.Lock()
-	t.ctx = ctx
-	t.cancel = cancel
-	t.cmd = cmd
-	t.done = done
-	t.complete = false
-	t.resetting = false
-	t.mu.Unlock()
-	if err := cmd.Start(); err != nil {
-		cancel()
-		return fmt.Errorf("start FFmpeg: %w", err)
-	}
-	go func() {
-		defer close(done)
-		err := cmd.Wait()
-		t.mu.Lock()
-		t.complete = true
-		t.cmd = nil
-		t.mu.Unlock()
-		if err != nil && !errors.Is(err, context.Canceled) {
-			// Stream.js:318-321: a SIGKILL is the intentional stop on
-			// session close or seek, logged at INFO, not as a failure.
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() && status.Signal() == syscall.SIGKILL {
-					logging.Infof("[FFMPEG] Transcode Killed")
-					return
-				}
-			}
-			// Upstream runs ffmpeg with -loglevel error in production
-			// (Stream.js:268) and logs its failure.
-			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v: %s", t.root, err, stderrTail.String())
-			return
-		}
-		if err == nil {
-			if promoteErr := t.promoteFinalPlaylist(); promoteErr != nil {
-				logging.Errorf("[Stream] Failed to publish the final playlist in %q: %v", t.root, promoteErr)
-			}
-		}
-	}()
-	_ = duration
-	return nil
-}
-
-// tailBuffer keeps the last limit bytes written to it (ffmpeg's stderr).
-type tailBuffer struct {
-	mu    sync.Mutex
-	limit int
-	data  []byte
-}
-
-func (b *tailBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.data = append(b.data, p...)
-	if len(b.data) > b.limit {
-		b.data = append([]byte(nil), b.data[len(b.data)-b.limit:]...)
-	}
-	return len(p), nil
-}
-
-func (b *tailBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return strings.TrimSpace(string(b.data))
-}
-
-func (t *transcode) promoteFinalPlaylist() error {
-	src := filepath.Join(t.root, "final-output.m3u8")
-	dst := filepath.Join(t.root, "output.m3u8")
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	// Keep the upstream public playlist URI stable while letting FFmpeg finalize
-	// segment ordering and durations.
-	return os.WriteFile(dst, b, 0600)
-}
-
-// checkSegment returns a nonnegative reset seek time or -1 when no reset is due.
-func (t *transcode) checkSegment(seg int) float64 {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.resetting || t.complete {
-		return -1
-	}
-	start := seg * 6
-	reset := t.segmentStart > seg
-	if !reset {
-		return -1
-	}
-	seek := math.Max(float64(start-30), 0)
-	t.resetting = true
-	oldCancel := t.cancel
-	root := t.root
-	concat := filepath.Join(root, "files.txt")
-	if oldCancel != nil {
-		oldCancel()
-	}
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		entries, _ := os.ReadDir(root)
-		for _, e := range entries {
-			if e.Name() != "files.txt" {
-				_ = os.Remove(filepath.Join(root, e.Name()))
-			}
-		}
-		t.startTime = seek
-		t.segmentStart = int(math.Floor(seek / 6))
-		_ = t.generatePlaylist(float64(math.Max(float64(seg*6+6), 6)))
-		_ = t.start(concat, 0)
-	}()
-	return float64(start)
-}
-
-func (t *transcode) close() error {
-	t.mu.Lock()
-	cancel := t.cancel
-	done := t.done
-	t.mu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
-	if done != nil {
-		select {
-		case <-done:
-		case <-time.After(3 * time.Second):
-		}
-	}
-	return os.RemoveAll(t.root)
-}
-
-func hlsPlaylist(sessionID string) string { return "/hls/" + sessionID + "/output.m3u8" }
 
 // tracks are the session's audio tracks as the client reads them: each file's
 // scanner JSON with its position, title and URL. A transcoded session has the
@@ -1368,71 +699,6 @@ func parseAudioFile(raw map[string]any) (audioFile, error) {
 	return f, nil
 }
 
-func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Request, client clientDevice) (deviceInfo, error) {
-	browser, browserVersion, osName, osVersion := deviceinfo.ParseUserAgent(r.UserAgent())
-	clientVersion := cmp.Or(client.ClientVersion, serverVersion)
-	manufacturer, model, sdk := client.Manufacturer, client.Model, string(client.SDKVersion)
-	clientName := client.ClientName
-	if clientName == "" {
-		switch {
-		case sdk != "":
-			clientName = "Abs Android"
-		case model != "":
-			clientName = "Abs iOS"
-		case browser != "" && osName != "":
-			clientName = "Abs Web"
-		default:
-			clientName = "Unknown"
-		}
-	}
-	deviceName := ""
-	// DeviceInfo.js:109/112: `${manufacturer || 'Unknown'} ${model || ''}`, untrimmed.
-	switch {
-	case sdk != "", model != "":
-		deviceName = cmp.Or(manufacturer, "Unknown") + " " + model
-	case browser != "":
-		deviceName = osName + " " + cmp.Or(osVersion, "N/A") + " " + browser
-	}
-	ip := r.RemoteAddr
-	if host, _, err := net.SplitHostPort(ip); err == nil {
-		ip = host
-	}
-	dbID, err := ids.New()
-	if err != nil {
-		return deviceInfo{}, err
-	}
-	deviceKey := cmp.Or(client.DeviceID, dbID)
-	var existing string
-	err = h.db.QueryRowContext(ctx, `SELECT id FROM devices WHERE deviceId=? AND userId=? LIMIT 1`, deviceKey, user.ID).Scan(&existing)
-	if err == nil {
-		dbID = existing
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return deviceInfo{}, err
-	}
-	extraRaw, _ := json.Marshal(struct {
-		Manufacturer string `json:"manufacturer,omitempty"`
-		Model        string `json:"model,omitempty"`
-		OSName       string `json:"osName,omitempty"`
-		OSVersion    string `json:"osVersion,omitempty"`
-		BrowserName  string `json:"browserName,omitempty"`
-	}{manufacturer, model, osName, osVersion, browser})
-	version := cmp.Or(sdk, browserVersion)
-	now := dbtime.Now()
-	if existing == "" {
-		_, err = h.db.ExecContext(ctx, `INSERT INTO devices (id,deviceId,clientName,clientVersion,ipAddress,deviceName,deviceVersion,extraData,userId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, dbID, deviceKey, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), user.ID, now, now)
-	} else {
-		_, err = h.db.ExecContext(ctx, `UPDATE devices SET clientName=?,clientVersion=?,ipAddress=?,deviceName=?,deviceVersion=?,extraData=?,updatedAt=? WHERE id=?`, clientName, clientVersion, ip, store.NullIfEmpty(deviceName), store.NullIfEmpty(version), string(extraRaw), now, dbID)
-	}
-	if err != nil {
-		return deviceInfo{}, err
-	}
-	// The observed v2.37.2 playback-session device DTO omits deviceName,
-	// manufacturer, model and sdkVersion entirely when no value exists
-	// (PlaybackSession.js:86-104 / DeviceInfo.js:43-67 fixture behavior).
-	return deviceInfo{ID: dbID, UserID: user.ID, DeviceID: deviceKey, IPAddress: ip, ClientVersion: clientVersion, ClientName: clientName, DeviceName: deviceName,
-		BrowserName: browser, BrowserVersion: browserVersion, OSName: osName, OSVersion: osVersion, Manufacturer: manufacturer, Model: model, SDKVersion: sdk}, nil
-}
-
 func serveMedia(w http.ResponseWriter, r *http.Request, path, mime string) error {
 	if mime == "" {
 		mime = mimeForFormat(strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), "."))
@@ -1492,26 +758,4 @@ func allSupported(files []audioFile, supported []string) bool {
 		}
 	}
 	return true
-}
-func nowMS() int64 { return time.Now().UnixMilli() }
-func segmentNumber(name string) (int, bool) {
-	base := strings.TrimSuffix(name, filepath.Ext(name))
-	parts := strings.Split(base, "-")
-	if len(parts) != 2 {
-		return 0, false
-	}
-	n, e := strconv.Atoi(parts[1])
-	return n, e == nil && n >= 0
-}
-func sendOK(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", "2")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("OK"))
-}
-func ffmpegExecutable() string {
-	if p := strings.TrimSpace(os.Getenv("FFMPEG_PATH")); p != "" {
-		return p
-	}
-	return "ffmpeg"
 }

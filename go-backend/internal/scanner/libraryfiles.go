@@ -1,10 +1,10 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filekind"
 	"encoding/json"
 	"path/filepath"
 	"regexp"
-	"time"
 )
 
 // libraryFileMetadata is the stored FileMetadata of a library file
@@ -43,9 +43,9 @@ func newLibraryFile(root string, f file) libraryFile {
 		Ino: inode(f.info),
 		Metadata: libraryFileMetadata{
 			Filename: filepath.Base(f.path), Ext: ext, Path: f.path, RelPath: rel, Size: float64(f.info.Size()),
-			MtimeMs: float64(ms(mtime)), CtimeMs: float64(ms(ctime)), BirthtimeMs: float64(ms(birthtime)),
+			MtimeMs: float64(mtime.UnixMilli()), CtimeMs: float64(ctime.UnixMilli()), BirthtimeMs: float64(birthtime.UnixMilli()),
 		},
-		FileType: fileTypeForExtension(ext),
+		FileType: filekind.Of(ext),
 	}
 }
 
@@ -192,5 +192,3 @@ func libraryFileHasPath(files []libraryFile, p string) bool {
 	}
 	return false
 }
-
-func nowMillis() int64 { return time.Now().UnixMilli() }

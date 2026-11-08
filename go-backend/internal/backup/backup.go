@@ -25,10 +25,10 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/version"
 	"github.com/robfig/cron/v3"
 )
 
-const serverVersion = "2.37.2"
 const maxRestoreUncompressedBytes = 20 << 30
 
 type RestoreFunc func(context.Context, string, string, string) error
@@ -275,7 +275,7 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	now := time.Now()
 	id := now.Format("2006-01-02T1504")
 	dir := opt.BackupPath
-	backup := Backup{ID: id, Key: "sqlite", BackupDirPath: dir, DatePretty: now.Format("Mon, Jan 2 2006 15:04"), Filename: id + ".audiobookshelf", FullPath: filepath.Join(dir, id+".audiobookshelf"), Path: filepath.Join("backups", id+".audiobookshelf"), CreatedAt: now.UnixMilli(), ServerVersion: serverVersion}
+	backup := Backup{ID: id, Key: "sqlite", BackupDirPath: dir, DatePretty: now.Format("Mon, Jan 2 2006 15:04"), Filename: id + ".audiobookshelf", FullPath: filepath.Join(dir, id+".audiobookshelf"), Path: filepath.Join("backups", id+".audiobookshelf"), CreatedAt: now.UnixMilli(), ServerVersion: version.Server}
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return Backup{}, err
 	}
@@ -283,12 +283,11 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	_ = os.Remove(tmpDB)
 	// VACUUM INTO produces a consistent SQLite snapshot, including committed WAL
 	// contents, without copying a potentially changing main database file.
-	copyDB, err := sql.Open("sqlite", "file:"+filepath.Join(h.cfg.ConfigPath, "absdatabase.sqlite")+"?mode=ro")
+	copyDB, err := store.OpenUnchecked(store.DatabasePath(h.cfg.ConfigPath))
 	if err != nil {
 		return Backup{}, err
 	}
-	copyDB.SetMaxOpenConns(1)
-	_, err = copyDB.ExecContext(ctx, "VACUUM INTO ?", tmpDB)
+	_, err = copyDB.DB().ExecContext(ctx, "VACUUM INTO ?", tmpDB)
 	closeErr := copyDB.Close()
 	if err != nil {
 		return Backup{}, fmt.Errorf("snapshot database: %w", err)

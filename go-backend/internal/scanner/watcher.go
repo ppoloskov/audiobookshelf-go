@@ -1,8 +1,8 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filekind"
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -297,21 +297,7 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 			s.resetIssuesFilterData(ctx, group[0].libraryID) // LibraryScanner.js:419-441
 		}
 	}
-	var parts []string
-	if added > 0 {
-		parts = append(parts, fmt.Sprintf("%d added", added))
-	}
-	if updated > 0 {
-		parts = append(parts, fmt.Sprintf("%d updated", updated))
-	}
-	if removed > 0 {
-		parts = append(parts, fmt.Sprintf("%d missing", removed))
-	}
-	text := "No changes needed"
-	if len(parts) > 0 {
-		text = strings.Join(parts, ", ")
-	}
-	task.Data.ScanResults = &scanResults{Added: added, Updated: updated, Removed: &removed, Text: text, Elapsed: time.Now().UnixMilli() - task.StartedAt}
+	task.Data.ScanResults = &scanResults{Added: added, Updated: updated, Removed: &removed, Text: changesText(added, updated, removed), Elapsed: time.Now().UnixMilli() - task.StartedAt}
 	finishTask(task)
 	s.emitTask("task_finished", task)
 
@@ -347,35 +333,17 @@ const (
 	scanRemoved
 )
 
-func isMediaFileExt(mediaType, ext string, audiobooksOnly bool) bool {
-	if ext == "" {
-		return false
-	}
-	if mediaType == "podcast" || audiobooksOnly {
-		return audioExt(ext)
-	}
-	return audioExt(ext) || ebookExt(ext)
-}
-
-func isScannableNonMedia(ext string) bool {
-	switch strings.ToLower(ext) {
-	case ".txt", ".nfo", ".opf", ".abs", ".xml", ".json", ".png", ".jpg", ".jpeg", ".webp":
-		return true
-	}
-	return false
-}
-
 // groupFileUpdates is scandir.groupFileItemsIntoLibraryItemDirs with
 // includeNonMediaFiles=true (scandir.js:37-110).
-func groupFileUpdates(mediaType string, relPaths []string, audiobooksOnly bool) *updateGroup {
+func groupFileUpdates(l library, relPaths []string) *updateGroup {
 	var media, other []string
 	for _, rel := range relPaths {
 		rel = strings.TrimPrefix(rel, "/")
 		ext := filepath.Ext(rel)
-		if !(strings.Contains(rel, "/") || (mediaType == "book" && isMediaFileExt(mediaType, ext, audiobooksOnly))) {
+		if !(strings.Contains(rel, "/") || (l.mediaType == "book" && l.mediaExt(ext))) {
 			continue
 		}
-		if isMediaFileExt(mediaType, ext, audiobooksOnly) || isScannableNonMedia(ext) {
+		if l.mediaExt(ext) || filekind.IsCompanion(ext) {
 			media = append(media, rel)
 		} else {
 			other = append(other, rel)
@@ -445,7 +413,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 	for i, u := range updates {
 		rels[i] = u.relPath
 	}
-	group := groupFileUpdates(l.mediaType, rels, l.audiobooksOnly)
+	group := groupFileUpdates(l, rels)
 	results := map[string]int{}
 	if len(group.keys) == 0 {
 		return results, nil
@@ -526,11 +494,11 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		if found {
 			if existing.path == fullPath {
 				if _, statErr := os.Stat(fullPath); statErr != nil {
-					now := nowDB()
-					if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, now, existing.id); e != nil {
+					item, e := s.markMissing(ctx, existing.id)
+					if e != nil {
 						return results, e
 					}
-					if item, e := s.itemEvent(ctx, existing.id); e == nil && s.emit != nil {
+					if s.emit != nil {
 						s.emit("*", "item_updated", item)
 					}
 					results[itemDir] = scanRemoved
@@ -555,7 +523,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 			results[itemDir] = scanNothing
 			continue
 		}
-		g, err := s.collectItemGroup(ctx, fullPath, f, isSingle)
+		g, err := s.collectItemGroup(ctx, l, fullPath, f, isSingle)
 		if err != nil || g == nil {
 			results[itemDir] = scanNothing
 			continue
@@ -575,7 +543,9 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		}
 		// Watcher path skips the full-scan cleanup: only the author book counts
 		// are announced (LibraryItemScanner.js:215-217).
-		_ = s.emitAuthorCounts(ctx, libraryID, tally)
+		if err := s.finalizeScan(ctx, libraryID, &scanTally{authorsChanged: tally.authorsChanged}); err != nil {
+			logging.Errorf("[LibraryScanner] Announcing author counts failed: %v", err)
+		}
 		tally.authorsChanged = nil
 	}
 	return results, nil
@@ -583,10 +553,10 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 
 func groupHasAudio(g *updateGroup, itemDir string) bool {
 	if g.isSingle(itemDir) {
-		return audioExt(filepath.Ext(itemDir))
+		return filekind.IsAudio(filepath.Ext(itemDir))
 	}
 	for _, rel := range g.files[itemDir] {
-		if audioExt(filepath.Ext(rel)) {
+		if filekind.IsAudio(filepath.Ext(rel)) {
 			return true
 		}
 	}
@@ -623,7 +593,7 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 	if err != nil {
 		return scanNothing, err
 	}
-	g, err := s.collectItemGroup(ctx, itemPath, f, single)
+	g, err := s.collectItemGroup(ctx, l, itemPath, f, single)
 	if err != nil {
 		return scanNothing, err
 	}
@@ -650,13 +620,9 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 	return scanUpdated, nil
 }
 
-func (s *Scanner) emitAuthorCounts(ctx context.Context, libraryID string, t *scanTally) error {
-	only := &scanTally{authorsChanged: t.authorsChanged}
-	return s.finalizeScan(ctx, libraryID, only)
-}
-
-// collectItemGroup lists an item folder's files into a scan group.
-func (s *Scanner) collectItemGroup(ctx context.Context, itemPath string, f folder, isFile bool) (*group, error) {
+// collectItemGroup lists an item folder's files into a scan group, keeping
+// the files a full scan of the library keeps.
+func (s *Scanner) collectItemGroup(ctx context.Context, l library, itemPath string, f folder, isFile bool) (*group, error) {
 	st, err := os.Stat(itemPath)
 	if err != nil {
 		return nil, err
@@ -665,9 +631,9 @@ func (s *Scanner) collectItemGroup(ctx context.Context, itemPath string, f folde
 	if st.IsDir() && !isFile {
 		files, err = walkFiles(ctx, itemPath, func(rel string) bool {
 			ext := filepath.Ext(rel)
-			return audioExt(ext) || scannableCompanion(ext)
+			return l.mediaExt(ext) || filekind.IsCompanion(ext)
 		})
-	} else if audioExt(filepath.Ext(itemPath)) || ebookExt(filepath.Ext(itemPath)) {
+	} else if l.mediaExt(filepath.Ext(itemPath)) {
 		files = append(files, file{path: itemPath, info: st, relPath: filepath.Base(itemPath)})
 	}
 	if err != nil || len(files) == 0 {
@@ -675,7 +641,7 @@ func (s *Scanner) collectItemGroup(ctx context.Context, itemPath string, f folde
 	}
 	g := &group{path: itemPath, folder: f, isFile: isFile}
 	for _, fl := range files {
-		if audioExt(filepath.Ext(fl.path)) || (isFile && ebookExt(filepath.Ext(fl.path))) {
+		if l.mediaExt(filepath.Ext(fl.path)) {
 			g.files = append(g.files, fl)
 		} else {
 			g.companions = append(g.companions, fl)
@@ -683,5 +649,3 @@ func (s *Scanner) collectItemGroup(ctx context.Context, itemPath string, f folde
 	}
 	return g, nil
 }
-
-var _ = sql.ErrNoRows

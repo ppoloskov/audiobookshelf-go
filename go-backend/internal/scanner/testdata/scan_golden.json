@@ -28,28 +28,28 @@
  ],
  "bookAuthors": [
   {
-   "name": "Author B",
-   "title": "CD Book"
-  },
-  {
-   "name": "Author F",
-   "title": "Moving"
-  },
-  {
    "name": "Jane Doe",
    "title": "Multi Title"
-  },
-  {
-   "name": "Author E",
-   "title": "New Book"
   },
   {
    "name": "Author C",
    "title": "Opf Title"
   },
   {
+   "name": "Author B",
+   "title": "T-6"
+  },
+  {
+   "name": "Author F",
+   "title": "T-6"
+  },
+  {
    "name": "Author E",
-   "title": "Watched"
+   "title": "T-7"
+  },
+  {
+   "name": "Author E",
+   "title": "T-8"
   }
  ],
  "bookSeries": [
@@ -63,81 +63,6 @@
   {
    "abridged": 0,
    "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":1,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"a.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD1/a.mp3\",\"relPath\":\"CD1/a.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0},{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":2,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":2,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"b.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD2/b.mp3\",\"relPath\":\"CD2/b.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0},{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":2,\"discNumFromMeta\":null,\"duration\":8,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":3,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-8\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"c.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD2/c.mp3\",\"relPath\":\"CD2/c.mp3\",\"size\":8},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
-   "chapters": "[{\"end\":6,\"id\":0,\"start\":0,\"title\":\"T-6\"},{\"end\":13,\"id\":1,\"start\":6,\"title\":\"T-7\"}]",
-   "coverPath": null,
-   "createdAt": "T",
-   "description": null,
-   "duration": 21,
-   "ebookFile": null,
-   "explicit": 0,
-   "genres": "[]",
-   "id": "idAa",
-   "isbn": null,
-   "language": null,
-   "narrators": "[]",
-   "publishedDate": null,
-   "publishedYear": null,
-   "publisher": null,
-   "subtitle": null,
-   "tags": "[]",
-   "title": "CD Book",
-   "titleIgnorePrefix": "CD Book",
-   "updatedAt": "T"
-  },
-  {
-   "abridged": 0,
-   "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":4,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-4\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".epub\",\"filename\":\"book.epub\",\"mtimeMs\":0,\"path\":\"ROOT/Ebook Book/book.epub\",\"relPath\":\"book.epub\",\"size\":4},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
-   "chapters": "[]",
-   "coverPath": null,
-   "createdAt": "T",
-   "description": null,
-   "duration": 4,
-   "ebookFile": null,
-   "explicit": 0,
-   "genres": "[]",
-   "id": "idBa",
-   "isbn": null,
-   "language": null,
-   "narrators": "[]",
-   "publishedDate": null,
-   "publishedYear": null,
-   "publisher": null,
-   "subtitle": null,
-   "tags": "[]",
-   "title": "Ebook Book",
-   "titleIgnorePrefix": "Ebook Book",
-   "updatedAt": "T"
-  },
-  {
-   "abridged": 0,
-   "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"m.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author F/Moving/m.mp3\",\"relPath\":\"m.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
-   "chapters": "[]",
-   "coverPath": null,
-   "createdAt": "T",
-   "description": null,
-   "duration": 6,
-   "ebookFile": null,
-   "explicit": 0,
-   "genres": "[]",
-   "id": "idCa",
-   "isbn": null,
-   "language": null,
-   "narrators": "[]",
-   "publishedDate": null,
-   "publishedYear": null,
-   "publisher": null,
-   "subtitle": null,
-   "tags": "[]",
-   "title": "Moving",
-   "titleIgnorePrefix": "Moving",
-   "updatedAt": "T"
-  },
-  {
-   "abridged": 0,
-   "asin": null,
    "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":4,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-4\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"01.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author A/Multi Renamed/01.mp3\",\"relPath\":\"01.mp3\",\"size\":4},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":1,\"trackNumFromMeta\":null,\"updatedAt\":0},{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":2,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"02.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author A/Multi Renamed/02.mp3\",\"relPath\":\"02.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":2,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
    "chapters": "[{\"end\":4,\"id\":0,\"start\":0,\"title\":\"T-4\"},{\"end\":10,\"id\":1,\"start\":4,\"title\":\"T-6\"}]",
    "coverPath": "ROOT/Author A/Multi Renamed/cover.jpg",
@@ -147,7 +72,7 @@
    "ebookFile": null,
    "explicit": 0,
    "genres": "[\"Fantasy\"]",
-   "id": "idDa",
+   "id": "idAa",
    "isbn": null,
    "language": null,
    "narrators": "[]",
@@ -163,31 +88,6 @@
   {
    "abridged": 0,
    "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":8,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-8\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"n.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author E/New Book/n.mp3\",\"relPath\":\"n.mp3\",\"size\":8},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
-   "chapters": "[]",
-   "coverPath": null,
-   "createdAt": "T",
-   "description": null,
-   "duration": 8,
-   "ebookFile": null,
-   "explicit": 0,
-   "genres": "[]",
-   "id": "idEa",
-   "isbn": null,
-   "language": null,
-   "narrators": "[]",
-   "publishedDate": null,
-   "publishedYear": null,
-   "publisher": null,
-   "subtitle": null,
-   "tags": "[]",
-   "title": "New Book",
-   "titleIgnorePrefix": "New Book",
-   "updatedAt": "T"
-  },
-  {
-   "abridged": 0,
-   "asin": null,
    "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"ch.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author C/Series X/Vol 1 - Nested/ch.mp3\",\"relPath\":\"ch.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
    "chapters": "[]",
    "coverPath": null,
@@ -197,7 +97,7 @@
    "ebookFile": null,
    "explicit": 0,
    "genres": "[]",
-   "id": "idFa",
+   "id": "idBa",
    "isbn": null,
    "language": null,
    "narrators": "[]",
@@ -222,6 +122,106 @@
    "ebookFile": null,
    "explicit": 0,
    "genres": "[]",
+   "id": "idCa",
+   "isbn": null,
+   "language": null,
+   "narrators": "[]",
+   "publishedDate": null,
+   "publishedYear": null,
+   "publisher": null,
+   "subtitle": null,
+   "tags": "[]",
+   "title": "T-12",
+   "titleIgnorePrefix": "T-12",
+   "updatedAt": "T"
+  },
+  {
+   "abridged": 0,
+   "asin": null,
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":4,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-4\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".epub\",\"filename\":\"book.epub\",\"mtimeMs\":0,\"path\":\"ROOT/Ebook Book/book.epub\",\"relPath\":\"book.epub\",\"size\":4},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "chapters": "[]",
+   "coverPath": null,
+   "createdAt": "T",
+   "description": null,
+   "duration": 4,
+   "ebookFile": null,
+   "explicit": 0,
+   "genres": "[]",
+   "id": "idDa",
+   "isbn": null,
+   "language": null,
+   "narrators": "[]",
+   "publishedDate": null,
+   "publishedYear": null,
+   "publisher": null,
+   "subtitle": null,
+   "tags": "[]",
+   "title": "T-4",
+   "titleIgnorePrefix": "T-4",
+   "updatedAt": "T"
+  },
+  {
+   "abridged": 0,
+   "asin": null,
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"m.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author F/Moving/m.mp3\",\"relPath\":\"m.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "chapters": "[]",
+   "coverPath": null,
+   "createdAt": "T",
+   "description": null,
+   "duration": 6,
+   "ebookFile": null,
+   "explicit": 0,
+   "genres": "[]",
+   "id": "idEa",
+   "isbn": null,
+   "language": null,
+   "narrators": "[]",
+   "publishedDate": null,
+   "publishedYear": null,
+   "publisher": null,
+   "subtitle": null,
+   "tags": "[]",
+   "title": "T-6",
+   "titleIgnorePrefix": "T-6",
+   "updatedAt": "T"
+  },
+  {
+   "abridged": 0,
+   "asin": null,
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":1,\"discNumFromMeta\":null,\"duration\":6,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-6\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"a.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD1/a.mp3\",\"relPath\":\"CD1/a.mp3\",\"size\":6},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0},{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":2,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":2,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"b.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD2/b.mp3\",\"relPath\":\"CD2/b.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0},{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":2,\"discNumFromMeta\":null,\"duration\":8,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":3,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-8\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"c.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author B/CD Book/CD2/c.mp3\",\"relPath\":\"CD2/c.mp3\",\"size\":8},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "chapters": "[{\"end\":6,\"id\":0,\"start\":0,\"title\":\"a\"},{\"end\":13,\"id\":1,\"start\":6,\"title\":\"b\"}]",
+   "coverPath": null,
+   "createdAt": "T",
+   "description": null,
+   "duration": 21,
+   "ebookFile": null,
+   "explicit": 0,
+   "genres": "[]",
+   "id": "idFa",
+   "isbn": null,
+   "language": null,
+   "narrators": "[]",
+   "publishedDate": null,
+   "publishedYear": null,
+   "publisher": null,
+   "subtitle": null,
+   "tags": "[]",
+   "title": "T-6",
+   "titleIgnorePrefix": "T-6",
+   "updatedAt": "T"
+  },
+  {
+   "abridged": 0,
+   "asin": null,
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"part.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Temp Book/part.mp3\",\"relPath\":\"part.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "chapters": "[]",
+   "coverPath": null,
+   "createdAt": "T",
+   "description": null,
+   "duration": 7,
+   "ebookFile": null,
+   "explicit": 0,
+   "genres": "[]",
    "id": "idGa",
    "isbn": null,
    "language": null,
@@ -231,14 +231,14 @@
    "publisher": null,
    "subtitle": null,
    "tags": "[]",
-   "title": "Single",
-   "titleIgnorePrefix": "Single",
+   "title": "T-7",
+   "titleIgnorePrefix": "T-7",
    "updatedAt": "T"
   },
   {
    "abridged": 0,
    "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"part.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Temp Book/part.mp3\",\"relPath\":\"part.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"w.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author E/Watched/w.mp3\",\"relPath\":\"w.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
    "chapters": "[]",
    "coverPath": null,
    "createdAt": "T",
@@ -256,19 +256,19 @@
    "publisher": null,
    "subtitle": null,
    "tags": "[]",
-   "title": "Temp Book",
-   "titleIgnorePrefix": "Temp Book",
+   "title": "T-7",
+   "titleIgnorePrefix": "T-7",
    "updatedAt": "T"
   },
   {
    "abridged": 0,
    "asin": null,
-   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":7,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-7\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"w.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author E/Watched/w.mp3\",\"relPath\":\"w.mp3\",\"size\":7},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
+   "audioFiles": "[{\"addedAt\":0,\"bitRate\":64000,\"channelLayout\":null,\"channels\":2,\"chapters\":[],\"codec\":\"mp3\",\"discNumFromFilename\":null,\"discNumFromMeta\":null,\"duration\":8,\"embeddedCoverArt\":null,\"error\":null,\"exclude\":false,\"format\":\"mp3\",\"index\":1,\"ino\":\"I\",\"language\":null,\"manuallyVerified\":false,\"metaTags\":{\"tagTitle\":\"T-8\"},\"metadata\":{\"birthtimeMs\":0,\"ctimeMs\":0,\"ext\":\".mp3\",\"filename\":\"n.mp3\",\"mtimeMs\":0,\"path\":\"ROOT/Author E/New Book/n.mp3\",\"relPath\":\"n.mp3\",\"size\":8},\"mimeType\":\"audio/mpeg\",\"timeBase\":\"\",\"trackNumFromFilename\":null,\"trackNumFromMeta\":null,\"updatedAt\":0}]",
    "chapters": "[]",
    "coverPath": null,
    "createdAt": "T",
    "description": null,
-   "duration": 7,
+   "duration": 8,
    "ebookFile": null,
    "explicit": 0,
    "genres": "[]",
@@ -281,8 +281,8 @@
    "publisher": null,
    "subtitle": null,
    "tags": "[]",
-   "title": "Watched",
-   "titleIgnorePrefix": "Watched",
+   "title": "T-8",
+   "titleIgnorePrefix": "T-8",
    "updatedAt": "T"
   }
  ],
@@ -307,7 +307,7 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"01.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author A/Multi Renamed/01.mp3\",\"relPath\":\"01.mp3\",\"size\":4,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"02.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author A/Multi Renamed/02.mp3\",\"relPath\":\"02.mp3\",\"size\":6,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"cover.jpg\",\"ext\":\".jpg\",\"path\":\"ROOT/Author A/Multi Renamed/cover.jpg\",\"relPath\":\"cover.jpg\",\"size\":3,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"image\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"desc.txt\",\"ext\":\".txt\",\"path\":\"ROOT/Author A/Multi Renamed/desc.txt\",\"relPath\":\"desc.txt\",\"size\":13,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"text\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"metadata.json\",\"ext\":\".json\",\"path\":\"ROOT/Author A/Multi Renamed/metadata.json\",\"relPath\":\"metadata.json\",\"size\":88,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"metadata\"}]",
-   "mediaId": "idDa",
+   "mediaId": "idAa",
    "mediaType": "book",
    "path": "ROOT/Author A/Multi Renamed",
    "relPath": "Author A/Multi Renamed",
@@ -323,13 +323,13 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"a.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author B/CD Book/CD1/a.mp3\",\"relPath\":\"CD1/a.mp3\",\"size\":6,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"b.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author B/CD Book/CD2/b.mp3\",\"relPath\":\"CD2/b.mp3\",\"size\":7,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"c.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author B/CD Book/CD2/c.mp3\",\"relPath\":\"CD2/c.mp3\",\"size\":8,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"notes.txt\",\"ext\":\".txt\",\"path\":\"ROOT/Author B/CD Book/notes.txt\",\"relPath\":\"notes.txt\",\"size\":1,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"text\"}]",
-   "mediaId": "idAa",
+   "mediaId": "idFa",
    "mediaType": "book",
    "path": "ROOT/Author B/CD Book",
    "relPath": "Author B/CD Book",
    "size": 22,
-   "title": "CD Book",
-   "titleIgnorePrefix": "CD Book"
+   "title": "T-6",
+   "titleIgnorePrefix": "T-6"
   },
   {
    "authorNamesFirstLast": "Author C",
@@ -339,7 +339,7 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"ch.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author C/Series X/Vol 1 - Nested/ch.mp3\",\"relPath\":\"ch.mp3\",\"size\":6,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"book.opf\",\"ext\":\".opf\",\"path\":\"ROOT/Author C/Series X/Vol 1 - Nested/book.opf\",\"relPath\":\"book.opf\",\"size\":186,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"metadata\"}]",
-   "mediaId": "idFa",
+   "mediaId": "idBa",
    "mediaType": "book",
    "path": "ROOT/Author C/Series X/Vol 1 - Nested",
    "relPath": "Author C/Series X/Vol 1 - Nested",
@@ -355,13 +355,13 @@
    "isMissing": 1,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"n.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author E/New Book/n.mp3\",\"relPath\":\"n.mp3\",\"size\":8,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"}]",
-   "mediaId": "idEa",
+   "mediaId": "idIa",
    "mediaType": "book",
    "path": "ROOT/Author E/New Book",
    "relPath": "Author E/New Book",
    "size": 8,
-   "title": "New Book",
-   "titleIgnorePrefix": "New Book"
+   "title": "T-8",
+   "titleIgnorePrefix": "T-8"
   },
   {
    "authorNamesFirstLast": "Author E",
@@ -371,13 +371,13 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"w.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author E/Watched/w.mp3\",\"relPath\":\"w.mp3\",\"size\":7,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"},{\"ino\":\"I\",\"metadata\":{\"filename\":\"w.txt\",\"ext\":\".txt\",\"path\":\"ROOT/Author E/Watched/w.txt\",\"relPath\":\"w.txt\",\"size\":4,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"text\"}]",
-   "mediaId": "idIa",
+   "mediaId": "idHa",
    "mediaType": "book",
    "path": "ROOT/Author E/Watched",
    "relPath": "Author E/Watched",
    "size": 11,
-   "title": "Watched",
-   "titleIgnorePrefix": "Watched"
+   "title": "T-7",
+   "titleIgnorePrefix": "T-7"
   },
   {
    "authorNamesFirstLast": "Author F",
@@ -387,13 +387,13 @@
    "isMissing": 1,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"m.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Author F/Moving/m.mp3\",\"relPath\":\"m.mp3\",\"size\":6,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"}]",
-   "mediaId": "idCa",
+   "mediaId": "idEa",
    "mediaType": "book",
    "path": "ROOT/Author F/Moving",
    "relPath": "Author F/Moving",
    "size": 6,
-   "title": "Moving",
-   "titleIgnorePrefix": "Moving"
+   "title": "T-6",
+   "titleIgnorePrefix": "T-6"
   },
   {
    "authorNamesFirstLast": "",
@@ -403,13 +403,13 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"book.epub\",\"ext\":\".epub\",\"path\":\"ROOT/Ebook Book/book.epub\",\"relPath\":\"book.epub\",\"size\":4,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":true,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"ebook\"}]",
-   "mediaId": "idBa",
+   "mediaId": "idDa",
    "mediaType": "book",
    "path": "ROOT/Ebook Book",
    "relPath": "Ebook Book",
    "size": 4,
-   "title": "Ebook Book",
-   "titleIgnorePrefix": "Ebook Book"
+   "title": "T-4",
+   "titleIgnorePrefix": "T-4"
   },
   {
    "authorNamesFirstLast": "",
@@ -419,13 +419,13 @@
    "isMissing": 1,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"Single.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Single.mp3\",\"relPath\":\"Single.mp3\",\"size\":12,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"}]",
-   "mediaId": "idGa",
+   "mediaId": "idCa",
    "mediaType": "book",
    "path": "ROOT/Single.mp3",
    "relPath": "Single.mp3",
    "size": 12,
-   "title": "Single",
-   "titleIgnorePrefix": "Single"
+   "title": "T-12",
+   "titleIgnorePrefix": "T-12"
   },
   {
    "authorNamesFirstLast": "",
@@ -435,13 +435,13 @@
    "isMissing": 0,
    "lastScanVersion": "2.37.2",
    "libraryFiles": "[{\"ino\":\"I\",\"metadata\":{\"filename\":\"part.mp3\",\"ext\":\".mp3\",\"path\":\"ROOT/Temp Book/part.mp3\",\"relPath\":\"part.mp3\",\"size\":7,\"mtimeMs\":0,\"ctimeMs\":0,\"birthtimeMs\":0},\"isSupplementary\":null,\"addedAt\":0,\"updatedAt\":0,\"fileType\":\"audio\"}]",
-   "mediaId": "idHa",
+   "mediaId": "idGa",
    "mediaType": "book",
    "path": "ROOT/Temp Book",
    "relPath": "Temp Book",
    "size": 7,
-   "title": "Temp Book",
-   "titleIgnorePrefix": "Temp Book"
+   "title": "T-7",
+   "titleIgnorePrefix": "T-7"
   },
   {
    "authorNamesFirstLast": "",
@@ -560,14 +560,14 @@
  ],
  "sidecars": {
   "ROOT/Author A/Multi Renamed|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Jane Doe\"\n  ],\n  \"chapters\": [\n    {\n      \"end\": 4,\n      \"id\": 0,\n      \"start\": 0,\n      \"title\": \"T-4\"\n    },\n    {\n      \"end\": 10,\n      \"id\": 1,\n      \"start\": 4,\n      \"title\": \"T-6\"\n    }\n  ],\n  \"description\": \"A description\",\n  \"explicit\": false,\n  \"genres\": [\n    \"Fantasy\"\n  ],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Multi Title\"\n}\n",
-  "ROOT/Author B/CD Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author B\"\n  ],\n  \"chapters\": [\n    {\n      \"end\": 6,\n      \"id\": 0,\n      \"start\": 0,\n      \"title\": \"T-6\"\n    },\n    {\n      \"end\": 13,\n      \"id\": 1,\n      \"start\": 6,\n      \"title\": \"T-7\"\n    }\n  ],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"CD Book\"\n}\n",
+  "ROOT/Author B/CD Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author B\"\n  ],\n  \"chapters\": [\n    {\n      \"end\": 6,\n      \"id\": 0,\n      \"start\": 0,\n      \"title\": \"a\"\n    },\n    {\n      \"end\": 13,\n      \"id\": 1,\n      \"start\": 6,\n      \"title\": \"b\"\n    }\n  ],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-6\"\n}\n",
   "ROOT/Author C/Series X/Vol 1 - Nested|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author C\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [\n    \"Series X #1\"\n  ],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Opf Title\"\n}\n",
-  "ROOT/Author E/New Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author E\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"New Book\"\n}\n",
-  "ROOT/Author E/Watched|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author E\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Watched\"\n}\n",
-  "ROOT/Author F/Moving|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author F\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Moving\"\n}\n",
-  "ROOT/Ebook Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Ebook Book\"\n}\n",
-  "ROOT/Single.mp3|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Single\"\n}\n",
-  "ROOT/Temp Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"Temp Book\"\n}\n"
+  "ROOT/Author E/New Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author E\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-8\"\n}\n",
+  "ROOT/Author E/Watched|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author E\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-7\"\n}\n",
+  "ROOT/Author F/Moving|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [\n    \"Author F\"\n  ],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-6\"\n}\n",
+  "ROOT/Ebook Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-4\"\n}\n",
+  "ROOT/Single.mp3|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-12\"\n}\n",
+  "ROOT/Temp Book|metadata.json": "{\n  \"abridged\": false,\n  \"asin\": null,\n  \"authors\": [],\n  \"chapters\": [],\n  \"description\": null,\n  \"explicit\": false,\n  \"genres\": [],\n  \"isbn\": null,\n  \"language\": null,\n  \"narrators\": [],\n  \"publishedDate\": null,\n  \"publishedYear\": null,\n  \"publisher\": null,\n  \"series\": [],\n  \"subtitle\": null,\n  \"tags\": [],\n  \"title\": \"T-7\"\n}\n"
  },
  "steps": [
   {
@@ -754,7 +754,7 @@
        "numFiles": 5,
        "size": 114,
        "media": {
-        "id": "idDa",
+        "id": "idAa",
         "metadata": {
          "title": "Multi Title",
          "subtitle": null,
@@ -1026,9 +1026,9 @@
        "numFiles": 2,
        "size": 13,
        "media": {
-        "id": "idAa",
+        "id": "idFa",
         "metadata": {
-         "title": "CD Book",
+         "title": "T-6",
          "subtitle": null,
          "authors": [
           {
@@ -1048,7 +1048,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "CD Book",
+         "titleIgnorePrefix": "T-6",
          "authorName": "Author B",
          "authorNameLF": "B, Author",
          "narratorName": "",
@@ -1144,13 +1144,13 @@
           "end": 6,
           "id": 0,
           "start": 0,
-          "title": "T-6"
+          "title": "a"
          },
          {
           "end": 13,
           "id": 1,
           "start": 6,
-          "title": "T-7"
+          "title": "b"
          }
         ],
         "ebookFile": null,
@@ -1296,7 +1296,7 @@
        "numFiles": 2,
        "size": 192,
        "media": {
-        "id": "idFa",
+        "id": "idBa",
         "metadata": {
          "title": "Opf Title",
          "subtitle": null,
@@ -1465,9 +1465,9 @@
        "numFiles": 1,
        "size": 4,
        "media": {
-        "id": "idBa",
+        "id": "idDa",
         "metadata": {
-         "title": "Ebook Book",
+         "title": "T-4",
          "subtitle": null,
          "authors": [],
          "narrators": [],
@@ -1482,7 +1482,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "Ebook Book",
+         "titleIgnorePrefix": "T-4",
          "authorName": "",
          "authorNameLF": "",
          "narratorName": "",
@@ -1623,9 +1623,9 @@
        "numFiles": 1,
        "size": 12,
        "media": {
-        "id": "idGa",
+        "id": "idCa",
         "metadata": {
-         "title": "Single",
+         "title": "T-12",
          "subtitle": null,
          "authors": [],
          "narrators": [],
@@ -1640,7 +1640,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "Single",
+         "titleIgnorePrefix": "T-12",
          "authorName": "",
          "authorNameLF": "",
          "narratorName": "",
@@ -1781,9 +1781,9 @@
        "numFiles": 1,
        "size": 7,
        "media": {
-        "id": "idHa",
+        "id": "idGa",
         "metadata": {
-         "title": "Temp Book",
+         "title": "T-7",
          "subtitle": null,
          "authors": [],
          "narrators": [],
@@ -1798,7 +1798,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "Temp Book",
+         "titleIgnorePrefix": "T-7",
          "authorName": "",
          "authorNameLF": "",
          "narratorName": "",
@@ -2244,7 +2244,7 @@
        "numFiles": 5,
        "size": 114,
        "media": {
-        "id": "idDa",
+        "id": "idAa",
         "metadata": {
          "title": "Multi Title",
          "subtitle": null,
@@ -2533,9 +2533,9 @@
        "numFiles": 3,
        "size": 21,
        "media": {
-        "id": "idAa",
+        "id": "idFa",
         "metadata": {
-         "title": "CD Book",
+         "title": "T-6",
          "subtitle": null,
          "authors": [
           {
@@ -2555,7 +2555,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "CD Book",
+         "titleIgnorePrefix": "T-6",
          "authorName": "Author B",
          "authorNameLF": "B, Author",
          "narratorName": "",
@@ -2724,13 +2724,13 @@
           "end": 6,
           "id": 0,
           "start": 0,
-          "title": "T-6"
+          "title": "a"
          },
          {
           "end": 13,
           "id": 1,
           "start": 6,
-          "title": "T-7"
+          "title": "b"
          }
         ],
         "ebookFile": null,
@@ -2935,9 +2935,9 @@
        "numFiles": 1,
        "size": 12,
        "media": {
-        "id": "idGa",
+        "id": "idCa",
         "metadata": {
-         "title": "Single",
+         "title": "T-12",
          "subtitle": null,
          "authors": [],
          "narrators": [],
@@ -2952,7 +2952,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "Single",
+         "titleIgnorePrefix": "T-12",
          "authorName": "",
          "authorNameLF": "",
          "narratorName": "",
@@ -3275,9 +3275,9 @@
        "numFiles": 1,
        "size": 8,
        "media": {
-        "id": "idEa",
+        "id": "idIa",
         "metadata": {
-         "title": "New Book",
+         "title": "T-8",
          "subtitle": null,
          "authors": [
           {
@@ -3297,7 +3297,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "New Book",
+         "titleIgnorePrefix": "T-8",
          "authorName": "Author E",
          "authorNameLF": "E, Author",
          "narratorName": "",
@@ -3438,9 +3438,9 @@
        "numFiles": 1,
        "size": 6,
        "media": {
-        "id": "idCa",
+        "id": "idEa",
         "metadata": {
-         "title": "Moving",
+         "title": "T-6",
          "subtitle": null,
          "authors": [
           {
@@ -3460,7 +3460,7 @@
          "language": null,
          "explicit": false,
          "abridged": false,
-         "titleIgnorePrefix": "Moving",
+         "titleIgnorePrefix": "T-6",
          "authorName": "Author F",
          "authorNameLF": "F, Author",
          "narratorName": "",
@@ -3670,9 +3670,9 @@
       "numFiles": 2,
       "size": 11,
       "media": {
-       "id": "idIa",
+       "id": "idHa",
        "metadata": {
-        "title": "Watched",
+        "title": "T-7",
         "subtitle": null,
         "authors": [
          {
@@ -3692,7 +3692,7 @@
         "language": null,
         "explicit": false,
         "abridged": false,
-        "titleIgnorePrefix": "Watched",
+        "titleIgnorePrefix": "T-7",
         "authorName": "Author E",
         "authorNameLF": "E, Author",
         "narratorName": "",
@@ -3850,9 +3850,9 @@
       "numFiles": 1,
       "size": 8,
       "media": {
-       "id": "idEa",
+       "id": "idIa",
        "metadata": {
-        "title": "New Book",
+        "title": "T-8",
         "subtitle": null,
         "authors": [
          {
@@ -3872,7 +3872,7 @@
         "language": null,
         "explicit": false,
         "abridged": false,
-        "titleIgnorePrefix": "New Book",
+        "titleIgnorePrefix": "T-8",
         "authorName": "Author E",
         "authorNameLF": "E, Author",
         "narratorName": "",
@@ -4017,9 +4017,9 @@
       "numFiles": 1,
       "size": 6,
       "media": {
-       "id": "idCa",
+       "id": "idEa",
        "metadata": {
-        "title": "Moving",
+        "title": "T-6",
         "subtitle": null,
         "authors": [
          {
@@ -4039,7 +4039,7 @@
         "language": null,
         "explicit": false,
         "abridged": false,
-        "titleIgnorePrefix": "Moving",
+        "titleIgnorePrefix": "T-6",
         "authorName": "Author F",
         "authorNameLF": "F, Author",
         "narratorName": "",
@@ -4247,9 +4247,9 @@
       "numFiles": 4,
       "size": 22,
       "media": {
-       "id": "idAa",
+       "id": "idFa",
        "metadata": {
-        "title": "CD Book",
+        "title": "T-6",
         "subtitle": null,
         "authors": [
          {
@@ -4269,7 +4269,7 @@
         "language": null,
         "explicit": false,
         "abridged": false,
-        "titleIgnorePrefix": "CD Book",
+        "titleIgnorePrefix": "T-6",
         "authorName": "Author B",
         "authorNameLF": "B, Author",
         "narratorName": "",
@@ -4402,13 +4402,13 @@
          "end": 6,
          "id": 0,
          "start": 0,
-         "title": "T-6"
+         "title": "a"
         },
         {
          "end": 13,
          "id": 1,
          "start": 6,
-         "title": "T-7"
+         "title": "b"
         }
        ],
        "ebookFile": null,

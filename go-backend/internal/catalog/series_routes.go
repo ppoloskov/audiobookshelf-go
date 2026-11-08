@@ -5,18 +5,16 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
-
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // seriesRecord is a row of series.
@@ -32,23 +30,9 @@ func (h *Handler) loadSeries(ctx context.Context, id string) (seriesRecord, erro
 	return s, err
 }
 
-// toOldJSON is Series.toOldJSON (server/models/Series.js:168-178); the
-// prefix-free name is computed from the name, not read from the column.
-func (h *Handler) seriesOldJSON(ctx context.Context, s seriesRecord) (wire.Series, error) {
-	added, err := dbtime.OptionalMillis(s.createdAt)
-	if err != nil || added == nil {
-		return wire.Series{}, errors.New("series createdAt")
-	}
-	updated, err := dbtime.OptionalMillis(s.updatedAt)
-	if err != nil || updated == nil {
-		return wire.Series{}, errors.New("series updatedAt")
-	}
-	var prefixFree *string
-	if s.name.Valid {
-		value := h.titlePrefix(ctx, s.name.String)
-		prefixFree = &value
-	}
-	return wire.Series{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: prefixFree, Description: store.NullStringPtr(s.description), AddedAt: *added, UpdatedAt: *updated, LibraryID: s.libraryID}, nil
+// seriesOldJSON is Series.toOldJSON.
+func (h *Handler) seriesOldJSON(ctx context.Context, s seriesRecord) (seriesView, error) {
+	return newSeriesView(s, h.sortingPrefixes(ctx))
 }
 
 // seriesItem is a library item of a series with the book it holds.
@@ -113,27 +97,37 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	ctx := r.Context()
-	oldJSON, err := h.seriesOldJSON(ctx, s)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	detail := wire.SeriesDetail{Series: oldJSON}
 	var include []string
 	for _, v := range strings.Split(r.URL.Query().Get("include"), ",") {
 		if v = strings.TrimSpace(v); v != "" {
 			include = append(include, v)
 		}
 	}
-	if sliceHas(include, "progress") {
-		progress := wire.SeriesProgress{LibraryItemIDs: make([]string, 0, len(items)), LibraryItemIDsFinished: make([]string, 0)}
+	detail, err := h.seriesDetailOf(r.Context(), user, s, items, sliceHas(include, "progress"), sliceHas(include, "rssfeed"))
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	return httputil.JSON(w, r, detail)
+}
+
+// seriesDetailOf is the body of GET /api/series/:id (SeriesController.js:35-62)
+// and GET /api/libraries/:id/series/:seriesId (LibraryController.js:778-805):
+// the series, then progress and rssFeed when asked for.
+func (h *Handler) seriesDetailOf(ctx context.Context, user store.User, s seriesRecord, items []seriesItem, withProgress, withFeed bool) (seriesDetail, error) {
+	oldJSON, err := h.seriesOldJSON(ctx, s)
+	if err != nil {
+		return seriesDetail{}, err
+	}
+	detail := seriesDetail{seriesView: oldJSON}
+	if withProgress {
+		progress := seriesProgress{LibraryItemIDs: make([]string, 0, len(items)), LibraryItemIDsFinished: make([]string, 0)}
 		for _, item := range items {
 			progress.LibraryItemIDs = append(progress.LibraryItemIDs, item.itemID)
 			var finished sql.NullBool
 			// req.user.getMediaProgress(li.media.id)?.isFinished
 			err := h.db.QueryRowContext(ctx, `SELECT isFinished FROM mediaProgresses WHERE userId=? AND mediaItemId=? LIMIT 1`, user.ID, item.bookID).Scan(&finished)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return httputil.Internal("database read failed", err)
+				return detail, err
 			}
 			if finished.Valid && finished.Bool {
 				progress.LibraryItemIDsFinished = append(progress.LibraryItemIDsFinished, item.itemID)
@@ -142,21 +136,20 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) error {
 		progress.IsFinished = len(progress.LibraryItemIDsFinished) == len(progress.LibraryItemIDs)
 		detail.Progress = &progress
 	}
-	if sliceHas(include, "rssfeed") {
+	if withFeed {
 		// RssFeedManager.findFeedForEntityId matches on entityId alone.
 		feed, found, err := h.feedMinified(ctx, "", s.id)
 		if err != nil {
-			return httputil.Internal("database read failed", err)
+			return detail, err
 		}
-		raw := json.RawMessage("null")
+		detail.RSSFeed = json.RawMessage("null")
 		if found {
-			if raw, err = json.Marshal(feed); err != nil {
-				return httputil.Internal("internal error", err)
+			if detail.RSSFeed, err = json.Marshal(feed); err != nil {
+				return detail, err
 			}
 		}
-		detail.RSSFeed = raw
 	}
-	return httputil.JSON(w, r, detail)
+	return detail, nil
 }
 
 // seriesUpdate is SeriesController.update (SeriesController.js:70-87): only
@@ -193,7 +186,7 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
 			sets = append(sets, c+"=?")
 		}
 		sets = append(sets, "updatedAt=?")
-		args := append(append([]any{}, changes.values...), dbNow(), s.id)
+		args := append(append([]any{}, changes.values...), dbtime.Now(), s.id)
 		if _, err := h.db.ExecContext(ctx, `UPDATE series SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
 			return httputil.Internal("database write failed", err)
 		}

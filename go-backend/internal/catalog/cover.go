@@ -8,7 +8,11 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -26,8 +30,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"audiobookshelf-compat/internal/httputil"
 )
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
@@ -446,7 +448,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 			return txErr
 		}
 		// req.libraryItem.changed('updatedAt', true); await save()
-		if _, txErr = tx.ExecContext(r.Context(), `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), itemID); txErr != nil {
+		if _, txErr = tx.ExecContext(r.Context(), `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), itemID); txErr != nil {
 			return txErr
 		}
 		return tx.Commit()
@@ -454,10 +456,10 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 	if writeErr != nil {
 		return httputil.Internal("database write failed", writeErr)
 	}
-	if item, itemErr := h.ItemJSON(r.Context(), itemID, true); itemErr == nil && h.emit != nil {
-		// SocketAuthority.libraryItemEmitter filters per client; the hub applies
-		// the same libraryId filtering for "*" payloads.
-		h.emit("*", "item_updated", item)
+	// SocketAuthority.libraryItemEmitter filters per client; the hub applies
+	// the same libraryId filtering for "*" payloads.
+	if err := h.itemUpdated(r.Context(), itemID); err != nil {
+		return httputil.Internal("database read failed", err)
 	}
 	body := []byte(`{"success":true,"cover":"` + escapeJSONString(coverFullPath) + `"}`)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
@@ -512,4 +514,135 @@ func (h *Handler) purgeCoverCache(itemID string) {
 func escapeJSONString(value string) string {
 	encoded, _ := json.Marshal(value)
 	return strings.TrimSuffix(strings.TrimPrefix(string(encoded), "\""), "\"")
+}
+
+func (h *Handler) removeCover(w http.ResponseWriter, r *http.Request) error {
+	scope, allowed, err := h.writableItem(r.Context(), r.PathValue("id"), requestUser(r))
+	if errors.Is(err, sql.ErrNoRows) {
+		return httputil.Status(404, "")
+	}
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if !allowed {
+		return httputil.Status(403, "")
+	}
+	table, err := scope.mediaTable()
+	if err != nil {
+		return err
+	}
+	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=NULL,updatedAt=? WHERE id=? AND coverPath IS NOT NULL`, dbtime.Now(), scope.mediaID)
+	if err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	if err := h.coverChanged(r.Context(), res, scope.itemID); err != nil {
+		return err
+	}
+	return httputil.OK(w, r)
+}
+
+func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
+	itemID := r.PathValue("id")
+	scope, allowed, err := h.writableItem(r.Context(), itemID, requestUser(r))
+	if errors.Is(err, sql.ErrNoRows) {
+		return httputil.Status(404, "")
+	}
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if !allowed {
+		return httputil.Status(403, "")
+	}
+	var body struct {
+		Cover string `json:"cover"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 10_000_000)).Decode(&body) != nil || body.Cover == "" {
+		return httputil.Status(400, "Invalid request no cover path")
+	}
+	if strings.HasPrefix(body.Cover, "http:") || strings.HasPrefix(body.Cover, "https:") {
+		logging.RequestDebug(r, "responding 500: cover path is a URL, a local file is required")
+		return httputil.Status(500, "Invalid cover path")
+	}
+	var raw []byte
+	var itemPath string
+	var isFile int
+	if err := h.db.QueryRowContext(r.Context(), `SELECT libraryFiles,path,COALESCE(isFile,0) FROM libraryItems WHERE id=?`, itemID).Scan(&raw, &itemPath, &isFile); err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	valid := false
+	for _, file := range store.DecodeJSONSlice[map[string]any](raw) {
+		if filePath(file) == body.Cover {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		logging.RequestDebug(r, "responding 500: cover path is not one of the library item files")
+		return httputil.Status(500, "Invalid cover path")
+	}
+	table, err := scope.mediaTable()
+	if err != nil {
+		return err
+	}
+	var currentCover sql.NullString
+	if err := h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM `+table+` WHERE id=?`, scope.mediaID).Scan(&currentCover); err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if currentCover.Valid && currentCover.String == body.Cover {
+		return httputil.JSON(w, r, struct {
+			Success bool   `json:"success"`
+			Cover   string `json:"cover"`
+		}{true, body.Cover})
+	}
+	info, err := os.Stat(body.Cover)
+	if err != nil {
+		return httputil.Internal("Cover path does not exist", err)
+	}
+	if !info.Mode().IsRegular() {
+		logging.RequestDebug(r, "responding 500: cover path is not a regular file")
+		return httputil.Status(500, "Cover path is not a file")
+	}
+	ext, validationError := validateCoverImage(body.Cover)
+	if validationError != "" {
+		logging.RequestDebug(r, "responding 500: "+validationError)
+		return httputil.Status(500, validationError)
+	}
+	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
+	if serversettings.Load(r.Context(), h.db).Bool("storeCoverWithItem") && isFile == 0 {
+		coverDir = itemPath
+	}
+	coverPath := body.Cover
+	if !strings.HasPrefix(coverPath, coverDir) {
+		if err := os.MkdirAll(coverDir, 0o755); err != nil {
+			return httputil.Internal("Failed to copy cover to dir", err)
+		}
+		coverPath = filepath.Join(coverDir, "cover."+ext)
+		source, err := os.Open(body.Cover)
+		if err != nil {
+			return httputil.Internal("Failed to copy cover to dir", err)
+		}
+		target, err := os.Create(coverPath)
+		if err != nil {
+			_ = source.Close()
+			return httputil.Internal("Failed to copy cover to dir", err)
+		}
+		_, copyErr := io.Copy(target, source)
+		targetErr := target.Close()
+		sourceErr := source.Close()
+		if copyErr != nil || targetErr != nil || sourceErr != nil {
+			return httputil.Internal("Failed to copy cover to dir", sourceErr)
+		}
+		removeOldCovers(coverDir, "."+ext)
+	}
+	res, err := h.db.ExecContext(r.Context(), `UPDATE `+table+` SET coverPath=?,updatedAt=? WHERE id=? AND (coverPath IS NULL OR coverPath!=?)`, coverPath, dbtime.Now(), scope.mediaID, coverPath)
+	if err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	if err := h.coverChanged(r.Context(), res, itemID); err != nil {
+		return err
+	}
+	return httputil.JSON(w, r, struct {
+		Success bool   `json:"success"`
+		Cover   string `json:"cover"`
+	}{true, coverPath})
 }

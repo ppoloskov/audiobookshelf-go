@@ -255,7 +255,7 @@ domain migration was started.
 | Priority | Current action and exit |
 |---|---|
 | 1 | I05/I06 DONE (+165 production lines/+23 complexity); L reads DONE (+29/flat). Cleanup now removes 158 lines/46 complexity: 44,760 lines/10,848 complexity. All required checks pass; remaining adapters have named consumers/exit tasks. Net since pre-I05 is still +36 lines, complexity −23; no full-growth recovery claim. |
-| 2 | RO01 audited the read-only HTTP path. It is active via ABS_GO_READ_ONLY=1, so retain it; remove proven duplication via RO02. Absence from CI does not make opt-in behavior unused. |
+| 2 | RO01 audited the read-only HTTP path (ABS_GO_READ_ONLY=1). Superseded: the owner removed the mode entirely (F21, 2026-11-07); the server always runs read-write. |
 | 3 | S9a DONE: ordered-key serializer deleted after both real mutation-response field/value/header contracts pass, plus cache/range/HEAD regressions. MC-05/F1 and S9b-R1 DONE; whole S9b deletion remains pending with KEEP decisions. |
 | 4 | L02 already landed. Strengthened final-deletion criteria now apply before more writers; PR07 has deleted the pure playlist forwarder. |
 | 5 | Branch docs point to canonical master. FF01 DONE: real isolated native libwebp FFmpeg, baseline and integrated full suites PASS with count=1; no codec shim/test weakening. TESTING.md records the environment and rebuild details. |

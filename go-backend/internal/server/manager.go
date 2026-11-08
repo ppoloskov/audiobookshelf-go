@@ -4,7 +4,6 @@ import (
 	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -40,7 +39,7 @@ func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
 		return nil, errors.New("server: database is nil")
 	}
 	m := &Manager{cfg: cfg, database: database}
-	rt, err := newRuntime(database.DB(), cfg, database, m)
+	rt, err := newRuntime(database.DB(), cfg, m)
 	if err != nil {
 		return nil, err
 	}
@@ -80,22 +79,13 @@ func (m *Manager) updateBackupPath(ctx context.Context, path string) error {
 	if m.closed || m.database == nil {
 		return errors.New("server is closed")
 	}
-	var raw []byte
-	if err := m.database.DB().QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-		return err
-	}
-	var settings map[string]any
-	if err := json.Unmarshal(raw, &settings); err != nil {
-		return err
-	}
-	settings["backupPath"] = path
-	updated, err := json.Marshal(settings)
+	current, err := serversettings.Get(ctx, m.database.DB())
 	if err != nil {
 		return err
 	}
-	_, err = m.database.DB().ExecContext(ctx, `UPDATE settings SET value=? WHERE key='server-settings'`, updated)
-	serversettings.Invalidate(m.database.DB())
-	return err
+	doc := current.Doc()
+	doc["backupPath"] = path
+	return serversettings.Save(ctx, m.database.DB(), doc)
 }
 
 func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthors string) error {
@@ -106,14 +96,14 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	}
 
 	// Validate the extracted database before taking the live service offline.
-	check, err := store.OpenReadWrite(dbTemp)
+	check, err := store.Open(dbTemp)
 	if err != nil {
 		return fmt.Errorf("validate backup database: %w", err)
 	}
 	_ = closeStore(check)
 
 	oldRuntime, oldStore := m.current, m.database
-	dbPath := filepath.Join(m.cfg.ConfigPath, "absdatabase.sqlite")
+	dbPath := store.DatabasePath(m.cfg.ConfigPath)
 	dbOld := dbPath + ".restore-previous"
 	metaTargets := []struct{ target, source string }{
 		{filepath.Join(m.cfg.MetadataPath, "items"), stagedItems},
@@ -168,9 +158,9 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 		moved = append(moved, restoredDir{target: pair.target, previous: previous, existed: existed})
 	}
 
-	newStore, err = store.OpenReadWrite(dbPath)
+	newStore, err = store.Open(dbPath)
 	if err == nil {
-		nextRuntime, err = newRuntime(dbOrNil(newStore), m.cfg, newStore, m, sharedHub)
+		nextRuntime, err = newRuntime(dbOrNil(newStore), m.cfg, m, sharedHub)
 	}
 	if err != nil {
 		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, oldStore, oldRuntime, err)
@@ -186,7 +176,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 }
 
 func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause error) error {
-	opened, err := store.OpenReadWrite(filepath.Join(m.cfg.ConfigPath, "absdatabase.sqlite"))
+	opened, err := store.Open(store.DatabasePath(m.cfg.ConfigPath))
 	if err != nil {
 		m.current, m.database = nil, nil
 		return fmt.Errorf("%v; reopen current database: %w", cause, err)
@@ -195,7 +185,7 @@ func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause er
 	if oldRuntime != nil && oldRuntime.realtime != nil {
 		hub = append(hub, oldRuntime.realtime)
 	}
-	rt, err := newRuntime(opened.DB(), m.cfg, opened, m, hub...)
+	rt, err := newRuntime(opened.DB(), m.cfg, m, hub...)
 	if err != nil {
 		_ = closeStore(opened)
 		m.current, m.database = nil, nil

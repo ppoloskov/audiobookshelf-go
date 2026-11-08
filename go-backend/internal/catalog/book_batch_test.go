@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -161,22 +162,22 @@ func assertBookPrefixValues(t *testing.T, h *Handler, user store.User) {
 		serversettings.Invalidate(h.db)
 	}
 	set(`{"sortingIgnorePrefix":false}`)
-	if got := h.titlePrefix(ctx, "The Book"); got != "Book, The" {
+	if got := textsort.PrefixAtEnd("The Book", h.sortingPrefixes(ctx)); got != "Book, The" {
 		t.Errorf("default sorting prefixes result=%q", got)
 	}
 	assertBatchPagePrefix(t, h, user, 0, "The Book", "Book, The")
 	set(`{"sortingPrefixes":["an"]}`)
-	if got := h.titlePrefix(ctx, "An Example"); got != "Example, An" {
+	if got := textsort.PrefixAtEnd("An Example", h.sortingPrefixes(ctx)); got != "Example, An" {
 		t.Errorf("custom sorting prefixes result=%q", got)
 	}
 	assertBatchPagePrefix(t, h, user, 1, "An Book", "Book, An")
 	set(`{"sortingPrefixes":["the",false,"",3]}`)
-	if got := h.titlePrefix(ctx, "The Book"); got != "Book, The" {
+	if got := textsort.PrefixAtEnd("The Book", h.sortingPrefixes(ctx)); got != "Book, The" {
 		t.Errorf("string-filtered sorting prefixes result=%q", got)
 	}
 	assertBatchPagePrefix(t, h, user, 0, "The Book", "Book, The")
 	set(`{"sortingPrefixes":[]}`)
-	if got := h.titlePrefix(ctx, "The Book"); got != "The Book" {
+	if got := textsort.PrefixAtEnd("The Book", h.sortingPrefixes(ctx)); got != "The Book" {
 		t.Errorf("explicit empty sorting prefixes result=%q, want unchanged title", got)
 	}
 	assertBatchPagePrefix(t, h, user, 0, "The Book", "The Book")

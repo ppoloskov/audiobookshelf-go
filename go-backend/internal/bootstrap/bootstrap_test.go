@@ -2,13 +2,13 @@ package bootstrap
 
 import (
 	"database/sql"
-	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/version"
 )
 
 func TestEnsureCreatesPinnedFreshSchema(t *testing.T) {
@@ -22,9 +22,9 @@ func TestEnsureCreatesPinnedFreshSchema(t *testing.T) {
 	}
 	db.SetMaxOpenConns(1) // production pool size (store.Open)
 	defer db.Close()
-	for key := range map[string]string{"version": baseline, "maxVersion": baseline} {
+	for key := range map[string]string{"version": version.Server, "maxVersion": version.Server} {
 		var value string
-		if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = ?`, key).Scan(&value); err != nil || value != baseline {
+		if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = ?`, key).Scan(&value); err != nil || value != version.Server {
 			t.Fatalf("migration key %s value=%q err=%v", key, value, err)
 		}
 	}
@@ -72,17 +72,6 @@ func TestEnsureExistingVersionMismatchDoesNotMutate(t *testing.T) {
 	}
 	if string(before) != string(after) {
 		t.Fatal("existing database bytes changed during validation")
-	}
-}
-
-func TestEnsureReadOnlyMissingDatabaseDoesNotCreate(t *testing.T) {
-	t.Setenv("ABS_GO_READ_ONLY", "1")
-	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata")}
-	if err := Ensure(cfg); !errors.Is(err, ErrReadOnlyDatabaseMissing) {
-		t.Fatalf("got error %v, want ErrReadOnlyDatabaseMissing", err)
-	}
-	if _, err := os.Stat(cfg.ConfigPath); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("config directory was created in read-only mode: %v", err)
 	}
 }
 

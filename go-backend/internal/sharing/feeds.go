@@ -20,7 +20,6 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // feedRow is one feeds row. Every nullable column stays nullable so a NULL
@@ -101,11 +100,11 @@ func feedEpisodeFromRow(r sqlc.Feedepisode) feedEpisodeRow {
 func nullBool(v sql.NullInt64) sql.NullBool { return sql.NullBool{Bool: v.Int64 != 0, Valid: v.Valid} }
 
 func (h *Handler) feedBySlug(ctx context.Context, slug string) (feedRow, error) {
-	return feedResult(h.queries().GetFeedBySlug(ctx, slug))
+	return feedResult(sqlc.New(h.db).GetFeedBySlug(ctx, slug))
 }
 
 func (h *Handler) feedEpisodeRows(ctx context.Context, feedID string) ([]feedEpisodeRow, error) {
-	rows, err := h.queries().ListFeedEpisodes(ctx, feedID)
+	rows, err := sqlc.New(h.db).ListFeedEpisodes(ctx, feedID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,22 +122,22 @@ func boolPtr(v sql.NullBool) *bool {
 	return &v.Bool
 }
 
-func (f feedRow) minified() wire.FeedMinified {
-	return wire.FeedMinified{
+func (f feedRow) minified() FeedMinified {
+	return FeedMinified{
 		ID: f.ID, EntityType: f.EntityType.String, EntityID: f.EntityID.String, FeedURL: store.NullStringPtr(f.FeedURL),
-		Meta: wire.FeedMinifiedMeta{Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail)},
+		Meta: FeedMinifiedMeta{Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail)},
 	}
 }
 
-func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
-	out := wire.Feed{
+func (f feedRow) old(eps []feedEpisodeRow) Feed {
+	out := Feed{
 		ID: f.ID, Slug: store.NullStringPtr(f.Slug), UserID: store.NullStringPtr(f.UserID), EntityType: store.NullStringPtr(f.EntityType), EntityID: store.NullStringPtr(f.EntityID),
-		Meta: wire.FeedMeta{
+		Meta: FeedMeta{
 			Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), Author: store.NullStringPtr(f.Author), ImageURL: store.NullStringPtr(f.ImageURL),
 			FeedURL: store.NullStringPtr(f.FeedURL), Link: store.NullStringPtr(f.SiteURL), Explicit: boolPtr(f.Explicit), Type: store.NullStringPtr(f.PodcastType),
 			Language: store.NullStringPtr(f.Language), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail),
 		},
-		ServerAddress: store.NullStringPtr(f.ServerAddress), FeedURL: store.NullStringPtr(f.FeedURL), Episodes: make([]wire.FeedEpisode, 0, len(eps)),
+		ServerAddress: store.NullStringPtr(f.ServerAddress), FeedURL: store.NullStringPtr(f.FeedURL), Episodes: make([]FeedEpisode, 0, len(eps)),
 		CreatedAt: f.CreatedAt.UnixMilli(), UpdatedAt: f.UpdatedAt.UnixMilli(),
 	}
 	// entityUpdatedAt?.valueOf() || null, coverPath || null
@@ -157,9 +156,9 @@ func (f feedRow) old(eps []feedEpisodeRow) wire.Feed {
 		if e.Duration.Valid {
 			duration = &e.Duration.Float64
 		}
-		out.Episodes = append(out.Episodes, wire.FeedEpisode{
+		out.Episodes = append(out.Episodes, FeedEpisode{
 			ID: e.ID, Title: store.NullStringPtr(e.Title), Description: store.NullStringPtr(e.Description),
-			Enclosure: wire.FeedEpisodeEnclosure{URL: store.NullStringPtr(e.EnclosureURL), Size: size, Type: store.NullStringPtr(e.EnclosureType)},
+			Enclosure: FeedEpisodeEnclosure{URL: store.NullStringPtr(e.EnclosureURL), Size: size, Type: store.NullStringPtr(e.EnclosureType)},
 			PubDate:   store.NullStringPtr(e.PubDate), Link: store.NullStringPtr(e.SiteURL), Author: store.NullStringPtr(e.Author), Explicit: boolPtr(e.Explicit),
 			Duration: duration, Season: store.NullStringPtr(e.Season), Episode: store.NullStringPtr(e.Episode), EpisodeType: store.NullStringPtr(e.EpisodeType), FullPath: store.NullStringPtr(e.FilePath),
 		})
@@ -171,11 +170,11 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	if !access.AdminUser(u) {
 		return httputil.Status(403, "")
 	}
-	rows, err := h.queries().ListFeeds(r.Context())
+	rows, err := sqlc.New(h.db).ListFeeds(r.Context())
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	out := wire.FeedList{Feeds: make([]wire.Feed, 0, len(rows)), Minified: make([]wire.FeedMinified, 0, len(rows))}
+	out := FeedList{Feeds: make([]Feed, 0, len(rows)), Minified: make([]FeedMinified, 0, len(rows))}
 	for _, row := range rows {
 		f := feedFromRow(row)
 		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
@@ -299,11 +298,11 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	if h.emit != nil {
 		h.emit("*", "rss_feed_open", minified)
 	}
-	write(w, wire.FeedOpened{Feed: minified})
+	write(w, FeedOpened{Feed: minified})
 	return nil
 }
 
-func feedURLText(f wire.FeedMinified) string {
+func feedURLText(f FeedMinified) string {
 	if f.FeedURL == nil {
 		return ""
 	}
@@ -319,7 +318,7 @@ func feedEntityError(err error) error {
 
 // slugInUse is the 400 an open request gets when a feed already has the slug.
 func (h *Handler) slugInUse(ctx context.Context, slug string) error {
-	count, err := h.queries().CountFeedsBySlug(ctx, slug)
+	count, err := sqlc.New(h.db).CountFeedsBySlug(ctx, slug)
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
@@ -435,14 +434,14 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		return httputil.Status(403, "")
 	}
 	id := r.PathValue("id")
-	feed, err := feedResult(h.queries().GetFeed(r.Context(), id))
+	feed, err := feedResult(sqlc.New(h.db).GetFeed(r.Context(), id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(404, "")
 	}
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	if err = h.queries().DeleteFeed(r.Context(), id); err != nil {
+	if err = sqlc.New(h.db).DeleteFeed(r.Context(), id); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	logging.Infof("[RssFeedManager] Closed RSS feed %q", feedURLText(feed.minified())) // RssFeedManager.js:359
@@ -582,7 +581,7 @@ func feedColumnsChanged(a, b feedRow) bool {
 }
 
 func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episodeID string) error {
-	path, err := h.queries().GetFeedEpisodeFilePath(r.Context(), sqlc.GetFeedEpisodeFilePathParams{Slug: slug, EpisodeID: episodeID})
+	path, err := sqlc.New(h.db).GetFeedEpisodeFilePath(r.Context(), sqlc.GetFeedEpisodeFilePathParams{Slug: slug, EpisodeID: episodeID})
 	if err != nil || path.String == "" {
 		return httputil.Status(404, "")
 	}
@@ -593,7 +592,7 @@ func (h *Handler) feedItem(w http.ResponseWriter, r *http.Request, slug, episode
 // feedCover streams the cover with Content-Type image/<extension> like
 // RssFeedManager.getFeedCover (res.type + createReadStream, no ranges).
 func (h *Handler) feedCover(w http.ResponseWriter, r *http.Request, slug string) error {
-	path, err := h.queries().GetFeedCoverPathBySlug(r.Context(), slug)
+	path, err := sqlc.New(h.db).GetFeedCoverPathBySlug(r.Context(), slug)
 	if err != nil || path.String == "" {
 		return httputil.Status(404, "")
 	}

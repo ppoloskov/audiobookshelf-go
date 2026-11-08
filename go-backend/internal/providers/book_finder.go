@@ -237,8 +237,6 @@ func removeMiddleInitials(s string) string {
 	return string(out)
 }
 
-func levenshteinDistance(a, b string) int { return textdist.LevenshteinFold(a, b) }
-
 // filterSearchResults is BookFinder.filterSearchResults (BookFinder.js:41-100)
 // followed by the ascending total distance sort of getOpenLibResults.
 func filterSearchResults(books []wire.BookMatch, title, author string, maxTitleDistance, maxAuthorDistance int) []wire.BookMatch {
@@ -253,7 +251,7 @@ func filterSearchResults(books []wire.BookMatch, title, author string, maxTitleD
 		_ = json.Unmarshal(b.Title, &bookTitle)
 		_ = json.Unmarshal(b.Author, &bookAuthor)
 		cleanedTitle := cleanTitleForCompares(bookTitle)
-		titleDistance := levenshteinDistance(cleanedTitle, title)
+		titleDistance := textdist.LevenshteinFold(cleanedTitle, title)
 		totalPossible := len([]rune(bookTitle))
 		authorDistance, includesAuthor := 0, false
 		if author != "" {
@@ -262,7 +260,7 @@ func filterSearchResults(books []wire.BookMatch, title, author string, maxTitleD
 			} else {
 				totalPossible += len([]rune(bookAuthor))
 				cleanedAuthor := cleanAuthorForCompares(bookAuthor)
-				authorDistance = int(math.Min(float64(levenshteinDistance(cleanedAuthor, searchAuthor)), float64(levenshteinDistance(bookAuthor, author))))
+				authorDistance = int(math.Min(float64(textdist.LevenshteinFold(cleanedAuthor, searchAuthor)), float64(textdist.LevenshteinFold(bookAuthor, author))))
 				includesAuthor = len(searchAuthor) > 4 && strings.Contains(cleanedAuthor, searchAuthor) || len(author) > 4 && strings.Contains(bookAuthor, author)
 			}
 		}
@@ -427,7 +425,7 @@ func (h *Handler) validateAuthor(ctx context.Context, name, region string, maxLe
 		if strings.Contains(name, cleanName) {
 			return cleanName
 		}
-		if levenshteinDistance(cleanName, name) <= maxLevenshtein {
+		if textdist.LevenshteinFold(cleanName, name) <= maxLevenshtein {
 			return cleanName
 		}
 	}

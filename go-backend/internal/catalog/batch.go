@@ -4,20 +4,16 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"context"
-	"encoding/json"
-	"io"
-	"mime"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
+	"context"
+	"encoding/json"
+	"net/http"
+	"slices"
+	"strings"
 )
 
 // batchItem is a library item row of LibraryItem.findAllExpandedWhere.
@@ -83,52 +79,6 @@ func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items
 	return true, nil
 }
 
-// jsonBodyArray is express.json for a handler that expects a JSON array.
-func jsonBodyArray(r *http.Request) ([]json.RawMessage, bool) {
-	media, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if media != "application/json" && !strings.HasSuffix(media, "+json") {
-		return nil, false
-	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
-	if err != nil {
-		return nil, false
-	}
-	var values []json.RawMessage
-	if json.Unmarshal(raw, &values) != nil {
-		return nil, false
-	}
-	return values, true
-}
-
-// bodyStringList reads a body value that is an array, keeping its string
-// entries; ok is false for anything that is not a non-empty array
-// (`!ids?.length || !Array.isArray(ids)`).
-func bodyStringList(raw json.RawMessage) ([]string, bool) {
-	var values []json.RawMessage
-	if json.Unmarshal(raw, &values) != nil || len(values) == 0 {
-		return nil, false
-	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		var s string
-		if json.Unmarshal(value, &s) == nil {
-			out = append(out, s)
-		}
-	}
-	return out, true
-}
-
-// looselyOne is `value == 1` for a query string (LibraryItemController.js:
-// 565, req.query.hard == 1): the string converts to a number.
-func looselyOne(value string) bool {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return false
-	}
-	n, err := strconv.ParseFloat(trimmed, 64)
-	return err == nil && n == 1
-}
-
 // batchDelete is LibraryItemController.batchDelete (LibraryItemController.js:
 // 558-621): each item is removed like ApiRouter.handleDeleteLibraryItem (with
 // its files when hard=1), then the series and authors it leaves empty.
@@ -168,7 +118,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 		h.env().SweepSeries(ctx, linked.series)
 		h.env().SweepAuthors(ctx, linked.authors)
 	}
-	h.resetIssues(ctx, libraryID) // Database.resetLibraryIssuesFilterData
+	h.filters.ResetIssues(ctx, h.db, libraryID) // Database.resetLibraryIssuesFilterData
 	return httputil.OK(w, r)
 }
 
@@ -200,10 +150,10 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		_ = json.Unmarshal(raw, &entry)
 		var idValue any
 		_ = json.Unmarshal(entry["id"], &idValue)
-		if !jsTruthy(idValue) {
+		if !jsonvalue.Truthy(idValue) {
 			continue
 		}
-		id := jsString(idValue)
+		id := jsonvalue.Text(idValue)
 		if !seen[id] {
 			seen[id] = true
 			ids = append(ids, id)
@@ -236,7 +186,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		byID[item.id] = item
 	}
 	itemsUpdated := 0
-	var unlinked itemwrite.Changes
+	var writes []itemWrite
 	for _, entry := range parsed {
 		item := byID[entry.id]
 		payload := entry.payload
@@ -259,17 +209,58 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		unlinked.Merge(result.changes)
-		h.env().Announce(item.libraryID, &result.changes)
-		if !result.updated {
-			continue
+		writes = append(writes, itemWrite{itemID: item.id, libraryID: item.libraryID, changes: result.changes, updated: result.updated})
+		if result.updated {
+			logging.Debugf("[LibraryItemController] Updated library item media %q", item.id)
+			itemsUpdated++
 		}
-		if err := h.ItemChanged(ctx, item.id); err != nil {
-			return httputil.Internal("metadata file write failed", err)
-		}
-		logging.Debugf("[LibraryItemController] Updated library item media %q", item.id)
-		itemsUpdated++
 	}
-	h.env().Sweep(ctx, unlinked.AuthorsUnlinked, unlinked.SeriesUnlinked)
-	return httputil.JSON(w, r, wire.BatchUpdateResult{Success: true, Updates: itemsUpdated})
+	if err := h.finishItemWrites(ctx, writes...); err != nil {
+		return httputil.Internal("metadata file write failed", err)
+	}
+	return httputil.JSON(w, r, batchUpdateResult{Success: true, Updates: itemsUpdated})
+}
+
+// batchGet is LibraryItemController.batchGet: the expanded items of the posted
+// ids, in findAllExpandedWhere order; unknown ids are skipped and one item the
+// user may not see refuses the whole request.
+func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
+	user, ctx := requestUser(r), r.Context()
+	var request struct {
+		IDs []string `json:"libraryItemIds"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil || len(request.IDs) == 0 {
+		return httputil.Status(http.StatusForbidden, "Invalid payload")
+	}
+	ids := slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(request.IDs))), func(id string) bool { return id == "" })
+	if len(ids) == 0 {
+		return httputil.Status(http.StatusForbidden, "Invalid payload")
+	}
+	items, err := h.itemsExpandedWhere(ctx, ids)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	allowed, err := h.userCanAccessItems(ctx, user, items)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if !allowed {
+		return httputil.Status(http.StatusForbidden, "")
+	}
+	visible := make([]string, len(items))
+	for i, item := range items {
+		visible[i] = item.id
+	}
+	selected, err := h.expandedItems(ctx, visible)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	return httputil.JSON(w, r, map[string]any{"libraryItems": selected})
+}
+
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimRight(strings.Repeat("?,", n), ",")
 }

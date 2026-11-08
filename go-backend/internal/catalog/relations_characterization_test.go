@@ -46,10 +46,9 @@ func relationSnapshot(t *testing.T, rig *authorRig) string {
 		byName[e.event] += id + ";"
 	}
 	sort.Strings(names)
-	fd := rig.h.filters.Has("l1")
+	d, fd := rig.h.filters.Fresh("l1")
 	filter := ""
 	if fd {
-		d, _ := rig.h.filters.Fresh("l1")
 		var a, s []string
 		for _, n := range d.Authors {
 			a = append(a, n.Name)

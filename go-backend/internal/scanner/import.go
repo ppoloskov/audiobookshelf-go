@@ -1,6 +1,10 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/version"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -207,11 +211,11 @@ func (s *Scanner) gather(ctx context.Context, l library, g *group, force bool) (
 	rel, _ := filepath.Rel(g.folder.path, g.path)
 	in.rel = filepath.ToSlash(rel)
 	related := append(append([]file(nil), g.files...), g.companions...)
-	in.fileDiff = mergeLibraryFiles(stored, related, g.path, nowMillis())
-	s.resolveMetadata(&in, oldID)
+	in.fileDiff = mergeLibraryFiles(stored, related, g.path, time.Now().UnixMilli())
 	if err := s.probeFiles(ctx, &in, oldAudio); err != nil {
 		return in, err
 	}
+	s.resolveMetadata(&in, oldID)
 	newest := time.Time{}
 	for _, f := range related {
 		if f.info.ModTime().After(newest) {
@@ -242,8 +246,8 @@ func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 	}
 	if l.mediaType != "podcast" {
 		var firstTags map[string]any
-		if len(g.files) > 0 {
-			firstTags = audioTagsFromFile(g.files[0].path)
+		if len(in.audio) > 0 {
+			firstTags, _ = in.audio[0]["metaTags"].(map[string]any)
 		}
 		abs, hasABS := readABSMetadata(g, oldID, s.cfg.MetadataPath)
 		in.md = mergeBookMetadataWithABS(title, author, series, seq, g, l.metadataPrecedence, firstTags, abs, hasABS)
@@ -285,16 +289,15 @@ func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []map[
 		fileMeta := makeFileMeta(g.path, f)
 		flat, _ := fileMeta["metadata"].(map[string]any)
 		ino, _ := fileMeta["ino"].(string)
-		probeMeta := make(map[string]any, len(flat)+1)
-		for key, value := range flat {
-			probeMeta[key] = value
-		}
-		probeMeta["scanMetadata"] = map[string]any{"title": in.title, "author": in.author, "series": in.series, "publishedYear": in.md.PublishedYear}
-		af, err := probeAudio(ctx, f.path, probeMeta, ino)
-		if err != nil || af == nil {
+		af, err := probeAudio(ctx, f.path, flat, ino)
+		if err != nil {
+			logging.Warnf("[Scanner] Skipping %q: ffprobe failed: %v", f.path, err)
 			continue
 		}
-		now := nowMillis()
+		if af == nil {
+			continue
+		}
+		now := time.Now().UnixMilli()
 		af["addedAt"], af["updatedAt"] = now, now
 		if prior != nil {
 			// AudioFile.updateFromScan keeps the established entry identity
@@ -337,13 +340,13 @@ func (p itemPlan) applyBook(ctx context.Context, tx *sql.Tx) error {
 	l := p.lib
 	md := p.md
 	if p.added {
-		_, err := tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?,NULL,?,?,?, ?,?)`, p.mediaID, p.title, scannerTitleSortKey(p.title, l.sortingPrefixes), store.NullIfBlank(md.Subtitle), store.NullIfBlank(md.PublishedYear), store.NullIfBlank(md.PublishedDate), store.NullIfBlank(md.Publisher), store.NullIfBlank(md.Description), store.NullIfBlank(md.ISBN), store.NullIfBlank(md.ASIN), store.NullIfBlank(md.Language), store.NullIfBlank(p.coverPath), p.duration, mustJSON(md.Narrators), mustJSON(p.audio), mustJSON(p.chapters), mustJSON(md.Tags), mustJSON(md.Genres), p.now, p.now)
+		_, err := tx.ExecContext(ctx, `INSERT INTO books(id,title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?,NULL,?,?,?, ?,?)`, p.mediaID, p.title, textsort.TitleIgnorePrefix(p.title, l.sortingPrefixes), store.NullIfBlank(md.Subtitle), store.NullIfBlank(md.PublishedYear), store.NullIfBlank(md.PublishedDate), store.NullIfBlank(md.Publisher), store.NullIfBlank(md.Description), store.NullIfBlank(md.ISBN), store.NullIfBlank(md.ASIN), store.NullIfBlank(md.Language), store.NullIfBlank(p.coverPath), p.duration, mustJSON(md.Narrators), mustJSON(p.audio), mustJSON(p.chapters), mustJSON(md.Tags), mustJSON(md.Genres), p.now, p.now)
 		return err
 	}
 	if !p.rescanMedia {
 		return nil
 	}
-	_, err := tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,coverPath=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, store.NullIfBlank(md.Title), scannerTitleSortKey(p.title, l.sortingPrefixes), store.NullIfBlank(md.Subtitle), store.NullIfBlank(md.PublishedYear), store.NullIfBlank(md.PublishedDate), store.NullIfBlank(md.Publisher), store.NullIfBlank(md.Description), store.NullIfBlank(md.ISBN), store.NullIfBlank(md.ASIN), store.NullIfBlank(md.Language), p.duration, mustJSON(p.audio), mustJSON(p.chapters), store.NullIfBlank(p.coverPath), mustJSON(md.Tags), mustJSON(md.Tags), mustJSON(md.Genres), mustJSON(md.Genres), mustJSON(md.Narrators), mustJSON(md.Narrators), p.now, p.mediaID)
+	_, err := tx.ExecContext(ctx, `UPDATE books SET title=COALESCE(?,title),titleIgnorePrefix=?,subtitle=COALESCE(?,subtitle),publishedYear=COALESCE(?,publishedYear),publishedDate=COALESCE(?,publishedDate),publisher=COALESCE(?,publisher),description=COALESCE(?,description),isbn=COALESCE(?,isbn),asin=COALESCE(?,asin),language=COALESCE(?,language),duration=?,audioFiles=?,chapters=?,coverPath=?,tags=CASE WHEN ?='[]' THEN tags ELSE ? END,genres=CASE WHEN ?='[]' THEN genres ELSE ? END,narrators=CASE WHEN ?='[]' THEN narrators ELSE ? END,updatedAt=? WHERE id=?`, store.NullIfBlank(md.Title), textsort.TitleIgnorePrefix(p.title, l.sortingPrefixes), store.NullIfBlank(md.Subtitle), store.NullIfBlank(md.PublishedYear), store.NullIfBlank(md.PublishedDate), store.NullIfBlank(md.Publisher), store.NullIfBlank(md.Description), store.NullIfBlank(md.ISBN), store.NullIfBlank(md.ASIN), store.NullIfBlank(md.Language), p.duration, mustJSON(p.audio), mustJSON(p.chapters), store.NullIfBlank(p.coverPath), mustJSON(md.Tags), mustJSON(md.Tags), mustJSON(md.Genres), mustJSON(md.Genres), mustJSON(md.Narrators), mustJSON(md.Narrators), p.now, p.mediaID)
 	return err
 }
 
@@ -375,13 +378,13 @@ func (p itemPlan) applyRelations(ctx context.Context, tx *sql.Tx, changes *itemw
 func (p itemPlan) applyItem(ctx context.Context, tx *sql.Tx) error {
 	l, g := p.lib, p.g
 	if p.added {
-		_, err := tx.ExecContext(ctx, `INSERT INTO libraryItems(id,ino,libraryId,libraryFolderId,path,relPath,isFile,mtime,ctime,birthtime,createdAt,updatedAt,lastScan,lastScanVersion,isMissing,isInvalid,mediaType,size,extraData,libraryFiles,mediaId,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,0,0,?,?,?,?,?,?,?, ?,?)`, p.itemID, p.itemIno, l.id, g.folder.id, g.path, p.rel, boolInt(g.isFile), p.mtime, p.ctime, p.birthtime, p.now, p.now, p.now, "2.37.2", strings.ToLower(l.mediaType), p.size, `{}`, p.filesJSON, p.mediaID, p.title, scannerTitleSortKey(p.title, l.sortingPrefixes), p.author, lastFirst(p.author))
+		_, err := tx.ExecContext(ctx, `INSERT INTO libraryItems(id,ino,libraryId,libraryFolderId,path,relPath,isFile,mtime,ctime,birthtime,createdAt,updatedAt,lastScan,lastScanVersion,isMissing,isInvalid,mediaType,size,extraData,libraryFiles,mediaId,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,0,0,?,?,?,?,?,?,?, ?,?)`, p.itemID, p.itemIno, l.id, g.folder.id, g.path, p.rel, boolInt(g.isFile), p.mtime, p.ctime, p.birthtime, p.now, p.now, p.now, version.Server, strings.ToLower(l.mediaType), p.size, `{}`, p.filesJSON, p.mediaID, p.title, textsort.TitleIgnorePrefix(p.title, l.sortingPrefixes), p.author, nameparse.ToLastFirst(p.author))
 		return err
 	}
 	if !p.writeItem {
 		return nil
 	}
-	_, err := tx.ExecContext(ctx, `UPDATE libraryItems SET path=?,ino=?,libraryFolderId=?,relPath=?,isFile=?,mtime=?,ctime=?,birthtime=?,updatedAt=?,lastScan=?,lastScanVersion=?,isMissing=?,size=?,libraryFiles=?,title=?,titleIgnorePrefix=?,authorNamesFirstLast=?,authorNamesLastFirst=? WHERE id=?`, g.path, p.itemIno, g.folder.id, p.rel, boolInt(g.isFile), p.mtime, p.ctime, p.birthtime, p.now, p.now, "2.37.2", boolInt(p.missing), p.size, p.filesJSON, p.title, scannerTitleSortKey(p.title, l.sortingPrefixes), p.author, lastFirst(p.author), p.itemID)
+	_, err := tx.ExecContext(ctx, `UPDATE libraryItems SET path=?,ino=?,libraryFolderId=?,relPath=?,isFile=?,mtime=?,ctime=?,birthtime=?,updatedAt=?,lastScan=?,lastScanVersion=?,isMissing=?,size=?,libraryFiles=?,title=?,titleIgnorePrefix=?,authorNamesFirstLast=?,authorNamesLastFirst=? WHERE id=?`, g.path, p.itemIno, g.folder.id, p.rel, boolInt(g.isFile), p.mtime, p.ctime, p.birthtime, p.now, p.now, version.Server, boolInt(p.missing), p.size, p.filesJSON, p.title, textsort.TitleIgnorePrefix(p.title, l.sortingPrefixes), p.author, nameparse.ToLastFirst(p.author), p.itemID)
 	return err
 }
 
@@ -390,13 +393,8 @@ func (p itemPlan) applyItem(ctx context.Context, tx *sql.Tx) error {
 func (s *Scanner) afterImport(ctx context.Context, p itemPlan, changes *itemwrite.Changes) {
 	l := p.lib
 	if l.mediaType == "book" && (p.added || (p.rescanMedia && (p.fileDiff.changed() || p.coverChanged))) {
-		settings := map[string]any{"storeMetadataWithItem": false, "metadataFileFormat": "json"}
-		var raw []byte
-		if e := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); e == nil {
-			_ = json.Unmarshal(raw, &settings)
-		}
-		if item, e := s.itemEvent(ctx, p.itemID); e == nil {
-			_ = WriteItemMetadata(ctx, s.db, s.cfg, p.itemID, item.MediaType, item.Media, settings)
+		if err := s.WriteMetadata(ctx, p.itemID); err != nil {
+			logging.Warnf("[Scanner] Writing metadata for item %s failed: %v", p.itemID, err)
 		}
 	}
 	if p.added && l.mediaType == "book" {

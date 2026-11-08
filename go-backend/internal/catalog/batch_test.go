@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -91,9 +92,9 @@ func TestBatchUpdateCountsOnlyRealChanges(t *testing.T) {
 	for _, e := range rig.takeEvents() {
 		names = append(names, e.event)
 	}
-	// Author events come while the item is processed, item_updated after its
-	// save, the empty-author removal after the loop.
-	if got := strings.Join(names, ","); got != "author_updated,item_updated,author_removed" {
+	// Every media write finishes in one order: author events, the empty-author
+	// removal, then item_updated for each saved item.
+	if got := strings.Join(names, ","); got != "author_updated,author_removed,item_updated" {
 		t.Fatalf("events %s", got)
 	}
 	if len(rig.touched) != 1 || rig.touched[0] != "i2" {
@@ -175,4 +176,18 @@ func TestBatchDelete(t *testing.T) {
 func sameJSON(got, want string) bool {
 	var g, w any
 	return json.Unmarshal([]byte(got), &g) == nil && json.Unmarshal([]byte(want), &w) == nil && reflect.DeepEqual(g, w)
+}
+
+// A saved podcast whose auto-download schedule changed refreshes its cron entry
+// (LibraryItemController.js:276); an unchanged one does not.
+func TestFinishItemWritesReschedulesPodcast(t *testing.T) {
+	var rescheduled []string
+	h := &Handler{podcastScheduleChanged: func(_ context.Context, id string) { rescheduled = append(rescheduled, id) }}
+	err := h.finishItemWrites(context.Background(),
+		itemWrite{itemID: "changed", updated: true, reschedule: true},
+		itemWrite{itemID: "other", updated: true},
+		itemWrite{itemID: "unsaved", reschedule: true})
+	if err != nil || len(rescheduled) != 1 || rescheduled[0] != "changed" {
+		t.Fatalf("rescheduled %v, err %v", rescheduled, err)
+	}
 }

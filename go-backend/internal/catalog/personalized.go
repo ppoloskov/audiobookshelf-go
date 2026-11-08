@@ -2,15 +2,12 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"database/sql"
-	"errors"
-	"net/http"
-	"strconv"
-
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
+	"cmp"
+	"database/sql"
+	"net/http"
 )
 
 // A shelf is a definition: its identity and one query. personalized runs the
@@ -43,6 +40,7 @@ type shelfEnv struct {
 	r         *http.Request
 	user      store.User
 	libraryID string
+	settings  librarySettings
 	limit     int
 	podcast   bool
 	perm      string // the user's media permission clause, with its arguments
@@ -72,28 +70,10 @@ var podcastShelves = []shelfDef{
 	{"listen-again", "Listen Again", "LabelListenAgain", "episode", episodeShelf(true, `mp.isFinished=1`)},
 }
 
-func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	var mediaType string
-	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaType FROM libraries WHERE id=?`, libraryID).Scan(&mediaType); errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "Library not found")
-	} else if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	limit := 10
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		v, err := strconv.Atoi(raw)
-		if err != nil || v < 0 {
-			return httputil.Status(http.StatusBadRequest, "invalid limit")
-		}
-		if v != 0 {
-			limit = v
-		}
-	}
-	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
+func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
+	user, libraryID, mediaType := lib.user, lib.id, lib.mediaType
+	limit := cmp.Or(lib.limit, 10) // `req.query.limit || 10` (LibraryController.js:891)
+	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, settings: lib.settings, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
 	defs := bookShelves
 	switch mediaType {
 	case "book":
@@ -118,7 +98,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	shelves := make([]wire.Shelf, 0, len(defs))
+	shelves := make([]shelf, 0, len(defs))
 	for i, def := range defs {
 		q := queries[i]
 		entities, err := q.build(items[:len(q.ids)])
@@ -127,7 +107,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) error {
 		}
 		items = items[len(q.ids):]
 		if len(entities) > 0 {
-			shelves = append(shelves, wire.Shelf{ID: def.id, Label: def.label, LabelStringKey: def.key, Type: def.typ, Entities: entities, Total: q.total})
+			shelves = append(shelves, shelf{ID: def.id, Label: def.label, LabelStringKey: def.key, Type: def.typ, Entities: entities, Total: q.total})
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.ForRequest(r))

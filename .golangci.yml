@@ -58,6 +58,8 @@ linters:
             - $gostd
             - golang.org/x/net/html
             - github.com/golang-jwt/jwt/v5
+            # ids is itself a stdlib-only leaf (token jti generation).
+            - audiobookshelf-compat/internal/ids
         production-httptest:
           list-mode: lax
           files:

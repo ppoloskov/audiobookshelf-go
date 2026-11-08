@@ -5,6 +5,7 @@ package audiotools
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -14,8 +15,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -59,7 +61,6 @@ type task struct {
 	itemID          string
 	ctx             context.Context
 	cancel          context.CancelFunc
-	cmd             *exec.Cmd
 	cache           string
 	queuedFlag      bool
 }
@@ -93,27 +94,25 @@ func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload 
 // user to the request context before dispatch (store.ContextWithUser).
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/tasks", httputil.Handler(h.tasksRoute))
-	mux.Handle("POST /api/tools/batch/embed-metadata", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		return h.batch(w, r, requestUser(r))
-	}))
-	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", httputil.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		if !access.AdminUser(requestUser(r)) {
-			return httputil.Status(403, "")
-		}
-		return h.cancelEncode(w, r.PathValue("id"))
-	}))
+	mux.Handle("POST /api/tools/batch/embed-metadata", adminOnly(h.batch))
+	mux.Handle("DELETE /api/tools/item/{id}/encode-m4b", adminOnly(h.cancelEncode))
 	mux.Handle("POST /api/tools/item/{id}/encode-m4b", h.itemRoute(h.encode))
 	mux.Handle("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
 }
 
-// itemRoute answers a tool on one library item: admins only, then the item must
-// exist and the user must be able to reach its library.
-func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, store.User, item) error) httputil.Handler {
+func adminOnly(next httputil.Handler) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		user := requestUser(r)
-		if !access.AdminUser(user) {
+		if !access.AdminUser(requestUser(r)) {
 			return httputil.Status(403, "")
 		}
+		return next(w, r)
+	}
+}
+
+// itemRoute answers a tool on one library item: admins only, and the item must
+// exist.
+func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, string, item) error) httputil.Handler {
+	return adminOnly(func(w http.ResponseWriter, r *http.Request) error {
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
 		if errors.Is(err, sql.ErrNoRows) {
 			return httputil.Status(404, "")
@@ -121,21 +120,12 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stor
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if !access.AdminUser(user) && !access.For(r.Context(), user).Library(it.library) {
-			return httputil.Status(403, "")
-		}
-		return action(w, r, user, it)
-	}
+		return action(w, r, requestUser(r).ID, it)
+	})
 }
 
 func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) error {
-	payload, err := h.Tasks(r.Context(), strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,"))
-	if err != nil {
-		logging.RequestError(r, "error", err)
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load tasks"})
-		return nil
-	}
-	httputil.WriteJSON(w, http.StatusOK, payload)
+	httputil.WriteJSON(w, http.StatusOK, h.Tasks(strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,")))
 	return nil
 }
 
@@ -144,7 +134,7 @@ func requestUser(r *http.Request) store.User {
 	return user
 }
 
-func (h *Handler) Tasks(ctx context.Context, includeQueue bool) (any, error) {
+func (h *Handler) Tasks(includeQueue bool) any {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	list := make([]*task, 0, len(h.tasks))
@@ -152,11 +142,7 @@ func (h *Handler) Tasks(ctx context.Context, includeQueue bool) (any, error) {
 		list = append(list, snapshotTask(t))
 	}
 	// Stable order for clients and tests.
-	for i := 1; i < len(list); i++ {
-		for j := i; j > 0 && list[j].StartedAt < list[j-1].StartedAt; j-- {
-			list[j], list[j-1] = list[j-1], list[j]
-		}
-	}
+	slices.SortStableFunc(list, func(a, b *task) int { return cmp.Compare(a.StartedAt, b.StartedAt) })
 	out := map[string]any{"tasks": list}
 	if includeQueue {
 		q := make([]map[string]any, 0, len(h.queued))
@@ -165,7 +151,7 @@ func (h *Handler) Tasks(ctx context.Context, includeQueue bool) (any, error) {
 		}
 		out["queuedTaskData"] = map[string]any{"embedMetadata": q}
 	}
-	return out, nil
+	return out
 }
 
 func (h *Handler) Close() {
@@ -201,11 +187,11 @@ func cloneData(data map[string]any) map[string]any {
 	if err != nil {
 		return map[string]any{}
 	}
-	var copy map[string]any
-	if json.Unmarshal(encoded, &copy) != nil || copy == nil {
+	var out map[string]any
+	if json.Unmarshal(encoded, &out) != nil || out == nil {
 		return map[string]any{}
 	}
-	return copy
+	return out
 }
 
 func chapterDTOs(chapters []chapter) []map[string]any {
@@ -268,7 +254,7 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 	return x, nil
 }
 
-func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
+func (h *Handler) encode(w http.ResponseWriter, r *http.Request, userID string, it item) error {
 	if it.typ != "book" {
 		return httputil.Status(400, "Invalid library item: not a book")
 	}
@@ -279,15 +265,15 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, u store.User, i
 		return httputil.Status(400, "Audiobook is already processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	t := h.newTask("encode-m4b", u, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
+	t := h.newTask("encode-m4b", userID, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
 	if err := os.MkdirAll(t.cache, 0755); err != nil {
 		cancel()
 		return httputil.Internal("Unable to create task cache", err)
 	}
 	go h.runEncode(t, it, r.URL.Query())
-	return sendOK(w)
+	return httputil.OK(w, r)
 }
-func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it item) error {
+func (h *Handler) embed(w http.ResponseWriter, r *http.Request, userID string, it item) error {
 	if it.typ != "book" || len(it.files) == 0 {
 		return httputil.Status(400, "")
 	}
@@ -295,7 +281,7 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 		return httputil.Status(400, "Library item is already in queue or processing")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	t := h.newTask("embed-metadata", u, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
+	t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
 	backup := r.URL.Query().Get("backup") == "1"
 	force := r.URL.Query().Get("forceEmbedChapters") == "1"
 	t.Data["options"] = map[string]any{"forceEmbedChapters": force, "backupFiles": backup}
@@ -308,13 +294,11 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, u store.User, it
 	h.mu.Unlock()
 	h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
 	h.runNextEmbed()
-	return sendOK(w)
+	return httputil.OK(w, r)
 }
 
-func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) error {
-	if !access.AdminUser(u) {
-		return httputil.Status(403, "")
-	}
+func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
+	userID := requestUser(r).ID
 	var body struct {
 		LibraryItemIDs []string `json:"libraryItemIds"`
 	}
@@ -330,9 +314,6 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) er
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		if !access.AdminUser(u) && !access.For(r.Context(), u).Library(it.library) {
-			return httputil.Status(403, "")
-		}
 		if it.typ != "book" || len(it.files) == 0 {
 			return httputil.Status(400, "")
 		}
@@ -343,7 +324,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) er
 	}
 	for _, it := range items {
 		ctx, cancel := context.WithCancel(context.Background())
-		t := h.newTask("embed-metadata", u, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
+		t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
 		t.Data["options"] = map[string]any{"forceEmbedChapters": r.URL.Query().Get("forceEmbedChapters") == "1", "backupFiles": r.URL.Query().Get("backup") == "1"}
 		if r.URL.Query().Get("forceEmbedChapters") == "1" || len(it.files) == 1 {
 			t.Data["chapters"] = chapterDTOs(it.chapters)
@@ -354,14 +335,14 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request, u store.User) er
 		h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
 	}
 	h.runNextEmbed()
-	return sendOK(w)
+	return httputil.OK(w, r)
 }
 
-func (h *Handler) newTask(action string, u store.User, it item, title, key, desc, descKey string, queued bool, ctx context.Context, cancel context.CancelFunc) *task {
+func (h *Handler) newTask(action string, userID string, it item, title, key, desc, descKey string, queued bool, ctx context.Context, cancel context.CancelFunc) *task {
 	id := randomID()
 	now := time.Now().UnixMilli()
 	cache := filepath.Join(h.cfg.MetadataPath, "cache", "items", it.id)
-	t := &task{ID: id, Action: action, Data: map[string]any{"libraryItemId": it.id, "libraryItemDir": it.path, "userId": u.ID, "duration": it.duration}, Title: title, TitleKey: key, TitleSubs: []string{}, Description: desc, DescriptionKey: descKey, DescriptionSubs: []string{it.title}, ShowSuccess: false, StartedAt: now, userID: u.ID, itemID: it.id, ctx: ctx, cancel: cancel, cache: cache, queuedFlag: queued}
+	t := &task{ID: id, Action: action, Data: map[string]any{"libraryItemId": it.id, "libraryItemDir": it.path, "userId": userID, "duration": it.duration}, Title: title, TitleKey: key, TitleSubs: []string{}, Description: desc, DescriptionKey: descKey, DescriptionSubs: []string{it.title}, ShowSuccess: false, StartedAt: now, userID: userID, itemID: it.id, ctx: ctx, cancel: cancel, cache: cache, queuedFlag: queued}
 	h.mu.Lock()
 	if !queued {
 		h.tasks[id] = t
@@ -388,7 +369,8 @@ func (h *Handler) has(itemID, action string) bool {
 	}
 	return false
 }
-func (h *Handler) cancelEncode(w http.ResponseWriter, id string) error {
+func (h *Handler) cancelEncode(w http.ResponseWriter, r *http.Request) error {
+	id := r.PathValue("id")
 	h.mu.Lock()
 	var t *task
 	for _, x := range h.tasks {
@@ -403,7 +385,7 @@ func (h *Handler) cancelEncode(w http.ResponseWriter, id string) error {
 	}
 	t.cancel()
 	h.finish(t, errors.New("Task canceled by user"))
-	return sendOK(w)
+	return httputil.OK(w, r)
 }
 func (h *Handler) finish(t *task, err error) {
 	h.mu.Lock()
@@ -495,9 +477,7 @@ func (h *Handler) runEmbed(t *task) error {
 			args = append(args, "-map", "2:v?", "-disposition:v", "attached_pic")
 		}
 		args = append(args, "-c", "copy", "-f", muxer(f.path), out)
-		cmd := exec.CommandContext(t.ctx, ffmpegPath(), args...)
-		t.cmd = cmd
-		if e = cmd.Run(); e != nil {
+		if e = mediatools.Run(t.ctx, args...); e != nil {
 			_ = os.Remove(out)
 			return fmt.Errorf("ffmpeg metadata embed track %d: %w", i, e)
 		}
@@ -570,11 +550,7 @@ func (h *Handler) merge(t *task, it item, q map[string][]string) error {
 	args = append(args, "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1")
 	args = append(args, cover...)
 	args = append(args, "-acodec", qvalue(q, "codec", "aac"), "-ac", qvalue(q, "channels", "2"), "-b:a", qvalue(q, "bitrate", "128k"), "-f", "mp4", temp)
-	cmd := exec.CommandContext(t.ctx, ffmpegPath(), args...)
-	t.cmd = cmd
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	if e := cmd.Run(); e != nil {
+	if e := mediatools.Run(t.ctx, args...); e != nil {
 		_ = os.Remove(temp)
 		return fmt.Errorf("ffmpeg m4b encode: %w", e)
 	}
@@ -663,13 +639,6 @@ func copyFile(src, dst string) error {
 	}
 	return oe
 }
-func ffmpegPath() string {
-	if p := strings.TrimSpace(os.Getenv("FFMPEG_PATH")); p != "" {
-		return p
-	}
-	return "ffmpeg"
-}
-
 func randomID() string { var b [16]byte; _, _ = rand.Read(b[:]); return fmt.Sprintf("%x", b[:]) }
 func str(v any) string { s, _ := v.(string); return s }
 func num(v any) float64 {
@@ -683,9 +652,4 @@ func num(v any) float64 {
 		return f
 	}
 	return 0
-}
-func sendOK(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = io.WriteString(w, "OK")
-	return nil
 }

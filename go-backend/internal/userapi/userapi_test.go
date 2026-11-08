@@ -1,6 +1,7 @@
 package userapi
 
 import (
+	"audiobookshelf-compat/internal/auth"
 	"context"
 	"crypto/sha1"
 	"database/sql"
@@ -15,7 +16,9 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/lists"
+	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/users"
 	_ "modernc.org/sqlite"
 )
 
@@ -35,7 +38,7 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	h, err := New(db, []byte("userapi-test-secret"), emit, nil)
+	h, err := New(db, testCredentials{secret: []byte("userapi-test-secret")}, emit, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -278,14 +281,14 @@ func TestProgressReadAndUpdate(t *testing.T) {
 	}
 }
 
-func TestProgressRowsParsesSequelizeTimestamp(t *testing.T) {
+func TestProgressReadParsesSequelizeTimestamp(t *testing.T) {
 	db, _ := userFixture(t)
 	defer db.Close()
 	const timestamp = "2026-10-28 04:28:27.188 +00:00"
 	if _, err := db.Exec(`INSERT INTO mediaProgresses(id,userId,mediaItemId,mediaItemType,currentTime,isFinished,hideFromContinueListening,extraData,createdAt,updatedAt) VALUES ('p-ts','u1','book1','book',1,0,0,'{}',?,?)`, timestamp, timestamp); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := ProgressRows(context.Background(), db, "u1")
+	rows, err := progressdto.Read(context.Background(), db, "u1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +331,7 @@ func TestUserDTOUsesUpstreamNullAndArrayShapes(t *testing.T) {
 	}
 	user.Email = ""
 	user.Permissions = json.RawMessage(`{}`)
-	dto := minimalBrowserUser(user, false)
+	dto := users.ListedUserDTO(user, false)
 	if dto["email"] != nil {
 		t.Fatalf("email=%#v, want null", dto["email"])
 	}
@@ -443,3 +446,19 @@ func TestUserAdministrationAndAPIKeyReadCreate(t *testing.T) {
 func msPtr(v int64) *int64 { return &v }
 
 var _ = context.Background
+
+// testCredentials signs with a fixed secret; the session and password
+// operations belong to identity and are not exercised here.
+type testCredentials struct{ secret []byte }
+
+func (c testCredentials) IssueLegacyToken(userID, username string) (string, error) {
+	return auth.IssueLegacy(c.secret, userID, username)
+}
+func (c testCredentials) IssueAPIKeyToken(keyID, name string, expiresAtUnix int64) (string, error) {
+	return auth.IssueAPIKey(c.secret, keyID, name, expiresAtUnix)
+}
+func (testCredentials) ChangePassword(context.Context, string, string, string) error { return nil }
+func (testCredentials) InvalidateUserSessions(context.Context, string, string) (string, string, error) {
+	return "", "", nil
+}
+func (testCredentials) SetRefreshTokenCookie(http.ResponseWriter, *http.Request, string) {}

@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filekind"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -218,7 +219,7 @@ func TestPrecedenceChangeForcesAndPersistsSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, _ := newScannerForTest(db, config.Config{}, nil)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`UPDATE books SET title='Persisted title',updatedAt='2020-01-01'`); err != nil {
@@ -228,7 +229,7 @@ func TestPrecedenceChangeForcesAndPersistsSnapshot(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraries SET settings=? WHERE id='lib-1'`, changed); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var updated, title string
@@ -277,7 +278,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := s.Scan(context.Background(), "lib-1")
+	first, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || first.Added != 1 {
 		t.Fatalf("initial scan=%+v err=%v", first, err)
 	}
@@ -297,7 +298,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 	if err := os.Rename(dir, newDir); err != nil {
 		t.Fatal(err)
 	}
-	moved, err := s.Scan(context.Background(), "lib-1")
+	moved, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || moved.Added != 0 || moved.Updated != 1 {
 		t.Fatalf("rename scan=%+v err=%v", moved, err)
 	}
@@ -316,7 +317,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(newDir, "desc.txt"), []byte("changed description"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	changed, err := s.Scan(context.Background(), "lib-1")
+	changed, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || changed.Updated != 1 {
 		t.Fatalf("companion update=%+v err=%v", changed, err)
 	}
@@ -328,7 +329,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 		t.Fatalf("changed scan bookkeeping lastScan=%q prior=%q version=%q", stamp(), prior, version)
 	}
 	prior = stamp()
-	unchanged, err := s.Scan(context.Background(), "lib-1")
+	unchanged, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || unchanged.Updated != 0 {
 		t.Fatalf("unchanged scan=%+v err=%v", unchanged, err)
 	}
@@ -360,7 +361,7 @@ func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err = s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var id string
@@ -370,7 +371,7 @@ func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
-	first, err := s.Scan(context.Background(), "lib-1")
+	first, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || first.Missing != 1 {
 		t.Fatalf("first missing=%+v err=%v", first, err)
 	}
@@ -383,7 +384,7 @@ func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 		t.Fatalf("missing row state=%d lastScan=%q", missing, last)
 	}
 	savedLast := last
-	second, err := s.Scan(context.Background(), "lib-1")
+	second, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || second.Missing != 1 {
 		t.Fatalf("second missing=%+v err=%v", second, err)
 	}
@@ -412,7 +413,7 @@ func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraryItems SET libraryId='other' WHERE id=?`, id); err != nil {
 		t.Fatal(err)
 	}
-	res, err := s.Scan(context.Background(), "lib-1")
+	res, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || res.Missing != 0 {
 		t.Fatalf("existing podcast folder scan=%+v err=%v", res, err)
 	}
@@ -446,7 +447,7 @@ func TestAudioEntryIdentityPreservedOnCompanionUpdateAndRemoval(t *testing.T) {
 	}
 	db := scannerTestDB(t, root)
 	s, _ := newScannerForTest(db, config.Config{}, nil)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var mediaID string
@@ -471,7 +472,7 @@ func TestAudioEntryIdentityPreservedOnCompanionUpdateAndRemoval(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "b.mp3")); err != nil {
 		t.Fatal(err)
 	}
-	res, err := s.Scan(context.Background(), "lib-1")
+	res, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil || res.Updated != 1 {
 		t.Fatalf("rescan=%+v err=%v", res, err)
 	}
@@ -515,7 +516,7 @@ func TestScanPersistsConfiguredTitleIgnorePrefixes(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, _ := newScannerForTest(db, config.Config{}, nil)
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := db.Query(`SELECT b.title,b.titleIgnorePrefix,li.titleIgnorePrefix FROM books b JOIN libraryItems li ON li.mediaId=b.id ORDER BY b.title`)
@@ -592,7 +593,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := s.Scan(context.Background(), "lib-1")
+	first, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -673,7 +674,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if _, err := db.Exec(`UPDATE mediaProgresses SET mediaItemId=? WHERE id='progress-1'`, mediaID); err != nil {
 		t.Fatal(err)
 	}
-	second, err := s.Scan(context.Background(), "lib-1")
+	second, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -700,7 +701,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(itemDir, "metadata.json"), updatedMetadata, 0644); err != nil {
 		t.Fatal(err)
 	}
-	changed, err := s.Scan(context.Background(), "lib-1")
+	changed, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,7 +720,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if err := os.WriteFile(audioPath, append(mustReadFile(t, audioPath), []byte(" ")...), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	inItemSidecar, err := os.ReadFile(filepath.Join(itemDir, "metadata.json"))
@@ -742,7 +743,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if err := os.Remove(audioPath); err != nil {
 		t.Fatal(err)
 	}
-	third, err := s.Scan(context.Background(), "lib-1")
+	third, err := s.Scan(context.Background(), "lib-1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,7 +764,7 @@ func TestScanImportsFFmpegMediaAndSidecarsIdempotently(t *testing.T) {
 	if err := json.Unmarshal(written, &sidecar); err != nil {
 		t.Fatal(err)
 	}
-	if sidecar["title"] != "Updated Sidecar" || len(anySlice(sidecar["authors"])) != 1 || len(anySlice(sidecar["series"])) != 1 {
+	if sidecar["title"] != "Updated Sidecar" || len(sidecar["authors"].([]any)) != 1 || len(sidecar["series"].([]any)) != 1 {
 		t.Fatalf("saved metadata sidecar = %s", written)
 	}
 	var libraryFiles string
@@ -808,7 +809,7 @@ func TestScanDropsProbeFailedAudio(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var raw string
@@ -869,7 +870,7 @@ func TestScanEmitsAddedAndUpdatedItemsInChunksOfTen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	assertChunks := func(event string) [][]string {
@@ -934,7 +935,7 @@ func TestScanEmitsAddedAndUpdatedItemsInChunksOfTen(t *testing.T) {
 		_ = f.Close()
 	}
 	events = nil
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	updated := assertChunks("items_updated")
@@ -1010,7 +1011,7 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var n int
@@ -1087,7 +1088,7 @@ func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := db.Query(`SELECT name,createdAt FROM authors WHERE libraryId='lib-1' ORDER BY createdAt ASC`)
@@ -1115,16 +1116,9 @@ func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
 }
 
 func TestFilenameTrackDiscParsingMatchesUpstream(t *testing.T) {
-	track, disc := filenameNumbers("Author - Book CD2 - 003 Chapter.mp3", "", "", "", "", "")
+	track, disc := filenameNumbers("Author - Book CD2 - 003 Chapter.mp3", "")
 	if track != 3 || disc != 2 {
 		t.Fatalf("track/disc=%v/%v, want 3/2", track, disc)
-	}
-}
-
-func TestFilenameTrackParsingRemovesOnlyFirstBookTitleOccurrence(t *testing.T) {
-	track, _ := filenameNumbers("01 My Title 2.mp3", "", "My Title", "", "", "")
-	if track != 1 {
-		t.Fatalf("track=%v, want 1 after removing first title occurrence", track)
 	}
 }
 
@@ -1165,7 +1159,7 @@ func TestProbeAudioDropsFilesWithoutAudioStreams(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+	if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	var items int
@@ -1250,7 +1244,7 @@ func TestScanCancellationAndRouteOwnership(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	result, err := s.Scan(ctx, "lib-1")
+	result, err := s.Scan(ctx, "lib-1", false)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("pre-canceled scan error = %v, want context.Canceled", err)
 	}
@@ -1322,7 +1316,7 @@ func TestScannedFileRelPathsAreItemRelative(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+			if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 				t.Fatal(err)
 			}
 			var libraryRaw, audioRaw string
@@ -1380,7 +1374,7 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 		if err := os.WriteFile(cd, []byte("fixture"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if !scannableCompanion(filepath.Ext(paths[2])) {
+		if !filekind.IsCompanion(filepath.Ext(paths[2])) {
 			t.Fatal("notes.txt is not a recognized companion")
 		}
 		groups := discoverGroupsForTest(t, root, "book")
@@ -1438,7 +1432,7 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 		if shouldIgnore("Author/book.tmpx") {
 			t.Fatal("unlisted extension ignored")
 		}
-		if !scannableCompanion(".opf") || scannableCompanion(".pdf") {
+		if !filekind.IsCompanion(".opf") || filekind.IsCompanion(".pdf") {
 			t.Fatal("companion extension mismatch")
 		}
 	})
@@ -1482,7 +1476,7 @@ func TestScannerDiscoveryRepairCharacterization(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.Scan(context.Background(), "lib-1"); err != nil {
+		if _, err := s.Scan(context.Background(), "lib-1", false); err != nil {
 			t.Fatalf("scan error=%v", err)
 		}
 	})

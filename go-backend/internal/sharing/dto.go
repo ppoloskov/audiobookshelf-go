@@ -1,4 +1,4 @@
-package wire
+package sharing
 
 // MediaItemShare is the share object sent by POST /api/share/mediaitem, the
 // share_open and share_closed Socket.IO events, and (before its

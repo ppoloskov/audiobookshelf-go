@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/textdist"
 	"context"
 	"database/sql"
 	"errors"
@@ -140,28 +141,8 @@ func editSimilarity(a, b string) float64 {
 	if a == "" || b == "" {
 		return 0
 	}
-	ar, br := []rune(a), []rune(b)
-	prev := make([]int, len(br)+1)
-	for j := range prev {
-		prev[j] = j
-	}
-	for i, ra := range ar {
-		cur := make([]int, len(br)+1)
-		cur[0] = i + 1
-		for j, rb := range br {
-			cost := 0
-			if ra != rb {
-				cost = 1
-			}
-			cur[j+1] = min(cur[j]+1, prev[j+1]+1, prev[j]+cost)
-		}
-		prev = cur
-	}
-	n := len(ar)
-	if len(br) > n {
-		n = len(br)
-	}
-	return 1 - float64(prev[len(br)])/float64(n)
+	n := max(len([]rune(a)), len([]rune(b)))
+	return 1 - float64(textdist.Levenshtein(a, b))/float64(n)
 }
 func asString(value any) string { s, _ := value.(string); return s }
 func nestedString(values map[string]any, key, sub string) any {

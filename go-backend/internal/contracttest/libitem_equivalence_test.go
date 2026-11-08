@@ -1,6 +1,7 @@
 package contracttest
 
 import (
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -44,7 +45,7 @@ func compareAllItems(t *testing.T, in *Install) {
 
 	var settings []byte
 	_ = in.DB.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
-	prefixes := libitem.SortingPrefixes(settings)
+	prefixes := textsort.ParsePrefixes(settings)
 
 	rows, err := in.DB.Query(`SELECT id FROM libraryItems ORDER BY id`)
 	if err != nil {

@@ -24,13 +24,9 @@ type Handler struct {
 	canView func(context.Context, store.User, string) (bool, error)
 }
 
-// New ignores its item reader: lists load items through libitem. The
-// parameter stays until the runtime call site drops it.
 func New(db *sql.DB, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error)) *Handler {
 	return &Handler{db: db, emit: emit, canView: canView}
 }
-
-func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
 
 func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())
@@ -57,13 +53,13 @@ func (h *Handler) collection(ctx context.Context, id string, user store.User) (m
 }
 
 func (h *Handler) collectionLibraryID(ctx context.Context, id string) (string, error) {
-	libraryID, err := h.queries().GetCollectionLibraryID(ctx, id)
+	libraryID, err := sqlc.New(h.db).GetCollectionLibraryID(ctx, id)
 	return libraryID.String, err
 }
 
 func (h *Handler) collectionRoot(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
-	ids, err := h.queries().ListCollectionIDs(r.Context())
+	ids, err := sqlc.New(h.db).ListCollectionIDs(r.Context())
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -119,7 +115,7 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	dto, _, _ := h.collection(r.Context(), id, user)
-	if err := h.queries().DeleteCollection(r.Context(), id); err != nil {
+	if err := sqlc.New(h.db).DeleteCollection(r.Context(), id); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if h.emit != nil {

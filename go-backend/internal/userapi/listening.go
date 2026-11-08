@@ -1,6 +1,7 @@
 package userapi
 
 import (
+	"audiobookshelf-compat/internal/jsonvalue"
 	"database/sql"
 	"errors"
 	"math"
@@ -60,7 +61,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 	items := stats["items"].(map[string]any)
 	days := stats["days"].(map[string]any)
 	dayOfWeek := stats["dayOfWeek"].(map[string]any)
-	recent := make([]any, 0, minInt(len(sessions), 10))
+	recent := make([]any, 0, min(len(sessions), 10))
 	for index, session := range sessions {
 		// Only the ten most recent sessions are serialized; building the JSON row
 		// loads the session's device info, so doing it for every session was one
@@ -85,10 +86,10 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		}
 		stats["totalTime"] = stats["totalTime"].(float64) + seconds
 		if day, _ := legacy["dayOfWeek"].(string); day != "" {
-			dayOfWeek[day] = numberValue(dayOfWeek[day]) + seconds
+			dayOfWeek[day] = jsonvalue.Float(dayOfWeek[day]) + seconds
 		}
 		if date, _ := legacy["date"].(string); date != "" && seconds > 0 {
-			days[date] = numberValue(days[date]) + seconds
+			days[date] = jsonvalue.Float(days[date]) + seconds
 			if date == time.Now().Format("2006-01-02") {
 				stats["today"] = stats["today"].(float64) + seconds
 			}
@@ -98,7 +99,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 			itemID = id
 		}
 		if current, ok := items[itemID].(map[string]any); ok {
-			current["timeListening"] = numberValue(current["timeListening"]) + seconds
+			current["timeListening"] = jsonvalue.Float(current["timeListening"]) + seconds
 		} else {
 			// Upstream also assigns lastUpdate: s.lastUpdate, a property the legacy
 			// session object never has, so the key is absent (server/routers/ApiRouter.js:569).
@@ -142,22 +143,4 @@ func queryInt(r *http.Request, key string, fallback int) int {
 		return fallback
 	}
 	return n
-}
-func numberValue(value any) float64 {
-	switch n := value.(type) {
-	case float64:
-		return n
-	case int64:
-		return float64(n)
-	case int:
-		return float64(n)
-	default:
-		return 0
-	}
-}
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

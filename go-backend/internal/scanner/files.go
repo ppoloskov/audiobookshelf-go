@@ -2,11 +2,12 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/mediatools"
 	"context"
 	"encoding/json"
 	"encoding/xml"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -15,17 +16,6 @@ import (
 	"syscall"
 	"time"
 )
-
-var audioExtensions = map[string]bool{".m4b": true, ".mp3": true, ".m4a": true, ".flac": true, ".opus": true, ".ogg": true, ".oga": true, ".mp4": true, ".aac": true, ".wma": true, ".aiff": true, ".aif": true, ".wav": true, ".webm": true, ".webma": true, ".mka": true, ".awb": true, ".caf": true, ".mpg": true, ".mpeg": true}
-
-func audioExt(ext string) bool { return audioExtensions[strings.ToLower(ext)] }
-func ebookExt(ext string) bool {
-	switch strings.ToLower(ext) {
-	case ".epub", ".pdf", ".mobi", ".azw3", ".cbr", ".cbz":
-		return true
-	}
-	return false
-}
 
 type file struct {
 	path    string
@@ -115,7 +105,7 @@ func nextCoverPath(current string, files []libraryFile, diff libraryFileDiff) (s
 	}
 	if cover != "" {
 		for newPath, oldPath := range diff.oldPathOf {
-			if oldPath == cover && newPath != cover && libraryFileHasPath(files, newPath) && fileTypeForExtension(filepath.Ext(newPath)) == "image" {
+			if oldPath == cover && newPath != cover && libraryFileHasPath(files, newPath) && filekind.Of(filepath.Ext(newPath)) == filekind.Image {
 				cover = newPath
 			}
 		}
@@ -151,17 +141,6 @@ func findStoredAudio(entries []map[string]any, currentPath, currentIno string) m
 	return nil
 }
 
-// titleIgnorePrefix mirrors server/utils/index.js:182-202; prefixes are
-// configured, case-insensitive at the start, and require a following space.
-func scannerTitleSortKey(title string, prefixes []string) string {
-	for _, prefix := range prefixes {
-		if len(title) > len(prefix) && strings.EqualFold(title[:len(prefix)], prefix) && title[len(prefix)] == ' ' {
-			return title[len(prefix)+1:]
-		}
-	}
-	return title
-}
-
 // Group files are captured during discovery; directory reads here would lose
 // upstream traversal order and attach files outside the claimed item path.
 
@@ -170,13 +149,6 @@ func boolInt(v bool) int {
 		return 1
 	}
 	return 0
-}
-func scannableCompanion(ext string) bool {
-	switch strings.ToLower(ext) {
-	case ".txt", ".nfo", ".opf", ".abs", ".xml", ".json", ".png", ".jpg", ".jpeg", ".webp":
-		return true
-	}
-	return false
 }
 
 // readABSMetadata prefers a readable in-item metadata.json and falls back to
@@ -210,13 +182,12 @@ func defaultMetadataPrecedence() []string {
 }
 
 func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, order []string, audioTags map[string]any, abs bookMetadata, hasABS bool) bookMetadata {
-	m := bookMetadata{Title: title, Authors: parseNameList(author)}
+	m := bookMetadata{Title: title, Authors: splitMetadataList(author)}
 	if series != "" {
 		m.Series = []seriesMetadata{{Name: series, Sequence: sequence}}
 	}
 	for _, source := range order {
 		switch source {
-		case "folderStructure":
 		case "audioMetatags":
 			if len(g.files) > 0 {
 				applyAudioMetadata(audioTags, &m)
@@ -231,7 +202,6 @@ func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, 
 			if hasABS {
 				applyABSMetadata(abs, &m)
 			}
-		default:
 		}
 	}
 	return m
@@ -247,7 +217,7 @@ func applyTextFiles(g *group, dst *bookMetadata) {
 			if raw, e := os.ReadFile(f.path); e == nil {
 				lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
 				if len(lines) > 0 && strings.TrimSpace(lines[0]) != "" {
-					dst.Narrators = parseNameList(strings.TrimSpace(lines[0]))
+					dst.Narrators = splitMetadataList(strings.TrimSpace(lines[0]))
 				}
 			}
 		}
@@ -279,19 +249,19 @@ func applyNFO(g *group, dst *bookMetadata) {
 				dst.Description = v
 			}
 			if v := values["tag"]; v != "" {
-				dst.Tags = parseNameList(v)
+				dst.Tags = splitMetadataList(v)
 			}
 			if v := values["author"]; v != "" {
-				dst.Authors = parseNameList(v)
+				dst.Authors = splitMetadataList(v)
 			}
 			if v := values["narrator"]; v != "" {
-				dst.Narrators = parseNameList(v)
+				dst.Narrators = splitMetadataList(v)
 			}
 			if v := values["series name"]; v != "" {
 				dst.Series = []seriesMetadata{{Name: v, Sequence: values["position in series"]}}
 			}
 			if v := values["genre"]; v != "" {
-				dst.Genres = parseNameList(v)
+				dst.Genres = splitMetadataList(v)
 				dst.Tags = append([]string(nil), dst.Genres...)
 			}
 			if v := values["publisher"]; v != "" {
@@ -574,7 +544,7 @@ func parseOPF(raw []byte, dst *bookMetadata) {
 	if len(dst.Tags) == 0 {
 		for _, v := range m.Metas {
 			if strings.EqualFold(v.Name, "tags") && strings.TrimSpace(v.Content) != "" {
-				dst.Tags = parseNameList(v.Content)
+				dst.Tags = splitMetadataList(v.Content)
 			}
 		}
 	}
@@ -607,7 +577,7 @@ func makeFileMeta(root string, f file) map[string]any {
 	}
 	ext := strings.ToLower(filepath.Ext(f.path))
 	mtime, ctime, birthtime := statTimes(f.path, f.info)
-	return map[string]any{"ino": inode(f.info), "metadata": map[string]any{"filename": filepath.Base(f.path), "ext": ext, "path": f.path, "relPath": filepath.ToSlash(rel), "size": f.info.Size(), "mtimeMs": ms(mtime), "ctimeMs": ms(ctime), "birthtimeMs": ms(birthtime)}, "isSupplementary": nil, "addedAt": ms(mtime), "updatedAt": ms(mtime), "fileType": fileTypeForExtension(ext)}
+	return map[string]any{"ino": inode(f.info), "metadata": map[string]any{"filename": filepath.Base(f.path), "ext": ext, "path": f.path, "relPath": filepath.ToSlash(rel), "size": f.info.Size(), "mtimeMs": mtime.UnixMilli(), "ctimeMs": ctime.UnixMilli(), "birthtimeMs": birthtime.UnixMilli()}, "isSupplementary": nil, "addedAt": mtime.UnixMilli(), "updatedAt": mtime.UnixMilli(), "fileType": filekind.Of(ext)}
 }
 
 func statTimes(path string, info os.FileInfo) (mtime, ctime, birthtime time.Time) {
@@ -617,24 +587,6 @@ func statTimes(path string, info os.FileInfo) (mtime, ctime, birthtime time.Time
 	return
 }
 
-// fileTypeForExtension mirrors LibraryFile.fileType over the extension lists in
-// server/utils/globals.js:2-6.
-func fileTypeForExtension(ext string) string {
-	switch strings.ToLower(ext) {
-	case ".mp3", ".m4b", ".m4a", ".flac", ".opus", ".ogg", ".oga", ".mp4", ".aac", ".wma", ".aiff", ".aif", ".wav", ".webm", ".webma", ".mka", ".awb", ".caf", ".mpg", ".mpeg":
-		return "audio"
-	case ".jpg", ".jpeg", ".png", ".webp":
-		return "image"
-	case ".epub", ".pdf", ".mobi", ".azw3", ".cbz", ".cbr":
-		return "ebook"
-	case ".opf", ".abs", ".xml", ".json":
-		return "metadata"
-	case ".txt", ".nfo":
-		return "text"
-	default:
-		return "unknown"
-	}
-}
 func inode(info os.FileInfo) string {
 	if st, ok := info.Sys().(*syscall.Stat_t); ok {
 		return strconv.FormatUint(st.Ino, 10)
@@ -642,58 +594,12 @@ func inode(info os.FileInfo) string {
 	return ""
 }
 
-type probeStream struct {
-	Codec         string            `json:"codec_name"`
-	CodecLong     string            `json:"codec_long_name"`
-	Type          string            `json:"codec_type"`
-	Index         int               `json:"index"`
-	Channels      int               `json:"channels"`
-	ChannelLayout string            `json:"channel_layout"`
-	TimeBase      string            `json:"time_base"`
-	BitRate       string            `json:"bit_rate"`
-	Language      string            `json:"language"`
-	Tags          map[string]string `json:"tags"`
-	Disposition   struct {
-		AttachedPic int `json:"attached_pic"`
-		Default     int `json:"default"`
-	} `json:"disposition"`
-}
-type probeChapter struct {
-	StartTime string            `json:"start_time"`
-	EndTime   string            `json:"end_time"`
-	Start     json.Number       `json:"start"`
-	End       json.Number       `json:"end"`
-	TimeBase  string            `json:"time_base"`
-	Tags      map[string]string `json:"tags"`
-}
-
 // probeAudio shapes the imported audio file per the upstream AudioFile object
-// (server/objects/files/AudioFile.js:113-136): metadata is the flat
-// FileMetadata object; the inode belongs top-level only. meta carries the flat
-// file metadata plus an optional transient "scanMetadata" map used for
-// filename track/disc parsing and removed from the persisted entry.
+// (server/objects/files/AudioFile.js:113-136): meta is the flat FileMetadata
+// object; the inode belongs top-level only.
 func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno string) (map[string]any, error) {
-	ffprobe := strings.TrimSpace(os.Getenv("FFPROBE_PATH"))
-	if ffprobe == "" {
-		ffprobe = "ffprobe"
-	}
-	cmd := exec.CommandContext(ctx, ffprobe, "-v", "error", "-show_format", "-show_streams", "-show_chapters", "-of", "json", p)
-	raw, err := cmd.Output()
+	res, err := mediatools.Probe(ctx, p)
 	if err != nil {
-		return nil, err
-	}
-	var res struct {
-		Format struct {
-			Name     string            `json:"format_name"`
-			LongName string            `json:"format_long_name"`
-			Duration string            `json:"duration"`
-			BitRate  string            `json:"bit_rate"`
-			Tags     map[string]string `json:"tags"`
-		} `json:"format"`
-		Streams  []probeStream  `json:"streams"`
-		Chapters []probeChapter `json:"chapters"`
-	}
-	if err := json.Unmarshal(raw, &res); err != nil {
 		return nil, err
 	}
 	duration, _ := strconv.ParseFloat(res.Format.Duration, 64)
@@ -701,21 +607,9 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 	if format == "" {
 		format = res.Format.Name
 	}
-	var ext, filename string
-	if value, ok := meta["ext"].(string); ok {
-		ext = value
-	}
-	if value, ok := meta["filename"].(string); ok {
-		filename = value
-	}
-	persistedMeta := make(map[string]any, len(meta))
-	for key, value := range meta {
-		if key == "scanMetadata" {
-			continue
-		}
-		persistedMeta[key] = value
-	}
-	var audio *probeStream
+	ext, _ := meta["ext"].(string)
+	filename, _ := meta["filename"].(string)
+	var audio *mediatools.Stream
 	var embedded any
 	defaultAudio := false
 	for i := range res.Streams {
@@ -741,7 +635,7 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 		normalizedBitRate = bitRate
 	}
 	tags := res.Format.Tags
-	out := map[string]any{"index": 1, "ino": fileIno, "metadata": persistedMeta, "addedAt": time.Now().UnixMilli(), "updatedAt": time.Now().UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": normalizedBitRate, "language": nil, "codec": nil, "timeBase": nil, "channels": nil, "channelLayout": nil, "chapters": []map[string]any{}, "embeddedCoverArt": embedded, "metaTags": map[string]any{}, "mimeType": audioMimeType(ext)}
+	out := map[string]any{"index": 1, "ino": fileIno, "metadata": meta, "addedAt": time.Now().UnixMilli(), "updatedAt": time.Now().UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": normalizedBitRate, "language": nil, "codec": nil, "timeBase": nil, "channels": nil, "channelLayout": nil, "chapters": []map[string]any{}, "embeddedCoverArt": embedded, "metaTags": map[string]any{}, "mimeType": filekind.AudioMime(ext)}
 	out["codec"] = audio.Codec
 	out["timeBase"] = audio.TimeBase
 	if audio.Channels > 0 {
@@ -768,24 +662,10 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 	if value, ok := metaTags["tagDisc"].(string); ok {
 		out["discNumFromMeta"] = firstTrackNumber(value)
 	}
-	var scanTitle, scanAuthor, scanSeries, scanYear string
-	if value, ok := meta["scanMetadata"].(map[string]any); ok {
-		scanTitle, _ = value["title"].(string)
-		scanAuthor, _ = value["author"].(string)
-		scanSeries, _ = value["series"].(string)
-		scanYear, _ = value["publishedYear"].(string)
-	}
-	out["trackNumFromFilename"], out["discNumFromFilename"] = filenameNumbers(filename, filepath.Dir(p), scanTitle, scanAuthor, scanSeries, scanYear)
+	out["trackNumFromFilename"], out["discNumFromFilename"] = filenameNumbers(filename, filepath.Dir(p))
 	chapters := make([]map[string]any, 0, len(res.Chapters))
 	for i, ch := range res.Chapters {
-		start, _ := strconv.ParseFloat(ch.StartTime, 64)
-		end, _ := strconv.ParseFloat(ch.EndTime, 64)
-		if ch.StartTime == "" {
-			start = chapterSeconds(ch.Start, ch.TimeBase)
-		}
-		if ch.EndTime == "" {
-			end = chapterSeconds(ch.End, ch.TimeBase)
-		}
+		start, end := ch.Seconds()
 		chapters = append(chapters, map[string]any{"start": start, "end": end, "title": strings.TrimSpace(ch.Tags["title"]), "id": i})
 	}
 	sort.Slice(chapters, func(i, j int) bool { return chapters[i]["start"].(float64) < chapters[j]["start"].(float64) })
@@ -793,50 +673,9 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 		chapters[i]["id"] = i
 	}
 	out["chapters"] = chapters
-	if filename != "" {
-		out["trackNumFromFilename"], out["discNumFromFilename"] = filenameNumbers(filename, filepath.Dir(p), "", "", "", "")
-	}
 	return out, nil
 }
 
-func chapterSeconds(value json.Number, timeBase string) float64 {
-	n, _ := value.Int64()
-	den := 1.0
-	if parts := strings.Split(timeBase, "/"); len(parts) == 2 {
-		if parsed, err := strconv.ParseFloat(parts[1], 64); err == nil && parsed != 0 {
-			den = parsed
-		}
-	}
-	return float64(n) / den
-}
-func audioMimeType(ext string) string {
-	switch strings.TrimPrefix(strings.ToLower(ext), ".") {
-	case "m4b", "m4a", "mp4":
-		return "audio/mp4"
-	case "ogg", "oga", "opus":
-		return "audio/ogg"
-	case "aac":
-		return "audio/aac"
-	case "flac":
-		return "audio/flac"
-	case "wma":
-		return "audio/x-ms-wma"
-	case "aiff", "aif":
-		return "audio/x-aiff"
-	case "webm", "webma":
-		return "audio/webm"
-	case "mka":
-		return "audio/x-matroska"
-	case "awb":
-		return "audio/amr-wb"
-	case "caf":
-		return "audio/x-caf"
-	case "mpg", "mpeg":
-		return "audio/mpeg"
-	default:
-		return "audio/mpeg"
-	}
-}
 func firstTrackNumber(value string) any {
 	part := strings.Split(value, "/")[0]
 	number, err := strconv.Atoi(strings.TrimSpace(part))
@@ -854,27 +693,28 @@ func audioFilename(af map[string]any) string {
 	return ""
 }
 
-func filenameNumbers(filename, dir, title, author, series, year string) (any, any) {
+var (
+	discInName    = regexp.MustCompile(`(?i)\b(disc|cd) ?(\d\d?)\b`)
+	discDirPrefix = regexp.MustCompile(`(?i)^(cd|dis[ck])\s*`)
+	trackNumber   = regexp.MustCompile(`\d{1,4}`)
+)
+
+// filenameNumbers reads the track and disc number from an audio file's name
+// and from a "CD 1" style parent directory.
+func filenameNumbers(filename, dir string) (any, any) {
 	base := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-	for _, remove := range []string{title, author, series, year} {
-		if remove != "" {
-			base = strings.Replace(base, remove, "", 1)
-		}
-	}
 	disc := any(nil)
-	discRE := regexp.MustCompile(`(?i)\b(disc|cd) ?(\d\d?)\b`)
-	if m := discRE.FindStringSubmatch(base); len(m) > 2 {
+	if m := discInName.FindStringSubmatch(base); len(m) > 2 {
 		if n, e := strconv.Atoi(m[2]); e == nil {
 			disc = n
 		}
 		base = strings.Replace(base, m[0], "", 1)
 	}
-	if dirRE := regexp.MustCompile(`(?i)^(cd|dis[ck])\s*\d{1,3}$`); dirRE.MatchString(filepath.Base(dir)) {
-		n, _ := strconv.Atoi(regexp.MustCompile(`(?i)^(cd|dis[ck])\s*`).ReplaceAllString(filepath.Base(dir), ""))
+	if parent := filepath.Base(dir); cdDirectory.MatchString(parent) {
+		n, _ := strconv.Atoi(discDirPrefix.ReplaceAllString(parent, ""))
 		disc = n
 	}
-	numRE := regexp.MustCompile(`\d{1,4}`)
-	m := numRE.FindString(base)
+	m := trackNumber.FindString(base)
 	if m == "" {
 		return nil, disc
 	}
@@ -1074,7 +914,7 @@ func applyAudioMetadata(tags map[string]any, dst *bookMetadata) {
 		return ""
 	}
 	if v := str("tagComposer"); v != "" {
-		dst.Narrators = parseNameList(v)
+		dst.Narrators = splitMetadataList(v)
 	}
 	if v := str("tagDescription", "tagComment"); v != "" {
 		dst.Description = v
@@ -1092,7 +932,7 @@ func applyAudioMetadata(tags map[string]any, dst *bookMetadata) {
 		dst.Title = v
 	}
 	if v := str("tagArtist", "tagAlbumArtist"); v != "" {
-		dst.Authors = parseNameList(v)
+		dst.Authors = splitMetadataList(v)
 	}
 	if v := str("tagGenre"); v != "" {
 		dst.Genres = parseGenreList(v)
@@ -1119,26 +959,6 @@ func applyAudioMetadata(tags map[string]any, dst *bookMetadata) {
 		dst.ASIN = v
 	}
 }
-func audioTagsFromFile(path string) map[string]any {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_format", "-of", "json", path)
-	raw, err := cmd.Output()
-	if err != nil {
-		return nil
-	}
-	var result struct {
-		Format struct {
-			Tags map[string]string `json:"tags"`
-		} `json:"format"`
-	}
-	if json.Unmarshal(raw, &result) != nil {
-		return nil
-	}
-	return parseAudioTags(result.Format.Tags)
-}
-
-func parseNameList(s string) []string { return splitMetadataList(s) }
 func parseGenreList(s string) []string {
 	return splitMetadataList(strings.NewReplacer("/", ";").Replace(s))
 }
@@ -1167,14 +987,7 @@ func mustJSON(v any) string {
 	}
 	return string(b)
 }
-func lastFirst(s string) string {
-	p := strings.Fields(s)
-	if len(p) < 2 {
-		return s
-	}
-	return strings.Join(p[1:], " ") + ", " + p[0]
-}
-func bookPathMetadata(p, root string, parseSubtitle ...bool) (title, author, series, seq string) {
+func bookPathMetadata(p, root string, parseSubtitle bool) (title, author, series, seq string) {
 	rel, _ := filepath.Rel(root, p)
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	titleDir := filepath.Base(p)
@@ -1203,9 +1016,8 @@ func bookPathMetadata(p, root string, parseSubtitle ...bool) (title, author, ser
 		series = seriesName
 	}
 	title, _ = extractPublishedYear(title)
-	if len(parseSubtitle) > 0 && parseSubtitle[0] {
-		parts := strings.Split(title, " - ")
-		title = parts[0]
+	if parseSubtitle {
+		title, _, _ = strings.Cut(title, " - ")
 	}
 	return
 }

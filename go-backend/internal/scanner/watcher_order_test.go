@@ -30,7 +30,7 @@ func TestWatcherBatchEventOrder(t *testing.T) {
 	R := func(p string) string { return filepath.Join(root, filepath.FromSlash(p)) }
 	writeBook(t, root, "Auth", "Old Name", "a.mp3")
 	writeBook(t, root, "Auth", "Doomed", "d.mp3")
-	if _, err := s.Scan(ctx, "lib-1"); err != nil {
+	if _, err := s.Scan(ctx, "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	idOf := func(path string) string {

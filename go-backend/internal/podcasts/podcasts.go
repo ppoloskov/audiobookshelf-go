@@ -5,6 +5,7 @@ package podcasts
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/textsort"
 	"bufio"
 	"compress/flate"
 	"compress/gzip"
@@ -15,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,26 +39,24 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
-	"audiobookshelf-compat/internal/wire"
 	"github.com/robfig/cron/v3"
 )
 
 var errPodcastExists = errors.New("podcast already exists")
 
 type Handler struct {
-	db                  *sql.DB
-	cfg                 config.Config
-	emit                events.Emitter
-	client              *http.Client
-	allowPrivateNetwork bool
-	queueMu             sync.Mutex
-	queue               []*downloadTask
-	current             *downloadTask
-	scheduler           *cron.Cron
-	scheduleIDs         map[string]cron.EntryID
-	failedCheckMap      map[string]int
-	maxFailedChecks     int
-	quickMatch          func(context.Context, string, bool) (int, error)
+	db              *sql.DB
+	cfg             config.Config
+	emit            events.Emitter
+	client          *http.Client
+	queueMu         sync.Mutex
+	queue           []*downloadTask
+	current         *downloadTask
+	scheduler       *cron.Cron
+	scheduleIDs     map[string]cron.EntryID
+	failedCheckMap  map[string]int
+	maxFailedChecks int
+	quickMatch      func(context.Context, string, bool) (int, error)
 }
 
 func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
@@ -69,7 +67,7 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	if raw, err := strconv.Atoi(os.Getenv("MAX_FAILED_EPISODE_CHECKS")); err == nil && raw >= 0 {
 		maxFailed = raw
 	}
-	h := &Handler{db: db, cfg: cfg, emit: emit, client: secureClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: maxFailed}
+	h := &Handler{db: db, cfg: cfg, emit: emit, client: httputil.SafeClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: maxFailed}
 	h.startSchedules()
 	return h
 }
@@ -101,7 +99,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/podcasts/opml/parse", adminOnly(h.parseOPML))
 	mux.Handle("POST /api/podcasts/opml/create", adminOnly(h.createFromOPML))
 	mux.Handle("GET /api/podcasts/{id}/downloads", h.onItem(func(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-		return httputil.JSON(w, r, wire.EpisodeDownloads{Downloads: h.downloadsFor(item.ID)})
+		return httputil.JSON(w, r, EpisodeDownloads{Downloads: h.downloadsFor(item.ID)})
 	}))
 	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
 		h.clearQueue(item.ID)
@@ -474,7 +472,9 @@ func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expande
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
 func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []map[string]any {
 	var raw []byte
-	_ = h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw)
+	if err := h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw); err != nil {
+		logging.Errorf("[PodcastManager] read libraryFiles of %s: %v", itemID, err)
+	}
 	return store.DecodeJSONSlice[map[string]any](raw)
 }
 
@@ -620,9 +620,9 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	if schedule != "" && !cronspec.Valid(schedule) {
 		return libitem.Item{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
 	}
-	settings := serversettings.Load(ctx, h.db).Doc()
+	settings := serversettings.Load(ctx, h.db)
 	if schedule == "" {
-		schedule, _ = settings["podcastEpisodeSchedule"].(string)
+		schedule = settings.String("podcastEpisodeSchedule")
 		if schedule == "" {
 			schedule = "0 * * * *"
 		}
@@ -663,22 +663,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 		}
 	}
 	title := anyString(meta["title"])
-	sortTitle := title
-	prefixes := []string{"the", "a"}
-	if v, ok := settings["sortingPrefixes"].([]any); ok && len(v) > 0 {
-		prefixes = nil
-		for _, x := range v {
-			if s, ok := x.(string); ok {
-				prefixes = append(prefixes, strings.ToLower(s))
-			}
-		}
-	}
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(strings.ToLower(title), prefix+" ") {
-			sortTitle = title[len(prefix)+1:]
-			break
-		}
-	}
+	sortTitle := textsort.TitleIgnorePrefix(title, settings.SortingPrefixes())
 	stringsMap := map[string]string{"author": "author", "releaseDate": "releaseDate", "feedUrl": "feedURL", "imageUrl": "imageURL", "description": "description", "itunesPageUrl": "itunesPageURL", "itunesId": "itunesId", "itunesArtistId": "itunesArtistId", "language": "language", "type": "podcastType"}
 	vals := map[string]any{}
 	for source, target := range stringsMap {
@@ -864,6 +849,22 @@ func (h *Handler) startSchedules() {
 	h.scheduler.Start()
 }
 
+// Reschedule re-evaluates an item's auto-download cron entry after its podcast
+// changed (CronManager.checkUpdatePodcastCron, CronManager.js:231).
+func (h *Handler) Reschedule(_ context.Context, itemID string) {
+	h.removeSchedule(itemID)
+	h.addSchedule(itemID)
+}
+
+func (h *Handler) removeSchedule(itemID string) {
+	h.queueMu.Lock()
+	defer h.queueMu.Unlock()
+	if entry, ok := h.scheduleIDs[itemID]; ok && h.scheduler != nil {
+		h.scheduler.Remove(entry)
+		delete(h.scheduleIDs, itemID)
+	}
+}
+
 func (h *Handler) addSchedule(itemID string) {
 	if h.scheduler == nil {
 		return
@@ -911,13 +912,7 @@ func (h *Handler) runScheduled(itemID string) {
 			if _, err := h.db.Exec(`UPDATE podcasts SET autoDownloadEpisodes=0,lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
 				logging.Errorf("[podcasts] auto-download disable update failed for %s: %v", item.MediaID, err)
 			}
-			h.queueMu.Lock()
-			entry, ok := h.scheduleIDs[itemID]
-			if ok && h.scheduler != nil {
-				h.scheduler.Remove(entry)
-				delete(h.scheduleIDs, itemID)
-			}
-			h.queueMu.Unlock()
+			h.removeSchedule(itemID)
 			if updated, loadErr := h.loadItem(context.Background(), itemID); loadErr == nil {
 				h.emit("@admins", "item_updated", h.expanded(context.Background(), updated))
 			}
@@ -996,11 +991,8 @@ func (h *Handler) getFeed(ctx context.Context, rawURL string) (*Feed, error) {
 	if feedURL == "" {
 		return nil, errors.New("invalid feed URL")
 	}
-	if !h.allowPrivateNetwork {
-		if err := rejectPrivateHost(ctx, feedURL); err != nil {
-			return nil, err
-		}
-	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return nil, err
@@ -1039,71 +1031,6 @@ func (h *Handler) getFeed(ctx context.Context, rawURL string) (*Feed, error) {
 	return parseFeed(raw, feedURL)
 }
 
-func secureClient() *http.Client {
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, err
-		}
-		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if err != nil {
-			return nil, err
-		}
-		var last error
-		for _, ip := range ips {
-			if !httputil.SSRFFilterDisabled(host) && (ip.IP.IsPrivate() || ip.IP.IsLoopback() || ip.IP.IsLinkLocalUnicast() || ip.IP.IsLinkLocalMulticast() || ip.IP.IsUnspecified()) {
-				last = fmt.Errorf("private or non-routable feed host blocked")
-				continue
-			}
-			conn, e := (&net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip.IP.String(), port))
-			if e == nil {
-				return conn, nil
-			}
-			last = e
-		}
-		if last == nil {
-			last = errors.New("feed host has no public IP")
-		}
-		return nil, last
-	}}
-	return &http.Client{Transport: transport, Timeout: 20 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 {
-			return errors.New("too many redirects")
-		}
-		if err := rejectPrivateHost(req.Context(), req.URL.String()); err != nil {
-			return err
-		}
-		return nil
-	}}
-}
-
-func rejectPrivateHost(ctx context.Context, raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return errors.New("feed URL must use HTTP or HTTPS")
-	}
-	host := u.Hostname()
-	if host == "" {
-		return errors.New("feed URL has no host")
-	}
-	if httputil.SSRFFilterDisabled(host) {
-		return nil
-	}
-	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-	if err != nil {
-		return err
-	}
-	for _, x := range ips {
-		if x.IP.IsPrivate() || x.IP.IsLoopback() || x.IP.IsLinkLocalUnicast() || x.IP.IsLinkLocalMulticast() || x.IP.IsUnspecified() {
-			return errors.New("private or non-routable feed host blocked")
-		}
-	}
-	return nil
-}
-
 func validFeedURL(raw string) string {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u == nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
@@ -1117,9 +1044,9 @@ func requestUser(r *http.Request) store.User {
 	return user
 }
 
-// SetHTTPClientForTests allows a local fixture server to exercise feed parsing
-// without weakening the production private-address checks.
-func (h *Handler) SetHTTPClientForTests(c *http.Client) { h.client = c; h.allowPrivateNetwork = true }
+// SetHTTPClientForTests swaps the outbound client so a local fixture server can
+// exercise feed parsing.
+func (h *Handler) SetHTTPClientForTests(c *http.Client) { h.client = c }
 
 // decodedBody unwraps a gzip or deflate Content-Encoding.
 func decodedBody(resp *http.Response) (io.ReadCloser, error) {

@@ -55,7 +55,7 @@ func TestScanNewItemFailureRollsBackAndAbortsScan(t *testing.T) {
 	if _, err := db.Exec(`CREATE TRIGGER fail_b BEFORE INSERT ON libraryItems WHEN NEW.path LIKE '%Book B' BEGIN SELECT RAISE(ABORT, 'boom-b'); END`); err != nil {
 		t.Fatal(err)
 	}
-	res, err := s.Scan(context.Background(), "lib-1")
+	res, err := s.Scan(context.Background(), "lib-1", false)
 	if err == nil || !strings.Contains(err.Error(), "boom-b") || strings.HasPrefix(err.Error(), "scanner:") {
 		t.Fatalf("err = %v, want the raw sqlite error containing boom-b", err)
 	}
@@ -112,7 +112,7 @@ func TestScanExistingItemFailureRollsBackAndAbortsScan(t *testing.T) {
 		writeBook(t, root, "Author "+n, "Book "+n, "01.mp3")
 	}
 	ctx := context.Background()
-	if _, err := s.Scan(ctx, "lib-1"); err != nil {
+	if _, err := s.Scan(ctx, "lib-1", false); err != nil {
 		t.Fatal(err)
 	}
 	// Stored order is insertion (path) order: A, B, C.
@@ -123,7 +123,7 @@ func TestScanExistingItemFailureRollsBackAndAbortsScan(t *testing.T) {
 		t.Fatal(err)
 	}
 	*evs = nil
-	res, err := s.Scan(ctx, "lib-1")
+	res, err := s.Scan(ctx, "lib-1", false)
 	if err == nil || !strings.Contains(err.Error(), "boom-b") {
 		t.Fatalf("err = %v, want boom-b", err)
 	}
@@ -151,7 +151,7 @@ func TestScanExistingItemFailureRollsBackAndAbortsScan(t *testing.T) {
 	if _, err := db.Exec(`DROP TRIGGER fail_b`); err != nil {
 		t.Fatal(err)
 	}
-	res, err = s.Scan(ctx, "lib-1")
+	res, err = s.Scan(ctx, "lib-1", false)
 	if err != nil {
 		t.Fatal(fmt.Errorf("retry: %w", err))
 	}

@@ -2,9 +2,22 @@ package deviceinfo
 
 import "strings"
 
-// ParseUserAgent extracts the browser and operating system fields shared by
-// playback and public-share device records. Recognition is intentionally narrow.
+// Info is what a User-Agent tells about its client; unrecognised parts are "".
+type Info struct {
+	Browser, BrowserVersion, OSName, OSVersion, DeviceType string
+}
+
+// ParseUserAgent is Parse without the device type, for the callers that
+// build device records.
 func ParseUserAgent(ua string) (browser, browserVersion, osName, osVersion string) {
+	i := Parse(ua)
+	return i.Browser, i.BrowserVersion, i.OSName, i.OSVersion
+}
+
+// Parse extracts the browser, operating system and device type shared by
+// device records and the session list. Recognition is intentionally narrow.
+func Parse(ua string) (info Info) {
+	browser, browserVersion, osName, osVersion := &info.Browser, &info.BrowserVersion, &info.OSName, &info.OSVersion
 	after := func(marker string) string {
 		i := strings.Index(ua, marker)
 		if i < 0 {
@@ -18,25 +31,31 @@ func ParseUserAgent(ua string) (browser, browserVersion, osName, osVersion strin
 	}
 	switch {
 	case strings.Contains(ua, "Firefox/"):
-		browser, browserVersion = "Firefox", after("Firefox/")
+		*browser, *browserVersion = "Firefox", after("Firefox/")
 	case strings.Contains(ua, "Edg/"):
-		browser, browserVersion = "Edge", after("Edg/")
+		*browser, *browserVersion = "Edge", after("Edg/")
 	case strings.Contains(ua, "Chrome/"):
-		browser, browserVersion = "Chrome", after("Chrome/")
+		*browser, *browserVersion = "Chrome", after("Chrome/")
 	case strings.Contains(ua, "Safari/"):
-		browser, browserVersion = "Safari", after("Version/")
+		*browser, *browserVersion = "Safari", after("Version/")
 	}
 	switch {
 	case strings.Contains(ua, "Windows NT 10"):
-		osName, osVersion = "Windows", "10"
+		*osName, *osVersion = "Windows", "10"
 	case strings.Contains(ua, "Mac OS X"):
-		osName, osVersion = "Mac OS", strings.ReplaceAll(after("Mac OS X "), "_", ".")
+		*osName, *osVersion = "Mac OS", strings.ReplaceAll(after("Mac OS X "), "_", ".")
 	case strings.Contains(ua, "Android"):
-		osName, osVersion = "Android", after("Android ")
+		*osName, *osVersion = "Android", after("Android ")
 	case strings.Contains(ua, "iPhone OS "):
-		osName, osVersion = "iOS", strings.ReplaceAll(after("iPhone OS "), "_", ".")
+		*osName, *osVersion = "iOS", strings.ReplaceAll(after("iPhone OS "), "_", ".")
 	case strings.Contains(ua, "Linux"):
-		osName = "Linux"
+		*osName = "Linux"
 	}
-	return
+	switch {
+	case strings.Contains(ua, "iPad"), strings.Contains(ua, "Tablet"), strings.Contains(ua, "Android") && !strings.Contains(ua, "Mobile"):
+		info.DeviceType = "tablet"
+	case strings.Contains(ua, "Mobile"), strings.Contains(ua, "iPhone"):
+		info.DeviceType = "mobile"
+	}
+	return info
 }

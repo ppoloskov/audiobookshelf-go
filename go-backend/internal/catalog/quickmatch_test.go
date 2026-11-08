@@ -68,7 +68,7 @@ func TestItemMatchAppliesDetails(t *testing.T) {
 	// Without overrides only empty fields are filled: the title stays, the
 	// subtitle, publisher and narrators arrive; authors and series are kept
 	// because the book already has them.
-	var result wire.QuickMatchResult
+	var result quickMatchResult
 	w := rig.do("POST", "/api/items/i1/match", `{"provider":"custom-1"}`, rootUser())
 	decodeAuthorBody(t, w, &result)
 	if result.Updated == nil || !*result.Updated || len(result.LibraryItem) == 0 {
@@ -127,7 +127,7 @@ func TestItemMatchAppliesDetails(t *testing.T) {
 	}
 	// A match equal to the stored values changes nothing.
 	finder.books = []wire.BookMatch{{Title: raw("Matched Title")}}
-	var again wire.QuickMatchResult
+	var again quickMatchResult
 	decodeAuthorBody(t, rig.do("POST", "/api/items/i1/match", `{"provider":"custom-1","overrideDetails":true,"overrideCover":false}`, rootUser()), &again)
 	if again.Updated == nil || *again.Updated {
 		t.Fatalf("second match updated: %v", again.Updated)
@@ -172,10 +172,10 @@ func TestBatchQuickMatchAndMatchAll(t *testing.T) {
 		t.Fatalf("run %d", c)
 	}
 	<-done
-	var complete wire.BatchQuickMatchResult
+	var complete batchQuickMatchResult
 	for _, e := range rig.takeEvents() {
 		if e.event == "batch_quickmatch_complete" {
-			complete = e.payload.(wire.BatchQuickMatchResult)
+			complete = e.payload.(batchQuickMatchResult)
 		}
 	}
 	if !complete.Success || complete.Updates != 2 || complete.Unmatched != 0 {

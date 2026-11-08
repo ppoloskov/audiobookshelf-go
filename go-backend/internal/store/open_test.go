@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestOpenReadWriteDoesNotCreateMissingDatabase(t *testing.T) {
+func TestOpenDoesNotCreateMissingDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "absdatabase.sqlite")
-	if _, err := OpenReadWrite(path); err == nil {
+	if _, err := Open(path); err == nil {
 		t.Fatal("expected missing database error")
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -16,9 +16,9 @@ func TestOpenReadWriteDoesNotCreateMissingDatabase(t *testing.T) {
 	}
 }
 
-func TestOpenReadWriteTransactionRollback(t *testing.T) {
+func TestOpenTransactionRollback(t *testing.T) {
 	path := createFixture(t)
-	s, err := OpenReadWrite(path)
+	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}

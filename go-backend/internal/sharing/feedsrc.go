@@ -1,6 +1,7 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/db/sqlc"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -313,14 +314,14 @@ type aggregateEntity struct {
 
 // loadCollectionEntity reads a collection and its books in collection order.
 func (h *Handler) loadCollectionEntity(ctx context.Context, id string) (aggregateEntity, error) {
-	c, err := h.queries().GetCollection(ctx, id)
+	c, err := sqlc.New(h.db).GetCollection(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return aggregateEntity{}, errFeedEntityMissing
 	}
 	if err != nil {
 		return aggregateEntity{}, err
 	}
-	rows, err := h.queries().ListCollectionBookSources(ctx, id)
+	rows, err := sqlc.New(h.db).ListCollectionBookSources(ctx, id)
 	if err != nil {
 		return aggregateEntity{}, err
 	}

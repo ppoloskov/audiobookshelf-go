@@ -216,11 +216,6 @@ func (h *Handler) fetchEpisode(d *downloadTask) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !h.allowPrivateNetwork {
-		if err = rejectPrivateHost(d.ctx, d.url); err != nil {
-			return "", err
-		}
-	}
 	itemDir := d.item.Path
 	if err = os.MkdirAll(itemDir, 0755); err != nil {
 		return "", err
@@ -407,7 +402,9 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 		return err
 	}
 	var files []map[string]any
-	_ = json.Unmarshal([]byte(rawFiles), &files)
+	if err = json.Unmarshal([]byte(rawFiles), &files); err != nil {
+		return err
+	}
 	files = append(files, libFile)
 	filesJSON, _ := json.Marshal(files)
 	var sizeTotal int64
@@ -456,7 +453,9 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 
 func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, justAdded string) error {
 	var published int
-	_ = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=? AND publishedAt IS NOT NULL`, item.MediaID).Scan(&published)
+	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=? AND publishedAt IS NOT NULL`, item.MediaID).Scan(&published); err != nil {
+		return err
+	}
 	if int64(published) <= item.Podcast.MaxEpisodesToKeep {
 		return nil
 	}

@@ -4,11 +4,9 @@ package realtime
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"context"
 	"database/sql"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
@@ -16,10 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -136,10 +132,6 @@ func (h *Hub) SetDatabase(db *sql.DB, authenticate Authenticate) error {
 	return nil
 }
 
-// UsersOnline returns the deduplicated connected-user list in the same shape
-// sent to administrators by Socket.IO init and user_online events.
-func (h *Hub) UsersOnline() []map[string]any { return h.usersOnline() }
-
 // SetSessionLookup supplies the current public playback-session payload for
 // GET /api/users/online. A nil callback keeps session fields null.
 func (h *Hub) SetSessionLookup(lookup func(userID string) any) {
@@ -238,7 +230,7 @@ func (h *Hub) connected(s *Socket, path string) {
 		}
 		payload := object(first(args))
 		message := any("")
-		if candidate, exists := payload["message"]; exists && truthy(candidate) {
+		if candidate, exists := payload["message"]; exists && jsonvalue.Truthy(candidate) {
 			message = candidate
 		}
 		h.Emit("*", "admin_message", message)
@@ -289,132 +281,6 @@ func (h *Hub) disconnected(id string, reason any) {
 	h.mu.Lock()
 	delete(h.clients, id)
 	h.mu.Unlock()
-	// Upstream removes log listeners and cancels searches associated with this
-	// socket. The search manager itself says it does not track socket/request
-	// ownership; downstream dispatchers can clean their own socket-scoped state.
-}
-
-func (h *Hub) handleAuth(s *Socket, raw any) {
-	token, ok := raw.(string)
-	if !ok || token == "" {
-		logging.Error("Cannot validate socket - invalid token") // SocketAuthority.js:276
-		s.Emit("auth_failed", map[string]any{"message": "Invalid token"})
-		return
-	}
-	request := s.Request()
-	if request == nil {
-		logging.Error("Cannot validate socket - invalid token")
-		s.Emit("auth_failed", map[string]any{"message": "Invalid token"})
-		return
-	}
-	// The initial polling HTTP request may already have ended by the time the
-	// Socket.IO auth event arrives. Give auth a connection-independent context.
-	request = request.Clone(context.Background())
-	request.Header = request.Header.Clone()
-	request.Header.Set("Authorization", "Bearer "+token)
-	h.mu.RLock()
-	authenticate := h.authenticate
-	h.mu.RUnlock()
-	user, err := authenticate(request)
-	if err != nil {
-		message := authFailureMessage(token, err)
-		// SocketAuthority.js:276-319 words each failure differently.
-		switch message {
-		case "Token expired":
-			logging.Error("Cannot validate socket - token expired")
-		case "Invalid API key":
-			logging.Error("Cannot validate socket - API key not found or inactive")
-		case "API key expired":
-			logging.Info("[SocketAuthority] API key is expired - deactivated")
-		default:
-			logging.Errorf("Cannot validate socket - %s (%v)", strings.ToLower(message), err)
-		}
-		s.Emit("auth_failed", map[string]any{"message": message})
-		return
-	}
-	if !user.IsActive {
-		logging.Error("Cannot validate socket - user is not active") // SocketAuthority.js:325
-		s.Emit("auth_failed", map[string]any{"message": "Invalid user"})
-		return
-	}
-	if user.ID == "" {
-		logging.Error("Cannot validate socket - invalid token")
-		s.Emit("auth_failed", map[string]any{"message": "Invalid user"})
-		return
-	}
-	lastSeen := time.Now().UnixMilli()
-	dbTimestamp := dbtime.Format(time.UnixMilli(lastSeen))
-	writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	h.mu.RLock()
-	db := h.db
-	h.mu.RUnlock()
-	_, writeErr := db.ExecContext(writeCtx, `UPDATE users SET lastSeen = ?, updatedAt = ? WHERE id = ?`, dbTimestamp, dbTimestamp, user.ID)
-	cancel()
-	if writeErr != nil {
-		// The upstream save must complete before init is emitted. Preserve that
-		// ordering and leave the socket unauthenticated when the write fails.
-		logging.Errorf("[SocketAuthority] Failed to update lastSeen for user %q: %v", user.Username, writeErr)
-		return
-	}
-	user.LastSeen = int64Pointer(lastSeen)
-	id := s.ID()
-	var previous *store.User
-	h.mu.Lock()
-	if c := h.clients[id]; c != nil {
-		previous = c.user
-		copy := user
-		c.user, c.grants = &copy, access.Of(copy)
-	}
-	h.mu.Unlock()
-	// SocketAuthority.js:336-345
-	if previous != nil {
-		if previous.ID == user.ID {
-			logging.Infof("[SocketAuthority] Authenticating socket already associated to user %q", previous.Username)
-		} else {
-			logging.Warnf("[SocketAuthority] Authenticating socket to user %q, but is already associated with a different user %q", user.Username, previous.Username)
-		}
-	}
-
-	h.Emit("@admins", "user_online", h.publicUser(user))
-	initial := map[string]any{"userId": user.ID, "username": user.Username}
-	if access.AdminUser(user) {
-		initial["usersOnline"] = h.usersOnline()
-	}
-	s.Emit("init", initial)
-}
-
-func (h *Hub) handleSearchCovers(s *Socket, args []any, ack Ack) {
-	id := s.ID()
-	user, authenticated := h.userFor(id)
-	raw := first(args)
-	payload := object(raw)
-	if !authenticated {
-		h.emitCoverError(s, payload["requestId"], "Unauthorized")
-		return
-	}
-	requestID, _ := payload["requestId"].(string)
-	title, _ := payload["title"].(string)
-	if requestID == "" || title == "" {
-		h.emitCoverError(s, payload["requestId"], "Invalid request parameters")
-		return
-	}
-	h.dispatchAction(s, user, "search_covers", payload, func(event string, value any) {
-		s.Emit(event, value)
-	}, ack)
-}
-
-func (h *Hub) handleCancelCoverSearch(s *Socket, args []any, ack Ack) {
-	user, ok := h.userFor(s.ID())
-	if !ok {
-		return
-	}
-	h.dispatchAction(s, user, "cancel_cover_search", first(args), func(event string, value any) {
-		s.Emit(event, value)
-	}, ack)
-}
-
-func (h *Hub) emitCoverError(s *Socket, requestID any, message string) {
-	s.Emit("cover_search_error", map[string]any{"requestId": requestID, "error": message})
 }
 
 func (h *Hub) dispatchAction(s *Socket, user store.User, event string, payload any, reply func(string, any), ack Ack) {
@@ -546,7 +412,9 @@ func (h *Hub) userFor(id string) (store.User, bool) {
 	return *c.user, true
 }
 
-func (h *Hub) usersOnline() []map[string]any {
+// UsersOnline returns the deduplicated connected-user list in the same shape
+// sent to administrators by Socket.IO init and user_online events.
+func (h *Hub) UsersOnline() []map[string]any {
 	h.mu.RLock()
 	type userCount struct {
 		user        store.User
@@ -603,84 +471,6 @@ func (h *Hub) publicUserWithLookup(user store.User, lookup func(string) any) map
 	}
 }
 
-// accessor is implemented by the typed item payloads (libitem.Expanded, ...).
-type accessor interface{ Access() libitem.Access }
-
-func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
-	out := make([]T, 0, len(values))
-	for _, v := range values {
-		if g.Item(v.Access()) {
-			out = append(out, v)
-		}
-	}
-	return out, len(out) > 0
-}
-
-// payloadAccessible filters one payload. Typed item payloads (libitem.Full,
-// Expanded, Minified) apply the library, explicit and tag rules. Any other
-// payload that carries a libraryId (collections, item_removed) is limited to
-// the library check; global payloads are unrestricted. A map that looks like an
-// item (has "media") is never delivered: item payloads must be typed.
-func payloadAccessible(g *access.Permissions, payload any) bool {
-	if a, ok := payload.(accessor); ok {
-		return g.Item(a.Access())
-	}
-	metadata, ok := payload.(map[string]any)
-	if !ok {
-		return true
-	}
-	libraryID, _ := metadata["libraryId"].(string)
-	if libraryID == "" {
-		return true
-	}
-	if _, isItem := metadata["media"]; isItem {
-		return false
-	}
-	return g.Library(libraryID)
-}
-
-func payloadForUser(g *access.Permissions, payload any) (any, bool) {
-	switch values := payload.(type) {
-	case []libitem.Expanded:
-		return filter(g, values)
-	case []libitem.Minified:
-		return filter(g, values)
-	case []libitem.Full:
-		return filter(g, values)
-	case []any:
-		filtered := make([]any, 0, len(values))
-		restricted := false
-		for _, value := range values {
-			if hasAccessMetadata(value) {
-				restricted = true
-			}
-			if payloadAccessible(g, value) {
-				filtered = append(filtered, value)
-			}
-		}
-		if !restricted {
-			return payload, true
-		}
-		return filtered, len(filtered) > 0
-	default:
-		return payload, payloadAccessible(g, payload)
-	}
-}
-
-// hasAccessMetadata reports whether a list element carries access inputs: a
-// typed item or a map with a libraryId.
-func hasAccessMetadata(raw any) bool {
-	if _, ok := raw.(accessor); ok {
-		return true
-	}
-	item, ok := raw.(map[string]any)
-	if !ok {
-		return false
-	}
-	_, ok = item["libraryId"].(string)
-	return ok
-}
-
 func first(args []any) any {
 	if len(args) == 0 {
 		return nil
@@ -710,54 +500,3 @@ func integer(value any) (int, bool) {
 	}
 	return 0, false
 }
-
-func truthy(value any) bool {
-	if value == nil || value == false || value == "" {
-		return false
-	}
-	if n, ok := value.(float64); ok && n == 0 {
-		return false
-	}
-	return true
-}
-
-func tokenType(token string) string {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return ""
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return ""
-	}
-	var claims struct {
-		Type string `json:"type"`
-	}
-	if json.Unmarshal(payload, &claims) != nil {
-		return ""
-	}
-	return claims.Type
-}
-
-func authFailureMessage(token string, err error) string {
-	tokenKind := tokenType(token)
-	apiKey := tokenKind == "api" || tokenKind == "apiKey"
-	if errors.Is(err, auth.ErrExpired) {
-		if apiKey {
-			return "API key expired"
-		}
-		return "Token expired"
-	}
-	if apiKey {
-		if strings.Contains(strings.ToLower(err.Error()), "expired") {
-			return "API key expired"
-		}
-		return "Invalid API key"
-	}
-	if strings.Contains(strings.ToLower(err.Error()), "inactive") {
-		return "Invalid user"
-	}
-	return "Invalid token"
-}
-
-func int64Pointer(value int64) *int64 { return &value }

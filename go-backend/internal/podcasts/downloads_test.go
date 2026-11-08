@@ -24,7 +24,6 @@ func (rt *gatedRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 
 func TestDownloadCompletionStatusPollingIsSynchronized(t *testing.T) {
 	h := New(nil, config.Config{}, nil)
-	h.allowPrivateNetwork = true
 	rt := &gatedRoundTripper{entered: make(chan struct{}), release: make(chan struct{})}
 	h.client = &http.Client{Transport: rt}
 	d := &downloadTask{

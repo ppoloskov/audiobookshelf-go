@@ -7,6 +7,8 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/version"
 	"cmp"
 	"context"
 	"database/sql"
@@ -63,11 +65,18 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters filterdata.
 	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filterLoader: filters, filters: filters.FilterCache()}, nil
 }
 
-func (s *Scanner) Scan(ctx context.Context, libraryID string) (Result, error) {
-	return s.scan(ctx, libraryID, false)
-}
-func (s *Scanner) ScanForce(ctx context.Context, libraryID string) (Result, error) {
-	return s.scan(ctx, libraryID, true)
+// begin registers a running scan of the library, which at most one may be at a
+// time; the returned func ends it. The context ends when Cancel is called.
+func (s *Scanner) begin(ctx context.Context, libraryID string) (context.Context, func(), error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.runs[libraryID]; ok {
+		logging.Errorf("[LibraryScanner] Already scanning %s", libraryID) // LibraryScanner.js:53
+		return ctx, nil, errors.New("scanner: library scan already running")
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	s.runs[libraryID] = cancel
+	return ctx, func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }, nil
 }
 
 // ScanItemForce refreshes one existing library item as the item scan route
@@ -83,15 +92,11 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	if isFile != 0 {
 		return result, errors.New("scanner: cannot scan a library file")
 	}
-	s.mu.Lock()
-	if _, ok := s.runs[libraryID]; ok {
-		s.mu.Unlock()
-		return result, errors.New("scanner: library scan already running")
+	ctx, end, err := s.begin(ctx, libraryID)
+	if err != nil {
+		return result, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	s.runs[libraryID] = cancel
-	s.mu.Unlock()
-	defer func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }()
+	defer end()
 	var folderPath string
 	if err := s.db.QueryRowContext(ctx, `SELECT path FROM libraryFolders WHERE id=?`, folderID).Scan(&folderPath); err != nil {
 		return result, err
@@ -100,7 +105,7 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	if err != nil {
 		return result, err
 	}
-	g, err := s.collectItemGroup(ctx, itemPath, folder{id: folderID, path: folderPath}, false)
+	g, err := s.collectItemGroup(ctx, l, itemPath, folder{id: folderID, path: folderPath}, false)
 	if err != nil {
 		return result, err
 	}
@@ -184,21 +189,18 @@ func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath,
 			return err
 		}
 	}
-	_, err = s.ScanForce(ctx, libraryID)
+	_, err = s.Scan(ctx, libraryID, true)
 	return err
 }
 
-func (s *Scanner) scan(ctx context.Context, libraryID string, force bool) (Result, error) {
-	s.mu.Lock()
-	if _, ok := s.runs[libraryID]; ok {
-		s.mu.Unlock()
-		logging.Errorf("[LibraryScanner] Already scanning %s", libraryID) // LibraryScanner.js:53
-		return Result{}, errors.New("scanner: library scan already running")
+// Scan imports the library's folders; force rescans items even when no file
+// changed.
+func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Result, error) {
+	ctx, end, err := s.begin(ctx, libraryID)
+	if err != nil {
+		return Result{}, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	s.runs[libraryID] = cancel
-	s.mu.Unlock()
-	defer func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }()
+	defer end()
 	task := s.startScanTask(ctx, libraryID)
 	forced := ""
 	if force {
@@ -263,7 +265,7 @@ func (s *Scanner) startScanTask(ctx context.Context, libraryID string) *watcherT
 func (s *Scanner) finishScanTask(task *watcherTask, result Result, err error) {
 	finishTask(task)
 	elapsed := time.Now().UnixMilli() - task.StartedAt
-	task.Data.ScanResults = &scanResults{Added: result.Added, Updated: result.Updated, Missing: &result.Missing, Elapsed: elapsed, Text: scanResultsText(result, elapsed)}
+	task.Data.ScanResults = &scanResults{Added: result.Added, Updated: result.Updated, Missing: &result.Missing, Elapsed: elapsed, Text: fmt.Sprintf("%s (%s)", changesText(result.Added, result.Updated, result.Missing), elapsedPretty(float64(elapsed)/1000))}
 	if err != nil {
 		failed, key := "Failed", "MessageTaskFailed"
 		task.IsFailed, task.Error, task.ErrorKey = true, &failed, &key
@@ -272,6 +274,15 @@ func (s *Scanner) finishScanTask(task *watcherTask, result Result, err error) {
 		task.Description, task.DescriptionKey = &description, &key
 	}
 	s.emitTask("task_finished", task)
+}
+
+// markMissing flags a stored item whose files are gone and returns it as the
+// clients receive it (LibraryScanner.js:195, 590: isMissing, then save).
+func (s *Scanner) markMissing(ctx context.Context, itemID string) (libitem.Expanded, error) {
+	if _, err := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, nowDB(), itemID); err != nil {
+		return libitem.Expanded{}, err
+	}
+	return s.itemEvent(ctx, itemID)
 }
 
 // secondsToTimestamp is server/utils/index.js:123 without milliseconds.
@@ -292,23 +303,22 @@ func scanDebug(l library, format string, args ...any) {
 	logging.Debugf("[LibraryScan] %q: %s", l.name, fmt.Sprintf(format, args...))
 }
 
-// scanResultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).
-func scanResultsText(r Result, elapsedMs int64) string {
+// changesText lists what a scan changed (LibraryScan.js:61-68).
+func changesText(added, updated, missing int) string {
 	var parts []string
-	if r.Added > 0 {
-		parts = append(parts, fmt.Sprintf("%d added", r.Added))
+	if added > 0 {
+		parts = append(parts, fmt.Sprintf("%d added", added))
 	}
-	if r.Updated > 0 {
-		parts = append(parts, fmt.Sprintf("%d updated", r.Updated))
+	if updated > 0 {
+		parts = append(parts, fmt.Sprintf("%d updated", updated))
 	}
-	if r.Missing > 0 {
-		parts = append(parts, fmt.Sprintf("%d missing", r.Missing))
+	if missing > 0 {
+		parts = append(parts, fmt.Sprintf("%d missing", missing))
 	}
-	changes := "No changes needed"
-	if len(parts) > 0 {
-		changes = strings.Join(parts, ", ")
+	if len(parts) == 0 {
+		return "No changes needed"
 	}
-	return fmt.Sprintf("%s (%s)", changes, elapsedPretty(float64(elapsedMs)/1000))
+	return strings.Join(parts, ", ")
 }
 
 // elapsedPretty is server/utils/index.js:92-120 for the ranges a scan reaches.
@@ -385,7 +395,9 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
 			if item.IsFile != 0 {
 				continue
 			}
-			_, _ = s.ScanItemForce(context.Background(), item.ID)
+			if _, err := s.ScanItemForce(context.Background(), item.ID); err != nil {
+				logging.Errorf("[LibraryScanner] Scan of item %s failed: %v", item.ID, err)
+			}
 		}
 	}(items)
 	return nil
@@ -404,10 +416,8 @@ func (s *Scanner) scanLibraryRoute(w http.ResponseWriter, r *http.Request) error
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK"))
 	go func() {
-		if force {
-			_, _ = s.ScanForce(context.Background(), id)
-		} else {
-			_, _ = s.Scan(context.Background(), id)
+		if _, err := s.Scan(context.Background(), id, force); err != nil {
+			logging.Errorf("[LibraryScanner] Scan of library %s failed: %v", id, err)
 		}
 	}()
 	return nil
@@ -506,7 +516,7 @@ func (s *Scanner) arm(ctx context.Context) (_ *fsnotify.Watcher, _ *cron.Cron, _
 			id := lib.id
 			if _, err := cronJobs.AddFunc(lib.cron, func() {
 				go func() {
-					if _, scanErr := s.Scan(ctx, id); scanErr != nil {
+					if _, scanErr := s.Scan(ctx, id, false); scanErr != nil {
 						logging.Errorf("[CronManager] Scheduled scan of library %s failed: %v", id, scanErr)
 					}
 				}()
@@ -653,8 +663,7 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 	return out, nil
 }
 
-func nowDB() string        { return dbtime.Now() }
-func ms(t time.Time) int64 { return t.UnixMilli() }
+func nowDB() string { return dbtime.Now() }
 
 type library struct {
 	id, name, mediaType string
@@ -675,22 +684,10 @@ func (s *Scanner) library(ctx context.Context, id string) (library, error) {
 		var settings map[string]any
 		_ = json.Unmarshal(raw, &settings)
 		l.audiobooksOnly, _ = settings["audiobooksOnly"].(bool)
-		l.sortingPrefixes = []string{"the", "a"}
 		l.metadataPrecedence = precedenceFromSettings(settings)
-		var serverSettings []byte
-		if s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key='server-settings'`).Scan(&serverSettings) == nil {
-			var parsed map[string]any
-			_ = json.Unmarshal(serverSettings, &parsed)
-			l.parseSubtitle, _ = parsed["scannerParseSubtitle"].(bool)
-			if values, ok := parsed["sortingPrefixes"].([]any); ok {
-				l.sortingPrefixes = l.sortingPrefixes[:0]
-				for _, value := range values {
-					if prefix, ok := value.(string); ok {
-						l.sortingPrefixes = append(l.sortingPrefixes, prefix)
-					}
-				}
-			}
-		}
+		server := serversettings.Load(ctx, s.db)
+		l.parseSubtitle = server.Bool("scannerParseSubtitle")
+		l.sortingPrefixes = server.SortingPrefixes()
 		var data map[string]any
 		_ = json.Unmarshal(extra, &data)
 		if values, ok := data["lastScanMetadataPrecedence"].([]any); ok {
@@ -800,13 +797,11 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 			result.Missing++
 			scanDebug(l, "Library Item %q (inode: %s) is missing", ex.path, ex.ino) // LibraryScanner.js:187
 			if !ex.missing {
-				now := nowDB()
-				if _, e := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=?,lastScan=?,lastScanVersion=? WHERE id=?`, now, now, "2.37.2", ex.id); e != nil {
+				item, e := s.markMissing(ctx, ex.id)
+				if e != nil {
 					return result, e
 				}
-				if item, e := s.itemEvent(ctx, ex.id); e == nil {
-					updatedItems = append(updatedItems, item)
-				}
+				updatedItems = append(updatedItems, item)
 			}
 		} else {
 			matcher.claim(g)
@@ -857,7 +852,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		s.emit("*", "items_added", addedItems)
 	}
 	if ctx.Err() == nil {
-		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, nowDB(), "2.37.2", libraryID)
+		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, nowDB(), version.Server, libraryID)
 		if err != nil {
 			return result, err
 		}

@@ -3,8 +3,6 @@ package catalog
 import (
 	"context"
 	"strings"
-
-	"audiobookshelf-compat/internal/wire"
 )
 
 // collapsedSeriesInfo is the per-bookSeries record of upstream
@@ -115,7 +113,7 @@ func (h *Handler) collapseSeries(ctx context.Context, libraryID, filterValue, fi
 // collapsedSeriesJSON is libraryItem.collapsedSeries for one result book: the
 // first of the book's series whose bookSeries row was kept
 // (libraryItemsBookFilters.js:657-670).
-func (h *Handler) collapsedSeriesJSON(ctx context.Context, bookID string, c collapsedSeries) (*wire.CollapsedSeries, error) {
+func (h *Handler) collapsedSeriesJSON(ctx context.Context, bookID string, c collapsedSeries) (*collapsedSeriesView, error) {
 	rows, err := h.db.QueryContext(ctx, `SELECT s.id, s.name, s.nameIgnorePrefix, bs.sequence, bs.id FROM bookSeries bs JOIN series s ON s.id = bs.seriesId WHERE bs.bookId = ? ORDER BY bs.createdAt ASC`, bookID)
 	if err != nil {
 		return nil, err
@@ -131,7 +129,7 @@ func (h *Handler) collapsedSeriesJSON(ctx context.Context, bookID string, c coll
 		if !ok {
 			continue
 		}
-		return &wire.CollapsedSeries{ID: id, Name: name, NameIgnorePrefix: nameIgnorePrefix, Sequence: sequence, NumBooks: info.numBooks, LibraryItemIDs: info.libraryItemIDs}, nil
+		return &collapsedSeriesView{ID: id, Name: name, NameIgnorePrefix: nameIgnorePrefix, Sequence: sequence, NumBooks: info.numBooks, LibraryItemIDs: info.libraryItemIDs}, nil
 	}
 	return nil, rows.Err()
 }

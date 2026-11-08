@@ -11,7 +11,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 INVENTORY = ROOT / "go-backend/contracts/source-inventory.json"
-GO_SERVER = ROOT / "go-backend/internal/server/server.go"
 GO_RUNTIME = ROOT / "go-backend/internal/server/runtime.go"
 OUTPUT = ROOT / "go-backend/contracts/parity/route-coverage.json"
 PINNED = "edb1f7efc92ecacdef51aafb4d9d5054ce10604f"
@@ -267,7 +266,6 @@ def build() -> dict:
         "caseCatalog": str(CASES_FILE.relative_to(ROOT)),
         "caseCatalogSha256": sha(CASES_FILE),
         "goSourceHashesAtGeneration": {
-            "go-backend/internal/server/server.go": sha(GO_SERVER),
             "go-backend/internal/server/runtime.go": sha(GO_RUNTIME),
         } | {
             f"go-backend/internal/{name}/{source.name}": sha(source)

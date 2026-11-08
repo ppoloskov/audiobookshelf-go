@@ -1,6 +1,7 @@
 package libitem
 
 import (
+	"audiobookshelf-compat/internal/jsonvalue"
 	"context"
 	"database/sql"
 	"slices"
@@ -213,7 +214,9 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 		b.ID, b.Title, b.Subtitle, b.PublishedYear, b.PublishedDate, b.Publisher = id.String, nullStr(title), nullStr(subtitle), nullStr(year), nullStr(date), nullStr(publisher)
 		b.Description, b.ISBN, b.ASIN, b.Language, b.CoverPath = nullStr(description), nullStr(isbn), nullStr(asin), nullStr(language), nullStr(cover)
 		b.Explicit, b.Abridged = explicit.Int64 != 0, abridged.Int64 != 0
-		b.Duration = floatPtr(duration)
+		if n, ok := jsonvalue.Number(duration); ok {
+			b.Duration = &n
+		}
 		b.Narrators, b.Genres, b.Tags = store.DecodeJSONSlice[string](narrators), store.DecodeJSONSlice[string](genres), store.DecodeJSONSlice[string](tags)
 		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[map[string]any](audio), store.DecodeJSONSlice[map[string]any](chapters)
 		if b.Ebook = store.DecodeJSONObject(ebook); len(b.Ebook) == 0 {
@@ -256,17 +259,6 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 		return nil
 	})
 	return books, err
-}
-
-func floatPtr(v any) *float64 {
-	switch n := v.(type) {
-	case float64:
-		return &n
-	case int64:
-		f := float64(n)
-		return &f
-	}
-	return nil
 }
 
 func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (map[string]*Podcast, error) {

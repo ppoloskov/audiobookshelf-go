@@ -19,7 +19,7 @@ func open(t *testing.T) *sql.DB {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { Forget(db); _ = db.Close() })
-	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT); INSERT INTO settings VALUES('server-settings','{"allowIframe":true,"sortingPrefixes":["the","a"],"nested":{"k":1}}')`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT, updatedAt TEXT); INSERT INTO settings VALUES('server-settings','{"allowIframe":true,"sortingPrefixes":["the","a"],"nested":{"k":1}}',NULL)`); err != nil {
 		t.Fatal(err)
 	}
 	return db
@@ -110,5 +110,23 @@ func TestCacheServesUntilInvalidated(t *testing.T) {
 	}
 	if s := Load(ctx, db); len(s.Doc()) != 0 || !slices.Equal(s.SortingPrefixes(), []string{"the", "a"}) {
 		t.Fatalf("defaults %v %v", s.Doc(), s.SortingPrefixes())
+	}
+}
+
+func TestSaveInvalidates(t *testing.T) {
+	db := open(t)
+	ctx := context.Background()
+	_ = Load(ctx, db)
+	if err := Save(ctx, db, map[string]any{"language": "de", "sortingIgnorePrefix": true}); err != nil {
+		t.Fatal(err)
+	}
+	if s := Load(ctx, db); s.String("language") != "de" || !s.IgnorePrefix() {
+		t.Fatalf("read after Save: %v", s.Doc())
+	}
+	if _, err := db.Exec(`DELETE FROM settings`); err != nil {
+		t.Fatal(err)
+	}
+	if Save(ctx, db, map[string]any{}) == nil {
+		t.Fatal("Save without a row must fail")
 	}
 }

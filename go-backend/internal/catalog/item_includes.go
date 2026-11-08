@@ -2,15 +2,14 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
 	"net/http"
 	"time"
-
-	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // itemIncludes are the include= entities the library item queries attach to
@@ -61,15 +60,15 @@ func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, head
 // openMediaItemShare is ShareManager.findByMediaItemId
 // (server/managers/ShareManager.js:49-60): the open (unexpired) share of a
 // media item without pash, userId and extraData; nil when there is none.
-func (h *Handler) openMediaItemShare(ctx context.Context, mediaItemID string) (*wire.MediaItemShareForClient, error) {
-	row, err := h.queries().GetMediaItemShareSummaryByMediaID(ctx, mediaItemID)
+func (h *Handler) openMediaItemShare(ctx context.Context, mediaItemID string) (*mediaItemShareView, error) {
+	row, err := sqlc.New(h.db).GetMediaItemShareSummaryByMediaID(ctx, mediaItemID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var share wire.MediaItemShareForClient
+	var share mediaItemShareView
 	share.ID, share.MediaItemID = row.ID, row.Mediaitemid.String
 	created, updated := row.Createdat, row.Updatedat
 	expiresMs, err := dbtime.OptionalMillis(row.Expiresat)

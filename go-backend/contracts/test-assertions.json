@@ -643,11 +643,10 @@
     },
     {
       "id": "C-source-library",
-      "path": "internal/store/store_test.go",
-      "symbol": "TestLibrariesMatchPinnedUpstreamGolden",
+      "path": "tools/test-library-oracle.cjs",
       "assertionCount": 2,
       "countUnit": "library projection records",
-      "expectation": "The Go golden comparison retains its two unrestricted library records; restricted filtering behavior is covered separately by the client/oracle evidence.",
+      "expectation": "The golden comparison retains its two unrestricted library records in the library oracle (the Go read-only Libraries path it also covered was removed with ABS_GO_READ_ONLY, F21); restricted filtering behavior is covered separately by the client/oracle evidence.",
       "disposition": "retained"
     },
     {

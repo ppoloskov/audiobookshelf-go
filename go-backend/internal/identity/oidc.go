@@ -17,11 +17,16 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/users"
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
@@ -342,11 +347,11 @@ func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) any {
-	settings, err := h.loadSettings(r.Context(), "server-settings")
+	settings, err := serversettings.Get(r.Context(), h.db)
 	if err != nil {
 		return nil
 	}
-	endpoint := getString(settings, "authOpenIDLogoutURL")
+	endpoint := settings.String("authOpenIDLogoutURL")
 	if endpoint == "" {
 		return nil
 	}
@@ -385,35 +390,36 @@ func (h *Handler) oidcFailure(w http.ResponseWriter, status int, message string)
 }
 
 func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {
-	settings, err := h.loadSettings(ctx, "server-settings")
+	settings, err := serversettings.Get(ctx, h.db)
 	if err != nil {
 		return oidcConfig{}, err
 	}
+	doc := settings.Doc()
 	cfg := oidcConfig{
-		issuer:             getString(settings, "authOpenIDIssuerURL"),
-		authorizationURL:   getString(settings, "authOpenIDAuthorizationURL"),
-		tokenURL:           getString(settings, "authOpenIDTokenURL"),
-		userinfoURL:        getString(settings, "authOpenIDUserInfoURL"),
-		logoutURL:          getString(settings, "authOpenIDLogoutURL"),
-		jwksURL:            getString(settings, "authOpenIDJwksURL"),
-		clientID:           getString(settings, "authOpenIDClientID"),
-		clientSecret:       getString(settings, "authOpenIDClientSecret"),
-		signingAlgorithm:   getString(settings, "authOpenIDTokenSigningAlgorithm"),
-		subfolder:          getString(settings, "authOpenIDSubfolderForRedirectURLs"),
-		groupClaim:         getString(settings, "authOpenIDGroupClaim"),
-		advancedPermsClaim: getString(settings, "authOpenIDAdvancedPermsClaim"),
-		matchExistingBy:    getString(settings, "authOpenIDMatchExistingBy"),
+		issuer:             settings.String("authOpenIDIssuerURL"),
+		authorizationURL:   settings.String("authOpenIDAuthorizationURL"),
+		tokenURL:           settings.String("authOpenIDTokenURL"),
+		userinfoURL:        settings.String("authOpenIDUserInfoURL"),
+		logoutURL:          settings.String("authOpenIDLogoutURL"),
+		jwksURL:            settings.String("authOpenIDJwksURL"),
+		clientID:           settings.String("authOpenIDClientID"),
+		clientSecret:       settings.String("authOpenIDClientSecret"),
+		signingAlgorithm:   settings.String("authOpenIDTokenSigningAlgorithm"),
+		subfolder:          settings.String("authOpenIDSubfolderForRedirectURLs"),
+		groupClaim:         settings.String("authOpenIDGroupClaim"),
+		advancedPermsClaim: settings.String("authOpenIDAdvancedPermsClaim"),
+		matchExistingBy:    settings.String("authOpenIDMatchExistingBy"),
 	}
 	if cfg.signingAlgorithm == "" {
 		cfg.signingAlgorithm = "RS256"
 	}
-	cfg.mobileRedirectURIs = stringSlice(settings["authOpenIDMobileRedirectURIs"])
-	cfg.autoRegister, _ = settings["authOpenIDAutoRegister"].(bool)
+	cfg.mobileRedirectURIs = stringSlice(doc["authOpenIDMobileRedirectURIs"])
+	cfg.autoRegister = settings.Bool("authOpenIDAutoRegister")
 	// The redirect URLs use authOpenIDSubfolderForRedirectURLs verbatim
 	// (OidcAuthStrategy.js:330-332): "" means the site root, and an unset key
 	// interpolates as "undefined" in the template literal. It is never the
 	// router base path.
-	switch v, present := settings["authOpenIDSubfolderForRedirectURLs"]; {
+	switch v, present := doc["authOpenIDSubfolderForRedirectURLs"]; {
 	case !present:
 		cfg.subfolder = "undefined"
 	case v == nil:
@@ -521,7 +527,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 	if sub == "" {
 		return store.User{}, errors.New("invalid userinfo, no sub")
 	}
-	if cfg.groupClaim != "" && !truthy(info[cfg.groupClaim]) {
+	if cfg.groupClaim != "" && !jsonvalue.Truthy(info[cfg.groupClaim]) {
 		return store.User{}, errors.New("configured group claim is missing")
 	}
 	user, err := h.userByOIDCSub(ctx, sub)
@@ -538,7 +544,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			err = nil
 		}
 		if user.ID != "" {
-			extra := decodeMap(user.ExtraData)
+			extra := store.DecodeJSONObject(user.ExtraData)
 			if previous, _ := extra["authOpenIDSub"].(string); previous != "" {
 				return store.User{}, errors.New("user already linked to a different OpenID subject")
 			}
@@ -549,7 +555,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			if err != nil {
 				return store.User{}, err
 			}
-			if err := h.queries().UpdateUserExtraData(ctx, sqlc.UpdateUserExtraDataParams{Extradata: store.Text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID}); err != nil {
+			if err := h.queries().UpdateUserExtraData(ctx, sqlc.UpdateUserExtraDataParams{Extradata: store.Text(string(encoded)), Updatedat: dbtime.Format(time.Now()), ID: user.ID}); err != nil {
 				return store.User{}, err
 			}
 			user.ExtraData = encoded
@@ -566,7 +572,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 		}
 		created = true
 		if h.userAddedEmitter != nil {
-			h.userAddedEmitter(UserBrowser(user, false, false))
+			h.userAddedEmitter(users.UserDTO(user, []any{}))
 		}
 	}
 	if !user.IsActive {
@@ -658,22 +664,20 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	var email sql.NullString // NULL unless the email is verified, as before
 	if verified, _ := info["email_verified"].(bool); verified {
 		address, _ := info["email"].(string)
-		email = store.Text(address)
+		email = store.TextOrNull(address)
 	}
 	id, err := ids.New()
 	if err != nil {
 		return store.User{}, err
 	}
-	token, err := h.issueLegacyToken(id, username)
+	token, err := h.IssueLegacyToken(id, username)
 	if err != nil {
 		return store.User{}, err
 	}
-	permissions := map[string]any{"download": true, "update": false, "delete": false, "upload": false, "createEreader": false, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": false, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
-	extra := map[string]any{"authOpenIDSub": sub, "seriesHideFromContinueListening": []string{}}
-	now := sqlDate(time.Now())
+	now := dbtime.Format(time.Now())
 	err = h.queries().InsertOIDCUser(ctx, sqlc.InsertOIDCUserParams{
 		ID: id, Username: store.Text(username), Email: email, Token: store.Text(token),
-		Permissions: store.Text(mustJSON(permissions)), Extradata: store.Text(mustJSON(extra)), Createdat: now, Updatedat: now,
+		Permissions: store.Text(encodeJSON(access.Defaults("user"))), Extradata: store.Text(users.NewUserExtraData(sub)), Createdat: now, Updatedat: now,
 	})
 	if err != nil {
 		return store.User{}, err
@@ -711,7 +715,7 @@ func (h *Handler) applyOIDCGroups(ctx context.Context, cfg oidcConfig, user stor
 		return nil
 	}
 	if user.Type != role {
-		return h.queries().UpdateUserType(ctx, sqlc.UpdateUserTypeParams{Type: store.Text(role), Updatedat: sqlDate(time.Now()), ID: user.ID})
+		return h.queries().UpdateUserType(ctx, sqlc.UpdateUserTypeParams{Type: store.Text(role), Updatedat: dbtime.Format(time.Now()), ID: user.ID})
 	}
 	return nil
 }
@@ -721,7 +725,7 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 	if !ok {
 		return errors.New("Advanced permissions claim is missing or invalid")
 	}
-	permissions := decodeMap(user.Permissions)
+	permissions := store.DecodeJSONObject(user.Permissions)
 	mapping := map[string]string{"canDownload": "download", "canUpload": "upload", "canDelete": "delete", "canUpdate": "update", "canAccessExplicitContent": "accessExplicitContent", "canAccessAllLibraries": "accessAllLibraries", "canAccessAllTags": "accessAllTags", "canCreateEReader": "createEreader", "tagsAreDenylist": "selectedTagsNotAccessible", "allowedLibraries": "librariesAccessible", "allowedTags": "itemTagsSelected"}
 	for key, value := range claim {
 		mapped, exists := mapping[key]
@@ -731,7 +735,7 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 		if mapped == "librariesAccessible" || mapped == "itemTagsSelected" {
 			continue
 		}
-		permissions[mapped] = truthy(value)
+		permissions[mapped] = jsonvalue.Truthy(value)
 	}
 	if permissions["accessAllLibraries"] == true {
 		permissions["librariesAccessible"] = []string{}
@@ -755,7 +759,7 @@ func (h *Handler) applyOIDCPermissions(ctx context.Context, cfg oidcConfig, user
 	if err != nil {
 		return err
 	}
-	return h.queries().UpdateUserPermissions(ctx, sqlc.UpdateUserPermissionsParams{Permissions: store.Text(string(encoded)), Updatedat: sqlDate(time.Now()), ID: user.ID})
+	return h.queries().UpdateUserPermissions(ctx, sqlc.UpdateUserPermissionsParams{Permissions: store.Text(string(encoded)), Updatedat: dbtime.Format(time.Now()), ID: user.ID})
 }
 
 func (h *Handler) pruneOIDCState(now time.Time) {
@@ -855,26 +859,6 @@ func absoluteHTTPURL(value string) bool {
 	return err == nil && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
 }
 
-func getString(value map[string]any, key string) string {
-	result, _ := value[key].(string)
-	return result
-}
-
-func truthy(value any) bool {
-	switch v := value.(type) {
-	case nil:
-		return false
-	case bool:
-		return v
-	case string:
-		return v != ""
-	case float64:
-		return v != 0
-	default:
-		return true
-	}
-}
-
 func checkedStringArray(values []any) ([]string, error) {
 	result := make([]string, len(values))
 	for i, value := range values {
@@ -904,11 +888,11 @@ func cookieValue(r *http.Request, name string) string {
 }
 
 func (h *Handler) authMethodEnabled(ctx context.Context, method string) bool {
-	settings, err := h.loadSettings(ctx, "server-settings")
+	settings, err := serversettings.Get(ctx, h.db)
 	if err != nil {
 		return false
 	}
-	methods, _ := settings["authActiveAuthMethods"].([]any)
+	methods, _ := settings.Doc()["authActiveAuthMethods"].([]any)
 	for _, value := range methods {
 		if value == method {
 			return true

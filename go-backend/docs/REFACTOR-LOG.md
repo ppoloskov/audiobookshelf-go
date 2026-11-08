@@ -655,3 +655,27 @@ Verified rule: restates the code; TS citations (`file.js:NN`), client/OS/SQLite/
 - media/copy "`sharing/handler.go:55-58` `New` assigns then returns" — cosmetic, kept as wrapper not a defect.
 - media/disabled-test `podcasts/register_adapter_test.go` "no test" — helper-only file confirmed; recorded in Tests, not an error.
 - Cross-survey duplicates merged: image downloader (scanner+catalogB+media), ffmpeg/ffprobe env readers (scanner+media+catalogB), settings-row readers (identity+infra+scanner+catalogA), `TitleIgnorePrefix` copies (catalogA/B+infra+scanner), JS truthiness (catalogB+identity+infra), Task definitions (media+scanner), version literal (media+scanner+infra), `dbNow`/`sqlDate` wrappers, `requestUser` copies.
+
+## Progress
+
+### Waves A + B (2026-11-08)
+Done: F3, F4, F5, F17 (foundations); F21 (read-only mode removed), compat deleted, F19 (store owns the database);
+F1 (httputil.SafeClient + DownloadImage; podcasts switched), F8 (wire types moved to their single users in sharing,
+lists, podcasts, playback, catalog), F9 (catalog `inLibrary` prologue; `httputil.OpenLibrary` for lists/podcasts),
+F10 (typed library/series/author views, `finishItemWrites`, `itemUpdated`, covers), F11 (`filterdata.Load`),
+F18 (catalog handler.go, playback.go, realtime hub split by feature), F2 (`internal/mediatools`, scanner and
+audiotools switched), F12 (`internal/filekind`), F13 (scan lifecycle), F7 part (`internal/users` DTO builders,
+`access.Defaults`/`Patch`, `deviceinfo.Parse`, `store.UpsertDevice`), F14 part (`auth.Issue*`, `ValidateBearer`/
+`ValidateRefresh`; userapi takes identity as `Credentials`, no secret or hooks), F16 items in those packages.
+Dependency fixes made at integration: user DTOs in `internal/users` (no feature cross-import), device upsert in
+`store` (not in the `deviceinfo` leaf), `auth` may import the stdlib-only `ids` leaf.
+Bugs fixed (TS proof in each worker's notes): refresh tokens accepted as bearer tokens (TokenManager.js:81-84);
+podcast schedule edits not rescheduling (LibraryItemController.js:276; `podcasts.Reschedule`); admins exempt from
+podcast library checks (User.js:647); episode downloads cut off after 20 s; SSRF check of the first resolved
+address and first host only; scanner audio tags read with a second ffprobe that ignored FFPROBE_PATH (tags now
+from the first probe: AudioFileScanner.js:245,277); scanner last-first author names (BookScanner.js:237,539);
+empty sortingPrefixes means none; missing-marking writes only isMissing (LibraryScanner.js:195,590); watcher rescan
+keeps ebooks like a full scan.
+Ratchet: 41,020 → 39,324 handwritten lines; complexity 9,593 → 8,944; map[string]any 678 → 600; []any 259 → 222;
+functions above 15 145 → 130; Set* injectors 18 → 17.
+Carried to Wave C: see the list below the next heading when it lands.

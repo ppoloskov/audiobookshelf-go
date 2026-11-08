@@ -54,7 +54,7 @@ func TestUpstreamAndGoVectorsVerify(t *testing.T) {
 		{name: "ts legacy", token: tsLegacyVector, now: vectorNow, wantIat: 1700000000},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			claims, err := ValidateToken(tc.token, secret, tc.now)
+			claims, err := validateToken(tc.token, secret, tc.now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -78,21 +78,21 @@ func TestUpstreamAndGoVectorsVerify(t *testing.T) {
 }
 
 func TestSignMatchesPreviousBytes(t *testing.T) {
-	got, err := Sign([]byte(vectorSecret), map[string]any{"userId": "user-1", "username": "reader", "jti": "jti-1", "type": "access", "iat": 1800000000, "exp": 1800003600})
+	got, err := sign([]byte(vectorSecret), map[string]any{"userId": "user-1", "username": "reader", "jti": "jti-1", "type": "access", "iat": 1800000000, "exp": 1800003600})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got != goAccessVector {
-		t.Fatalf("Sign changed the wire format:\n got %s\nwant %s", got, goAccessVector)
+		t.Fatalf("sign changed the wire format:\n got %s\nwant %s", got, goAccessVector)
 	}
-	if _, err := Sign(nil, map[string]any{"userId": "u"}); err == nil {
+	if _, err := sign(nil, map[string]any{"userId": "u"}); err == nil {
 		t.Fatal("empty secret accepted for signing")
 	}
 }
 
 func TestGoIssuedTokenRoundTrip(t *testing.T) {
 	secret := []byte("round trip secret")
-	token, err := Sign(secret, map[string]any{"userId": "u", "username": "reader", "type": "access", "iat": 1000, "exp": 2000})
+	token, err := sign(secret, map[string]any{"userId": "u", "username": "reader", "type": "access", "iat": 1000, "exp": 2000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,6 @@ func TestRejectsBadTokens(t *testing.T) {
 		token   string
 		now     time.Time
 		secret  []byte
-		ignore  bool
 		wantErr error
 	}{
 		{name: "expired at boundary", token: goAccessVector, now: time.Unix(1800003600, 0), wantErr: ErrExpired},
@@ -126,18 +125,11 @@ func TestRejectsBadTokens(t *testing.T) {
 		{name: "alg none with signature", token: joinToken(noneHeader), now: vectorNow, wantErr: ErrInvalidToken},
 		{name: "HS384 not accepted", token: hs384, now: vectorNow, wantErr: ErrInvalidToken},
 		{name: "wrong secret", token: goAccessVector, now: vectorNow, secret: []byte("another secret"), wantErr: ErrInvalidToken},
-		{name: "expired ignored by API key path", token: goAPIKeyVector, now: time.Unix(1800003601, 0), ignore: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			key := secret
 			if tc.secret != nil {
 				key = tc.secret
-			}
-			if tc.ignore {
-				if _, err := ValidateTokenIgnoringExpiration(tc.token, key, tc.now); err != nil {
-					t.Fatalf("expected acceptance, got %v", err)
-				}
-				return
 			}
 			if _, err := ValidateBearer(tc.token, key, tc.now); err == nil || !errorIs(err, tc.wantErr) {
 				t.Fatalf("got error %v, want %v", err, tc.wantErr)
@@ -154,7 +146,7 @@ func TestRejectsNonNumericDates(t *testing.T) {
 		{"userId": "u", "iat": "1"},
 	} {
 		token := signForTest(t, secret, payload)
-		if _, err := ValidateToken(token, secret, time.Unix(100, 0)); !errorIs(err, ErrInvalidToken) {
+		if _, err := validateToken(token, secret, time.Unix(100, 0)); !errorIs(err, ErrInvalidToken) {
 			t.Fatalf("payload %#v: got %v, want ErrInvalidToken", payload, err)
 		}
 	}
@@ -168,17 +160,14 @@ func TestRejectsTamperedSignature(t *testing.T) {
 	}
 }
 
-func TestNotBeforeEnforcedOnBothPaths(t *testing.T) {
+func TestNotBeforeEnforced(t *testing.T) {
 	secret := []byte("secret")
-	token, err := Sign(secret, map[string]any{"userId": "u", "nbf": 101})
+	token, err := sign(secret, map[string]any{"userId": "u", "nbf": 101})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ValidateToken(token, secret, time.Unix(100, 0)); !errorIs(err, ErrNotYetValid) {
-		t.Fatalf("enforced path: %v", err)
-	}
-	if _, err := ValidateTokenIgnoringExpiration(token, secret, time.Unix(100, 0)); !errorIs(err, ErrNotYetValid) {
-		t.Fatalf("ignoring path: %v", err)
+	if _, err := validateToken(token, secret, time.Unix(100, 0)); !errorIs(err, ErrNotYetValid) {
+		t.Fatal(err)
 	}
 }
 
@@ -252,4 +241,33 @@ func joinToken(parts []string) string {
 
 func errorIs(err, target error) bool {
 	return errors.Is(err, target)
+}
+
+func TestIssueConstructorsRoundTrip(t *testing.T) {
+	secret := []byte("secret")
+	access, _ := IssueAccess(secret, "u", "reader", time.Hour)
+	refresh, _ := IssueRefresh(secret, "u", "reader", time.Hour)
+	if c, err := ValidateBearer(access, secret, time.Now()); err != nil || c.Type != "access" || c.UserID != "u" {
+		t.Fatalf("access: %+v %v", c, err)
+	}
+	if _, err := ValidateBearer(refresh, secret, time.Now()); err == nil {
+		t.Fatal("refresh accepted as bearer")
+	}
+	if _, err := ValidateRefresh(refresh, secret, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ValidateRefresh(access, secret, time.Now()); !errorIs(err, ErrWrongType) {
+		t.Fatalf("access accepted as refresh: %v", err)
+	}
+	if _, err := ValidateRefresh(refresh, secret, time.Now().Add(2*time.Hour)); !errorIs(err, ErrExpired) {
+		t.Fatalf("expired refresh: %v", err)
+	}
+	key, _ := IssueAPIKey(secret, "k", "name", 0)
+	if c, err := ValidateBearer(key, secret, time.Now()); err != nil || c.KeyID != "k" || c.ExpiresAt != nil {
+		t.Fatalf("api key: %+v %v", c, err)
+	}
+	legacy, _ := IssueLegacy(secret, "u", "reader")
+	if c, err := ValidateBearer(legacy, secret, time.Now()); err != nil || c.Type != "" || c.ExpiresAt != nil {
+		t.Fatalf("legacy: %+v %v", c, err)
+	}
 }

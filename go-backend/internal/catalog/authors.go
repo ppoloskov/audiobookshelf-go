@@ -6,26 +6,6 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"context"
-	"database/sql"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/google/uuid"
-	"io"
-	"mime"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strings"
-	"syscall"
-	"time"
-
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
@@ -34,6 +14,16 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/wire"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 // AuthorFinder is AuthorFinder.js: the metadata provider lookups behind
@@ -63,16 +53,16 @@ func (h *Handler) loadAuthor(ctx context.Context, id string) (authorRecord, erro
 }
 
 // toOldJSON is Author.toOldJSON (Author.js:177-188).
-func (a authorRecord) toOldJSON() (wire.Author, error) {
+func (a authorRecord) toOldJSON() (authorView, error) {
 	added, err := dbtime.OptionalMillis(a.createdAt)
 	if err != nil || added == nil {
-		return wire.Author{}, fmt.Errorf("author %s createdAt: %v", a.id, err)
+		return authorView{}, fmt.Errorf("author %s createdAt: %v", a.id, err)
 	}
 	updated, err := dbtime.OptionalMillis(a.updatedAt)
 	if err != nil || updated == nil {
-		return wire.Author{}, fmt.Errorf("author %s updatedAt: %v", a.id, err)
+		return authorView{}, fmt.Errorf("author %s updatedAt: %v", a.id, err)
 	}
-	return wire.Author{
+	return authorView{
 		ID: a.id, ASIN: store.NullStringPtr(a.asin), Name: store.NullStringPtr(a.name),
 		Description: store.NullStringPtr(a.description), ImagePath: store.NullStringPtr(a.imagePath),
 		LibraryID: a.libraryID, AddedAt: *added, UpdatedAt: *updated,
@@ -86,38 +76,17 @@ func (h *Handler) authorNumBooks(ctx context.Context, authorID string) (int, err
 }
 
 // authorExpanded is Author.toOldJSONExpanded(numBooks) read fresh from the row.
-func (h *Handler) authorExpanded(ctx context.Context, authorID string) (wire.AuthorExpanded, error) {
+func (h *Handler) authorExpanded(ctx context.Context, authorID string) (authorWithBooks, error) {
 	a, err := h.loadAuthor(ctx, authorID)
 	if err != nil {
-		return wire.AuthorExpanded{}, err
+		return authorWithBooks{}, err
 	}
 	oldJSON, err := a.toOldJSON()
 	if err != nil {
-		return wire.AuthorExpanded{}, err
+		return authorWithBooks{}, err
 	}
 	n, err := h.authorNumBooks(ctx, authorID)
-	return wire.AuthorExpanded{Author: oldJSON, NumBooks: n}, err
-}
-
-// requestUser returns the authenticated user the server attached to the request.
-func requestUser(r *http.Request) store.User {
-	user, _ := store.UserFromContext(r.Context())
-	return user
-}
-
-func jsTruthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case float64:
-		return x != 0
-	case string:
-		return x != ""
-	default:
-		return true
-	}
+	return authorWithBooks{authorView: oldJSON, NumBooks: n}, err
 }
 
 // authorRequest is AuthorController.middleware (AuthorController.js:427-442):
@@ -193,7 +162,7 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 	if len(itemIDs) == 0 || h.emit == nil {
 		return
 	}
-	expanded, err := h.itemMaps(ctx, itemIDs, "expanded")
+	expanded, err := h.expandedItems(ctx, itemIDs)
 	if err != nil {
 		logging.Errorf("[AuthorController] items_updated: %v", err)
 		return
@@ -217,7 +186,7 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	detail := wire.AuthorDetail{Author: oldJSON}
+	detail := authorDetail{authorView: oldJSON}
 	if sliceHas(include, "items") {
 		ids, err := h.authorItemIDs(r.Context(), user, a)
 		if err != nil {
@@ -248,20 +217,11 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 	return httputil.JSON(w, r, detail)
 }
 
-func sliceHas(list []string, v string) bool {
-	for _, e := range list {
-		if e == v {
-			return true
-		}
-	}
-	return false
-}
-
 // authorSeriesGroups groups the items into their series
 // (AuthorController.js:49-81): each series' items are minified copies whose
 // metadata.series names the series and the item's sequence, sorted by
 // sequence with the natural comparer; groups keep first-seen order.
-func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]wire.AuthorSeriesGroup, error) {
+func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]authorSeriesGroup, error) {
 	type entry struct {
 		raw      json.RawMessage
 		sequence *string
@@ -316,7 +276,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 		}
 		for _, s := range memberships[it.ID] {
 			m := media
-			m.Metadata.Series = wire.BookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
+			m.Metadata.Series = bookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
 			withSeries := base
 			withSeries.Media = m
 			raw, err := json.Marshal(withSeries)
@@ -332,7 +292,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 			g.entries = append(g.entries, entry{raw: raw, sequence: store.NullStringPtr(s.number)})
 		}
 	}
-	out := make([]wire.AuthorSeriesGroup, 0, len(order))
+	out := make([]authorSeriesGroup, 0, len(order))
 	for _, id := range order {
 		g := groups[id]
 		sort.SliceStable(g.entries, func(i, j int) bool {
@@ -342,29 +302,9 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]w
 		for i, e := range g.entries {
 			items[i] = e.raw
 		}
-		out = append(out, wire.AuthorSeriesGroup{ID: g.id, Name: g.name, Items: items})
+		out = append(out, authorSeriesGroup{ID: g.id, Name: g.name, Items: items})
 	}
 	return out, nil
-}
-
-// jsonBodyObject is express.json for a handler that reads named keys: a
-// request whose content type is not JSON has an empty body object, and a body
-// that is not a JSON object has no keys.
-func jsonBodyObject(r *http.Request) map[string]json.RawMessage {
-	body := map[string]json.RawMessage{}
-	media, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if media != "application/json" && !strings.HasSuffix(media, "+json") {
-		return body
-	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
-	if err != nil {
-		return body
-	}
-	var parsed map[string]json.RawMessage
-	if json.Unmarshal(raw, &parsed) == nil && parsed != nil {
-		return parsed
-	}
-	return body
 }
 
 // stringOrNull reads a body value that is a string or JSON null.
@@ -428,7 +368,7 @@ func (u *authorColumnUpdate) save(ctx context.Context, db ctxExecer, authorID st
 		sets = append(sets, c+"=?")
 	}
 	sets = append(sets, "updatedAt=?")
-	args := append(append([]any{}, u.values...), dbNow(), authorID)
+	args := append(append([]any{}, u.values...), dbtime.Now(), authorID)
 	_, err := db.ExecContext(ctx, `UPDATE authors SET `+strings.Join(sets, ",")+` WHERE id=?`, args...)
 	return err
 }
@@ -534,7 +474,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database read failed", err)
 		}
 		if h.emit != nil {
-			h.emit("*", "author_updated", wire.AuthorExpanded{Author: oldJSON, NumBooks: numBooks})
+			h.emit("*", "author_updated", authorWithBooks{authorView: oldJSON, NumBooks: numBooks})
 		}
 	}
 	saved, err := h.loadAuthor(ctx, a.id)
@@ -545,7 +485,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return httputil.JSON(w, r, wire.AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
+	return httputil.JSON(w, r, authorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
 }
 
 // authorMerge is the merge branch of AuthorController.update
@@ -589,7 +529,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE authorId=?`, a.id); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		now := dbNow()
+		now := dbtime.Now()
 		for _, bookID := range bookIDs {
 			linkID := uuid.NewString()
 			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.id, now); err != nil {
@@ -623,33 +563,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		h.emit("*", "author_updated", expanded)
 	}
 	merged := true
-	return httputil.JSON(w, r, wire.AuthorUpdateResult{Author: expanded.Author, Merged: &merged})
-}
-
-// purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
-// removes every cached image whose name starts with the entity id.
-func (h *Handler) purgeImageCache(entityID string) {
-	if entityID == "" {
-		return
-	}
-	dir := h.imageCachePath()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), entityID) {
-			logging.Debugf("[CacheManager] Going to purge %s", entry.Name())
-			if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil && !errors.Is(err, os.ErrNotExist) {
-				logging.Errorf(`[CacheManager] Failed to remove cache "%s" %v`, filepath.Join(dir, entry.Name()), err)
-			}
-		}
-	}
-}
-
-// imageCachePath mirrors CacheManager.ImageCachePath (CacheManager.js:29).
-func (h *Handler) imageCachePath() string {
-	return filepath.Join(h.cfg.MetadataPath, "cache", "images")
+	return httputil.JSON(w, r, authorUpdateResult{Author: expanded.authorView, Merged: &merged})
 }
 
 // authorDelete is AuthorController.delete (AuthorController.js:233-258).
@@ -682,387 +596,4 @@ func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
 	}
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID)
 	return httputil.OK(w, r)
-}
-
-// authorImagePath is the file AuthorFinder.saveAuthorImage writes
-// (AuthorFinder.js:43-66): <metadata>/authors/<id>.png for a url ending in
-// "png", otherwise .jpg.
-func (h *Handler) authorImagePath(authorID, imageURL string) string {
-	parts := strings.Split(strings.ToLower(imageURL), ".")
-	ext := "jpg"
-	if parts[len(parts)-1] == "png" {
-		ext = "png"
-	}
-	return path.Join(filepath.ToSlash(filepath.Join(h.cfg.MetadataPath, "authors")), authorID+"."+ext)
-}
-
-// saveAuthorImage is AuthorFinder.saveAuthorImage: it downloads the image
-// (fileUtils.downloadImageFile: image/* but not svg) and returns the written
-// path, or the error message upstream would send.
-func (h *Handler) saveAuthorImage(ctx context.Context, authorID, imageURL string) (string, string) {
-	authorDir := filepath.Join(h.cfg.MetadataPath, "authors")
-	if err := os.MkdirAll(authorDir, 0o755); err != nil {
-		return "", err.Error()
-	}
-	outputPath := h.authorImagePath(authorID, imageURL)
-	if err := downloadImageFile(ctx, imageURL, filepath.FromSlash(outputPath)); err != nil {
-		message := axiosMessage(err)
-		if message == "" {
-			message = "Unknown error"
-		}
-		logging.Errorf(`[AuthorFinder] Download image file failed for "%s" %s`, imageURL, message) // AuthorFinder.js:61
-		return "", message
-	}
-	return outputPath, ""
-}
-
-// downloadImageFile is fileUtils.downloadFile with the image content-type
-// filter (fileUtils.js:292-358): a GET with a 30 second timeout through the
-// SSRF filter whose 2xx image/* (not svg) response body is written to filepath.
-func downloadImageFile(ctx context.Context, rawURL, filepath string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		return errors.New("Invalid URL")
-	}
-	transport := coverURLTransport()
-	if httputil.SSRFFilterDisabled(u.Hostname()) {
-		transport.DialContext = (&net.Dialer{}).DialContext
-	}
-	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) > 5 {
-			return errors.New("Maximum number of redirects exceeded")
-		}
-		return nil
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return errors.New("Invalid URL")
-	}
-	req.Header.Set("User-Agent", "audiobookshelf (+https://audiobookshelf.org)")
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("Request failed with status code %d", response.StatusCode)
-	}
-	contentType := response.Header.Get("Content-Type")
-	if !strings.HasPrefix(contentType, "image/") || contentType == "image/svg+xml" {
-		return fmt.Errorf("Invalid content type %q", contentType)
-	}
-	file, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(file, response.Body)
-	closeErr := file.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	return closeErr
-}
-
-// axiosMessage maps a Go transport error onto the message axios/Node report
-// for the same failure (err.message in AuthorFinder.saveAuthorImage).
-func axiosMessage(err error) string {
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		err = urlErr.Err
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
-		return "timeout of 30000ms exceeded"
-	}
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) {
-		return "getaddrinfo ENOTFOUND " + dnsErr.Name
-	}
-	var opErr *net.OpError
-	if errors.As(err, &opErr) && errors.Is(err, syscall.ECONNREFUSED) && opErr.Addr != nil {
-		return "connect ECONNREFUSED " + opErr.Addr.String()
-	}
-	return err.Error()
-}
-
-// authorUploadImage is AuthorController.uploadImage (AuthorController.js:267-304).
-func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	a, err := h.authorRequest(r, user)
-	if err != nil {
-		return err
-	}
-	if !access.For(r.Context(), user).Upload() {
-		logging.Warnf(`User "%s" attempted to upload an image without permission`, user.Username)
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	ctx := r.Context()
-	body := jsonBodyObject(r)
-	rawURL, present := body["url"]
-	var imageURL string
-	var isString bool
-	if present {
-		isString = json.Unmarshal(rawURL, &imageURL) == nil
-	}
-	// `!req.body.url`: absent, null, false, 0 and "" are all falsy.
-	var generic any
-	if present {
-		_ = json.Unmarshal(rawURL, &generic)
-	}
-	if !present || !jsTruthy(generic) {
-		logging.Errorf("[AuthorController] Invalid request payload. 'url' not in request body")
-		return httputil.Status(http.StatusBadRequest, "Invalid request payload. 'url' not in request body")
-	}
-	if !isString || (!strings.HasPrefix(imageURL, "http:") && !strings.HasPrefix(imageURL, "https:")) {
-		shown := imageURL
-		if !isString {
-			shown = jsString(generic)
-		}
-		logging.Errorf(`[AuthorController] Invalid request payload. Invalid url "%s"`, shown)
-		return httputil.Status(http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
-	}
-	logging.Debugf(`[AuthorController] Requesting download author image from url "%s"`, imageURL)
-	imagePath, message := h.saveAuthorImage(ctx, a.id, imageURL)
-	if message != "" {
-		return httputil.Status(http.StatusBadRequest, message)
-	}
-	if a.imagePath.Valid && a.imagePath.String != "" {
-		h.purgeImageCache(a.id)
-	}
-	update := &authorColumnUpdate{}
-	update.force("imagePath", &imagePath) // changed('imagePath', true): bump updatedAt
-	if err := update.save(ctx, h.db, a.id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	expanded, err := h.authorExpanded(ctx, a.id)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if h.emit != nil {
-		h.emit("*", "author_updated", expanded)
-	}
-	return httputil.JSON(w, r, wire.AuthorImageResult{Author: expanded.Author})
-}
-
-// jsString is how a JavaScript template literal renders a JSON value.
-func jsString(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return "null"
-	case string:
-		return x
-	case bool:
-		return fmt.Sprint(x)
-	case float64:
-		return strings.TrimSuffix(fmt.Sprintf("%v", x), ".0")
-	case []any:
-		parts := make([]string, len(x))
-		for i, e := range x {
-			if e != nil {
-				parts[i] = jsString(e)
-			}
-		}
-		return strings.Join(parts, ",")
-	default:
-		return "[object Object]"
-	}
-}
-
-// authorDeleteImage is AuthorController.deleteImage (AuthorController.js:313-329).
-func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, requestUser(r))
-	if err != nil {
-		return err
-	}
-	ctx := r.Context()
-	if !a.imagePath.Valid || a.imagePath.String == "" {
-		logging.Errorf(`[AuthorController] Author "%s" has no imagePath set`, a.imagePath.String)
-		return httputil.Status(http.StatusBadRequest, "Author has no image path set")
-	}
-	logging.Infof(`[AuthorController] Removing image for author "%s" at "%s"`, a.name.String, a.imagePath.String)
-	h.purgeImageCache(a.id)
-	// CoverManager.removeFile (CoverManager.js:34-44).
-	if _, err := os.Stat(a.imagePath.String); err != nil {
-		logging.Warnf("[CoverManager] Attempting to remove file that does not exist %s", a.imagePath.String)
-	} else if err := os.Remove(a.imagePath.String); err != nil {
-		return httputil.Internal("internal error", err)
-	}
-	update := &authorColumnUpdate{}
-	update.set("imagePath", store.NullStringPtr(a.imagePath), nil)
-	if err := update.save(ctx, h.db, a.id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	expanded, err := h.authorExpanded(ctx, a.id)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if h.emit != nil {
-		h.emit("*", "author_updated", expanded)
-	}
-	return httputil.JSON(w, r, wire.AuthorImageResult{Author: expanded.Author})
-}
-
-var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
-
-// authorMatch is AuthorController.match (AuthorController.js:337-383).
-func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, requestUser(r))
-	if err != nil {
-		return err
-	}
-	ctx := r.Context()
-	body := jsonBodyObject(r)
-	bodyString := func(key string) string {
-		var s string
-		_ = json.Unmarshal(body[key], &s)
-		return s
-	}
-	region := bodyString("region")
-	if region == "" {
-		region = "us"
-	}
-	var data *wire.AuthorMatch
-	if h.authorFinder != nil {
-		if asin := bodyString("asin"); asin != "" && asinPattern.MatchString(strings.ToUpper(asin)) {
-			data = h.authorFinder.FindAuthorByASIN(ctx, asin, region)
-		} else {
-			data = h.authorFinder.FindAuthorByName(ctx, bodyString("q"), region)
-		}
-	}
-	if data == nil {
-		return httputil.Status(http.StatusNotFound, "Author not found")
-	}
-	logging.Debugf(`[AuthorController] match author with "%s"`, firstNonEmpty(bodyString("q"), bodyString("asin")))
-	update := &authorColumnUpdate{}
-	hasUpdates := false
-	if data.ASIN != "" && (!a.asin.Valid || a.asin.String != data.ASIN) {
-		asin := data.ASIN
-		update.set("asin", store.NullStringPtr(a.asin), &asin)
-		hasUpdates = true
-	}
-	// Only updates the image if there was none before or the ASIN was updated.
-	if data.Image != nil && *data.Image != "" && (!a.imagePath.Valid || a.imagePath.String == "" || hasUpdates) {
-		h.purgeImageCache(a.id)
-		if imagePath, message := h.saveAuthorImage(ctx, a.id, *data.Image); message == "" {
-			update.set("imagePath", store.NullStringPtr(a.imagePath), &imagePath)
-			hasUpdates = true
-		}
-	}
-	if data.Description != "" && (!a.description.Valid || a.description.String != data.Description) {
-		description := data.Description
-		update.set("description", store.NullStringPtr(a.description), &description)
-		hasUpdates = true
-	}
-	if hasUpdates {
-		if err := update.save(ctx, h.db, a.id); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		expanded, err := h.authorExpanded(ctx, a.id)
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if h.emit != nil {
-			h.emit("*", "author_updated", expanded)
-		}
-	}
-	saved, err := h.loadAuthor(ctx, a.id)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	oldJSON, err := saved.toOldJSON()
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	return httputil.JSON(w, r, wire.AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
-var uuidPattern = regexp.MustCompile(`(?i)^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$`)
-
-// isUUID is utils.isUUID, uuid.validate.
-func isUUID(s string) bool { return uuidPattern.MatchString(s) }
-
-// authorImage is AuthorController.getImage (AuthorController.js:391-419) over
-// CacheManager.handleAuthorCache (CacheManager.js:155-190). The route is
-// public (Auth.js:21).
-func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
-	authorID := r.PathValue("id")
-	query := r.URL.Query()
-	if query.Get("raw") != "" {
-		a, err := h.loadAuthor(r.Context(), authorID)
-		if errors.Is(err, sql.ErrNoRows) {
-			logging.Warnf(`[AuthorController] Author "%s" not found`, authorID)
-			return httputil.Status(http.StatusNotFound, "")
-		}
-		if err != nil {
-			return httputil.Internal("database read failed", err)
-		}
-		if !a.imagePath.Valid || a.imagePath.String == "" {
-			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			return httputil.Status(http.StatusNotFound, "")
-		}
-		if _, err := os.Stat(a.imagePath.String); err != nil {
-			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
-			return httputil.Status(http.StatusNotFound, "")
-		}
-		h.coverRaw(w, r, a.imagePath.String)
-		return nil
-	}
-	format := query.Get("format")
-	if format == "" {
-		if reqSupportsWebp(r.Header.Get("Accept")) {
-			format = "webp"
-		} else {
-			format = "jpeg"
-		}
-	}
-	widthValue := clampCoverDimension(query.Get("width"), 4096)
-	heightValue := clampCoverDimension(query.Get("height"), 4096)
-	if format != "webp" && format != "jpeg" && format != "png" || !isUUID(authorID) {
-		return httputil.Status(http.StatusBadRequest, "")
-	}
-	width, height := 400, -1
-	if widthValue != nil {
-		width = *widthValue
-	}
-	if heightValue != nil {
-		height = *heightValue
-	}
-	w.Header().Set("Content-Type", "image/"+format)
-	cacheName := fmt.Sprintf("%s_%d", authorID, width)
-	if heightValue != nil {
-		cacheName += fmt.Sprintf("x%d", *heightValue)
-	}
-	cachePath := filepath.Join(h.imageCachePath(), cacheName+"."+format)
-	if _, err := os.Stat(cachePath); err == nil {
-		streamCoverCache(w, r, cachePath)
-		return nil
-	}
-	a, err := h.loadAuthor(r.Context(), authorID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return httputil.Internal("database read failed", err)
-	}
-	if err != nil || !a.imagePath.Valid || a.imagePath.String == "" {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	if _, err := os.Stat(a.imagePath.String); err != nil {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	if err := os.MkdirAll(h.imageCachePath(), 0o755); err != nil {
-		return &httputil.Error{Status: 500, Cause: err}
-	}
-	if err := resizeImage(r.Context(), a.imagePath.String, cachePath, width, height); err != nil {
-		return &httputil.Error{Status: 500, Cause: err}
-	}
-	streamCoverCache(w, r, cachePath)
-	return nil
 }

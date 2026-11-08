@@ -1,4 +1,4 @@
-package wire
+package catalog
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ func TestShelfEncodesLikeTheMapItReplaced(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, err := json.Marshal(Shelf{ID: "recently-added", Label: "Recently Added", LabelStringKey: "LabelRecentlyAdded", Type: "book", Entities: entities, Total: 3})
+		got, err := json.Marshal(shelf{ID: "recently-added", Label: "Recently Added", LabelStringKey: "LabelRecentlyAdded", Type: "book", Entities: entities, Total: 3})
 		if err != nil {
 			t.Fatal(err)
 		}

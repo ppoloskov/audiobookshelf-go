@@ -14,15 +14,15 @@ import (
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/dbtime"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func TestLegacyAccessTokenIncludesJWTIssuedAt(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
-	token, err := handler.issueLegacyToken("user-1", "reader")
+	token, err := handler.IssueLegacyToken("user-1", "reader")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestLegacyAccessTokenIncludesJWTIssuedAt(t *testing.T) {
 func TestLocalLoginAndRefreshRotationGrace(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
-	progressAt := sqlDate(time.Now().Add(-time.Minute))
+	progressAt := dbtime.Format(time.Now().Add(-time.Minute))
 	if _, err := db.Exec(`INSERT INTO mediaProgresses (id,userId,mediaItemId,mediaItemType,duration,currentTime,isFinished,hideFromContinueListening,ebookProgress,extraData,createdAt,updatedAt) VALUES ('progress-1','user-1','book-1','book',100,25,0,0,0,?,?,?)`, `{"libraryItemId":"library-item-1","progress":0.25}`, progressAt, progressAt); err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestAPIKeyAuthenticationAndInitOneTime(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO apiKeys (id, isActive, expiresAt, lastUsedAt, userId, updatedAt) VALUES (?, 1, ?, NULL, ?, ?)`, "key-1", now.Add(time.Hour).Format(time.RFC3339Nano), "user-1", now.Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
-	keyToken, err := auth.Sign(handler.secret, map[string]any{"keyId": "key-1", "name": "test", "type": "api"})
+	keyToken, err := handler.IssueAPIKeyToken("key-1", "test", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := sqlDate(time.Now())
+	now := dbtime.Format(time.Now())
 	permissions := `{"accessAllLibraries":true,"accessAllTags":true,"librariesAccessible":[],"itemTagsSelected":[]}`
 	if _, err := db.Exec(`INSERT INTO users VALUES (?, ?, NULL, ?, ?, ?, ?, ?, NULL, ?, '[]', '{}', ?, ?)`, "user-1", "reader", string(hash), "user", "legacy", 1, 0, permissions, now, now); err != nil {
 		db.Close()

@@ -2,6 +2,7 @@ package emailapi
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"bufio"
@@ -125,7 +126,7 @@ func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testin
 		t.Fatalf("returned %d devices, want 7: %#v", len(response.Devices), response.Devices)
 	}
 	for _, index := range []int{0, 1} {
-		if response.Devices[index]["availabilityOption"] != "adminOrUp" || len(anyArray(response.Devices[index]["users"])) != 0 {
+		if response.Devices[index]["availabilityOption"] != "adminOrUp" || len(jsonvalue.Array(response.Devices[index]["users"])) != 0 {
 			t.Fatalf("device %d normalization = %#v", index, response.Devices[index])
 		}
 	}

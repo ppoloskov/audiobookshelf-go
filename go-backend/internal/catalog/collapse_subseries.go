@@ -2,6 +2,10 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -10,12 +14,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/textsort"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // validCollapseSubseriesSorts is VALID_COLLAPSE_SUBSERIES_SORTS
@@ -121,11 +119,12 @@ func trimPartial(s string) string {
 // series is looked up by id in any library; its books are filtered by the
 // user's access and, when they belong to other series too, collapsed behind
 // the first book of each of those series.
-func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user store.User, libraryID, mediaType, seriesID string, page, limit int, ignorePrefix bool) error {
+func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib libraryScope, seriesID string, ignorePrefix bool) error {
+	page, limit := lib.page, lib.limit
 	query := r.URL.Query()
-	payload := wire.CollapsedSubseriesPage{
+	payload := collapsedSubseriesPage{
 		Results: []any{}, Limit: limit, Page: page,
-		SortDesc: query.Get("desc") == "1", FilterBy: query.Get("filter"), MediaType: mediaType,
+		SortDesc: query.Get("desc") == "1", FilterBy: query.Get("filter"), MediaType: lib.mediaType,
 		Minified: query.Get("minified") == "1", CollapseSeries: true, Include: normalizedInclude(r),
 		Offset: page * limit,
 	}
@@ -138,7 +137,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 			payload.SortBy = &sortBy
 		}
 	}
-	results, total, err := h.collapseSubseriesResults(r.Context(), user, libraryID, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
+	results, total, err := h.collapseSubseriesResults(r.Context(), lib.user, lib.settings.HideSingleBookSeries, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -147,11 +146,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, user
 	return nil
 }
 
-func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, libraryID, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {
-	hideSingleBookSeries, err := h.hideSingleBookSeries(ctx, libraryID)
-	if err != nil {
-		return nil, 0, err
-	}
+func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, hideSingleBookSeries bool, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {
 	books, found, err := h.subseriesBooks(ctx, seriesID)
 	if err != nil {
 		return nil, 0, err
@@ -203,7 +198,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 		filtered := li.seriesByID(seriesID)
 		item := rendered[i]
 		editBookMetadata(&item, func(metadata *libitem.BookMetadataMinified) {
-			metadata.Series = &wire.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
+			metadata.Series = &bookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {
 			ids := make([]string, 0, len(c.books))
@@ -211,7 +206,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 				ids = append(ids, b.itemID)
 			}
 			name := c.name
-			item.CollapsedSeries = &wire.CollapsedSubseries{
+			item.CollapsedSeries = &collapsedSubseries{
 				ID: c.id, Name: &name, NameIgnorePrefix: c.nameIgnorePrefix, LibraryItemIDs: ids, NumBooks: len(c.books),
 				SeriesSequenceList: seriesSequenceList(c),
 			}
@@ -228,17 +223,6 @@ func (b *subseriesBook) seriesByID(id string) subseriesSeries {
 		}
 	}
 	return subseriesSeries{}
-}
-
-// hideSingleBookSeries is library.settings.hideSingleBookSeries for the
-// library of the request. handleCollapseSubseries receives req.library.
-func (h *Handler) hideSingleBookSeries(ctx context.Context, libraryID string) (bool, error) {
-	var raw []byte
-	if err := h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, libraryID).Scan(&raw); err != nil {
-		return false, err
-	}
-	hide, _ := decodeObject(raw)["hideSingleBookSeries"].(bool)
-	return hide, nil
 }
 
 // subseriesBooks loads Series.findByPk(seriesId) with its books, their
@@ -292,7 +276,7 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 	for i, b := range books {
 		b.access = loaded[i].Access()
 		for _, s := range loaded[i].Book.Series {
-			b.series = append(b.series, subseriesSeries{id: s.ID, name: s.Name, nameIgnorePrefix: libitem.TitleIgnorePrefix(s.Name, prefixes), sequence: s.Sequence})
+			b.series = append(b.series, subseriesSeries{id: s.ID, name: s.Name, nameIgnorePrefix: textsort.PrefixAtEnd(s.Name, prefixes), sequence: s.Sequence})
 		}
 	}
 	return books, true, nil

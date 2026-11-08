@@ -47,6 +47,45 @@ func Of(u store.User) Permissions {
 	return p
 }
 
+// Defaults is the permissions document of a new user of userType
+// (User.getDefaultPermissionsForUserType). Every creation path starts here.
+func Defaults(userType string) map[string]any {
+	admin := userType == "root" || userType == "admin"
+	return map[string]any{"download": true, "update": admin, "delete": userType == "root", "upload": admin, "createEreader": admin, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": admin, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
+}
+
+// Patch applies a client-supplied permissions patch to doc. Only boolean
+// values for keys of Defaults(userType) are taken; the two list keys are taken
+// from patch and then from top (a request's top-level keys, which win) when
+// they are arrays of strings.
+func Patch(doc map[string]any, userType string, patch, top map[string]any) {
+	known := Defaults(userType)
+	for key, value := range patch {
+		if b, ok := value.(bool); ok && known[key] != nil {
+			if _, isList := known[key].([]string); !isList {
+				doc[key] = b
+			}
+		}
+	}
+	for _, src := range []map[string]any{patch, top} {
+		for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
+			if value, ok := src[key]; ok && validStringArray(value) {
+				doc[key] = value
+			}
+		}
+	}
+}
+
+func validStringArray(value any) bool {
+	switch a := value.(type) {
+	case []any:
+		return !slices.ContainsFunc(a, func(v any) bool { _, ok := v.(string); return !ok })
+	case []string:
+		return true
+	}
+	return false
+}
+
 // IsAdmin is root or admin (User.isAdminOrUp).
 func (p Permissions) IsAdmin() bool { return p.Type == "root" || p.Type == "admin" }
 

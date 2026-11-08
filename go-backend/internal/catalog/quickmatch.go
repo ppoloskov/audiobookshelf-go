@@ -7,7 +7,13 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/wire"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,11 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/itemwrite"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // BookFinder is the provider search behind a quick match (BookFinder.search,
@@ -39,42 +40,6 @@ type quickMatchOptions struct {
 
 func optionalBool(v bool) *bool { return &v }
 
-// jsTruthyRaw is JavaScript truthiness of a JSON value (absent counts as undefined).
-func jsTruthyRaw(raw json.RawMessage) bool {
-	if len(raw) == 0 {
-		return false
-	}
-	var v any
-	return json.Unmarshal(raw, &v) == nil && jsTruthy(v)
-}
-
-// matchString is a match field as a string: strings as they are, numbers as JS prints them.
-func matchString(raw json.RawMessage) string {
-	var v any
-	if json.Unmarshal(raw, &v) != nil {
-		return ""
-	}
-	if v == nil {
-		return ""
-	}
-	return jsString(v)
-}
-
-// matchList is `Array.isArray(v) ? [...v] : v.split(',').map(trim).filter(Boolean)`.
-func matchList(raw json.RawMessage) []string {
-	var list []string
-	if json.Unmarshal(raw, &list) == nil {
-		return list
-	}
-	var out []string
-	for _, part := range strings.Split(matchString(raw), ",") {
-		if part = strings.TrimSpace(part); part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
-}
-
 // quickMatchItem is the stored state of the item being matched.
 type quickMatchItem struct {
 	id, libraryID, path, mediaType, mediaID string
@@ -85,6 +50,7 @@ type quickMatchItem struct {
 }
 
 type quickMatchAuthor struct{ id, name string }
+
 type quickMatchSeries struct {
 	id, name string
 	sequence sql.NullString
@@ -167,16 +133,6 @@ func storedText(v any) string {
 	return ""
 }
 
-func storedNumber(v any) float64 {
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int64:
-		return float64(n)
-	}
-	return 0
-}
-
 // saveCoverFromURL is CoverManager.downloadCoverFromUrlNew (CoverManager.js:
 // 300-345): the cover is stored with the item when the server setting says so,
 // otherwise under the metadata items folder.
@@ -204,10 +160,10 @@ func (h *Handler) saveCoverFromURL(ctx context.Context, itemID, itemPath string,
 }
 
 // quickMatchLibraryItem is Scanner.quickMatchLibraryItem (Scanner.js:37-137).
-func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, options quickMatchOptions) (wire.QuickMatchResult, error) {
+func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, options quickMatchOptions) (quickMatchResult, error) {
 	item, err := h.loadQuickMatchItem(ctx, itemID)
 	if err != nil {
-		return wire.QuickMatchResult{}, err
+		return quickMatchResult{}, err
 	}
 	settings := serversettings.Load(ctx, h.db).Doc()
 	provider := options.provider
@@ -252,10 +208,10 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		if asin == "" {
 			asin = storedText(item.media.get("asin"))
 		}
-		results := h.finder.SearchBooks(ctx, wire.BookSearch{Provider: provider, Title: searchTitle, Author: searchAuthor, ISBN: isbn, ASIN: asin, Duration: storedNumber(item.media.get("duration")), MaxFuzzySearches: 2})
+		results := h.finder.SearchBooks(ctx, wire.BookSearch{Provider: provider, Title: searchTitle, Author: searchAuthor, ISBN: isbn, ASIN: asin, Duration: jsonvalue.Float(item.media.get("duration")), MaxFuzzySearches: 2})
 		if len(results) == 0 {
 			warning := fmt.Sprintf("No %s match found", provider)
-			return wire.QuickMatchResult{Warning: &warning}, nil
+			return quickMatchResult{Warning: &warning}, nil
 		}
 		match := results[0]
 		if cover := matchString(match.Cover); jsTruthyRaw(match.Cover) && (storedText(item.media.get("coverPath")) == "" || overrideCover) {
@@ -272,7 +228,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		}
 		var err error
 		if tx, err = h.db.BeginTx(ctx, nil); err != nil {
-			return wire.QuickMatchResult{}, err
+			return quickMatchResult{}, err
 		}
 		columns.bookDetails(match, overrideDetails)
 		// Authors and series of the match replace the book's own only when it
@@ -281,14 +237,14 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		if jsTruthyRaw(match.Author) && (item.authorName() == "" || overrideDetails) {
 			changed, e := changes.LinkAuthors(ctx, tx, item.libraryID, item.mediaID, matchList(match.Author), rules)
 			if e != nil {
-				return wire.QuickMatchResult{}, e
+				return quickMatchResult{}, e
 			}
 			hasUpdated = hasUpdated || changed
 		}
 		if jsTruthyRaw(match.Series) && (item.seriesName() == "" || overrideDetails) {
 			changed, e := changes.LinkSeries(ctx, tx, item.libraryID, item.mediaID, matchSeries(match), prefixes, rules)
 			if e != nil {
-				return wire.QuickMatchResult{}, e
+				return quickMatchResult{}, e
 			}
 			hasUpdated = hasUpdated || changed
 		}
@@ -297,7 +253,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		results := h.finder.SearchPodcasts(ctx, searchTitle)
 		if len(results) == 0 {
 			warning := fmt.Sprintf("No %s match found", provider)
-			return wire.QuickMatchResult{Warning: &warning}, nil
+			return quickMatchResult{Warning: &warning}, nil
 		}
 		match := results[0]
 		if cover := matchString(match.Cover); jsTruthyRaw(match.Cover) && (storedText(item.media.get("coverPath")) == "" || overrideCover) {
@@ -310,11 +266,11 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		}
 		var err error
 		if tx, err = h.db.BeginTx(ctx, nil); err != nil {
-			return wire.QuickMatchResult{}, err
+			return quickMatchResult{}, err
 		}
 		columns.podcastDetails(match, overrideDetails)
 	default:
-		return wire.QuickMatchResult{}, fmt.Errorf("unsupported media type %q", item.mediaType)
+		return quickMatchResult{}, fmt.Errorf("unsupported media type %q", item.mediaType)
 	}
 
 	if len(columns.set) > 0 {
@@ -327,16 +283,16 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 	if hasUpdated {
 		if len(columns.set) > 0 {
 			if err := columns.update(ctx, tx, table, item.mediaID); err != nil {
-				return wire.QuickMatchResult{}, err
+				return quickMatchResult{}, err
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbNow(), item.id); err != nil {
-			return wire.QuickMatchResult{}, err
+		if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), item.id); err != nil {
+			return quickMatchResult{}, err
 		}
 	}
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
-			return wire.QuickMatchResult{}, err
+			return quickMatchResult{}, err
 		}
 		tx = nil
 	}
@@ -349,32 +305,25 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 			logging.Infof(`[Scanner] quickMatchPodcastEpisodes: Updated %d episodes for "%s"`, n, storedText(item.media.get("title")))
 		}
 	}
-	// author_added and series_added while matching, then the emptied authors
-	// and series.
-	env := h.env()
-	env.Announce(item.libraryID, &changes)
-	env.Sweep(ctx, changes.AuthorsUnlinked, changes.SeriesUnlinked)
-	if hasUpdated {
-		if err := h.ItemChanged(ctx, item.id); err != nil {
-			return wire.QuickMatchResult{}, err
-		}
+	if err := h.finishItemWrites(ctx, itemWrite{itemID: item.id, libraryID: item.libraryID, changes: changes, updated: hasUpdated}); err != nil {
+		return quickMatchResult{}, err
 	}
 	expanded, err := h.ItemJSON(ctx, item.id, true)
 	if err != nil {
-		return wire.QuickMatchResult{}, err
+		return quickMatchResult{}, err
 	}
 	raw, err := json.Marshal(expanded)
 	if err != nil {
-		return wire.QuickMatchResult{}, err
+		return quickMatchResult{}, err
 	}
-	return wire.QuickMatchResult{Updated: &hasUpdated, LibraryItem: raw}, nil
+	return quickMatchResult{Updated: &hasUpdated, LibraryItem: raw}, nil
 }
 
 // bookDetails is the details part of quickMatchBookBuildUpdatePayload
 // (Scanner.js:214-253): a key is taken when the book has none yet, or when the
 // details are overridden.
 func (c *columnSet) bookDetails(match wire.BookMatch, override bool) {
-	stored := func(key string) bool { return jsTruthy(storedValue(c.current.get(key))) }
+	stored := func(key string) bool { return jsonvalue.Truthy(storedValue(c.current.get(key))) }
 	text := func(key string, raw json.RawMessage) {
 		if jsTruthyRaw(raw) && (!stored(key) || override) {
 			c.put(key, matchString(raw))
@@ -500,7 +449,7 @@ func matchOptionsFromBody(body map[string]json.RawMessage, keys ...string) quick
 		if raw, present := body[key]; present {
 			var v any
 			_ = json.Unmarshal(raw, &v)
-			*target = optionalBool(jsTruthy(v))
+			*target = optionalBool(jsonvalue.Truthy(v))
 		}
 	}
 	return options
@@ -584,80 +533,8 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) error 
 			}
 		}
 		if h.emit != nil {
-			h.emit(user.ID, "batch_quickmatch_complete", wire.BatchQuickMatchResult{Success: updated > 0, Updates: updated, Unmatched: unmatched})
+			h.emit(user.ID, "batch_quickmatch_complete", batchQuickMatchResult{Success: updated > 0, Updates: updated, Unmatched: unmatched})
 		}
 	})
 	return httputil.OK(w, r)
-}
-
-// libraryMatchAll is LibraryController.matchAll (LibraryController.js:1245-1254)
-// over Scanner.matchLibraryItems (Scanner.js:472-548) and
-// matchLibraryItemsChunk (:435-469).
-func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	library, err := h.libraryAccess(r, user)
-	if err != nil {
-		return err
-	}
-	if !adminUser(user) {
-		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, user.Username)
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	h.background(func(ctx context.Context) { h.matchLibraryItems(ctx, library) })
-	return httputil.OK(w, r)
-}
-
-func (h *Handler) matchLibraryItems(ctx context.Context, library libraryRecord) {
-	if library.mediaType == "podcast" {
-		logging.Errorf("[Scanner] matchLibraryItems: Match all not supported for podcasts yet")
-		return
-	}
-	var settings struct {
-		SkipMatchingMediaWithAsin bool `json:"skipMatchingMediaWithAsin"`
-		SkipMatchingMediaWithIsbn bool `json:"skipMatchingMediaWithIsbn"`
-	}
-	_ = json.Unmarshal(library.settings, &settings)
-	task := h.startTask(library)
-	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, task.scanID, library.name)
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.title,b.asin,b.isbn FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? ORDER BY li.createdAt`, library.id)
-	if err != nil {
-		logging.Errorf("[Scanner] matchLibraryItems: %v", err)
-		return
-	}
-	type target struct {
-		id, title, asin, isbn string
-	}
-	var targets []target
-	for rows.Next() {
-		var t target
-		var title, asin, isbn sql.NullString
-		if rows.Scan(&t.id, &title, &asin, &isbn) == nil {
-			t.title, t.asin, t.isbn = title.String, asin.String, isbn.String
-			targets = append(targets, t)
-		}
-	}
-	rows.Close()
-	updated := 0
-	for i, t := range targets {
-		if t.asin != "" && settings.SkipMatchingMediaWithAsin {
-			logging.Debugf(`[Scanner] matchLibraryItems: Skipping "%s" because it already has an ASIN (%d of %d)`, t.title, i+1, len(targets))
-			continue
-		}
-		if t.isbn != "" && settings.SkipMatchingMediaWithIsbn {
-			logging.Debugf(`[Scanner] matchLibraryItems: Skipping "%s" because it already has an ISBN (%d of %d)`, t.title, i+1, len(targets))
-			continue
-		}
-		logging.Debugf(`[Scanner] matchLibraryItems: Quick matching "%s" (%d of %d)`, t.title, i+1, len(targets))
-		result, err := h.quickMatchLibraryItem(ctx, t.id, quickMatchOptions{provider: library.provider})
-		if err != nil {
-			logging.Errorf("[Scanner] matchLibraryItems: %v", err)
-			continue
-		}
-		if result.Warning != nil {
-			logging.Warnf(`[Scanner] matchLibraryItems: Match warning %s for library item "%s"`, *result.Warning, t.title)
-		} else if result.Updated != nil && *result.Updated {
-			updated++
-		}
-	}
-	h.finishTask(task, len(targets), updated)
 }

@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"bytes"
 	"context"
@@ -107,7 +108,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 				}
 			}
 			if k == "secure" || k == "rejectUnauthorized" {
-				v = jsTruthy(v)
+				v = jsonvalue.Truthy(v)
 			}
 			if k == "ereaderDevices" {
 				if list, ok := v.([]any); ok {
@@ -128,22 +129,6 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 	write(w, map[string]any{"settings": m})
 	return nil
 }
-func jsTruthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case string:
-		return x != ""
-	case float64:
-		return x != 0
-	case int:
-		return x != 0
-	default:
-		return true
-	}
-}
 func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	var p struct {
 		Devices []map[string]any `json:"ereaderDevices"`
@@ -152,7 +137,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
 	for _, d := range p.Devices {
-		if !jsTruthy(d["name"]) || !jsTruthy(d["email"]) {
+		if !jsonvalue.Truthy(d["name"]) || !jsonvalue.Truthy(d["email"]) {
 			return httputil.Status(400, "Invalid payload. ereaderDevices array items must have name and email")
 		}
 	}
@@ -423,7 +408,6 @@ func cleanDevices(a []any) []any {
 	}
 	return out
 }
-func anyArray(v any) []any { a, _ := v.([]any); return a }
 func hasDeviceUsers(value any) bool {
 	switch users := value.(type) {
 	case []any:
@@ -431,13 +415,13 @@ func hasDeviceUsers(value any) bool {
 	case string:
 		return users != ""
 	case map[string]any:
-		return jsTruthy(users["length"])
+		return jsonvalue.Truthy(users["length"])
 	default:
 		return false
 	}
 }
 func device(m map[string]any, name string) map[string]any {
-	for _, x := range anyArray(m["ereaderDevices"]) {
+	for _, x := range jsonvalue.Array(m["ereaderDevices"]) {
 		d, _ := x.(map[string]any)
 		if d["name"] == name {
 			return d
@@ -458,7 +442,7 @@ func deviceAllowed(d map[string]any, u store.User) bool {
 	case "guestOrUp":
 		return true
 	case "specificUsers":
-		for _, id := range anyArray(d["users"]) {
+		for _, id := range jsonvalue.Array(d["users"]) {
 			if id == u.ID {
 				return true
 			}

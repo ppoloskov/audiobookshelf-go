@@ -1,6 +1,9 @@
 package server
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,7 +20,7 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.OpenReadWrite(filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
+	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +54,7 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rt, err := newRuntime(db.DB(), cfg, db, nil)
+	rt, err := newRuntime(db.DB(), cfg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,4 +74,13 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 	if enclosure != "https://example.test/story.mp3" {
 		t.Fatalf("matched episode enclosure=%q", enclosure)
 	}
+}
+
+func makeToken(t *testing.T, secret, payload string) string {
+	t.Helper()
+	enc := base64.RawURLEncoding.EncodeToString
+	unsigned := enc([]byte(`{"alg":"HS256","typ":"JWT"}`)) + "." + enc([]byte(payload))
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(unsigned))
+	return unsigned + "." + enc(mac.Sum(nil))
 }

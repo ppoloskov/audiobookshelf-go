@@ -6,11 +6,19 @@
 package filterdata
 
 import (
+	"cmp"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"audiobookshelf-compat/internal/logging"
 )
 
 // TTL is how long a loaded entry is served before it is rebuilt
@@ -68,36 +76,139 @@ func (d Data) clone() Data {
 	return d
 }
 
-// FromMap converts a freshly built filter data map into Data.
-func FromMap(m map[string]any) (Data, error) {
-	var d Data
-	raw, err := json.Marshal(m)
-	if err != nil {
-		return d, err
-	}
-	if err := json.Unmarshal(raw, &d); err != nil {
-		return d, err
-	}
-	d.normalize()
-	return d, nil
-}
-
-// Map converts Data back to the response map.
-func (d Data) Map() (map[string]any, error) {
-	raw, err := json.Marshal(d.clone())
-	if err != nil {
-		return nil, err
-	}
-	var m map[string]any
-	return m, json.Unmarshal(raw, &m)
-}
-
 // Provider is what the scanner needs from the catalog: load a library's filter
 // data when no cached copy exists (upstream does this at the start of every
 // scan) and reach the cache to patch it.
 type Provider interface {
 	EnsureFilterData(ctx context.Context, libraryID, mediaType string) error
 	FilterCache() *Cache
+}
+
+// Load builds a library's filter data from the database
+// (libraryFilters.getFilterData, libraryFilters.js:455-461): the distinct,
+// case-insensitively sorted values of its items, and its authors and series by
+// name.
+func Load(ctx context.Context, db *sql.DB, libraryID, mediaType string) (Data, error) {
+	d := Data{LoadedAt: time.Now().UnixMilli()}
+	values := map[string]map[string]struct{}{}
+	add := func(field string, vs ...string) {
+		if values[field] == nil {
+			values[field] = map[string]struct{}{}
+		}
+		for _, v := range vs {
+			values[field][v] = struct{}{}
+		}
+	}
+	list := func(raw []byte) (out []string) {
+		_ = json.Unmarshal(raw, &out)
+		return out
+	}
+	switch mediaType {
+	case "book":
+		rows, err := db.QueryContext(ctx, `SELECT b.tags,b.genres,b.narrators,b.publisher,b.publishedYear,b.language,li.isMissing OR li.isInvalid FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`, libraryID)
+		if err != nil {
+			return d, err
+		}
+		for rows.Next() {
+			var tags, genres, narrators []byte
+			var publisher, year, language sql.NullString
+			var issue bool
+			if err := rows.Scan(&tags, &genres, &narrators, &publisher, &year, &language, &issue); err != nil {
+				rows.Close()
+				return d, err
+			}
+			d.BookCount++
+			if issue {
+				d.NumIssues++
+			}
+			add("tags", list(tags)...)
+			add("genres", list(genres)...)
+			add("narrators", list(narrators)...)
+			if publisher.Valid {
+				add("publishers", publisher.String)
+			}
+			if language.Valid {
+				add("languages", language.String)
+			}
+			if n, e := strconv.Atoi(year.String); year.Valid && e == nil && n > 0 && n < 3000 {
+				add("decades", strconv.Itoa(n/10*10))
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return d, err
+		}
+		if err := rows.Close(); err != nil {
+			return d, err
+		}
+		if d.Authors, err = named(ctx, db, `SELECT id,name FROM authors WHERE libraryId=?`, libraryID, ""); err != nil {
+			return d, err
+		}
+		if d.Series, err = named(ctx, db, `SELECT id,name FROM series WHERE libraryId=?`, libraryID, "No Title"); err != nil {
+			return d, err
+		}
+		d.AuthorCount, d.SeriesCount = len(d.Authors), len(d.Series)
+	case "podcast":
+		rows, err := db.QueryContext(ctx, `SELECT p.tags,p.genres,p.language FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)
+		if err != nil {
+			return d, err
+		}
+		for rows.Next() {
+			var tags, genres []byte
+			var language sql.NullString
+			if err := rows.Scan(&tags, &genres, &language); err != nil {
+				rows.Close()
+				return d, err
+			}
+			d.PodcastCount++
+			add("tags", list(tags)...)
+			add("genres", list(genres)...)
+			if language.Valid {
+				add("languages", language.String)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return d, err
+		}
+		rows.Close()
+	default:
+		return d, fmt.Errorf("unsupported media type %q", mediaType)
+	}
+	d.Genres, d.Tags, d.Narrators = sorted(values["genres"]), sorted(values["tags"]), sorted(values["narrators"])
+	d.Languages, d.Publishers, d.PublishedDecades = sorted(values["languages"]), sorted(values["publishers"]), sorted(values["decades"])
+	d.normalize()
+	return d, nil
+}
+
+// named reads id/name pairs sorted by lowercase name; a missing name is
+// replaced by fallback when one is given.
+func named(ctx context.Context, db *sql.DB, query, libraryID, fallback string) ([]Named, error) {
+	rows, err := db.QueryContext(ctx, query, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Named
+	for rows.Next() {
+		var n Named
+		var name sql.NullString
+		if err := rows.Scan(&n.ID, &name); err != nil {
+			return nil, err
+		}
+		if n.Name = name.String; n.Name == "" {
+			n.Name = fallback
+		}
+		out = append(out, n)
+	}
+	slices.SortStableFunc(out, func(a, b Named) int { return cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
+	return out, rows.Err()
+}
+
+func sorted(set map[string]struct{}) []string {
+	out := slices.Sorted(maps.Keys(set))
+	slices.SortStableFunc(out, func(a, b string) int { return cmp.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	return out
 }
 
 // Cache holds filter data per library.
@@ -119,11 +230,39 @@ func (c *Cache) Fresh(libraryID string) (Data, bool) {
 	return d.clone(), true
 }
 
-// Has reports whether any entry (fresh or expired) exists.
+// Has reports whether any entry (fresh or expired) exists. The scanner still
+// guards its own issue recount with it; it can call ResetIssues instead.
 func (c *Cache) Has(libraryID string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.libs[libraryID] != nil
+}
+
+// Get serves the entry while it is fresh and otherwise reloads and stores it
+// (libraryFilters.js:449-466).
+func (c *Cache) Get(ctx context.Context, db *sql.DB, libraryID, mediaType string) (Data, error) {
+	if d, ok := c.Fresh(libraryID); ok {
+		return d, nil
+	}
+	d, err := Load(ctx, db, libraryID, mediaType)
+	if err != nil {
+		return d, err
+	}
+	c.Store(libraryID, d)
+	return d.clone(), nil
+}
+
+// ResetIssues is Database.resetLibraryIssuesFilterData: it recounts missing or
+// invalid items into an existing entry and does nothing otherwise.
+func (c *Cache) ResetIssues(ctx context.Context, db *sql.DB, libraryID string) {
+	c.with(libraryID, func(d *Data) {
+		var n int
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID).Scan(&n); err != nil {
+			logging.Errorf("[filterdata] count issues of library %s: %v", libraryID, err)
+			return
+		}
+		d.NumIssues = n
+	})
 }
 
 func (c *Cache) Store(libraryID string, d Data) {

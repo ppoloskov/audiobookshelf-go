@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filekind"
 	"context"
 	"errors"
 	"os"
@@ -64,13 +65,13 @@ func (l library) wantFile(rel string) bool {
 	if filepath.Dir(rel) == "." && !(l.mediaType == "book" && l.mediaExt(ext)) {
 		return false
 	}
-	return l.mediaExt(ext) || scannableCompanion(ext)
+	return l.mediaExt(ext) || filekind.IsCompanion(ext)
 }
 
 // mediaExt reports whether a file of this extension is an item's media file
 // (audio, plus ebooks in a book library that is not audiobooks-only).
 func (l library) mediaExt(ext string) bool {
-	return audioExt(ext) || (l.mediaType == "book" && !l.audiobooksOnly && ebookExt(ext))
+	return filekind.IsAudio(ext) || (l.mediaType == "book" && !l.audiobooksOnly && filekind.IsEbook(ext))
 }
 
 // updateGroup holds the files claimed by each item directory, in the

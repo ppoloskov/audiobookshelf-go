@@ -1,6 +1,7 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/version"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,7 +17,6 @@ import (
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // shareTrack is one entry of audioTracks in a share playback session
@@ -37,7 +37,7 @@ type shareTrack struct {
 // publicShareResponse is GET /public/share/:slug: the share (without pash,
 // userId and extraData) plus its playbackSession.
 type publicShareResponse struct {
-	wire.MediaItemShare
+	MediaItemShare
 	PlaybackSession map[string]any `json:"playbackSession"`
 }
 
@@ -213,7 +213,7 @@ func nonEmpty(s *string) *string {
 
 // json is PlaybackSession.toJSONForClient for a web-share session.
 func (s *shareSession) json() map[string]any {
-	out := map[string]any{"id": s.ID, "userId": nil, "libraryId": s.LibraryID, "libraryItemId": s.ItemID, "bookId": s.BookID, "episodeId": nil, "mediaType": "book", "mediaMetadata": s.Metadata, "chapters": s.Chapters, "displayTitle": s.Title, "displayAuthor": s.Author, "coverPath": store.NullIfEmpty(s.CoverPath), "duration": s.Duration, "playMethod": 0, "mediaPlayer": "web-share", "deviceInfo": s.Device, "serverVersion": "2.37.2", "date": time.UnixMilli(s.Updated).Local().Format("2006-01-02"), "dayOfWeek": time.UnixMilli(s.Updated).Local().Weekday().String(), "timeListening": 0, "startTime": s.Start, "currentTime": s.Current, "startedAt": s.Updated, "updatedAt": s.Updated, "audioTracks": s.Tracks, "libraryItem": nil}
+	out := map[string]any{"id": s.ID, "userId": nil, "libraryId": s.LibraryID, "libraryItemId": s.ItemID, "bookId": s.BookID, "episodeId": nil, "mediaType": "book", "mediaMetadata": s.Metadata, "chapters": s.Chapters, "displayTitle": s.Title, "displayAuthor": s.Author, "coverPath": store.NullIfEmpty(s.CoverPath), "duration": s.Duration, "playMethod": 0, "mediaPlayer": "web-share", "deviceInfo": s.Device, "serverVersion": version.Server, "date": time.UnixMilli(s.Updated).Local().Format("2006-01-02"), "dayOfWeek": time.UnixMilli(s.Updated).Local().Weekday().String(), "timeListening": 0, "startTime": s.Start, "currentTime": s.Current, "startedAt": s.Updated, "updatedAt": s.Updated, "audioTracks": s.Tracks, "libraryItem": nil}
 	if s.CoverAspect != nil {
 		out["coverAspectRatio"] = *s.CoverAspect
 	}

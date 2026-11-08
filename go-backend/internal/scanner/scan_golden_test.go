@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/filekind"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -162,11 +163,11 @@ func TestScanGolden(t *testing.T) {
 		*evs = nil
 		steps = append(steps, st)
 	}
-	r, err := s.Scan(ctx, "lib-1")
+	r, err := s.Scan(ctx, "lib-1", false)
 	record("scan books", r, err)
-	r, err = s.Scan(ctx, "lib-2")
+	r, err = s.Scan(ctx, "lib-2", false)
 	record("scan podcasts", r, err)
-	r, err = s.Scan(ctx, "lib-1")
+	r, err = s.Scan(ctx, "lib-1", false)
 	record("rescan unchanged", r, err)
 
 	// Rename a book directory, delete a file item, add a new file.
@@ -179,14 +180,14 @@ func TestScanGolden(t *testing.T) {
 	must(os.Rename(R("Author A/Multi Book"), R("Author A/Multi Renamed")))
 	must(os.Remove(R("Single.mp3")))
 	goldenWrite(t, map[string]string{R("Author B/CD Book/CD2/c.mp3"): "cd-three", filepath.Join(podRoot, "Show/ep3.mp3"): "ep3"})
-	r, err = s.Scan(ctx, "lib-1")
+	r, err = s.Scan(ctx, "lib-1", false)
 	record("scan after rename delete add", r, err)
-	r, err = s.Scan(ctx, "lib-2")
+	r, err = s.Scan(ctx, "lib-2", false)
 	record("scan podcast add episode", r, err)
 
 	// Watcher batch: new item, deleted item, file moved up to the parent folder.
 	goldenWrite(t, map[string]string{R("Author E/New Book/n.mp3"): "new-book", R("Author F/Moving/m.mp3"): "moving"})
-	r, err = s.Scan(ctx, "lib-1")
+	r, err = s.Scan(ctx, "lib-1", false)
 	record("scan watcher fixtures", r, err)
 	goldenWrite(t, map[string]string{R("Author E/Watched/w.mp3"): "watched", R("Author E/Watched/w.txt"): "note"})
 	must(os.RemoveAll(R("Author E/New Book")))
@@ -264,7 +265,7 @@ func TestWalkFilesIgnoreRules(t *testing.T) {
 	for _, rel := range []string{"a.mp3", "b.mp3.tmp", ".hidden/c.mp3", "@eaDir/d.mp3", "sub/e.mp3", "skip/.ignore", "skip/f.mp3", "skip/deep/g.mp3"} {
 		goldenWrite(t, map[string]string{filepath.Join(root, filepath.FromSlash(rel)): "x"})
 	}
-	files, err := walkFiles(context.Background(), root, func(rel string) bool { return audioExt(filepath.Ext(rel)) })
+	files, err := walkFiles(context.Background(), root, func(rel string) bool { return filekind.IsAudio(filepath.Ext(rel)) })
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -95,7 +95,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error
 // collection does not exist.
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
-	c, err := h.queries().GetCollection(r.Context(), id)
+	c, err := sqlc.New(h.db).GetCollection(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(404, "")
 	} else if err != nil {
@@ -246,12 +246,12 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) e
 		return httputil.Status(400, "Invalid request body. No valid books")
 	}
 	if add {
-		count, err := h.queries().CountCollectionBooks(r.Context(), id)
+		count, err := sqlc.New(h.db).CountCollectionBooks(r.Context(), id)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		order := int(count)
-		members, err := h.queries().ListCollectionBookMediaIDs(r.Context(), id)
+		members, err := sqlc.New(h.db).ListCollectionBookMediaIDs(r.Context(), id)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
@@ -287,7 +287,7 @@ func (h *Handler) batchCollectionBooks(w http.ResponseWriter, r *http.Request) e
 		return h.writeCollectionAfterBatch(w, r, user, id, changed)
 	}
 
-	entries, err := h.queries().ListCollectionBooks(r.Context(), id)
+	entries, err := sqlc.New(h.db).ListCollectionBooks(r.Context(), id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -382,8 +382,8 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) erro
 	if mediaType != "book" {
 		return httputil.Status(404, "Book not found")
 	}
-	count, _ := h.queries().CountCollectionBooks(r.Context(), id)
-	exists, _ := h.queries().CountCollectionBook(r.Context(), sqlc.CountCollectionBookParams{CollectionID: id, BookID: mediaID})
+	count, _ := sqlc.New(h.db).CountCollectionBooks(r.Context(), id)
+	exists, _ := sqlc.New(h.db).CountCollectionBook(r.Context(), sqlc.CountCollectionBookParams{CollectionID: id, BookID: mediaID})
 	if exists > 0 {
 		return httputil.Status(400, "Book already in collection")
 	}
@@ -392,7 +392,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if err = h.queries().InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: count + 1, Createdat: now}); err != nil {
+	if err = sqlc.New(h.db).InsertCollectionBook(r.Context(), sqlc.InsertCollectionBookParams{ID: entryID, CollectionID: id, BookID: mediaID, Position: count + 1, Createdat: now}); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	dto, _, err := h.collection(r.Context(), id, user)
@@ -460,14 +460,14 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) e
 }
 
 func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[string]any, error) {
-	feed, err := h.queries().GetFeedByEntity(r.Context(), sqlc.GetFeedByEntityParams{EntityType: "collection", EntityID: collectionID})
+	feed, err := sqlc.New(h.db).GetFeedByEntity(r.Context(), sqlc.GetFeedByEntityParams{EntityType: "collection", EntityID: collectionID})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	eps, err := h.queries().ListFeedEpisodesNewestFirst(r.Context(), feed.ID)
+	eps, err := sqlc.New(h.db).ListFeedEpisodesNewestFirst(r.Context(), feed.ID)
 	if err != nil {
 		return nil, err
 	}

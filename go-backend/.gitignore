@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-/abs-compat
 /audiobookshelf-go
 /.parity-work/
 /parity-results.json

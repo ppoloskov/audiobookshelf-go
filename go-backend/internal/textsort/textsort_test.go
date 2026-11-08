@@ -2,6 +2,7 @@ package textsort
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 	"testing"
@@ -57,6 +58,26 @@ func TestPlaylistNameOrder(t *testing.T) {
 	for i := range want {
 		if names[i] != want[i] {
 			t.Fatalf("order = %q, want %q", names, want)
+		}
+	}
+}
+
+func TestPrefixes(t *testing.T) {
+	if got := fmt.Sprint(ParsePrefixes(nil)); got != "[the a]" {
+		t.Fatalf("default = %v", got)
+	}
+	if got := fmt.Sprint(ParsePrefixes([]byte(`{"sortingPrefixes":["le",3,"la"]}`))); got != "[le la]" {
+		t.Fatalf("custom = %v", got)
+	}
+	if got := ParsePrefixes([]byte(`{"sortingPrefixes":[]}`)); len(got) != 0 {
+		t.Fatalf("empty list = %v", got)
+	}
+	for in, want := range map[string][2]string{"The Hobbit": {"Hobbit", "Hobbit, The"}, "the": {"the", "the"}, "Theory": {"Theory", "Theory"}, "A  b": {" b", " b, A"}} {
+		if got := TitleIgnorePrefix(in, []string{"the", "a"}); got != want[0] {
+			t.Errorf("column %q -> %q, want %q", in, got, want[0])
+		}
+		if got := PrefixAtEnd(in, []string{"the", "a"}); got != want[1] {
+			t.Errorf("display %q -> %q, want %q", in, got, want[1])
 		}
 	}
 }

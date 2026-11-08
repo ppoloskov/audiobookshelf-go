@@ -18,6 +18,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/version"
 	_ "modernc.org/sqlite"
 )
 
@@ -67,7 +68,7 @@ func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.ServerVersion != serverVersion || b.Key != "sqlite" || b.FileSize == 0 {
+	if b.ServerVersion != version.Server || b.Key != "sqlite" || b.FileSize == 0 {
 		t.Fatalf("bad backup DTO: %#v", b)
 	}
 	z, err := zip.OpenReader(b.FullPath)
@@ -102,7 +103,7 @@ func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.ID != b.ID || loaded.ServerVersion != serverVersion {
+	if loaded.ID != b.ID || loaded.ServerVersion != version.Server {
 		t.Fatalf("archive details failed to round trip: %#v", loaded)
 	}
 	var snap string

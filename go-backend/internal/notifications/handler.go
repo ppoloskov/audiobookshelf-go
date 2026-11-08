@@ -5,6 +5,8 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/jsonvalue"
+	"audiobookshelf-compat/internal/version"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -166,22 +168,6 @@ func strictEqual(a, b any) bool {
 	}
 	return false
 }
-func truthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case string:
-		return x != ""
-	case float64:
-		return x != 0
-	case int:
-		return x != 0
-	default:
-		return true
-	}
-}
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	p := map[string]any{}
 	_ = json.NewDecoder(r.Body).Decode(&p)
@@ -201,14 +187,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	}
 	items := array(s["notifications"])
 	libraryID := p["libraryId"]
-	if !truthy(libraryID) {
+	if !jsonvalue.Truthy(libraryID) {
 		libraryID = nil
 	}
 	notificationType := p["type"]
-	if !truthy(notificationType) {
+	if !jsonvalue.Truthy(notificationType) {
 		notificationType = nil
 	}
-	n := map[string]any{"id": id, "libraryId": libraryID, "eventName": event, "urls": urls, "enabled": truthy(p["enabled"]), "type": notificationType, "lastFiredAt": nil, "lastAttemptFailed": false, "numConsecutiveFailedAttempts": 0, "numTimesFired": 0, "createdAt": time.Now().UnixMilli()}
+	n := map[string]any{"id": id, "libraryId": libraryID, "eventName": event, "urls": urls, "enabled": jsonvalue.Truthy(p["enabled"]), "type": notificationType, "lastFiredAt": nil, "lastAttemptFailed": false, "numConsecutiveFailedAttempts": 0, "numTimesFired": 0, "createdAt": time.Now().UnixMilli()}
 	if value, ok := p["titleTemplate"]; ok {
 		n["titleTemplate"] = value
 	}
@@ -271,7 +257,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) err
 	n := h.find(s, id)
 	if n != nil {
 		updated := false
-		if truthy(p["enabled"]) && n["enabled"] != true {
+		if jsonvalue.Truthy(p["enabled"]) && n["enabled"] != true {
 			n["lastFiredAt"] = nil
 			n["lastAttemptFailed"] = false
 			n["numConsecutiveFailedAttempts"] = 0
@@ -501,5 +487,5 @@ var events = []any{
 	map[string]any{"name": "onBackupFailed", "requiresLibrary": false, "description": "Triggered when a backup fails", "descriptionKey": "NotificationOnBackupFailedDescription", "variables": []string{"errorMsg"}, "defaults": map[string]string{"title": "Backup Failed", "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}"}, "testData": map[string]any{"errorMsg": "Example error message"}},
 	map[string]any{"name": "onRSSFeedFailed", "requiresLibrary": true, "description": "Triggered when the RSS feed request fails for an automatic episode download", "descriptionKey": "NotificationOnRSSFeedFailedDescription", "variables": []string{"feedUrl", "numFailed", "title"}, "defaults": map[string]string{"title": "RSS Feed Request Failed", "body": "Failed to request RSS feed for {{title}}.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}"}, "testData": map[string]any{"title": "Test RSS Feed", "feedUrl": "https://example.com/rss", "numFailed": 3}},
 	map[string]any{"name": "onRSSFeedDisabled", "requiresLibrary": true, "description": "Triggered when automatic episode downloads are disabled due to too many failed attempts", "descriptionKey": "NotificationOnRSSFeedDisabledDescription", "variables": []string{"feedUrl", "numFailed", "title"}, "defaults": map[string]string{"title": "Podcast Episode Download Schedule Disabled", "body": "Automatic episode downloads for {{title}} have been disabled due to too many failed RSS feed requests.\nFeed URL: {{feedUrl}}\nNumber of failed attempts: {{numFailed}}"}, "testData": map[string]any{"title": "Test RSS Feed", "feedUrl": "https://example.com/rss", "numFailed": 5}},
-	map[string]any{"name": "onTest", "requiresLibrary": false, "description": "Event for testing the notification system", "descriptionKey": "NotificationOnTestDescription", "variables": []string{"version"}, "defaults": map[string]string{"title": "Test Notification on Abs {{version}}", "body": "Test notification body for abs {{version}}."}, "testData": map[string]any{"version": "v2.37.2"}},
+	map[string]any{"name": "onTest", "requiresLibrary": false, "description": "Event for testing the notification system", "descriptionKey": "NotificationOnTestDescription", "variables": []string{"version"}, "defaults": map[string]string{"title": "Test Notification on Abs {{version}}", "body": "Test notification body for abs {{version}}."}, "testData": map[string]any{"version": "v" + version.Server}},
 }

@@ -2,14 +2,12 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
 	"net/http"
 	"strings"
-
-	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/store"
 )
 
 func normalizedInclude(r *http.Request) string {
@@ -35,7 +33,7 @@ func includeHas(r *http.Request, value string) bool {
 func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string) (map[string]any, bool, error) {
 	// An empty entityType matches upstream RssFeedManager.findFeedForEntityId
 	// (server/managers/RssFeedManager.js:59), which filters on entityId only.
-	feed, err := h.queries().GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
+	feed, err := sqlc.New(h.db).GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
 	if err == sql.ErrNoRows {
 		return nil, false, nil
 	}
@@ -96,33 +94,4 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 		return false, err
 	}
 	return count > 0, nil
-}
-
-func (h *Handler) visibleSeriesItems(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
-	permission, args := access.For(ctx, user).MediaClause("b")
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission+` ORDER BY CASE WHEN bs.sequence IS NULL OR bs.sequence='' THEN 1 ELSE 0 END,bs.sequence COLLATE NOCASE`, append([]any{seriesID}, args...)...)
-	if err != nil {
-		return nil, err
-	}
-	type ref struct{ id, sequence string }
-	refs := []ref{}
-	for rows.Next() {
-		var itemID string
-		var sequence sql.NullString
-		if err := rows.Scan(&itemID, &sequence); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		refs = append(refs, ref{itemID, sequence.String})
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
-	ids := make([]string, len(refs))
-	for i, row := range refs {
-		ids[i] = row.id
-	}
-	return h.minifiedItems(ctx, ids)
 }

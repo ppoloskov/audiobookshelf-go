@@ -251,9 +251,9 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	rig := newAuthorRig(t, nil)
 	body := `{"description":"Bio","asin":"B000000001"}`
 	var first struct {
-		Author  wire.Author `json:"author"`
-		Updated *bool       `json:"updated"`
-		Merged  *bool       `json:"merged"`
+		Author  authorView `json:"author"`
+		Updated *bool      `json:"updated"`
+		Merged  *bool      `json:"merged"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", body, rootUser()), &first)
 	if first.Updated == nil || !*first.Updated || first.Merged != nil {
@@ -266,7 +266,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	if len(events) != 1 || events[0].event != "author_updated" {
 		t.Fatalf("events %+v", events)
 	}
-	expanded, ok := events[0].payload.(wire.AuthorExpanded)
+	expanded, ok := events[0].payload.(authorWithBooks)
 	if !ok || expanded.NumBooks != 1 {
 		t.Fatalf("payload %+v", events[0].payload)
 	}
@@ -282,7 +282,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	}
 	// null clears a nullable field.
 	var cleared struct {
-		Author wire.Author `json:"author"`
+		Author authorView `json:"author"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", `{"asin":null}`, rootUser()), &cleared)
 	if cleared.Author.ASIN != nil {
@@ -323,9 +323,9 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	var body struct {
-		Author wire.Author `json:"author"`
-		Merged *bool       `json:"merged"`
-		Update *bool       `json:"updated"`
+		Author authorView `json:"author"`
+		Merged *bool      `json:"merged"`
+		Update *bool      `json:"updated"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Merged == nil || !*body.Merged || body.Update != nil || body.Author.ID != "a2" {
@@ -347,10 +347,10 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 	if strings.Join(names, ",") != "items_updated,author_removed,author_updated" {
 		t.Fatalf("events %v", names)
 	}
-	if removed, ok := events[1].payload.(wire.Author); !ok || removed.ID != "a1" {
+	if removed, ok := events[1].payload.(authorView); !ok || removed.ID != "a1" {
 		t.Fatalf("author_removed %+v", events[1].payload)
 	}
-	if updated, ok := events[2].payload.(wire.AuthorExpanded); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
+	if updated, ok := events[2].payload.(authorWithBooks); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
 		t.Fatalf("author_updated %+v", events[2].payload)
 	}
 	if len(rig.touched) != 1 || rig.touched[0] != "i1" {
@@ -478,7 +478,7 @@ func TestAuthorImageUploadAndDelete(t *testing.T) {
 	}
 	want := filepath.Join(rig.meta, "authors", "a1.png")
 	var body struct {
-		Author wire.Author `json:"author"`
+		Author authorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Author.ImagePath == nil || *body.Author.ImagePath != want {
@@ -605,8 +605,8 @@ func TestAuthorMatch(t *testing.T) {
 		t.Fatalf("calls %q", got)
 	}
 	var body struct {
-		Updated bool        `json:"updated"`
-		Author  wire.Author `json:"author"`
+		Updated bool       `json:"updated"`
+		Author  authorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	want := filepath.Join(rig.meta, "authors", "a1.png")

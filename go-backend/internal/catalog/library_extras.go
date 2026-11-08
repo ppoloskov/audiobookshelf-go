@@ -2,22 +2,19 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"sort"
-
-	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/store"
 )
 
-func (h *Handler) narrators(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
+func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
+	libraryID := lib.id
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -30,7 +27,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database read failed", err)
 		}
 		seen := map[string]bool{}
-		for _, narrator := range decodeStrings(raw) {
+		for _, narrator := range store.DecodeJSONSlice[string](raw) {
 			if narrator != "" && !seen[narrator] {
 				counts[narrator]++
 				seen[narrator] = true
@@ -55,16 +52,13 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
 	remove := r.Method == http.MethodDelete
-	user, libraryID, encodedID := requestUser(r), r.PathValue("id"), r.PathValue("narratorId")
+	libraryID, encodedID := lib.id, r.PathValue("narratorId")
 	// Narrator renames and removals patch the filter data upstream
 	// (LibraryController.js:1170,1214); reloading it keeps the same content.
 	defer h.filters.Invalidate(libraryID)
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	if !access.For(r.Context(), user).Update() {
+	if !access.For(r.Context(), lib.user).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	decoded, err := url.QueryUnescape(encodedID)
@@ -105,7 +99,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 			rows.Close()
 			return httputil.Internal("database read failed", err)
 		}
-		row.narrators = decodeStrings(raw)
+		row.narrators = store.DecodeJSONSlice[string](raw)
 		books = append(books, row)
 	}
 	if err := rows.Err(); err != nil {
@@ -134,7 +128,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 		encoded, _ := json.Marshal(next)
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbNow(), row.bookID); err != nil {
+		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), row.bookID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		updatedIDs = append(updatedIDs, row.itemID)
@@ -148,12 +142,9 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request) error {
-	user, libraryID := requestUser(r), r.PathValue("id")
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	if !access.AdminUser(user) {
+func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
+	libraryID := lib.id
+	if !access.AdminUser(lib.user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)

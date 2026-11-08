@@ -49,7 +49,7 @@ func upstreamInstall(t testing.TB, baseURL, root string) *Install {
 	meta := readJSON[fixtureMeta](t, filepath.Join(fixtureDir, fixtureFile))
 	ids := readJSON[map[string]string](t, filepath.Join(fixtureDir, idsFile))
 	// TS writes while the dumps and fingerprints read, so wait for its locks
-	// (store.OpenReadOnly has no busy timeout). query_only keeps the reads read-only.
+	// (a read-only handle on a file TS owns). query_only keeps the reads read-only.
 	dsn := "file:" + filepath.Join(root, dbRelPath) + "?mode=ro&_pragma=busy_timeout(10000)&_pragma=query_only(1)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

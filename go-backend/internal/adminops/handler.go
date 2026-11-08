@@ -7,11 +7,11 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -118,30 +118,13 @@ func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
 }
 
 func (h *Handler) settings(r *http.Request) (map[string]any, error) {
-	var raw []byte
-	if err := h.db.QueryRowContext(r.Context(), `SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
-		return nil, err
-	}
-	var m map[string]any
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	stored, err := serversettings.Get(r.Context(), h.db)
+	return stored.Doc(), err
 }
 func (h *Handler) saveSettings(r *http.Request, m map[string]any) error {
-	b, e := json.Marshal(m)
-	if e != nil {
-		return e
+	if err := serversettings.Save(r.Context(), h.db, m); err != nil {
+		return err
 	}
-	res, e := h.db.ExecContext(r.Context(), `UPDATE settings SET value=?,updatedAt=? WHERE key='server-settings'`, string(b), dbtime.Now())
-	if e != nil {
-		return e
-	}
-	n, _ := res.RowsAffected()
-	if n != 1 {
-		return errors.New("server-settings row missing")
-	}
-	serversettings.Invalidate(h.db)
 	if h.settingsChanged != nil {
 		return h.settingsChanged(r.Context(), m)
 	}
@@ -170,7 +153,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request, u store.
 	for _, k := range []string{"scannerParseSubtitle", "scannerFindCovers", "scannerCoverProvider", "scannerPreferMatchedMetadata", "scannerDisableWatcher", "storeCoverWithItem", "storeMetadataWithItem", "allowIframe", "allowedOrigins", "backupSchedule", "backupsToKeep", "maxBackupSize", "logLevel", "homeBookshelfView", "bookshelfView", "dateFormat", "timeFormat", "language", "chromecastEnabled", "sortingIgnorePrefix"} {
 		allowed[k] = true
 	}
-	if patch["allowIframe"] == false && os.Getenv("ALLOW_IFRAME") == "1" {
+	if patch["allowIframe"] == false && serversettings.EnvAllowIframe() {
 		return httputil.Status(400, "Cannot disable iframe when ALLOW_IFRAME is enabled in environment")
 	}
 	if v, ok := patch["allowedOrigins"]; ok {
@@ -245,7 +228,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, u store.U
 				v = filtered
 			} else if k == "authOpenIDMobileRedirectURIs" {
 				values, ok := v.([]any)
-				if !ok || (containsAny(values, "*") && len(values) > 1) {
+				if !ok || (slices.Contains(values, any("*")) && len(values) > 1) {
 					continue
 				}
 				valid := true
@@ -345,7 +328,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 		for rows.Next() {
 			var x row
 			_ = rows.Scan(&x.id, &x.title, &x.old)
-			if prefix(x.title, out) != x.old {
+			if textsort.TitleIgnorePrefix(x.title, out) != x.old {
 				updates = append(updates, x)
 			}
 		}
@@ -355,7 +338,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 			col = "nameIgnorePrefix"
 		}
 		for _, x := range updates {
-			if _, e = h.db.ExecContext(r.Context(), `UPDATE `+table.name+` SET `+col+`=? WHERE id=?`, prefix(x.title, out), x.id); e == nil {
+			if _, e = h.db.ExecContext(r.Context(), `UPDATE `+table.name+` SET `+col+`=? WHERE id=?`, textsort.TitleIgnorePrefix(x.title, out), x.id); e == nil {
 				rowsUpdated++
 			}
 		}
@@ -363,16 +346,6 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request, u stor
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)})
 	return nil
 }
-func prefix(title string, prefixes []string) string {
-	t := strings.ToLower(title)
-	for _, p := range prefixes {
-		if strings.HasPrefix(t, p+" ") {
-			return title[len(p)+1:]
-		}
-	}
-	return title
-}
-
 func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request, u store.User) error {
 	var v struct {
 		Expression string `json:"expression"`
@@ -824,14 +797,6 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false})
 	return nil
-}
-func containsAny(a []any, s string) bool {
-	for _, v := range a {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 func validMobileURI(v string) bool {
 	return regexp.MustCompile(`(?i)^\w+://[\w.-]+(/[\w./-]*)*$`).MatchString(v)

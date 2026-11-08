@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
@@ -40,6 +39,7 @@ import (
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/users"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
 )
@@ -144,13 +144,12 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 		mobileFlows:  make(map[string]mobileFlow),
 	}
 	if len(h.secret) == 0 {
-		settings, err := h.loadSettings(context.Background(), "server-settings")
+		stored, err := serversettings.Get(context.Background(), db)
 		if err != nil {
 			return nil, fmt.Errorf("identity: load server settings: %w", err)
 		}
-		if s, ok := settings["tokenSecret"].(string); ok {
-			h.secret = []byte(s)
-		}
+		settings := stored.Doc()
+		h.secret = []byte(stored.String("tokenSecret"))
 		if len(h.secret) == 0 {
 			secret := make([]byte, 256)
 			if _, err := rand.Read(secret); err != nil {
@@ -158,18 +157,9 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 			}
 			h.secret = []byte(base64.StdEncoding.EncodeToString(secret))
 			settings["tokenSecret"] = string(h.secret)
-			encoded, err := json.Marshal(settings)
-			if err != nil {
-				return nil, fmt.Errorf("identity: encode server settings: %w", err)
-			}
-			result, err := db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`, string(encoded))
-			if err != nil {
+			if err := serversettings.Save(context.Background(), db, settings); err != nil {
 				return nil, fmt.Errorf("identity: persist token secret: %w", err)
 			}
-			if n, _ := result.RowsAffected(); n != 1 {
-				return nil, errors.New("identity: server-settings row disappeared while storing token secret")
-			}
-			serversettings.Invalidate(db)
 		}
 	}
 	if len(h.secret) == 0 {
@@ -177,9 +167,6 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 	}
 	return h, nil
 }
-
-// TokenSecret returns the key that signs and verifies this server's JWTs.
-func (h *Handler) TokenSecret() []byte { return h.secret }
 
 // Handle consumes the local identity endpoints and /api/authorize. Paths may
 // be passed with or without the configured router prefix.
@@ -218,35 +205,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) bool {
 // Authenticate validates a bearer or query-parameter token, then resolves an
 // active user. API keys are checked against the apiKeys row and its expiration.
 func (h *Handler) Authenticate(r *http.Request) (store.User, error) {
-	token := requestToken(r)
-	claims, err := auth.ValidateTokenIgnoringExpiration(token, h.secret, time.Now())
+	claims, err := auth.ValidateBearer(requestToken(r), h.secret, time.Now())
 	if err != nil {
 		return store.User{}, err
 	}
 	if claims.Type == "api" || claims.Type == "apiKey" {
-		var active int64
-		var expires nullableDate
-		var userID sql.NullString
-		err := h.db.QueryRowContext(r.Context(), `SELECT isActive, expiresAt, userId FROM apiKeys WHERE id = ? LIMIT 1`, claims.KeyID).Scan(&active, &expires, &userID)
-		if err != nil || active == 0 || !userID.Valid || userID.String == "" {
-			return store.User{}, errors.New("identity: invalid API key")
-		}
-		if expires.Valid && !expires.Time.After(time.Now()) {
-			// Upstream ApiKey.js:139-155 deactivates expired keys in a separate
-			// batch operation; per-request auth never writes to the row.
-			return store.User{}, errors.New("identity: expired API key")
-		}
-		user, err := h.userByID(r.Context(), userID.String)
-		if err != nil || !user.IsActive {
-			return store.User{}, errors.New("identity: inactive or missing API key user")
-		}
-		return user, nil
-	}
-	if claims.ExpiresAt != nil && time.Now().After(*claims.ExpiresAt) {
-		return store.User{}, auth.ErrExpired
-	}
-	if claims.UserID == "" {
-		return store.User{}, errors.New("identity: token has no user id")
+		return h.apiKeyUser(r.Context(), claims.KeyID)
 	}
 	user, err := h.userByIDOrOldID(r.Context(), claims.UserID)
 	if err != nil || !user.IsActive {
@@ -267,54 +231,6 @@ func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) error {
 		return writeExpressJSON(w, http.StatusInternalServerError, map[string]string{"error": "Unable to load authorization data"})
 	}
 	return writeExpressJSON(w, http.StatusOK, payload)
-}
-
-// UserBrowser serializes a database user into the legacy browser DTO used by
-// upstream. Media progress must be overlaid by the caller when available.
-func UserBrowser(user store.User, hideRootToken, minimal bool) map[string]any {
-	permissions := decodeMap(user.Permissions)
-	libraries := stringSlice(permissions["librariesAccessible"])
-	tags := stringSlice(permissions["itemTagsSelected"])
-	if libraries == nil {
-		libraries = []string{}
-	}
-	if tags == nil {
-		tags = []string{}
-	}
-	delete(permissions, "librariesAccessible")
-	delete(permissions, "itemTagsSelected")
-	extra := decodeMap(user.ExtraData)
-	series := stringSlice(extra["seriesHideFromContinueListening"])
-	bookmarks := decodeArray(user.Bookmarks)
-	if bookmarks == nil {
-		bookmarks = []any{}
-	}
-	if user.Type == "root" && hideRootToken {
-		user.Token = ""
-	}
-	var lastSeen any
-	if user.LastSeen != nil {
-		lastSeen = *user.LastSeen
-	}
-	created := any(nil)
-	if user.CreatedAt != nil {
-		created = *user.CreatedAt
-	}
-	result := map[string]any{
-		"id": user.ID, "username": user.Username, "email": store.NullIfEmpty(user.Email), "type": user.Type,
-		"token": user.Token, "mediaProgress": []any{}, "seriesHideFromContinueListening": series,
-		"bookmarks": bookmarks, "isActive": user.IsActive, "isLocked": user.IsLocked,
-		"lastSeen": lastSeen, "createdAt": created, "permissions": permissions,
-		"librariesAccessible": libraries, "itemTagsSelected": tags,
-		"hasOpenIDLink": extra["authOpenIDSub"] != nil,
-	}
-	if !minimal {
-		result["mediaProgress"] = []any{}
-	} else {
-		delete(result, "mediaProgress")
-		delete(result, "bookmarks")
-	}
-	return result
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
@@ -400,7 +316,11 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 		logging.Error("[Auth] Failed to refresh token. No refresh token provided") // Auth.js:343
 		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "No refresh token provided"})
 	}
-	claims, err := auth.ValidateToken(refreshToken, h.secret, time.Now())
+	claims, err := auth.ValidateRefresh(refreshToken, h.secret, time.Now())
+	if errors.Is(err, auth.ErrWrongType) {
+		logging.Errorf("[TokenManager] Failed to refresh token. Invalid token type: %s", claims.Type) // TokenManager.js:356
+		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
+	}
 	if err != nil {
 		if errors.Is(err, auth.ErrExpired) {
 			logging.Info("[TokenManager] Refresh token expired, cleaning up session") // TokenManager.js:429
@@ -411,10 +331,6 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 			writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid refresh token"})
 		}
 		return nil
-	}
-	if claims.Type != "refresh" {
-		logging.Errorf("[TokenManager] Failed to refresh token. Invalid token type: %s", claims.Type) // TokenManager.js:356
-		return writeExpressJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token type"})
 	}
 	s, err := h.sessionByToken(r.Context(), refreshToken)
 	if err != nil {
@@ -438,7 +354,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 	}
 	var access, newRefresh string
 	if grace {
-		access, err = h.issueToken(user, "access", h.accessTTL)
+		access, err = auth.IssueAccess(h.secret, user.ID, user.Username, h.accessTTL)
 		newRefresh = s.refreshToken
 	} else {
 		access, newRefresh, err = h.rotateSession(r.Context(), s)
@@ -542,16 +458,14 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	legacyToken, err := h.issueLegacyToken(id, username)
+	legacyToken, err := h.IssueLegacyToken(id, username)
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	permissions := map[string]any{"download": true, "update": true, "delete": true, "upload": true, "createEreader": true, "accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true, "selectedTagsNotAccessible": false, "librariesAccessible": []string{}, "itemTagsSelected": []string{}}
-	extra := map[string]any{"seriesHideFromContinueListening": []string{}}
-	now := sqlDate(time.Now())
+	now := dbtime.Format(time.Now())
 	err = sqlc.New(tx).InsertRootUser(r.Context(), sqlc.InsertRootUserParams{
 		ID: id, Username: store.Text(username), Pash: store.Text(passwordHash), Token: store.Text(legacyToken),
-		Permissions: store.Text(mustJSON(permissions)), Extradata: store.Text(mustJSON(extra)), Createdat: now, Updatedat: now,
+		Permissions: store.Text(encodeJSON(access.Defaults("root"))), Extradata: store.Text(users.NewUserExtraData("")), Createdat: now, Updatedat: now,
 	})
 	if err == nil {
 		err = tx.Commit()
@@ -563,11 +477,11 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Request) (string, string, error) {
-	access, err := h.issueToken(user, "access", h.accessTTL)
+	access, err := auth.IssueAccess(h.secret, user.ID, user.Username, h.accessTTL)
 	if err != nil {
 		return "", "", err
 	}
-	refresh, err := h.issueToken(user, "refresh", h.refreshTTL)
+	refresh, err := auth.IssueRefresh(h.secret, user.ID, user.Username, h.refreshTTL)
 	if err != nil {
 		return "", "", err
 	}
@@ -578,7 +492,7 @@ func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Re
 	now := time.Now().UTC()
 	err = h.queries().InsertSession(ctx, sqlc.InsertSessionParams{
 		ID: id, Ipaddress: store.Text(clientIP(r)), Useragent: store.Text(r.UserAgent()), Refreshtoken: refresh,
-		Expiresat: sqlDate(now.Add(h.refreshTTL)), Createdat: sqlDate(now), Updatedat: sqlDate(now), Userid: user.ID,
+		Expiresat: dbtime.Format(now.Add(h.refreshTTL)), Createdat: dbtime.Format(now), Updatedat: dbtime.Format(now), Userid: user.ID,
 	})
 	if err != nil {
 		return "", "", err
@@ -591,18 +505,18 @@ func (h *Handler) rotateSession(ctx context.Context, s session) (string, string,
 	if err != nil {
 		return "", "", err
 	}
-	access, err := h.issueToken(user, "access", h.accessTTL)
+	access, err := auth.IssueAccess(h.secret, user.ID, user.Username, h.accessTTL)
 	if err != nil {
 		return "", "", err
 	}
-	newRefresh, err := h.issueToken(user, "refresh", h.refreshTTL)
+	newRefresh, err := auth.IssueRefresh(h.secret, user.ID, user.Username, h.refreshTTL)
 	if err != nil {
 		return "", "", err
 	}
 	now := time.Now().UTC()
 	result, err := h.queries().RotateSession(ctx, sqlc.RotateSessionParams{
-		NewRefreshToken: newRefresh, ExpiresAt: sqlDate(now.Add(h.refreshTTL)), LastRefreshToken: store.Text(s.refreshToken),
-		LastRefreshTokenExpiresAt: sqlDate(now.Add(h.refreshGrace)), UpdatedAt: sqlDate(now), ID: s.id, CurrentRefreshToken: s.refreshToken,
+		NewRefreshToken: newRefresh, ExpiresAt: dbtime.Format(now.Add(h.refreshTTL)), LastRefreshToken: store.Text(s.refreshToken),
+		LastRefreshTokenExpiresAt: dbtime.Format(now.Add(h.refreshGrace)), UpdatedAt: dbtime.Format(now), ID: s.id, CurrentRefreshToken: s.refreshToken,
 	})
 	if err != nil {
 		return "", "", err
@@ -639,20 +553,6 @@ func (h *Handler) sessionByToken(ctx context.Context, token string) (session, er
 	}, nil
 }
 
-func (h *Handler) issueToken(user store.User, tokenType string, ttl time.Duration) (string, error) {
-	jti, err := ids.New()
-	if err != nil {
-		return "", err
-	}
-	now := time.Now().Unix()
-	payload := map[string]any{"userId": user.ID, "username": user.Username, "jti": jti, "type": tokenType, "iat": now, "exp": now + int64(ttl.Seconds())}
-	return auth.Sign(h.secret, payload)
-}
-
-func (h *Handler) issueLegacyToken(id, username string) (string, error) {
-	return auth.Sign(h.secret, map[string]any{"userId": id, "username": username, "iat": time.Now().Unix()})
-}
-
 func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string]any, error) {
 	libraryIDs := []string{}
 	rows, err := h.db.QueryContext(ctx, `SELECT id FROM libraries ORDER BY displayOrder ASC`)
@@ -676,17 +576,7 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if err != nil {
 		return nil, fmt.Errorf("identity: load user progress: %w", err)
 	}
-	userDTO := UserBrowser(user, false, false)
-	userDTO["mediaProgress"] = progress
-	email, err := h.queries().GetUserEmail(ctx, user.ID)
-	if err != nil {
-		return nil, fmt.Errorf("identity: load user email: %w", err)
-	}
-	if email.Valid {
-		userDTO["email"] = email.String
-	} else {
-		userDTO["email"] = nil
-	}
+	userDTO := users.UserDTO(user, progress)
 	perms := access.Of(user)
 	defaultLibrary := any(nil)
 	for _, id := range libraryIDs {
@@ -711,31 +601,14 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 }
 
 func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, error) {
-	var defaults struct {
-		Rows []struct {
-			Key   string         `json:"key"`
-			Value map[string]any `json:"value"`
-		} `json:"rows"`
-	}
-	if err := json.Unmarshal(schemaassets.DefaultSettingsJSON, &defaults); err != nil {
-		return nil, err
-	}
-	settings := map[string]any{}
-	for _, row := range defaults.Rows {
-		if row.Key == "server-settings" {
-			for key, value := range row.Value {
-				settings[key] = value
-			}
-			break
-		}
-	}
+	settings := serversettings.Defaults()
 	settings["backupPath"] = filepath.Join(h.cfg.MetadataPath, "backups")
 	settings["authOpenIDTokenSigningAlgorithm"] = "RS256"
-	stored, err := h.loadSettings(ctx, "server-settings")
+	stored, err := serversettings.Get(ctx, h.db)
 	if err != nil {
 		return nil, err
 	}
-	for key, value := range stored {
+	for key, value := range stored.Doc() {
 		settings[key] = value
 	}
 	// TS ServerSettings keeps an unset authOpenIDTokenURL as null (`settings.x || null`),
@@ -743,10 +616,10 @@ func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, er
 	if _, ok := settings["authOpenIDTokenURL"]; !ok {
 		settings["authOpenIDTokenURL"] = nil
 	}
-	if value := os.Getenv("BACKUP_PATH"); value != "" {
+	if value := serversettings.EnvBackupPath(); value != "" {
 		settings["backupPath"] = value
 	}
-	if os.Getenv("ALLOW_IFRAME") == "1" {
+	if serversettings.EnvAllowIframe() {
 		settings["allowIframe"] = true
 	}
 	settings["timeZone"] = hostTimeZone()
@@ -992,8 +865,6 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func sqlDate(t time.Time) string { return dbtime.Format(t) }
-
 func durationFromEnv(name string, fallback time.Duration) time.Duration {
 	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
 	if err != nil || value == 0 {
@@ -1047,21 +918,6 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	return false
 }
 
-func decodeMap(raw json.RawMessage) map[string]any {
-	var result map[string]any
-	_ = json.Unmarshal(raw, &result)
-	if result == nil {
-		return map[string]any{}
-	}
-	return result
-}
-
-func decodeArray(raw json.RawMessage) []any {
-	var result []any
-	_ = json.Unmarshal(raw, &result)
-	return result
-}
-
 func stringSlice(value any) []string {
 	values, _ := value.([]any)
 	if s, ok := value.([]string); ok {
@@ -1076,7 +932,9 @@ func stringSlice(value any) []string {
 	return result
 }
 
-func mustJSON(value any) string {
+// encodeJSON encodes the plain maps and slices the identity package stores;
+// those cannot fail to marshal.
+func encodeJSON(value any) string {
 	data, _ := json.Marshal(value)
 	return string(data)
 }
@@ -1202,11 +1060,42 @@ func (h *Handler) ChangePassword(ctx context.Context, userID, password, newPassw
 		}
 		encoded = string(hash)
 	}
-	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: store.Text(encoded), Updatedat: sqlDate(time.Now()), ID: userID})
+	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: store.Text(encoded), Updatedat: dbtime.Format(time.Now()), ID: userID})
 }
 
 // SetRefreshTokenCookie writes the standard refresh cookie used by login,
 // refresh, and credential-change flows.
 func (h *Handler) SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, refreshToken string) {
 	setRefreshCookie(w, r, refreshToken, int(h.refreshTTL.Seconds()))
+}
+
+// apiKeyUser resolves an API key credential to its active owner. Upstream
+// ApiKey.js:139-155 deactivates expired keys in a separate batch operation;
+// per-request auth never writes to the row.
+func (h *Handler) apiKeyUser(ctx context.Context, keyID string) (store.User, error) {
+	var active int64
+	var expires nullableDate
+	var userID sql.NullString
+	err := h.db.QueryRowContext(ctx, `SELECT isActive, expiresAt, userId FROM apiKeys WHERE id = ? LIMIT 1`, keyID).Scan(&active, &expires, &userID)
+	if err != nil || active == 0 || !userID.Valid || userID.String == "" {
+		return store.User{}, errors.New("identity: invalid API key")
+	}
+	if expires.Valid && !expires.Time.After(time.Now()) {
+		return store.User{}, errors.New("identity: expired API key")
+	}
+	user, err := h.userByID(ctx, userID.String)
+	if err != nil || !user.IsActive {
+		return store.User{}, errors.New("identity: inactive or missing API key user")
+	}
+	return user, nil
+}
+
+// IssueLegacyToken is the permanent users.token credential of a user.
+func (h *Handler) IssueLegacyToken(userID, username string) (string, error) {
+	return auth.IssueLegacy(h.secret, userID, username)
+}
+
+// IssueAPIKeyToken is the credential of an API key; expiresAtUnix 0 never expires.
+func (h *Handler) IssueAPIKeyToken(keyID, name string, expiresAtUnix int64) (string, error) {
+	return auth.IssueAPIKey(h.secret, keyID, name, expiresAtUnix)
 }
