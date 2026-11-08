@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"context"
@@ -431,7 +432,8 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	if _, _, err := deleteItemRows(r.Context(), tx, items); err != nil {
+	_, _, playlistChanges, err := deleteItemRows(r.Context(), tx, items)
+	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM authors WHERE libraryId=?`, id); err != nil {
@@ -485,6 +487,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		h.deps.LibraryChanged(id)
 	}
 	h.emit.ToAll("library_removed", result)
+	playlistview.Announce(r.Context(), h.db, h.emit, playlistChanges)
 	for _, item := range items {
 		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
 	}

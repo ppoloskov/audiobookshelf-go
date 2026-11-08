@@ -42,7 +42,7 @@ func TestRegisterEpisodeRowGolden(t *testing.T) {
 			`CREATE TABLE podcasts(id TEXT PRIMARY KEY,title TEXT,titleIgnorePrefix TEXT,author TEXT,releaseDate TEXT,feedURL TEXT,imageURL TEXT,description TEXT,itunesPageURL TEXT,itunesId TEXT,itunesArtistId TEXT,language TEXT,podcastType TEXT,explicit BOOLEAN,autoDownloadEpisodes BOOLEAN,autoDownloadSchedule TEXT,lastEpisodeCheck DATETIME,maxEpisodesToKeep INTEGER,maxNewEpisodesToDownload INTEGER,coverPath TEXT,tags JSON,genres JSON,numEpisodes INTEGER,createdAt DATETIME,updatedAt DATETIME)`,
 			`CREATE TABLE libraryItems(id TEXT PRIMARY KEY,ino TEXT,path TEXT,relPath TEXT,mediaId TEXT,mediaType TEXT,isFile BOOLEAN,isMissing BOOLEAN,isInvalid BOOLEAN,mtime DATETIME,ctime DATETIME,birthtime DATETIME,size BIGINT,libraryFiles JSON,extraData JSON,title TEXT,titleIgnorePrefix TEXT,libraryId TEXT,libraryFolderId TEXT,createdAt DATETIME,updatedAt DATETIME,lastScan DATETIME,lastScanVersion TEXT)`,
 			`CREATE TABLE podcastEpisodes(id TEXT PRIMARY KEY,podcastId TEXT,"index" INTEGER,season TEXT,episode TEXT,episodeType TEXT,title TEXT,subtitle TEXT,description TEXT,pubDate TEXT,enclosureURL TEXT,enclosureSize INTEGER,enclosureType TEXT,publishedAt DATETIME,audioFile JSON,chapters JSON,extraData JSON,createdAt DATETIME,updatedAt DATETIME)`,
-			`CREATE TABLE playlists(id TEXT PRIMARY KEY,userId TEXT)`,
+			`CREATE TABLE playlists(id TEXT PRIMARY KEY,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`,
 			`CREATE TABLE playlistMediaItems(id TEXT PRIMARY KEY,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`,
 			`CREATE TABLE mediaProgresses(id TEXT PRIMARY KEY,mediaItemId TEXT)`,
 			`INSERT INTO libraries VALUES('lib','podcast')`,
@@ -61,7 +61,7 @@ func TestRegisterEpisodeRowGolden(t *testing.T) {
 		if err := os.WriteFile(path, testToneWAV(.25), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		h := New(db, config.Config{}, nil)
+		h := New(db, config.Config{}, nil, nil)
 		item, err := h.loadItem(context.Background(), "item")
 		if err != nil {
 			t.Fatal(err)

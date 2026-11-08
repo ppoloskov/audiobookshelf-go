@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/playlistview"
 )
 
 func TestPlaylistReadValues(t *testing.T) {
@@ -25,7 +26,7 @@ func TestPlaylistReadValues(t *testing.T) {
 		exec(t, db, `INSERT INTO playlistMediaItems (id,mediaItemId,mediaItemType,"order",createdAt,playlistId) VALUES (?,?,?,?,?, 'playlist-1')`, "entry-"+row[0], row[0], row[1], i+1, created)
 	}
 
-	got, libraryID, err := Playlist(context.Background(), db, "playlist-1")
+	got, libraryID, err := playlistview.Load(context.Background(), db, "playlist-1")
 	if err != nil {
 		t.Fatal(err)
 	}

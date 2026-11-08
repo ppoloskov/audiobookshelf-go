@@ -419,8 +419,46 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 			libitem.EpisodeExpanded
 			LibraryItem libitem.Expanded `json:"libraryItem"`
 		}{episode.Expanded(d.item.ID), expanded})
+		if d.auto { // PodcastManager.js:257: notifications only for auto downloaded episodes
+			h.notifyEpisodeDownloaded(updated, episode)
+		}
 	}
 	return nil
+}
+
+// notifyEpisodeDownloaded fires onPodcastEpisodeDownloaded
+// (NotificationManager.js:21-46); delivery is not awaited, as upstream.
+func (h *Handler) notifyEpisodeDownloaded(item libitem.Item, ep libitem.Episode) {
+	p := item.Podcast
+	libraryName := "Unknown"
+	_ = h.db.QueryRow(`SELECT name FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryName)
+	h.notifyAsync("onPodcastEpisodeDownloaded", map[string]any{
+		"libraryItemId": item.ID, "libraryId": item.LibraryID, "libraryName": libraryName,
+		"mediaTags": strings.Join(p.Tags, ", "), "podcastTitle": str(p.Title), "podcastAuthor": str(p.Author),
+		"podcastDescription": str(p.Description), "podcastGenres": strings.Join(p.Genres, ", "),
+		"episodeId": ep.ID, "episodeTitle": str(ep.Title), "episodeSubtitle": str(ep.Subtitle), "episodeDescription": str(ep.Description),
+	})
+}
+
+// notifyFeedFailure fires onRSSFeedDisabled or onRSSFeedFailed
+// (NotificationManager.js:81-121, PodcastManager.js:346-351).
+func (h *Handler) notifyFeedFailure(event string, item libitem.Item, numFailed int) {
+	title := str(item.Podcast.Title)
+	if title == "" {
+		title = "Unknown Title"
+	}
+	h.notifyAsync(event, map[string]any{"feedUrl": str(item.Podcast.FeedURL), "numFailed": numFailed, "title": title})
+}
+
+func (h *Handler) notifyAsync(event string, data map[string]any) {
+	if h.notify == nil {
+		return
+	}
+	go func() {
+		if err := h.notify(context.Background(), event, data); err != nil {
+			logging.Errorf("[NotificationManager] %s: %v", event, err)
+		}
+	}()
 }
 
 func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, justAdded string) error {

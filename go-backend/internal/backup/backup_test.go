@@ -153,7 +153,7 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 				"backupPath":     b.FullPath,
 				"backupSize":     b.FileSize,
 				"backupCount":    1,
-				"removedOldest":  false,
+				"removedOldest":  "false",
 			}
 			if !reflect.DeepEqual(payload, want) {
 				t.Fatalf("payload = %#v, want %#v", payload, want)

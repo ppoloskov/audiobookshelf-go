@@ -770,3 +770,14 @@ logs); ~25 literal sites in catalog, scanner, backup, restore, playback, audioto
 unchanged. Error-returning handlers answer JSON through `httputil.JSON` (ETag/304 on GET 200 per ADR-001/002);
 `WriteJSON` keeps four non-handler callers. `store.Placeholders` in access, libitem, scanner and adminops.
 adminops `WatcherUpdate` is the scanner's queueing function directly (no 500 branch).
+
+### Owner-approved features (2026-11-08)
+1. Podcast notifications: onPodcastEpisodeDownloaded (auto-downloads; PodcastManager.js:257-261, NotificationManager.js:21-46),
+   onRSSFeedFailed (PodcastManager.js:351, NotificationManager.js:81-98) and onRSSFeedDisabled (PodcastManager.js:346,
+   NotificationManager.js:100-117) through `notifications.TriggerEvent`. Bug fixed: onBackupCompleted sent
+   removedOldest as a bool the template skips; now "false" as NotificationManager.js:62.
+2. Playlist events on deletes: `store.RemoveFromPlaylists` returns what changed; `internal/playlistview` (moved out of
+   lists, shared without feature cross-imports) announces playlist_removed / playlist_updated to the playlist's user
+   after commit (Playlist.js:172-208) from item delete, library delete, library-file episode delete and podcast episode
+   delete/trim. Pending: scanner episode removal (PodcastScanner.js:80).
+Ratchet raised for the new behaviour: +121 handwritten lines, +15 complexity, +5 map[string]any, +2 []any.

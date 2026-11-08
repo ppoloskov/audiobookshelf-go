@@ -36,7 +36,7 @@ func TestQuickMatchEpisodesPersistsFeedFields(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, nil)
 	defer h.Close()
 	h.SetHTTPClientForTests(feed.Client())
 	updated, err := h.QuickMatchEpisodes(context.Background(), "item-podcast", false)

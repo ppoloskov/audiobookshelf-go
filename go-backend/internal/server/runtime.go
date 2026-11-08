@@ -88,7 +88,8 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	if rt.providers, err = providers.New(db, emit); err != nil {
 		return rt, err
 	}
-	rt.podcasts = podcasts.New(db, cfg, emit)
+	rt.notifications = notifications.New(db, emit)
+	rt.podcasts = podcasts.New(db, cfg, emit, rt.notifications.TriggerEvent)
 	if rt.scanner, err = scanner.New(db, cfg, emit, filters); err != nil {
 		return rt, err
 	}
@@ -110,7 +111,6 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	if rt.userapi, err = userapi.New(db, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
 		return rt, err
 	}
-	rt.notifications = notifications.New(db, emit)
 	stored, err := serversettings.Get(context.Background(), db)
 	if err != nil {
 		return rt, err

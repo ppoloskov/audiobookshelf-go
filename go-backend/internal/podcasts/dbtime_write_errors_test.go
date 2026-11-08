@@ -26,7 +26,7 @@ func TestManualCheckNewReturns500WhenEpisodeCheckWriteFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.SetMaxOpenConns(1) // production pool size (store.Open)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, nil)
 	h.SetHTTPClientForTests(feed.Client())
 	// Drop the only connection so the podcast update write fails while the
 	// feed fetch (pure HTTP) still succeeds. go-sqlite pools open lazily and

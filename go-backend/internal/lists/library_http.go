@@ -2,6 +2,7 @@ package lists
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"database/sql"
 	"errors"
@@ -106,7 +107,7 @@ func (h *Handler) libraryPlaylists(w http.ResponseWriter, r *http.Request) error
 	}
 	playlists := make([]namedPlaylist, 0, len(ids))
 	for _, id := range ids {
-		item, _, err := Playlist(r.Context(), h.db, id)
+		item, _, err := playlistview.Load(r.Context(), h.db, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}

@@ -17,17 +17,25 @@ func TestRemoveFromPlaylistsRenumbersAndDropsEmpty(t *testing.T) {
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 	for _, q := range []string{
-		`CREATE TABLE playlists(id TEXT PRIMARY KEY, userId TEXT)`,
+		`CREATE TABLE playlists(id TEXT PRIMARY KEY, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
 		`CREATE TABLE playlistMediaItems(id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, playlistId TEXT)`,
-		`INSERT INTO playlists VALUES ('p1','u'),('p2','u'),('p3','u')`,
+		`INSERT INTO playlists VALUES ('p1','n1',NULL,'2024-01-01 00:00:00.000 +00:00','2024-01-01 00:00:00.000 +00:00','l','u'),('p2','n2',NULL,'2024-01-01 00:00:00.000 +00:00','2024-01-01 00:00:00.000 +00:00','l','u'),('p3','n3',NULL,'2024-01-01 00:00:00.000 +00:00','2024-01-01 00:00:00.000 +00:00','l','u')`,
 		`INSERT INTO playlistMediaItems VALUES ('a','m1','x',1,'p1'),('b','m2','x',2,'p1'),('c','m3','x',3,'p1'),('d','m2','x',1,'p2')`,
 	} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := RemoveFromPlaylists(context.Background(), db, []string{"m2"}); err != nil {
+	changes, err := RemoveFromPlaylists(context.Background(), db, []string{"m2"})
+	if err != nil {
 		t.Fatal(err)
+	}
+	gotChanges := ""
+	for _, c := range changes {
+		gotChanges += fmt.Sprintf("%s/%s/%v ", c.Playlist.ID, c.Playlist.Userid.String, c.Removed)
+	}
+	if gotChanges != "p1/u/false p2/u/true " {
+		t.Errorf("changes = %q", gotChanges)
 	}
 	var got string
 	rows, _ := db.Query(`SELECT id, "order", playlistId FROM playlistMediaItems ORDER BY id`)

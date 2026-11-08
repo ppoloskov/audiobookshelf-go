@@ -16,6 +16,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 )
@@ -28,7 +29,7 @@ func (h *Handler) listPlaylists(w http.ResponseWriter, r *http.Request) error {
 	}
 	out := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
-		item, libraryID, err := Playlist(r.Context(), h.db, id)
+		item, libraryID, err := playlistview.Load(r.Context(), h.db, id)
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && !access.For(r.Context(), user).Library(libraryID)) {
 			continue
 		}
@@ -59,7 +60,7 @@ func (h *Handler) ownedPlaylist(r *http.Request, id string, user store.User) (ma
 	if !access.For(r.Context(), user).Library(libraryID) {
 		return nil, "", http.StatusNotFound, nil
 	}
-	item, _, err := Playlist(r.Context(), h.db, id)
+	item, _, err := playlistview.Load(r.Context(), h.db, id)
 	return item, libraryID, 0, err
 }
 
@@ -154,7 +155,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("Failed to create playlist", err)
 	}
-	item, _, err := Playlist(r.Context(), h.db, id)
+	item, _, err := playlistview.Load(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -286,7 +287,7 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 	}
-	item, _, err := Playlist(r.Context(), h.db, id)
+	item, _, err := playlistview.Load(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -412,14 +413,14 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 		count++
 		changed = true
 	}
-	item, _, err := Playlist(r.Context(), h.db, id)
+	item, _, err := playlistview.Load(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	if !batch && changed && refs[0].episodeID != "" {
 		entries, _ := item["items"].([]any)
 		if last := len(entries) - 1; last >= 0 {
-			if e, ok := entries[last].(playlistEntry); ok && e.EpisodeID == refs[0].episodeID {
+			if e, ok := entries[last].(playlistview.Entry); ok && e.EpisodeID == refs[0].episodeID {
 				e.LibraryItem = h.withEpisodeTotals(r.Context(), e)
 				entries[last] = e
 			}
@@ -489,14 +490,14 @@ func (h *Handler) removePlaylistItem(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request, id string, user store.User, remove map[string]bool) error {
-	finalDTO, _, preErr := Playlist(r.Context(), h.db, id)
+	finalDTO, _, preErr := playlistview.Load(r.Context(), h.db, id)
 	if preErr != nil {
 		return httputil.Internal("database read failed", preErr)
 	}
 	if currentItems, ok := finalDTO["items"].([]any); ok {
 		remaining := make([]any, 0, len(currentItems))
 		for _, raw := range currentItems {
-			entry, _ := raw.(playlistEntry)
+			entry, _ := raw.(playlistview.Entry)
 			if !remove[entry.MediaID] {
 				remaining = append(remaining, raw)
 			}
@@ -595,7 +596,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if err = tx.Commit(); err != nil {
 		return httputil.Internal("Failed to create playlist", err)
 	}
-	item, _, err := Playlist(r.Context(), h.db, id)
+	item, _, err := playlistview.Load(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -607,7 +608,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 // of its loaded episodes: PlaylistController.addItem appends the added episode
 // with the library item it loaded WITH episodes (PlaylistController.js:321-328),
 // unlike a reloaded playlist whose podcasts have none.
-func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistEntry) any {
+func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistview.Entry) any {
 	minified, ok := e.LibraryItem.(libitem.Minified)
 	podcast, isPodcast := minified.Media.(libitem.PodcastMedia)
 	if !ok || !isPodcast {

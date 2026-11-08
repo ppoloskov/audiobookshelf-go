@@ -18,7 +18,7 @@ func batchRig(t *testing.T) *authorRig {
 	for _, ddl := range []string{
 		`CREATE TABLE mediaProgresses (id TEXT,userId TEXT,mediaItemId TEXT)`,
 		`CREATE TABLE playlistMediaItems (id TEXT,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`,
-		`CREATE TABLE playlists (id TEXT,userId TEXT)`,
+		`CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`,
 		`CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT)`,
 		`CREATE TABLE mediaItemShares (id TEXT,mediaItemType TEXT,mediaItemId TEXT)`,
 	} {
@@ -189,5 +189,56 @@ func TestFinishItemWritesReschedulesPodcast(t *testing.T) {
 		itemWrite{itemID: "unsaved", reschedule: true})
 	if err != nil || len(rescheduled) != 1 || rescheduled[0] != "changed" {
 		t.Fatalf("rescheduled %v, err %v", rescheduled, err)
+	}
+}
+
+// ApiRouter.js:384 -> Playlist.removeMediaItemsFromPlaylists: deleting an item
+// tells each affected playlist's owner (Playlist.js:199-206).
+func TestDeleteItemEmitsPlaylistEvents(t *testing.T) {
+	rig := batchRig(t)
+	if _, err := rig.db.Exec(`ALTER TABLE playlists RENAME TO playlists_old`); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`CREATE TABLE podcastEpisodes (id TEXT,podcastId TEXT)`,
+		`CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`,
+		`INSERT INTO playlists VALUES ('shared','Mix',NULL,'2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','l1','u1'),('solo','Solo',NULL,'2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','l1','u2')`,
+		`INSERT INTO playlistMediaItems VALUES ('x1','b1','book',1,'shared'),('x2','b2','book',2,'shared'),('x3','b1','book',1,'solo')`,
+	} {
+		if _, err := rig.db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type sent struct {
+		audience, event string
+		payload         any
+	}
+	var got []sent
+	rig.h.emit = func(audience, event string, payload any) { got = append(got, sent{audience, event, payload}) }
+	if status, body := post(rig, "/api/items/batch/delete", `{"libraryItemIds":["i1"]}`, rootUser()); status != 200 {
+		t.Fatalf("delete: %d %q", status, body)
+	}
+	var updated, removed *sent
+	for i, e := range got {
+		switch e.event {
+		case "playlist_updated":
+			updated = &got[i]
+		case "playlist_removed":
+			removed = &got[i]
+		}
+	}
+	if updated == nil || updated.audience != "u1" {
+		t.Fatalf("playlist_updated = %+v", updated)
+	}
+	body, _ := updated.payload.(map[string]any)
+	if items, _ := body["items"].([]any); body["id"] != "shared" || len(items) != 1 {
+		t.Fatalf("updated payload = %+v", body)
+	}
+	if removed == nil || removed.audience != "u2" {
+		t.Fatalf("playlist_removed = %+v", removed)
+	}
+	body, _ = removed.payload.(map[string]any)
+	if items, _ := body["items"].([]any); body["id"] != "solo" || body["name"] != "Solo" || len(items) != 0 {
+		t.Fatalf("removed payload = %+v", body)
 	}
 }

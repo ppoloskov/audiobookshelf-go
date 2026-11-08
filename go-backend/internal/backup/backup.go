@@ -249,7 +249,11 @@ func (h *Handler) Create(ctx context.Context) (Backup, error) {
 	}
 	logging.Infof("[BackupManager] Backup successful %s", backup.ID) // BackupManager.js:366
 	backups := h.list()
-	h.notifyEvent(ctx, "onBackupCompleted", map[string]any{"completionTime": backup.CreatedAt, "backupPath": backup.FullPath, "backupSize": backup.FileSize, "backupCount": len(backups), "removedOldest": len(before) >= h.options().BackupsToKeep})
+	var removedOldest any = "false" // NotificationManager.js:62: removedOldest || 'false'
+	if len(before) >= h.options().BackupsToKeep {
+		removedOldest = true
+	}
+	h.notifyEvent(ctx, "onBackupCompleted", map[string]any{"completionTime": backup.CreatedAt, "backupPath": backup.FullPath, "backupSize": backup.FileSize, "backupCount": len(backups), "removedOldest": removedOldest})
 	return backup, nil
 }
 

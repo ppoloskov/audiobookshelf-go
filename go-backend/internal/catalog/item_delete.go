@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -60,13 +61,14 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	authors, series, err := deleteItemRows(ctx, tx, []itemScope{item})
+	authors, series, playlistChanges, err := deleteItemRows(ctx, tx, []itemScope{item})
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
+	playlistview.Announce(ctx, h.db, h.emit, playlistChanges)
 	linked.authors = append(linked.authors, authors...)
 	linked.series = append(linked.series, series...)
 	if h.cfg.MetadataPath != "" {
@@ -85,7 +87,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 // deleteItemRows removes the items and everything that references them (the
 // one list of tables to extend when a table starts referencing a book or an
 // episode). It returns the authors and series the books were linked to.
-func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors, series []string, err error) {
+func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors, series []string, playlistChanges []store.PlaylistChange, err error) {
 	var itemIDs, bookIDs, podcastIDs []string
 	for _, item := range items {
 		itemIDs = append(itemIDs, item.id)
@@ -120,7 +122,7 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	authors = list("authorId", "bookAuthors", "bookId", bookIDs)
 	series = list("seriesId", "bookSeries", "bookId", bookIDs)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	exec := func(table, by string, ids []string) {
 		if err != nil || len(ids) == 0 {
@@ -132,7 +134,7 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	mediaIDs := append(append([]string{}, bookIDs...), episodeIDs...)
 	exec("mediaProgresses", "mediaItemId", mediaIDs)
 	if err == nil && len(mediaIDs) > 0 {
-		err = store.RemoveFromPlaylists(ctx, tx, mediaIDs)
+		playlistChanges, err = store.RemoveFromPlaylists(ctx, tx, mediaIDs)
 	}
 	if err == nil && len(itemIDs) > 0 {
 		err = q.DeleteLibraryItemFeedsByItemIDs(ctx, store.Texts(itemIDs))
@@ -149,5 +151,5 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	exec("podcastEpisodes", "id", episodeIDs)
 	exec("podcasts", "id", podcastIDs)
 	exec("libraryItems", "id", itemIDs)
-	return authors, series, err
+	return authors, series, playlistChanges, err
 }

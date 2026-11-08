@@ -35,6 +35,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
@@ -55,10 +56,14 @@ type Handler struct {
 	scheduleIDs     map[string]cron.EntryID
 	failedCheckMap  map[string]int
 	maxFailedChecks int
+	notify          NotificationFunc
 }
 
-func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
-	h := &Handler{db: db, cfg: cfg, emit: emit, client: httputil.SafeClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: cfg.MaxFailedEpisodeChecks}
+// NotificationFunc delivers a notification event (notifications.Handler.TriggerEvent).
+type NotificationFunc func(context.Context, string, map[string]any) error
+
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, notify NotificationFunc) *Handler {
+	h := &Handler{db: db, cfg: cfg, emit: emit, notify: notify, client: httputil.SafeClient(), scheduleIDs: map[string]cron.EntryID{}, failedCheckMap: map[string]int{}, maxFailedChecks: cfg.MaxFailedEpisodeChecks}
 	h.startSchedules()
 	return h
 }
@@ -423,7 +428,8 @@ func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeI
 		return err
 	}
 	defer tx.Rollback()
-	if err = store.RemoveFromPlaylists(ctx, tx, []string{episodeID}); err != nil {
+	playlistChanges, err := store.RemoveFromPlaylists(ctx, tx, []string{episodeID})
+	if err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID); err != nil {
@@ -438,7 +444,11 @@ func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeI
 	if _, err = tx.ExecContext(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, item.MediaID, now, item.MediaID); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	playlistview.Announce(ctx, h.db, h.emit, playlistChanges)
+	return nil
 }
 
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
@@ -876,6 +886,7 @@ func (h *Handler) runScheduled(itemID string) {
 		h.queueMu.Unlock()
 		if disable {
 			logging.Errorf("[PodcastManager] runEpisodeCheck %d failed attempts at checking episodes for %q - disabling auto download", failed, str(item.Podcast.Title)) // PodcastManager.js:343
+			h.notifyFeedFailure("onRSSFeedDisabled", item, failed)
 			now := dbtime.Now()
 			if _, err := h.db.Exec(`UPDATE podcasts SET autoDownloadEpisodes=0,lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
 				logging.Errorf("[podcasts] auto-download disable update failed for %s: %v", item.MediaID, err)
@@ -885,6 +896,7 @@ func (h *Handler) runScheduled(itemID string) {
 				h.emit.ToAdmins("item_updated", h.expanded(context.Background(), updated))
 			}
 		} else {
+			h.notifyFeedFailure("onRSSFeedFailed", item, failed)
 			now := dbtime.Now()
 			if _, err := h.db.Exec(`UPDATE podcasts SET lastEpisodeCheck=?,updatedAt=? WHERE id=?`, now, now, item.MediaID); err != nil {
 				logging.Errorf("[podcasts] episode check bookkeeping update failed for %s: %v", item.MediaID, err)

@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -256,6 +257,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	if removed == nil {
 		return httputil.Status(404, "")
 	}
+	var playlistChanges []store.PlaylistChange
 	target := removed.Path()
 	if target == "" || !h.pathAllowed(r.Context(), target, scope.libraryID) {
 		return httputil.Status(404, "")
@@ -298,7 +300,8 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if err := store.RemoveFromPlaylists(r.Context(), tx, []string{episodeID}); err != nil {
+		playlistChanges, err = store.RemoveFromPlaylists(r.Context(), tx, []string{episodeID})
+		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {
@@ -316,6 +319,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
+	playlistview.Announce(r.Context(), h.db, h.emit, playlistChanges)
 	if err := h.itemUpdated(r.Context(), itemID); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
