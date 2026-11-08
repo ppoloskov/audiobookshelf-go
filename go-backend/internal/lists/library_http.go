@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/textsort"
@@ -61,7 +62,7 @@ func (h *Handler) libraryCollections(w http.ResponseWriter, r *http.Request) err
 		// Collection.getOldCollectionsJsonExpanded attaches the full feed
 		// (feed.toOldJSON), not the minified one.
 		if slices.Contains(include, "rssfeed") {
-			feed, err := h.collectionRSSFeed(r, id)
+			feed, err := feeds.OfEntity(r.Context(), h.db, "collection", id)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}

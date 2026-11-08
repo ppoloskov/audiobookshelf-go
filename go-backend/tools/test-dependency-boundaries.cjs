@@ -64,15 +64,21 @@ try {
   rejects('feature-nested', 'internal/scanner/nested/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('leaf-direct', 'internal/httputil/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('leaf-nested', 'internal/httputil/nested/fixture.go', 'audiobookshelf-compat/internal/catalog');
+  rejects('leaf-wire', 'internal/logging/fixture.go', 'audiobookshelf-compat/internal/wire');
+  rejects('foundation-feature', 'internal/store/fixture.go', 'audiobookshelf-compat/internal/catalog');
+  rejects('feature-server', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/server');
   rejects('production-httptest', 'internal/scanner/fixture.go', 'net/http/httptest');
   // The rules must permit intended dependencies, not merely reject everything.
   allows('wire-standard', 'internal/wire/fixture.go', 'encoding/json');
   allows('wire-nested-standard', 'internal/wire/nested/fixture.go', 'encoding/json');
-  allows('leaf-wire', 'internal/httputil/fixture.go', 'audiobookshelf-compat/internal/wire', {
-    'internal/wire/wire.go': 'package wire\ntype DTO struct{}\n',
+  allows('leaf-logging', 'internal/httputil/fixture.go', 'audiobookshelf-compat/internal/logging', {
+    'internal/logging/logging.go': 'package logging\ntype Logger struct{}\n',
   });
-  allows('leaf-nested-wire', 'internal/httputil/nested/fixture.go', 'audiobookshelf-compat/internal/wire', {
-    'internal/wire/wire.go': 'package wire\ntype DTO struct{}\n',
+  allows('leaf-nested-logging', 'internal/httputil/nested/fixture.go', 'audiobookshelf-compat/internal/logging', {
+    'internal/logging/logging.go': 'package logging\ntype Logger struct{}\n',
+  });
+  allows('foundation-leaf', 'internal/store/fixture.go', 'audiobookshelf-compat/internal/dbtime', {
+    'internal/dbtime/dbtime.go': 'package dbtime\ntype Clock struct{}\n',
   });
   allows('feature-leaf', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/httputil', {
     'internal/httputil/leaf.go': 'package httputil\ntype Helper struct{}\n',

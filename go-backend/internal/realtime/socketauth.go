@@ -14,6 +14,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/users"
 )
 
 func (h *Hub) handleAuth(s *Socket, raw any) {
@@ -92,7 +93,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 		}
 	}
 
-	h.Emit(events.Admins, "user_online", h.publicUser(user))
+	h.Emit(events.Admins, "user_online", users.OnlineUserDTO(user, h.backend().Session(user.ID)))
 	initial := map[string]any{"userId": user.ID, "username": user.Username}
 	if access.AdminUser(user) {
 		initial["usersOnline"] = h.UsersOnline()

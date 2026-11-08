@@ -1,7 +1,10 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textsort"
@@ -14,8 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/store"
@@ -66,8 +67,8 @@ type planInput struct {
 	now     string // DB-format time of this import
 
 	fileDiff                   libraryFileDiff
-	audio                      []map[string]any // probed or kept entries, in file order
-	scannedNew                 []string         // audio paths new to an existing book
+	audio                      []libitem.AudioFile // probed or kept entries, in file order
+	scannedNew                 []string            // audio paths new to an existing book
 	md                         bookMetadata
 	title, author, series, seq string
 
@@ -90,7 +91,7 @@ type itemPlan struct {
 	added   bool
 	updated bool // the import result's "updated" flag
 
-	chapters     []map[string]any
+	chapters     any // []libitem.AudioChapter, or the sidecar's chapters verbatim
 	authors      []string
 	duration     float64
 	size         int64
@@ -116,12 +117,10 @@ func plan(in planInput) itemPlan {
 			p.skip = true
 			return p
 		}
-		audio = smartAudioOrder(audio)
+		smartAudioOrder(audio)
 	}
 	for _, af := range audio {
-		if d, ok := af["duration"].(float64); ok {
-			p.duration += d
-		}
+		p.duration += af.Duration
 	}
 	p.audio = audio
 	p.chapters = buildChapters(audio, in.title)
@@ -168,28 +167,22 @@ func plan(in planInput) itemPlan {
 	return p
 }
 
-func planEpisodes(audio []map[string]any) []episodePlan {
+func planEpisodes(audio []libitem.AudioFile) []episodePlan {
 	out := make([]episodePlan, 0, len(audio))
 	for i, af := range audio {
 		filename := audioFilename(af)
-		title := filename
-		if tags, ok := af["metadata"].(map[string]any); ok {
-			if val, ok := tags["tagTitle"].(string); ok && val != "" {
-				title = val
-			}
-		}
 		raw, _ := json.Marshal(af)
-		out = append(out, episodePlan{filename: filename, title: title, audioJSON: string(raw), offset: i})
+		out = append(out, episodePlan{filename: filename, title: filename, audioJSON: string(raw), offset: i})
 	}
 	return out
 }
 
 func (s *Scanner) gather(ctx context.Context, l library, g *group, force bool) (planInput, error) {
-	in := planInput{lib: l, g: g, force: force, old: g.old, now: nowDB()}
+	in := planInput{lib: l, g: g, force: force, old: g.old, now: dbtime.Now()}
 	added := g.old == nil
-	in.itemID, in.mediaID = uuid.NewString(), uuid.NewString()
+	in.itemID, in.mediaID = ids.Must(), ids.Must()
 	var stored []libraryFile
-	var oldAudio []map[string]any
+	var oldAudio []libitem.AudioFile
 	var oldID string
 	if !added {
 		o := g.old
@@ -235,9 +228,9 @@ func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 		title = strings.TrimSuffix(filepath.Base(g.path), filepath.Ext(g.path))
 	}
 	if l.mediaType != "podcast" {
-		var firstTags map[string]any
+		var firstTags map[string]string
 		if len(in.audio) > 0 {
-			firstTags, _ = in.audio[0]["metaTags"].(map[string]any)
+			firstTags = in.audio[0].MetaTags
 		}
 		abs, hasABS := readABSMetadata(g, oldID, s.cfg.MetadataPath)
 		in.md = mergeBookMetadataWithABS(title, author, series, seq, g, l.metadataPrecedence, firstTags, abs, hasABS)
@@ -257,10 +250,10 @@ func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 // probeFiles builds the audio entries: unchanged files keep their stored
 // entry untouched, as BookScanner.rescanExistingBookLibraryItem only rescans
 // added or modified files (BookScanner.js:68-96); the rest are probed.
-func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []map[string]any) error {
+func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []libitem.AudioFile) error {
 	g, added := in.g, in.old == nil
 	touched := in.fileDiff.touchedPaths()
-	in.audio = make([]map[string]any, 0, len(g.files))
+	in.audio = make([]libitem.AudioFile, 0, len(g.files))
 	for _, f := range g.files {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -268,18 +261,16 @@ func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []map[
 		if in.itemIno == "" {
 			in.itemIno = inode(f.info)
 		}
-		var prior map[string]any
+		var prior *libitem.AudioFile
 		if !added {
 			prior = findStoredAudio(oldAudio, f.path, inode(f.info))
 			if !touched[f.path] && prior != nil {
-				in.audio = append(in.audio, prior)
+				in.audio = append(in.audio, *prior)
 				continue
 			}
 		}
-		fileMeta := makeFileMeta(g.path, f)
-		flat, _ := fileMeta["metadata"].(map[string]any)
-		ino, _ := fileMeta["ino"].(string)
-		af, err := probeAudio(ctx, f.path, flat, ino)
+		lf := newLibraryFile(g.path, f)
+		af, err := probeAudio(ctx, f.path, lf.Metadata, lf.Ino)
 		if err != nil {
 			logging.Warnf("[Scanner] Skipping %q: ffprobe failed: %v", f.path, err)
 			continue
@@ -287,16 +278,14 @@ func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []map[
 		if af == nil {
 			continue
 		}
-		now := time.Now().UnixMilli()
-		af["addedAt"], af["updatedAt"] = now, now
 		if prior != nil {
 			// AudioFile.updateFromScan keeps the established entry identity
 			// (AudioFile.js:171-196); scanned data replaces probe fields.
-			af["addedAt"], af["updatedAt"], af["manuallyVerified"] = prior["addedAt"], prior["updatedAt"], prior["manuallyVerified"]
+			af.AddedAt, af.UpdatedAt, af.ManuallyVerified = prior.AddedAt, prior.UpdatedAt, prior.ManuallyVerified
 		} else if !added {
 			in.scannedNew = append(in.scannedNew, f.path)
 		}
-		in.audio = append(in.audio, af)
+		in.audio = append(in.audio, *af)
 	}
 	return nil
 }
@@ -319,7 +308,7 @@ func (p itemPlan) applyPodcast(ctx context.Context, tx *sql.Tx) error {
 			continue
 		}
 		n := count + ep.offset + 1
-		if _, err := tx.ExecContext(ctx, `INSERT INTO podcastEpisodes(id,podcastId,"index",season,episode,episodeType,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,pubDate,audioFile,chapters,extraData,publishedAt,createdAt,updatedAt) VALUES(?,?,?,NULL,?,'full',?,NULL,NULL,NULL,NULL,NULL,NULL,?,'[]','{}',NULL,?,?)`, uuid.NewString(), p.mediaID, n, strconv.Itoa(n), ep.title, ep.audioJSON, p.now, p.now); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO podcastEpisodes(id,podcastId,"index",season,episode,episodeType,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,pubDate,audioFile,chapters,extraData,publishedAt,createdAt,updatedAt) VALUES(?,?,?,NULL,?,'full',?,NULL,NULL,NULL,NULL,NULL,NULL,?,'[]','{}',NULL,?,?)`, ids.Must(), p.mediaID, n, strconv.Itoa(n), ep.title, ep.audioJSON, p.now, p.now); err != nil {
 			return err
 		}
 	}

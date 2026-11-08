@@ -36,6 +36,7 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/users"
 )
 
 type Handler struct {
@@ -55,7 +56,7 @@ type session struct {
 	UserID        string           `json:"userId"`
 	LibraryID     string           `json:"libraryId"`
 	LibraryItemID string           `json:"libraryItemId"`
-	BookID        string           `json:"-"`
+	MediaID       string           `json:"-"` // the book or podcast row id
 	EpisodeID     string           `json:"-"`
 	MediaType     string           `json:"mediaType"`
 	MediaMetadata any              `json:"mediaMetadata"` // libitem.BookMetadataFull or PodcastMetadata
@@ -105,8 +106,22 @@ type sessionJSON struct {
 	} `json:"user,omitempty"`
 }
 
+// mediaRef is the progress row the session reads and writes: the episode of a
+// podcast session, otherwise the book (PlaybackSession.js:214, bookId is null
+// when there is an episodeId).
+func (s *session) mediaRef() (id, kind string) {
+	if s.EpisodeID != "" {
+		return s.EpisodeID, "podcastEpisode"
+	}
+	return s.MediaID, "book"
+}
+
 func (s *session) view() sessionJSON {
-	return sessionJSON{session: s, BookID: nullID(s.BookID), EpisodeID: nullID(s.EpisodeID), ServerVersion: version.Server}
+	var bookID string
+	if s.EpisodeID == "" {
+		bookID = s.MediaID
+	}
+	return sessionJSON{session: s, BookID: nullID(bookID), EpisodeID: nullID(s.EpisodeID), ServerVersion: version.Server}
 }
 
 func (s *session) client() sessionJSON {
@@ -229,10 +244,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("Internal Server Error", err)
 	}
 	now := time.Now()
-	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, EpisodeID: episodeID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, PlayMethod: playMethod, MediaPlayer: body.MediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, StartedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Date: now.Format("2006-01-02"), DayOfWeek: now.Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
-	if item.MediaType == "book" {
-		s.BookID = item.MediaID
-	}
+	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaID: item.MediaID, EpisodeID: episodeID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, PlayMethod: playMethod, MediaPlayer: body.MediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, StartedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Date: now.Format("2006-01-02"), DayOfWeek: now.Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if playMethod == 2 {
 		if !mediatools.FFmpegAvailable() {
 			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
@@ -252,7 +264,9 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	h.mu.Lock()
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
-	h.emit.ToAdmins("user_stream_update", h.publicUser(user, s))
+	public := s.client()
+	public.LibraryItem = json.RawMessage("null")
+	h.emit.ToAdmins("user_stream_update", users.OnlineUserDTO(user, public))
 	httputil.WriteJSON(w, http.StatusOK, s.client())
 	return nil
 }
@@ -469,10 +483,7 @@ func (h *Handler) saveSession(ctx context.Context, s *session) error {
 }
 
 func (h *Handler) saveSessionRecord(ctx context.Context, s *session) error {
-	mediaID, kind := s.BookID, "book"
-	if s.EpisodeID != "" {
-		mediaID, kind = s.EpisodeID, "podcastEpisode"
-	}
+	mediaID, kind := s.mediaRef()
 	// Book.oldMetadataToJSON / Podcast.oldMetadataToJSON: TS reads these keys
 	// back with JSON.parse, so a missing value is an explicit null.
 	metadata, err := json.Marshal(s.MediaMetadata)
@@ -522,19 +533,14 @@ func (h *Handler) libraryFinishSettings(ctx context.Context, libraryID string) (
 // 0 when absent; lastUpdate is set for offline sessions, whose progress is
 // skipped when the stored row is newer than the session.
 func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, duration float64, lastUpdate *int64) (bool, error) {
-	mediaID := s.BookID
-	if s.EpisodeID != "" {
-		mediaID = s.EpisodeID
-	}
+	mediaID, _ := s.mediaRef()
 	if lastUpdate != nil {
-		prog, err := sqlc.New(h.db).GetMediaProgressByUserItem(ctx, sqlc.GetMediaProgressByUserItemParams{UserID: store.Text(userID), MediaItemID: store.Text(mediaID)})
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		stored, ok, err := progressdto.LastUpdate(ctx, h.db, userID, mediaID)
+		if err != nil {
 			return false, err
 		}
-		if err == nil {
-			if stored, ok := dbtime.Millis(prog.Updatedat).(int64); ok && stored > *lastUpdate {
-				return false, nil
-			}
+		if ok && stored > *lastUpdate {
+			return false, nil
 		}
 	}
 	payload := progressdto.Payload{
@@ -575,19 +581,49 @@ func (h *Handler) openSessions() []sessionJSON {
 		out = append(out, s.view())
 	}
 	h.mu.RUnlock()
+	names := map[string]string{}
 	for i := range out {
-		u, _ := sqlc.New(h.db).GetUserByID(context.Background(), out[i].UserID)
-		out[i].User = &struct {
-			ID       string `json:"id"`
-			Username string `json:"username"`
-		}{out[i].UserID, u.Username.String}
+		out[i].setUser(h.db, names)
 	}
 	return out
 }
 
+// setUser fills the listing's user stub; names caches the lookups of one pass.
+func (v *sessionJSON) setUser(db *sql.DB, names map[string]string) {
+	name, ok := names[v.UserID]
+	if !ok {
+		u, _ := sqlc.New(db).GetUserByID(context.Background(), v.UserID)
+		name = u.Username.String
+		names[v.UserID] = name
+	}
+	v.User = &struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+	}{v.UserID, name}
+}
+
+// SessionOf is one open session of the user, as the listing shows it, or nil.
+// It returns any so that "none" is a nil interface for the online-user view.
+func (h *Handler) SessionOf(userID string) any {
+	h.mu.RLock()
+	var found *session
+	for _, s := range h.sessions {
+		if s.UserID == userID {
+			found = s
+			break
+		}
+	}
+	h.mu.RUnlock()
+	if found == nil {
+		return nil
+	}
+	v := found.view()
+	v.setUser(h.db, map[string]string{})
+	return v
+}
+
 // OpenSessions returns the current in-memory playback sessions in the same
-// shape used by GET /api/sessions/open. Runtime APIs use it to include active
-// sessions in their online-users response.
+// shape used by GET /api/sessions/open, for the online-users response.
 func (h *Handler) OpenSessions() []map[string]any {
 	raw, _ := json.Marshal(h.openSessions())
 	out := []map[string]any{}
@@ -603,30 +639,6 @@ func (h *Handler) removeOpenSession(id string) {
 	if s != nil && s.stream != nil {
 		_ = s.stream.close()
 	}
-}
-
-func (h *Handler) publicUser(user store.User, s *session) map[string]any {
-	client := s.client()
-	client.LibraryItem = json.RawMessage("null")
-	return map[string]any{"id": user.ID, "username": user.Username, "type": user.Type, "session": client, "lastSeen": user.LastSeen, "createdAt": user.CreatedAt}
-}
-
-func validUUID(v string) bool {
-	if len(v) != 36 {
-		return false
-	}
-	for i, c := range v {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if c != '-' {
-				return false
-			}
-			continue
-		}
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
 }
 
 // tracks are the session's audio tracks as the client reads them: each file's

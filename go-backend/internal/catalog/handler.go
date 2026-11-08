@@ -23,10 +23,9 @@ type DownloadQueue interface {
 // Deps are the collaborators catalog routes use outside this package. They are
 // interfaces and functions defined here and satisfied by feature packages,
 // because feature packages do not import each other; the composition root
-// supplies them to New. Every field is optional.
+// supplies them to New. Filters is required; every other field is optional.
 type Deps struct {
-	// Filters is the library filter data cache shared with the scanner; New
-	// makes its own when nil.
+	// Filters is the library filter data cache shared with the scanner.
 	Filters *filterdata.Cache
 	// Downloads reports the podcast downloads GET /api/items/:id?include=downloads lists.
 	Downloads DownloadQueue
@@ -57,24 +56,9 @@ type Handler struct {
 	deps    Deps
 }
 
-type Option func(*Handler)
-
-func WithDeps(deps Deps) Option {
-	return func(h *Handler) {
-		h.deps = deps
-		if deps.Filters != nil {
-			h.filters = deps.Filters
-		}
-	}
-}
-
 // New's emit callback sends events from catalog write routes.
-func New(db *sql.DB, cfg config.Config, emit events.Emitter, options ...Option) *Handler {
-	h := &Handler{db: db, cfg: cfg, emit: emit, filters: filterdata.NewCache()}
-	for _, option := range options {
-		option(h)
-	}
-	return h
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler {
+	return &Handler{db: db, cfg: cfg, emit: emit, filters: deps.Filters, deps: deps}
 }
 
 func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]libitem.Item, error) {
@@ -128,4 +112,11 @@ func pageOf[T any](list []T, page, limit int) []T {
 		return []T{}
 	}
 	return list[start:min(start+limit, len(list))]
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

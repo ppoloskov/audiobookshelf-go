@@ -73,3 +73,50 @@ func DeviceAllowed(d map[string]any, u store.User) bool {
 	}
 	return false
 }
+
+// VisibleTo is the e-reader devices of an email-settings document that user
+// may send to (EmailSettings.getEReaderDevices).
+func VisibleTo(settings map[string]any, u store.User) []any {
+	result := []any{}
+	for _, raw := range jsonvalue.Array(settings["ereaderDevices"]) {
+		if device, ok := raw.(map[string]any); ok && device["name"] != nil && device["email"] != nil && DeviceAllowed(device, u) {
+			result = append(result, device)
+		}
+	}
+	return result
+}
+
+// CleanDevices keeps the e-reader devices with a name and an email and resets
+// an unknown or unsatisfiable availabilityOption to adminOrUp; only
+// specificUsers devices keep their users (EmailSettings.update).
+func CleanDevices(a []any) []any {
+	out := []any{}
+	valid := map[string]bool{"adminOrUp": true, "userOrUp": true, "guestOrUp": true, "specificUsers": true}
+	for _, raw := range a {
+		d, ok := raw.(map[string]any)
+		if !ok || d["name"] == nil || d["email"] == nil {
+			continue
+		}
+		level, _ := d["availabilityOption"].(string)
+		if !valid[level] || (level == "specificUsers" && !hasDeviceUsers(d["users"])) {
+			d["availabilityOption"] = "adminOrUp"
+		}
+		if d["availabilityOption"] != "specificUsers" && hasDeviceUsers(d["users"]) {
+			d["users"] = []any{}
+		}
+		out = append(out, d)
+	}
+	return out
+}
+func hasDeviceUsers(value any) bool {
+	switch users := value.(type) {
+	case []any:
+		return len(users) > 0
+	case string:
+		return users != ""
+	case map[string]any:
+		return jsonvalue.Truthy(users["length"])
+	default:
+		return false
+	}
+}

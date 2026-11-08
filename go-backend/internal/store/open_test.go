@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,4 +42,27 @@ func TestOpenTransactionRollback(t *testing.T) {
 	if username != "alice" {
 		t.Fatalf("rollback left username %q", username)
 	}
+}
+
+// A database from another server version is refused: Go cannot migrate, and
+// upstream would have migrated it when it reconnected after a restore.
+func TestOpenRefusesOtherMigrationState(t *testing.T) {
+	path := createFixture(t)
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	if _, err = db.Exec(`UPDATE migrationsMeta SET value = '2.36.0' WHERE key = 'version'`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if _, err = Open(path); !errors.Is(err, ErrSchema) {
+		t.Fatalf("Open = %v, want ErrSchema", err)
+	}
+	s, err := OpenUnchecked(path)
+	if err != nil {
+		t.Fatalf("OpenUnchecked must still open it: %v", err)
+	}
+	s.Close()
 }

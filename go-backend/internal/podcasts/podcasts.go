@@ -327,41 +327,11 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item lib
 		return httputil.Status(404, "")
 	}
 	if r.URL.Query().Get("hard") == "1" {
-		metadata, _ := ep.AudioFile["metadata"].(map[string]any)
-		if path, ok := metadata["path"].(string); ok && path != "" {
+		if path := ep.AudioFile.Path(); path != "" {
 			_ = os.Remove(path)
 		}
 	}
-	ino := fmt.Sprint(ep.AudioFile["ino"])
-	files := []map[string]any{}
-	for _, f := range h.rawLibraryFiles(r.Context(), item.ID) {
-		if f["ino"] != ino {
-			files = append(files, f)
-		}
-	}
-	fileBytes, _ := json.Marshal(files)
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	now := dbtime.Now()
-	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(r.Context(), episodeID); err == nil {
-		_, err = tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID)
-	}
-	if err == nil {
-		_, err = tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE id=?`, episodeID)
-	}
-	if err == nil {
-		_, err = tx.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, string(fileBytes), now, item.ID)
-	}
-	if err == nil {
-		_, err = tx.ExecContext(r.Context(), `UPDATE podcasts SET numEpisodes=?,updatedAt=? WHERE id=?`, len(item.Podcast.Episodes)-1, now, item.MediaID)
-	}
-	if err != nil {
-		_ = tx.Rollback()
-		return httputil.Internal("database write failed", err)
-	}
-	if err = tx.Commit(); err != nil {
+	if err := h.deleteEpisode(r.Context(), item, episodeID, ep.AudioFile.Ino()); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	updated, err := h.loadItem(r.Context(), item.ID)
@@ -442,13 +412,47 @@ func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expande
 	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes())
 }
 
+// deleteEpisode removes an episode row with its playlist entries and progress,
+// drops its audio file from the item's libraryFiles and recounts numEpisodes.
+func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeID, ino string) error {
+	files := []libitem.File{}
+	for _, f := range h.rawLibraryFiles(ctx, item.ID) {
+		if f.Ino() != ino {
+			files = append(files, f)
+		}
+	}
+	encoded, _ := json.Marshal(files)
+	now := dbtime.Now()
+	tx, err := h.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(ctx, episodeID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM podcastEpisodes WHERE id=?`, episodeID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, string(encoded), now, item.ID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, item.MediaID, now, item.MediaID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
-func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []map[string]any {
+func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []libitem.File {
 	var raw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw); err != nil {
 		logging.Errorf("[PodcastManager] read libraryFiles of %s: %v", itemID, err)
 	}
-	return store.DecodeJSONSlice[map[string]any](raw)
+	return store.DecodeJSONSlice[libitem.File](raw)
 }
 
 func str(s *string) string {

@@ -90,9 +90,6 @@ DELETE FROM feeds WHERE entityType = 'libraryItem' AND entityId IN (sqlc.slice(i
 -- name: ListFeedEpisodes :many
 SELECT * FROM feedEpisodes WHERE feedId = CAST(sqlc.arg(feed_id) AS TEXT) ORDER BY rowid;
 
--- name: ListFeedEpisodesNewestFirst :many
-SELECT * FROM feedEpisodes WHERE feedId = CAST(sqlc.arg(feed_id) AS TEXT) ORDER BY pubDate DESC;
-
 -- name: GetFeedEpisodeFilePath :one
 SELECT fe.filePath FROM feedEpisodes fe
 JOIN feeds f ON f.id = fe.feedId

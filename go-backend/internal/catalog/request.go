@@ -8,7 +8,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -16,15 +15,6 @@ import (
 func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())
 	return user
-}
-
-func sliceHas(list []string, v string) bool {
-	for _, e := range list {
-		if e == v {
-			return true
-		}
-	}
-	return false
 }
 
 // jsonBodyObject is express.json for a handler that reads named keys: a
@@ -55,11 +45,6 @@ func firstNonEmpty(values ...string) string {
 	}
 	return ""
 }
-
-var uuidPattern = regexp.MustCompile(`(?i)^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$`)
-
-// isUUID is utils.isUUID, uuid.validate.
-func isUUID(s string) bool { return uuidPattern.MatchString(s) }
 
 func requestString(data map[string]json.RawMessage, key string) (any, bool) {
 	raw, ok := data[key]

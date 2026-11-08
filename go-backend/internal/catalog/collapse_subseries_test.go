@@ -97,7 +97,7 @@ func subseriesFixture(t *testing.T) (*Handler, store.User) {
 	}
 	exec(`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('m1','1','A','mega',?),('m2','2','B','mega',?),('m4',NULL,'D','mega',?),('m3','3','C','mega',?),('s1','1','A','sub',?),('s2','2','B','sub',?)`, now, now, now, now, now, now)
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
-	return New(db, config.Config{}, nil), user
+	return New(db, config.Config{}, nil, testDeps()), user
 }
 
 func getSubseriesPage(t *testing.T, h *Handler, user store.User, query string) (page struct {
@@ -137,7 +137,7 @@ func getSubseriesPage(t *testing.T, h *Handler, user store.User, query string) (
 	return page, w.Body.String()
 }
 
-func ids(page []string) string { return strings.Join(page, ",") }
+func joinIDs(page []string) string { return strings.Join(page, ",") }
 
 // TestCollapseSubseriesFilteredPage covers handleCollapseSubseries on the
 // real schema: A and B collapse behind the sub-series entry at A's place,
@@ -151,7 +151,7 @@ func TestCollapseSubseriesFilteredPage(t *testing.T) {
 		for _, r := range p.Results {
 			out = append(out, r.ID)
 		}
-		return ids(out), p.Total, p.SortBy
+		return joinIDs(out), p.Total, p.SortBy
 	}
 	if got, total, _ := order(""); got != "liA,liC,liD" || total != 3 {
 		// A (collapsed, seq 1), C (seq 3), D (seq null sorts after digits).

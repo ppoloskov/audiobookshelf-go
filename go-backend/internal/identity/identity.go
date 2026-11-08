@@ -6,7 +6,6 @@ package identity
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/events"
-	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/settingsdoc"
 	"bytes"
@@ -25,8 +24,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,12 +42,6 @@ import (
 	"audiobookshelf-compat/internal/users"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
-)
-
-const (
-	accessTokenTTL  = time.Hour
-	refreshTokenTTL = 30 * 24 * time.Hour
-	refreshGraceTTL = 10 * time.Minute
 )
 
 type Handler struct {
@@ -118,25 +109,17 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("identity: database is required")
 	}
-	for table, columns := range map[string][]string{
-		"users":     {"id", "username", "email", "pash", "type", "token", "isActive", "isLocked", "lastSeen", "permissions", "bookmarks", "extraData", "createdAt", "updatedAt"},
-		"settings":  {"key", "value"},
-		"libraries": {"id", "displayOrder"},
-		"sessions":  {"id", "ipAddress", "userAgent", "refreshToken", "expiresAt", "createdAt", "updatedAt", "userId", "lastRefreshToken", "lastRefreshTokenExpiresAt"},
-		"apiKeys":   {"id", "isActive", "expiresAt", "lastUsedAt", "userId", "updatedAt"},
-	} {
-		if err := requireColumns(db, table, columns); err != nil {
-			return nil, err
-		}
+	if cfg.Auth == (config.Auth{}) {
+		cfg.Auth = config.DefaultAuth()
 	}
 	h := &Handler{
 		db: db, cfg: cfg, emit: emit, secret: []byte(cfg.JWTSecret),
-		accessTTL:    durationFromEnv("ACCESS_TOKEN_EXPIRY", accessTokenTTL),
-		refreshTTL:   durationFromEnv("REFRESH_TOKEN_EXPIRY", refreshTokenTTL),
-		refreshGrace: durationFromEnv("REFRESH_TOKEN_GRACE_PERIOD", refreshGraceTTL),
-		rateMax:      intFromEnv("RATE_LIMIT_AUTH_MAX", 40, true),
-		rateWindow:   time.Duration(intFromEnv("RATE_LIMIT_AUTH_WINDOW", 10*60*1000, false)) * time.Millisecond,
-		rateMessage:  envString("RATE_LIMIT_AUTH_MESSAGE", "Too many authentication requests"),
+		accessTTL:    cfg.Auth.AccessTTL,
+		refreshTTL:   cfg.Auth.RefreshTTL,
+		refreshGrace: cfg.Auth.RefreshGrace,
+		rateMax:      cfg.Auth.RateMax,
+		rateWindow:   cfg.Auth.RateWindow,
+		rateMessage:  cfg.Auth.RateMessage,
 		rateLimiters: make(map[string]*rate.Limiter),
 		oidcFlows:    make(map[string]oidcFlow),
 		mobileFlows:  make(map[string]mobileFlow),
@@ -231,7 +214,9 @@ func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
-	if !h.authMethodEnabled(r.Context(), "local") {
+	if enabled, err := h.authMethodEnabled(r.Context(), "local"); err != nil {
+		return &httputil.Error{Status: 500, Cause: err}
+	} else if !enabled {
 		return writePassportDenied(w)
 	}
 	if !h.allowAuthRequest(w, r) {
@@ -449,19 +434,7 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 			return &httputil.Error{Status: 500, Cause: err}
 		}
 	}
-	id, err := ids.New()
-	if err != nil {
-		return &httputil.Error{Status: 500, Cause: err}
-	}
-	legacyToken, err := h.IssueLegacyToken(id, username)
-	if err != nil {
-		return &httputil.Error{Status: 500, Cause: err}
-	}
-	now := dbtime.Format(time.Now())
-	err = sqlc.New(tx).InsertUser(r.Context(), sqlc.InsertUserParams{
-		ID: id, Username: store.Text(username), Pash: store.Text(passwordHash), Type: store.Text("root"), Token: store.Text(legacyToken), Isactive: sql.NullInt64{Int64: 1, Valid: true},
-		Permissions: store.Text(encodeJSON(access.Defaults("root"))), Extradata: store.Text(users.NewUserExtraData("")), Createdat: now, Updatedat: now,
-	})
+	_, err = h.createUser(r.Context(), sqlc.New(tx), users.NewUser{Username: username, PasswordHash: &passwordHash, Type: "root", Active: true})
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -469,6 +442,35 @@ func (h *Handler) initialize(w http.ResponseWriter, r *http.Request) error {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	return httputil.OK(w, r)
+}
+
+// CreateUser inserts a user and returns its id.
+func (h *Handler) CreateUser(ctx context.Context, in users.NewUser) (string, error) {
+	return h.createUser(ctx, h.queries(), in)
+}
+
+func (h *Handler) createUser(ctx context.Context, q *sqlc.Queries, in users.NewUser) (string, error) {
+	id, err := ids.New()
+	if err != nil {
+		return "", err
+	}
+	token, err := h.IssueLegacyToken(id, in.Username)
+	if err != nil {
+		return "", err
+	}
+	permissions := in.Permissions
+	if permissions == nil {
+		permissions = access.Defaults(in.Type)
+	}
+	active := int64(0)
+	if in.Active {
+		active = 1
+	}
+	now := dbtime.Format(time.Now())
+	return id, q.InsertUser(ctx, sqlc.InsertUserParams{
+		ID: id, Username: store.Text(in.Username), Email: store.TextPtr(in.Email), Pash: store.TextPtr(in.PasswordHash), Type: store.Text(in.Type), Token: store.Text(token),
+		Isactive: sql.NullInt64{Int64: active, Valid: true}, Permissions: store.Text(encodeJSON(permissions)), Extradata: store.Text(users.NewUserExtraData(in.OIDCSub)), Createdat: now, Updatedat: now,
+	})
 }
 
 func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Request) (string, string, error) {
@@ -580,13 +582,11 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 			break
 		}
 	}
-	serverSettings, err := h.browserServerSettings(ctx)
+	stored, err := serversettings.Get(ctx, h.db)
 	if err != nil {
 		return nil, err
 	}
-	for _, key := range []string{"tokenSecret", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim"} {
-		delete(serverSettings, key)
-	}
+	serverSettings := stored.ForBrowser(h.cfg.MetadataPath)
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
 		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}
@@ -594,74 +594,8 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if err != nil {
 		return nil, err
 	}
-	devices := filterDevices(emailSettings, user)
+	devices := settingsdoc.VisibleTo(emailSettings, user)
 	return map[string]any{"user": userDTO, "userDefaultLibraryId": defaultLibrary, "serverSettings": serverSettings, "ereaderDevices": devices, "Source": h.cfg.Source}, nil
-}
-
-func (h *Handler) browserServerSettings(ctx context.Context) (map[string]any, error) {
-	settings := serversettings.Defaults()
-	settings["backupPath"] = filepath.Join(h.cfg.MetadataPath, "backups")
-	settings["authOpenIDTokenSigningAlgorithm"] = "RS256"
-	stored, err := serversettings.Get(ctx, h.db)
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range stored.Doc() {
-		settings[key] = value
-	}
-	// TS ServerSettings keeps an unset authOpenIDTokenURL as null (`settings.x || null`),
-	// and the fresh default row does not store the key. The login response sends it.
-	if _, ok := settings["authOpenIDTokenURL"]; !ok {
-		settings["authOpenIDTokenURL"] = nil
-	}
-	if value := serversettings.EnvBackupPath(); value != "" {
-		settings["backupPath"] = value
-	}
-	if serversettings.EnvAllowIframe() {
-		settings["allowIframe"] = true
-	}
-	settings["timeZone"] = hostTimeZone()
-	return settings, nil
-}
-
-// hostTimeZone mirrors upstream ServerSettings.getHostTimeZone, which answers
-// the process IANA zone name (Intl.DateTimeFormat().resolvedOptions().timeZone)
-// and falls back to UTC. Go's time.Local.String() returns the unnamed "Local"
-// zone when TZ is unset, so resolve the zone from the environment or the
-// /etc/localtime symlink.
-func hostTimeZone() string {
-	if tz := strings.TrimSpace(os.Getenv("TZ")); tz != "" {
-		return icuZoneName(tz)
-	}
-	if link, err := filepath.EvalSymlinks("/etc/localtime"); err == nil {
-		if index := strings.LastIndex(link, "zoneinfo/"); index >= 0 {
-			return icuZoneName(link[index+len("zoneinfo/"):])
-		}
-	}
-	return "UTC"
-}
-
-// icuZoneName returns the zone name Node 22's ICU reports for a TZ value
-// (for example Etc/UTC -> UTC, US/Pacific -> America/Los_Angeles). The table
-// icuZones is generated by tools/icuzones/generate.cjs from
-// TZ=<id> node -e 'Intl.DateTimeFormat().resolvedOptions().timeZone'; names it
-// does not list resolve to themselves.
-func icuZoneName(zone string) string {
-	if canonical, ok := icuZones[zone]; ok {
-		return canonical
-	}
-	return zone
-}
-
-// filterDevices is the e-reader devices the user may send to (EmailSettings.getEReaderDevices).
-func filterDevices(settings map[string]any, user store.User) []any {
-	result := []any{}
-	for _, raw := range jsonvalue.Array(settings["ereaderDevices"]) {
-		if device, ok := raw.(map[string]any); ok && device["name"] != nil && device["email"] != nil && settingsdoc.DeviceAllowed(device, user) {
-			result = append(result, device)
-		}
-	}
-	return result
 }
 
 func (h *Handler) userByUsername(ctx context.Context, username string) (store.User, error) {
@@ -691,30 +625,6 @@ func userResult(row sqlc.User, err error) (store.User, error) {
 		return store.User{}, err
 	}
 	return store.UserFromRow(row)
-}
-
-func requireColumns(db *sql.DB, table string, required []string) error {
-	rows, err := db.Query(`PRAGMA table_info("` + table + `")`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	cols := map[string]bool{}
-	for rows.Next() {
-		var cid, notnull, pk int
-		var name, typ string
-		var def any
-		if err := rows.Scan(&cid, &name, &typ, &notnull, &def, &pk); err != nil {
-			return err
-		}
-		cols[name] = true
-	}
-	for _, col := range required {
-		if !cols[col] {
-			return fmt.Errorf("identity: existing %s table missing column %s", table, col)
-		}
-	}
-	return rows.Err()
 }
 
 func decodeBody(r *http.Request, dest any) error {
@@ -820,29 +730,6 @@ func requestSecure(r *http.Request) bool {
 	return false
 }
 
-func durationFromEnv(name string, fallback time.Duration) time.Duration {
-	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
-	if err != nil || value == 0 {
-		return fallback
-	}
-	return time.Duration(value) * time.Second
-}
-
-func intFromEnv(name string, fallback int, allowZero bool) int {
-	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
-	if err != nil || value < 0 || (value == 0 && !allowZero) {
-		return fallback
-	}
-	return value
-}
-
-func envString(name, fallback string) string {
-	if value, ok := os.LookupEnv(name); ok && value != "" {
-		return value
-	}
-	return fallback
-}
-
 // allowAuthRequest spends a token from the client's bucket: a burst of rateMax
 // refilled at rateMax per rateWindow, the practical limit of TS's fixed window
 // (express-rate-limit), which also admits up to 2x across a window boundary.
@@ -871,20 +758,6 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	}
 	httputil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})
 	return false
-}
-
-func stringSlice(value any) []string {
-	values, _ := value.([]any)
-	if s, ok := value.([]string); ok {
-		return append([]string(nil), s...)
-	}
-	result := []string{}
-	for _, v := range values {
-		if s, ok := v.(string); ok {
-			result = append(result, s)
-		}
-	}
-	return result
 }
 
 // encodeJSON encodes the plain maps and slices the identity package stores;

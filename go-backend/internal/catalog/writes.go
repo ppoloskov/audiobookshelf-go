@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -18,7 +19,24 @@ import (
 	"strings"
 )
 
-type itemScope struct{ itemID, libraryID, mediaID, mediaType string }
+// itemScope is the library item row every item route starts from.
+type itemScope struct {
+	id, libraryID, mediaType, mediaID, path string
+	isFile, missing                         bool
+}
+
+// itemScopeColumns are the libraryItems columns scanItemScope reads.
+const itemScopeColumns = `li.id,li.libraryId,li.mediaType,li.mediaId,li.path,COALESCE(li.isFile,0),COALESCE(li.isMissing,0)`
+
+type rowScanner interface{ Scan(...any) error }
+
+func scanItemScope(row rowScanner) (itemScope, error) {
+	var s itemScope
+	var isFile, missing int
+	err := row.Scan(&s.id, &s.libraryID, &s.mediaType, &s.mediaID, &s.path, &isFile, &missing)
+	s.isFile, s.missing = isFile != 0, missing != 0
+	return s, err
+}
 
 // mediaTable is the table of the item's media; other types are refused.
 func (s itemScope) mediaTable() (string, error) {
@@ -32,30 +50,38 @@ func mediaTableOf(mediaType string) string {
 	return map[string]string{"book": "books", "podcast": "podcasts"}[mediaType]
 }
 
-func (h *Handler) writableItem(ctx context.Context, id string, user store.User) (itemScope, bool, error) {
-	scope := itemScope{itemID: id}
-	err := h.db.QueryRowContext(ctx, `SELECT libraryId,mediaId,mediaType FROM libraryItems WHERE id=?`, id).Scan(&scope.libraryID, &scope.mediaID, &scope.mediaType)
+// loadItem reads the item row: 404 when there is none.
+func (h *Handler) loadItem(ctx context.Context, id string) (itemScope, error) {
+	scope, err := scanItemScope(h.db.QueryRowContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li WHERE li.id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return scope, httputil.Status(http.StatusNotFound, "")
+	}
 	if err != nil {
-		return scope, false, err
+		return scope, httputil.Internal("database read failed", err)
 	}
-	if !access.For(ctx, user).Library(scope.libraryID) {
-		return scope, false, nil
+	return scope, nil
+}
+
+// itemFor is the prologue of every item route: the item (404), then the
+// user's access to its library and, for a write, the update permission (403).
+func (h *Handler) itemFor(ctx context.Context, user store.User, id string, write bool) (itemScope, error) {
+	scope, err := h.loadItem(ctx, id)
+	if err != nil {
+		return scope, err
 	}
-	return scope, access.For(ctx, user).Update(), nil
+	perms := access.For(ctx, user)
+	if !perms.Library(scope.libraryID) || write && !perms.Update() {
+		return scope, httputil.Status(http.StatusForbidden, "")
+	}
+	return scope, nil
 }
 
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	itemID := r.PathValue("id")
-	scope, allowed, err := h.writableItem(r.Context(), itemID, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !allowed {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	var payload map[string]json.RawMessage
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
@@ -87,7 +113,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
 	if err := h.finishItemWrites(r.Context(), itemWrite{itemID: itemID, libraryID: scope.libraryID, changes: result.changes, updated: result.updated, reschedule: result.schedule}); err != nil {
 		return httputil.Internal("metadata file write failed", err)
 	}
-	item, err := h.ItemJSON(r.Context(), itemID, false)
+	item, err := h.fullItem(r.Context(), itemID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -165,7 +191,7 @@ func (h *Handler) applyMedia(ctx context.Context, scope itemScope, payload, meta
 		if err := columns.update(ctx, tx, table, scope.mediaID); err != nil {
 			return result, err
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), scope.itemID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), scope.id); err != nil {
 			return result, err
 		}
 	}
@@ -211,25 +237,19 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	user := requestUser(r)
 	itemID := r.PathValue("id")
 	fileID := r.PathValue("ino")
-	scope, allowed, err := h.writableItem(r.Context(), itemID, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(404, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !allowed {
-		return httputil.Status(403, "")
+		return err
 	}
 	var libraryFilesRaw, audioRaw, ebookRaw []byte
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles,b.ebookFile FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&libraryFilesRaw, &audioRaw, &ebookRaw); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[map[string]any](libraryFilesRaw)
-	var removed map[string]any
-	remaining := make([]map[string]any, 0, len(files))
+	files := store.DecodeJSONSlice[libitem.File](libraryFilesRaw)
+	var removed libitem.File
+	remaining := make([]libitem.File, 0, len(files))
 	for _, f := range files {
-		if stringValue(f["ino"]) == fileID {
+		if f.Ino() == fileID {
 			removed = f
 		} else {
 			remaining = append(remaining, f)
@@ -238,7 +258,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	if removed == nil {
 		return httputil.Status(404, "")
 	}
-	target := filePath(removed)
+	target := removed.Path()
 	if target == "" || !h.pathAllowed(r.Context(), target, scope.libraryID) {
 		return httputil.Status(404, "")
 	}
@@ -250,15 +270,14 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	defer tx.Rollback()
 	now := dbtime.Now()
 	if scope.mediaType == "book" {
-		audio := store.DecodeJSONSlice[map[string]any](audioRaw)
-		nextAudio := make([]map[string]any, 0, len(audio))
+		audio := store.DecodeJSONSlice[libitem.File](audioRaw)
+		nextAudio := make([]libitem.File, 0, len(audio))
 		for _, f := range audio {
-			if stringValue(f["ino"]) != fileID {
+			if f.Ino() != fileID {
 				nextAudio = append(nextAudio, f)
 			}
 		}
-		ebook := store.DecodeJSONObject(ebookRaw)
-		ebookChanged := stringValue(ebook["ino"]) == fileID
+		ebookChanged := libitem.File(store.DecodeJSONObject(ebookRaw)).Ino() == fileID
 		if len(nextAudio) != len(audio) || ebookChanged {
 			var ebookValue any
 			if !ebookChanged {

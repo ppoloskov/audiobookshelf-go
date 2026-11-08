@@ -1,4 +1,4 @@
-package wire
+package logging
 
 // LogEntry is one upstream log object: the LogObject typedef in
 // server/managers/LogManager.js:11, built by Logger.#logToFileAndListeners

@@ -11,8 +11,8 @@ import (
 	"audiobookshelf-compat/internal/config"
 )
 
-// itemGoldenPath holds the output of ItemJSON (plain and expanded) and
-// ItemMinifiedJSON for the fixture items. It was captured from the
+// itemGoldenPath holds the output of fullItem, expandedItem and
+// minifiedItem for the fixture items. It was captured from the
 // map-based serializers before they were typed, so a typed
 // rewrite must reproduce it. Keys are compared as canonical JSON (sorted
 // object keys, as encoding/json writes maps), values exactly.
@@ -63,22 +63,22 @@ func TestItemGolden(t *testing.T) {
 	if _, err := db.Exec(itemGoldenExtraFixtures); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	ctx := context.Background()
 
 	got := map[string]itemGoldenCase{}
 	for _, id := range []string{"i1", "i2", "i3"} {
-		plain, err := h.ItemJSON(ctx, id, false)
+		plain, err := h.fullItem(ctx, id)
 		if err != nil {
-			t.Fatalf("ItemJSON(%s, false): %v", id, err)
+			t.Fatalf("fullItem(%s): %v", id, err)
 		}
-		expanded, err := h.ItemJSON(ctx, id, true)
+		expanded, err := h.expandedItem(ctx, id)
 		if err != nil {
-			t.Fatalf("ItemJSON(%s, true): %v", id, err)
+			t.Fatalf("expandedItem(%s): %v", id, err)
 		}
-		minified, err := h.ItemMinifiedJSON(ctx, id)
+		minified, err := h.minifiedItem(ctx, id)
 		if err != nil {
-			t.Fatalf("ItemMinifiedJSON(%s): %v", id, err)
+			t.Fatalf("minifiedItem(%s): %v", id, err)
 		}
 		got[id] = itemGoldenCase{canonicalJSON(t, plain), canonicalJSON(t, expanded), canonicalJSON(t, minified)}
 	}

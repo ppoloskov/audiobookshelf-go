@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -226,7 +227,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	}
 	widthValue := clampCoverDimension(query.Get("width"), 4096)
 	heightValue := clampCoverDimension(query.Get("height"), 4096)
-	if format != "webp" && format != "jpeg" && format != "png" || !isUUID(authorID) {
+	if format != "webp" && format != "jpeg" && format != "png" || !ids.Valid(authorID) {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
 	width, height := 400, -1

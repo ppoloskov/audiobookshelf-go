@@ -3,6 +3,7 @@ package adminops
 import (
 	"audiobookshelf-compat/internal/access"
 	"database/sql"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"unicode/utf16"
 
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -66,24 +68,33 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, u store.User) e
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
+	// A file that cannot be stored is logged and skipped; the request still
+	// answers 200 (MiscController.handleUpload, js:92-104).
 	for _, fh := range files {
-		file, err := fh.Open()
-		if err != nil {
-			continue
-		}
 		name := sanitizeUploadName(fh.Filename)
 		if name == "" {
-			file.Close()
 			continue
 		}
-		out, err := os.OpenFile(filepath.Join(dir, name), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-		if err == nil {
-			_, _ = io.Copy(out, file)
-			_ = out.Close()
+		path := filepath.Join(dir, name)
+		if err := storeUpload(fh, path); err != nil {
+			logging.Errorf("[MiscController] Failed to move file %s: %v", path, err)
 		}
-		_ = file.Close()
 	}
 	return httputil.OK(w, r)
+}
+
+func storeUpload(fh *multipart.FileHeader, path string) error {
+	in, err := fh.Open()
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	return errors.Join(err, out.Close())
 }
 
 var (

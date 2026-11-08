@@ -28,7 +28,7 @@ func TestTSRepresentationR01Catalog(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
 	for _, route := range []string{"/api/items/missing", "/api/items/i1/download", "/api/libraries/l1/items?page=-1"} {
 		recorder := httptest.NewRecorder()

@@ -5,8 +5,10 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,8 +18,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 type folderInput struct {
@@ -134,7 +134,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(displayOrder),0)+1 FROM libraries`).Scan(&order); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	id := uuid.NewString()
+	id := ids.Must()
 	now := dbtime.Now()
 	settingsJSON, _ := json.Marshal(settings)
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -146,7 +146,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range paths {
-		folderID := uuid.NewString()
+		folderID := ids.Must()
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, folderID, folderPath, id, now, now); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
@@ -341,28 +341,13 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for _, folderID := range removedFolders {
-		rows, e := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryFolderId=?`, folderID)
+		items, e := h.libraryItemsWhere(r.Context(), `libraryFolderId=?`, folderID)
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		itemIDs := []string{}
-		for rows.Next() {
-			var itemID string
-			if rows.Scan(&itemID) == nil {
-				itemIDs = append(itemIDs, itemID)
-			}
-		}
-		if e = rows.Err(); e != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", e)
-		}
-		rows.Close()
-		cleanupUser := user
-		cleanupUser.Permissions = json.RawMessage(`{"accessAllLibraries":true,"delete":true}`)
-		for _, itemID := range itemIDs {
-			status, _ := h.deleteLibraryItem(r.Context(), cleanupUser, itemID, false)
-			if status != http.StatusOK {
-				return httputil.Status(status, "library folder item cleanup failed")
+		for _, item := range items {
+			if e = h.removeAndSweep(r.Context(), item, false); e != nil {
+				return e
 			}
 		}
 	}
@@ -397,7 +382,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	for _, folderPath := range newFolders {
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, uuid.NewString(), folderPath, id, dbtime.Now(), dbtime.Now()); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?)`, ids.Must(), folderPath, id, dbtime.Now(), dbtime.Now()); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 	}
@@ -438,53 +423,9 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,mediaId,mediaType FROM libraryItems WHERE libraryId=?`, id)
+	items, err := h.libraryItemsWhere(r.Context(), `libraryId=?`, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
-	}
-	type deletedItem struct{ id, mediaID, mediaType string }
-	items := make([]deletedItem, 0)
-	bookIDs := make([]string, 0)
-	podcastIDs := make([]string, 0)
-	itemIDs := make([]string, 0)
-	for rows.Next() {
-		var item deletedItem
-		if err := rows.Scan(&item.id, &item.mediaID, &item.mediaType); err != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", err)
-		}
-		items = append(items, item)
-		itemIDs = append(itemIDs, item.id)
-		if item.mediaType == "book" {
-			bookIDs = append(bookIDs, item.mediaID)
-		} else if item.mediaType == "podcast" {
-			podcastIDs = append(podcastIDs, item.mediaID)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return httputil.Internal("database read failed", err)
-	}
-	rows.Close()
-	mediaIDs := append([]string{}, bookIDs...)
-	podcastEpisodeIDs := make([]string, 0)
-	for _, podcastID := range podcastIDs {
-		eps, e := h.db.QueryContext(r.Context(), `SELECT id FROM podcastEpisodes WHERE podcastId=?`, podcastID)
-		if e != nil {
-			return httputil.Internal("database read failed", e)
-		}
-		for eps.Next() {
-			var episodeID string
-			if eps.Scan(&episodeID) == nil {
-				mediaIDs = append(mediaIDs, episodeID)
-				podcastEpisodeIDs = append(podcastEpisodeIDs, episodeID)
-			}
-		}
-		if e = eps.Err(); e != nil {
-			eps.Close()
-			return httputil.Internal("database read failed", e)
-		}
-		eps.Close()
 	}
 	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result.Name) // LibraryController.js:557
 	tx, err := h.db.BeginTx(r.Context(), nil)
@@ -492,46 +433,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	if len(mediaIDs) > 0 {
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId IN (`+sqlMarks(len(mediaIDs))+`)`, stringArgs(mediaIDs)...); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		if err := deletePlaylistMedia(ctxTx{tx, r.Context()}, mediaIDs); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-	}
-	if len(itemIDs) > 0 {
-		if err := sqlc.New(tx).DeleteLibraryItemFeedsByItemIDs(r.Context(), store.Texts(itemIDs)); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-	}
-	if len(bookIDs) > 0 {
-		for _, q := range []string{`DELETE FROM bookAuthors WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`, `DELETE FROM bookSeries WHERE bookId IN (` + sqlMarks(len(bookIDs)) + `)`} {
-			if _, err := tx.ExecContext(r.Context(), q, stringArgs(bookIDs)...); err != nil {
-				return httputil.Internal("database write failed", err)
-			}
-		}
-		if err := sqlc.New(tx).DeleteBookSharesByMediaIDs(r.Context(), store.Texts(bookIDs)); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM books WHERE id IN (`+sqlMarks(len(bookIDs))+`)`, stringArgs(bookIDs)...); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-	}
-	if len(podcastIDs) > 0 {
-		if len(podcastEpisodeIDs) > 0 {
-			if err := sqlc.New(tx).DeletePodcastEpisodeSharesByMediaIDs(r.Context(), store.Texts(podcastEpisodeIDs)); err != nil {
-				return httputil.Internal("database write failed", err)
-			}
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE podcastId IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcasts WHERE id IN (`+sqlMarks(len(podcastIDs))+`)`, stringArgs(podcastIDs)...); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryItems WHERE libraryId=?`, id); err != nil {
+	if _, _, err := deleteItemRows(r.Context(), tx, items); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM authors WHERE libraryId=?`, id); err != nil {
@@ -597,15 +499,6 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func sqlMarks(n int) string { return strings.TrimRight(strings.Repeat("?,", n), ",") }
-func stringArgs(values []string) []any {
-	args := make([]any, len(values))
-	for i, value := range values {
-		args[i] = value
-	}
-	return args
-}
-
 func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	if !adminUser(user) {
@@ -664,4 +557,22 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 	}
 	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.ForRequest(r))
 	return nil
+}
+
+// libraryItemsWhere lists the items matching one column condition.
+func (h *Handler) libraryItemsWhere(ctx context.Context, where string, arg any) ([]itemScope, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li WHERE `+where, arg)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []itemScope
+	for rows.Next() {
+		item, err := scanItemScope(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }

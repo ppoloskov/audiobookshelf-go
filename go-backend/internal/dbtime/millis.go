@@ -80,16 +80,6 @@ func textMillis(s string) any {
 	return nil
 }
 
-// ParseUnixMilli reads a stored DATETIME text as Unix milliseconds without
-// trimming; ok is false when Parse does not recognize it.
-func ParseUnixMilli(value string) (int64, bool) {
-	t, ok := Parse(value)
-	if !ok {
-		return 0, false
-	}
-	return t.UnixMilli(), true
-}
-
 // Time converts a scanned DATETIME column value to a time.Time. A value that
 // is neither a time.Time nor parsable text yields the zero time.
 func Time(v any) time.Time {

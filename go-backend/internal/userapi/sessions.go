@@ -1,17 +1,13 @@
 package userapi
 
 import (
+	"audiobookshelf-compat/internal/ids"
 	"net/http"
-	"regexp"
 
 	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
-
-// uuidPattern matches uuid.validate's canonical hexadecimal shape. UUID
-// version and variant bits are not constrained (the all-zero UUID is valid).
-var uuidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
 	page, perPage := queryInt(r, "page", 0), queryInt(r, "itemsPerPage", 10)
@@ -50,7 +46,7 @@ func (h *Handler) deleteSession(w http.ResponseWriter, r *http.Request, user sto
 	if user.Type == "guest" {
 		return httputil.Status(403, "")
 	}
-	if !uuidPattern.MatchString(id) {
+	if !ids.Valid(id) {
 		return httputil.Status(400, "")
 	}
 	found, err := h.ident.DeleteUserSession(r.Context(), user.ID, id)

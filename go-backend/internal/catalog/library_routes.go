@@ -182,7 +182,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, librar
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	var items []batchItem
+	var items []itemScope
 	for _, item := range found {
 		if item.libraryID == library.id {
 			items = append(items, item)
@@ -204,13 +204,6 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, librar
 		logging.Warnf(`[LibraryController] No library items found for ids "%s"`, strings.Join(itemIDs, ","))
 		return httputil.Status(http.StatusNotFound, "Library items not found")
 	}
-	isFile := map[string]bool{}
-	for _, item := range items {
-		var file int
-		if err := h.db.QueryRowContext(ctx, `SELECT COALESCE(isFile,0) FROM libraryItems WHERE id=?`, item.id).Scan(&file); err == nil {
-			isFile[item.id] = file != 0
-		}
-	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	// Streamed without a Content-Length, like archiver piped into the response.
@@ -221,7 +214,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, librar
 	zw := zip.NewWriter(w)
 	for _, item := range items {
 		var err error
-		if isFile[item.id] {
+		if item.isFile {
 			err = addFileToZip(zw, item.path, filepath.Base(item.path))
 		} else {
 			err = addTreeToZip(zw, item.path, filepath.Base(item.path))

@@ -16,32 +16,24 @@ import (
 	"strings"
 )
 
-type batchItem struct {
-	id, libraryID, mediaType, mediaID, path string
-}
-
 // itemsExpandedWhere is LibraryItem.findAllExpandedWhere({ id: ids })
 // (LibraryItem.js:150-183): the existing items among ids in the order
 // Sequelize returns them, by the first joined row ordered by bookAuthor then
 // bookSeries creation time (see batchGet).
-func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]batchItem, error) {
+func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]itemScope, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,li.libraryId,li.mediaType,li.mediaId,li.path FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, args...)
+	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, stringArgs(ids)...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	seen := map[string]bool{}
-	items := make([]batchItem, 0, len(ids))
+	items := make([]itemScope, 0, len(ids))
 	for rows.Next() {
-		var item batchItem
-		if err := rows.Scan(&item.id, &item.libraryID, &item.mediaType, &item.mediaID, &item.path); err != nil {
+		item, err := scanItemScope(rows)
+		if err != nil {
 			return nil, err
 		}
 		if !seen[item.id] {
@@ -55,7 +47,7 @@ func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]batch
 // userCanAccessItems is ensureUserCanAccessLibraryItemsForBatch
 // (LibraryItemController.js:48-56): every item must pass
 // User.checkCanAccessLibraryItem (library, explicit content and tags).
-func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items []batchItem) (bool, error) {
+func (h *Handler) userCanAccessItems(ctx context.Context, user store.User, items []itemScope) (bool, error) {
 	perms := access.For(ctx, user)
 	for _, item := range items {
 		if !perms.Library(item.libraryID) {
@@ -110,8 +102,8 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 	libraryID := items[0].libraryID
 	for _, item := range items {
 		var linked itemLinks
-		if status, message := h.removeLibraryItem(ctx, nil, item.id, hard, &linked); status != http.StatusOK {
-			return httputil.Status(status, message)
+		if err := h.removeLibraryItem(ctx, item, hard, &linked); err != nil {
+			return err
 		}
 		// The series check runs before the authors check (js:610-615).
 		h.env().SweepSeries(ctx, linked.series)
@@ -180,7 +172,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 	if !allowed {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	byID := make(map[string]batchItem, len(items))
+	byID := make(map[string]itemScope, len(items))
 	for _, item := range items {
 		byID[item.id] = item
 	}
@@ -203,8 +195,7 @@ func (h *Handler) batchUpdate(w http.ResponseWriter, r *http.Request) error {
 		if raw := payload["metadata"]; len(raw) > 0 && string(raw) != "null" {
 			_ = json.Unmarshal(raw, &metadata)
 		}
-		scope := itemScope{itemID: item.id, libraryID: item.libraryID, mediaID: item.mediaID, mediaType: item.mediaType}
-		result, err := h.applyMedia(ctx, scope, payload, metadata)
+		result, err := h.applyMedia(ctx, item, payload, metadata)
 		if err != nil {
 			return httputil.Internal("database write failed", err)
 		}
@@ -262,4 +253,12 @@ func placeholders(n int) string {
 		return ""
 	}
 	return strings.TrimRight(strings.Repeat("?,", n), ",")
+}
+
+func stringArgs(values []string) []any {
+	args := make([]any, len(values))
+	for i, value := range values {
+		args[i] = value
+	}
+	return args
 }

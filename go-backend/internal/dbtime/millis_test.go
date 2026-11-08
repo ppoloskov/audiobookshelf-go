@@ -104,7 +104,7 @@ func TestMillisIsLenient(t *testing.T) {
 	}
 }
 
-func TestTimeAndParseUnixMilli(t *testing.T) {
+func TestTime(t *testing.T) {
 	at := time.UnixMilli(wantMillis)
 	if got := Time(at); !got.Equal(at) {
 		t.Fatalf("Time(time.Time) = %v", got)
@@ -117,12 +117,6 @@ func TestTimeAndParseUnixMilli(t *testing.T) {
 	}
 	if !Time("nope").IsZero() || !Time(7).IsZero() {
 		t.Fatal("unparsable input must be the zero time")
-	}
-	if n, ok := ParseUnixMilli("2024-01-01 00:00:00.123 +00:00"); !ok || n != wantMillis {
-		t.Fatalf("ParseUnixMilli = %d, %v", n, ok)
-	}
-	if _, ok := ParseUnixMilli(" 2024-01-01 00:00:00.123 +00:00"); ok {
-		t.Fatal("ParseUnixMilli does not trim")
 	}
 }
 

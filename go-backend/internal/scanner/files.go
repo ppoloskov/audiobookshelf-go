@@ -3,6 +3,7 @@ package scanner
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/mediatools"
 	"context"
 	"encoding/json"
@@ -116,25 +117,27 @@ func nextCoverPath(current string, files []libraryFile, diff libraryFileDiff) (s
 	return cover, cover != current
 }
 
-func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []map[string]any {
+func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []libitem.AudioFile {
 	var raw []byte
 	if mediaID == "" || s.db.QueryRowContext(ctx, `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {
 		return nil
 	}
-	return parseStoredObjects(raw)
+	var out []libitem.AudioFile
+	_ = json.Unmarshal(raw, &out)
+	return out
 }
 
 // findStoredAudio matches a scanned file to a stored audio entry by path, then
 // inode (BookScanner.js:97-101).
-func findStoredAudio(entries []map[string]any, currentPath, currentIno string) map[string]any {
-	for _, entry := range entries {
-		if meta, ok := entry["metadata"].(map[string]any); ok && meta["path"] == currentPath {
-			return entry
+func findStoredAudio(entries []libitem.AudioFile, currentPath, currentIno string) *libitem.AudioFile {
+	for i := range entries {
+		if entries[i].Metadata.Path == currentPath {
+			return &entries[i]
 		}
 	}
-	for _, entry := range entries {
-		if currentIno != "" && entry["ino"] == currentIno {
-			return entry
+	for i := range entries {
+		if currentIno != "" && entries[i].Ino == currentIno {
+			return &entries[i]
 		}
 	}
 	return nil
@@ -180,7 +183,7 @@ func defaultMetadataPrecedence() []string {
 	return append([]string(nil), defaultMetadataSourceOrder...)
 }
 
-func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, order []string, audioTags map[string]any, abs bookMetadata, hasABS bool) bookMetadata {
+func mergeBookMetadataWithABS(title, author, series, sequence string, g *group, order []string, audioTags map[string]string, abs bookMetadata, hasABS bool) bookMetadata {
 	m := bookMetadata{Title: title, Authors: splitMetadataList(author)}
 	if series != "" {
 		m.Series = []seriesMetadata{{Name: series, Sequence: sequence}}
@@ -291,79 +294,43 @@ func applyOPFFiles(g *group, dst *bookMetadata) {
 		}
 	}
 }
-func applyNonemptyMetadata(src bookMetadata, dst *bookMetadata) {
-	if src.Title != "" {
-		dst.Title = src.Title
-	}
-	if src.Subtitle != "" {
-		dst.Subtitle = src.Subtitle
-	}
-	if src.PublishedYear != "" {
-		dst.PublishedYear = src.PublishedYear
-	}
-	if src.PublishedDate != "" {
-		dst.PublishedDate = src.PublishedDate
-	}
-	if src.Publisher != "" {
-		dst.Publisher = src.Publisher
-	}
-	if src.Description != "" {
-		dst.Description = src.Description
-	}
-	if src.ISBN != "" {
-		dst.ISBN = src.ISBN
-	}
-	if src.ASIN != "" {
-		dst.ASIN = src.ASIN
-	}
-	if src.Language != "" {
-		dst.Language = src.Language
-	}
-	if len(src.Authors) > 0 {
-		dst.Authors = src.Authors
-	}
-	if len(src.Narrators) > 0 {
-		dst.Narrators = src.Narrators
-	}
-	if len(src.Tags) > 0 {
-		dst.Tags = src.Tags
-	}
-	if len(src.Genres) > 0 {
-		dst.Genres = src.Genres
-	}
-	if len(src.Series) > 0 {
-		dst.Series = src.Series
-	}
-	if len(src.Chapters) > 0 {
-		dst.Chapters = src.Chapters
-	}
+
+// scalars are the string fields of the metadata, keyed as metadata.json names
+// them; every source that copies or reads all of them goes through this list.
+func (m *bookMetadata) scalars() []scalarField {
+	return []scalarField{{"title", &m.Title}, {"subtitle", &m.Subtitle}, {"publishedYear", &m.PublishedYear}, {"publishedDate", &m.PublishedDate},
+		{"publisher", &m.Publisher}, {"description", &m.Description}, {"isbn", &m.ISBN}, {"asin", &m.ASIN}, {"language", &m.Language}}
 }
 
-func applyABSMetadata(src bookMetadata, dst *bookMetadata) {
-	for key, value := range map[string]string{"title": src.Title, "subtitle": src.Subtitle, "publishedYear": src.PublishedYear, "publishedDate": src.PublishedDate, "publisher": src.Publisher, "description": src.Description, "isbn": src.ISBN, "asin": src.ASIN, "language": src.Language} {
-		if src.absPresent[key] {
-			switch key {
-			case "title":
-				dst.Title = value
-			case "subtitle":
-				dst.Subtitle = value
-			case "publishedYear":
-				dst.PublishedYear = value
-			case "publishedDate":
-				dst.PublishedDate = value
-			case "publisher":
-				dst.Publisher = value
-			case "description":
-				dst.Description = value
-			case "isbn":
-				dst.ISBN = value
-			case "asin":
-				dst.ASIN = value
-			case "language":
-				dst.Language = value
-			}
+type scalarField struct {
+	key string
+	v   *string
+}
+
+// applyNonemptyMetadata copies every value src has onto dst.
+func applyNonemptyMetadata(src bookMetadata, dst *bookMetadata) {
+	to := dst.scalars()
+	for i, f := range src.scalars() {
+		if *f.v != "" {
+			*to[i].v = *f.v
 		}
 	}
+	applyListMetadata(src, dst)
+}
+
+// applyABSMetadata is applyNonemptyMetadata except that a string the sidecar
+// names overwrites even with "" (arrays and chapters only when not empty).
+func applyABSMetadata(src bookMetadata, dst *bookMetadata) {
+	to := dst.scalars()
+	for i, f := range src.scalars() {
+		if src.absPresent[f.key] {
+			*to[i].v = *f.v
+		}
+	}
+	applyListMetadata(src, dst)
+}
+
+func applyListMetadata(src bookMetadata, dst *bookMetadata) {
 	if len(src.Authors) > 0 {
 		dst.Authors = src.Authors
 	}
@@ -417,15 +384,9 @@ func parseAbsMetadata(raw []byte, dst *bookMetadata) {
 			*out = values
 		}
 	}
-	decodeString("title", &dst.Title)
-	decodeString("subtitle", &dst.Subtitle)
-	decodeString("publishedYear", &dst.PublishedYear)
-	decodeString("publishedDate", &dst.PublishedDate)
-	decodeString("publisher", &dst.Publisher)
-	decodeString("description", &dst.Description)
-	decodeString("isbn", &dst.ISBN)
-	decodeString("asin", &dst.ASIN)
-	decodeString("language", &dst.Language)
+	for _, f := range dst.scalars() {
+		decodeString(f.key, f.v)
+	}
 	decodeArray("authors", &dst.Authors)
 	decodeArray("narrators", &dst.Narrators)
 	decodeArray("tags", &dst.Tags)
@@ -569,16 +530,6 @@ func timeString(t time.Time) string {
 	}
 	return dbtime.Format(t)
 }
-func makeFileMeta(root string, f file) map[string]any {
-	rel := f.relPath
-	if rel == "" {
-		rel, _ = filepath.Rel(root, f.path)
-	}
-	ext := strings.ToLower(filepath.Ext(f.path))
-	mtime, ctime, birthtime := statTimes(f.path, f.info)
-	return map[string]any{"ino": inode(f.info), "metadata": map[string]any{"filename": filepath.Base(f.path), "ext": ext, "path": f.path, "relPath": filepath.ToSlash(rel), "size": f.info.Size(), "mtimeMs": mtime.UnixMilli(), "ctimeMs": ctime.UnixMilli(), "birthtimeMs": birthtime.UnixMilli()}, "isSupplementary": nil, "addedAt": mtime.UnixMilli(), "updatedAt": mtime.UnixMilli(), "fileType": filekind.Of(ext)}
-}
-
 func statTimes(path string, info os.FileInfo) (mtime, ctime, birthtime time.Time) {
 	mtime = info.ModTime()
 	ctime = statChangeTime(info)
@@ -596,7 +547,7 @@ func inode(info os.FileInfo) string {
 // probeAudio shapes the imported audio file per the upstream AudioFile object
 // (server/objects/files/AudioFile.js:113-136): meta is the flat FileMetadata
 // object; the inode belongs top-level only.
-func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno string) (map[string]any, error) {
+func probeAudio(ctx context.Context, p string, meta libitem.FileMetadata, fileIno string) (*libitem.AudioFile, error) {
 	res, err := mediatools.Probe(ctx, p)
 	if err != nil {
 		return nil, err
@@ -606,17 +557,15 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 	if format == "" {
 		format = res.Format.Name
 	}
-	ext, _ := meta["ext"].(string)
-	filename, _ := meta["filename"].(string)
 	var audio *mediatools.Stream
-	var embedded any
+	var embedded *string
 	defaultAudio := false
 	for i := range res.Streams {
 		s := &res.Streams[i]
 		// MediaProbeData.js:46 takes the first video stream's codec as the
 		// embedded cover, attached picture or not (prober.js:253).
 		if s.Type == "video" && embedded == nil {
-			embedded = s.Codec
+			embedded = &s.Codec
 		}
 		if s.Type == "audio" && (audio == nil || (s.Disposition.Default == 1 && !defaultAudio)) {
 			audio = s
@@ -628,187 +577,173 @@ func probeAudio(ctx context.Context, p string, meta map[string]any, fileIno stri
 		// (AudioFileScanner.js:156-179).
 		return nil, nil
 	}
-	bitRate, _ := strconv.ParseInt(res.Format.BitRate, 10, 64)
-	var normalizedBitRate any
-	if bitRate > 0 {
-		normalizedBitRate = bitRate
+	now := time.Now().UnixMilli()
+	out := &libitem.AudioFile{Index: 1, Ino: fileIno, Metadata: meta, AddedAt: now, UpdatedAt: now, Format: format, Duration: duration,
+		Codec: &audio.Codec, TimeBase: &audio.TimeBase, EmbeddedCoverArt: embedded, MimeType: filekind.AudioMime(meta.Ext)}
+	if bitRate, _ := strconv.ParseInt(res.Format.BitRate, 10, 64); bitRate > 0 {
+		out.BitRate = &bitRate
 	}
-	tags := res.Format.Tags
-	out := map[string]any{"index": 1, "ino": fileIno, "metadata": meta, "addedAt": time.Now().UnixMilli(), "updatedAt": time.Now().UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": normalizedBitRate, "language": nil, "codec": nil, "timeBase": nil, "channels": nil, "channelLayout": nil, "chapters": []map[string]any{}, "embeddedCoverArt": embedded, "metaTags": map[string]any{}, "mimeType": filekind.AudioMime(ext)}
-	out["codec"] = audio.Codec
-	out["timeBase"] = audio.TimeBase
 	if audio.Channels > 0 {
-		out["channels"] = audio.Channels
+		out.Channels = &audio.Channels
 	}
 	if audio.ChannelLayout != "" {
-		out["channelLayout"] = strings.Split(audio.ChannelLayout, "(")[0]
+		layout := strings.Split(audio.ChannelLayout, "(")[0]
+		out.ChannelLayout = &layout
 	}
 	// Upstream language comes from the stream tags (prober.js:92).
-	if language, ok := audio.Tags["language"]; ok && strings.TrimSpace(language) != "" {
-		out["language"] = strings.TrimSpace(language)
+	if language := strings.TrimSpace(audio.Tags["language"]); language != "" {
+		out.Language = &language
 	}
 	if streamRate, e := strconv.ParseInt(audio.BitRate, 10, 64); e == nil && streamRate > 0 {
-		out["bitRate"] = streamRate
+		out.BitRate = &streamRate
 	}
+	tags := res.Format.Tags
 	if tags == nil {
 		tags = audio.Tags
 	}
-	metaTags := parseAudioTags(tags)
-	out["metaTags"] = metaTags
-	if value, ok := metaTags["tagTrack"].(string); ok {
-		out["trackNumFromMeta"] = firstTrackNumber(value)
-	}
-	if value, ok := metaTags["tagDisc"].(string); ok {
-		out["discNumFromMeta"] = firstTrackNumber(value)
-	}
-	out["trackNumFromFilename"], out["discNumFromFilename"] = filenameNumbers(filename, filepath.Dir(p))
-	chapters := make([]map[string]any, 0, len(res.Chapters))
-	for i, ch := range res.Chapters {
+	out.MetaTags = parseAudioTags(tags)
+	out.TrackNumFromMeta = firstTrackNumber(out.MetaTags["tagTrack"])
+	out.DiscNumFromMeta = firstTrackNumber(out.MetaTags["tagDisc"])
+	out.TrackNumFromFilename, out.DiscNumFromFilename = filenameNumbers(meta.Filename, filepath.Dir(p))
+	out.Chapters = make([]libitem.AudioChapter, 0, len(res.Chapters))
+	for _, ch := range res.Chapters {
 		start, end := ch.Seconds()
-		chapters = append(chapters, map[string]any{"start": start, "end": end, "title": strings.TrimSpace(ch.Tags["title"]), "id": i})
+		out.Chapters = append(out.Chapters, libitem.AudioChapter{Start: start, End: end, Title: strings.TrimSpace(ch.Tags["title"])})
 	}
-	sort.Slice(chapters, func(i, j int) bool { return chapters[i]["start"].(float64) < chapters[j]["start"].(float64) })
-	for i := range chapters {
-		chapters[i]["id"] = i
+	sort.Slice(out.Chapters, func(i, j int) bool { return out.Chapters[i].Start < out.Chapters[j].Start })
+	for i := range out.Chapters {
+		out.Chapters[i].ID = i
 	}
-	out["chapters"] = chapters
 	return out, nil
 }
 
-func firstTrackNumber(value string) any {
-	part := strings.Split(value, "/")[0]
-	number, err := strconv.Atoi(strings.TrimSpace(part))
+// firstTrackNumber reads "3" or "3/12" (a missing or malformed value is nil).
+func firstTrackNumber(value string) *int {
+	number, err := strconv.Atoi(strings.TrimSpace(strings.Split(value, "/")[0]))
 	if err != nil {
 		return nil
 	}
-	return number
+	return &number
 }
-func audioFilename(af map[string]any) string {
-	if meta, ok := af["metadata"].(map[string]any); ok {
-		if filename, ok := meta["filename"].(string); ok {
-			return strings.TrimSuffix(filename, filepath.Ext(filename))
-		}
-	}
-	return ""
+
+func audioFilename(af libitem.AudioFile) string {
+	return strings.TrimSuffix(af.Metadata.Filename, filepath.Ext(af.Metadata.Filename))
 }
 
 var (
 	discInName    = regexp.MustCompile(`(?i)\b(disc|cd) ?(\d\d?)\b`)
 	discDirPrefix = regexp.MustCompile(`(?i)^(cd|dis[ck])\s*`)
 	trackNumber   = regexp.MustCompile(`\d{1,4}`)
+
+	publishedYearPrefix = regexp.MustCompile(`^ *\(?([0-9]{4})\)? * - *(.+)`)
+	asinInName          = regexp.MustCompile(`(?: |^)\[([A-Z0-9]{10})\](?: |$)`)
+	sequenceInName      = regexp.MustCompile(`(?i)^(?:(?:vol\.? |volume |book ))?(\d{0,3}(?:\.\d{1,2})?)(\.?)(?: (.*))?$`)
 )
 
 // filenameNumbers reads the track and disc number from an audio file's name
 // and from a "CD 1" style parent directory.
-func filenameNumbers(filename, dir string) (any, any) {
+func filenameNumbers(filename, dir string) (track, disc *int) {
 	base := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-	disc := any(nil)
 	if m := discInName.FindStringSubmatch(base); len(m) > 2 {
 		if n, e := strconv.Atoi(m[2]); e == nil {
-			disc = n
+			disc = &n
 		}
 		base = strings.Replace(base, m[0], "", 1)
 	}
 	if parent := filepath.Base(dir); cdDirectory.MatchString(parent) {
 		n, _ := strconv.Atoi(discDirPrefix.ReplaceAllString(parent, ""))
-		disc = n
+		disc = &n
 	}
-	m := trackNumber.FindString(base)
-	if m == "" {
-		return nil, disc
+	if m := trackNumber.FindString(base); m != "" {
+		n, _ := strconv.Atoi(m)
+		track = &n
 	}
-	n, _ := strconv.Atoi(m)
-	return n, disc
+	return track, disc
 }
 
-func smartAudioOrder(audio []map[string]any) []map[string]any {
-	selectKey := func(meta, filename string) string {
-		all := func(key string) bool {
-			for _, af := range audio {
-				if af[key] == nil {
-					return false
-				}
+// smartAudioOrder sorts the book's audio files by disc and track number and
+// numbers them from 1 (AudioFileScanner.runSmartTrackOrder).
+func smartAudioOrder(audio []libitem.AudioFile) {
+	type number func(*libitem.AudioFile) *int
+	trackMeta := func(a *libitem.AudioFile) *int { return a.TrackNumFromMeta }
+	trackName := func(a *libitem.AudioFile) *int { return a.TrackNumFromFilename }
+	discMeta := func(a *libitem.AudioFile) *int { return a.DiscNumFromMeta }
+	discName := func(a *libitem.AudioFile) *int { return a.DiscNumFromFilename }
+	// usable: every file has the number and the numbers have no gap.
+	usable := func(get number) bool {
+		nums := []int{}
+		for i := range audio {
+			n := get(&audio[i])
+			if n == nil {
+				return false
 			}
-			return true
+			nums = append(nums, *n)
 		}
-		sequential := func(key string) bool {
-			nums := []int{}
-			for _, af := range audio {
-				if n, ok := af[key].(int); ok {
-					nums = append(nums, n)
-				} else {
-					return false
-				}
+		sort.Ints(nums)
+		for i := 1; i < len(nums); i++ {
+			if nums[i]-nums[i-1] > 1 {
+				return false
 			}
-			sort.Ints(nums)
-			for i := 1; i < len(nums); i++ {
-				if nums[i]-nums[i-1] > 1 {
-					return false
-				}
-			}
-			return len(nums) > 0
 		}
-		if all(meta) && sequential(meta) {
-			return meta
-		}
-		if all(filename) && sequential(filename) {
-			return filename
-		}
-		return ""
+		return len(nums) > 0
 	}
-	disc := selectKey("discNumFromMeta", "discNumFromFilename")
-	track := "trackNumFromMeta"
+	var disc number
+	if usable(discMeta) {
+		disc = discMeta
+	} else if usable(discName) {
+		disc = discName
+	}
 	fm, mm := map[int]bool{}, map[int]bool{}
-	for _, a := range audio {
-		if n, ok := a["trackNumFromFilename"].(int); ok {
-			fm[n] = true
+	for i := range audio {
+		if n := trackName(&audio[i]); n != nil {
+			fm[*n] = true
 		}
-		if n, ok := a["trackNumFromMeta"].(int); ok {
-			mm[n] = true
+		if n := trackMeta(&audio[i]); n != nil {
+			mm[*n] = true
 		}
 	}
+	track := trackMeta
 	if len(fm) > len(mm) {
-		track = "trackNumFromFilename"
+		track = trackName
 	}
-	less := func(a, b map[string]any) bool {
-		if disc != "" {
-			x, _ := a[disc].(int)
-			y, _ := b[disc].(int)
+	less := func(a, b *libitem.AudioFile) bool {
+		if disc != nil {
+			var x, y int
+			if n := disc(a); n != nil {
+				x = *n
+			}
+			if n := disc(b); n != nil {
+				y = *n
+			}
 			if x != y {
 				return x < y
 			}
 		}
-		x, xok := a[track].(int)
-		y, yok := b[track].(int)
-		if !xok || !yok {
+		x, y := track(a), track(b)
+		if x == nil || y == nil {
 			return false
 		}
-		if x != y {
-			return x < y
+		if *x != *y {
+			return *x < *y
 		}
-		am := a["metadata"].(map[string]any)
-		bm := b["metadata"].(map[string]any)
-		return am["filename"].(string) < bm["filename"].(string)
+		return a.Metadata.Filename < b.Metadata.Filename
 	}
-	sort.SliceStable(audio, func(i, j int) bool { return less(audio[i], audio[j]) })
-	for i, a := range audio {
-		a["index"] = i + 1
+	sort.SliceStable(audio, func(i, j int) bool { return less(&audio[i], &audio[j]) })
+	for i := range audio {
+		audio[i].Index = i + 1
 	}
-	return audio
 }
 
-func buildChapters(audio []map[string]any, bookTitle string) []map[string]any {
-	out := []map[string]any{}
+func buildChapters(audio []libitem.AudioFile, bookTitle string) []libitem.AudioChapter {
+	out := []libitem.AudioChapter{}
 	if len(audio) == 0 {
 		return out
 	}
-	chapters := func(a map[string]any) []map[string]any { c, _ := a["chapters"].([]map[string]any); return c }
-	first := chapters(audio[0])
-	same := len(audio) > 1 && len(first) > 0 && len(first) == len(chapters(audio[1]))
+	first := audio[0].Chapters
+	same := len(audio) > 1 && len(first) > 0 && len(first) == len(audio[1].Chapters)
 	if same {
 		for i, c := range first {
-			d := chapters(audio[1])[i]
-			if c["title"] != d["title"] || c["start"] != d["start"] {
+			if d := audio[1].Chapters[i]; c.Title != d.Title || c.Start != d.Start {
 				same = false
 				break
 			}
@@ -816,33 +751,21 @@ func buildChapters(audio []map[string]any, bookTitle string) []map[string]any {
 	}
 	if len(first) > 0 {
 		if len(audio) == 1 || same {
-			for _, c := range first {
-				out = append(out, c)
-			}
-			return out
+			return append(out, first...)
 		}
 		offset := 0.0
 		for _, a := range audio {
-			d, _ := a["duration"].(float64)
-			if d == 0 {
+			if a.Duration == 0 {
 				continue
 			}
-			for _, c := range chapters(a) {
-				st, _ := c["start"].(float64)
-				en, _ := c["end"].(float64)
-				if en-st < .1 {
+			for _, c := range a.Chapters {
+				if c.End-c.Start < .1 {
 					continue
 				}
-				cp := map[string]any{}
-				for k, v := range c {
-					cp[k] = v
-				}
-				cp["start"] = st + offset
-				cp["end"] = en + offset
-				cp["id"] = len(out)
-				out = append(out, cp)
+				c.Start, c.End, c.ID = c.Start+offset, c.End+offset, len(out)
+				out = append(out, c)
 			}
-			offset += d
+			offset += a.Duration
 		}
 		return out
 	}
@@ -852,12 +775,10 @@ func buildChapters(audio []map[string]any, bookTitle string) []map[string]any {
 	uniqueTitles := map[string]bool{}
 	useMetaTitles := len(audio) > 1
 	for _, a := range audio {
-		m, _ := a["metaTags"].(map[string]any)
-		tag, _ := m["tagTitle"].(string)
+		tag := a.MetaTags["tagTitle"]
 		if tag == "" || tag == bookTitle {
 			useMetaTitles = false
-		}
-		if tag != "" && tag != bookTitle {
+		} else {
 			uniqueTitles[tag] = true
 		}
 	}
@@ -866,27 +787,23 @@ func buildChapters(audio []map[string]any, bookTitle string) []map[string]any {
 	}
 	offset := 0.0
 	for _, a := range audio {
-		d, _ := a["duration"].(float64)
-		if d <= 0 {
+		if a.Duration <= 0 {
 			continue
 		}
-		m, _ := a["metadata"].(map[string]any)
-		filename, _ := m["filename"].(string)
-		title := strings.TrimSuffix(filename, filepath.Ext(filename))
+		title := audioFilename(a)
 		if useMetaTitles {
-			m, _ := a["metaTags"].(map[string]any)
-			title, _ = m["tagTitle"].(string)
+			title = a.MetaTags["tagTitle"]
 		}
-		out = append(out, map[string]any{"id": len(out), "start": offset, "end": offset + d, "title": title})
-		offset += d
+		out = append(out, libitem.AudioChapter{ID: len(out), Start: offset, End: offset + a.Duration, Title: title})
+		offset += a.Duration
 	}
 	return out
 }
 
 var audioTagAliases = map[string][]string{"tagEncoder": {"encoder", "tsse", "tss"}, "tagEncodedBy": {"encoded_by", "tenc", "ten"}, "tagTitle": {"title", "tit2", "tt2"}, "tagTitleSort": {"title-sort", "tsot"}, "tagSubtitle": {"subtitle", "tit3", "tt3"}, "tagTrack": {"track", "trck", "trk"}, "tagDisc": {"discnumber", "disc", "disk", "tpos", "tpa"}, "tagAlbum": {"album", "talb", "tal"}, "tagAlbumSort": {"album-sort", "tsoa"}, "tagArtist": {"artist", "tpe1", "tp1"}, "tagArtistSort": {"artist-sort", "tsop"}, "tagAlbumArtist": {"albumartist", "album_artist", "tpe2"}, "tagDate": {"date", "tyer", "tye"}, "tagComposer": {"composer", "tcom", "tcm"}, "tagPublisher": {"publisher", "tpub", "tpb"}, "tagComment": {"comment", "comm", "com"}, "tagDescription": {"description", "desc"}, "tagGenre": {"genre", "tcon", "tco"}, "tagSeries": {"series", "show", "mvnm"}, "tagSeriesPart": {"series-part", "episode_id", "mvin", "part"}, "tagGrouping": {"grouping", "grp1"}, "tagIsbn": {"isbn"}, "tagLanguage": {"language", "lang"}, "tagASIN": {"asin", "audible_asin"}, "tagItunesId": {"itunes-id"}, "tagPodcastType": {"podcast-type"}, "tagEpisodeType": {"episode-type"}, "tagOriginalYear": {"originalyear"}, "tagReleaseCountry": {"musicbrainz album release country", "releasecountry"}, "tagReleaseStatus": {"musicbrainz album status", "releasestatus", "musicbrainz_albumstatus"}, "tagReleaseType": {"musicbrainz album type", "releasetype", "musicbrainz_albumtype"}, "tagISRC": {"tsrc", "isrc"}, "tagMusicBrainzTrackId": {"musicbrainz release track id", "musicbrainz_releasetrackid"}, "tagMusicBrainzAlbumId": {"musicbrainz album id", "musicbrainz_albumid"}, "tagMusicBrainzAlbumArtistId": {"musicbrainz album artist id", "musicbrainz_albumartistid"}, "tagMusicBrainzArtistId": {"musicbrainz artist id", "musicbrainz_artistid"}}
 
-func parseAudioTags(raw map[string]string) map[string]any {
-	out := map[string]any{}
+func parseAudioTags(raw map[string]string) map[string]string {
+	out := map[string]string{}
 	for target, aliases := range audioTagAliases {
 		for key, value := range raw {
 			for _, alias := range aliases {
@@ -903,11 +820,11 @@ func parseAudioTags(raw map[string]string) map[string]any {
 
 // applyAudioMetadata mirrors AudioFileScanner.setBookMetadataFromAudioMetaTags
 // (v2.37.2, AudioFileScanner.js:221-344); the caller supplies only file zero.
-func applyAudioMetadata(tags map[string]any, dst *bookMetadata) {
+func applyAudioMetadata(tags map[string]string, dst *bookMetadata) {
 	str := func(keys ...string) string {
 		for _, key := range keys {
-			if v, ok := tags[key].(string); ok && strings.TrimSpace(v) != "" {
-				return strings.TrimSpace(v)
+			if v := strings.TrimSpace(tags[key]); v != "" {
+				return v
 			}
 		}
 		return ""
@@ -1021,8 +938,7 @@ func bookPathMetadata(p, root string, parseSubtitle bool) (title, author, series
 	return
 }
 func extractPublishedYear(s string) (string, string) {
-	re := regexp.MustCompile(`^ *\(?([0-9]{4})\)? * - *(.+)`)
-	m := re.FindStringSubmatch(s)
+	m := publishedYearPrefix.FindStringSubmatch(s)
 	if m == nil {
 		return s, ""
 	}
@@ -1030,8 +946,7 @@ func extractPublishedYear(s string) (string, string) {
 }
 
 func extractASIN(s string) (string, string) {
-	pattern := regexp.MustCompile(`(?: |^)\[([A-Z0-9]{10})\](?: |$)`)
-	m := pattern.FindStringSubmatchIndex(s)
+	m := asinInName.FindStringSubmatchIndex(s)
 	if m == nil {
 		return s, ""
 	}
@@ -1039,10 +954,9 @@ func extractASIN(s string) (string, string) {
 	return strings.TrimSpace(s[:m[0]] + s[m[1]:]), asin
 }
 func extractSequence(s string) (string, string) {
-	re := regexp.MustCompile(`(?i)^(?:(?:vol\.? |volume |book ))?(\d{0,3}(?:\.\d{1,2})?)(\.?)(?: (.*))?$`)
 	parts := strings.Split(s, " - ")
 	for i, p := range parts {
-		m := re.FindStringSubmatch(p)
+		m := sequenceInName.FindStringSubmatch(p)
 		if m == nil {
 			continue
 		}

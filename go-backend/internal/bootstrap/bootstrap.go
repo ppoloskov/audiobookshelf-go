@@ -8,13 +8,11 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/version"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -107,16 +105,8 @@ func verifyExisting(path string) error {
 		return fmt.Errorf("bootstrap: open existing database: %w", err)
 	}
 	defer st.Close()
-	db := st.DB()
-	var current, maxVersion string
-	if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = 'version' LIMIT 1`).Scan(&current); err != nil {
-		return fmt.Errorf("bootstrap: read migrationsMeta version: %w", err)
-	}
-	if err := db.QueryRow(`SELECT value FROM migrationsMeta WHERE key = 'maxVersion' LIMIT 1`).Scan(&maxVersion); err != nil {
-		return fmt.Errorf("bootstrap: read migrationsMeta maxVersion: %w", err)
-	}
-	if current != version.Server || maxVersion != version.Server {
-		return fmt.Errorf("bootstrap: existing database migration state is %q/%q; pinned baseline is %s", current, maxVersion, version.Server)
+	if err := st.Validate(context.Background()); err != nil {
+		return fmt.Errorf("bootstrap: existing database: %w", err)
 	}
 	return nil
 }
@@ -173,17 +163,8 @@ func initializeNew(path string, cfg config.Config) (retErr error) {
 			continue
 		}
 		if row.Key == "server-settings" {
-			backupPath := serversettings.EnvBackupPath()
-			if backupPath == "" {
-				backupPath = filepath.Join(cfg.MetadataPath, "backups")
-			}
-			row.Value["backupPath"] = backupPath
-			row.Value["authOpenIDTokenSigningAlgorithm"] = "RS256"
-			if serversettings.EnvAllowIframe() {
-				row.Value["allowIframe"] = true
-			}
+			row.Value = serversettings.FreshDocument(cfg.MetadataPath)
 		}
-		delete(row.Value, "tokenSecret")
 		data, err := json.Marshal(row.Value)
 		if err != nil {
 			return fmt.Errorf("bootstrap: encode default setting %s: %w", row.Key, err)

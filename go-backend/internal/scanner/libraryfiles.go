@@ -2,24 +2,14 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/libitem"
 	"encoding/json"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
-// libraryFileMetadata is the stored FileMetadata of a library file
-// (server/objects/metadata/FileMetadata.js). Numbers are float64 so rows with
-// fractional values still decode; whole numbers encode without a fraction.
-type libraryFileMetadata struct {
-	Filename    string  `json:"filename"`
-	Ext         string  `json:"ext"`
-	Path        string  `json:"path"`
-	RelPath     string  `json:"relPath"`
-	Size        float64 `json:"size"`
-	MtimeMs     float64 `json:"mtimeMs"`
-	CtimeMs     float64 `json:"ctimeMs"`
-	BirthtimeMs float64 `json:"birthtimeMs"`
-}
+type libraryFileMetadata = libitem.FileMetadata
 
 // libraryFile is one entry of libraryItems.libraryFiles
 // (server/objects/files/LibraryFile.js:22-30).
@@ -33,17 +23,19 @@ type libraryFile struct {
 }
 
 func newLibraryFile(root string, f file) libraryFile {
-	meta := makeFileMeta(root, f)
-	flat, _ := meta["metadata"].(map[string]any)
+	rel := f.relPath
+	if rel == "" {
+		rel, _ = filepath.Rel(root, f.path)
+	}
+	ext := strings.ToLower(filepath.Ext(f.path))
 	mtime, ctime, birthtime := statTimes(f.path, f.info)
-	rel, _ := flat["relPath"].(string)
-	ext, _ := flat["ext"].(string)
 	return libraryFile{
 		Ino: inode(f.info),
 		Metadata: libraryFileMetadata{
-			Filename: filepath.Base(f.path), Ext: ext, Path: f.path, RelPath: rel, Size: float64(f.info.Size()),
+			Filename: filepath.Base(f.path), Ext: ext, Path: f.path, RelPath: filepath.ToSlash(rel), Size: float64(f.info.Size()),
 			MtimeMs: float64(mtime.UnixMilli()), CtimeMs: float64(ctime.UnixMilli()), BirthtimeMs: float64(birthtime.UnixMilli()),
 		},
+		AddedAt: float64(mtime.UnixMilli()), UpdatedAt: float64(mtime.UnixMilli()),
 		FileType: filekind.Of(ext),
 	}
 }
@@ -76,14 +68,6 @@ func (d libraryFileDiff) touchedPaths() map[string]bool {
 
 func parseStoredLibraryFiles(raw []byte) []libraryFile {
 	var out []libraryFile
-	if len(raw) > 0 {
-		_ = json.Unmarshal(raw, &out)
-	}
-	return out
-}
-
-func parseStoredObjects(raw []byte) []map[string]any {
-	var out []map[string]any
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &out)
 	}

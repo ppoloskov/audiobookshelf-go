@@ -10,13 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/catalog"
-	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/libitem"
 )
 
 // TestLibitemEquivalence proves that internal/libitem serializes every library
-// item of the fixture exactly as catalog's map-based code does today, by JSON
+// item of the fixture exactly as the HTTP routes return it, by JSON
 // value (key order is not contract, ADR-002).
 func TestLibitemEquivalence(t *testing.T) {
 	in := Boot(t)
@@ -41,8 +39,6 @@ func TestLibitemEquivalence(t *testing.T) {
 func compareAllItems(t *testing.T, in *Install) {
 	t.Helper()
 	ctx := context.Background()
-	h := catalog.New(in.DB, config.Config{}, nil)
-
 	var settings []byte
 	_ = in.DB.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
 	prefixes := textsort.ParsePrefixes(settings)
@@ -112,21 +108,8 @@ func compareAllItems(t *testing.T, in *Install) {
 			t.Fatalf("Load order: got %s want %s", it.ID, id)
 		}
 		kinds[it.MediaType]++
-		oldFull, err := h.ItemJSON(ctx, id, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		oldExpanded, err := h.ItemJSON(ctx, id, true)
-		if err != nil {
-			t.Fatal(err)
-		}
-		oldMin, err := h.ItemMinifiedJSON(ctx, id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		compare(t, id+" Full", oldFull, full.Full())
-		compare(t, id+" Expanded", oldExpanded, full.Expanded(prefixes))
-		compare(t, id+" Minified", oldMin, it.Minified(prefixes))
+		compare(t, id+" Full", itemOverHTTP(t, in, root, id, ""), full.Full())
+		compare(t, id+" Expanded", itemOverHTTP(t, in, root, id, "?expanded=1"), full.Expanded(prefixes))
 		if row, ok := listRows[id]; ok {
 			compare(t, id+" ListRow", row, it.ListRow(prefixes))
 			delete(listRows, id)
@@ -141,6 +124,20 @@ func compareAllItems(t *testing.T, in *Install) {
 		t.Errorf("fixture must cover books and podcasts, got %v", kinds)
 	}
 	t.Logf("compared %v items in 4 shapes", kinds)
+}
+
+// itemOverHTTP is GET /api/items/:id as the root user decodes it.
+func itemOverHTTP(t *testing.T, in *Install, token, id, query string) any {
+	t.Helper()
+	resp, body := in.Do(t, "GET", "/api/items/"+id+query, token, nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("item %s%s: %d %s", id, query, resp.StatusCode, body)
+	}
+	var out any
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 func compare(t *testing.T, name string, old, new any) {

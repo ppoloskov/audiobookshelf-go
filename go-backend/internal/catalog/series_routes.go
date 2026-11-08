@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -101,7 +102,7 @@ func (h *Handler) seriesFindOne(w http.ResponseWriter, r *http.Request) error {
 			include = append(include, v)
 		}
 	}
-	detail, err := h.seriesDetailOf(r.Context(), user, s, items, sliceHas(include, "progress"), sliceHas(include, "rssfeed"))
+	detail, err := h.seriesDetailOf(r.Context(), user, s, items, slices.Contains(include, "progress"), slices.Contains(include, "rssfeed"))
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

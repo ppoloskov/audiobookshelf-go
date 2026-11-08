@@ -7,13 +7,12 @@
 package itemwrite
 
 import (
+	"audiobookshelf-compat/internal/ids"
 	"context"
 	"database/sql"
 	"errors"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
@@ -74,97 +73,87 @@ func (c *Clock) Now() string {
 	return dbtime.Format(t)
 }
 
-type kind struct {
-	parent, junction, col string
-	author                bool
-	derived               func(name string) string // lastFirst or nameIgnorePrefix
-	prefixes              []string                 // sorting prefixes of a series name
-}
-
-type want struct {
-	name string
-	seq  sql.NullString
-}
-
 type link struct {
 	id, name string
 	seq      sql.NullString
 }
 
-// LinkAuthors links the book to the named authors, creating the missing ones.
-func (c *Changes) LinkAuthors(ctx context.Context, tx *sql.Tx, libraryID, bookID string, names []string, r Rules) (bool, error) {
-	k := kind{parent: "authors", junction: "bookAuthors", col: "authorId", author: true, derived: nameparse.ToLastFirst}
-	var wants []want
-	for _, name := range names {
-		if name = strings.TrimSpace(name); name != "" {
-			wants = append(wants, want{name: name})
-		}
+// key is how a name is compared with the book's current parents.
+func (r Rules) key(name string) string {
+	if r.Exact {
+		return name
 	}
-	return c.relate(ctx, tx, k, libraryID, bookID, wants, r)
+	return strings.ToLower(name)
 }
 
-// LinkSeries links the book to the given series with their sequences.
-func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID string, series []Series, prefixes []string, r Rules) (bool, error) {
-	k := kind{parent: "series", junction: "bookSeries", col: "seriesId", prefixes: prefixes, derived: func(name string) string { return textsort.TitleIgnorePrefix(name, prefixes) }}
-	var wants []want
-	for _, s := range series {
-		if name := strings.TrimSpace(s.Name); name != "" {
-			wants = append(wants, want{name: name, seq: sql.NullString{String: s.Sequence, Valid: s.Sequence != ""}})
-		}
-	}
-	return c.relate(ctx, tx, k, libraryID, bookID, wants, r)
-}
-
-func (c *Changes) relate(ctx context.Context, tx *sql.Tx, k kind, libraryID, bookID string, wants []want, r Rules) (bool, error) {
-	key := func(name string) string {
-		if r.Exact {
-			return name
-		}
-		return strings.ToLower(name)
-	}
-	seqSel := "NULL"
-	if !k.author {
-		seqSel = "j.sequence"
-	}
-	rows, err := tx.QueryContext(ctx, `SELECT p.id,p.name,`+seqSel+` FROM `+k.junction+` j JOIN `+k.parent+` p ON p.id=j.`+k.col+` WHERE j.bookId=? ORDER BY j.createdAt,j.rowid`, bookID)
+// currentLinks are the book's parents in link order and by key. seq is the
+// column that holds the link's sequence ("NULL" for authors).
+func currentLinks(ctx context.Context, tx *sql.Tx, table, junction, col, seq, bookID string, r Rules) ([]link, map[string]link, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT p.id,p.name,`+seq+` FROM `+junction+` j JOIN `+table+` p ON p.id=j.`+col+` WHERE j.bookId=? ORDER BY j.createdAt,j.rowid`, bookID)
 	if err != nil {
-		return false, err
+		return nil, nil, err
 	}
+	defer rows.Close()
 	var order []link
-	current := map[string]link{}
+	byKey := map[string]link{}
 	for rows.Next() {
 		var l link
 		if err := rows.Scan(&l.id, &l.name, &l.seq); err != nil {
-			rows.Close()
-			return false, err
+			return nil, nil, err
 		}
 		order = append(order, l)
-		current[key(l.name)] = l
+		byKey[r.key(l.name)] = l
 	}
-	if err := rows.Close(); err != nil {
+	return order, byKey, rows.Err()
+}
+
+// parentID is the library's author or series of that name, inserted with its
+// derived sort name (lastFirst or nameIgnorePrefix) when there is none.
+func parentID(ctx context.Context, tx *sql.Tx, table, derivedCol, derived, libraryID, name, now string, r Rules) (id string, created bool, err error) {
+	match := `name=?`
+	if !r.Exact {
+		match += ` COLLATE NOCASE`
+	}
+	err = tx.QueryRowContext(ctx, `SELECT id FROM `+table+` WHERE libraryId=? AND `+match+` LIMIT 1`, libraryID, name).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		id = ids.Must()
+		_, err = tx.ExecContext(ctx, `INSERT INTO `+table+`(id,name,`+derivedCol+`,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, name, derived, libraryID, now, now)
+		created = err == nil
+	}
+	return id, created, err
+}
+
+// LinkAuthors links the book to the named authors, creating the missing ones.
+func (c *Changes) LinkAuthors(ctx context.Context, tx *sql.Tx, libraryID, bookID string, names []string, r Rules) (bool, error) {
+	var wants []string
+	wanted := map[string]bool{}
+	for _, name := range names {
+		if name = strings.TrimSpace(name); name != "" {
+			wants = append(wants, name)
+			wanted[r.key(name)] = true
+		}
+	}
+	order, current, err := currentLinks(ctx, tx, "authors", "bookAuthors", "authorId", "NULL", bookID, r)
+	if err != nil {
 		return false, err
 	}
 	changed := false
-	wanted := map[string]bool{}
-	for _, w := range wants {
-		wanted[key(w.name)] = true
-	}
 	// Book.updateAuthorsFromRequest removes first, then adds (Book.js:434-466).
 	if r.Replace {
 		for _, l := range order {
-			if wanted[key(l.name)] {
+			if wanted[r.key(l.name)] {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM `+k.junction+` WHERE bookId=? AND `+k.col+`=?`, bookID, l.id); err != nil {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=? AND authorId=?`, bookID, l.id); err != nil {
 				return false, err
 			}
 			changed = true
-			if !k.author {
-				c.SeriesUnlinked = append(c.SeriesUnlinked, l.id)
-				continue
-			}
 			c.AuthorsUnlinked = append(c.AuthorsUnlinked, l.id)
-			if n := authorBookCount(ctx, tx, l.id); n > 0 && r.AuthorUpdates {
+			n, err := authorBookCount(ctx, tx, l.id)
+			if err != nil {
+				return false, err
+			}
+			if n > 0 && r.AuthorUpdates {
 				payload, err := authorPayload(ctx, tx, l.id, false, n)
 				if err != nil {
 					return false, err
@@ -175,76 +164,111 @@ func (c *Changes) relate(ctx context.Context, tx *sql.Tx, k kind, libraryID, boo
 	}
 	var clock Clock
 	done := map[string]bool{}
-	for _, w := range wants {
-		name := key(w.name)
-		if done[name] {
+	for _, name := range wants {
+		key := r.key(name)
+		if done[key] {
 			continue
 		}
-		done[name] = true
-		if l, ok := current[name]; ok {
-			if (!w.seq.Valid && r.KeepSequence) || l.seq == w.seq || k.author {
+		done[key] = true
+		if _, ok := current[key]; ok {
+			continue
+		}
+		now := clock.Now()
+		id, created, err := parentID(ctx, tx, "authors", "lastFirst", nameparse.ToLastFirst(name), libraryID, name, now, r)
+		if err != nil {
+			return false, err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, ids.Must(), bookID, id, now); err != nil {
+			return false, err
+		}
+		changed = true
+		c.AuthorsAdded = append(c.AuthorsAdded, filterdata.Named{ID: id, Name: name})
+		if created {
+			payload, err := authorPayload(ctx, tx, id, true, 0)
+			if err != nil {
+				return false, err
+			}
+			c.Events = append(c.Events, Event{"author_added", payload})
+			continue
+		}
+		c.AuthorsRelinked = append(c.AuthorsRelinked, id)
+		if r.AuthorUpdates {
+			n, err := authorBookCount(ctx, tx, id)
+			if err != nil {
+				return false, err
+			}
+			payload, err := authorPayload(ctx, tx, id, false, n)
+			if err != nil {
+				return false, err
+			}
+			c.Events = append(c.Events, Event{"author_updated", payload})
+		}
+	}
+	return changed, nil
+}
+
+// LinkSeries links the book to the given series with their sequences.
+func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID string, series []Series, prefixes []string, r Rules) (bool, error) {
+	var wants []Series
+	wanted := map[string]bool{}
+	for _, s := range series {
+		if s.Name = strings.TrimSpace(s.Name); s.Name != "" {
+			wants = append(wants, s)
+			wanted[r.key(s.Name)] = true
+		}
+	}
+	order, current, err := currentLinks(ctx, tx, "series", "bookSeries", "seriesId", "j.sequence", bookID, r)
+	if err != nil {
+		return false, err
+	}
+	changed := false
+	if r.Replace {
+		for _, l := range order {
+			if wanted[r.key(l.name)] {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=?`, store.NullString(w.seq), bookID, l.id); err != nil {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=? AND seriesId=?`, bookID, l.id); err != nil {
+				return false, err
+			}
+			changed = true
+			c.SeriesUnlinked = append(c.SeriesUnlinked, l.id)
+		}
+	}
+	var clock Clock
+	done := map[string]bool{}
+	for _, w := range wants {
+		key := r.key(w.Name)
+		if done[key] {
+			continue
+		}
+		done[key] = true
+		seq := sql.NullString{String: w.Sequence, Valid: w.Sequence != ""}
+		if l, ok := current[key]; ok {
+			if (!seq.Valid && r.KeepSequence) || l.seq == seq {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=?`, store.NullString(seq), bookID, l.id); err != nil {
 				return false, err
 			}
 			changed = true
 			continue
 		}
 		now := clock.Now()
-		match := `name=?`
-		if !r.Exact {
-			match += ` COLLATE NOCASE`
-		}
-		var id string
-		created := false
-		err := tx.QueryRowContext(ctx, `SELECT id FROM `+k.parent+` WHERE libraryId=? AND `+match+` LIMIT 1`, libraryID, w.name).Scan(&id)
-		if errors.Is(err, sql.ErrNoRows) {
-			created = true
-			id = uuid.NewString()
-			derivedCol := "nameIgnorePrefix"
-			if k.author {
-				derivedCol = "lastFirst"
-			}
-			_, err = tx.ExecContext(ctx, `INSERT INTO `+k.parent+`(id,name,`+derivedCol+`,libraryId,createdAt,updatedAt) VALUES(?,?,?,?,?,?)`, id, w.name, k.derived(w.name), libraryID, now, now)
-		}
+		id, created, err := parentID(ctx, tx, "series", "nameIgnorePrefix", textsort.TitleIgnorePrefix(w.Name, prefixes), libraryID, w.Name, now, r)
 		if err != nil {
 			return false, err
 		}
-		if k.author {
-			_, err = tx.ExecContext(ctx, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, uuid.NewString(), bookID, id, now)
-		} else {
-			_, err = tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, uuid.NewString(), bookID, id, store.NullString(w.seq), now)
-		}
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, ids.Must(), bookID, id, store.NullString(seq), now); err != nil {
 			return false, err
 		}
 		changed = true
-		added := filterdata.Named{ID: id, Name: w.name}
-		switch {
-		case !k.author:
-			c.SeriesAdded = append(c.SeriesAdded, added)
-			if created && r.SeriesAdded {
-				ms, _ := dbtime.OptionalMillis(now)
-				c.Events = append(c.Events, Event{"series_added", wire.SeriesCreated{ID: id, Name: w.name, NameIgnorePrefix: textsort.PrefixAtEnd(w.name, k.prefixes), AddedAt: *ms, UpdatedAt: *ms, LibraryID: libraryID}})
+		c.SeriesAdded = append(c.SeriesAdded, filterdata.Named{ID: id, Name: w.Name})
+		if created && r.SeriesAdded {
+			ms, err := dbtime.OptionalMillis(now)
+			if err != nil || ms == nil {
+				return false, errors.Join(err, errors.New("itemwrite: unreadable series timestamp"))
 			}
-		case created:
-			payload, err := authorPayload(ctx, tx, id, true, 0)
-			if err != nil {
-				return false, err
-			}
-			c.AuthorsAdded = append(c.AuthorsAdded, added)
-			c.Events = append(c.Events, Event{"author_added", payload})
-		default:
-			c.AuthorsAdded = append(c.AuthorsAdded, added)
-			c.AuthorsRelinked = append(c.AuthorsRelinked, id)
-			if r.AuthorUpdates {
-				payload, err := authorPayload(ctx, tx, id, false, authorBookCount(ctx, tx, id))
-				if err != nil {
-					return false, err
-				}
-				c.Events = append(c.Events, Event{"author_updated", payload})
-			}
+			c.Events = append(c.Events, Event{"series_added", wire.SeriesCreated{ID: id, Name: w.Name, NameIgnorePrefix: textsort.PrefixAtEnd(w.Name, prefixes), AddedAt: *ms, UpdatedAt: *ms, LibraryID: libraryID}})
 		}
 	}
 	return changed, nil
@@ -274,8 +298,8 @@ func authorPayload(ctx context.Context, tx *sql.Tx, id string, created bool, num
 	return payload, nil
 }
 
-func authorBookCount(ctx context.Context, tx *sql.Tx, authorID string) int {
+func authorBookCount(ctx context.Context, tx *sql.Tx, authorID string) (int, error) {
 	var n int
-	_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM bookAuthors WHERE authorId=?`, authorID).Scan(&n)
-	return n
+	err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM bookAuthors WHERE authorId=?`, authorID).Scan(&n)
+	return n, err
 }

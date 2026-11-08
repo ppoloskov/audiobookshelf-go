@@ -88,7 +88,7 @@ func queryFixture(t *testing.T, ignorePrefix bool) *Handler {
 			t.Fatalf("%v\n%s", err, q)
 		}
 	}
-	return New(db, config.Config{}, nil)
+	return New(db, config.Config{}, nil, testDeps())
 }
 
 func sqlNullable(v any) string {

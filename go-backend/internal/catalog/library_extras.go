@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -43,7 +44,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib libraryS
 	for name := range counts {
 		names = append(names, name)
 	}
-	sort.SliceStable(names, func(i, j int) bool { return naturalLess(names[i], names[j]) })
+	sort.SliceStable(names, func(i, j int) bool { return textsort.NaturalBaseCompare(names[i], names[j]) < 0 })
 	result := make([]map[string]any, 0, len(names))
 	for _, name := range names {
 		result = append(result, map[string]any{"id": url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(name))), "name": name, "numBooks": counts[name]})
@@ -107,6 +108,11 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib lib
 		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	defer tx.Rollback()
 	updatedIDs := make([]string, 0, len(books))
 	for _, row := range books {
 		next := make([]string, 0, len(row.narrators)+1)
@@ -128,10 +134,13 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib lib
 			}
 		}
 		encoded, _ := json.Marshal(next)
-		if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), row.bookID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE books SET narrators=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), row.bookID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		updatedIDs = append(updatedIDs, row.itemID)
+	}
+	if err := tx.Commit(); err != nil {
+		return httputil.Internal("database write failed", err)
 	}
 	if len(updatedIDs) > 0 {
 		if updatedItems, err := h.expandedItems(r.Context(), updatedIDs); err == nil && len(updatedItems) > 0 {

@@ -38,7 +38,7 @@ func (h *Handler) itemUpdated(ctx context.Context, itemID string) error {
 	if h.emit == nil { // nobody listens: skip building the expanded item
 		return nil
 	}
-	expanded, err := h.ItemJSON(ctx, itemID, true)
+	expanded, err := h.expandedItem(ctx, itemID)
 	if err != nil {
 		return err
 	}

@@ -16,13 +16,13 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/version"
 
 	_ "modernc.org/sqlite"
 )
 
 var (
-	ErrNotFound = errors.New("store: record not found")
-	ErrSchema   = errors.New("store: unsupported or incomplete Audiobookshelf schema")
+	ErrSchema = errors.New("store: unsupported or incomplete Audiobookshelf schema")
 )
 
 type Store struct{ db *sql.DB }
@@ -57,11 +57,36 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateSchema(context.Background()); err != nil {
+	if err := s.Validate(context.Background()); err != nil {
 		s.db.Close()
 		return nil, err
 	}
 	return s, nil
+}
+
+// Validate is the one definition of a usable database: the model columns this
+// server reads exist and the migration state is the pinned baseline. Go cannot
+// migrate (upstream runs migrations when it reconnects), so an older or newer
+// database is refused rather than run on a schema the code does not match.
+func (s *Store) Validate(ctx context.Context) error {
+	if err := s.validateSchema(ctx); err != nil {
+		return err
+	}
+	return s.validateMigrationState(ctx)
+}
+
+func (s *Store) validateMigrationState(ctx context.Context) error {
+	var current, maxVersion string
+	if err := s.db.QueryRowContext(ctx, `SELECT value FROM migrationsMeta WHERE key = 'version' LIMIT 1`).Scan(&current); err != nil {
+		return fmt.Errorf("%w: read migrationsMeta version: %v", ErrSchema, err)
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT value FROM migrationsMeta WHERE key = 'maxVersion' LIMIT 1`).Scan(&maxVersion); err != nil {
+		return fmt.Errorf("%w: read migrationsMeta maxVersion: %v", ErrSchema, err)
+	}
+	if current != version.Server || maxVersion != version.Server {
+		return fmt.Errorf("%w: migration state is %q/%q; pinned baseline is %s", ErrSchema, current, maxVersion, version.Server)
+	}
+	return nil
 }
 
 // OpenUnchecked is Open without the schema check, for bootstrap, which opens
@@ -117,6 +142,8 @@ func (s *Store) validateSchema(ctx context.Context) error {
 		"libraries":      {"id", "name", "displayOrder", "icon", "mediaType", "provider", "lastScan", "lastScanVersion", "settings", "extraData", "createdAt", "updatedAt"},
 		"libraryFolders": {"id", "path", "libraryId", "createdAt", "updatedAt"},
 		"settings":       {"key", "value"},
+		"sessions":       {"id", "ipAddress", "userAgent", "refreshToken", "expiresAt", "createdAt", "updatedAt", "userId", "lastRefreshToken", "lastRefreshTokenExpiresAt"},
+		"apiKeys":        {"id", "isActive", "expiresAt", "lastUsedAt", "userId", "updatedAt"},
 	}
 	for table, want := range required {
 		got, err := tableColumns(ctx, s.db, table)
@@ -210,15 +237,6 @@ func NullInt64(v sql.NullInt64) any {
 		return nil
 	}
 	return v.Int64
-}
-
-// NullIfZero is an integer (for example epoch milliseconds) that reads as
-// absent when it is 0.
-func NullIfZero(v int64) any {
-	if v == 0 {
-		return nil
-	}
-	return v
 }
 
 // NullIfBlank is a text value that reads as absent when it is empty or only

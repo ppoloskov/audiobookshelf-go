@@ -145,19 +145,19 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	removeSQLiteSidecars(dbPath)
 	_ = os.Remove(dbOld)
 	if err = os.Rename(dbPath, dbOld); err != nil {
-		return m.resumeOld(oldStore, oldRuntime, fmt.Errorf("stage current database: %w", err))
+		return m.resumeOld(fmt.Errorf("stage current database: %w", err))
 	}
 	if err = os.Rename(dbTemp, dbPath); err != nil {
-		return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, err)
+		return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
 	}
 
 	for _, pair := range metaTargets {
 		if err = os.MkdirAll(filepath.Dir(pair.target), 0755); err != nil {
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, err)
+			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
 		}
 		stage, stageErr := copyDirectoryStage(pair.source, pair.target)
 		if stageErr != nil {
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, stageErr)
+			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, stageErr)
 		}
 		previous := pair.target + ".restore-previous"
 		_ = os.RemoveAll(previous)
@@ -166,28 +166,28 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 			existed = true
 			if err = os.Rename(pair.target, previous); err != nil {
 				_ = os.RemoveAll(stage)
-				return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, err)
+				return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
 			}
 		} else if !errors.Is(statErr, fs.ErrNotExist) {
 			_ = os.RemoveAll(stage)
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, statErr)
+			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, statErr)
 		}
 		if err = os.Rename(stage, pair.target); err != nil {
 			if existed {
 				_ = os.Rename(previous, pair.target)
 			}
 			_ = os.RemoveAll(stage)
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, oldStore, oldRuntime, err)
+			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
 		}
 		moved = append(moved, restoredDir{target: pair.target, previous: previous, existed: existed})
 	}
 
 	newStore, err = store.Open(dbPath)
 	if err == nil {
-		nextRuntime, err = newRuntime(dbOrNil(newStore), m.cfg, m)
+		nextRuntime, err = newRuntime(newStore.DB(), m.cfg, m)
 	}
 	if err != nil {
-		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, oldStore, oldRuntime, err)
+		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, err)
 	}
 	m.database = newStore
 	m.current.Store(nextRuntime)
@@ -200,7 +200,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	return nil
 }
 
-func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause error) error {
+func (m *Manager) resumeOld(cause error) error {
 	opened, err := store.Open(store.DatabasePath(m.cfg.ConfigPath))
 	if err != nil {
 		m.current.Store(nil)
@@ -216,12 +216,10 @@ func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause er
 	}
 	m.database = opened
 	m.current.Store(rt)
-	_ = oldStore
-	_ = oldRuntime
 	return cause
 }
 
-func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *Runtime, db *store.Store, oldStore *store.Store, oldRuntime *Runtime, cause error) error {
+func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *Runtime, db *store.Store, cause error) error {
 	if rt != nil {
 		rt.Close()
 	}
@@ -238,7 +236,7 @@ func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *
 			_ = os.Rename(entry.previous, entry.target)
 		}
 	}
-	return m.resumeOld(oldStore, oldRuntime, fmt.Errorf("restore failed: %w", cause))
+	return m.resumeOld(fmt.Errorf("restore failed: %w", cause))
 }
 
 func removeSQLiteSidecars(path string) {
@@ -307,13 +305,6 @@ func copyDirectoryStage(source, target string) (string, error) {
 		return "", err
 	}
 	return stage, nil
-}
-
-func dbOrNil(s *store.Store) *sql.DB {
-	if s == nil {
-		return nil
-	}
-	return s.DB()
 }
 
 func closeStore(s *store.Store) error {

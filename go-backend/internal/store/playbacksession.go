@@ -8,7 +8,6 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // PlaybackSessionColumns is the column list ScanPlaybackSession expects, in
@@ -134,7 +133,7 @@ func withoutLegacyPrefix(v any, prefixes ...string) any {
 // date/dayOfWeek, mediaMetadata passed through (null stays null), legacy
 // lib_/li_/ep_/local_ ids dropped, and a missing device serialized as {}
 // (new DeviceInfo(null).toJSON() deletes every null key).
-func (s PlaybackSessionRow) LegacyJSON(device *wire.DeviceInfo) map[string]any {
+func (s PlaybackSessionRow) LegacyJSON(device *DeviceInfo) map[string]any {
 	var extra map[string]any
 	_ = json.Unmarshal([]byte(s.ExtraData.String), &extra)
 	var metadata any

@@ -34,7 +34,7 @@ type shareRow struct {
 func shareFromRow(r sqlc.Mediaitemshare) shareRow {
 	return shareRow{
 		ID: r.ID, MediaItemID: r.Mediaitemid.String, MediaItemType: r.Mediaitemtype.String, Slug: r.Slug.String,
-		ExpiresAt: asTime(r.Expiresat), CreatedAt: asTime(r.Createdat), UpdatedAt: asTime(r.Updatedat),
+		ExpiresAt: dbtime.Time(r.Expiresat), CreatedAt: dbtime.Time(r.Createdat), UpdatedAt: dbtime.Time(r.Updatedat),
 		IsDownloadable: sql.NullBool{Bool: r.Isdownloadable.Int64 != 0, Valid: r.Isdownloadable.Valid},
 	}
 }
@@ -145,10 +145,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 		_ = q.DeleteMediaItemShare(ctx, id)
 	}
 	h.emit.ToAdmins("share_open", share.wire())
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(201)
-	_ = json.NewEncoder(w).Encode(share.wire())
-	return nil
+	return httputil.JSONStatus(w, r, 201, share.wire())
 }
 
 // deleteShare is ShareController.deleteMediaItemShare and

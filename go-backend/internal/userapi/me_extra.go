@@ -26,11 +26,11 @@ import (
 
 func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
 	itemID, episodeID := r.PathValue("id"), r.PathValue("episodeId")
-	access, err := h.canAccessItem(r.Context(), user, itemID)
+	exists, allowed, err := access.ItemAccess(r.Context(), h.db, user, itemID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.exists {
+	if !exists {
 		return httputil.Status(404, "")
 	}
 	var mediaID, mediaType string
@@ -51,7 +51,7 @@ func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Reques
 	if mediaType == "podcast" && !episodeFound {
 		return httputil.Status(404, "")
 	}
-	if !access.allowed {
+	if !allowed {
 		return httputil.Status(403, "")
 	}
 	if episodeFound {
@@ -216,13 +216,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 			continue
 		}
 		users, _ := d["users"].([]any)
-		accessible := d["availabilityOption"] == "adminOrUp" && access.AdminUser(user)
-		for _, uid := range users {
-			if uid == user.ID {
-				accessible = true
-			}
-		}
-		if !accessible || len(users) != 1 {
+		if !settingsdoc.DeviceAllowed(d, user) || len(users) != 1 {
 			kept = append(kept, d)
 		}
 	}
@@ -240,21 +234,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	if err := settingsdoc.Save(r.Context(), h.db, settingsdoc.EmailKey, settings); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	visible := make([]any, 0)
-	for _, entry := range combined {
-		d, _ := entry.(map[string]any)
-		users, _ := d["users"].([]any)
-		if d["availabilityOption"] == "adminOrUp" && access.AdminUser(user) {
-			visible = append(visible, d)
-			continue
-		}
-		for _, uid := range users {
-			if uid == user.ID {
-				visible = append(visible, d)
-				break
-			}
-		}
-	}
+	visible := settingsdoc.VisibleTo(settings, user)
 	h.emit.ToUser(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
 	return httputil.JSON(w, r, map[string]any{"ereaderDevices": visible})
 }
@@ -302,15 +282,15 @@ func (h *Handler) getYearStats(w http.ResponseWriter, r *http.Request, user stor
 		}
 		var m map[string]any
 		_ = json.Unmarshal(metaRaw, &m)
-		for _, x := range anyArray(m["authors"]) {
+		for _, x := range jsonvalue.Array(m["authors"]) {
 			a, _ := x.(map[string]any)
 			authors[jsonvalue.String(a["name"])] += secs
 		}
-		for _, x := range anyArray(m["narrators"]) {
+		for _, x := range jsonvalue.Array(m["narrators"]) {
 			n, _ := x.(string)
 			narrators[n] += secs
 		}
-		for _, x := range anyArray(m["genres"]) {
+		for _, x := range jsonvalue.Array(m["genres"]) {
 			g, _ := x.(string)
 			if g != "" && !strings.Contains(strings.ToLower(g), "audiobook") && !strings.Contains(strings.ToLower(g), "audio book") {
 				genres[g] += secs
@@ -391,7 +371,6 @@ func roundMonths(m map[int]float64) map[int]int {
 	}
 	return out
 }
-func anyArray(v any) []any { x, _ := v.([]any); return x }
 func topEntries(m map[string]int, key string, n int) []any {
 	type kv struct {
 		k string

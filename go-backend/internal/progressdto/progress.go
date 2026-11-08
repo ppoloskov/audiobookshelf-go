@@ -5,10 +5,8 @@ package progressdto
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 
 	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -28,31 +26,9 @@ func Read(ctx context.Context, db *sql.DB, userID string) ([]wire.MediaProgress,
 	}
 	out := make([]wire.MediaProgress, 0, len(rows))
 	for _, m := range rows {
-		out = append(out, fromRow(m))
+		out = append(out, toWire(rowFromModel(m)))
 	}
 	return out, nil
-}
-
-func fromRow(m sqlc.Mediaprogress) wire.MediaProgress {
-	var extra struct {
-		LibraryItemID *string  `json:"libraryItemId"`
-		Progress      *float64 `json:"progress"`
-	}
-	_ = json.Unmarshal([]byte(m.Extradata.String), &extra)
-	p := wire.MediaProgress{
-		ID: m.ID, UserID: m.Userid.String, LibraryItemID: extra.LibraryItemID, MediaItemID: m.Mediaitemid.String,
-		MediaItemType: m.Mediaitemtype.String, Duration: floatPtr(m.Duration), CurrentTime: floatPtr(m.Currenttime),
-		IsFinished: m.Isfinished.Int64 != 0, HideFromContinueListening: m.Hidefromcontinuelistening.Int64 != 0,
-		EbookLocation: store.NullStringPtr(m.Ebooklocation), EbookProgress: floatPtr(m.Ebookprogress),
-		LastUpdate: millisPtr(m.Updatedat), StartedAt: millisPtr(m.Createdat), FinishedAt: millisPtr(m.Finishedat),
-	}
-	if extra.Progress != nil {
-		p.Progress = *extra.Progress
-	}
-	if p.MediaItemType == "podcastEpisode" {
-		p.EpisodeID = &m.Mediaitemid.String
-	}
-	return p
 }
 
 // ReadOne mirrors upstream User.getOldMediaProgress(libraryItemId, episodeId)
@@ -72,19 +48,4 @@ func ReadOne(ctx context.Context, db *sql.DB, userID, libraryItemID, episodeID s
 		}
 	}
 	return nil, nil
-}
-
-func floatPtr(v sql.NullFloat64) *float64 {
-	if !v.Valid {
-		return nil
-	}
-	return &v.Float64
-}
-
-func millisPtr(v any) *int64 {
-	ms, ok := dbtime.Millis(v).(int64)
-	if !ok {
-		return nil
-	}
-	return &ms
 }

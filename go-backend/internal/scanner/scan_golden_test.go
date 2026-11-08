@@ -44,6 +44,26 @@ func goldenNormalize(s, root, meta string) string {
 	return s
 }
 
+// goldenCanonicalJSON re-encodes a JSON text column with sorted keys: key order
+// is not part of the stored contract (ADR-002).
+func goldenCanonicalJSON(v any) any {
+	text, ok := v.(string)
+	if !ok || !strings.HasPrefix(text, "{") && !strings.HasPrefix(text, "[") {
+		return v
+	}
+	dec := json.NewDecoder(strings.NewReader(text))
+	dec.UseNumber()
+	var decoded any
+	if dec.Decode(&decoded) != nil {
+		return v
+	}
+	out, err := json.Marshal(decoded)
+	if err != nil {
+		return v
+	}
+	return string(out)
+}
+
 func goldenDump(t *testing.T, db *sql.DB, q string) []map[string]any {
 	t.Helper()
 	rows, err := db.Query(q)
@@ -67,6 +87,7 @@ func goldenDump(t *testing.T, db *sql.DB, q string) []map[string]any {
 			if b, ok := vals[i].([]byte); ok {
 				vals[i] = string(b)
 			}
+			vals[i] = goldenCanonicalJSON(vals[i])
 			row[c] = vals[i]
 		}
 		out = append(out, row)
@@ -206,7 +227,7 @@ func TestScanGolden(t *testing.T) {
 	var itemID string
 	must(db.QueryRow(`SELECT id FROM libraryItems WHERE path=?`, R("Author B/CD Book")).Scan(&itemID))
 	goldenWrite(t, map[string]string{R("Author B/CD Book/notes.txt"): "n"})
-	r, err = s.ScanItemForce(ctx, itemID)
+	r, err = s.scanItemForce(ctx, itemID)
 	record("scan item force", r, err)
 
 	dump := map[string]any{"steps": steps}

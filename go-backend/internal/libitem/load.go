@@ -163,31 +163,13 @@ func scanItem(rows *sql.Rows) (Item, error) {
 		}
 	}
 	it.OldLibraryItemID, _ = store.DecodeJSONObject(extra)["oldLibraryItemId"].(string)
-	it.LibraryFiles = store.DecodeJSONSlice[map[string]any](libraryFiles)
+	it.LibraryFiles = store.DecodeJSONSlice[File](libraryFiles)
 	for _, file := range it.LibraryFiles {
-		if metadata, ok := file["metadata"].(map[string]any); ok {
-			file["fileType"] = FileType(metadata["ext"])
+		if file.metadata() != nil {
+			file["fileType"] = file.Kind()
 		}
 	}
 	return it, nil
-}
-
-func FileType(ext any) string {
-	value, _ := ext.(string)
-	switch strings.ToLower(strings.TrimPrefix(value, ".")) {
-	case "mp3", "m4a", "m4b", "aac", "flac", "ogg", "opus", "wav", "wma", "aiff":
-		return "audio"
-	case "epub", "pdf", "mobi", "azw", "azw3", "cbz", "cbr":
-		return "ebook"
-	case "jpg", "jpeg", "png", "webp", "gif":
-		return "image"
-	case "txt", "md", "rtf":
-		return "text"
-	case "opf", "nfo", "json":
-		return "metadata"
-	default:
-		return "unknown"
-	}
 }
 
 func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book, error) {
@@ -215,8 +197,8 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 			b.Duration = &n
 		}
 		b.Narrators, b.Genres, b.Tags = store.DecodeJSONSlice[string](narrators), store.DecodeJSONSlice[string](genres), store.DecodeJSONSlice[string](tags)
-		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[map[string]any](audio), store.DecodeJSONSlice[map[string]any](chapters)
-		if b.Ebook = store.DecodeJSONObject(ebook); len(b.Ebook) == 0 {
+		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[File](audio), store.DecodeJSONSlice[map[string]any](chapters)
+		if b.Ebook = File(store.DecodeJSONObject(ebook)); len(b.Ebook) == 0 {
 			b.Ebook = nil
 		}
 		b.Authors, b.Series = []Author{}, []SeriesRef{}

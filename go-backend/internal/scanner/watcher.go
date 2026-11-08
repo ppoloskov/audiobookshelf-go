@@ -3,6 +3,7 @@ package scanner
 import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/ids"
 	"context"
 	"fmt"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/logging"
-	"github.com/google/uuid"
 )
 
 // The library watcher follows server/Watcher.js: filesystem events are queued
@@ -179,7 +179,7 @@ type scanResults struct {
 }
 
 func newWatcherTask(lib *libraryWatch) *events.Task {
-	t := events.NewTask(uuid.NewString(), "watcher-scan", scanTaskData{LibraryID: lib.id, LibraryName: lib.name}).
+	t := events.NewTask(ids.Must(), "watcher-scan", scanTaskData{LibraryID: lib.id, LibraryName: lib.name}).
 		Titled(fmt.Sprintf("Scanning file changes in %q", lib.name), "MessageTaskScanningFileChanges", []string{lib.name})
 	t.ShowSuccess = true
 	return &t
@@ -289,10 +289,11 @@ func groupUpdatesByFolder(updates []fileUpdate) ([]string, map[string][]fileUpda
 }
 
 const (
-	scanNothing = iota
+	scanNothing = iota // no files found
 	scanAdded
 	scanUpdated
 	scanRemoved
+	scanUptodate // rescanned, nothing changed
 )
 
 // groupFileUpdates is scandir.groupFileItemsIntoLibraryItemDirs with
@@ -305,7 +306,7 @@ func groupFileUpdates(l library, relPaths []string) *updateGroup {
 		if !(strings.Contains(rel, "/") || (l.mediaType == "book" && l.mediaExt(ext))) {
 			continue
 		}
-		if l.mediaExt(ext) || filekind.IsCompanion(ext) {
+		if l.keeps(ext) {
 			media = append(media, rel)
 		} else {
 			other = append(other, rel)
@@ -379,7 +380,6 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 	if len(group.keys) == 0 {
 		return results, nil
 	}
-	tally := &scanTally{}
 
 	// First pass: files moved out of an item folder into its parent
 	// (LibraryScanner.js:501-545).
@@ -464,7 +464,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 					continue
 				}
 			}
-			res, e := s.rescanStoredItem(ctx, existing.id, details, tally)
+			res, e := s.rescanStoredItem(ctx, existing.id, details)
 			if e != nil {
 				return results, e
 			}
@@ -491,7 +491,6 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		if e != nil {
 			return results, e
 		}
-		tally.merge(n)
 		if n.added {
 			if item, e := s.itemEvent(ctx, n.id); e == nil {
 				s.emit.ToAll("item_added", item)
@@ -502,10 +501,9 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		}
 		// Watcher path skips the full-scan cleanup: only the author book counts
 		// are announced (LibraryItemScanner.js:215-217).
-		if err := s.finalizeScan(ctx, libraryID, &scanTally{authorsChanged: tally.authorsChanged}); err != nil {
+		if err := s.finalizeScan(ctx, libraryID, &scanTally{authorsChanged: n.authorsChanged}); err != nil {
 			logging.Errorf("[LibraryScanner] Announcing author counts failed: %v", err)
 		}
-		tally.authorsChanged = nil
 	}
 	return results, nil
 }
@@ -534,7 +532,7 @@ type itemPathUpdate struct {
 
 // rescanStoredItem is LibraryItemScanner.scanLibraryItem (LibraryItemScanner.js:
 // 24-71) for the watcher: rescan one stored item, optionally at a new path.
-func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *itemPathUpdate, tally *scanTally) (int, error) {
+func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *itemPathUpdate) (int, error) {
 	var libraryID, itemPath, folderID string
 	var isFile int
 	if err := s.db.QueryRowContext(ctx, `SELECT libraryId,path,libraryFolderId,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &itemPath, &folderID, &isFile); err != nil {
@@ -567,9 +565,8 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 		return scanNothing, err
 	}
 	if !n.updated {
-		return scanNothing, nil
+		return scanUptodate, nil
 	}
-	tally.merge(n)
 	if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
 		s.emit.ToAll("item_updated", item)
 	}
@@ -588,10 +585,7 @@ func (s *Scanner) collectItemGroup(ctx context.Context, l library, itemPath stri
 	}
 	var files []file
 	if st.IsDir() && !isFile {
-		files, err = walkFiles(ctx, itemPath, func(rel string) bool {
-			ext := filepath.Ext(rel)
-			return l.mediaExt(ext) || filekind.IsCompanion(ext)
-		})
+		files, err = walkFiles(ctx, itemPath, func(rel string) bool { return l.keeps(filepath.Ext(rel)) })
 	} else if l.mediaExt(filepath.Ext(itemPath)) {
 		files = append(files, file{path: itemPath, info: st, relPath: filepath.Base(itemPath)})
 	}

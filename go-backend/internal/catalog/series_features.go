@@ -3,9 +3,11 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -30,17 +32,17 @@ func includeHas(r *http.Request, value string) bool {
 	return false
 }
 
-func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string) (map[string]any, bool, error) {
+func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string) (feeds.Minified, bool, error) {
 	// An empty entityType matches upstream RssFeedManager.findFeedForEntityId
 	// (server/managers/RssFeedManager.js:59), which filters on entityId only.
 	feed, err := sqlc.New(h.db).GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
-	if err == sql.ErrNoRows {
-		return nil, false, nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return feeds.Minified{}, false, nil
 	}
 	if err != nil {
-		return nil, false, err
+		return feeds.Minified{}, false, err
 	}
-	return map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}}, true, nil
+	return feeds.FromSummary(feed), true, nil
 }
 
 func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {
@@ -51,23 +53,20 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 	if !ok {
 		return true, nil
 	}
-	value, _ = decodeFilterValue(value)
 	permission, args := access.For(ctx, user).MediaClause("b")
 	base := ` FROM books b JOIN bookSeries bs ON bs.bookId=b.id WHERE bs.seriesId=?`
 	query := `SELECT COUNT(*)` + base
 	queryArgs := []any{seriesID}
 	switch group {
-	case "genres", "tags", "narrators":
-		query += ` AND EXISTS(SELECT 1 FROM json_each(b.` + group + `) WHERE json_each.value=?)`
-		queryArgs = append(queryArgs, value)
-	case "authors":
-		query += ` AND EXISTS(SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`
-		queryArgs = append(queryArgs, value)
-	case "publishers", "languages":
-		column := map[string]string{"publishers": "publisher", "languages": "language"}[group]
-		query += ` AND b.` + column + `=?`
-		queryArgs = append(queryArgs, value)
+	case "genres", "tags", "narrators", "authors", "publishers", "languages":
+		clause, clauseArgs, err := filterSQL(raw, false, user)
+		if err != nil {
+			return false, err
+		}
+		query += clause
+		queryArgs = append(queryArgs, clauseArgs...)
 	case "progress":
+		value, _ = decodeFilterValue(value)
 		switch value {
 		case "not-finished":
 			query += ` AND (NOT EXISTS(SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? ) OR EXISTS(SELECT 1 FROM mediaProgresses mp WHERE mp.mediaItemId=b.id AND mp.userId=? AND COALESCE(mp.isFinished,0)=0))`

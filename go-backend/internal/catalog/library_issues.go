@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/httputil"
-	"cmp"
 	"net/http"
 )
 
@@ -14,29 +13,14 @@ func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Re
 	if !adminUser(lib.user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id FROM libraryItems WHERE libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
+	items, err := h.libraryItemsWhere(r.Context(), `libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	var itemIDs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return httputil.Internal("database read failed", err)
-		}
-		itemIDs = append(itemIDs, id)
-	}
-	if err := rows.Close(); err != nil || rows.Err() != nil {
-		if err == nil {
-			err = rows.Err()
-		}
-		return httputil.Internal("database read failed", err)
-	}
 	var linked itemLinks
-	for _, id := range itemIDs {
-		if status, message := h.removeLibraryItem(r.Context(), nil, id, false, &linked); status != http.StatusOK {
-			return httputil.Status(status, cmp.Or(message, http.StatusText(status)))
+	for _, item := range items {
+		if err := h.removeLibraryItem(r.Context(), item, false, &linked); err != nil {
+			return err
 		}
 	}
 	// The cleanup is racy upstream: the author of a removed book is sometimes

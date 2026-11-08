@@ -11,21 +11,26 @@ import (
 
 const jsonContentType = "application/json; charset=utf-8"
 
-// WriteJSON writes value as an Express res.json style response. It marshals
-// first, so a value that cannot be encoded yields a plain 500 instead of a
-// truncated body.
+// WriteJSON writes value as an Express res.json style response for code that
+// is not an error-returning Handler (the 401 paths, /ping). It marshals first,
+// so a value that cannot be encoded yields a plain 500 instead of a truncated
+// body. Handlers use JSON, which adds the ETag and 304.
 func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
-	o := apply(opts)
 	data, err := json.Marshal(value)
 	if err != nil {
 		logging.Errorf("[httputil] WriteJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	sendJSON(w, status, data, apply(opts).head())
+}
+
+// sendJSON is the one place a marshalled JSON body is framed.
+func sendJSON(w http.ResponseWriter, status int, data []byte, head bool) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.WriteHeader(status)
-	if !o.head() {
+	if !head {
 		_, _ = w.Write(data)
 	}
 }

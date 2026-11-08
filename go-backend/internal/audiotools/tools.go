@@ -25,6 +25,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
@@ -49,6 +50,8 @@ type task struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	cache  string
+
+	forceChapters, backup bool // embed-metadata options (also shown in data["options"])
 }
 
 // errCanceled is how a user-canceled task ends.
@@ -73,7 +76,6 @@ type item struct {
 type audio struct {
 	ino, path string
 	duration  float64
-	metadata  map[string]any
 }
 type chapter struct {
 	start, end float64
@@ -141,9 +143,7 @@ func (h *Handler) Close() {
 	defer h.mu.Unlock()
 	h.closed = true
 	for _, t := range h.tasks {
-		if t.cancel != nil {
-			t.cancel()
-		}
+		t.cancel()
 	}
 }
 
@@ -186,35 +186,26 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 	if x.typ != "book" {
 		return x, nil
 	}
-	var files []map[string]any
-	if json.Unmarshal([]byte(rawAudio.String), &files) == nil {
-		for i, f := range files {
-			if f["exclude"] == true {
-				continue
-			}
-			m, _ := f["metadata"].(map[string]any)
-			ino := str(f["ino"])
-			// The file's path and name are in its metadata (TS AudioFile.metadata),
-			// not at the top level of the entry.
-			path := str(m["path"])
-			if path == "" {
-				path = filepath.Join(x.path, filepath.Base(str(m["filename"])))
-			}
-			d := num(m["duration"])
-			if d == 0 {
-				d = num(f["duration"])
-			}
-			x.files = append(x.files, audio{ino: ino, path: path, duration: d, metadata: m})
-			if i == 0 && x.duration == 0 {
-				x.duration = d
-			}
+	var files []libitem.AudioFile
+	_ = json.Unmarshal([]byte(rawAudio.String), &files)
+	for i, f := range files {
+		if f.Exclude {
+			continue
+		}
+		// The file's path and name are in its metadata (TS AudioFile.metadata).
+		path := f.Metadata.Path
+		if path == "" {
+			path = filepath.Join(x.path, filepath.Base(f.Metadata.Filename))
+		}
+		x.files = append(x.files, audio{ino: f.Ino, path: path, duration: f.Duration})
+		if i == 0 && x.duration == 0 {
+			x.duration = f.Duration
 		}
 	}
-	var ch []map[string]any
-	if json.Unmarshal([]byte(rawChapters.String), &ch) == nil {
-		for _, c := range ch {
-			x.chapters = append(x.chapters, chapter{num(c["start"]), num(c["end"]), str(c["title"])})
-		}
+	var chapters []libitem.AudioChapter
+	_ = json.Unmarshal([]byte(rawChapters.String), &chapters)
+	for _, c := range chapters {
+		x.chapters = append(x.chapters, chapter{c.Start, c.End, c.Title})
 	}
 	return x, nil
 }
@@ -235,19 +226,12 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, userID string, 
 	started := t.snapshot()
 	h.mu.Unlock()
 	h.emit.TaskStarted(started)
-	if err := os.MkdirAll(t.cache, 0755); err != nil {
-		t.cancel()
-		return httputil.Internal("Unable to create task cache", err)
-	}
 	go h.runEncode(t, it, r.URL.Query())
 	return httputil.OK(w, r)
 }
 func (h *Handler) embed(w http.ResponseWriter, r *http.Request, userID string, it item) error {
-	if it.typ != "book" || len(it.files) == 0 {
-		return httputil.Status(400, "")
-	}
-	if h.has(it.id, "embed-metadata") {
-		return httputil.Status(400, "Library item is already in queue or processing")
+	if err := h.embeddable(it); err != nil {
+		return err
 	}
 	h.enqueueEmbed(userID, it, r.URL.Query())
 	h.runNextEmbed()
@@ -271,11 +255,8 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		if it.typ != "book" || len(it.files) == 0 {
-			return httputil.Status(400, "")
-		}
-		if h.has(id, "embed-metadata") {
-			return httputil.Status(400, "Library item is already in queue or processing")
+		if err := h.embeddable(it); err != nil {
+			return err
 		}
 		items = append(items, it)
 	}
@@ -286,10 +267,22 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
 	return httputil.OK(w, r)
 }
 
+// embeddable is the precondition of an embed-metadata task for the item.
+func (h *Handler) embeddable(it item) error {
+	if it.typ != "book" || len(it.files) == 0 {
+		return httputil.Status(400, "")
+	}
+	if h.has(it.id, "embed-metadata") {
+		return httputil.Status(400, "Library item is already in queue or processing")
+	}
+	return nil
+}
+
 func (h *Handler) enqueueEmbed(userID string, it item, q url.Values) {
 	t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription")
 	force := q.Get("forceEmbedChapters") == "1"
-	t.data["options"] = map[string]any{"forceEmbedChapters": force, "backupFiles": q.Get("backup") == "1"}
+	t.forceChapters, t.backup = force, q.Get("backup") == "1"
+	t.data["options"] = map[string]any{"forceEmbedChapters": t.forceChapters, "backupFiles": t.backup}
 	if force || len(it.files) == 1 {
 		t.data["chapters"] = chapterDTOs(it.chapters)
 	}
@@ -389,13 +382,12 @@ func (h *Handler) runEmbed(t *task) error {
 	if e != nil {
 		return e
 	}
-	opt, _ := t.data["options"].(map[string]any)
-	backup := opt["backupFiles"] == true
+	backup := t.backup
 	if e = os.MkdirAll(t.cache, 0755); e != nil {
 		return e
 	}
 	metaPath := filepath.Join(t.cache, "metadata.txt")
-	if e = os.WriteFile(metaPath, []byte(ffmetadata(it, len(it.files) == 1 || opt["forceEmbedChapters"] == true)), 0600); e != nil {
+	if e = os.WriteFile(metaPath, []byte(ffmetadata(it, len(it.files) == 1 || t.forceChapters)), 0600); e != nil {
 		return e
 	}
 	defer os.Remove(metaPath)
@@ -451,9 +443,6 @@ func (h *Handler) runEncode(t *task, it item, q map[string][]string) {
 	h.finish(t, nil)
 }
 func (h *Handler) merge(t *task, it item, q map[string][]string) error {
-	if len(it.files) == 0 {
-		return fmt.Errorf("no audio files")
-	}
 	if e := os.MkdirAll(t.cache, 0755); e != nil {
 		return e
 	}
@@ -591,16 +580,3 @@ func copyFile(src, dst string) error {
 	return oe
 }
 func randomID() string { var b [16]byte; _, _ = rand.Read(b[:]); return fmt.Sprintf("%x", b[:]) }
-func str(v any) string { s, _ := v.(string); return s }
-func num(v any) float64 {
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int:
-		return float64(n)
-	case string:
-		f, _ := strconv.ParseFloat(n, 64)
-		return f
-	}
-	return 0
-}

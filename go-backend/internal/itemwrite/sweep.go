@@ -1,6 +1,7 @@
 package itemwrite
 
 import (
+	"audiobookshelf-compat/internal/feeds"
 	"cmp"
 	"context"
 	"database/sql"
@@ -13,7 +14,6 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 )
 
 // Env is what the follow-up of a relation edit touches once its transaction has
@@ -132,6 +132,6 @@ func (e Env) closeFeeds(ctx context.Context, entityID string) {
 			logging.Errorf("[itemwrite] close feeds of %s: %v", entityID, err)
 			return
 		}
-		e.Emit.ToAll("rss_feed_closed", map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}})
+		e.Emit.ToAll("rss_feed_closed", feeds.FromSummary(feed))
 	}
 }

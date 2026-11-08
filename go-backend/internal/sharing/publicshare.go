@@ -68,23 +68,6 @@ func clearShareCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{Name: "share_session_id", Value: "", Path: "/", Expires: time.Unix(0, 0)})
 }
 
-func validUUIDv4(s string) bool {
-	if len(s) != 36 {
-		return false
-	}
-	for i, c := range s {
-		switch {
-		case i == 8 || i == 13 || i == 18 || i == 23:
-			if c != '-' {
-				return false
-			}
-		case !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'):
-			return false
-		}
-	}
-	return s[14] == '4' && strings.ContainsRune("89abAB", rune(s[19]))
-}
-
 // publicShare is ShareController.getMediaItemShareBySlug
 // (server/controllers/ShareController.js:31).
 func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
@@ -119,14 +102,13 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 			}
 			payload := publicShareResponse{MediaItemShare: share.wire(), PlaybackSession: old.json()}
 			h.mu.Unlock()
-			write(w, payload)
-			return nil
+			return httputil.JSON(w, r, payload)
 		}
 		if old != nil {
 			delete(h.sessions, sessionID)
 		}
 		h.mu.Unlock()
-		if old == nil && !validUUIDv4(sessionID) {
+		if old == nil && !ids.ValidV4(sessionID) {
 			clearShareCookie(w)
 		}
 	}
@@ -193,8 +175,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	h.mu.Unlock()
 	logging.Infof("[ShareManager] Adding new open share playback session %q", s.Title) // ShareManager.js:31
 	http.SetCookie(w, &http.Cookie{Name: "share_session_id", Value: sid, Path: "/", HttpOnly: true, MaxAge: 30 * 24 * 60 * 60})
-	write(w, payload)
-	return nil
+	return httputil.JSON(w, r, payload)
 }
 
 func deref64(f *float64) float64 {

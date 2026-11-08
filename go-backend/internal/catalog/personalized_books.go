@@ -296,14 +296,7 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 		// a.sequence.localeCompare(b.sequence, undefined, {numeric: true,
 		// sensitivity: 'base'}); a missing sequence sorts last.
 		sort.SliceStable(books, func(i, j int) bool {
-			a, b := books[i].sequence, books[j].sequence
-			if a == nil || *a == "" {
-				return false
-			}
-			if b == nil || *b == "" {
-				return true
-			}
-			return textsort.NaturalBaseCompare(*a, *b) < 0
+			return textsort.SequenceLess(deref(books[i].sequence), deref(books[j].sequence))
 		})
 		members[i] = len(books)
 		for _, m := range books {

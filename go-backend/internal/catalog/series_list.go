@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"errors"
@@ -134,7 +135,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScop
 			if feed, ok, e := h.feedMinified(r.Context(), "series", s.id); e != nil {
 				return httputil.Internal("database read failed", e)
 			} else if ok {
-				entry.RSSFeed = feed
+				entry.RSSFeed = &feed
 			}
 		}
 		results = append(results, entry)
@@ -174,15 +175,7 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 		return nil, err
 	}
 	rows.Close()
-	sort.SliceStable(refs, func(i, j int) bool {
-		if refs[i].sequence == "" {
-			return false
-		}
-		if refs[j].sequence == "" {
-			return true
-		}
-		return naturalLess(refs[i].sequence, refs[j].sequence)
-	})
+	sort.SliceStable(refs, func(i, j int) bool { return textsort.SequenceLess(refs[i].sequence, refs[j].sequence) })
 	ids := make([]string, len(refs))
 	for i, ref := range refs {
 		ids[i] = ref.id

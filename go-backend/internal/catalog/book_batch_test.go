@@ -24,7 +24,7 @@ func TestBookPageQueryCountIndependentOfPageSize(t *testing.T) {
 			db, counter := catalogFixtureWithQueryCount(t)
 			seedBookPage(t, db, size)
 			counter.reset()
-			h := New(db, config.Config{}, nil)
+			h := New(db, config.Config{}, nil, testDeps())
 			user := store.User{
 				ID: "page-user", IsActive: true,
 				Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":false}`),

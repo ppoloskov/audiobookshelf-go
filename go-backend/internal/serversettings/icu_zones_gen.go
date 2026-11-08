@@ -2,7 +2,7 @@
 // node v22.23.4, icu 78.3, tz 2026e
 // 598 candidate names, 149 canonicalized.
 
-package identity
+package serversettings
 
 // icuZones maps a TZ value to the name Node 22 ICU reports for it in
 // Intl.DateTimeFormat().resolvedOptions().timeZone. Names absent from the map

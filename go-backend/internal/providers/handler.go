@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,8 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -96,31 +95,16 @@ type customProvider struct {
 }
 
 func (h *Handler) getCustomProviders(w http.ResponseWriter, r *http.Request) error {
-	rows, err := h.db.QueryContext(r.Context(), `SELECT id,name,mediaType,url,authHeaderValue,extraData,createdAt,updatedAt FROM customMetadataProviders ORDER BY createdAt ASC`)
+	providers, err := h.customProviders(r.Context())
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	defer rows.Close()
-	providers := []customProvider{}
-	for rows.Next() {
-		var p customProvider
-		var authValue sql.NullString
-		var extra []byte
-		if err := rows.Scan(&p.ID, &p.Name, &p.MediaType, &p.URL, &authValue, &extra, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return &httputil.Error{Status: 500, Cause: err}
-		}
-		if authValue.Valid {
-			p.AuthHeaderValue = &authValue.String
-		}
-		if len(extra) > 0 {
-			p.ExtraData = append(json.RawMessage(nil), extra...)
-		}
-		p.CreatedAt = isoDate(p.CreatedAt)
-		p.UpdatedAt = isoDate(p.UpdatedAt)
-		providers = append(providers, p)
+	if providers == nil {
+		providers = []customProvider{}
 	}
-	if err := rows.Err(); err != nil {
-		return &httputil.Error{Status: 500, Cause: err}
+	for i := range providers {
+		providers[i].CreatedAt = isoDate(providers[i].CreatedAt)
+		providers[i].UpdatedAt = isoDate(providers[i].UpdatedAt)
 	}
 	return httputil.JSON(w, r, map[string]any{"providers": providers})
 }
@@ -148,7 +132,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) e
 	if value, ok := request["authHeaderValue"].(string); ok && value != "" {
 		authValue = value
 	}
-	id := uuid.NewString()
+	id := ids.Must()
 	now := dbNow()
 	extra := request["extraData"]
 	var extraValue any
@@ -278,7 +262,9 @@ func (h *Handler) customProviders(ctx context.Context) ([]customProvider, error)
 		if authValue.Valid {
 			p.AuthHeaderValue = &authValue.String
 		}
-		p.ExtraData = extra
+		if len(extra) > 0 {
+			p.ExtraData = append(json.RawMessage(nil), extra...)
+		}
 		out = append(out, p)
 	}
 	return out, rows.Err()

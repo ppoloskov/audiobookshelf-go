@@ -60,7 +60,7 @@ func newAuthorRig(t *testing.T, finder AuthorFinder) *authorRig {
 		rig.mu.Lock()
 		defer rig.mu.Unlock()
 		rig.events = append(rig.events, recordedEvent{event, payload})
-	})
+	}, testDeps())
 	rig.h.deps.ItemChanged = func(_ context.Context, itemID string) error {
 		rig.touched = append(rig.touched, itemID)
 		return nil

@@ -107,31 +107,20 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 	return nil
 }
 
-// ItemJSON returns the upstream legacy full item (libitem.Full), or the
-// expanded item (libitem.Expanded) when expanded is true. The value marshals to
-// the item JSON; callers enforce permissions.
-func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (any, error) {
-	if expanded {
-		out, err := h.expandedItems(ctx, []string{itemID})
-		if err == nil && len(out) == 0 {
-			err = sql.ErrNoRows
-		}
-		if err != nil {
-			return nil, err
-		}
-		return out[0], nil
-	}
+// fullItem is the upstream legacy full item. Callers enforce permissions.
+func (h *Handler) fullItem(ctx context.Context, itemID string) (libitem.Full, error) {
 	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{Episodes: true})
-	if err != nil {
-		return nil, err
-	}
-	return it.Full(), nil
+	return it.Full(), err
 }
 
-func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (libitem.Minified, error) {
-	out, err := h.minifiedItems(ctx, []string{itemID})
+// expandedItem is the expanded item. Callers enforce permissions.
+func (h *Handler) expandedItem(ctx context.Context, itemID string) (libitem.Expanded, error) {
+	out, err := h.expandedItems(ctx, []string{itemID})
+	if err == nil && len(out) == 0 {
+		err = sql.ErrNoRows
+	}
 	if err != nil {
-		return libitem.Minified{}, err
+		return libitem.Expanded{}, err
 	}
 	return out[0], nil
 }

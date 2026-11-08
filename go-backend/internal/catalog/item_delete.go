@@ -8,239 +8,173 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func (h *Handler) deleteItem(w http.ResponseWriter, r *http.Request) error {
-	user := requestUser(r)
-	itemID := r.PathValue("id")
-	status, message := h.deleteLibraryItem(r.Context(), user, itemID, r.URL.Query().Get("hard") == "1")
-	if status != http.StatusOK {
-		return httputil.Status(status, message)
+	user, ctx := requestUser(r), r.Context()
+	item, err := h.loadItem(ctx, r.PathValue("id"))
+	if err != nil {
+		return err
 	}
-	w.WriteHeader(status)
+	if perms := access.For(ctx, user); !perms.Library(item.libraryID) || !perms.Delete() {
+		return httputil.Status(http.StatusForbidden, "")
+	}
+	if err := h.removeAndSweep(ctx, item, r.URL.Query().Get("hard") == "1"); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
-func (h *Handler) deleteLibraryItem(ctx context.Context, user store.User, itemID string, hard bool) (int, string) {
+// removeAndSweep is LibraryItemController.delete (LibraryItemController.js:
+// 139-148): the item goes, then the authors and series it leaves empty.
+func (h *Handler) removeAndSweep(ctx context.Context, item itemScope, hard bool) error {
 	var linked itemLinks
-	status, message := h.removeLibraryItem(ctx, &user, itemID, hard, &linked)
-	if status != http.StatusOK {
-		return status, message
+	if err := h.removeLibraryItem(ctx, item, hard, &linked); err != nil {
+		return err
 	}
-	// LibraryItemController.delete (LibraryItemController.js:139-148).
 	h.env().Sweep(ctx, linked.authors, linked.series)
-	h.filters.ResetIssues(ctx, h.db, linked.libraryID)
-	return http.StatusOK, ""
+	h.filters.ResetIssues(ctx, h.db, item.libraryID)
+	return nil
 }
 
-type itemLinks struct {
-	authors, series []string
-	libraryID       string
-}
+type itemLinks struct{ authors, series []string }
 
 // removeLibraryItem is ApiRouter.handleDeleteLibraryItem plus the optional file
-// removal. The caller drops the linked authors and series left empty. A nil
-// user skips the permission checks (admin-only maintenance routes authorize
-// before calling).
-func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemID string, hard bool, linked *itemLinks) (int, string) {
-	var scope itemScope
-	var itemPath string
-	err := h.db.QueryRowContext(ctx, `SELECT libraryId,mediaId,mediaType,path FROM libraryItems WHERE id=?`, itemID).Scan(&scope.libraryID, &scope.mediaID, &scope.mediaType, &itemPath)
-	if errors.Is(err, sql.ErrNoRows) {
-		return http.StatusNotFound, ""
-	}
-	if err != nil {
-		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, err)
-		return http.StatusInternalServerError, "database read failed"
-	}
-	if user != nil {
-		if !access.For(ctx, *user).Library(scope.libraryID) {
-			return http.StatusForbidden, ""
-		}
-		if !access.For(ctx, *user).Delete() {
-			return http.StatusForbidden, ""
-		}
+// removal. It checks no permission: every route authorizes before calling. The
+// caller drops the linked authors and series left empty.
+func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bool, linked *itemLinks) error {
+	if mediaTableOf(item.mediaType) == "" {
+		return httputil.Status(http.StatusBadRequest, "")
 	}
 	deleteKind := "Soft"
 	if hard {
 		deleteKind = "Hard"
 	}
-	logging.Infof("[LibraryItemController] (%s) deleting Library Item at %q with id %q", deleteKind, itemPath, itemID) // LibraryItemController.js:587
-	mediaIDs := []string{scope.mediaID}
-	authorIDs := []string{}
-	seriesIDs := []string{}
-	if scope.mediaType == "podcast" {
-		rows, e := h.db.QueryContext(ctx, `SELECT id FROM podcastEpisodes WHERE podcastId=?`, scope.mediaID)
-		if e != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
-			return http.StatusInternalServerError, "database read failed"
-		}
-		mediaIDs = nil
-		for rows.Next() {
-			var id string
-			if rows.Scan(&id) == nil {
-				mediaIDs = append(mediaIDs, id)
-			}
-		}
-		if e = rows.Err(); e != nil {
-			rows.Close()
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
-			return http.StatusInternalServerError, "database read failed"
-		}
-		rows.Close()
-	}
-	if scope.mediaType == "book" {
-		for _, spec := range []struct {
-			table, column string
-			dst           *[]string
-		}{{"bookAuthors", "authorId", &authorIDs}, {"bookSeries", "seriesId", &seriesIDs}} {
-			rows, e := h.db.QueryContext(ctx, `SELECT `+spec.column+` FROM `+spec.table+` WHERE bookId=?`, scope.mediaID)
-			if e != nil {
-				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
-				return http.StatusInternalServerError, "database read failed"
-			}
-			for rows.Next() {
-				var id string
-				if rows.Scan(&id) == nil {
-					*spec.dst = append(*spec.dst, id)
-				}
-			}
-			if e = rows.Err(); e != nil {
-				rows.Close()
-				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database read failed: %v", itemID, e)
-				return http.StatusInternalServerError, "database read failed"
-			}
-			rows.Close()
-		}
-	}
+	logging.Infof("[LibraryItemController] (%s) deleting Library Item at %q with id %q", deleteKind, item.path, item.id) // LibraryItemController.js:587
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {
-		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-		return http.StatusInternalServerError, "database write failed"
+		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	if len(mediaIDs) > 0 {
-		placeholders := strings.TrimRight(strings.Repeat("?,", len(mediaIDs)), ",")
-		args := make([]any, len(mediaIDs))
-		for i, id := range mediaIDs {
-			args[i] = id
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId IN (`+placeholders+`)`, args...); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-		if err := deletePlaylistMedia(ctxTx{tx, ctx}, mediaIDs); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-	}
-	if err := sqlc.New(tx).DeleteLibraryItemFeeds(ctx, itemID); err != nil {
-		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-		return http.StatusInternalServerError, "database write failed"
-	}
-	if scope.mediaType == "book" {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE bookId=?`, scope.mediaID); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM bookSeries WHERE bookId=?`, scope.mediaID); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-		if err := sqlc.New(tx).DeleteBookShares(ctx, scope.mediaID); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM books WHERE id=?`, scope.mediaID); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-	} else if scope.mediaType == "podcast" {
-		if len(mediaIDs) > 0 {
-			if err := sqlc.New(tx).DeletePodcastEpisodeSharesByMediaIDs(ctx, store.Texts(mediaIDs)); err != nil {
-				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-				return http.StatusInternalServerError, "database write failed"
-			}
-		}
-		if len(mediaIDs) > 0 {
-			marks := strings.TrimRight(strings.Repeat("?,", len(mediaIDs)), ",")
-			args := make([]any, len(mediaIDs))
-			for i, id := range mediaIDs {
-				args[i] = id
-			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM podcastEpisodes WHERE id IN (`+marks+`)`, args...); err != nil {
-				logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-				return http.StatusInternalServerError, "database write failed"
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM podcasts WHERE id=?`, scope.mediaID); err != nil {
-			logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-			return http.StatusInternalServerError, "database write failed"
-		}
-	} else {
-		return http.StatusBadRequest, ""
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM libraryItems WHERE id=?`, itemID); err != nil {
-		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-		return http.StatusInternalServerError, "database write failed"
+	authors, series, err := deleteItemRows(ctx, tx, []itemScope{item})
+	if err != nil {
+		return httputil.Internal("database write failed", err)
 	}
 	if err := tx.Commit(); err != nil {
-		logging.Errorf("[catalog] removeLibraryItem itemID=%s: database write failed: %v", itemID, err)
-		return http.StatusInternalServerError, "database write failed"
+		return httputil.Internal("database write failed", err)
 	}
-	if linked != nil {
-		linked.libraryID = scope.libraryID
-		linked.authors = append(linked.authors, authorIDs...)
-		linked.series = append(linked.series, seriesIDs...)
-	}
+	linked.authors = append(linked.authors, authors...)
+	linked.series = append(linked.series, series...)
 	if h.cfg.MetadataPath != "" {
-		_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", itemID))
+		_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", item.id))
 	}
-	if hard && itemPath != "" && h.pathAllowed(ctx, itemPath, scope.libraryID) {
-		logging.Infof("[LibraryItemController] Deleting library item from file system at %q", itemPath) // LibraryItemController.js:604
-		if err := os.RemoveAll(itemPath); err != nil {
-			logging.Errorf("[LibraryItemController] Failed to delete library item from file system at %q: %v", itemPath, err)
+	if hard && item.path != "" && h.pathAllowed(ctx, item.path, item.libraryID) {
+		logging.Infof("[LibraryItemController] Deleting library item from file system at %q", item.path) // LibraryItemController.js:604
+		if err := os.RemoveAll(item.path); err != nil {
+			logging.Errorf("[LibraryItemController] Failed to delete library item from file system at %q: %v", item.path, err)
 		}
 	}
-	h.emit.ToAll("item_removed", map[string]any{"id": itemID, "libraryId": scope.libraryID})
-	return http.StatusOK, ""
-
+	h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": item.libraryID})
+	return nil
 }
 
-type ctxTx struct {
-	tx  *sql.Tx
-	ctx context.Context
+// deleteItemRows removes the items and everything that references them (the
+// one list of tables to extend when a table starts referencing a book or an
+// episode). It returns the authors and series the books were linked to.
+func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors, series []string, err error) {
+	var itemIDs, bookIDs, podcastIDs []string
+	for _, item := range items {
+		itemIDs = append(itemIDs, item.id)
+		switch item.mediaType {
+		case "book":
+			bookIDs = append(bookIDs, item.mediaID)
+		case "podcast":
+			podcastIDs = append(podcastIDs, item.mediaID)
+		}
+	}
+	list := func(column, table, by string, ids []string) []string {
+		if err != nil || len(ids) == 0 {
+			return nil
+		}
+		var rows *sql.Rows
+		if rows, err = tx.QueryContext(ctx, `SELECT `+column+` FROM `+table+` WHERE `+by+` IN (`+placeholders(len(ids))+`)`, stringArgs(ids)...); err != nil {
+			return nil
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var id string
+			if err = rows.Scan(&id); err != nil {
+				return nil
+			}
+			out = append(out, id)
+		}
+		err = rows.Err()
+		return out
+	}
+	episodeIDs := list("id", "podcastEpisodes", "podcastId", podcastIDs)
+	authors = list("authorId", "bookAuthors", "bookId", bookIDs)
+	series = list("seriesId", "bookSeries", "bookId", bookIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	exec := func(table, by string, ids []string) {
+		if err != nil || len(ids) == 0 {
+			return
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE `+by+` IN (`+placeholders(len(ids))+`)`, stringArgs(ids)...)
+	}
+	q := sqlc.New(tx)
+	mediaIDs := append(append([]string{}, bookIDs...), episodeIDs...)
+	exec("mediaProgresses", "mediaItemId", mediaIDs)
+	if err == nil && len(mediaIDs) > 0 {
+		err = deletePlaylistMedia(ctx, q, mediaIDs)
+	}
+	if err == nil && len(itemIDs) > 0 {
+		err = q.DeleteLibraryItemFeedsByItemIDs(ctx, store.Texts(itemIDs))
+	}
+	exec("bookAuthors", "bookId", bookIDs)
+	exec("bookSeries", "bookId", bookIDs)
+	if err == nil && len(bookIDs) > 0 {
+		err = q.DeleteBookSharesByMediaIDs(ctx, store.Texts(bookIDs))
+	}
+	exec("books", "id", bookIDs)
+	if err == nil && len(episodeIDs) > 0 {
+		err = q.DeletePodcastEpisodeSharesByMediaIDs(ctx, store.Texts(episodeIDs))
+	}
+	exec("podcastEpisodes", "id", episodeIDs)
+	exec("podcasts", "id", podcastIDs)
+	exec("libraryItems", "id", itemIDs)
+	return authors, series, err
 }
 
-func deletePlaylistMedia(db ctxTx, mediaIDs []string) error {
-	q := sqlc.New(db.tx)
+func deletePlaylistMedia(ctx context.Context, q *sqlc.Queries, mediaIDs []string) error {
 	for _, id := range mediaIDs {
-		if err := q.DeletePlaylistMediaItemsByMediaID(db.ctx, id); err != nil {
+		if err := q.DeletePlaylistMediaItemsByMediaID(ctx, id); err != nil {
 			return err
 		}
 	}
-	playlistIDs, err := q.ListAllPlaylistIDs(db.ctx)
+	playlistIDs, err := q.ListAllPlaylistIDs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, playlistID := range playlistIDs {
-		entryIDs, e := q.ListPlaylistMediaItemIDs(db.ctx, playlistID)
+		entryIDs, e := q.ListPlaylistMediaItemIDs(ctx, playlistID)
 		if e != nil {
 			return e
 		}
 		if len(entryIDs) == 0 {
-			if e = q.DeletePlaylist(db.ctx, playlistID); e != nil {
+			if e = q.DeletePlaylist(ctx, playlistID); e != nil {
 				return e
 			}
 			continue
 		}
 		for order, id := range entryIDs {
-			if e = q.UpdatePlaylistMediaItemOrder(db.ctx, sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(order + 1), ID: id}); e != nil {
+			if e = q.UpdatePlaylistMediaItemOrder(ctx, sqlc.UpdatePlaylistMediaItemOrderParams{Position: int64(order + 1), ID: id}); e != nil {
 				return e
 			}
 		}

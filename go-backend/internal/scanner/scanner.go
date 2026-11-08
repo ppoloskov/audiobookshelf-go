@@ -6,6 +6,7 @@ package scanner
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/version"
@@ -32,7 +33,6 @@ import (
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"github.com/fsnotify/fsnotify"
-	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 )
 
@@ -76,59 +76,20 @@ func (s *Scanner) begin(ctx context.Context, libraryID string) (context.Context,
 	return ctx, func() { cancel(); s.mu.Lock(); delete(s.runs, libraryID); s.mu.Unlock() }, nil
 }
 
-// ScanItemForce refreshes one existing library item as the item scan route
+// scanItemForce refreshes one existing library item as the item scan route
 // does; it leaves the rest of the library untouched.
-func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, error) {
-	var result Result
-	var libraryID, mediaType, itemPath, folderID string
-	var isFile int
-	err := s.db.QueryRowContext(ctx, `SELECT libraryId,mediaType,path,libraryFolderId,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &itemPath, &folderID, &isFile)
-	if err != nil {
-		return result, fmt.Errorf("scanner: item %q: %w", itemID, err)
-	}
-	if isFile != 0 {
-		return result, errors.New("scanner: cannot scan a library file")
+func (s *Scanner) scanItemForce(ctx context.Context, itemID string) (Result, error) {
+	var libraryID string
+	if err := s.db.QueryRowContext(ctx, `SELECT libraryId FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID); err != nil {
+		return Result{}, fmt.Errorf("scanner: item %q: %w", itemID, err)
 	}
 	ctx, end, err := s.begin(ctx, libraryID)
 	if err != nil {
-		return result, err
+		return Result{}, err
 	}
 	defer end()
-	var folderPath string
-	if err := s.db.QueryRowContext(ctx, `SELECT path FROM libraryFolders WHERE id=?`, folderID).Scan(&folderPath); err != nil {
-		return result, err
-	}
-	l, err := s.library(ctx, libraryID)
-	if err != nil {
-		return result, err
-	}
-	g, err := s.collectItemGroup(ctx, l, itemPath, folder{id: folderID, path: folderPath}, false)
-	if err != nil {
-		return result, err
-	}
-	if g == nil {
-		return Result{Canceled: ctx.Err() != nil, Nothing: true}, nil
-	}
-	if g.old, err = s.storedItemByID(ctx, itemID); err != nil {
-		return result, err
-	}
-	n, err := s.importGroup(ctx, l, g, true)
-	if err != nil {
-		return result, err
-	}
-	if n.updated {
-		result.Updated = 1
-		if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
-			s.emit.ToAll("item_updated", item)
-		}
-	}
-	tally := &scanTally{}
-	tally.merge(n)
-	if err := s.finalizeScan(ctx, libraryID, tally); err != nil {
-		return result, err
-	}
-	result.Canceled = ctx.Err() != nil
-	return result, nil
+	res, err := s.rescanStoredItem(ctx, itemID, nil)
+	return Result{Updated: boolInt(res == scanUpdated), Nothing: res == scanNothing, Canceled: ctx.Err() != nil}, err
 }
 
 func (s *Scanner) Cancel(libraryID string) {
@@ -219,7 +180,7 @@ func (s *Scanner) startScanTask(ctx context.Context, libraryID string) events.Ta
 	if s.db.QueryRowContext(ctx, `SELECT name,mediaType FROM libraries WHERE id=?`, libraryID).Scan(&libraryName, &mediaType) == nil && libraryName != "" {
 		name = libraryName
 	}
-	task := events.NewTask(uuid.NewString(), "library-scan", scanTaskData{LibraryID: libraryID, LibraryName: name, LibraryMediaType: mediaType}).
+	task := events.NewTask(ids.Must(), "library-scan", scanTaskData{LibraryID: libraryID, LibraryName: name, LibraryMediaType: mediaType}).
 		Titled(fmt.Sprintf("Scanning %q library", name), "MessageTaskScanningLibrary", []string{name})
 	task.ShowSuccess = true
 	s.emit.TaskStarted(task)
@@ -241,7 +202,7 @@ func (s *Scanner) finishScanTask(task events.Task, result Result, err error) {
 // markMissing flags a stored item whose files are gone and returns it as the
 // clients receive it (LibraryScanner.js:195, 590: isMissing, then save).
 func (s *Scanner) markMissing(ctx context.Context, itemID string) (libitem.Expanded, error) {
-	if _, err := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, nowDB(), itemID); err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, dbtime.Now(), itemID); err != nil {
 		return libitem.Expanded{}, err
 	}
 	return s.itemEvent(ctx, itemID)
@@ -348,7 +309,7 @@ func (s *Scanner) batchScan(w http.ResponseWriter, r *http.Request) error {
 			if item.IsFile != 0 {
 				continue
 			}
-			if _, err := s.ScanItemForce(context.Background(), item.ID); err != nil {
+			if _, err := s.scanItemForce(context.Background(), item.ID); err != nil {
 				logging.Errorf("[LibraryScanner] Scan of item %s failed: %v", item.ID, err)
 			}
 		}
@@ -386,7 +347,7 @@ func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) error {
 		logging.RequestDebug(r, "responding 500: cannot scan a library file")
 		return httputil.Status(http.StatusInternalServerError, "")
 	}
-	res, err := s.ScanItemForce(r.Context(), id)
+	res, err := s.scanItemForce(r.Context(), id)
 	if err != nil && !res.Canceled {
 		return &httputil.Error{Status: http.StatusInternalServerError, Cause: err}
 	}
@@ -396,9 +357,7 @@ func (s *Scanner) scanItemRoute(w http.ResponseWriter, r *http.Request) error {
 	} else if res.Nothing {
 		status = "NOTHING"
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]string{"result": status})
-	return nil
+	return httputil.JSON(w, r, map[string]string{"result": status})
 }
 
 // Start initializes recursive filesystem watchers and per-library schedules.
@@ -456,8 +415,11 @@ func (s *Scanner) arm(ctx context.Context) (_ *fsnotify.Watcher, _ *cron.Cron, _
 				root := filepath.Clean(f.path)
 				watch.folders = append(watch.folders, watchedFolder{id: f.id, path: filepath.ToSlash(root)})
 				roots[root] = lib.id
+				// Watching is best effort (inotify limits, permissions): a folder
+				// that cannot be watched must not stop the other libraries or
+				// the cron schedules.
 				if err := watchDirs(watcher, root, root); err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("scanner: watch %q: %w", root, err)
+					logging.Errorf("[Watcher] Watching %q failed: %v", root, err)
 				}
 			}
 			fw.libraries[lib.id] = watch
@@ -612,8 +574,6 @@ func (s *Scanner) watchedLibraries(ctx context.Context) ([]watchedLibrary, error
 	return out, nil
 }
 
-func nowDB() string { return dbtime.Now() }
-
 type library struct {
 	id, name, mediaType string
 	audiobooksOnly      bool
@@ -626,45 +586,33 @@ type folder struct{ id, path string }
 
 func (s *Scanner) library(ctx context.Context, id string) (library, error) {
 	var l library
-	var raw []byte
-	var extra []byte
+	var raw, extra []byte
 	err := s.db.QueryRowContext(ctx, `SELECT id,name,mediaType,settings,extraData FROM libraries WHERE id=?`, id).Scan(&l.id, &l.name, &l.mediaType, &raw, &extra)
 	if err == nil {
-		var settings map[string]any
-		_ = json.Unmarshal(raw, &settings)
-		l.audiobooksOnly, _ = settings["audiobooksOnly"].(bool)
-		l.metadataPrecedence = precedenceFromSettings(settings)
+		var settings struct {
+			AudiobooksOnly     bool     `json:"audiobooksOnly"`
+			MetadataPrecedence []string `json:"metadataPrecedence"`
+		}
+		if json.Unmarshal(raw, &settings) != nil {
+			settings.MetadataPrecedence = nil
+		}
+		l.audiobooksOnly, l.metadataPrecedence = settings.AudiobooksOnly, settings.MetadataPrecedence
+		if len(l.metadataPrecedence) == 0 {
+			l.metadataPrecedence = defaultMetadataPrecedence()
+		}
 		server := serversettings.Load(ctx, s.db)
 		l.parseSubtitle = server.Bool("scannerParseSubtitle")
 		l.sortingPrefixes = server.SortingPrefixes()
-		var data map[string]any
-		_ = json.Unmarshal(extra, &data)
-		if values, ok := data["lastScanMetadataPrecedence"].([]any); ok {
-			for _, value := range values {
-				if name, ok := value.(string); ok {
-					l.lastPrecedence = append(l.lastPrecedence, name)
-				}
-			}
+		var data struct {
+			LastPrecedence []string `json:"lastScanMetadataPrecedence"`
+		}
+		if json.Unmarshal(extra, &data) == nil {
+			l.lastPrecedence = data.LastPrecedence
 		}
 	}
 	return l, err
 }
 
-func precedenceFromSettings(settings map[string]any) []string {
-	values, ok := settings["metadataPrecedence"].([]any)
-	if !ok || len(values) == 0 {
-		return defaultMetadataPrecedence()
-	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		name, ok := value.(string)
-		if !ok {
-			return defaultMetadataPrecedence()
-		}
-		out = append(out, name)
-	}
-	return out
-}
 func (s *Scanner) folders(ctx context.Context, id string) ([]folder, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,path FROM libraryFolders WHERE libraryId=? ORDER BY createdAt`, id)
 	if err != nil {
@@ -800,7 +748,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		s.emit.ToAll("items_added", addedItems)
 	}
 	if ctx.Err() == nil {
-		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, nowDB(), version.Server, libraryID)
+		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, dbtime.Now(), version.Server, libraryID)
 		if err != nil {
 			return result, err
 		}

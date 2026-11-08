@@ -12,6 +12,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/store"
 )
@@ -19,13 +20,12 @@ import (
 // Handler owns authenticated HTTP routes and persistence for playlists and
 // collections.
 type Handler struct {
-	db      *sql.DB
-	emit    events.Emitter
-	canView func(context.Context, store.User, string) (bool, error)
+	db   *sql.DB
+	emit events.Emitter
 }
 
-func New(db *sql.DB, emit events.Emitter, canView func(context.Context, store.User, string) (bool, error)) *Handler {
-	return &Handler{db: db, emit: emit, canView: canView}
+func New(db *sql.DB, emit events.Emitter) *Handler {
+	return &Handler{db: db, emit: emit}
 }
 
 func requestUser(r *http.Request) store.User {
@@ -48,7 +48,7 @@ func playlistError(code int) error {
 
 func (h *Handler) collection(ctx context.Context, id string, user store.User) (map[string]any, string, error) {
 	return Collection(ctx, h.db, id, func(ctx context.Context, itemID string) (bool, error) {
-		return h.canView(ctx, user, itemID)
+		return access.CanReadItem(ctx, h.db, user, itemID)
 	})
 }
 
@@ -89,7 +89,7 @@ func (h *Handler) getCollection(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	if strings.Contains(","+r.URL.Query().Get("include")+",", ",rssfeed,") {
-		feed, err := h.collectionRSSFeed(r, id)
+		feed, err := feeds.OfEntity(r.Context(), h.db, "collection", id)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}

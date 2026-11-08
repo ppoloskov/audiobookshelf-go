@@ -19,8 +19,6 @@ import (
 	"reflect"
 	"strings"
 	"time"
-
-	"audiobookshelf-compat/internal/config"
 )
 
 const notificationKey = "notification-settings"
@@ -30,7 +28,7 @@ type Handler struct {
 	emit events.Emitter
 }
 
-func New(db *sql.DB, _ config.Config, emit events.Emitter) *Handler {
+func New(db *sql.DB, emit events.Emitter) *Handler {
 	return &Handler{db: db, emit: emit}
 }
 
@@ -66,11 +64,9 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 		return httputil.Internal("database error", e)
 	}
 	if data {
-		write(w, map[string]any{"events": notificationEvents})
-		return nil
+		return httputil.JSON(w, r, map[string]any{"events": notificationEvents})
 	}
-	write(w, map[string]any{"data": map[string]any{"events": notificationEvents}, "settings": s})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"data": map[string]any{"events": notificationEvents}, "settings": s})
 }
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	var payload any
@@ -154,8 +150,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	event, _ := p["eventName"].(string)
 	urls, _ := p["urls"].([]any)
 	if event == "" || len(urls) == 0 {
-		write(w, h.mustLoad(r))
-		return nil
+		return httputil.JSON(w, r, h.mustLoad(r))
 	}
 	id, e := id()
 	if e != nil {
@@ -186,8 +181,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
 		return httputil.Internal("database error", saveErr)
 	}
-	write(w, s)
-	return nil
+	return httputil.JSON(w, r, s)
 }
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
@@ -213,8 +207,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
 	if saveErr := h.save(r.Context(), s); saveErr != nil {
 		return httputil.Internal("database error", saveErr)
 	}
-	write(w, s)
-	return nil
+	return httputil.JSON(w, r, s)
 }
 func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
@@ -230,8 +223,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) err
 	}
 	p, ok := payload.(map[string]any)
 	if !ok {
-		write(w, s)
-		return nil
+		return httputil.JSON(w, r, s)
 	}
 	id, _ := p["id"].(string)
 	n := h.find(s, id)
@@ -264,8 +256,7 @@ func (h *Handler) updateNotification(w http.ResponseWriter, r *http.Request) err
 			}
 		}
 	}
-	write(w, s)
-	return nil
+	return httputil.JSON(w, r, s)
 }
 func (h *Handler) testEvent(w http.ResponseWriter, r *http.Request) error {
 	s, e := h.load(r.Context())
@@ -321,12 +312,13 @@ func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event str
 	if endpoint == "" {
 		return false, nil
 	}
-	ok := true
+	ok, fired := true, false
 	for _, raw := range array(s["notifications"]) {
 		n, _ := raw.(map[string]any)
 		if n["enabled"] != true || n["eventName"] != event {
 			continue
 		}
+		fired = true
 		success := !fail && h.deliver(ctx, endpoint, payload(n, data)) == nil
 		n["lastFiredAt"] = time.Now().UnixMilli()
 		n["lastAttemptFailed"] = !success
@@ -343,6 +335,9 @@ func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event str
 			}
 			ok = false
 		}
+	}
+	if !fired {
+		return true, nil // NotificationManager.js:25-30: no active notification, nothing to record
 	}
 	if err := h.save(ctx, s); err != nil {
 		return false, err
@@ -446,10 +441,6 @@ func id() (string, error) {
 	b[8] = (b[8] & 0x3f) | 0x80
 	x := hex.EncodeToString(b)
 	return x[:8] + "-" + x[8:12] + "-" + x[12:16] + "-" + x[16:20] + "-" + x[20:], nil
-}
-func write(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 var notificationEvents = []any{

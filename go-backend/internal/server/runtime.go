@@ -8,7 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"html"
+	"maps"
 	"net/http"
 	"os"
 	pathpkg "path"
@@ -41,7 +41,6 @@ import (
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/userapi"
 	"audiobookshelf-compat/internal/version"
-	"audiobookshelf-compat/internal/wire"
 )
 
 type Runtime struct {
@@ -93,21 +92,25 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	if rt.scanner, err = scanner.New(db, cfg, emit, filters); err != nil {
 		return rt, err
 	}
-	rt.catalog = catalog.New(db, cfg, emit, catalog.WithDeps(catalog.Deps{
-		Filters:                filters,
-		Downloads:              rt.podcasts,
-		ItemChanged:            rt.scanner.WriteMetadata,
-		LibraryChanged:         func(string) { _ = rt.scanner.Refresh(context.Background()) },
+	rt.catalog = catalog.New(db, cfg, emit, catalog.Deps{
+		Filters:     filters,
+		Downloads:   rt.podcasts,
+		ItemChanged: rt.scanner.WriteMetadata,
+		LibraryChanged: func(string) {
+			if err := rt.scanner.Refresh(context.Background()); err != nil {
+				logging.Errorf("[Server] refresh watchers and schedules: %v", err)
+			}
+		},
 		Authors:                rt.providers,
 		Books:                  rt.providers,
 		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
 		PodcastScheduleChanged: rt.podcasts.Reschedule,
-	}))
+	})
 	rt.playback = playback.New(db, cfg, emit)
 	if rt.userapi, err = userapi.New(db, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
 		return rt, err
 	}
-	rt.notifications = notifications.New(db, cfg, emit)
+	rt.notifications = notifications.New(db, emit)
 	stored, err := serversettings.Get(context.Background(), db)
 	if err != nil {
 		return rt, err
@@ -126,10 +129,10 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 		ItemChanged:   rt.catalog.ItemChanged,
 		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
-	rt.emailapi = emailapi.New(db, cfg, emit)
+	rt.emailapi = emailapi.New(db, emit)
 	rt.sharing = sharing.New(db, cfg, emit)
 	rt.audiotools = audiotools.New(db, cfg, emit)
-	listHandler := lists.New(db, emit, rt.userapi.CanReadItem)
+	listHandler := lists.New(db, emit)
 
 	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
@@ -138,7 +141,7 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}
-	logging.Default().BindSockets(func(socketID string, entry wire.LogEntry) {
+	logging.Default().BindSockets(func(socketID string, entry logging.LogEntry) {
 		hub.EmitSocket(socketID, "log", entry)
 	})
 	if err = rt.scanner.Start(context.Background()); err != nil {
@@ -153,14 +156,7 @@ func (rt *Runtime) Authenticate(r *http.Request) (store.User, error) {
 	return rt.identity.Authenticate(r)
 }
 
-func (rt *Runtime) Session(userID string) any {
-	for _, session := range rt.playback.OpenSessions() {
-		if session["userId"] == userID {
-			return session
-		}
-	}
-	return nil
-}
+func (rt *Runtime) Session(userID string) any { return rt.playback.SessionOf(userID) }
 
 func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
 	switch action.Event {
@@ -328,16 +324,14 @@ func routeAlias(path string) (string, bool) {
 // backupOptions is the backup configuration the stored settings and
 // BACKUP_PATH describe; both the first start and every settings change use it.
 func backupOptions(settings map[string]any, manager *Manager) backup.Options {
-	envPath := strings.TrimSpace(serversettings.EnvBackupPath())
-	backupPath := envPath
-	if backupPath == "" {
-		backupPath, _ = settings["backupPath"].(string)
-	}
+	settings = maps.Clone(settings)
+	serversettings.ApplyEnv(settings)
+	backupPath, _ := settings["backupPath"].(string)
 	maxSize, _ := settings["maxBackupSize"].(float64)
 	if maxSize <= 0 {
 		maxSize = 100
 	}
-	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: envPath != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
+	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: serversettings.EnvBackupPath() != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 2), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
 }
 
 func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }
@@ -485,18 +479,9 @@ func (rt *Runtime) serveClient(w http.ResponseWriter, r *http.Request, path stri
 	writeClientNotFound(w, r)
 }
 
-// Express finalhandler supplies the default Nuxt branch's missing-page response.
+// writeClientNotFound is the Express default 404 of the client branch.
 func writeClientNotFound(w http.ResponseWriter, r *http.Request) {
-	message := html.EscapeString("Cannot " + r.Method + " " + r.URL.EscapedPath())
-	body := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + message + "</pre>\n</body>\n</html>\n"
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("Content-Security-Policy", "default-src 'none'")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusNotFound)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write([]byte(body))
-	}
+	writeExpressError(w, r, http.StatusNotFound, "Cannot "+r.Method+" "+r.URL.EscapedPath())
 }
 
 // clientDynamicRoutes mirrors the enumerated Vue/Nuxt client dynamic routes

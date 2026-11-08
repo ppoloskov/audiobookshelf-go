@@ -2,7 +2,6 @@ package libitem
 
 import (
 	"encoding/json"
-	"net/url"
 	"strings"
 
 	"audiobookshelf-compat/internal/nameparse"
@@ -51,22 +50,22 @@ type Extras struct {
 // Full is GET /api/items/:id without expanded (LibraryItem.toOldJSON).
 type Full struct {
 	Head
-	LastScan     *int64           `json:"lastScan,omitempty"`
-	ScanVersion  *string          `json:"scanVersion"`
-	LibraryFiles []map[string]any `json:"libraryFiles"`
-	Media        any              `json:"media"` // BookFull or PodcastMedia
+	LastScan     *int64  `json:"lastScan,omitempty"`
+	ScanVersion  *string `json:"scanVersion"`
+	LibraryFiles []File  `json:"libraryFiles"`
+	Media        any     `json:"media"` // BookFull or PodcastMedia
 	Extras
 }
 
 // Expanded is toOldJSONExpanded: item detail, socket events, playlists.
 type Expanded struct {
 	Head
-	LastScan     *int64           `json:"lastScan"`
-	ScanVersion  *string          `json:"scanVersion"`
-	LibraryFiles []map[string]any `json:"libraryFiles"`
-	NumFiles     int              `json:"numFiles"`
-	Size         *int64           `json:"size,omitempty"`
-	Media        any              `json:"media"` // BookExpanded or PodcastMedia
+	LastScan     *int64  `json:"lastScan"`
+	ScanVersion  *string `json:"scanVersion"`
+	LibraryFiles []File  `json:"libraryFiles"`
+	NumFiles     int     `json:"numFiles"`
+	Size         *int64  `json:"size,omitempty"`
+	Media        any     `json:"media"` // BookExpanded or PodcastMedia
 	Extras
 }
 
@@ -200,9 +199,9 @@ type BookFull struct {
 	Metadata      BookMetadataFull `json:"metadata"`
 	CoverPath     *string          `json:"coverPath"`
 	Tags          []string         `json:"tags"`
-	AudioFiles    []map[string]any `json:"audioFiles"`
+	AudioFiles    []File           `json:"audioFiles"`
 	Chapters      []map[string]any `json:"chapters"`
-	EbookFile     map[string]any   `json:"ebookFile"`
+	EbookFile     File             `json:"ebookFile"`
 }
 
 type BookMinified struct {
@@ -230,9 +229,9 @@ type BookExpanded struct {
 	Size          int64                `json:"size"`
 	EbookFormat   json.RawMessage      `json:"ebookFormat,omitempty"`
 	LibraryItemID string               `json:"libraryItemId"`
-	AudioFiles    []map[string]any     `json:"audioFiles"`
+	AudioFiles    []File               `json:"audioFiles"`
 	Chapters      []map[string]any     `json:"chapters"`
-	EbookFile     map[string]any       `json:"ebookFile"`
+	EbookFile     File                 `json:"ebookFile"`
 	Tracks        []map[string]any     `json:"tracks"`
 }
 
@@ -288,12 +287,12 @@ func (b *Book) minified(prefixes []string) BookMinified {
 	var size int64
 	tracks := 0
 	for _, f := range b.AudioFiles {
-		size += fileSize(f)
-		if f["exclude"] != true {
+		size += f.Size()
+		if !f.Excluded() {
 			tracks++
 		}
 	}
-	size += fileSize(b.Ebook)
+	size += b.Ebook.Size()
 	return BookMinified{ID: b.ID, CoverPath: b.CoverPath, Tags: b.Tags, NumTracks: tracks, NumAudioFiles: len(b.AudioFiles), NumChapters: len(b.Chapters),
 		Duration: b.Duration, Size: size, EbookFormat: format,
 		Metadata: BookMetadataMinified{Title: b.Title, TitleIgnorePrefix: b.titlePrefix(prefixes), Subtitle: b.Subtitle, AuthorName: b.authorNames(false),
@@ -321,34 +320,23 @@ func (b *Book) tracks(itemID string) []map[string]any {
 	tracks := make([]map[string]any, 0, len(b.AudioFiles))
 	var offset float64
 	for _, file := range b.AudioFiles {
-		if file["exclude"] == true {
+		if file.Excluded() {
 			continue
 		}
 		track := make(map[string]any, len(file)+3)
 		for k, v := range file {
 			track[k] = v
 		}
-		meta, _ := file["metadata"].(map[string]any)
-		track["title"] = meta["filename"]
+		track["title"] = file.metadata()["filename"]
 		track["startOffset"] = offset
-		track["contentUrl"] = contentURL(itemID, file)
+		track["contentUrl"] = file.ContentURL(itemID)
 		offset += num(file["duration"])
 		tracks = append(tracks, track)
 	}
 	return tracks
 }
 
-func contentURL(itemID string, file map[string]any) string {
-	ino, _ := file["ino"].(string)
-	return "/api/items/" + itemID + "/file/" + url.PathEscape(ino)
-}
-
 func num(v any) float64 { n, _ := v.(float64); return n }
-
-func fileSize(file map[string]any) int64 {
-	meta, _ := file["metadata"].(map[string]any)
-	return int64(num(meta["size"]))
-}
 
 // ---- podcasts ----
 
@@ -406,7 +394,7 @@ type EpisodeJSON struct {
 	GUID          *string          `json:"guid"`
 	PubDate       *string          `json:"pubDate"`
 	Chapters      []map[string]any `json:"chapters"`
-	AudioFile     map[string]any   `json:"audioFile"`
+	AudioFile     File             `json:"audioFile"`
 	PublishedAt   *int64           `json:"publishedAt"`
 	AddedAt       *int64           `json:"addedAt"`
 	UpdatedAt     *int64           `json:"updatedAt"`
@@ -427,13 +415,13 @@ func (e Episode) JSON(itemID string) EpisodeJSON {
 }
 
 func (e Episode) Expanded(itemID string) EpisodeExpanded {
-	meta, _ := e.AudioFile["metadata"].(map[string]any)
+	meta := e.AudioFile.metadata()
 	track := make(map[string]any, len(e.AudioFile)+4)
 	for k, v := range e.AudioFile {
 		track[k] = v
 	}
-	track["startOffset"], track["title"], track["index"], track["contentUrl"] = 0, meta["filename"], 1, contentURL(itemID, e.AudioFile)
-	return EpisodeExpanded{EpisodeJSON: e.JSON(itemID), AudioTrack: track, Size: int64(num(meta["size"])), Duration: e.AudioFile["duration"]}
+	track["startOffset"], track["title"], track["index"], track["contentUrl"] = 0, meta["filename"], 1, e.AudioFile.ContentURL(itemID)
+	return EpisodeExpanded{EpisodeJSON: e.JSON(itemID), AudioTrack: track, Size: e.AudioFile.Size(), Duration: e.AudioFile["duration"]}
 }
 
 func emptyNil(s string) *string {
@@ -480,7 +468,7 @@ func (p *Podcast) media(it Item, prefixes []string, full, expanded bool) Podcast
 	var size int64
 	for i, e := range p.Episodes {
 		eps[i] = e.Expanded(it.ID)
-		size += fileSize(e.AudioFile)
+		size += e.AudioFile.Size()
 	}
 	n := int64(len(eps))
 	m.NumEpisodes, m.Size, m.Episodes = &n, &size, eps

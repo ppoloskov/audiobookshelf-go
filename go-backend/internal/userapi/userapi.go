@@ -17,9 +17,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
@@ -56,6 +54,8 @@ func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
 // Credentials is what identity owns of tokens, passwords, sessions and API
 // keys; the server passes the identity handler.
 type Credentials interface {
+	CreateUser(ctx context.Context, in users.NewUser) (string, error)
+	// IssueLegacyToken re-issues the token of a renamed user.
 	IssueLegacyToken(userID, username string) (string, error)
 	HashPassword(password string) (string, error)
 	ChangePassword(ctx context.Context, userID, password, newPassword string) error
@@ -208,15 +208,8 @@ func (h *Handler) getBookmarks(w http.ResponseWriter, r *http.Request, user stor
 	if libraryItemID == "" {
 		return httputil.JSON(w, r, map[string]any{"bookmarks": bookmarks})
 	}
-	access, err := h.canAccessItem(r.Context(), user, libraryItemID)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.exists {
-		return httputil.Status(404, "")
-	}
-	if !access.allowed {
-		return httputil.Status(403, "")
+	if err := h.requireItemAccess(r, user, libraryItemID); err != nil {
+		return err
 	}
 	filtered := make([]any, 0)
 	for _, entry := range bookmarks {
@@ -309,20 +302,8 @@ func (h *Handler) updateOneProgress(w http.ResponseWriter, r *http.Request, user
 // (User.createUpdateMediaProgressFromPayload, server/models/User.js:728). The
 // library access check is stricter than upstream, which has none here.
 func (h *Handler) updateProgress(ctx context.Context, user store.User, p progressdto.Payload) (wire.MediaProgress, error) {
-	var libraryID string
-	var err error
-	if p.EpisodeID != "" {
-		err = h.db.QueryRowContext(ctx, `SELECT li.libraryId FROM podcastEpisodes pe JOIN libraryItems li ON li.mediaId = pe.podcastId WHERE pe.id = ?`, p.EpisodeID).Scan(&libraryID)
-	} else {
-		err = h.db.QueryRowContext(ctx, `SELECT libraryId FROM libraryItems WHERE id = ?`, p.LibraryItemID).Scan(&libraryID)
-	}
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return wire.MediaProgress{}, err
-	}
-	if libraryID != "" && !access.For(ctx, user).Library(libraryID) {
-		return wire.MediaProgress{}, &progressdto.StatusError{Status: http.StatusForbidden, Message: "Forbidden"}
-	}
-	return progressdto.Apply(ctx, h.db, user.ID, p)
+	perms := access.For(ctx, user)
+	return progressdto.ApplyChecked(ctx, h.db, user.ID, p, perms.Library)
 }
 
 func (h *Handler) saveBookmark(w http.ResponseWriter, r *http.Request, user store.User) error {
@@ -387,14 +368,14 @@ func (h *Handler) deleteBookmark(w http.ResponseWriter, r *http.Request, user st
 }
 
 func (h *Handler) requireItemAccess(r *http.Request, user store.User, itemID string) error {
-	access, err := h.canAccessItem(r.Context(), user, itemID)
+	exists, allowed, err := access.ItemAccess(r.Context(), h.db, user, itemID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if !access.exists {
+	if !exists {
 		return httputil.Status(404, "")
 	}
-	if !access.allowed {
+	if !allowed {
 		return httputil.Status(403, "")
 	}
 	return nil
@@ -452,30 +433,17 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 	permissions := access.Defaults(typ)
 	patch, _ := body["permissions"].(map[string]any)
 	access.Patch(permissions, typ, patch, body)
-	encodedPerms, _ := json.Marshal(permissions)
 	hash, err := h.ident.HashPassword(password)
 	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
 	}
-	userID, err := ids.New()
-	if err != nil {
-		return httputil.Internal("Failed to save new user", err)
-	}
-	token, err := h.ident.IssueLegacyToken(userID, username)
-	if err != nil {
-		return httputil.Internal("Failed to save new user", err)
-	}
 	// UserController.js:174: a string email is stored as given, anything else as NULL.
-	email, hasEmail := body["email"].(string)
-	active := int64(0)
-	if jsonvalue.Truthy(body["isActive"]) {
-		active = 1
+	var email *string
+	if address, ok := body["email"].(string); ok {
+		email = &address
 	}
-	now := dbtime.Now()
-	err = sqlc.New(h.db).InsertUser(r.Context(), sqlc.InsertUserParams{
-		ID: userID, Username: store.Text(username), Email: sql.NullString{String: email, Valid: hasEmail}, Pash: store.Text(hash),
-		Type: store.Text(typ), Token: store.Text(token), Isactive: sql.NullInt64{Int64: active, Valid: true},
-		Permissions: store.Text(string(encodedPerms)), Extradata: store.Text(users.NewUserExtraData("")), Createdat: now, Updatedat: now,
+	userID, err := h.ident.CreateUser(r.Context(), users.NewUser{
+		Username: username, Email: email, PasswordHash: &hash, Type: typ, Active: jsonvalue.Truthy(body["isActive"]), Permissions: permissions,
 	})
 	if err != nil {
 		return httputil.Internal("Failed to save new user", err)
@@ -828,24 +796,6 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current s
 		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"apiKey": updatedAPIKey{APIKey: key}})
-}
-
-type itemAccess struct{ exists, allowed bool }
-
-func (h *Handler) CanReadItem(ctx context.Context, user store.User, itemID string) (bool, error) {
-	ia, err := h.canAccessItem(ctx, user, itemID)
-	return ia.allowed, err
-}
-
-func (h *Handler) canAccessItem(ctx context.Context, user store.User, itemID string) (itemAccess, error) {
-	a, err := libitem.LoadAccess(ctx, h.db, itemID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return itemAccess{}, nil
-	}
-	if err != nil {
-		return itemAccess{}, err
-	}
-	return itemAccess{exists: true, allowed: access.For(ctx, user).Item(a)}, nil
 }
 
 // adminProgress is a progress with the media fields UserController.findOne

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -63,5 +64,5 @@ type seriesListEntry struct {
 	seriesView
 	TotalDuration float64            `json:"totalDuration,omitempty"`
 	Books         []libitem.Minified `json:"books"`
-	RSSFeed       map[string]any     `json:"rssFeed,omitempty"`
+	RSSFeed       *feeds.Minified    `json:"rssFeed,omitempty"`
 }

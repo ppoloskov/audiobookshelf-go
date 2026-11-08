@@ -58,3 +58,15 @@ func NaturalBaseCompare(a, b string) int {
 	defer mu.Unlock()
 	return naturalBase.CompareString(quotes.Replace(a), quotes.Replace(b))
 }
+
+// SequenceLess orders series sequences like the comparator of seriesFilters.js
+// (:200-206): an empty sequence sorts last, the rest by NaturalBaseCompare.
+func SequenceLess(a, b string) bool {
+	if a == "" {
+		return false
+	}
+	if b == "" {
+		return true
+	}
+	return NaturalBaseCompare(a, b) < 0
+}

@@ -18,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/config"
 	_ "modernc.org/sqlite"
 )
 
@@ -32,7 +31,7 @@ func TestEmailSettingsUseUpstreamDefaultsAndPersistFirstUpdate(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY,value JSON,createdAt DATETIME NOT NULL,updatedAt DATETIME NOT NULL)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	admin := store.User{Type: "admin"}
 	get := httptest.NewRecorder()
 	serve(h, get, httptest.NewRequest(http.MethodGet, "/api/emails/settings", nil), admin)
@@ -79,7 +78,7 @@ func TestEmailTestVerificationFailureUsesExpressSendResponse(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY,value JSON,createdAt DATETIME NOT NULL,updatedAt DATETIME NOT NULL)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodPost, "/api/emails/test", strings.NewReader(`{}`)), store.User{Type: "admin"})
 	if w.Code != http.StatusBadRequest || w.Body.String() != "Failed to verify SMTP connection configuration" {
@@ -104,7 +103,7 @@ func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testin
 		t.Fatal(err)
 	}
 	var events []string
-	h := New(db, config.Config{}, func(_ string, event string, _ any) { events = append(events, event) })
+	h := New(db, func(_ string, event string, _ any) { events = append(events, event) })
 	admin := store.User{Type: "admin"}
 	body := `{"ereaderDevices":[{"name":"Invalid option","email":"invalid@example.test","availabilityOption":"invalid","users":["other"]},{"name":"Empty specific users","email":"empty@example.test","availabilityOption":"specificUsers","users":[]},{"name":"Guest with empty users","email":"guest@example.test","availabilityOption":"guestOrUp","users":[]},{"name":"Missing users","email":"missing@example.test"},{"name":"Null users","email":"null@example.test","availabilityOption":"guestOrUp","users":null},{"name":"Specific users string","email":"string@example.test","availabilityOption":"specificUsers","users":"user-id"},{"name":"Guest object users","email":"object@example.test","availabilityOption":"guestOrUp","users":{"length":1}}]}`
 	post := func() *httptest.ResponseRecorder {

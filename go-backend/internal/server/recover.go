@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"strconv"
@@ -53,21 +54,28 @@ func guardPanics(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) 
 		if guard.started {
 			return
 		}
-		body := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Internal Server Error</pre>\n</body>\n</html>\n"
-		h := w.Header()
-		for _, key := range []string{"Content-Encoding", "Content-Range", "ETag", "Last-Modified", "Cache-Control", "Accept-Ranges"} {
-			h.Del(key)
-		}
-		h.Set("Content-Type", "text/html; charset=utf-8")
-		h.Set("Content-Length", strconv.Itoa(len(body)))
-		h.Set("Content-Security-Policy", "default-src 'none'")
-		h.Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusInternalServerError)
-		if r.Method != http.MethodHead {
-			_, _ = io.WriteString(w, body)
-		}
+		writeExpressError(w, r, http.StatusInternalServerError, "Internal Server Error")
 	}()
 	next(guard, r)
+}
+
+// writeExpressError is express/finalhandler's production error page: the
+// status with the message in a <pre>, and none of the headers of a response
+// that was being prepared.
+func writeExpressError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	body := "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + html.EscapeString(message) + "</pre>\n</body>\n</html>\n"
+	h := w.Header()
+	for _, key := range []string{"Content-Encoding", "Content-Range", "ETag", "Last-Modified", "Cache-Control", "Accept-Ranges"} {
+		h.Del(key)
+	}
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Content-Length", strconv.Itoa(len(body)))
+	h.Set("Content-Security-Policy", "default-src 'none'")
+	h.Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+	if r.Method != http.MethodHead {
+		_, _ = io.WriteString(w, body)
+	}
 }
 
 // panicGuard records whether the response has started. It forwards Flush and

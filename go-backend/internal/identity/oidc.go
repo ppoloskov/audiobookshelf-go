@@ -14,14 +14,13 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
@@ -68,7 +67,9 @@ type oidcConfig struct {
 }
 
 func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) error {
-	if !h.authMethodEnabled(r.Context(), "openid") {
+	if enabled, err := h.authMethodEnabled(r.Context(), "openid"); err != nil {
+		return &httputil.Error{Status: 500, Cause: err}
+	} else if !enabled {
 		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
@@ -183,7 +184,9 @@ func (h *Handler) oidcAuthorize(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) error {
-	if !h.authMethodEnabled(r.Context(), "openid") {
+	if enabled, err := h.authMethodEnabled(r.Context(), "openid"); err != nil {
+		return &httputil.Error{Status: 500, Cause: err}
+	} else if !enabled {
 		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
@@ -213,7 +216,9 @@ func (h *Handler) oidcMobileRedirect(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) error {
-	if !h.authMethodEnabled(r.Context(), "openid") {
+	if enabled, err := h.authMethodEnabled(r.Context(), "openid"); err != nil {
+		return &httputil.Error{Status: 500, Cause: err}
+	} else if !enabled {
 		return writePlain(w, http.StatusUnauthorized, "Unauthorized")
 	}
 	if !h.allowAuthRequest(w, r) {
@@ -411,9 +416,9 @@ func (h *Handler) readOIDCConfig(ctx context.Context) (oidcConfig, error) {
 		matchExistingBy:    settings.String("authOpenIDMatchExistingBy"),
 	}
 	if cfg.signingAlgorithm == "" {
-		cfg.signingAlgorithm = "RS256"
+		cfg.signingAlgorithm = serversettings.DefaultSigningAlgorithm
 	}
-	cfg.mobileRedirectURIs = stringSlice(doc["authOpenIDMobileRedirectURIs"])
+	cfg.mobileRedirectURIs = settings.Strings("authOpenIDMobileRedirectURIs")
 	cfg.autoRegister = settings.Bool("authOpenIDAutoRegister")
 	// The redirect URLs use authOpenIDSubfolderForRedirectURLs verbatim
 	// (OidcAuthStrategy.js:330-332): "" means the site root, and an unset key
@@ -659,24 +664,13 @@ func (h *Handler) createOIDCUser(ctx context.Context, info map[string]any) (stor
 	if username == "" {
 		return store.User{}, errors.New("OIDC username is missing")
 	}
-	var email sql.NullString // NULL unless the email is verified, as before
+	var email *string // NULL unless the email is verified, as before
 	if verified, _ := info["email_verified"].(bool); verified {
-		address, _ := info["email"].(string)
-		email = store.TextOrNull(address)
+		if address, _ := info["email"].(string); address != "" {
+			email = &address
+		}
 	}
-	id, err := ids.New()
-	if err != nil {
-		return store.User{}, err
-	}
-	token, err := h.IssueLegacyToken(id, username)
-	if err != nil {
-		return store.User{}, err
-	}
-	now := dbtime.Format(time.Now())
-	err = h.queries().InsertUser(ctx, sqlc.InsertUserParams{
-		ID: id, Username: store.Text(username), Email: email, Type: store.Text("user"), Token: store.Text(token), Isactive: sql.NullInt64{Int64: 1, Valid: true},
-		Permissions: store.Text(encodeJSON(access.Defaults("user"))), Extradata: store.Text(users.NewUserExtraData(sub)), Createdat: now, Updatedat: now,
-	})
+	id, err := h.CreateUser(ctx, users.NewUser{Username: username, Email: email, Type: "user", Active: true, OIDCSub: sub})
 	if err != nil {
 		return store.User{}, err
 	}
@@ -885,16 +879,7 @@ func cookieValue(r *http.Request, name string) string {
 	return value
 }
 
-func (h *Handler) authMethodEnabled(ctx context.Context, method string) bool {
+func (h *Handler) authMethodEnabled(ctx context.Context, method string) (bool, error) {
 	settings, err := serversettings.Get(ctx, h.db)
-	if err != nil {
-		return false
-	}
-	methods, _ := settings.Doc()["authActiveAuthMethods"].([]any)
-	for _, value := range methods {
-		if value == method {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(settings.Strings("authActiveAuthMethods"), method), err
 }

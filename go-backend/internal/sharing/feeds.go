@@ -16,6 +16,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
@@ -71,11 +72,11 @@ type feedEpisodeRow struct {
 // keep NULL, as the wire and RSS code read them.
 func feedFromRow(r sqlc.Feed) feedRow {
 	return feedRow{
-		ID: r.ID, Slug: r.Slug, EntityType: r.Entitytype, EntityID: r.Entityid, EntityUpdatedAt: asTime(r.Entityupdatedat),
+		ID: r.ID, Slug: r.Slug, EntityType: r.Entitytype, EntityID: r.Entityid, EntityUpdatedAt: dbtime.Time(r.Entityupdatedat),
 		ServerAddress: r.Serveraddress, FeedURL: r.Feedurl, ImageURL: r.Imageurl, SiteURL: r.Siteurl, Title: r.Title,
 		Description: r.Description, Author: r.Author, PodcastType: r.Podcasttype, Language: r.Language,
 		OwnerName: r.Ownername, OwnerEmail: r.Owneremail, Explicit: nullBool(r.Explicit), PreventIndexing: nullBool(r.Preventindexing),
-		CoverPath: r.Coverpath, UserID: r.Userid, CreatedAt: asTime(r.Createdat), UpdatedAt: asTime(r.Updatedat),
+		CoverPath: r.Coverpath, UserID: r.Userid, CreatedAt: dbtime.Time(r.Createdat), UpdatedAt: dbtime.Time(r.Updatedat),
 	}
 }
 
@@ -121,48 +122,11 @@ func boolPtr(v sql.NullBool) *bool {
 	return &v.Bool
 }
 
-func (f feedRow) minified() FeedMinified {
-	return FeedMinified{
-		ID: f.ID, EntityType: f.EntityType.String, EntityID: f.EntityID.String, FeedURL: store.NullStringPtr(f.FeedURL),
-		Meta: FeedMinifiedMeta{Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail)},
+func (f feedRow) minified() feeds.Minified {
+	return feeds.Minified{
+		ID: f.ID, EntityType: store.NullStringPtr(f.EntityType), EntityID: store.NullStringPtr(f.EntityID), FeedURL: store.NullStringPtr(f.FeedURL),
+		Meta: feeds.MinifiedMeta{Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail)},
 	}
-}
-
-func (f feedRow) old(eps []feedEpisodeRow) Feed {
-	out := Feed{
-		ID: f.ID, Slug: store.NullStringPtr(f.Slug), UserID: store.NullStringPtr(f.UserID), EntityType: store.NullStringPtr(f.EntityType), EntityID: store.NullStringPtr(f.EntityID),
-		Meta: FeedMeta{
-			Title: store.NullStringPtr(f.Title), Description: store.NullStringPtr(f.Description), Author: store.NullStringPtr(f.Author), ImageURL: store.NullStringPtr(f.ImageURL),
-			FeedURL: store.NullStringPtr(f.FeedURL), Link: store.NullStringPtr(f.SiteURL), Explicit: boolPtr(f.Explicit), Type: store.NullStringPtr(f.PodcastType),
-			Language: store.NullStringPtr(f.Language), PreventIndexing: boolPtr(f.PreventIndexing), OwnerName: store.NullStringPtr(f.OwnerName), OwnerEmail: store.NullStringPtr(f.OwnerEmail),
-		},
-		ServerAddress: store.NullStringPtr(f.ServerAddress), FeedURL: store.NullStringPtr(f.FeedURL), Episodes: make([]FeedEpisode, 0, len(eps)),
-		CreatedAt: f.CreatedAt.UnixMilli(), UpdatedAt: f.UpdatedAt.UnixMilli(),
-	}
-	// entityUpdatedAt?.valueOf() || null, coverPath || null
-	if ms := f.EntityUpdatedAt.UnixMilli(); !f.EntityUpdatedAt.IsZero() && ms != 0 {
-		out.EntityUpdatedAt = &ms
-	}
-	if f.CoverPath.Valid && f.CoverPath.String != "" {
-		out.CoverPath = &f.CoverPath.String
-	}
-	for _, e := range eps {
-		var size *int64
-		if e.EnclosureSize.Valid {
-			size = &e.EnclosureSize.Int64
-		}
-		var duration *float64
-		if e.Duration.Valid {
-			duration = &e.Duration.Float64
-		}
-		out.Episodes = append(out.Episodes, FeedEpisode{
-			ID: e.ID, Title: store.NullStringPtr(e.Title), Description: store.NullStringPtr(e.Description),
-			Enclosure: FeedEpisodeEnclosure{URL: store.NullStringPtr(e.EnclosureURL), Size: size, Type: store.NullStringPtr(e.EnclosureType)},
-			PubDate:   store.NullStringPtr(e.PubDate), Link: store.NullStringPtr(e.SiteURL), Author: store.NullStringPtr(e.Author), Explicit: boolPtr(e.Explicit),
-			Duration: duration, Season: store.NullStringPtr(e.Season), Episode: store.NullStringPtr(e.Episode), EpisodeType: store.NullStringPtr(e.EpisodeType), FullPath: store.NullStringPtr(e.FilePath),
-		})
-	}
-	return out
 }
 
 func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User) error {
@@ -173,18 +137,16 @@ func (h *Handler) listFeeds(w http.ResponseWriter, r *http.Request, u store.User
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	out := FeedList{Feeds: make([]Feed, 0, len(rows)), Minified: make([]FeedMinified, 0, len(rows))}
+	out := FeedList{Feeds: make([]feeds.Feed, 0, len(rows)), Minified: make([]feeds.Minified, 0, len(rows))}
 	for _, row := range rows {
-		f := feedFromRow(row)
-		eps, err := h.feedEpisodeRows(r.Context(), f.ID)
+		eps, err := sqlc.New(h.db).ListFeedEpisodes(r.Context(), row.ID)
 		if err != nil {
 			return &httputil.Error{Status: 500, Cause: err}
 		}
-		out.Feeds = append(out.Feeds, f.old(eps))
-		out.Minified = append(out.Minified, f.minified())
+		out.Feeds = append(out.Feeds, feeds.Old(row, eps))
+		out.Minified = append(out.Minified, feedFromRow(row).minified())
 	}
-	write(w, out)
-	return nil
+	return httputil.JSON(w, r, out)
 }
 
 // openFeedRequest is the body of the three open routes. The fields stay raw
@@ -295,11 +257,10 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	minified := feed.minified()
 	logging.Infof("[RssFeedManager] Opened RSS feed %q", feedURLText(minified)) // RssFeedManager.js:301
 	h.emit.ToAll("rss_feed_open", minified)
-	write(w, FeedOpened{Feed: minified})
-	return nil
+	return httputil.JSON(w, r, FeedOpened{Feed: minified})
 }
 
-func feedURLText(f FeedMinified) string {
+func feedURLText(f feeds.Minified) string {
 	if f.FeedURL == nil {
 		return ""
 	}

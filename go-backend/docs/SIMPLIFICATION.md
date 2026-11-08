@@ -73,6 +73,7 @@ and nulls, because TS reads those back.
 | M12 (refactor waves A+B, docs/REFACTOR-LOG.md) | (this commit) | 41,020 → 39,324 | −1,696 | 9,593 → 8,944 | read-only mode, abs-compat, duplicate settings/DB/text/coercion helpers, private-IP checks, filter-data round trips, catalog-only wire types |
 | M13 (refactor wave C) | (this commit) | 39,324 → 38,906 | −418 | 8,944 → 8,805 | duplicate image downloaders, library prologues, ffprobe/MIME tables, device upserts, admin checks, settings-row readers; userapi raw SQL |
 | M14 (refactor wave C4) | (this commit) | 38,906 → 38,622 | −284 | 8,805 → 8,706 | emitter nil guards and audience strings, five task types, Set* wiring (17 → 4), podcasts↔scanner cycle |
+| M15 (verifier round 1 + wave D) | (this commit) | 38,361 → 37,831 | −530 | 8,706 → 8,487 | deletion cascade copy, item lookup copies, feed/user/settings builders, untyped audio entries, wire under store/logging |
 
 ### M1 behaviour changes (all toward TS/Express)
 

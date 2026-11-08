@@ -3,20 +3,19 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/logging"
 	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 // startMatchTask announces the 'library-match-all' task of
 // Scanner.matchLibraryItems (Scanner.js:489-497).
 func (h *Handler) startMatchTask(library libraryScope) events.Task {
-	t := events.NewTask(uuid.NewString(), "library-match-all", taskData{LibraryID: library.id}).
+	t := events.NewTask(ids.Must(), "library-match-all", taskData{LibraryID: library.id}).
 		Titled(fmt.Sprintf("Matching books in %q", library.name), "MessageTaskMatchingBooksInLibrary", []string{library.name})
 	t.ShowSuccess = true
 	h.emit.TaskStarted(t)
@@ -74,7 +73,7 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
 	}
 	settings := library.settings
 	task := h.startMatchTask(library)
-	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, uuid.NewString(), library.name)
+	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, ids.Must(), library.name)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.title,b.asin,b.isbn FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? ORDER BY li.createdAt`, library.id)
 	if err != nil {
 		logging.Errorf("[Scanner] matchLibraryItems: %v", err)

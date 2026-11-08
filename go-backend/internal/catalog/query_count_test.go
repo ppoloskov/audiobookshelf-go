@@ -202,7 +202,7 @@ func TestIncludePageQueryCountIndependentOfPageSize(t *testing.T) {
 	for _, size := range []int{10, 50} {
 		db, counter := catalogFixtureWithQueryCount(t)
 		seedBookPage(t, db, size)
-		h := New(db, config.Config{}, nil)
+		h := New(db, config.Config{}, nil, testDeps())
 		user := store.User{ID: "u", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 		counter.reset()
 		page := requestBookPage(t, h, user, fmt.Sprintf("/api/libraries/l1/items?limit=%d&include=numepisodesincomplete", size))

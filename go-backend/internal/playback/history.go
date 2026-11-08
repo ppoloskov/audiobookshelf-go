@@ -2,6 +2,7 @@ package playback
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/ids"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -46,7 +47,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 		page = 0
 	}
 	userFilter := r.URL.Query().Get("user")
-	if !validUUID(userFilter) {
+	if !ids.Valid(userFilter) {
 		userFilter = ""
 	}
 	where := ""
@@ -138,7 +139,7 @@ func (h *Handler) handleBatchDelete(w http.ResponseWriter, r *http.Request) erro
 		return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
 	}
 	for _, id := range body.Sessions {
-		if !validUUID(id) {
+		if !ids.Valid(id) {
 			return httputil.Status(400, `Invalid request body. "sessions" array of session id strings is required.`)
 		}
 	}

@@ -19,6 +19,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -83,7 +84,7 @@ func scannerTestDB(t *testing.T, root string) *sql.DB {
 
 func TestAudioMetadataSourceMapping(t *testing.T) {
 	m := bookMetadata{Title: "Folder"}
-	applyAudioMetadata(map[string]any{"tagTitle": "Tagged", "tagArtist": "A Writer", "tagGenre": "Mystery/Fiction"}, &m)
+	applyAudioMetadata(map[string]string{"tagTitle": "Tagged", "tagArtist": "A Writer", "tagGenre": "Mystery/Fiction"}, &m)
 	if m.Title != "Tagged" || strings.Join(m.Authors, ",") != "A Writer" || strings.Join(m.Genres, ",") != "Mystery,Fiction" {
 		t.Fatalf("mapped audio metadata = %+v", m)
 	}
@@ -144,12 +145,12 @@ func TestMetadataSourcesFollowConfiguredPrecedence(t *testing.T) {
 	st, _ := os.Stat(nfo)
 	g := &group{files: []file{{path: filepath.Join(dir, "audio.mp3")}}, companions: []file{{path: nfo, info: st}}}
 	order := []string{"folderStructure", "nfoFile", "audioMetatags"}
-	got := mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"}, bookMetadata{}, false)
+	got := mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]string{"tagTitle": "Audio Title"}, bookMetadata{}, false)
 	if got.Title != "Audio Title" {
 		t.Fatalf("later audio source title=%q", got.Title)
 	}
 	order = []string{"audioMetatags", "nfoFile", "folderStructure"}
-	got = mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]any{"tagTitle": "Audio Title"}, bookMetadata{}, false)
+	got = mergeBookMetadataWithABS("Folder Title", "", "", "", g, order, map[string]string{"tagTitle": "Audio Title"}, bookMetadata{}, false)
 	if got.Title != "NFO Title" {
 		t.Fatalf("later NFO source title=%q", got.Title)
 	}
@@ -1117,21 +1118,22 @@ func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
 
 func TestFilenameTrackDiscParsingMatchesUpstream(t *testing.T) {
 	track, disc := filenameNumbers("Author - Book CD2 - 003 Chapter.mp3", "")
-	if track != 3 || disc != 2 {
+	if track == nil || disc == nil || *track != 3 || *disc != 2 {
 		t.Fatalf("track/disc=%v/%v, want 3/2", track, disc)
 	}
 }
 
 func TestSmartAudioOrderKeepsMissingTrackStableAndSetsOneBasedIndex(t *testing.T) {
-	makeAudio := func(name string, track any) map[string]any {
-		return map[string]any{"trackNumFromMeta": track, "trackNumFromFilename": nil, "discNumFromMeta": nil, "discNumFromFilename": nil, "metadata": map[string]any{"filename": name}}
+	makeAudio := func(name string, track *int) libitem.AudioFile {
+		return libitem.AudioFile{TrackNumFromMeta: track, Metadata: libitem.FileMetadata{Filename: name}}
 	}
-	audio := smartAudioOrder([]map[string]any{makeAudio("a.mp3", 1), makeAudio("b.mp3", 2), makeAudio("zz.mp3", nil)})
+	one, two := 1, 2
+	audio := []libitem.AudioFile{makeAudio("a.mp3", &one), makeAudio("b.mp3", &two), makeAudio("zz.mp3", nil)}
+	smartAudioOrder(audio)
 	want := []string{"a.mp3", "b.mp3", "zz.mp3"}
 	for i, af := range audio {
-		name := af["metadata"].(map[string]any)["filename"]
-		if name != want[i] || af["index"] != i+1 {
-			t.Fatalf("audio[%d]=%v index=%v, want %q index %d", i, name, af["index"], want[i], i+1)
+		if af.Metadata.Filename != want[i] || af.Index != i+1 {
+			t.Fatalf("audio[%d]=%v index=%v, want %q index %d", i, af.Metadata.Filename, af.Index, want[i], i+1)
 		}
 	}
 }
@@ -1179,18 +1181,18 @@ func TestProbeAudioDropsFilesWithoutAudioStreams(t *testing.T) {
 }
 
 func TestBuildChaptersMetaTitleAndSingleFileRules(t *testing.T) {
-	makeAudio := func(name, title string, duration float64) map[string]any {
-		return map[string]any{"duration": duration, "chapters": []map[string]any{}, "metadata": map[string]any{"filename": name}, "metaTags": map[string]any{"tagTitle": title}}
+	makeAudio := func(name, title string, duration float64) libitem.AudioFile {
+		return libitem.AudioFile{Duration: duration, Metadata: libitem.FileMetadata{Filename: name}, MetaTags: map[string]string{"tagTitle": title}}
 	}
-	got := buildChapters([]map[string]any{makeAudio("a.mp3", "First", 2), makeAudio("b.mp3", "Second", 3)}, "Book")
-	if len(got) != 2 || got[0]["title"] != "First" || got[1]["title"] != "Second" {
+	got := buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "First", 2), makeAudio("b.mp3", "Second", 3)}, "Book")
+	if len(got) != 2 || got[0].Title != "First" || got[1].Title != "Second" {
 		t.Fatalf("unique tag titles: %v", got)
 	}
-	got = buildChapters([]map[string]any{makeAudio("a.mp3", "Book", 2), makeAudio("b.mp3", "Book", 3)}, "Book")
-	if len(got) != 2 || got[0]["title"] != "a" || got[1]["title"] != "b" {
+	got = buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "Book", 2), makeAudio("b.mp3", "Book", 3)}, "Book")
+	if len(got) != 2 || got[0].Title != "a" || got[1].Title != "b" {
 		t.Fatalf("book-title tags should use filenames: %v", got)
 	}
-	got = buildChapters([]map[string]any{makeAudio("a.mp3", "Only", 2)}, "Book")
+	got = buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "Only", 2)}, "Book")
 	if len(got) != 0 {
 		t.Fatalf("single unchaptered file chapters=%v, want none", got)
 	}
@@ -1216,13 +1218,13 @@ func TestProbeAudioMissingBitRateIsNull(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Flat FileMetadata is the caller contract since the audio-shape fix.
-	meta := map[string]any{"filename": "x.mp3", "ext": ".mp3"}
+	meta := libitem.FileMetadata{Filename: "x.mp3", Ext: ".mp3"}
 	af, err := probeAudio(context.Background(), "ignored", meta, "1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if af["bitRate"] != nil {
-		t.Fatalf("bitRate=%v, want null", af["bitRate"])
+	if af.BitRate != nil {
+		t.Fatalf("bitRate=%v, want null", *af.BitRate)
 	}
 }
 

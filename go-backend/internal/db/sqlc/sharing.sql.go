@@ -547,52 +547,6 @@ func (q *Queries) ListFeedEpisodes(ctx context.Context, feedID string) ([]Feedep
 	return items, nil
 }
 
-const listFeedEpisodesNewestFirst = `-- name: ListFeedEpisodesNewestFirst :many
-SELECT id, title, author, description, siteurl, enclosureurl, enclosuretype, enclosuresize, pubdate, season, episode, episodetype, duration, filepath, explicit, createdat, updatedat, feedid FROM feedEpisodes WHERE feedId = CAST(?1 AS TEXT) ORDER BY pubDate DESC
-`
-
-func (q *Queries) ListFeedEpisodesNewestFirst(ctx context.Context, feedID string) ([]Feedepisode, error) {
-	rows, err := q.db.QueryContext(ctx, listFeedEpisodesNewestFirst, feedID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Feedepisode
-	for rows.Next() {
-		var i Feedepisode
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Author,
-			&i.Description,
-			&i.Siteurl,
-			&i.Enclosureurl,
-			&i.Enclosuretype,
-			&i.Enclosuresize,
-			&i.Pubdate,
-			&i.Season,
-			&i.Episode,
-			&i.Episodetype,
-			&i.Duration,
-			&i.Filepath,
-			&i.Explicit,
-			&i.Createdat,
-			&i.Updatedat,
-			&i.Feedid,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listFeeds = `-- name: ListFeeds :many
 SELECT id, slug, entitytype, entityid, entityupdatedat, serveraddress, feedurl, imageurl, siteurl, title, description, author, podcasttype, language, ownername, owneremail, explicit, preventindexing, coverpath, createdat, updatedat, userid FROM feeds
 `

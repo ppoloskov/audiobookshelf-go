@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // WriteMetadata writes the item's pinned v2.37.2 metadata.json sidecar, built
@@ -119,52 +120,21 @@ func recordStoredSidecar(ctx context.Context, db *sql.DB, itemID, itemPath, meta
 	if err != nil {
 		return err
 	}
-	fileMeta := makeFileMeta(itemPath, file{path: metadataPath, info: info})
-	if obj, ok := fileMeta["metadata"].(map[string]any); ok {
-		obj["filename"] = "metadata.json"
-		obj["relPath"] = "metadata.json"
-	}
-	fileMeta["fileType"] = "metadata"
-	var raw []byte
-	var libraryFiles string
-	err = db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryFiles)
-	if err != nil {
+	entry := newLibraryFile(itemPath, file{path: metadataPath, info: info})
+	entry.Metadata.Filename, entry.Metadata.RelPath, entry.FileType = "metadata.json", "metadata.json", "metadata"
+	var libraryFiles []byte
+	if err = db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryFiles); err != nil {
 		return err
 	}
-	var files []map[string]any
-	if json.Unmarshal([]byte(libraryFiles), &files) != nil {
-		files = []map[string]any{}
-	}
-	fileIndex := -1
-	for i, file := range files {
-		if meta, ok := file["metadata"].(map[string]any); ok {
-			if path, _ := meta["path"].(string); path == metadataPath {
-				fileIndex = i
-				break
-			}
-		}
-	}
-	if fileIndex >= 0 {
-		files[fileIndex] = fileMeta
+	files := parseStoredLibraryFiles(libraryFiles)
+	if i := slices.IndexFunc(files, func(f libraryFile) bool { return f.Metadata.Path == metadataPath }); i >= 0 {
+		files[i] = entry
 	} else {
-		files = append(files, fileMeta)
+		files = append(files, entry)
 	}
-	raw, err = json.Marshal(files)
+	raw, err := json.Marshal(files)
 	if err != nil {
 		return err
-	}
-	size := int64(0)
-	for _, file := range files {
-		if meta, ok := file["metadata"].(map[string]any); ok {
-			switch n := meta["size"].(type) {
-			case int64:
-				size += n
-			case int:
-				size += int64(n)
-			case float64:
-				size += int64(n)
-			}
-		}
 	}
 	now := dbtime.Now()
 	dirInfo, err := os.Stat(itemPath)
@@ -172,6 +142,6 @@ func recordStoredSidecar(ctx context.Context, db *sql.DB, itemID, itemPath, meta
 		return err
 	}
 	mtime, ctime, birthtime := statTimes(itemPath, dirInfo)
-	_, err = db.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,size=?,mtime=?,ctime=?,birthtime=?,updatedAt=? WHERE id=?`, string(raw), size, timeString(mtime), timeString(ctime), timeString(birthtime), now, itemID)
+	_, err = db.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,size=?,mtime=?,ctime=?,birthtime=?,updatedAt=? WHERE id=?`, string(raw), libraryFileSize(files), timeString(mtime), timeString(ctime), timeString(birthtime), now, itemID)
 	return err
 }

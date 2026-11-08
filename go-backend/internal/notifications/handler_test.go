@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -38,7 +37,7 @@ func TestSettingsDefaultsAndPartialPatchMatchUpstream(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY,value JSON,createdAt DATETIME NOT NULL,updatedAt DATETIME NOT NULL)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	admin := store.User{Type: "admin"}
 	get := httptest.NewRecorder()
 	serve(h, get, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), admin)
@@ -79,7 +78,7 @@ func TestSettingsDefaultsAndPartialPatchMatchUpstream(t *testing.T) {
 
 func TestNotificationMutationLookupAndMissingRouteResponse(t *testing.T) {
 	db := notificationDB(t, "")
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRecorder()
 	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Original"}`)), admin)
@@ -142,7 +141,7 @@ func TestTriggerEventDeliversRuntimeLifecyclePayload(t *testing.T) {
 	}))
 	defer mock.Close()
 	db := notificationDB(t, mock.URL)
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRecorder()
 	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onBackupFailed","urls":["discord://test"],"titleTemplate":"Backup failed","bodyTemplate":"{{errorMsg}}","enabled":true}`)), admin)
@@ -166,7 +165,7 @@ func TestNotificationTestPostsRenderedPayloadToLocalApprise(t *testing.T) {
 	}))
 	defer mock.Close()
 	db := notificationDB(t, mock.URL)
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	admin := store.User{Type: "admin"}
 	create := httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"],"titleTemplate":"Version {{version}}","bodyTemplate":"Hi {{version}}","enabled":true}`))
 	cw := httptest.NewRecorder()
@@ -196,7 +195,7 @@ func TestNotificationTestAppriseFailureUsesSendStatus(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
 	defer mock.Close()
 	db := notificationDB(t, mock.URL)
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	create := httptest.NewRecorder()
 	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
 	var settings map[string]any
@@ -213,7 +212,7 @@ func TestNotificationTestAppriseFailureUsesSendStatus(t *testing.T) {
 
 func TestNotificationTestEventUsesSendStatusWhenUnconfigured(t *testing.T) {
 	db := notificationDB(t, "")
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/test?fail=1", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusOK || w.Body.String() != "OK" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
@@ -239,7 +238,7 @@ func TestApprisePayloadPreservesMissingAndNullTemplates(t *testing.T) {
 }
 func TestNotificationRejectsNonAdmin(t *testing.T) {
 	db := notificationDB(t, "")
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), store.User{Type: "user"})
 	if w.Code != http.StatusForbidden {
@@ -249,7 +248,7 @@ func TestNotificationRejectsNonAdmin(t *testing.T) {
 
 func TestNotificationTestMissingIDPrecedesAppriseConfiguration(t *testing.T) {
 	db := notificationDB(t, "")
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications/missing/test", nil), store.User{Type: "admin"})
 	if w.Code != http.StatusNotFound || strings.TrimSpace(w.Body.String()) != http.StatusText(http.StatusNotFound) {
@@ -259,7 +258,7 @@ func TestNotificationTestMissingIDPrecedesAppriseConfiguration(t *testing.T) {
 
 func TestNotificationTestUnavailableUsesExpressSendResponse(t *testing.T) {
 	db := notificationDB(t, "")
-	h := New(db, config.Config{}, nil)
+	h := New(db, nil)
 	create := httptest.NewRecorder()
 	serve(h, create, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(`{"eventName":"onTest","urls":["discord://test"]}`)), store.User{Type: "admin"})
 	var settings map[string]any

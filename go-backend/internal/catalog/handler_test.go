@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -194,7 +195,7 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 		}
 	}
 
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	assertGolden := func(name, shape string, got any) {
 		t.Helper()
 		actual, err := json.Marshal(got)
@@ -256,17 +257,17 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 	}
 	for _, fixture := range golden.Input.Books {
 		t.Run(fixture.Name, func(t *testing.T) {
-			full, err := h.ItemJSON(t.Context(), fixture.Item.ID, false)
+			full, err := h.fullItem(t.Context(), fixture.Item.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
 			assertGolden(fixture.Name, "itemJSON", full)
-			minified, err := h.ItemMinifiedJSON(t.Context(), fixture.Item.ID)
+			minified, err := h.minifiedItem(t.Context(), fixture.Item.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
 			assertGolden(fixture.Name, "itemMinifiedJSON", minified)
-			expanded, err := h.ItemJSON(t.Context(), fixture.Item.ID, true)
+			expanded, err := h.expandedItem(t.Context(), fixture.Item.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -335,7 +336,7 @@ func TestBookProjectionValues(t *testing.T) {
 	if _, err := db.Exec(`UPDATE books SET audioFiles=? WHERE id='b2'`, string(audioJSONBytes)); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	normalize := func(value any) map[string]any {
 		t.Helper()
 		encoded, err := json.Marshal(value)
@@ -363,9 +364,9 @@ func TestBookProjectionValues(t *testing.T) {
 				name string
 				load func() (any, error)
 			}{
-				{"full", func() (any, error) { return h.ItemJSON(t.Context(), tc.id, false) }},
-				{"minified", func() (any, error) { return h.ItemMinifiedJSON(t.Context(), tc.id) }},
-				{"expanded", func() (any, error) { return h.ItemJSON(t.Context(), tc.id, true) }},
+				{"full", func() (any, error) { return h.fullItem(t.Context(), tc.id) }},
+				{"minified", func() (any, error) { return h.minifiedItem(t.Context(), tc.id) }},
+				{"expanded", func() (any, error) { return h.expandedItem(t.Context(), tc.id) }},
 			} {
 				t.Run(view.name, func(t *testing.T) {
 					itemValue, err := view.load()
@@ -411,7 +412,7 @@ func TestBookProjectionValues(t *testing.T) {
 
 	// The source fixture pins a SQL NULL sequence independently from the empty
 	// sequence on i2; preserve that distinction in the full book projection.
-	fullValue, err := h.ItemJSON(t.Context(), "i1", false)
+	fullValue, err := h.fullItem(t.Context(), "i1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +430,7 @@ func TestBookProjectionValues(t *testing.T) {
 	if got := full["media"].(map[string]any)["ebookFile"]; got != nil {
 		t.Errorf("full empty ebook object=%#v, want null", got)
 	}
-	expandedI1Value, err := h.ItemJSON(t.Context(), "i1", true)
+	expandedI1Value, err := h.expandedItem(t.Context(), "i1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,9 +442,9 @@ func TestBookProjectionValues(t *testing.T) {
 		name string
 		load func() (any, error)
 	}{
-		{"full", func() (any, error) { return h.ItemJSON(t.Context(), "i2", false) }},
-		{"minified", func() (any, error) { return h.ItemMinifiedJSON(t.Context(), "i2") }},
-		{"expanded", func() (any, error) { return h.ItemJSON(t.Context(), "i2", true) }},
+		{"full", func() (any, error) { return h.fullItem(t.Context(), "i2") }},
+		{"minified", func() (any, error) { return h.minifiedItem(t.Context(), "i2") }},
+		{"expanded", func() (any, error) { return h.expandedItem(t.Context(), "i2") }},
 	} {
 		itemValue, err := view.load()
 		if err != nil {
@@ -732,7 +733,7 @@ func (h *Handler) bookMinifiedJSON(ctx context.Context, bookID, itemID string) (
 func TestHandleLibraryItemsAndItemDetail(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	list := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/libraries/l1/items", nil)
@@ -821,7 +822,7 @@ func TestHandleLibraryItemsAndItemDetail(t *testing.T) {
 func TestItemDetailEnforcesExplicitAndTagPermissions(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	if _, err := db.Exec(`UPDATE books SET explicit=1,tags='["tag-x"]' WHERE id='b1'`); err != nil {
 		t.Fatal(err)
 	}
@@ -851,7 +852,7 @@ func TestItemDetailEnforcesExplicitAndTagPermissions(t *testing.T) {
 func TestMissingItemUsesSendStatusNotFound(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	for _, id := range []string{"missing", "00000000-0000-0000-0000-000000000000"} {
 		w := httptest.NewRecorder()
@@ -872,7 +873,7 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/items/i1/download", nil), u) {
@@ -888,7 +889,7 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 func TestLibraryViewIncludesNullLastScanVersion(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 
 	got, err := h.libraryView(t.Context(), "l1")
 	if err != nil {
@@ -932,7 +933,7 @@ func TestLibraryItemsMaterializeBeforeNestedDTOQueries(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1/items", nil), user) {
@@ -955,7 +956,7 @@ func TestLibraryItemsMaterializeBeforeNestedDTOQueries(t *testing.T) {
 func TestBatchGetAndChapterMutationRespectCatalogPermissions(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"update":true}`)}
 	batch := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/api/items/batch/get", strings.NewReader(`{"libraryItemIds":["i1"]}`))
@@ -994,7 +995,7 @@ func TestFileDownloadChecksDownloadPermission(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"audio-1","metadata":{"filename":"01.mp3","ext":".mp3","path":"/media/books/01.mp3"}}]`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1/download", nil)
@@ -1006,7 +1007,7 @@ func TestFileDownloadChecksDownloadPermission(t *testing.T) {
 func TestFileDownloadResolvesFileBeforeCheckingDownloadPermission(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/items/i1/file/absent-ino/download", nil)
@@ -1027,7 +1028,7 @@ func TestFileDownloadMissingDiskFileUsesSourceErrorResponse(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"audio-1","metadata":{"filename":"01.m4b","ext":".m4b","path":"/media/books/missing.m4b"}}]`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":true}`)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1/download", nil)
@@ -1045,7 +1046,7 @@ func TestFileDownloadMissingDiskFileUsesSourceErrorResponse(t *testing.T) {
 func TestMetadataObjectRequiresAdminAndBuildsAudioTags(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	admin := store.User{ID: "a1", Type: "admin", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/i1/metadata-object", nil), admin) || w.Code != http.StatusOK {
@@ -1071,7 +1072,7 @@ func TestTrackAndEbookStatusUpdates(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"ebook-1","metadata":{"filename":"companion.epub","ext":".epub","path":"/media/books/companion.epub","format":"epub"},"isSupplementary":true}]`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"update":true}`)}
 	tracks := httptest.NewRecorder()
 	trackReq := httptest.NewRequest("PATCH", "/api/items/i1/tracks", strings.NewReader(`{"orderedFileData":[{"ino":"audio-1","exclude":true}]}`))
@@ -1108,7 +1109,7 @@ func TestLibraryItemIncludeAttachesMinifiedFeed(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO feeds VALUES ('feed-1','libraryItem','i1','https://example.test/feed','The Feed','Description',1,'Owner','owner@example.test')`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/items?include=RSSFEED", nil), u) || w.Code != http.StatusOK {
@@ -1132,7 +1133,7 @@ func TestLibraryItemIncludeAttachesMinifiedFeed(t *testing.T) {
 func TestCatalogPermissionsMatchRouteSemantics(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u2", Permissions: json.RawMessage(`{"accessAllLibraries":false,"librariesAccessible":["l1"]}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l2", nil), user) {
@@ -1167,7 +1168,7 @@ func TestCatalogPermissionsMatchRouteSemantics(t *testing.T) {
 func TestLibraryStatsUseActualBookQueries(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	if _, err := h.libraryStatsValue(t.Context(), "l1", "book"); err != nil {
 		t.Fatalf("stats implementation: %v", err)
 	}
@@ -1196,7 +1197,7 @@ func TestBookProgressFiltersAndSortUseCurrentUser(t *testing.T) {
 	}
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp1','u1','b1',12,0,0,'2024-01-03T00:00:00Z','2024-01-03T00:00:00Z',NULL)`)
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp2','u2','b1',12,0,1,'2024-01-04T00:00:00Z','2024-01-04T00:00:00Z',NULL)`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/libraries/l1/items?filter=progress.in-progress&sort=progress", nil)
@@ -1215,7 +1216,7 @@ func TestBookProgressFiltersAndSortUseCurrentUser(t *testing.T) {
 func TestLibraryFilterDataRoute(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/filterdata", nil), u) || w.Code != http.StatusOK {
@@ -1241,7 +1242,7 @@ func TestPersonalizedBookShelvesUsePerUserProgress(t *testing.T) {
 	}
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp1','u1','b1',4,0,0,0,datetime('now'),'2024-01-01T00:00:00Z',NULL)`)
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp2','u2','b1',4,0,1,0,datetime('now'),'2024-01-01T00:00:00Z',NULL)`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessExplicitContent":true,"accessAllTags":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/personalized", nil), u) || w.Code != http.StatusOK {
@@ -1259,7 +1260,7 @@ func TestPersonalizedBookShelvesUsePerUserProgress(t *testing.T) {
 func TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"update":true,"accessExplicitContent":true,"accessAllTags":true}`)}
 	body := `{"metadata":{"title":"Changed Book","subtitle":null,"publishedYear":2030,"description":"<script>bad()</script><p>Safe</p>","authors":[{"name":"Ada Author"},{"name":"New Author"}],"series":[{"name":"First Series","sequence":"2"},{"name":"Another Series","sequence":"1"}]},"tags":["new","tag"]}`
 	w := httptest.NewRecorder()
@@ -1304,7 +1305,7 @@ func TestDeleteLibraryFileRemovesManagedMediaAndMarksEmptyBookMissing(t *testing
 	files := `[{"ino":"file-x","metadata":{"filename":"only.mp3","ext":".mp3","path":"` + target + `","size":5}}]`
 	_, _ = db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, files)
 	_, _ = db.Exec(`UPDATE books SET audioFiles=? WHERE id='b1'`, `[{"ino":"file-x","metadata":{"filename":"only.mp3","ext":".mp3","path":"`+target+`","size":5}}]`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"update":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("DELETE", "/api/items/i1/file/file-x", nil), u) || w.Code != http.StatusOK {
@@ -1329,7 +1330,7 @@ func TestDeleteLibraryFileRemovesManagedMediaAndMarksEmptyBookMissing(t *testing
 func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	changed := 0
 	h.deps.LibraryChanged = func(string) { changed++ }
 	u := store.User{ID: "root", Type: "root", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
@@ -1382,7 +1383,7 @@ func TestDeleteItemRemovesMediaProgressAndEmptyRelations(t *testing.T) {
 	_, _ = db.Exec(`INSERT INTO playlists VALUES ('pl','u1')`)
 	_, _ = db.Exec(`INSERT INTO playlistMediaItems VALUES ('pli','b1','book',1,'pl')`)
 	_, _ = db.Exec(`INSERT INTO feeds VALUES ('feed','libraryItem','i1')`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"delete":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("DELETE", "/api/items/i1", nil), u) || w.Code != http.StatusOK {
@@ -1408,7 +1409,7 @@ func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 		}
 	}
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp','u1','b1')`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	refresh := 0
 	h.deps.LibraryChanged = func(string) { refresh++ }
 	u := store.User{ID: "root", Type: "admin", IsActive: true}
@@ -1449,7 +1450,7 @@ func TestCoverRawServesOriginalAndHonorsTimestampCacheHeader(t *testing.T) {
 	if _, err := db.Exec(`UPDATE books SET coverPath=? WHERE id='b1'`, cover); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{MetadataPath: metadata}, nil)
+	h := New(db, config.Config{MetadataPath: metadata}, nil, testDeps())
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/i1/cover?raw=1&ts=123", nil), store.User{}) {
 		t.Fatal("cover route did not match")
@@ -1470,7 +1471,7 @@ func TestSeriesFiltersAndIncludesReturnBooksProgressAndFeed(t *testing.T) {
 	}
 	_, _ = db.Exec(`INSERT INTO feeds VALUES ('feed-s','series','s1','https://example.test/rss','Feed','Description',0,'Owner','owner@example.test')`)
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp1','u1','b1',0,1,0,'2024-01-03T00:00:00Z')`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessExplicitContent":true,"accessAllTags":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/series?filter=genres.ZmljdGlvbg==&include=rssfeed", nil), user) || w.Code != http.StatusOK {
@@ -1501,7 +1502,7 @@ func TestSeriesFiltersAndIncludesReturnBooksProgressAndFeed(t *testing.T) {
 func TestSeriesBooksUseMinifiedBookMediaShape(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessExplicitContent":true,"accessAllTags":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1/series", nil), user) || w.Code != http.StatusOK {
@@ -1575,7 +1576,7 @@ func TestSeriesPaginationUsesPageThenLimit(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO bookSeries VALUES ('bs4','4','b1','s4','2024-01-01T00:00:00Z')`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/series?page=1&limit=2", nil), user) || w.Code != http.StatusOK {
@@ -1598,7 +1599,7 @@ func TestSeriesPaginationUsesPageThenLimit(t *testing.T) {
 func TestInvalidLibraryItemsPaginationUsesExpressSend(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	w := httptest.NewRecorder()
 	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1/items?page=-1", nil), u) {
@@ -1626,7 +1627,7 @@ func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
 	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, string(files)); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1", nil)
@@ -1799,7 +1800,7 @@ func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp-ep','u1','e1',0,10,0,'2024-01-03T00:00:00Z','2024-01-03T00:00:00Z',NULL)`)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/ip?expanded=1", nil), user) {
@@ -1862,3 +1863,13 @@ func number(v any) int64 {
 	}
 	return 0
 }
+
+func (h *Handler) minifiedItem(ctx context.Context, itemID string) (libitem.Minified, error) {
+	out, err := h.minifiedItems(ctx, []string{itemID})
+	if err != nil {
+		return libitem.Minified{}, err
+	}
+	return out[0], nil
+}
+
+func testDeps() Deps { return Deps{Filters: filterdata.NewCache()} }

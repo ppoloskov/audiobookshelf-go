@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/libitem"
@@ -338,9 +337,11 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 		format = probe.Format.Name
 	}
 	mime := filekind.AudioMime(ext)
-	fileMeta := map[string]any{"filename": filename, "ext": ext, "path": filepath.ToSlash(path), "relPath": rel, "size": size, "mtimeMs": st.ModTime().UnixMilli(), "ctimeMs": st.ModTime().UnixMilli(), "birthtimeMs": st.ModTime().UnixMilli()}
-	audio := map[string]any{"index": 1, "ino": ino, "metadata": fileMeta, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "trackNumFromMeta": nil, "discNumFromMeta": nil, "trackNumFromFilename": nil, "discNumFromFilename": nil, "manuallyVerified": false, "exclude": false, "error": nil, "format": format, "duration": duration, "bitRate": bitRate, "language": nil, "codec": stream.Codec, "timeBase": stream.TimeBase, "channels": stream.Channels, "channelLayout": stream.ChannelLayout, "chapters": []any{}, "embeddedCoverArt": nil, "metaTags": map[string]any{}, "mimeType": mime}
-	libFile := map[string]any{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
+	mtime := float64(st.ModTime().UnixMilli())
+	fileMeta := libitem.FileMetadata{Filename: filename, Ext: ext, Path: filepath.ToSlash(path), RelPath: rel, Size: float64(size), MtimeMs: mtime, CtimeMs: mtime, BirthtimeMs: mtime}
+	audio := libitem.AudioFile{Index: 1, Ino: ino, Metadata: fileMeta, AddedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Format: format, Duration: duration, BitRate: &bitRate,
+		Codec: &stream.Codec, TimeBase: &stream.TimeBase, Channels: &stream.Channels, ChannelLayout: &stream.ChannelLayout, Chapters: []libitem.AudioChapter{}, MetaTags: map[string]string{}, MimeType: mime}
+	libFile := libitem.File{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
 	episodeID, err := ids.New()
 	if err != nil {
 		return err
@@ -377,21 +378,16 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	if err = tx.QueryRowContext(d.ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, d.item.ID).Scan(&rawFiles); err != nil {
 		return err
 	}
-	var files []map[string]any
+	var files []libitem.File
 	if err = json.Unmarshal([]byte(rawFiles), &files); err != nil {
 		return err
 	}
+	sizeTotal := size
+	for _, f := range files {
+		sizeTotal += f.Size()
+	}
 	files = append(files, libFile)
 	filesJSON, _ := json.Marshal(files)
-	var sizeTotal int64
-	for _, f := range files {
-		m, _ := f["metadata"].(map[string]any)
-		if v, ok := m["size"].(float64); ok {
-			sizeTotal += int64(v)
-		} else if v, ok := m["size"].(int64); ok {
-			sizeTotal += v
-		}
-	}
 	_, err = tx.ExecContext(d.ctx, `UPDATE libraryItems SET libraryFiles=?,size=?,updatedAt=? WHERE id=?`, string(filesJSON), sizeTotal, stamp, d.item.ID)
 	if err != nil {
 		return err
@@ -451,13 +447,9 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, just
 		if id == justAdded {
 			continue
 		}
-		var audio map[string]any
-		_ = json.Unmarshal([]byte(audioRaw.String), &audio)
-		metadata, _ := audio["metadata"].(map[string]any)
-		path, _ := metadata["path"].(string)
-		ino := fmt.Sprint(audio["ino"])
-		if path != "" {
-			candidate = &old{id, path, ino}
+		audio := libitem.File(store.DecodeJSONObject([]byte(audioRaw.String)))
+		if path := audio.Path(); path != "" {
+			candidate = &old{id, path, audio.Ino()}
 			break
 		}
 	}
@@ -468,35 +460,7 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, just
 	if err = os.Remove(candidate.path); err != nil {
 		return nil
 	}
-	files := []map[string]any{}
-	for _, f := range h.rawLibraryFiles(ctx, item.ID) {
-		if f["ino"] != candidate.ino {
-			files = append(files, f)
-		}
-	}
-	encoded, _ := json.Marshal(files)
-	now := dbtime.Now()
-	tx, err := h.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err = sqlc.New(tx).DeletePlaylistMediaItemsByMediaID(ctx, candidate.id); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, candidate.id); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM podcastEpisodes WHERE id=?`, candidate.id); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, string(encoded), now, item.ID); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, item.MediaID, now, item.MediaID); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return h.deleteEpisode(ctx, item, candidate.id, candidate.ino)
 }
 
 func episodeTitle(d *downloadTask) string {

@@ -1,5 +1,10 @@
 version: "2"
 
+# Layers (an import may only point down):
+#   leaf        stdlib (and logging) only: no other internal package
+#   foundation  store, settings, access and shared builders: leaves and each other, never a feature
+#   feature     one HTTP feature each: leaves and foundation, never another feature or server
+#   server      composition root: imports everything
 linters:
   default: none
   enable:
@@ -26,18 +31,34 @@ linters:
             - "**/internal/events/**/*.go"
             - "**/internal/ids/*.go"
             - "**/internal/ids/**/*.go"
-            - "**/internal/media/*.go"
-            - "**/internal/media/**/*.go"
             - "**/internal/deviceinfo/*.go"
             - "**/internal/deviceinfo/**/*.go"
-            - "**/internal/authz/*.go"
-            - "**/internal/authz/**/*.go"
             - "**/internal/logging/*.go"
             - "**/internal/logging/**/*.go"
+            - "**/internal/version/*.go"
+            - "**/internal/version/**/*.go"
+            - "**/internal/config/*.go"
+            - "**/internal/config/**/*.go"
+            - "**/internal/cronspec/*.go"
+            - "**/internal/cronspec/**/*.go"
+            - "**/internal/filekind/*.go"
+            - "**/internal/filekind/**/*.go"
+            - "**/internal/jsonvalue/*.go"
+            - "**/internal/jsonvalue/**/*.go"
+            - "**/internal/nameparse/*.go"
+            - "**/internal/nameparse/**/*.go"
+            - "**/internal/textclean/*.go"
+            - "**/internal/textclean/**/*.go"
+            - "**/internal/textdist/*.go"
+            - "**/internal/textdist/**/*.go"
+            - "**/internal/mediatools/*.go"
+            - "**/internal/mediatools/**/*.go"
           allow:
             - $gostd
-            - audiobookshelf-compat/internal/wire
             - audiobookshelf-compat/internal/logging
+            # cronspec and textclean wrap one third-party parser each.
+            - github.com/robfig/cron/v3
+            - golang.org/x/net/html
         textsort-leaf-dependency:
           list-mode: strict
           files:
@@ -66,6 +87,45 @@ linters:
             - '!**/*_test.go'
           deny:
             - pkg: net/http/httptest$
+        foundation-no-features:
+          list-mode: lax
+          files:
+            - '!**/*_test.go'
+            - "**/internal/store/*.go"
+            - "**/internal/store/**/*.go"
+            - "**/internal/serversettings/*.go"
+            - "**/internal/serversettings/**/*.go"
+            - "**/internal/settingsdoc/*.go"
+            - "**/internal/settingsdoc/**/*.go"
+            - "**/internal/access/*.go"
+            - "**/internal/access/**/*.go"
+            - "**/internal/libitem/*.go"
+            - "**/internal/libitem/**/*.go"
+            - "**/internal/users/*.go"
+            - "**/internal/users/**/*.go"
+            - "**/internal/progressdto/*.go"
+            - "**/internal/progressdto/**/*.go"
+            - "**/internal/filterdata/*.go"
+            - "**/internal/filterdata/**/*.go"
+            - "**/internal/itemwrite/*.go"
+            - "**/internal/itemwrite/**/*.go"
+          deny:
+            - pkg: audiobookshelf-compat/internal/catalog$
+            - pkg: audiobookshelf-compat/internal/userapi$
+            - pkg: audiobookshelf-compat/internal/identity$
+            - pkg: audiobookshelf-compat/internal/playback$
+            - pkg: audiobookshelf-compat/internal/scanner$
+            - pkg: audiobookshelf-compat/internal/podcasts$
+            - pkg: audiobookshelf-compat/internal/providers$
+            - pkg: audiobookshelf-compat/internal/sharing$
+            - pkg: audiobookshelf-compat/internal/adminops$
+            - pkg: audiobookshelf-compat/internal/notifications$
+            - pkg: audiobookshelf-compat/internal/emailapi$
+            - pkg: audiobookshelf-compat/internal/backup$
+            - pkg: audiobookshelf-compat/internal/audiotools$
+            - pkg: audiobookshelf-compat/internal/realtime$
+            - pkg: audiobookshelf-compat/internal/lists$
+            - pkg: audiobookshelf-compat/internal/server$
         feature-cross-imports:
           list-mode: lax
           files:
@@ -98,8 +158,6 @@ linters:
             - "**/internal/audiotools/**/*.go"
             - "**/internal/realtime/*.go"
             - "**/internal/realtime/**/*.go"
-            - "**/internal/books/*.go"
-            - "**/internal/books/**/*.go"
             - "**/internal/lists/*.go"
             - "**/internal/lists/**/*.go"
           deny:
@@ -117,15 +175,5 @@ linters:
             - pkg: audiobookshelf-compat/internal/backup$
             - pkg: audiobookshelf-compat/internal/audiotools$
             - pkg: audiobookshelf-compat/internal/realtime$
-        books-no-orchestrator-imports:
-          list-mode: lax
-          files:
-            - '!**/*_test.go'
-            - "**/internal/books/*.go"
-            - "**/internal/books/**/*.go"
-          deny:
-            - pkg: audiobookshelf-compat/internal/items$
-            - pkg: audiobookshelf-compat/internal/library$
             - pkg: audiobookshelf-compat/internal/lists$
             - pkg: audiobookshelf-compat/internal/server$
-

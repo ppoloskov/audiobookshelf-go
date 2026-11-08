@@ -3,6 +3,8 @@ package scanner
 import (
 	"reflect"
 	"testing"
+
+	"audiobookshelf-compat/internal/libitem"
 )
 
 func planFixture() planInput {
@@ -12,7 +14,7 @@ func planFixture() planInput {
 		g:      &group{path: "/lib/Book", folder: folder{id: "f", path: "/lib"}},
 		itemID: "item", mediaID: "media", rel: "Book", now: "2024-01-01 00:00:00.000 +00:00",
 		fileDiff: libraryFileDiff{files: []libraryFile{file}},
-		audio:    []map[string]any{{"duration": 60.0, "metadata": map[string]any{"filename": "a.mp3"}}},
+		audio:    []libitem.AudioFile{{Duration: 60, Metadata: libitem.FileMetadata{Filename: "a.mp3"}}},
 		title:    "Book", author: "Writer",
 		itemIno: "7", mtime: "2023-05-05 00:00:00.000 +00:00", ctime: "2023-05-05 00:00:00.000 +00:00", birthtime: "2023-05-05 00:00:00.000 +00:00",
 	}
@@ -145,16 +147,16 @@ func TestPlanPodcast(t *testing.T) {
 	in := planFixture()
 	in.lib.mediaType = "podcast"
 	in.g.path = "/lib/My Show"
-	in.audio = []map[string]any{
-		{"metadata": map[string]any{"filename": "e1.mp3", "tagTitle": "Episode One"}},
-		{"metadata": map[string]any{"filename": "e2.mp3"}},
+	in.audio = []libitem.AudioFile{
+		{Metadata: libitem.FileMetadata{Filename: "e1.mp3"}},
+		{Metadata: libitem.FileMetadata{Filename: "e2.mp3"}},
 	}
 	in.md = bookMetadata{} // podcasts never read book metadata
 	p := plan(in)
 	if p.skip || !p.added || p.title != "My Show" || p.author != "" || p.series != "" {
 		t.Fatalf("podcast plan = %+v", p)
 	}
-	if len(p.episodes) != 2 || p.episodes[0].title != "Episode One" || p.episodes[0].filename != "e1" || p.episodes[1].title != "e2" || p.episodes[1].offset != 1 {
+	if len(p.episodes) != 2 || p.episodes[0].title != "e1" || p.episodes[0].filename != "e1" || p.episodes[1].title != "e2" || p.episodes[1].offset != 1 {
 		t.Fatalf("episodes = %+v", p.episodes)
 	}
 	// A new podcast folder with no audio is still an item; podcasts are never "missing" by plan.

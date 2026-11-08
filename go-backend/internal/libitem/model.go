@@ -34,7 +34,7 @@ type Item struct {
 	OldLibraryItemID string
 	// LibraryFiles is passed through opaquely; each entry's fileType is derived
 	// from metadata.ext at load time.
-	LibraryFiles []map[string]any
+	LibraryFiles []File
 
 	Book    *Book
 	Podcast *Podcast
@@ -74,9 +74,9 @@ type Book struct {
 	Narrators     []string
 	Genres        []string
 	Tags          []string
-	AudioFiles    []map[string]any
+	AudioFiles    []File
 	Chapters      []map[string]any
-	Ebook         map[string]any // nil when the book has no ebook file
+	Ebook         File // nil when the book has no ebook file
 
 	Authors []Author
 	Series  []SeriesRef
@@ -130,7 +130,7 @@ type Episode struct {
 	AddedAt      *int64
 	UpdatedAt    *int64
 	Chapters     []map[string]any
-	AudioFile    map[string]any
+	AudioFile    File
 }
 
 // Enclosure is the feed enclosure of an episode; Length is the decimal size.

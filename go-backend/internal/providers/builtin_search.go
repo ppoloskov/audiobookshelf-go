@@ -61,13 +61,14 @@ func (h *Handler) searchBuiltinBooks(ctx context.Context, provider, title, autho
 		return h.searchAudiobookCovers(ctx, title)
 	case "fantlab":
 		return h.searchFantLab(ctx, title, author)
-	case "audible", "audible.ca", "audible.uk", "audible.au", "audible.fr", "audible.de", "audible.jp", "audible.it", "audible.in", "audible.es":
+	default:
+		if !strings.HasPrefix(provider, "audible") {
+			return h.searchGoogleBooks(ctx, title, author)
+		}
 		if region == "" && strings.Contains(provider, ".") {
 			region = provider[strings.LastIndex(provider, ".")+1:]
 		}
 		return h.searchAudible(ctx, provider, title, author, asin, region)
-	default:
-		return h.searchGoogleBooks(ctx, title, author)
 	}
 }
 

@@ -121,7 +121,7 @@ func TestPersonalizedShelvesGolden(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
 	seedShelfGolden(t, db)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	perms := func(extra string) json.RawMessage {
 		return json.RawMessage(`{"accessAllLibraries":true,"accessExplicitContent":true,"accessAllTags":true` + extra + `}`)
 	}

@@ -5,18 +5,12 @@ import (
 	"testing"
 )
 
-func TestNullInt64AndNullIfZero(t *testing.T) {
+func TestNullInt64(t *testing.T) {
 	if got := NullInt64(sql.NullInt64{}); got != nil {
 		t.Fatalf("NULL = %#v, want nil", got)
 	}
 	if got := NullInt64(sql.NullInt64{Int64: 0, Valid: true}); got != int64(0) {
 		t.Fatalf("valid zero = %#v, want 0", got)
-	}
-	if got := NullIfZero(0); got != nil {
-		t.Fatalf("zero = %#v, want nil", got)
-	}
-	if got := NullIfZero(7); got != int64(7) {
-		t.Fatalf("seven = %#v, want 7", got)
 	}
 }
 

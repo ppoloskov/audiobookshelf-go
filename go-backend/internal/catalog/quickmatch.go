@@ -17,7 +17,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -41,11 +40,10 @@ type quickMatchOptions struct {
 func optionalBool(v bool) *bool { return &v }
 
 type quickMatchItem struct {
-	id, libraryID, path, mediaType, mediaID string
-	isFile                                  bool
-	media                                   storedRow
-	authors                                 []quickMatchAuthor
-	series                                  []quickMatchSeries
+	itemScope
+	media   storedRow
+	authors []quickMatchAuthor
+	series  []quickMatchSeries
 }
 
 type quickMatchAuthor struct{ id, name string }
@@ -56,12 +54,11 @@ type quickMatchSeries struct {
 }
 
 func (h *Handler) loadQuickMatchItem(ctx context.Context, itemID string) (quickMatchItem, error) {
-	item := quickMatchItem{id: itemID}
-	var isFile sql.NullInt64
-	if err := h.db.QueryRowContext(ctx, `SELECT libraryId,path,mediaType,mediaId,isFile FROM libraryItems WHERE id=?`, itemID).Scan(&item.libraryID, &item.path, &item.mediaType, &item.mediaID, &isFile); err != nil {
+	var item quickMatchItem
+	var err error
+	if item.itemScope, err = scanItemScope(h.db.QueryRowContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li WHERE li.id=?`, itemID)); err != nil {
 		return item, err
 	}
-	item.isFile = isFile.Int64 != 0
 	table := "books"
 	if item.mediaType == "podcast" {
 		table = "podcasts"
@@ -307,7 +304,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 	if err := h.finishItemWrites(ctx, itemWrite{itemID: item.id, libraryID: item.libraryID, changes: changes, updated: hasUpdated}); err != nil {
 		return quickMatchResult{}, err
 	}
-	expanded, err := h.ItemJSON(ctx, item.id, true)
+	expanded, err := h.expandedItem(ctx, item.id)
 	if err != nil {
 		return quickMatchResult{}, err
 	}
@@ -457,15 +454,11 @@ func matchOptionsFromBody(body map[string]json.RawMessage, keys ...string) quick
 func (h *Handler) itemMatch(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	id := r.PathValue("id")
-	var libraryID, mediaType, mediaID string
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, id).Scan(&libraryID, &mediaType, &mediaID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.loadItem(r.Context(), id)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
+		return err
 	}
-	allowed, err := h.userCanAccessItems(r.Context(), user, []batchItem{{id: id, libraryID: libraryID, mediaType: mediaType, mediaID: mediaID}})
+	allowed, err := h.userCanAccessItems(r.Context(), user, []itemScope{scope})
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

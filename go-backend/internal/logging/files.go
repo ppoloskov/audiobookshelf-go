@@ -11,8 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"audiobookshelf-compat/internal/wire"
 )
 
 const (
@@ -43,8 +41,8 @@ type fileStore struct {
 	file  *os.File // append handle for day's file
 	names []string // sorted *.txt names in the daily dir (LogManager.dailyLogFiles)
 
-	tail    []wire.LogEntry // last RecentLimit entries of the current day
-	pending []wire.LogEntry // entries logged before OpenFiles (dailyLogBuffer)
+	tail    []LogEntry // last RecentLimit entries of the current day
+	pending []LogEntry // entries logged before OpenFiles (dailyLogBuffer)
 
 	writeFailed bool
 }
@@ -127,7 +125,7 @@ func (l *Logger) OpenFiles(metadataPath string) error {
 }
 
 // add is LogManager.logToFile (server/managers/LogManager.js:134).
-func (l *Logger) addFile(e wire.LogEntry, now time.Time) {
+func (l *Logger) addFile(e LogEntry, now time.Time) {
 	// Callers hold no logger locks, so file I/O here cannot deadlock the console.
 	f := &l.files
 	f.mu.Lock()
@@ -155,7 +153,7 @@ func (l *Logger) addFile(e wire.LogEntry, now time.Time) {
 	f.appendEntryLocked(e, l)
 }
 
-func (f *fileStore) appendEntryLocked(e wire.LogEntry, l *Logger) {
+func (f *fileStore) appendEntryLocked(e LogEntry, l *Logger) {
 	f.tail = appendBounded(f.tail, e)
 	line, err := marshalLine(e)
 	if err == nil {
@@ -187,7 +185,7 @@ func (f *fileStore) closeFileLocked() {
 }
 
 // appendCrashLocked is LogManager.logCrashToFile (LogManager.js:157).
-func (f *fileStore) appendCrashLocked(e wire.LogEntry, l *Logger) {
+func (f *fileStore) appendCrashLocked(e LogEntry, l *Logger) {
 	if f.root == "" {
 		return
 	}
@@ -270,7 +268,7 @@ func (l *Logger) reportWrite(f *fileStore, what string, err error) {
 // Recent is LogManager.getMostRecentCurrentDailyLogs
 // (server/managers/LogManager.js:179): the last RecentLimit entries of the
 // current daily log, oldest first. The slice is never nil.
-func (l *Logger) Recent() []wire.LogEntry {
+func (l *Logger) Recent() []LogEntry {
 	f := &l.files
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -278,13 +276,13 @@ func (l *Logger) Recent() []wire.LogEntry {
 	if !f.opened {
 		src = f.pending
 	}
-	out := make([]wire.LogEntry, len(src))
+	out := make([]LogEntry, len(src))
 	copy(out, src)
 	return out
 }
 
-func (l *Logger) LoggerData() wire.LoggerData {
-	return wire.LoggerData{CurrentDailyLogs: l.Recent()}
+func (l *Logger) LoggerData() LoggerData {
+	return LoggerData{CurrentDailyLogs: l.Recent()}
 }
 
 // Close releases the open daily file handle; later entries reopen it.
@@ -294,7 +292,7 @@ func (l *Logger) Close() {
 	l.files.mu.Unlock()
 }
 
-func appendBounded(s []wire.LogEntry, e wire.LogEntry) []wire.LogEntry {
+func appendBounded(s []LogEntry, e LogEntry) []LogEntry {
 	if len(s) >= RecentLimit {
 		copy(s, s[len(s)-RecentLimit+1:])
 		s = s[:RecentLimit-1]
@@ -302,7 +300,7 @@ func appendBounded(s []wire.LogEntry, e wire.LogEntry) []wire.LogEntry {
 	return append(s, e)
 }
 
-func marshalLine(e wire.LogEntry) ([]byte, error) {
+func marshalLine(e LogEntry) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false) // JSON.stringify does not escape <, > or &
@@ -314,12 +312,12 @@ func marshalLine(e wire.LogEntry) ([]byte, error) {
 
 // loadDailyLog is DailyLog.loadLogs (server/objects/DailyLog.js:96): parse
 // the file's JSON lines, and rewrite the file without unparseable lines.
-func loadDailyLog(path string, l *Logger) []wire.LogEntry {
+func loadDailyLog(path string, l *Logger) []LogEntry {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil
 	}
-	var logs []wire.LogEntry
+	var logs []LogEntry
 	bad := false
 	sc := bufio.NewScanner(file)
 	sc.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
@@ -329,7 +327,7 @@ func loadDailyLog(path string, l *Logger) []wire.LogEntry {
 			bad = true
 			continue
 		}
-		var e wire.LogEntry
+		var e LogEntry
 		if json.Unmarshal([]byte(text), &e) != nil {
 			bad = true
 			continue
@@ -348,7 +346,7 @@ func loadDailyLog(path string, l *Logger) []wire.LogEntry {
 		}
 	}
 	if len(logs) > RecentLimit {
-		logs = append([]wire.LogEntry(nil), logs[len(logs)-RecentLimit:]...)
+		logs = append([]LogEntry(nil), logs[len(logs)-RecentLimit:]...)
 	}
 	return logs
 }

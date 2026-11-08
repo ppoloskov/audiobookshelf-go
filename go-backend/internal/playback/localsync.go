@@ -183,16 +183,13 @@ func (h *Handler) syncOneLocal(ctx context.Context, user store.User, ls localSes
 	if ls.PlayMethod != nil {
 		playMethod = *ls.PlayMethod
 	}
-	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, EpisodeID: ls.EpisodeID, MediaType: item.MediaType,
+	s := &session{ID: id, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaID: item.MediaID, EpisodeID: ls.EpisodeID, MediaType: item.MediaType,
 		DisplayTitle: ls.DisplayTitle, DisplayAuthor: ls.DisplayAuthor, CoverPath: ls.CoverPath, // coverPath also comes from the client JSON, not the library item
 		PlayMethod: playMethod, MediaPlayer: ls.MediaPlayer,
 		// PlaybackSessionManager.syncLocalSession (server/managers/PlaybackSessionManager.js:203)
 		// always replaces the client duration with the item's playback duration.
 		Duration: item.Duration, StartTime: ls.StartTime, CurrentTime: ls.CurrentTime, TimeListening: ls.TimeListening, StartedAt: started, UpdatedAt: updated,
 		Date: day, DayOfWeek: weekday, MediaMetadata: overlayMetadata(item.Metadata, ls.MediaMetadata), Chapters: item.Chapters, Device: device, Files: item.Files}
-	if ls.EpisodeID == "" {
-		s.BookID = item.MediaID
-	}
 	if err = h.saveSessionRecord(ctx, s); err != nil {
 		return fail("Failed to save session")
 	}

@@ -19,6 +19,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/users"
 )
 
 // Action is a request delegated to another domain package. Replies may be
@@ -229,7 +230,7 @@ func (h *Hub) disconnected(id string, reason any) {
 	}
 	var offline map[string]any
 	if online {
-		offline = h.publicUser(user)
+		offline = users.OnlineUserDTO(user, h.backend().Session(user.ID))
 	}
 	_ = h.backend().Dispatch(context.Background(), Action{SocketID: id, User: user, Event: "remove_log_listener"})
 	if offline != nil {
@@ -365,43 +366,29 @@ func (h *Hub) UsersOnline() []map[string]any {
 		user        store.User
 		connections int
 	}
-	users := make(map[string]userCount)
+	online := make(map[string]userCount)
 	for _, c := range h.clients {
 		if c.user != nil {
-			entry := users[c.user.ID]
+			entry := online[c.user.ID]
 			entry.user = *c.user
 			entry.connections++
-			users[c.user.ID] = entry
+			online[c.user.ID] = entry
 		}
 	}
 	h.mu.RUnlock()
-	ids := make([]string, 0, len(users))
-	for id := range users {
+	ids := make([]string, 0, len(online))
+	for id := range online {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	result := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
-		entry := users[id]
-		public := h.publicUser(entry.user)
+		entry := online[id]
+		public := users.OnlineUserDTO(entry.user, h.backend().Session(entry.user.ID))
 		public["connections"] = entry.connections
 		result = append(result, public)
 	}
 	return result
-}
-
-func (h *Hub) publicUser(user store.User) map[string]any {
-	var lastSeen, createdAt any
-	if user.LastSeen != nil && *user.LastSeen != 0 {
-		lastSeen = *user.LastSeen
-	}
-	if user.CreatedAt != nil {
-		createdAt = *user.CreatedAt
-	}
-	return map[string]any{
-		"id": user.ID, "username": user.Username, "type": user.Type,
-		"session": h.backend().Session(user.ID), "lastSeen": lastSeen, "createdAt": createdAt,
-	}
 }
 
 func first(args []any) any {

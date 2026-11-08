@@ -6,15 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
-	"github.com/google/uuid"
 )
 
 // StatusError is a progress update refused with the HTTP status and message
@@ -115,20 +117,7 @@ func (o Optional) truthy() bool {
 		return false
 	}
 	var v any
-	if json.Unmarshal(o.Raw, &v) != nil {
-		return false
-	}
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case float64:
-		return x != 0 && !math.IsNaN(x)
-	case string:
-		return x != ""
-	}
-	return true
+	return json.Unmarshal(o.Raw, &v) == nil && jsonvalue.Truthy(v)
 }
 
 // date is new Date(value) for a number of milliseconds or a date string.
@@ -181,25 +170,36 @@ type target struct {
 	podcastID                  any
 }
 
-func resolveTarget(ctx context.Context, db *sql.DB, p Payload) (target, error) {
+// resolveTarget finds the book or episode a payload addresses. allow, when
+// not nil, is asked about the library of the found item before anything else
+// is judged about it.
+func resolveTarget(ctx context.Context, db *sql.DB, p Payload, allow func(libraryID string) bool) (target, error) {
+	forbidden := &StatusError{http.StatusForbidden, "Forbidden"}
 	if p.EpisodeID != "" {
 		var podcastID string
-		err := db.QueryRowContext(ctx, `SELECT podcastId FROM podcastEpisodes WHERE id=?`, p.EpisodeID).Scan(&podcastID)
+		var libraryID sql.NullString
+		err := db.QueryRowContext(ctx, `SELECT pe.podcastId, li.libraryId FROM podcastEpisodes pe LEFT JOIN libraryItems li ON li.mediaId = pe.podcastId WHERE pe.id=?`, p.EpisodeID).Scan(&podcastID, &libraryID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return target{}, &StatusError{404, "Episode not found"}
 		}
 		if err != nil {
 			return target{}, err
 		}
+		if allow != nil && libraryID.String != "" && !allow(libraryID.String) {
+			return target{}, forbidden
+		}
 		return target{mediaItemID: p.EpisodeID, mediaItemType: "podcastEpisode", podcastID: podcastID}, nil
 	}
-	var mediaID, mediaType string
-	err := db.QueryRowContext(ctx, `SELECT mediaId, mediaType FROM libraryItems WHERE id=?`, p.LibraryItemID).Scan(&mediaID, &mediaType)
+	var mediaID, mediaType, libraryID string
+	err := db.QueryRowContext(ctx, `SELECT mediaId, mediaType, libraryId FROM libraryItems WHERE id=?`, p.LibraryItemID).Scan(&mediaID, &mediaType, &libraryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return target{}, &StatusError{404, "Library item not found"}
 	}
 	if err != nil {
 		return target{}, err
+	}
+	if allow != nil && libraryID != "" && !allow(libraryID) {
+		return target{}, forbidden
 	}
 	if mediaType != "book" {
 		return target{}, &StatusError{400, "Library item is not a book"}
@@ -209,6 +209,9 @@ func resolveTarget(ctx context.Context, db *sql.DB, p Payload) (target, error) {
 
 type row struct {
 	id            string
+	userID        string
+	mediaItemID   string
+	mediaItemType string
 	duration      *float64
 	currentTime   float64
 	isFinished    bool
@@ -253,7 +256,13 @@ func loadRow(ctx context.Context, db *sql.DB, userID, mediaItemID string) (row, 
 	if err != nil {
 		return row{}, false, err
 	}
-	r := row{id: m.ID, createdAt: m.Createdat, updatedAt: m.Updatedat, currentTime: m.Currenttime.Float64,
+	return rowFromModel(m), true, nil
+}
+
+// rowFromModel is the one decoder of a stored progress row.
+func rowFromModel(m sqlc.Mediaprogress) row {
+	r := row{id: m.ID, userID: m.Userid.String, mediaItemID: m.Mediaitemid.String, mediaItemType: m.Mediaitemtype.String,
+		createdAt: m.Createdat, updatedAt: m.Updatedat, currentTime: m.Currenttime.Float64,
 		isFinished: m.Isfinished.Int64 != 0, hide: m.Hidefromcontinuelistening.Int64 != 0}
 	if m.Duration.Valid {
 		r.duration = &m.Duration.Float64
@@ -269,7 +278,7 @@ func loadRow(ctx context.Context, db *sql.DB, userID, mediaItemID string) (row, 
 	}
 	r.extra = map[string]json.RawMessage{}
 	_ = json.Unmarshal([]byte(m.Extradata.String), &r.extra)
-	return r, true, nil
+	return r
 }
 
 func sameTime(a, b *time.Time) bool {
@@ -292,7 +301,14 @@ func samePtr[T comparable](a, b *T) bool {
 // MediaProgress.applyProgressUpdate does (MediaProgress.js:182), and returns
 // the stored progress. Refusals are *StatusError.
 func Apply(ctx context.Context, db *sql.DB, userID string, p Payload) (wire.MediaProgress, error) {
-	t, err := resolveTarget(ctx, db, p)
+	return ApplyChecked(ctx, db, userID, p, nil)
+}
+
+// ApplyChecked is Apply for callers that act for a user with limited library
+// access: allow is asked about the library of the addressed item and a
+// refusal is a 403 *StatusError. Upstream has no such check; nil skips it.
+func ApplyChecked(ctx context.Context, db *sql.DB, userID string, p Payload, allow func(libraryID string) bool) (wire.MediaProgress, error) {
+	t, err := resolveTarget(ctx, db, p, allow)
 	if err != nil {
 		return wire.MediaProgress{}, err
 	}
@@ -309,12 +325,27 @@ func Apply(ctx context.Context, db *sql.DB, userID string, p Payload) (wire.Medi
 	if err != nil {
 		return wire.MediaProgress{}, err
 	}
-	return toWire(saved, userID, t), nil
+	return toWire(saved), nil
+}
+
+// LastUpdate is when the user's progress for a book or episode last changed,
+// in Unix milliseconds; ok is false when there is no such progress.
+func LastUpdate(ctx context.Context, db *sql.DB, userID, mediaItemID string) (ms int64, ok bool, err error) {
+	r, found, err := loadRow(ctx, db, userID, mediaItemID)
+	if err != nil || !found {
+		return 0, false, err
+	}
+	ms, ok = dbtime.Millis(r.updatedAt).(int64)
+	return ms, ok, nil
 }
 
 func createRow(ctx context.Context, db *sql.DB, userID string, t target, p Payload) (row, error) {
 	now := time.Now()
-	r := row{id: uuid.NewString(), extra: map[string]json.RawMessage{}}
+	id, err := ids.New()
+	if err != nil {
+		return row{}, err
+	}
+	r := row{id: id, userID: userID, mediaItemID: t.mediaItemID, mediaItemType: t.mediaItemType, extra: map[string]json.RawMessage{}}
 	duration := p.Duration.numberOrZero()
 	r.duration = &duration
 	r.currentTime = p.CurrentTime.numberOrZero()
@@ -350,7 +381,7 @@ func createRow(ctx context.Context, db *sql.DB, userID string, t target, p Paylo
 	r.createdAt = dbtime.Format(createdAt)
 	r.updatedAt = dbtime.Format(now)
 	extra, _ := json.Marshal(r.extra)
-	err := sqlc.New(db).InsertMediaProgress(ctx, sqlc.InsertMediaProgressParams{
+	err = sqlc.New(db).InsertMediaProgress(ctx, sqlc.InsertMediaProgressParams{
 		ID: r.id, MediaItemID: store.Text(t.mediaItemID), MediaItemType: store.Text(t.mediaItemType),
 		Duration: store.Float(duration), CurrentPosition: store.Float(r.currentTime), IsFinished: store.Flag(r.isFinished),
 		HideFromContinueListening: store.Flag(r.hide), EbookLocation: store.TextPtr(r.ebookLocation), EbookProgress: store.Float(ebook),
@@ -507,9 +538,10 @@ func updateRow(ctx context.Context, db *sql.DB, old row, p Payload) (row, error)
 	return r, nil
 }
 
-func toWire(r row, userID string, t target) wire.MediaProgress {
+// toWire is the progress as clients receive it.
+func toWire(r row) wire.MediaProgress {
 	out := wire.MediaProgress{
-		ID: r.id, UserID: userID, MediaItemID: t.mediaItemID, MediaItemType: t.mediaItemType,
+		ID: r.id, UserID: r.userID, MediaItemID: r.mediaItemID, MediaItemType: r.mediaItemType,
 		Duration: r.duration, Progress: r.extraProgress(), CurrentTime: &r.currentTime,
 		IsFinished: r.isFinished, HideFromContinueListening: r.hide,
 		EbookLocation: r.ebookLocation, EbookProgress: r.ebookProgress,
@@ -518,8 +550,8 @@ func toWire(r row, userID string, t target) wire.MediaProgress {
 	if raw, ok := r.extra["libraryItemId"]; ok && json.Unmarshal(raw, &libraryItemID) == nil && libraryItemID != "" {
 		out.LibraryItemID = &libraryItemID
 	}
-	if t.mediaItemType == "podcastEpisode" {
-		id := t.mediaItemID
+	if r.mediaItemType == "podcastEpisode" {
+		id := r.mediaItemID
 		out.EpisodeID = &id
 	}
 	if ms, ok := dbtime.Millis(r.updatedAt).(int64); ok {

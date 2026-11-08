@@ -8,6 +8,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
@@ -20,10 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 // AuthorFinder is AuthorFinder.js: the metadata provider lookups behind
@@ -186,13 +186,13 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	detail := authorDetail{authorView: oldJSON}
-	if sliceHas(include, "items") {
+	if slices.Contains(include, "items") {
 		ids, err := h.authorItemIDs(r.Context(), user, a)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		items := make([]json.RawMessage, 0, len(ids))
-		if sliceHas(include, "series") {
+		if slices.Contains(include, "series") {
 			groups, err := h.authorSeriesGroups(r.Context(), ids)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
@@ -526,7 +526,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		}
 		now := dbtime.Now()
 		for _, bookID := range bookIDs {
-			linkID := uuid.NewString()
+			linkID := ids.Must()
 			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.id, now); err != nil {
 				return httputil.Internal("database write failed", err)
 			}

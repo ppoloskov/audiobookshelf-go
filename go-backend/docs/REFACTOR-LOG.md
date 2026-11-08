@@ -720,3 +720,26 @@ Kept: TS/upstream source citations, client/OS/SQLite/ffmpeg/Express facts, contr
 docs. Checked mechanically: every changed Go file parses to the same syntax tree with comments stripped (only
 blank-line/alignment differences where comments were removed). Handwritten lines 38,622 → 38,361 (comment lines
 count in the ratchet).
+
+### Verifier round 1 and fix wave D (2026-11-08)
+Six read-only verifiers (catalog, scanner, identity, media, infra, cross-cutting) reported ~40 issues worth fixing;
+the graph was a clean DAG. Fixed: one item-deletion cascade (`deleteItemRows`) with the nil-user / forged-user
+permission modes removed (routes authorize first); one item lookup (`loadItem`/`itemFor`) for nine handlers;
+`libitem.FileType` follows TS `LibraryFile.js:42-49`; one `textsort.SequenceLess`; one feed view (`internal/feeds`,
+replacing `feedjson`, `sharing.FeedMinified` and the lists/sharing copies); `serversettings` builds the browser settings
+document (one secret-key list, one env overlay); one user-creation path in identity; one progress decoder; one e-reader
+visibility rule (`settingsdoc`); `users.OnlineUserDTO` for realtime and playback; one episode delete in podcasts;
+indexed open-session lookup; one session media reference; UUIDs on `ids` (TS uuid regex); one typed audio file
+(`libitem.AudioFile`) for fresh and stored entries; `store.Open` validates schema and migration version for startup and
+restore; `store`/`logging` no longer import `wire`; one JSON writer; notification delivery short-circuits; adminops
+errors returned; one Express error page; depguard layers leaf/foundation/feature.
+Bugs fixed (TS proof in worker notes): forced rescan lost embedded chapters and new files were not re-ordered
+(regression tests added first); GET settings sent "UTC" instead of the host zone (ServerSettings.js:307); e-reader
+visibility narrower than MeController.js:609-610; series sequences "10" before "2" (seriesFilters.js:200-206);
+collection rssFeed shape (Collection.js:44-47, Feed.js:645-676); feed entityType/preventIndexing null for NULL
+columns (Feed.js:677); UUID validation (uuid regex.js:7); double authors_num_books_updated on forced item scan
+(LibraryItemScanner.js:55-58).
+Rejected with evidence: catalog library-file delete updating numEpisodes (TS doesn't, LibraryItemController.js:1035-1053);
+unifying batch/single delete sweep order (both match TS); auth.Claims fields and access.Decodes (tests rely on them).
+Ratchet: 38,361 → 37,831 handwritten lines; complexity 8,706 → 8,487; map[string]any 562 → 460; functions >15 124 → 115.
+Open for the owner (not refactor): podcast notification events are never fired.

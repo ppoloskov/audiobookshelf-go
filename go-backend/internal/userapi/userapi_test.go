@@ -51,7 +51,7 @@ func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, 
 		if h.emit != nil {
 			h.emit(userID, event, payload)
 		}
-	}, h.CanReadItem)
+	})
 	listHandler.Routes(routes)
 	h.Routes(routes)
 	return &userAPIForTest{Handler: h, routes: routes}

@@ -39,7 +39,7 @@ func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...
 	return item, nil
 }
 
-func instanceShape(entries []map[string]any, scanned []string) {
+func instanceShape[M ~map[string]any](entries []M, scanned []string) {
 	for _, entry := range entries {
 		meta, _ := entry["metadata"].(map[string]any)
 		if path, _ := meta["path"].(string); meta == nil || !slices.Contains(scanned, path) {

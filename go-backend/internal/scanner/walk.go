@@ -65,6 +65,12 @@ func (l library) wantFile(rel string) bool {
 	if filepath.Dir(rel) == "." && !(l.mediaType == "book" && l.mediaExt(ext)) {
 		return false
 	}
+	return l.keeps(ext)
+}
+
+// keeps reports whether a scan keeps files of this extension: an item's media
+// files and the companions that describe it.
+func (l library) keeps(ext string) bool {
 	return l.mediaExt(ext) || filekind.IsCompanion(ext)
 }
 

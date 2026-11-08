@@ -108,20 +108,6 @@ func (b bookData) included() []audioFileJSON {
 	return out
 }
 
-func asTime(v any) time.Time {
-	switch x := v.(type) {
-	case time.Time:
-		return x
-	case string:
-		if t, ok := dbtime.Parse(x); ok {
-			return t
-		}
-	case []byte:
-		return asTime(string(x))
-	}
-	return time.Time{}
-}
-
 func sizeValue(n *json.Number) sql.NullInt64 {
 	if n == nil {
 		return sql.NullInt64{}
@@ -394,7 +380,7 @@ func (h *Handler) loadAggregateSource(ctx context.Context, entityType, id string
 	}
 	books := agg.books
 	src := &feedSource{PodcastType: "serial", Title: agg.name.String, Description: sql.NullString{String: agg.desc.String, Valid: true}}
-	src.EntityUpdatedAt = asTime(agg.updated)
+	src.EntityUpdatedAt = dbtime.Time(agg.updated)
 	src.OwnUpdatedAt = src.EntityUpdatedAt
 	var withTracks []bookData
 	for i := range books {

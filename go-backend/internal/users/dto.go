@@ -76,3 +76,29 @@ func NewUserExtraData(sub string) string {
 	data, _ := json.Marshal(extra) // plain map and slice: cannot fail
 	return string(data)
 }
+
+// NewUser is what the three ways of creating a user (first-run root, admin
+// form, OpenID auto-registration) differ in; identity fills in the rest.
+type NewUser struct {
+	Username     string
+	Email        *string // nil: NULL
+	PasswordHash *string // nil: NULL (OpenID users have no password)
+	Type         string
+	Active       bool
+	Permissions  map[string]any // nil: the defaults of Type
+	OIDCSub      string
+}
+
+// OnlineUserDTO is User.toJSONForPublic: the user as the admin "online users"
+// views receive it. session is the user's playback session as clients see it,
+// or nil. lastSeen 0 is null (`lastSeen || null`).
+func OnlineUserDTO(user store.User, session any) map[string]any {
+	var lastSeen, createdAt any
+	if user.LastSeen != nil && *user.LastSeen != 0 {
+		lastSeen = *user.LastSeen
+	}
+	if user.CreatedAt != nil {
+		createdAt = *user.CreatedAt
+	}
+	return map[string]any{"id": user.ID, "username": user.Username, "type": user.Type, "session": session, "lastSeen": lastSeen, "createdAt": createdAt}
+}

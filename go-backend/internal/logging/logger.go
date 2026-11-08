@@ -11,8 +11,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"audiobookshelf-compat/internal/wire"
 )
 
 // TimestampLayout is upstream's date.format(new Date(), 'YYYY-MM-DD HH:mm:ss.SSS')
@@ -29,7 +27,7 @@ type Options struct {
 }
 
 // SocketEmitter delivers a "log" event to one Socket.IO socket.
-type SocketEmitter func(socketID string, entry wire.LogEntry)
+type SocketEmitter func(socketID string, entry LogEntry)
 
 // Logger is upstream's Logger singleton plus its LogManager.
 type Logger struct {
@@ -130,7 +128,7 @@ func (l *Logger) write(level Level, source, msg string, depth int) {
 	if source == "" {
 		source = callerSource(depth)
 	}
-	entry := wire.LogEntry{Timestamp: ts, Source: source, Message: msg, LevelName: level.String(), Level: int(level)}
+	entry := LogEntry{Timestamp: ts, Source: source, Message: msg, LevelName: level.String(), Level: int(level)}
 
 	// Sockets listening for log events (server/Logger.js:85).
 	l.sockMu.Lock()
@@ -207,20 +205,17 @@ func (l *Logger) Notef(f string, a ...any)  { l.write(LevelNote, "", fmt.Sprintf
 
 // Package-level shorthands for Default().
 
-func Tracef(f string, a ...any) { defaultLogger.write(LevelTrace, "", fmt.Sprintf(f, a...), 2) }
 func Debugf(f string, a ...any) { defaultLogger.write(LevelDebug, "", fmt.Sprintf(f, a...), 2) }
 func Infof(f string, a ...any)  { defaultLogger.write(LevelInfo, "", fmt.Sprintf(f, a...), 2) }
 func Warnf(f string, a ...any)  { defaultLogger.write(LevelWarn, "", fmt.Sprintf(f, a...), 2) }
 func Errorf(f string, a ...any) { defaultLogger.write(LevelError, "", fmt.Sprintf(f, a...), 2) }
 func Fatalf(f string, a ...any) { defaultLogger.write(LevelFatal, "", fmt.Sprintf(f, a...), 2) }
-func Notef(f string, a ...any)  { defaultLogger.write(LevelNote, "", fmt.Sprintf(f, a...), 2) }
 
 func Trace(args ...any) { defaultLogger.write(LevelTrace, "", join(args), 2) }
 func Debug(args ...any) { defaultLogger.write(LevelDebug, "", join(args), 2) }
 func Info(args ...any)  { defaultLogger.write(LevelInfo, "", join(args), 2) }
 func Warn(args ...any)  { defaultLogger.write(LevelWarn, "", join(args), 2) }
 func Error(args ...any) { defaultLogger.write(LevelError, "", join(args), 2) }
-func Fatal(args ...any) { defaultLogger.write(LevelFatal, "", join(args), 2) }
 
 // Writer returns an io.Writer that logs each written line at level with the
 // given source tag. It adapts the standard library's log package and

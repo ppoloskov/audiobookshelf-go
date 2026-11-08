@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -124,16 +125,16 @@ func (h *Handler) saveSettings(r *http.Request, m map[string]any) error {
 	}
 	return nil
 }
-func (h *Handler) browserSettings(m map[string]any) map[string]any {
-	out := map[string]any{}
-	for k, v := range m {
-		out[k] = v
+
+// writeSettings answers body plus the server settings as the browser sees them.
+func (h *Handler) writeSettings(w http.ResponseWriter, r *http.Request, body map[string]any) error {
+	stored, err := serversettings.Get(r.Context(), h.db)
+	if err != nil {
+		return httputil.Internal("database error", err)
 	}
-	for _, k := range []string{"tokenSecret", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim"} {
-		delete(out, k)
-	}
-	out["timeZone"] = "UTC"
-	return out
+	body["serverSettings"] = stored.ForBrowser(h.cfg.MetadataPath)
+	httputil.WriteJSON(w, http.StatusOK, body)
+	return nil
 }
 func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request) error {
 	var patch map[string]any
@@ -172,8 +173,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("database error", e)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"serverSettings": h.browserSettings(m)})
-	return nil
+	return h.writeSettings(w, r, map[string]any{})
 }
 func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, patch bool) error {
 	m, e := h.settings(r)
@@ -256,8 +256,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, patch boo
 				return httputil.Internal("database error", e)
 			}
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": updated, "serverSettings": h.browserSettings(m)})
-		return nil
+		return h.writeSettings(w, r, map[string]any{"updated": updated})
 	}
 	out := map[string]any{}
 	for _, k := range keys {
@@ -306,30 +305,36 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request) error 
 		}
 		rows, e := h.db.QueryContext(r.Context(), query)
 		if e != nil {
-			continue
+			return httputil.Internal("database error", e)
 		}
 		type row struct{ id, title, old string }
 		updates := []row{}
 		for rows.Next() {
 			var x row
-			_ = rows.Scan(&x.id, &x.title, &x.old)
+			var title, old sql.NullString
+			if e = rows.Scan(&x.id, &title, &old); e != nil {
+				break
+			}
+			x.title, x.old = title.String, old.String
 			if textsort.TitleIgnorePrefix(x.title, out) != x.old {
 				updates = append(updates, x)
 			}
 		}
-		rows.Close()
+		if e = errors.Join(e, rows.Err(), rows.Close()); e != nil {
+			return httputil.Internal("database error", e)
+		}
 		col := "titleIgnorePrefix"
 		if table.name == "series" {
 			col = "nameIgnorePrefix"
 		}
 		for _, x := range updates {
-			if _, e = h.db.ExecContext(r.Context(), `UPDATE `+table.name+` SET `+col+`=? WHERE id=?`, textsort.TitleIgnorePrefix(x.title, out), x.id); e == nil {
-				rowsUpdated++
+			if _, e = h.db.ExecContext(r.Context(), `UPDATE `+table.name+` SET `+col+`=? WHERE id=?`, textsort.TitleIgnorePrefix(x.title, out), x.id); e != nil {
+				return httputil.Internal("database error", e)
 			}
+			rowsUpdated++
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"rowsUpdated": rowsUpdated, "serverSettings": h.browserSettings(m)})
-	return nil
+	return h.writeSettings(w, r, map[string]any{"rowsUpdated": rowsUpdated})
 }
 func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request) error {
 	var v struct {
@@ -420,15 +425,15 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, column st
 	for _, table := range []string{"books", "podcasts"} {
 		rows, e := h.db.QueryContext(r.Context(), `SELECT `+column+` FROM `+table)
 		if e != nil {
-			continue
+			return httputil.Internal("database error", e)
 		}
 		for rows.Next() {
 			var raw []byte
-			if rows.Scan(&raw) != nil {
-				continue
+			if e = rows.Scan(&raw); e != nil {
+				break
 			}
 			var arr []string
-			if json.Unmarshal(raw, &arr) == nil {
+			if json.Unmarshal(raw, &arr) == nil { // a malformed stored list contributes nothing
 				for _, v := range arr {
 					if !seen[v] {
 						seen[v] = true
@@ -437,7 +442,9 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, column st
 				}
 			}
 		}
-		rows.Close()
+		if e = errors.Join(e, rows.Err(), rows.Close()); e != nil {
+			return httputil.Internal("database error", e)
+		}
 	}
 	if column == "tags" {
 		sort.Slice(values, func(i, j int) bool { return strings.ToLower(values[i]) < strings.ToLower(values[j]) })
@@ -504,30 +511,37 @@ func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func(
 	for _, table := range []string{"books", "podcasts"} {
 		rows, err := h.db.QueryContext(ctx, `SELECT m.id,li.id,m.`+column+` FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id WHERE m.`+column+` IS NOT NULL`)
 		if err != nil {
-			continue
+			return changed, err
 		}
 		type update struct{ mediaID, itemID, list string }
 		var updates []update
 		for rows.Next() {
 			var u update
 			var raw []byte
+			if err = rows.Scan(&u.mediaID, &u.itemID, &raw); err != nil {
+				break
+			}
 			var list []string
-			if rows.Scan(&u.mediaID, &u.itemID, &raw) != nil || json.Unmarshal(raw, &list) != nil {
+			if json.Unmarshal(raw, &list) != nil { // a malformed stored list is left alone
 				continue
 			}
 			if edited, ok := edit(list); ok {
-				b, _ := json.Marshal(edited)
-				u.list = string(b)
+				encoded, _ := json.Marshal(edited) // a []string always encodes
+				u.list = string(encoded)
 				updates = append(updates, u)
 			}
 		}
-		rows.Close()
+		if err = errors.Join(err, rows.Err(), rows.Close()); err != nil {
+			return changed, err
+		}
 		for _, u := range updates {
 			res, err := h.db.ExecContext(ctx, `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, u.list, sqlDate(), u.mediaID)
 			if err != nil {
-				continue
+				return changed, err
 			}
-			if n, _ := res.RowsAffected(); n > 0 {
+			if n, err := res.RowsAffected(); err != nil {
+				return changed, err
+			} else if n > 0 {
 				changed++
 				if err := h.deps.ItemChanged(ctx, u.itemID); err != nil {
 					return changed, err
@@ -547,82 +561,96 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request) error {
 	start, end := strconv.Itoa(year)+"-01-01", strconv.Itoa(year+1)+"-01-01"
 	var sessions, authors int
 	var totalListen float64
-	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(timeListening),0) FROM playbackSessions WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&sessions, &totalListen)
-	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM authors WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&authors)
+	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(timeListening),0) FROM playbackSessions WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&sessions, &totalListen); err != nil {
+		return httputil.Internal("database error", err)
+	}
+	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM authors WHERE createdAt>=? AND createdAt<?`, start, end).Scan(&authors); err != nil {
+		return httputil.Internal("database error", err)
+	}
 	var bookCount int
 	var sizeSum, durationSum float64
 	var totalSize, totalDuration float64
-	_ = h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(li.size),0),COALESCE(SUM(b.duration),0) FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.mediaType='book' AND li.createdAt<?`, end).Scan(&bookCount, &totalSize, &totalDuration)
+	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*),COALESCE(SUM(li.size),0),COALESCE(SUM(b.duration),0) FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.mediaType='book' AND li.createdAt<?`, end).Scan(&bookCount, &totalSize, &totalDuration); err != nil {
+		return httputil.Internal("database error", err)
+	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT li.id,b.coverPath,b.duration,li.size FROM books b JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='book' WHERE b.createdAt>=? AND b.createdAt<? ORDER BY RANDOM()`, start, end)
+	if err != nil {
+		return httputil.Internal("database error", err)
+	}
+	defer rows.Close()
 	covers := []string{}
 	booksAdded := 0
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var id string
-			var cover sql.NullString
-			var duration, size sql.NullFloat64
-			if rows.Scan(&id, &cover, &duration, &size) != nil {
-				continue
+	for rows.Next() {
+		var id string
+		var cover sql.NullString
+		var duration, size sql.NullFloat64
+		if err := rows.Scan(&id, &cover, &duration, &size); err != nil {
+			return httputil.Internal("database error", err)
+		}
+		booksAdded++
+		if duration.Valid {
+			durationSum += duration.Float64
+		}
+		if size.Valid {
+			sizeSum += size.Float64
+		}
+		// adminStats.getStatsForYear pushes book.libraryItem.id, the id the
+		// web client loads covers by (server/utils/queries/adminStats.js:76-80).
+		if cover.Valid && len(covers) < 25 {
+			if _, e := os.Stat(cover.String); e == nil {
+				covers = append(covers, id)
 			}
-			booksAdded++
-			if duration.Valid {
-				durationSum += duration.Float64
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return httputil.Internal("database error", err)
+	}
+	authorTimes, narratorTimes, genreTimes := &orderedTimes{}, &orderedTimes{}, &orderedTimes{}
+	rows, err = h.db.QueryContext(r.Context(), `SELECT timeListening,mediaMetadata FROM playbackSessions WHERE createdAt>=? AND createdAt<? ORDER BY rowid`, start, end)
+	if err != nil {
+		return httputil.Internal("database error", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		// REAL and NULL timeListening both occur; adminStats.js sums
+		// `ls.timeListening || 0` as floats.
+		var listen sql.NullFloat64
+		var raw []byte
+		if err := rows.Scan(&listen, &raw); err != nil {
+			return httputil.Internal("database error", err)
+		}
+		n := listen.Float64
+		var meta map[string]any
+		if json.Unmarshal(raw, &meta) != nil { // a session without readable metadata counts for no author
+			continue
+		}
+		if values, ok := meta["authors"].([]any); ok {
+			for _, v := range values {
+				if item, ok := v.(map[string]any); ok {
+					name, _ := item["name"].(string)
+					if name != "" {
+						authorTimes.add(name, n)
+					}
+				}
 			}
-			if size.Valid {
-				sizeSum += size.Float64
+		}
+		if values, ok := meta["narrators"].([]any); ok {
+			for _, v := range values {
+				if name, ok := v.(string); ok && name != "" {
+					narratorTimes.add(name, n)
+				}
 			}
-			// adminStats.getStatsForYear pushes book.libraryItem.id, the id the
-			// web client loads covers by (server/utils/queries/adminStats.js:76-80).
-			if cover.Valid && len(covers) < 25 {
-				if _, e := os.Stat(cover.String); e == nil {
-					covers = append(covers, id)
+		}
+		if values, ok := meta["genres"].([]any); ok {
+			for _, v := range values {
+				if name, ok := v.(string); ok && name != "" && !strings.Contains(strings.ToLower(name), "audiobook") && !strings.Contains(strings.ToLower(name), "audio book") {
+					genreTimes.add(name, n)
 				}
 			}
 		}
 	}
-	authorTimes, narratorTimes, genreTimes := &orderedTimes{}, &orderedTimes{}, &orderedTimes{}
-	rows, err = h.db.QueryContext(r.Context(), `SELECT timeListening,mediaMetadata FROM playbackSessions WHERE createdAt>=? AND createdAt<? ORDER BY rowid`, start, end)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			// REAL and NULL timeListening both occur; adminStats.js sums
-			// `ls.timeListening || 0` as floats.
-			var listen sql.NullFloat64
-			var raw []byte
-			if rows.Scan(&listen, &raw) != nil {
-				continue
-			}
-			n := listen.Float64
-			var meta map[string]any
-			if json.Unmarshal(raw, &meta) != nil {
-				continue
-			}
-			if values, ok := meta["authors"].([]any); ok {
-				for _, v := range values {
-					if item, ok := v.(map[string]any); ok {
-						name, _ := item["name"].(string)
-						if name != "" {
-							authorTimes.add(name, n)
-						}
-					}
-				}
-			}
-			if values, ok := meta["narrators"].([]any); ok {
-				for _, v := range values {
-					if name, ok := v.(string); ok && name != "" {
-						narratorTimes.add(name, n)
-					}
-				}
-			}
-			if values, ok := meta["genres"].([]any); ok {
-				for _, v := range values {
-					if name, ok := v.(string); ok && name != "" && !strings.Contains(strings.ToLower(name), "audiobook") && !strings.Contains(strings.ToLower(name), "audio book") {
-						genreTimes.add(name, n)
-					}
-				}
-			}
-		}
+	if err := rows.Err(); err != nil {
+		return httputil.Internal("database error", err)
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
 	return nil

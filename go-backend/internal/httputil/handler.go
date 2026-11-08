@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/logging"
@@ -93,21 +92,15 @@ func JSONStatus(w http.ResponseWriter, r *http.Request, status int, value any) e
 		return Internal("Internal Server Error", err)
 	}
 	h := w.Header()
-	h.Set("Content-Type", jsonContentType)
 	if status == http.StatusOK && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 		etag := ExpressETag(data)
 		h.Set("ETag", etag)
 		if match := r.Header.Get("If-None-Match"); match != "" && etagMatches(match, etag) {
-			h.Del("Content-Type")
 			w.WriteHeader(http.StatusNotModified)
 			return nil
 		}
 	}
-	h.Set("Content-Length", strconv.Itoa(len(data)))
-	w.WriteHeader(status)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write(data)
-	}
+	sendJSON(w, status, data, r.Method == http.MethodHead)
 	return nil
 }
 

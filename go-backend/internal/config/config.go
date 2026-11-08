@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -20,6 +21,54 @@ type Config struct {
 	ClientPath     string
 	Source         string
 	JWTSecret      string
+	Auth           Auth
+}
+
+// Auth is the token lifetime and login rate-limit environment. The zero value
+// means "not loaded"; DefaultAuth is what an empty environment gives.
+type Auth struct {
+	AccessTTL, RefreshTTL, RefreshGrace time.Duration
+	RateMax                             int // 0 disables the limit
+	RateWindow                          time.Duration
+	RateMessage                         string
+}
+
+// DefaultAuth is the upstream default of every Auth setting.
+func DefaultAuth() Auth {
+	return Auth{AccessTTL: time.Hour, RefreshTTL: 30 * 24 * time.Hour, RefreshGrace: 10 * time.Minute, RateMax: 40, RateWindow: 10 * time.Minute, RateMessage: "Too many authentication requests"}
+}
+
+// authFromEnv reads ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY,
+// REFRESH_TOKEN_GRACE_PERIOD (seconds) and RATE_LIMIT_AUTH_MAX, _WINDOW (ms),
+// _MESSAGE; an unset, invalid or (but for RATE_LIMIT_AUTH_MAX) zero value
+// keeps the default.
+func authFromEnv() Auth {
+	a := DefaultAuth()
+	a.AccessTTL = envSeconds("ACCESS_TOKEN_EXPIRY", a.AccessTTL)
+	a.RefreshTTL = envSeconds("REFRESH_TOKEN_EXPIRY", a.RefreshTTL)
+	a.RefreshGrace = envSeconds("REFRESH_TOKEN_GRACE_PERIOD", a.RefreshGrace)
+	a.RateMax = envInt("RATE_LIMIT_AUTH_MAX", a.RateMax, true)
+	a.RateWindow = time.Duration(envInt("RATE_LIMIT_AUTH_WINDOW", int(a.RateWindow/time.Millisecond), false)) * time.Millisecond
+	if value := os.Getenv("RATE_LIMIT_AUTH_MESSAGE"); value != "" {
+		a.RateMessage = value
+	}
+	return a
+}
+
+func envSeconds(name string, fallback time.Duration) time.Duration {
+	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
+	if err != nil || value == 0 {
+		return fallback
+	}
+	return time.Duration(value) * time.Second
+}
+
+func envInt(name string, fallback int, allowZero bool) int {
+	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
+	if err != nil || value < 0 || (value == 0 && !allowZero) {
+		return fallback
+	}
+	return value
 }
 
 // LoadArgs applies the command line options supported by index.js over the
@@ -92,7 +141,7 @@ func LoadArgs(args []string) (Config, error) {
 		Port: port, Host: strings.TrimSpace(host),
 		ConfigPath: configPath, MetadataPath: metadataPath,
 		RouterBasePath: base, ClientPath: clientPath, Source: source,
-		JWTSecret: os.Getenv("JWT_SECRET_KEY"),
+		JWTSecret: os.Getenv("JWT_SECRET_KEY"), Auth: authFromEnv(),
 	}, nil
 }
 

@@ -10,6 +10,8 @@ import (
 )
 
 const fixtureDDL = `
+CREATE TABLE migrationsMeta (key TEXT PRIMARY KEY, value TEXT);
+INSERT INTO migrationsMeta VALUES ('version', '2.37.2'), ('maxVersion', '2.37.2');
 CREATE TABLE users (
  id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT,
  isActive BOOLEAN, isLocked BOOLEAN, lastSeen DATETIME, permissions JSON, bookmarks JSON,
@@ -25,6 +27,8 @@ CREATE TABLE libraryFolders (
  createdAt DATETIME NOT NULL, updatedAt DATETIME NOT NULL
 );
 CREATE TABLE settings (key TEXT PRIMARY KEY, value JSON);
+CREATE TABLE sessions (id TEXT PRIMARY KEY, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt DATETIME, createdAt DATETIME, updatedAt DATETIME, userId TEXT, lastRefreshToken TEXT, lastRefreshTokenExpiresAt DATETIME);
+CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt DATETIME, lastUsedAt DATETIME, userId TEXT, updatedAt DATETIME);
 `
 
 func createFixture(t *testing.T) string {

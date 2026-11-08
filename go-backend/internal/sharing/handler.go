@@ -6,7 +6,6 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
 	"database/sql"
-	"encoding/json"
 	"io"
 	"mime"
 	"net/http"
@@ -85,11 +84,6 @@ func (h *Handler) publicRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /public/share/{slug}/track/{index}", httputil.Handler(h.shareTrack))
 	mux.Handle("GET /public/share/{slug}/download", httputil.Handler(h.shareDownload))
 	mux.Handle("PATCH /public/share/{slug}/progress", httputil.Handler(h.shareProgress))
-}
-
-func write(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 // hostPrefix is req.originalHostPrefix (server/Server.js:324): the request

@@ -6,8 +6,7 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
-	"database/sql"
-	"errors"
+	"context"
 	"fmt"
 	"mime"
 	"net/http"
@@ -21,24 +20,18 @@ import (
 func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 	download := strings.HasSuffix(r.Pattern, "/download")
 	user, itemID, ino := requestUser(r), r.PathValue("id"), r.PathValue("ino")
-	var libraryID string
-	var raw []byte
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
+		return err
 	}
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
+	raw, err := h.libraryFiles(r.Context(), itemID)
+	if err != nil {
+		return err
 	}
 	var target string
-	for _, file := range store.DecodeJSONSlice[map[string]any](raw) {
-		if stringValue(file["ino"]) == ino {
-			if meta, ok := file["metadata"].(map[string]any); ok {
-				target = stringValue(meta["path"])
-			}
+	for _, file := range store.DecodeJSONSlice[libitem.File](raw) {
+		if file.Ino() == ino {
+			target = file.Path()
 			break
 		}
 	}
@@ -53,7 +46,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 			w.Header().Set("Content-Type", mimeType)
 		}
 	}
-	if !h.pathAllowed(r.Context(), target, libraryID) {
+	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
 		if download {
 			if _, statErr := os.Stat(target); statErr != nil {
 				if os.IsNotExist(statErr) {
@@ -72,54 +65,55 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	user, itemID, fileID := requestUser(r), r.PathValue("id"), r.PathValue("fileId")
-	var libraryID, mediaType, mediaID string
-	var raw []byte
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId,libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID, &raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
+		return err
 	}
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
+	raw, err := h.libraryFiles(r.Context(), itemID)
+	if err != nil {
+		return err
 	}
 	target := ""
 	if fileID != "" {
-		for _, file := range store.DecodeJSONSlice[map[string]any](raw) {
-			if stringValue(file["ino"]) == fileID && libitem.FileType(fileMetadataExt(file)) == "ebook" {
-				target = filePath(file)
+		for _, file := range store.DecodeJSONSlice[libitem.File](raw) {
+			if file.Ino() == fileID && file.Kind() == filekind.Ebook {
+				target = file.Path()
 				break
 			}
 		}
 		if target == "" {
 			return httputil.Status(http.StatusBadRequest, "Invalid ebook file id")
 		}
-	} else if mediaType == "book" {
+	} else if scope.mediaType == "book" {
 		var ebookRaw []byte
-		if err := h.db.QueryRowContext(r.Context(), `SELECT ebookFile FROM books WHERE id=?`, mediaID).Scan(&ebookRaw); err != nil {
+		if err := h.db.QueryRowContext(r.Context(), `SELECT ebookFile FROM books WHERE id=?`, scope.mediaID).Scan(&ebookRaw); err != nil {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		target = filePath(store.DecodeJSONObject(ebookRaw))
+		target = libitem.File(store.DecodeJSONObject(ebookRaw)).Path()
 	}
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if !h.pathAllowed(r.Context(), target, libraryID) {
+	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	return h.servePath(w, r, target)
 }
 
+// libraryFiles is the stored libraryFiles JSON of the item.
+func (h *Handler) libraryFiles(ctx context.Context, itemID string) ([]byte, error) {
+	var raw []byte
+	if err := h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw); err != nil {
+		return nil, httputil.Internal("database read failed", err)
+	}
+	return raw, nil
+}
+
 func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 	itemID := r.PathValue("id")
-	var libraryID, mediaType, mediaID string
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.loadItem(r.Context(), itemID)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
+		return err
 	}
 	if r.URL.Query().Get("ts") != "" {
 		// LibraryItemController.getCover sets the cache header before any
@@ -128,15 +122,15 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 	}
 	if r.URL.Query().Get("raw") != "" {
 		var target string
-		if mediaType == "book" {
-			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM books WHERE id=?`, mediaID).Scan(&target)
-		} else if mediaType == "podcast" {
-			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM podcasts WHERE id=?`, mediaID).Scan(&target)
+		if scope.mediaType == "book" {
+			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM books WHERE id=?`, scope.mediaID).Scan(&target)
+		} else if scope.mediaType == "podcast" {
+			err = h.db.QueryRowContext(r.Context(), `SELECT coverPath FROM podcasts WHERE id=?`, scope.mediaID).Scan(&target)
 		}
 		if err != nil || target == "" {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		if !(h.pathAllowed(r.Context(), target, libraryID) || h.cfg.MetadataPath != "" && withinAny(target, []string{h.cfg.MetadataPath})) {
+		if !(h.pathAllowed(r.Context(), target, scope.libraryID) || h.cfg.MetadataPath != "" && withinAny(target, []string{h.cfg.MetadataPath})) {
 			return httputil.Status(http.StatusNotFound, "")
 		}
 		return h.coverRaw(w, r, target)
@@ -223,14 +217,4 @@ func (w *sendFileRangeErrorWriter) Write(p []byte) (int, error) {
 		}
 	}
 	return len(p), nil
-}
-
-func filePath(file map[string]any) string {
-	meta, _ := file["metadata"].(map[string]any)
-	return stringValue(meta["path"])
-}
-
-func fileMetadataExt(file map[string]any) any {
-	meta, _ := file["metadata"].(map[string]any)
-	return meta["ext"]
 }

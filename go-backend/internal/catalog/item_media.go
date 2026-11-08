@@ -3,13 +3,13 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,18 +21,9 @@ import (
 func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	itemID := r.PathValue("id")
-	scope, _, err := h.writableItem(r.Context(), itemID, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.For(r.Context(), user).Library(scope.libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	if !access.For(r.Context(), user).Update() {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	if scope.mediaType != "book" {
 		logging.RequestDebug(r, "responding 500: the library item is not a book")
@@ -110,31 +101,23 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	var libraryID, mediaID, mediaType string
-	var missing int
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaId,mediaType,isMissing FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaID, &mediaType, &missing)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	var audioRaw []byte
-	if mediaType == "book" {
-		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&audioRaw); err != nil {
+	if scope.mediaType == "book" {
+		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&audioRaw); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 	}
 	audioCount := 0
-	for _, file := range store.DecodeJSONSlice[map[string]any](audioRaw) {
-		if excluded, _ := file["exclude"].(bool); !excluded {
+	for _, file := range store.DecodeJSONSlice[libitem.File](audioRaw) {
+		if !file.Excluded() {
 			audioCount++
 		}
 	}
-	if missing != 0 || mediaType != "book" || audioCount == 0 {
+	if scope.missing || scope.mediaType != "book" || audioCount == 0 {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
 	item, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{})
@@ -184,42 +167,35 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	var libraryID, mediaType, mediaID string
-	err := h.db.QueryRowContext(r.Context(), `SELECT libraryId,mediaType,mediaId FROM libraryItems WHERE id=?`, itemID).Scan(&libraryID, &mediaType, &mediaID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, false)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.For(r.Context(), user).Library(libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	var filesRaw []byte
-	if mediaType == "book" {
-		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&filesRaw); err != nil {
+	if scope.mediaType == "book" {
+		if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&filesRaw); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-	} else if mediaType == "podcast" {
-		if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(json_group_array(json(audioFile)), '[]') FROM podcastEpisodes WHERE podcastId=?`, mediaID).Scan(&filesRaw); err != nil {
+	} else if scope.mediaType == "podcast" {
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COALESCE(json_group_array(json(audioFile)), '[]') FROM podcastEpisodes WHERE podcastId=?`, scope.mediaID).Scan(&filesRaw); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 	}
 	target := ""
-	for _, file := range store.DecodeJSONSlice[map[string]any](filesRaw) {
-		if stringValue(file["ino"]) == ino {
-			target = filePath(file)
+	for _, file := range store.DecodeJSONSlice[libitem.File](filesRaw) {
+		if file.Ino() == ino {
+			target = file.Path()
 			break
 		}
-		if audio, ok := file["audioFile"].(map[string]any); ok && stringValue(audio["ino"]) == ino {
-			target = filePath(audio)
+		if audio, ok := file["audioFile"].(map[string]any); ok && libitem.File(audio).Ino() == ino {
+			target = libitem.File(audio).Path()
 			break
 		}
 	}
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if !h.pathAllowed(r.Context(), target, libraryID) {
+	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	result, err := mediatools.ProbeRaw(r.Context(), target)
@@ -233,18 +209,9 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	user := requestUser(r)
 	itemID := r.PathValue("id")
-	scope, _, err := h.writableItem(r.Context(), itemID, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.For(r.Context(), user).Library(scope.libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	if !access.For(r.Context(), user).Update() {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	if scope.mediaType != "book" {
 		return httputil.Status(http.StatusBadRequest, "")
@@ -262,21 +229,21 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&raw); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[map[string]any](raw)
-	byIno := make(map[string]map[string]any, len(files))
+	files := store.DecodeJSONSlice[libitem.File](raw)
+	byIno := make(map[string]libitem.File, len(files))
 	for _, file := range files {
-		byIno[stringValue(file["ino"])] = file
+		byIno[file.Ino()] = file
 	}
 	for _, ordered := range request.Ordered {
-		ino := stringValue(ordered["ino"])
+		ino := libitem.File(ordered).Ino()
 		if ino == "" || byIno[ino] == nil {
 			return httputil.Status(http.StatusBadRequest, "")
 		}
 	}
-	orderedFiles := make([]map[string]any, 0, len(request.Ordered))
+	orderedFiles := make([]libitem.File, 0, len(request.Ordered))
 	index := 1
 	for _, ordered := range request.Ordered {
-		file := byIno[stringValue(ordered["ino"])]
+		file := byIno[libitem.File(ordered).Ino()]
 		file["manuallyVerified"] = true
 		excluded := jsonvalue.Truthy(ordered["exclude"])
 		file["exclude"] = excluded
@@ -295,7 +262,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if _, err := h.db.ExecContext(r.Context(), `UPDATE books SET audioFiles=?,updatedAt=? WHERE id=?`, string(encoded), dbtime.Now(), scope.mediaID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	item, err := h.ItemJSON(r.Context(), itemID, true)
+	item, err := h.expandedItem(r.Context(), itemID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -308,18 +275,9 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	user := requestUser(r)
 	itemID := r.PathValue("id")
 	ino := r.PathValue("ino")
-	scope, _, err := h.writableItem(r.Context(), itemID, user)
-	if errors.Is(err, sql.ErrNoRows) {
-		return httputil.Status(http.StatusNotFound, "")
-	}
+	scope, err := h.itemFor(r.Context(), user, itemID, true)
 	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if !access.For(r.Context(), user).Library(scope.libraryID) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	if !access.For(r.Context(), user).Update() {
-		return httputil.Status(http.StatusForbidden, "")
+		return err
 	}
 	if scope.mediaType != "book" {
 		return httputil.Status(http.StatusBadRequest, "")
@@ -328,43 +286,43 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&rawFiles, &rawAudio); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[map[string]any](rawFiles)
+	files := store.DecodeJSONSlice[libitem.File](rawFiles)
 	selected := -1
 	for i, file := range files {
-		if stringValue(file["ino"]) == ino {
+		if file.Ino() == ino {
 			selected = i
 			break
 		}
 	}
-	if selected < 0 || libitem.FileType(fileMetadataExt(files[selected])) != "ebook" {
+	if selected < 0 || files[selected].Kind() != filekind.Ebook {
 		return httputil.Status(http.StatusBadRequest, "Invalid ebook file id")
 	}
 	var primary any
 	if jsonvalue.Truthy(files[selected]["isSupplementary"]) {
-		primaryFile := make(map[string]any, len(files[selected]))
+		primaryFile := make(libitem.File, len(files[selected]))
 		for key, value := range files[selected] {
 			if key != "isSupplementary" && key != "fileType" {
 				primaryFile[key] = value
 			}
 		}
 		// TS FileMetadata.format: the extension without its dot, lower-cased; "" without an extension.
-		primaryFile["ebookFormat"] = strings.ToLower(strings.TrimPrefix(stringValue(fileMetadataExt(primaryFile)), "."))
+		primaryFile["ebookFormat"] = strings.ToLower(strings.TrimPrefix(primaryFile.Ext(), "."))
 		primary = primaryFile
 	}
 	primaryIno := ""
-	if m, ok := primary.(map[string]any); ok {
-		primaryIno = stringValue(m["ino"])
+	if m, ok := primary.(libitem.File); ok {
+		primaryIno = m.Ino()
 	}
 	for _, file := range files {
-		if libitem.FileType(fileMetadataExt(file)) == "ebook" {
-			file["isSupplementary"] = stringValue(file["ino"]) != primaryIno
+		if file.Kind() == filekind.Ebook {
+			file["isSupplementary"] = file.Ino() != primaryIno
 		}
 	}
 	filesJSON, _ := json.Marshal(files)
 	encodedPrimary, _ := json.Marshal(primary)
 	missing := 1
-	for _, audio := range store.DecodeJSONSlice[map[string]any](rawAudio) {
-		if !jsonvalue.Truthy(audio["exclude"]) {
+	for _, audio := range store.DecodeJSONSlice[libitem.File](rawAudio) {
+		if !audio.Excluded() {
 			missing = 0
 			break
 		}

@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -36,7 +35,7 @@ type Handler struct {
 	emit events.Emitter
 }
 
-func New(db *sql.DB, _ config.Config, emit events.Emitter) *Handler {
+func New(db *sql.DB, emit events.Emitter) *Handler {
 	return &Handler{db: db, emit: emit}
 }
 
@@ -85,7 +84,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 			}
 			if k == "ereaderDevices" {
 				if list, ok := v.([]any); ok {
-					v = cleanDevices(list)
+					v = settingsdoc.CleanDevices(list)
 				} else {
 					continue
 				}
@@ -99,8 +98,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 			}
 		}
 	}
-	write(w, map[string]any{"settings": m})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"settings": m})
 }
 func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	var p struct {
@@ -122,7 +120,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	for i, device := range p.Devices {
 		provided[i] = device
 	}
-	clean := cleanDevices(provided)
+	clean := settingsdoc.CleanDevices(provided)
 	changed := !reflect.DeepEqual(m["ereaderDevices"], clean)
 	m["ereaderDevices"] = clean
 	if changed {
@@ -131,8 +129,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 		}
 		h.emit.ToAdmins("ereader-devices-updated", map[string]any{"ereaderDevices": clean})
 	}
-	write(w, map[string]any{"ereaderDevices": clean})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"ereaderDevices": clean})
 }
 func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) error {
 	m, e := h.load(r.Context())
@@ -358,37 +355,6 @@ func numeric(v any) (int, bool) {
 	}
 	return 0, false
 }
-func cleanDevices(a []any) []any {
-	out := []any{}
-	valid := map[string]bool{"adminOrUp": true, "userOrUp": true, "guestOrUp": true, "specificUsers": true}
-	for _, raw := range a {
-		d, ok := raw.(map[string]any)
-		if !ok || d["name"] == nil || d["email"] == nil {
-			continue
-		}
-		level, _ := d["availabilityOption"].(string)
-		if !valid[level] || (level == "specificUsers" && !hasDeviceUsers(d["users"])) {
-			d["availabilityOption"] = "adminOrUp"
-		}
-		if d["availabilityOption"] != "specificUsers" && hasDeviceUsers(d["users"]) {
-			d["users"] = []any{}
-		}
-		out = append(out, d)
-	}
-	return out
-}
-func hasDeviceUsers(value any) bool {
-	switch users := value.(type) {
-	case []any:
-		return len(users) > 0
-	case string:
-		return users != ""
-	case map[string]any:
-		return jsonvalue.Truthy(users["length"])
-	default:
-		return false
-	}
-}
 func device(m map[string]any, name string) map[string]any {
 	for _, x := range jsonvalue.Array(m["ereaderDevices"]) {
 		d, _ := x.(map[string]any)
@@ -397,8 +363,4 @@ func device(m map[string]any, name string) map[string]any {
 		}
 	}
 	return nil
-}
-func write(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
 }

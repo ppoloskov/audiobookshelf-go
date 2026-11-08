@@ -11,8 +11,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"audiobookshelf-compat/internal/wire"
 )
 
 type fakeClock struct {
@@ -149,7 +147,7 @@ func TestDailyFileJSONLineShapeAndName(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("lines = %q", lines)
 	}
-	var e wire.LogEntry
+	var e LogEntry
 	if err := json.Unmarshal([]byte(lines[0]), &e); err != nil || e.Level != 2 {
 		t.Fatalf("round trip: %v %+v", err, e)
 	}
@@ -287,7 +285,7 @@ func TestCrashLogReceivesFatalOnly(t *testing.T) {
 	}
 	wantMessages := []string{"before open", "boom"}
 	for i, line := range lines {
-		var entry wire.LogEntry
+		var entry LogEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			t.Fatalf("decode crash log line %q: %v", line, err)
 		}
@@ -317,7 +315,7 @@ func TestBelowLevelNotWrittenToFile(t *testing.T) {
 	l.Debug("now visible")
 	var msgs []string
 	for _, line := range readLines(t, filepath.Join(dir, "logs", "daily", "2026-03-04.txt")) {
-		var e wire.LogEntry
+		var e LogEntry
 		_ = json.Unmarshal([]byte(line), &e)
 		msgs = append(msgs, e.Message)
 	}
@@ -331,7 +329,7 @@ func TestLoggerDataShape(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	b, _ := json.Marshal(l.LoggerData())
 	var empty struct {
-		CurrentDailyLogs []wire.LogEntry `json:"currentDailyLogs"`
+		CurrentDailyLogs []LogEntry `json:"currentDailyLogs"`
 	}
 	if err := json.Unmarshal(b, &empty); err != nil {
 		t.Fatalf("decode empty LoggerData %s: %v", b, err)
@@ -342,7 +340,7 @@ func TestLoggerDataShape(t *testing.T) {
 	l.Info("one")
 	b, _ = json.Marshal(l.LoggerData())
 	var nonempty struct {
-		CurrentDailyLogs []wire.LogEntry `json:"currentDailyLogs"`
+		CurrentDailyLogs []LogEntry `json:"currentDailyLogs"`
 	}
 	if err := json.Unmarshal(b, &nonempty); err != nil {
 		t.Fatalf("decode nonempty LoggerData %s: %v", b, err)
@@ -374,11 +372,11 @@ func TestSocketListenerEmission(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	type sent struct {
 		id    string
-		entry wire.LogEntry
+		entry LogEntry
 	}
 	var mu sync.Mutex
 	var got []sent
-	l.BindSockets(func(id string, e wire.LogEntry) {
+	l.BindSockets(func(id string, e LogEntry) {
 		mu.Lock()
 		got = append(got, sent{id, e})
 		mu.Unlock()
@@ -418,7 +416,7 @@ func TestSocketListenerEmission(t *testing.T) {
 func TestFatalAlwaysReachesListeners(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	var n int
-	l.BindSockets(func(string, wire.LogEntry) { n++ })
+	l.BindSockets(func(string, LogEntry) { n++ })
 	l.AddSocketListener("a", LevelNote)
 	l.Error("below listener level")
 	l.Fatal("fatal")
@@ -454,7 +452,7 @@ func TestConcurrentLoggingIsRaceFree(t *testing.T) {
 	if err := l.OpenFiles(t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
-	l.BindSockets(func(string, wire.LogEntry) {})
+	l.BindSockets(func(string, LogEntry) {})
 	l.AddSocketListener("a", LevelInfo)
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {

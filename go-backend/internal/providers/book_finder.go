@@ -105,20 +105,7 @@ func convertJSON[T any, S any](results []S) []T {
 // search, the OpenLibrary distance filter, and sanitized descriptions.
 func (h *Handler) runBookSearch(ctx context.Context, title, author, provider, asin string, maxTitleDistance, maxAuthorDistance int) []wire.BookMatch {
 	logging.Debugf(`Book Search: title: "%s", author: "%s", provider: %s`, title, author, provider)
-	region := ""
-	if strings.Contains(provider, ".") {
-		region = provider[strings.LastIndex(provider, ".")+1:]
-	}
-	var results []bookMatch
-	var err error
-	switch {
-	case provider == "openlibrary":
-		results, err = h.searchOpenLibrary(ctx, title, author)
-	case strings.HasPrefix(provider, "audible"):
-		results, err = h.searchAudible(ctx, provider, title, author, asin, region)
-	default:
-		results, err = h.searchBuiltinBooks(ctx, provider, title, author, asin, "")
-	}
+	results, err := h.searchBuiltinBooks(ctx, provider, title, author, asin, "")
 	if err != nil {
 		return nil
 	}

@@ -6,7 +6,9 @@ package access
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -112,6 +114,25 @@ func (p Permissions) ListLibrary(id string) bool {
 // Item is User.checkCanAccessLibraryItem: library, explicit and tag rules.
 func (p Permissions) Item(a libitem.Access) bool {
 	return p.Library(a.LibraryID) && p.Content(a)
+}
+
+// ItemAccess loads the library item and answers whether it exists and whether
+// the user may read it (User.checkCanAccessLibraryItem).
+func ItemAccess(ctx context.Context, db *sql.DB, user store.User, itemID string) (exists, allowed bool, err error) {
+	a, err := libitem.LoadAccess(ctx, db, itemID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, For(ctx, user).Item(a), nil
+}
+
+// CanReadItem is ItemAccess for callers that treat a missing item as refused.
+func CanReadItem(ctx context.Context, db *sql.DB, user store.User, itemID string) (bool, error) {
+	_, allowed, err := ItemAccess(ctx, db, user, itemID)
+	return allowed, err
 }
 
 // Content is Item without the library rule (Access.LibraryID is ignored).

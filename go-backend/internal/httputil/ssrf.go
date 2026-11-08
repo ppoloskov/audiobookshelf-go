@@ -17,7 +17,7 @@ import (
 // filterPolicy is the SSRF exemption TS applies to every axios request
 // (server/Server.js, DisableSsrfRequestFilter): the filter is off entirely, or
 // the host is named in SSRF_REQUEST_FILTER_WHITELIST. The environment is read
-// once per client (or per SSRFFilterDisabled call), never per request.
+// once per client, never per request.
 type filterPolicy struct {
 	off       bool
 	proxy     bool // EXP_PROXY_SUPPORT: only 301 and 302 are followed
@@ -46,10 +46,6 @@ func (p filterPolicy) exempt(host string) bool {
 	}
 	return false
 }
-
-// SSRFFilterDisabled reports whether outbound requests to host skip the private
-// address filter. Prefer SafeClient, which applies it for you.
-func SSRFFilterDisabled(host string) bool { return policyFromEnv().exempt(host) }
 
 var blockedPrefixes = func() []netip.Prefix {
 	var out []netip.Prefix

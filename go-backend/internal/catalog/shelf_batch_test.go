@@ -50,7 +50,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 			if _, err := db.Exec(`INSERT INTO mediaProgresses VALUES ('other-user','other','book-06',1,0,0,0,?, ?,NULL)`, dbtime.Format(base.Add(1003*time.Hour)), dbtime.Format(base)); err != nil {
 				t.Fatal(err)
 			}
-			h := New(db, config.Config{}, nil)
+			h := New(db, config.Config{}, nil, testDeps())
 			user := store.User{ID: "shelf-user", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":false}`)}
 			permission, permissionArgs := access.Of(user).MediaClause("b")
 			query := `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND mp.hideFromContinueListening=0 AND mp.isFinished=0 AND (mp.currentTime>0 OR mp.ebookProgress>0)` + permission + ` ORDER BY mp.updatedAt DESC LIMIT ?`
@@ -122,7 +122,7 @@ func TestBookShelfQueryCountIndependentOfSize(t *testing.T) {
 
 	db, _ := catalogFixtureWithQueryCount(t)
 	seedBookPage(t, db, 10)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, testDeps())
 	r := httptest.NewRequest("GET", "/", nil)
 	duplicates, err := shelfItems(h, r, `SELECT 'i8' UNION ALL SELECT 'i8'`, nil)
 	if err != nil || len(duplicates) != 2 || duplicates[0].ID != "i8" || duplicates[1].ID != "i8" {
