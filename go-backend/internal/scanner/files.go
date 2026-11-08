@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/libitem"
@@ -155,7 +156,7 @@ func boolInt(v bool) int {
 
 // readABSMetadata prefers a readable in-item metadata.json and falls back to
 // an existing item's external sidecar only when that file is unavailable.
-func readABSMetadata(g *group, itemID, metadataPath string) (bookMetadata, bool) {
+func readABSMetadata(g *group, itemID string, cfg config.Config) (bookMetadata, bool) {
 	var result bookMetadata
 	for _, f := range g.companions {
 		if strings.EqualFold(filepath.Base(f.path), "metadata.json") {
@@ -165,10 +166,10 @@ func readABSMetadata(g *group, itemID, metadataPath string) (bookMetadata, bool)
 			}
 		}
 	}
-	if itemID == "" || metadataPath == "" {
+	if itemID == "" || cfg.MetadataPath == "" {
 		return result, false
 	}
-	path := filepath.Join(metadataPath, "items", itemID, "metadata.json")
+	path := filepath.Join(filepath.Join(cfg.Dirs().Items, itemID), "metadata.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return result, false

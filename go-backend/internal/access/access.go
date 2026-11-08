@@ -11,7 +11,6 @@ import (
 	"errors"
 	"net/http"
 	"slices"
-	"strings"
 	"sync/atomic"
 
 	"audiobookshelf-compat/internal/httputil"
@@ -170,7 +169,7 @@ func (p Permissions) MediaClause(alias string) (string, []any) {
 		if p.TagsExcluded {
 			compare = "=0"
 		}
-		clause += " AND (SELECT count(*) FROM json_each(" + alias + ".tags) WHERE json_each.value IN (" + strings.TrimSuffix(strings.Repeat("?,", len(p.Tags)), ",") + "))" + compare
+		clause += " AND (SELECT count(*) FROM json_each(" + alias + ".tags) WHERE json_each.value IN (" + store.Placeholders(len(p.Tags)) + "))" + compare
 		for _, tag := range p.Tags {
 			args = append(args, tag)
 		}

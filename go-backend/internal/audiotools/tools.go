@@ -110,8 +110,7 @@ func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, stri
 }
 
 func (h *Handler) tasksRoute(w http.ResponseWriter, r *http.Request) error {
-	httputil.WriteJSON(w, http.StatusOK, h.Tasks(strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,")))
-	return nil
+	return httputil.JSON(w, r, h.Tasks(strings.Contains(","+r.URL.Query().Get("include")+",", ",queue,")))
 }
 
 func (h *Handler) Tasks(includeQueue bool) any {
@@ -293,7 +292,7 @@ func (h *Handler) newTask(action string, userID string, it item, title, key, des
 		Task:   events.NewTask(randomID(), action, nil).Titled(title, key, []string{}).Described(desc, descKey, it.title),
 		data:   map[string]any{"libraryItemId": it.id, "libraryItemDir": it.path, "userId": userID, "duration": it.duration},
 		itemID: it.id, ctx: ctx, cancel: cancel,
-		cache: filepath.Join(h.cfg.MetadataPath, "cache", "items", it.id),
+		cache: filepath.Join(h.cfg.Dirs().ItemCache, it.id),
 	}
 }
 func (h *Handler) has(itemID, action string) bool {

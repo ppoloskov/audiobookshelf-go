@@ -19,8 +19,7 @@ func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib 
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, data, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, data)
 }
 
 func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
@@ -70,11 +69,9 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib librarySco
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"filterdata": filterdata, "issues": filterdata.NumIssues, "numUserPlaylists": playlists, "library": payload}, httputil.ForRequest(r))
-		return nil
+		return httputil.JSON(w, r, map[string]any{"filterdata": filterdata, "issues": filterdata.NumIssues, "numUserPlaylists": playlists, "library": payload})
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, payload)
 }
 
 func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
@@ -82,8 +79,7 @@ func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib libra
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, stats, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, stats)
 }
 
 func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (map[string]any, error) {

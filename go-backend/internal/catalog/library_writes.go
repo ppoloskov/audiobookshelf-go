@@ -171,8 +171,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 		h.deps.LibraryChanged(id)
 	}
 	h.emit.ToAll("library_added", result)
-	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, result)
 }
 
 func readStringField(body map[string]json.RawMessage, key, fallback string) string {
@@ -358,8 +357,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
-		httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
-		return nil
+		return httputil.JSON(w, r, result)
 	}
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -403,8 +401,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		h.deps.LibraryChanged(id)
 	}
 	h.emit.ToAll("library_updated", result)
-	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, result)
 }
 
 func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
@@ -493,11 +490,10 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	}
 	if h.cfg.MetadataPath != "" {
 		for _, item := range items {
-			_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", item.id))
+			_ = os.RemoveAll(filepath.Join(h.cfg.Dirs().Items, item.id))
 		}
 	}
-	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, result)
 }
 
 func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error {
@@ -556,8 +552,7 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 		}
 		result = append(result, library)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"libraries": result}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"libraries": result})
 }
 
 // libraryItemsWhere lists the items matching one column condition.

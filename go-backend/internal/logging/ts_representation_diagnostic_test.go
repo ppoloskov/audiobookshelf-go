@@ -27,7 +27,7 @@ func TestTSRepresentationR05(t *testing.T) {
 
 	daily, _, _, _ := newTestLogger(t)
 	dir := t.TempDir()
-	if err := daily.OpenFiles(dir); err != nil {
+	if err := daily.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	daily.Info("a <b> & c")
@@ -40,7 +40,7 @@ func TestTSRepresentationR05(t *testing.T) {
 	crash, _, _, _ := newTestLogger(t)
 	crashDir := t.TempDir()
 	crash.Fatal("before open")
-	if err := crash.OpenFiles(crashDir); err != nil {
+	if err := crash.OpenFiles(filepath.Join(crashDir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	crash.Error("not a crash")

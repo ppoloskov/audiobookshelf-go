@@ -45,7 +45,7 @@ func (h *Handler) purgeImageCache(entityID string) {
 
 // imageCachePath mirrors CacheManager.ImageCachePath (CacheManager.js:29).
 func (h *Handler) imageCachePath() string {
-	return filepath.Join(h.cfg.MetadataPath, "cache", "images")
+	return h.cfg.Dirs().ImageCache
 }
 
 // authorImagePath is the file AuthorFinder.saveAuthorImage writes
@@ -57,14 +57,14 @@ func (h *Handler) authorImagePath(authorID, imageURL string) string {
 	if parts[len(parts)-1] == "png" {
 		ext = "png"
 	}
-	return path.Join(filepath.ToSlash(filepath.Join(h.cfg.MetadataPath, "authors")), authorID+"."+ext)
+	return path.Join(filepath.ToSlash(h.cfg.Dirs().Authors), authorID+"."+ext)
 }
 
 // saveAuthorImage is AuthorFinder.saveAuthorImage: it downloads the image
 // (fileUtils.downloadImageFile: image/* but not svg) and returns the written
 // path, or the error message upstream would send.
 func (h *Handler) saveAuthorImage(ctx context.Context, authorID, imageURL string) (string, string) {
-	authorDir := filepath.Join(h.cfg.MetadataPath, "authors")
+	authorDir := h.cfg.Dirs().Authors
 	if err := os.MkdirAll(authorDir, 0o755); err != nil {
 		return "", err.Error()
 	}

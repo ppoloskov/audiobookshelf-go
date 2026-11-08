@@ -247,8 +247,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	s := &session{ID: sessionID, UserID: user.ID, LibraryID: item.LibraryID, LibraryItemID: item.ID, MediaID: item.MediaID, EpisodeID: episodeID, MediaType: item.MediaType, DisplayTitle: item.Title, DisplayAuthor: item.Author, CoverPath: item.CoverPath, PlayMethod: playMethod, MediaPlayer: body.MediaPlayer, Duration: item.Duration, StartTime: start, CurrentTime: start, StartedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Date: now.Format("2006-01-02"), DayOfWeek: now.Weekday().String(), MediaMetadata: item.Metadata, Chapters: item.Chapters, Item: itemJSON, Device: device, Files: item.Files}
 	if playMethod == 2 {
 		if !mediatools.FFmpegAvailable() {
-			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
-			return nil
+			return httputil.JSONStatus(w, r, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 		}
 		t, err := h.startTranscode(s, item, start)
 		if err != nil {
@@ -267,8 +266,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	public := s.client()
 	public.LibraryItem = json.RawMessage("null")
 	h.emit.ToAdmins("user_stream_update", users.OnlineUserDTO(user, public))
-	httputil.WriteJSON(w, http.StatusOK, s.client())
-	return nil
+	return httputil.JSON(w, r, s.client())
 }
 
 func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData, error) {
@@ -396,8 +394,7 @@ func (h *Handler) handleGetSession(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	httputil.WriteJSON(w, 200, s.client())
-	return nil
+	return httputil.JSON(w, r, s.client())
 }
 
 func (h *Handler) openSession(user store.User, id string) (*session, error) {
@@ -570,8 +567,7 @@ func (h *Handler) handleOpenSessions(w http.ResponseWriter, r *http.Request) err
 	if !access.AdminUser(user) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"sessions": h.openSessions(), "shareSessions": []any{}})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"sessions": h.openSessions(), "shareSessions": []any{}})
 }
 
 func (h *Handler) openSessions() []sessionJSON {

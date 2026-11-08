@@ -74,7 +74,7 @@ type Backup struct {
 
 func (h *Handler) withDefaults(opt Options) Options {
 	if strings.TrimSpace(opt.BackupPath) == "" {
-		opt.BackupPath = filepath.Join(h.cfg.MetadataPath, "backups")
+		opt.BackupPath = h.cfg.Dirs().Backups
 	}
 	if opt.BackupsToKeep <= 0 {
 		opt.BackupsToKeep = 2
@@ -280,7 +280,7 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 		return Backup{}, closeErr
 	}
 	defer os.Remove(tmpDB)
-	if err = writeArchive(backup.FullPath, tmpDB, filepath.Join(h.cfg.MetadataPath, "items"), filepath.Join(h.cfg.MetadataPath, "authors"), details(backup)); err != nil {
+	if err = writeArchive(backup.FullPath, tmpDB, h.cfg.Dirs().Items, h.cfg.Dirs().Authors, details(backup)); err != nil {
 		return Backup{}, err
 	}
 	st, err := os.Stat(backup.FullPath)
@@ -290,7 +290,7 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	backup.FileSize = st.Size()
 	if opt.MaxBackupSizeGB > 0 {
 		limit := int64(opt.MaxBackupSizeGB * 1_000_000_000)
-		processed, sizeErr := treeBytes(tmpDB, filepath.Join(h.cfg.MetadataPath, "items"), filepath.Join(h.cfg.MetadataPath, "authors"))
+		processed, sizeErr := treeBytes(tmpDB, h.cfg.Dirs().Items, h.cfg.Dirs().Authors)
 		if sizeErr == nil && processed > limit {
 			sizeErr = fmt.Errorf("backup exceeds configured maximum size")
 		}

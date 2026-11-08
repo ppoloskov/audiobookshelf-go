@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"slices"
 	"strconv"
-	"strings"
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/store"
@@ -112,7 +111,7 @@ func queryIn(ctx context.Context, db *sql.DB, prefix, suffix string, ids []strin
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := db.QueryContext(ctx, prefix+"("+strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")+")"+suffix, args...)
+		rows, err := db.QueryContext(ctx, prefix+"("+store.Placeholders(len(chunk))+")"+suffix, args...)
 		if err != nil {
 			return err
 		}

@@ -9,6 +9,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/version"
 	"cmp"
 	"context"
@@ -870,7 +871,7 @@ func (s *Scanner) storedItemByID(ctx context.Context, id string) (*existingItem,
 // (LibraryItemScanner.js:84-93, BookScanner.js:908-1010).
 func (s *Scanner) finalizeScan(ctx context.Context, libraryID string, t *scanTally) error {
 	if ids := uniqueStrings(t.authorsChanged); len(ids) > 0 {
-		marks := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+		marks := store.Placeholders(len(ids))
 		args := make([]any, len(ids))
 		for i, id := range ids {
 			args[i] = id

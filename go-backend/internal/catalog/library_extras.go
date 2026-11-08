@@ -49,8 +49,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib libraryS
 	for _, name := range names {
 		result = append(result, map[string]any{"id": url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(name))), "name": name, "numBooks": counts[name]})
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"narrators": result}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"narrators": result})
 }
 
 func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
@@ -147,8 +146,7 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib lib
 			h.emit.ToAll("items_updated", updatedItems)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": len(books)}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"updated": len(books)})
 }
 
 func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
@@ -175,6 +173,5 @@ func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, lib libr
 		return httputil.Internal("database read failed", err)
 	}
 	rows.Close()
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcasts": result}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"podcasts": result})
 }

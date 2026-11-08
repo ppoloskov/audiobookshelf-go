@@ -163,7 +163,7 @@ func initializeNew(path string, cfg config.Config) (retErr error) {
 			continue
 		}
 		if row.Key == "server-settings" {
-			row.Value = serversettings.FreshDocument(cfg.MetadataPath)
+			row.Value = serversettings.FreshDocument(cfg.Dirs().Backups)
 		}
 		data, err := json.Marshal(row.Value)
 		if err != nil {

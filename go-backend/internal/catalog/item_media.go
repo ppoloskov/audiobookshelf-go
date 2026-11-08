@@ -91,8 +91,7 @@ func (h *Handler) updateChapters(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Internal("metadata file write failed", err)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"success": true, "updated": updated}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"success": true, "updated": updated})
 }
 
 func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
@@ -156,8 +155,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 			delete(values, key)
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, values, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, values)
 }
 
 func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
@@ -202,8 +200,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("ffprobe failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, result, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, result)
 }
 
 func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
@@ -267,8 +264,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("item_updated", item)
-	httputil.WriteJSON(w, http.StatusOK, item, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, item)
 }
 
 func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) error {

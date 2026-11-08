@@ -131,8 +131,8 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	dbPath := store.DatabasePath(m.cfg.ConfigPath)
 	dbOld := dbPath + ".restore-previous"
 	metaTargets := []struct{ target, source string }{
-		{filepath.Join(m.cfg.MetadataPath, "items"), stagedItems},
-		{filepath.Join(m.cfg.MetadataPath, "authors"), stagedAuthors},
+		{m.cfg.Dirs().Items, stagedItems},
+		{m.cfg.Dirs().Authors, stagedAuthors},
 	}
 	moved := make([]restoredDir, 0, len(metaTargets))
 	var newStore *store.Store

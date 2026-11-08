@@ -93,8 +93,7 @@ func (h *Handler) handleLocalSync(w http.ResponseWriter, r *http.Request) error 
 	for i, ls := range body.Sessions {
 		results[i] = h.syncOneLocal(r.Context(), user, ls, device)
 	}
-	httputil.WriteJSON(w, 200, map[string]any{"results": results})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"results": results})
 }
 
 // localSessionID maps a client's play_local_* id to the server id it was

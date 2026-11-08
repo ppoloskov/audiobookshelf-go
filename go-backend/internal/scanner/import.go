@@ -232,7 +232,7 @@ func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 		if len(in.audio) > 0 {
 			firstTags = in.audio[0].MetaTags
 		}
-		abs, hasABS := readABSMetadata(g, oldID, s.cfg.MetadataPath)
+		abs, hasABS := readABSMetadata(g, oldID, s.cfg)
 		in.md = mergeBookMetadataWithABS(title, author, series, seq, g, l.metadataPrecedence, firstTags, abs, hasABS)
 	}
 	if in.md.Title != "" {

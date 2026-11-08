@@ -126,11 +126,8 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 			}
 			return rt.scanner.Refresh(ctx)
 		},
-		ItemChanged: rt.catalog.ItemChanged,
-		WatcherUpdate: func(_ context.Context, libraryID, path, kind string) error {
-			rt.scanner.UpdateWatchedPath(libraryID, path, kind)
-			return nil
-		},
+		ItemChanged:   rt.catalog.ItemChanged,
+		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
 	rt.emailapi = emailapi.New(db, emit)
 	rt.sharing = sharing.New(db, cfg, emit)

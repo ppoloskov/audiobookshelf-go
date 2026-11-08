@@ -70,7 +70,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 	linked.authors = append(linked.authors, authors...)
 	linked.series = append(linked.series, series...)
 	if h.cfg.MetadataPath != "" {
-		_ = os.RemoveAll(filepath.Join(h.cfg.MetadataPath, "items", item.id))
+		_ = os.RemoveAll(filepath.Join(h.cfg.Dirs().Items, item.id))
 	}
 	if hard && item.path != "" && h.pathAllowed(ctx, item.path, item.libraryID) {
 		logging.Infof("[LibraryItemController] Deleting library item from file system at %q", item.path) // LibraryItemController.js:604

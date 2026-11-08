@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/store"
 	"context"
 	"fmt"
 	"os"
@@ -431,7 +432,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		for i := 0; i < len(parts)-1; i++ {
 			candidates = append(candidates, joinSlash(f.path, strings.Join(parts[:len(parts)-1-i], "/")))
 		}
-		marks := strings.TrimSuffix(strings.Repeat("?,", len(candidates)), ",")
+		marks := store.Placeholders(len(candidates))
 		args := []any{libraryID}
 		for _, c := range candidates {
 			args = append(args, c)
@@ -453,7 +454,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 					}
 				}
 				if len(inos) > 0 {
-					existing, found = s.findStoredItem(ctx, `libraryId=? AND ino IN (`+strings.TrimSuffix(strings.Repeat("?,", len(inos)), ",")+`)`, append([]any{libraryID}, inos...)...)
+					existing, found = s.findStoredItem(ctx, `libraryId=? AND ino IN (`+store.Placeholders(len(inos))+`)`, append([]any{libraryID}, inos...)...)
 				}
 			}
 			if found {

@@ -102,8 +102,7 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) error {
 	if userFilter != "" {
 		payload["userId"] = userFilter
 	}
-	httputil.WriteJSON(w, 200, payload)
-	return nil
+	return httputil.JSON(w, r, payload)
 }
 
 func (h *Handler) handleDeleteHistory(w http.ResponseWriter, r *http.Request) error {

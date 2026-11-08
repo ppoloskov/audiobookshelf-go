@@ -30,7 +30,7 @@ import (
 
 // coverCachePath mirrors CacheManager.initializeCachePaths (CacheManager.js:26-30).
 func (h *Handler) coverCachePath() string {
-	return filepath.Join(h.cfg.MetadataPath, "cache", "covers")
+	return h.cfg.Dirs().CoverCache
 }
 
 // expressFileETag mirrors the file-derived weak ETag of express 'send':
@@ -293,7 +293,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	storeWithItem := serversettings.Load(r.Context(), h.db).Bool("storeCoverWithItem")
-	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
+	coverDir := filepath.Join(h.cfg.Dirs().Items, itemID)
 	if storeWithItem && !scope.isFile {
 		coverDir = scope.path
 	}
@@ -496,7 +496,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 		logging.RequestDebug(r, "responding 500: "+validationError)
 		return httputil.Status(500, validationError)
 	}
-	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
+	coverDir := filepath.Join(h.cfg.Dirs().Items, itemID)
 	if serversettings.Load(r.Context(), h.db).Bool("storeCoverWithItem") && !scope.isFile {
 		coverDir = scope.path
 	}

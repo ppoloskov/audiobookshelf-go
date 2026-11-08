@@ -91,7 +91,7 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) startTranscode(s *session, item *itemData, start float64) (*transcode, error) {
-	root := filepath.Join(h.cfg.MetadataPath, "streams", s.ID)
+	root := filepath.Join(h.cfg.Dirs().Streams, s.ID)
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, fmt.Errorf("create HLS stream directory: %w", err)
 	}

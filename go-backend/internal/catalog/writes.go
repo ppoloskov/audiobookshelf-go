@@ -116,8 +116,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": result.updated, "libraryItem": item}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"updated": result.updated, "libraryItem": item})
 }
 
 var errUnsupportedMedia = errors.New("unsupported media type")

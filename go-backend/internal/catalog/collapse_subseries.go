@@ -109,8 +109,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib 
 		return httputil.Internal("database read failed", err)
 	}
 	payload.Results, payload.Total = results, total
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, payload)
 }
 
 func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, hideSingleBookSeries bool, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {

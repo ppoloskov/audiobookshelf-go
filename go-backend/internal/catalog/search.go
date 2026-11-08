@@ -78,8 +78,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib libraryScop
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes}, httputil.ForRequest(r))
-		return nil
+		return httputil.JSON(w, r, map[string]any{"podcast": items, "tags": tags, "genres": genres, "episodes": episodes})
 	}
 	narrators, err := h.searchJSONValues(r.Context(), libraryID, table, "narrators", query, limit)
 	if err != nil {
@@ -93,8 +92,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib libraryScop
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors}, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, map[string]any{"book": items, "narrators": narrators, "tags": tags, "genres": genres, "series": series, "authors": authors})
 }
 
 // searchEpisodes is the episode half of libraryItemsPodcastFilters.search

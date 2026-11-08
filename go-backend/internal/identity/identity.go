@@ -586,7 +586,7 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if err != nil {
 		return nil, err
 	}
-	serverSettings := stored.ForBrowser(h.cfg.MetadataPath)
+	serverSettings := stored.ForBrowser(h.cfg.Dirs().Backups)
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
 		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}

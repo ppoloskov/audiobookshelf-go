@@ -288,8 +288,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) error {
 		userDTO["accessToken"] = access
 		userDTO["refreshToken"] = refresh
 		setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
-		httputil.WriteJSON(w, http.StatusOK, payload)
-		return nil
+		return httputil.JSON(w, r, payload)
 	}
 	setRefreshCookie(w, r, refresh, int(h.refreshTTL.Seconds()))
 	setExpressCookieValue(w, "connect.sid", flow.sessionCookie, 0, true, false, "")
@@ -347,8 +346,7 @@ func (h *Handler) oidcConfig(w http.ResponseWriter, r *http.Request) error {
 			result[key] = value
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, result)
-	return nil
+	return httputil.JSON(w, r, result)
 }
 
 func (h *Handler) openIDLogoutURL(r *http.Request, idToken, authMethod string) any {

@@ -107,8 +107,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib libra
 			shelves = append(shelves, shelf{ID: def.id, Label: def.label, LabelStringKey: def.key, Type: def.typ, Entities: entities, Total: q.total})
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, shelves, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, shelves)
 }
 
 func (e *shelfEnv) load(ids []string) ([]shelfItem, error) {

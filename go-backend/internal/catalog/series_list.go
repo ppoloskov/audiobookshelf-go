@@ -147,8 +147,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScop
 	if sortBy != "" {
 		payload["sortBy"] = sortBy
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, payload)
 }
 
 func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {

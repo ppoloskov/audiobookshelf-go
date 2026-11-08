@@ -134,7 +134,7 @@ func storedText(v any) string {
 // 300-345): the cover is stored with the item when the server setting says so,
 // otherwise under the metadata items folder.
 func (h *Handler) saveCoverFromURL(ctx context.Context, itemID, itemPath string, withItem bool, imageURL string) (string, string) {
-	coverDir := filepath.Join(h.cfg.MetadataPath, "items", itemID)
+	coverDir := filepath.Join(h.cfg.Dirs().Items, itemID)
 	if withItem && itemPath != "" {
 		coverDir = itemPath
 	}

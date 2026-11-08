@@ -56,12 +56,11 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	called := false
-	h := New(db, config.Config{MetadataPath: metadata}, nil, Deps{WatcherUpdate: func(_ context.Context, libraryID, path, kind string) error {
+	h := New(db, config.Config{MetadataPath: metadata}, nil, Deps{WatcherUpdate: func(libraryID, path, kind string) {
 		called = true
 		if libraryID != "lib" || path != "/new" || kind != "rename" {
 			t.Fatalf("watch args %q %q %q", libraryID, path, kind)
 		}
-		return nil
 	}})
 	admin := store.User{Type: "admin"}
 	stats := httptest.NewRecorder()

@@ -65,7 +65,7 @@ func main() {
 	} else {
 		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
 	}
-	if err := logging.Default().OpenFiles(cfg.MetadataPath); err != nil {
+	if err := logging.Default().OpenFiles(cfg.Dirs().Logs); err != nil {
 		logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
 	}
 	manager, err := server.NewManager(db, cfg)

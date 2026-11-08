@@ -134,7 +134,7 @@ func readLines(t *testing.T, path string) []string {
 func TestDailyFileJSONLineShapeAndName(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	dir := t.TempDir()
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Info("a <b> & c")
@@ -173,7 +173,7 @@ func TestBufferedUntilOpenAndExistingFileLoaded(t *testing.T) {
 	if got := l.Recent(); len(got) != 1 || got[0].Message != "before open" {
 		t.Fatalf("pre-open Recent = %+v", got)
 	}
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Info("after open")
@@ -211,7 +211,7 @@ func TestRetentionPrunesOldDailyLogsAtOpen(t *testing.T) {
 		}
 	}
 	l.ApplySettings(3)
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Info("today")
@@ -247,7 +247,7 @@ func TestRollToNextDayCreatesFileAndPrunes(t *testing.T) {
 		}
 	}
 	l.ApplySettings(2)
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Info("day one")
@@ -274,7 +274,7 @@ func TestCrashLogReceivesFatalOnly(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	dir := t.TempDir()
 	l.Fatal("before open") // buffered, then flushed into the crash log
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Error("not a crash")
@@ -306,7 +306,7 @@ func TestCrashLogReceivesFatalOnly(t *testing.T) {
 func TestBelowLevelNotWrittenToFile(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	dir := t.TempDir()
-	if err := l.OpenFiles(dir); err != nil {
+	if err := l.OpenFiles(filepath.Join(dir, "logs")); err != nil {
 		t.Fatal(err)
 	}
 	l.Debug("hidden")

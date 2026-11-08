@@ -112,6 +112,5 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	if v := r.URL.Query().Get("filter"); v != "" {
 		payload["filterBy"] = v
 	}
-	httputil.WriteJSON(w, http.StatusOK, payload, httputil.ForRequest(r))
-	return nil
+	return httputil.JSON(w, r, payload)
 }

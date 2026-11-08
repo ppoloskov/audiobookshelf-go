@@ -171,7 +171,7 @@ func TestExternalABSMetadataFallbackOnlyWithoutReadableInItemFile(t *testing.T) 
 		t.Fatal(err)
 	}
 	g := &group{path: item}
-	got, ok := readABSMetadata(g, "existing-id", metadataRoot)
+	got, ok := readABSMetadata(g, "existing-id", config.Config{MetadataPath: metadataRoot})
 	if !ok || got.Title != "External title" {
 		t.Fatalf("external metadata=%+v readable=%v", got, ok)
 	}
@@ -181,7 +181,7 @@ func TestExternalABSMetadataFallbackOnlyWithoutReadableInItemFile(t *testing.T) 
 	}
 	st, _ := os.Stat(inside)
 	g.companions = []file{{path: inside, info: st}}
-	got, ok = readABSMetadata(g, "existing-id", metadataRoot)
+	got, ok = readABSMetadata(g, "existing-id", config.Config{MetadataPath: metadataRoot})
 	if !ok || got.Title != "In-item title" {
 		t.Fatalf("in-item metadata=%+v readable=%v", got, ok)
 	}

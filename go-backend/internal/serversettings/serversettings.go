@@ -88,9 +88,9 @@ var defaults = func() map[string]any {
 
 // withDefaults is the document of a server that has stored nothing: the
 // defaults plus the backup folder and signing algorithm the server picks.
-func withDefaults(metadataPath string) map[string]any {
+func withDefaults(backupsDir string) map[string]any {
 	doc := maps.Clone(defaults)
-	doc["backupPath"] = filepath.Join(metadataPath, "backups")
+	doc["backupPath"] = backupsDir
 	doc["authOpenIDTokenSigningAlgorithm"] = DefaultSigningAlgorithm
 	return doc
 }
@@ -112,8 +112,8 @@ func ApplyEnv(doc map[string]any) {
 }
 
 // FreshDocument is the server-settings row a new database starts with.
-func FreshDocument(metadataPath string) map[string]any {
-	doc := withDefaults(metadataPath)
+func FreshDocument(backupsDir string) map[string]any {
+	doc := withDefaults(backupsDir)
 	ApplyEnv(doc)
 	delete(doc, "tokenSecret")
 	return doc
@@ -121,8 +121,8 @@ func FreshDocument(metadataPath string) map[string]any {
 
 // ForBrowser is ServerSettings.toJSONForBrowser: the stored settings over the
 // defaults, the environment overrides and the host time zone, without secrets.
-func (s Settings) ForBrowser(metadataPath string) map[string]any {
-	doc := withDefaults(metadataPath)
+func (s Settings) ForBrowser(backupsDir string) map[string]any {
+	doc := withDefaults(backupsDir)
 	maps.Copy(doc, s.Doc())
 	// TS ServerSettings keeps an unset authOpenIDTokenURL as null (`settings.x || null`),
 	// and the fresh default row does not store the key.

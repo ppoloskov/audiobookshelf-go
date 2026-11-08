@@ -32,7 +32,7 @@ type fileStore struct {
 	mu  sync.Mutex
 	now func() time.Time
 
-	root     string // METADATA_PATH once OpenFiles ran
+	root     string // the logs directory once OpenFiles ran
 	dailyDir string
 	opened   bool
 	keep     int
@@ -67,12 +67,12 @@ func (l *Logger) ApplySettings(dailyLogsToKeep int) {
 // logs/daily and logs/scans, remove daily logs beyond the keep count, open
 // today's file (loading what it already holds) and flush entries logged
 // earlier. Fatal entries logged earlier go to the crash log now.
-func (l *Logger) OpenFiles(metadataPath string) error {
+func (l *Logger) OpenFiles(logsDir string) error {
 	f := &l.files
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	dailyDir := filepath.Join(metadataPath, "logs", "daily")
-	scanDir := filepath.Join(metadataPath, "logs", "scans")
+	dailyDir := filepath.Join(logsDir, "daily")
+	scanDir := filepath.Join(logsDir, "scans")
 	for _, dir := range []string{dailyDir, scanDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			err = fmt.Errorf("[LogManager] Failed to create log directories at %q: %w", dailyDir, err)
@@ -80,7 +80,7 @@ func (l *Logger) OpenFiles(metadataPath string) error {
 			return err
 		}
 	}
-	f.root, f.dailyDir = metadataPath, dailyDir
+	f.root, f.dailyDir = logsDir, dailyDir
 
 	// scanLogFiles: *.txt files, sorted by name.
 	f.names = f.names[:0]
@@ -191,7 +191,7 @@ func (f *fileStore) appendCrashLocked(e LogEntry, l *Logger) {
 	}
 	line, err := marshalLine(e)
 	if err == nil {
-		dir := filepath.Join(f.root, "logs")
+		dir := f.root
 		if err = os.MkdirAll(dir, 0o755); err == nil {
 			var file *os.File
 			file, err = os.OpenFile(filepath.Join(dir, "crash_logs.txt"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)

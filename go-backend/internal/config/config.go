@@ -170,3 +170,29 @@ func normalizeBasePath(value string) string {
 	}
 	return value
 }
+
+// Dirs are the folders under MetadataPath. Their names are the TS server's
+// (rollback reads them), so they are contract; every package that touches one
+// asks here, so backup, restore and the writers cannot disagree.
+type Dirs struct {
+	Items      string // items/<id>: item metadata and covers
+	Authors    string // authors/<id>.<ext>: author images
+	Cache      string // purgeable caches
+	CoverCache string // cache/covers: resized item covers
+	ImageCache string // cache/images: resized author images
+	ItemCache  string // cache/items/<id>: per-item cache
+	Streams    string // streams/<sessionID>: HLS output
+	Backups    string // default backup folder
+	Logs       string // daily, scan and crash logs
+}
+
+// Dirs resolves the layout under MetadataPath.
+func (c Config) Dirs() Dirs {
+	m := c.MetadataPath
+	cache := filepath.Join(m, "cache")
+	return Dirs{
+		Items: filepath.Join(m, "items"), Authors: filepath.Join(m, "authors"), Cache: cache,
+		CoverCache: filepath.Join(cache, "covers"), ImageCache: filepath.Join(cache, "images"), ItemCache: filepath.Join(cache, "items"),
+		Streams: filepath.Join(m, "streams"), Backups: filepath.Join(m, "backups"), Logs: filepath.Join(m, "logs"),
+	}
+}

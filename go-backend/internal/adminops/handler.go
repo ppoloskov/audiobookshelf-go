@@ -51,7 +51,7 @@ type Deps struct {
 	ItemChanged func(context.Context, string) error
 	// WatcherUpdate applies one watcher notification (type add, unlink or
 	// rename) for a path in a library.
-	WatcherUpdate func(ctx context.Context, libraryID, path, kind string) error
+	WatcherUpdate func(libraryID, path, kind string)
 }
 
 func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler {
@@ -132,9 +132,8 @@ func (h *Handler) writeSettings(w http.ResponseWriter, r *http.Request, body map
 	if err != nil {
 		return httputil.Internal("database error", err)
 	}
-	body["serverSettings"] = stored.ForBrowser(h.cfg.MetadataPath)
-	httputil.WriteJSON(w, http.StatusOK, body)
-	return nil
+	body["serverSettings"] = stored.ForBrowser(h.cfg.Dirs().Backups)
+	return httputil.JSON(w, r, body)
 }
 func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request) error {
 	var patch map[string]any
@@ -265,8 +264,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, patch boo
 		}
 	}
 	out["authOpenIDSamplePermissions"] = samplePermissions
-	httputil.WriteJSON(w, http.StatusOK, out)
-	return nil
+	return httputil.JSON(w, r, out)
 }
 func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request) error {
 	var p struct {
@@ -349,14 +347,13 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request) error {
 	return httputil.OK(w, r)
 }
 func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request) error {
-	httputil.WriteJSON(w, http.StatusOK, logging.Default().LoggerData())
-	return nil
+	return httputil.JSON(w, r, logging.Default().LoggerData())
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, itemsOnly bool) error {
-	root := filepath.Join(h.cfg.MetadataPath, "cache")
+	root := h.cfg.Dirs().Cache
 	if itemsOnly {
-		root = filepath.Join(root, "items")
+		root = h.cfg.Dirs().ItemCache
 	}
 	if itemsOnly {
 		logging.Infof("[CacheManager] Purging items cache at %q", root) // CacheManager.js:139
@@ -370,8 +367,8 @@ func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, itemsOnly b
 		return httputil.Internal("Failed to purge cache", err)
 	}
 	if !itemsOnly {
-		for _, child := range []string{"covers", "images", "items"} {
-			if err := os.MkdirAll(filepath.Join(root, child), 0755); err != nil {
+		for _, dir := range []string{h.cfg.Dirs().CoverCache, h.cfg.Dirs().ImageCache, h.cfg.Dirs().ItemCache} {
+			if err := os.MkdirAll(dir, 0755); err != nil {
 				return httputil.Internal("Failed to purge cache", err)
 			}
 		}
@@ -394,8 +391,7 @@ func (h *Handler) serverStats(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes`).Scan(&podcastFiles); err != nil {
 		return httputil.Internal("Internal server error", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"books": map[string]any{"totalSize": booksSize, "numItems": booksCount, "numAudioFiles": bookFiles}, "podcasts": map[string]any{"totalSize": podcastsSize, "numItems": podcastsCount, "numAudioFiles": podcastFiles}, "total": map[string]any{"totalSize": booksSize + podcastsSize, "numItems": booksCount + podcastsCount, "numAudioFiles": bookFiles + podcastFiles}})
 }
 
 func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request) error {
@@ -414,9 +410,7 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request) erro
 	if body.Type == "rename" && body.OldPath == "" {
 		return httputil.Status(400, "")
 	}
-	if err := h.deps.WatcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type); err != nil {
-		return httputil.Internal("Failed to update watched path", err)
-	}
+	h.deps.WatcherUpdate(body.LibraryID, body.Path, body.Type)
 	return httputil.OK(w, r)
 }
 func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, column string) error {
@@ -449,8 +443,7 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, column st
 	if column == "tags" {
 		sort.Slice(values, func(i, j int) bool { return strings.ToLower(values[i]) < strings.ToLower(values[j]) })
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{column: values})
-	return nil
+	return httputil.JSON(w, r, map[string]any{column: values})
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, column, oldKey, newKey string) error {
 	var p map[string]string
@@ -478,8 +471,7 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, column,
 	if err != nil {
 		return httputil.Internal("failed to update item metadata", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed})
-	return nil
+	return httputil.JSON(w, r, map[string]any{map[string]string{"tag": "tagMerged", "genre": "genreMerged"}[oldKey]: merged, "numItemsUpdated": changed})
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, column string) error {
 	// The client sends the name base64-encoded and URL-escaped; PathValue
@@ -502,8 +494,7 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, column 
 	if err != nil {
 		return httputil.Internal("failed to update item metadata", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numItemsUpdated": changed})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"numItemsUpdated": changed})
 }
 
 func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func([]string) ([]string, bool)) (int, error) {
@@ -652,8 +643,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request) error {
 	if err := rows.Err(); err != nil {
 		return httputil.Internal("database error", err)
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"numListeningSessions": sessions, "numBooksAdded": booksAdded, "numAuthorsAdded": authors, "totalBooksAddedSize": sizeSum, "totalBooksAddedDuration": math.Round(durationSum), "booksAddedWithCovers": covers, "totalBooksSize": totalSize, "totalBooksDuration": totalDuration, "totalListeningTime": totalListen, "numBooks": bookCount, "topAuthors": topTimes(authorTimes, "name"), "topNarrators": topTimes(narratorTimes, "name"), "topGenres": topTimes(genreTimes, "genre")})
 }
 
 // orderedTimes is a JS object used as a map: keys keep first-insertion
@@ -714,8 +704,7 @@ func (h *Handler) filesystem(w http.ResponseWriter, r *http.Request) error {
 			dirs = append(dirs, map[string]any{"path": filepath.ToSlash(full), "dirname": entry.Name(), "level": level})
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"posix": os.PathSeparator == '/', "directories": dirs})
 }
 func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.User) error {
 	if !access.For(r.Context(), u).Upload() {
@@ -745,8 +734,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		return httputil.Status(400, "")
 	}
 	if _, e = os.Stat(target); e == nil {
-		httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true})
-		return nil
+		return httputil.JSON(w, r, map[string]any{"exists": true})
 	}
 	cleaned := filepath.ToSlash(filepath.Clean(p.Directory))
 	if strings.Contains(cleaned, "/") {
@@ -755,19 +743,17 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 		if strings.Contains(subdir, "/") {
 			paths = append(paths, filepath.ToSlash(filepath.Join(p.FolderPath, filepath.Dir(subdir))))
 		}
-		marks := strings.TrimRight(strings.Repeat("?,", len(paths)), ",")
+		marks := store.Placeholders(len(paths))
 		args := make([]any, len(paths))
 		for i, path := range paths {
 			args[i] = path
 		}
 		var title sql.NullString
 		if h.db.QueryRowContext(r.Context(), `SELECT title FROM libraryItems WHERE path IN (`+marks+`) LIMIT 1`, args...).Scan(&title) == nil {
-			httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": true, "libraryItemTitle": title.String})
-			return nil
+			return httputil.JSON(w, r, map[string]any{"exists": true, "libraryItemTitle": title.String})
 		}
 	}
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{"exists": false})
-	return nil
+	return httputil.JSON(w, r, map[string]any{"exists": false})
 }
 func validMobileURI(v string) bool {
 	return regexp.MustCompile(`(?i)^\w+://[\w.-]+(/[\w./-]*)*$`).MatchString(v)

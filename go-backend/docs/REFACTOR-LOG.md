@@ -763,3 +763,10 @@ Node does (libraryFilters.js:13-20); watcher batches could race a library scan a
 Ratchet raised by the bug fixes: +30 handwritten lines, +1 []any (scan-run queueing and playlist renumbering);
 complexity −9.
 Open for the owner: TS emits playlist_updated/playlist_removed when deletes change playlists; Go does not.
+
+### Fix wave E3 (2026-11-08)
+`config.Config.Dirs()` owns the on-disk metadata layout (items, authors, cache/covers|images|items, streams, backups,
+logs); ~25 literal sites in catalog, scanner, backup, restore, playback, audiotools, adminops and logging switched; paths
+unchanged. Error-returning handlers answer JSON through `httputil.JSON` (ETag/304 on GET 200 per ADR-001/002);
+`WriteJSON` keeps four non-handler callers. `store.Placeholders` in access, libitem, scanner and adminops.
+adminops `WatcherUpdate` is the scanner's queueing function directly (no 500 branch).

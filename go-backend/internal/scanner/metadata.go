@@ -35,7 +35,7 @@ func (s *Scanner) WriteMetadata(ctx context.Context, itemID string) error {
 		return errors.New("scanner: expanded item metadata is missing")
 	}
 	withItem := serversettings.Load(ctx, s.db).Bool("storeMetadataWithItem") && (item.MediaType == "podcast" || !item.IsFile)
-	metadataDir := filepath.Join(s.cfg.MetadataPath, "items", itemID)
+	metadataDir := filepath.Join(s.cfg.Dirs().Items, itemID)
 	if withItem {
 		metadataDir = item.Path
 	} else if s.cfg.MetadataPath == "" {

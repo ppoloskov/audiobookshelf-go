@@ -78,11 +78,6 @@ func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Reque
 	return h.deleteCustomProvider(w, r, id)
 }
 
-func stream(w http.ResponseWriter, status int, v any) error {
-	httputil.WriteJSON(w, status, v)
-	return nil
-}
-
 type customProvider struct {
 	ID              string          `json:"id"`
 	Name            string          `json:"name"`
@@ -161,7 +156,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) e
 		customProvider
 		ExtraData json.RawMessage `json:"extraData,omitempty"`
 	}{customProvider: p, ExtraData: p.ExtraData}
-	return stream(w, http.StatusOK, map[string]any{"provider": created})
+	return httputil.JSON(w, r, map[string]any{"provider": created})
 }
 
 func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, id string) error {
