@@ -23,12 +23,11 @@ import (
 )
 
 type Handler struct {
-	db         *sql.DB
-	client     *http.Client
-	emit       events.Emitter
-	endpointMu sync.RWMutex
-	endpoints  map[string]string
-	// coverSearches maps the running socket cover searches to their cancel.
+	db            *sql.DB
+	client        *http.Client
+	emit          events.Emitter
+	endpointMu    sync.RWMutex
+	endpoints     map[string]string
 	coverMu       sync.Mutex
 	coverSearches map[string]context.CancelFunc
 }
@@ -80,7 +79,6 @@ func (h *Handler) deleteCustomProviderRoute(w http.ResponseWriter, r *http.Reque
 	return h.deleteCustomProvider(w, r, id)
 }
 
-// stream answers with JSON.
 func stream(w http.ResponseWriter, status int, v any) error {
 	httputil.WriteJSON(w, status, v)
 	return nil

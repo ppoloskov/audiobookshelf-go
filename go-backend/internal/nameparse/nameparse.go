@@ -90,7 +90,6 @@ func parseFullName(name string) parsed {
 		return out
 	}
 
-	// Nickname: remove and store parts with surrounding punctuation.
 	padded := " " + name + " "
 	matches := nicknameRE.FindAllString(padded, -1)
 	if len(matches) == 1 {
@@ -108,7 +107,6 @@ func parseFullName(name string) parsed {
 		return finish()
 	}
 
-	// Split into parts, remembering which part ended with a comma.
 	var parts []string
 	commas := []string{""}
 	for _, part := range strings.Split(name, " ") {
@@ -166,7 +164,6 @@ func parseFullName(name string) parsed {
 		return finish()
 	}
 
-	// Join name prefixes to the following name.
 	if len(parts) > 1 {
 		for i := len(parts) - 2; i >= 0; i-- {
 			if contains(prefixes, strings.ToLower(parts[i])) {
@@ -177,7 +174,6 @@ func parseFullName(name string) parsed {
 		}
 	}
 
-	// Join conjunctions to the surrounding names.
 	if len(parts) > 2 {
 		for i := len(parts) - 3; i >= 0; i-- {
 			if contains(conjunctions, strings.ToLower(parts[i+1])) {
@@ -220,7 +216,6 @@ func parseFullName(name string) parsed {
 		out.suffix = strings.Join(found, ", ")
 	}
 
-	// Last name.
 	if remaining > 0 {
 		// `if (nameCommas.indexOf(','))`: skipped only when the first comma is at 0.
 		if idx := indexOf(commas, ","); idx != 0 {

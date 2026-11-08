@@ -249,8 +249,6 @@ func measureSimplification(root string) (metrics, []funcStat, error) {
 
 var generatedHeader = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
-// isGeneratedSource reports whether a line before the package clause matches
-// the generated-code header.
 func isGeneratedSource(src []byte) bool {
 	for _, line := range strings.Split(string(src), "\n") {
 		line = strings.TrimSuffix(line, "\r")
@@ -300,7 +298,6 @@ func complexity(fn *ast.FuncDecl) int {
 	return total
 }
 
-// funcName returns "Name" for functions and "Recv.Name" for methods.
 func funcName(fn *ast.FuncDecl) string {
 	if fn.Recv == nil || len(fn.Recv.List) == 0 {
 		return fn.Name.Name
@@ -327,7 +324,6 @@ func receiverName(expr ast.Expr) string {
 	return ""
 }
 
-// printTop lists the n most complex functions, most complex first.
 func printTop(w io.Writer, funcs []funcStat, n int) {
 	sorted := append([]funcStat(nil), funcs...)
 	sort.SliceStable(sorted, func(i, j int) bool {

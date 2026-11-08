@@ -20,15 +20,12 @@ type shelfDef struct {
 	query               func(*shelfEnv) (shelfQuery, error)
 }
 
-// shelfQuery is what a shelf shows: the library items it needs loaded, its
-// total, and how it renders them. build gets those items in ids order.
 type shelfQuery struct {
 	ids   []string
 	total int
 	build func([]shelfItem) ([]any, error)
 }
 
-// shelfItem is a loaded item and its shelf rendering.
 type shelfItem struct {
 	min libitem.Minified
 	src libitem.Item
@@ -114,8 +111,6 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib libra
 	return nil
 }
 
-// load renders ids in the shelf shape in id order; a missing id is
-// sql.ErrNoRows. Podcast libraries load the episode shelves' episodes too.
 func (e *shelfEnv) load(ids []string) ([]shelfItem, error) {
 	loaded, err := libitem.Load(e.r.Context(), e.h.db, ids, libitem.Options{Episodes: e.podcast, EpisodeIDs: e.episodes})
 	if err != nil {
@@ -151,7 +146,6 @@ func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
 	return q, err
 }
 
-// attach renders items with their include= entities.
 func (e *shelfEnv) attach(inc itemIncludes) func([]shelfItem) ([]any, error) {
 	return func(items []shelfItem) ([]any, error) {
 		out := make([]any, len(items))

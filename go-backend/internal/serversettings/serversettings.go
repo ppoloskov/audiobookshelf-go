@@ -17,7 +17,6 @@ import (
 	"audiobookshelf-compat/internal/textsort"
 )
 
-// Settings is an immutable snapshot of the stored document.
 type Settings struct {
 	doc      map[string]any
 	prefixes []string
@@ -39,13 +38,10 @@ func (s Settings) Doc() map[string]any {
 	return out
 }
 
-// Bool is the document's boolean key (false when absent or not a boolean).
 func (s Settings) Bool(key string) bool { v, _ := s.doc[key].(bool); return v }
 
-// String is the document's string key ("" when absent or not a string).
 func (s Settings) String(key string) string { v, _ := s.doc[key].(string); return v }
 
-// SortingPrefixes returns a copy of the parsed sortingPrefixes.
 func (s Settings) SortingPrefixes() []string { return slices.Clone(s.prefixes) }
 
 // IgnorePrefix is sortingIgnorePrefix: sort titles without their prefix.
@@ -57,10 +53,8 @@ func EnvAllowIframe() bool { return os.Getenv("ALLOW_IFRAME") == "1" }
 // EnvBackupPath is BACKUP_PATH, which overrides the stored backupPath.
 func EnvBackupPath() string { return os.Getenv("BACKUP_PATH") }
 
-// AllowIframe is allowIframe as the server enforces it (stored or forced).
 func (s Settings) AllowIframe() bool { return s.Bool("allowIframe") || EnvAllowIframe() }
 
-// Defaults is the server-settings document of a fresh install.
 func Defaults() map[string]any {
 	var defaults struct {
 		Rows []struct {
@@ -81,8 +75,6 @@ func Defaults() map[string]any {
 	return out
 }
 
-// Save writes the whole document and drops the cached value; it is the only
-// writer of the server-settings row.
 func Save(ctx context.Context, db *sql.DB, doc map[string]any) error {
 	b, err := json.Marshal(doc)
 	if err != nil {

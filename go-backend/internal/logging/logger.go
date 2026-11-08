@@ -72,10 +72,8 @@ func New(opts Options) *Logger {
 
 var defaultLogger = New(Options{})
 
-// Default is the process-wide logger (see the package comment).
 func Default() *Logger { return defaultLogger }
 
-// Level returns the current minimum level.
 func (l *Logger) Level() Level { return Level(l.level.Load()) }
 
 // ChangeLevel is Logger.setLogLevel (server/Logger.js:95): it stores the level
@@ -101,7 +99,6 @@ func (l *Logger) AddSocketListener(socketID string, level Level) {
 	l.sockMu.Unlock()
 }
 
-// RemoveSocketListener is Logger.removeSocketListener (server/Logger.js:61).
 func (l *Logger) RemoveSocketListener(socketID string) {
 	l.sockMu.Lock()
 	delete(l.listeners, socketID)

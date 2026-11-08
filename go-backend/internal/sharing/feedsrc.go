@@ -312,7 +312,6 @@ type aggregateEntity struct {
 	books      []bookData
 }
 
-// loadCollectionEntity reads a collection and its books in collection order.
 func (h *Handler) loadCollectionEntity(ctx context.Context, id string) (aggregateEntity, error) {
 	c, err := sqlc.New(h.db).GetCollection(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -350,8 +349,7 @@ func (h *Handler) loadBooks(ctx context.Context, itemIDs []string) ([]bookData, 
 	return books, nil
 }
 
-// loadSeriesEntity reads a series and its books in sequence order. Series are
-// not in the sqlc set yet (ROADMAP L8), so this stays a handwritten scan.
+// loadSeriesEntity reads a series and its books in sequence order.
 func (h *Handler) loadSeriesEntity(ctx context.Context, id string) (aggregateEntity, error) {
 	var agg aggregateEntity
 	err := h.db.QueryRowContext(ctx, `SELECT name,description,updatedAt FROM series WHERE id=?`, id).Scan(&agg.name, &agg.desc, &agg.updated)

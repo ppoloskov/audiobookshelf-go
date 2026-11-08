@@ -26,7 +26,6 @@ var validCollapseSubseriesSorts = map[string]bool{
 	"progress.finishedAt": true, "random": true,
 }
 
-// subseriesSeries is one of a book's series with its bookSeries sequence.
 type subseriesSeries struct {
 	id, name, nameIgnorePrefix string
 	sequence                   *string
@@ -104,7 +103,6 @@ func nodeBase64Decode(text string) string {
 	return string(decoded)
 }
 
-// trimPartial drops a trailing single character that cannot form a byte.
 func trimPartial(s string) string {
 	if len(s)%4 == 1 {
 		return s[:len(s)-1]

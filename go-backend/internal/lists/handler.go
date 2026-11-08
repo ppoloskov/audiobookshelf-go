@@ -17,7 +17,7 @@ import (
 )
 
 // Handler owns authenticated HTTP routes and persistence for playlists and
-// collections. Runtime supplies the existing authorization decisions.
+// collections.
 type Handler struct {
 	db      *sql.DB
 	emit    events.Emitter

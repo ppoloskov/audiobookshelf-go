@@ -31,7 +31,6 @@ type deviceInfo struct {
 	SDKVersion     string `json:"sdkVersion,omitempty"`
 }
 
-// clientDevice is the deviceInfo a client sends.
 type clientDevice struct {
 	DeviceID      string     `json:"deviceId"`
 	ClientVersion string     `json:"clientVersion"`

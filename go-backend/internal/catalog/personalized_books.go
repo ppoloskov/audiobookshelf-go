@@ -20,7 +20,6 @@ import (
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
-// editBookMetadata edits the metadata of a rendered book item.
 func editBookMetadata(item *libitem.Minified, edit func(metadata *libitem.BookMetadataMinified)) {
 	if media, ok := item.Media.(libitem.BookMinified); ok {
 		edit(&media.Metadata)

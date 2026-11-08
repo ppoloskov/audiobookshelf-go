@@ -13,7 +13,7 @@ import (
 
 // itemGoldenPath holds the output of ItemJSON (plain and expanded) and
 // ItemMinifiedJSON for the fixture items. It was captured from the
-// map-based serializers before they were typed (ROADMAP T2), so a typed
+// map-based serializers before they were typed, so a typed
 // rewrite must reproduce it. Keys are compared as canonical JSON (sorted
 // object keys, as encoding/json writes maps), values exactly.
 //

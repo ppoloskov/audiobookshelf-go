@@ -195,8 +195,8 @@ func TestQueryCounterIncludesPreparedReads(t *testing.T) {
 	}
 }
 
-// A page with include= used to build each row with its own queries (83 reads
-// for 20 rows); every page shape now loads through one libitem.Load.
+// A page with include= loads through one libitem.Load, so its query count does
+// not grow with the page size.
 func TestIncludePageQueryCountIndependentOfPageSize(t *testing.T) {
 	counts := map[int]int64{}
 	for _, size := range []int{10, 50} {

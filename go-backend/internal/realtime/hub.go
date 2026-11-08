@@ -118,7 +118,6 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// Paths reports the registered legacy and prefixed Socket.IO request paths.
 func (h *Hub) Paths() []string { return append([]string(nil), h.paths...) }
 
 // Close closes every connection and refuses new ones.
@@ -328,7 +327,6 @@ func (h *Hub) Refresh(ctx context.Context, userID string) error {
 	return nil
 }
 
-// EmitSocket emits to one active socket connection identified by socket ID.
 func (h *Hub) EmitSocket(socketID, event string, payload any) bool {
 	h.mu.RLock()
 	client := h.clients[socketID]

@@ -30,7 +30,6 @@ func SendText(w http.ResponseWriter, status int, body string, opts ...Option) {
 	writeText(w, status, "text/html; charset=utf-8", body, o)
 }
 
-// ErrorJSON writes {"error": message}.
 func ErrorJSON(w http.ResponseWriter, status int, message string, opts ...Option) {
 	WriteJSON(w, status, map[string]string{"error": message}, opts...)
 }

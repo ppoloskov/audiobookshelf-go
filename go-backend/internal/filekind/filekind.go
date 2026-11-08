@@ -55,7 +55,6 @@ func IsCompanion(ext string) bool {
 	return false
 }
 
-// AudioMime is the MIME type of an audio file extension.
 func AudioMime(ext string) string {
 	if e := table[strings.ToLower(ext)]; e.kind == Audio && e.mime != "" {
 		return e.mime

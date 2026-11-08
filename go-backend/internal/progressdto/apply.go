@@ -207,7 +207,6 @@ func resolveTarget(ctx context.Context, db *sql.DB, p Payload) (target, error) {
 	return target{mediaItemID: mediaID, mediaItemType: "book"}, nil
 }
 
-// row is a mediaProgresses row as the Sequelize model holds it.
 type row struct {
 	id            string
 	duration      *float64

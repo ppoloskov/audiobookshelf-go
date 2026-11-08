@@ -23,7 +23,6 @@ type authorWithBooks struct {
 	NumBooks int `json:"numBooks"`
 }
 
-// authorListEntry is one author of GET /api/libraries/:id/authors.
 type authorListEntry struct {
 	authorWithBooks
 	LastFirst *string `json:"lastFirst"`
@@ -66,7 +65,6 @@ type authorMatchResult struct {
 	Author  authorView `json:"author"`
 }
 
-// authorImageResult is the body of POST and DELETE /api/authors/:id/image.
 type authorImageResult struct {
 	Author authorView `json:"author"`
 }

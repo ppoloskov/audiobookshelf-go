@@ -40,14 +40,12 @@ type conn struct {
 	sock   *Socket
 }
 
-// randomID returns 20 random base64url characters (a socket.io style id).
 func randomID() string {
 	var b [15]byte
 	_, _ = rand.Read(b[:])
 	return base64.RawURLEncoding.EncodeToString(b[:])
 }
 
-// engineError answers a request Engine.IO refuses before the upgrade.
 func engineError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

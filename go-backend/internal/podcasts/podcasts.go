@@ -438,7 +438,6 @@ func (h *Handler) loadItem(ctx context.Context, id string) (libitem.Item, error)
 	return it, err
 }
 
-// expanded is the item's socket and detail JSON.
 func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expanded {
 	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes())
 }
@@ -459,7 +458,6 @@ func str(s *string) string {
 	return *s
 }
 
-// episodeMatch is one hit of the search-episode response.
 type episodeMatch struct {
 	Episode Episode `json:"episode"`
 }
@@ -486,9 +484,8 @@ func matchEpisodes(episodes []Episode, query string) []episodeMatch {
 	return out
 }
 
-// FetchFeedEpisodes fetches and parses a podcast feed using the handler's
-// configured HTTP client and network policy. It is intended for scanner
-// integration and returns parsed episode maps in API shape.
+// FetchFeedEpisodes parses a feed through the handler's HTTP client and network
+// policy and returns the episodes in API shape.
 func (h *Handler) FetchFeedEpisodes(ctx context.Context, feedURL string) ([]map[string]any, error) {
 	feed, err := h.getFeed(ctx, feedURL)
 	if err != nil {

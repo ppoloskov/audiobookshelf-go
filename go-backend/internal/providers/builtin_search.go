@@ -71,7 +71,6 @@ func (h *Handler) searchBuiltinBooks(ctx context.Context, provider, title, autho
 	}
 }
 
-// googleItem is one Google Books volume.
 type googleItem struct {
 	ID     string `json:"id"`
 	Volume struct {
@@ -489,7 +488,6 @@ func (h *Handler) getJSON(ctx context.Context, endpoint string, target any) erro
 	return nil
 }
 
-// fantWork is a FantLab extended work.
 type fantWork struct {
 	WorkID         any    `json:"work_id"`
 	Name           text   `json:"work_name"`
@@ -592,7 +590,6 @@ func (h *Handler) searchFantLab(ctx context.Context, title, author string) ([]bo
 	return out, nil
 }
 
-// audnexusBook is an Audnexus book record.
 type audnexusBook struct {
 	ASIN          text `json:"asin"`
 	Title         text

@@ -10,10 +10,8 @@ import "time"
 
 const layout = "2006-01-02 15:04:05.000 -07:00"
 
-// Now returns the current time in the canonical SQLite DATETIME format.
 func Now() string { return Format(time.Now()) }
 
-// Format returns t in the canonical SQLite DATETIME format, normalized to UTC.
 func Format(t time.Time) string { return t.UTC().Format(layout) }
 
 // parseLayouts are the DATETIME spellings found in upstream-written and

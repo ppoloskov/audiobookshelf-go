@@ -70,7 +70,6 @@ type Credentials interface {
 	DeleteAPIKey(ctx context.Context, id string) (bool, error)
 }
 
-// New takes identity, which owns tokens, passwords, sessions and API keys.
 func New(db *sql.DB, ident Credentials, emit events.Emitter, deps Deps) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
@@ -78,7 +77,6 @@ func New(db *sql.DB, ident Credentials, emit events.Emitter, deps Deps) (*Handle
 	return &Handler{db: db, ident: ident, emit: emit, deps: deps}, nil
 }
 
-// Routes mounts the user-facing API (ApiRouter.js) on the runtime's mux.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	for pattern, fn := range map[string]func(http.ResponseWriter, *http.Request, store.User) error{
 		"GET /api/me":                                              h.getMe,
@@ -327,7 +325,6 @@ func (h *Handler) updateProgress(ctx context.Context, user store.User, p progres
 	return progressdto.Apply(ctx, h.db, user.ID, p)
 }
 
-// saveBookmark creates (POST) or retitles (PATCH) a bookmark of a library item.
 func (h *Handler) saveBookmark(w http.ResponseWriter, r *http.Request, user store.User) error {
 	itemID := r.PathValue("id")
 	if err := h.requireItemAccess(r, user, itemID); err != nil {
@@ -389,8 +386,6 @@ func (h *Handler) deleteBookmark(w http.ResponseWriter, r *http.Request, user st
 	return httputil.OK(w, r)
 }
 
-// requireItemAccess answers 404 for a missing item and 403 for one the user
-// cannot read.
 func (h *Handler) requireItemAccess(r *http.Request, user store.User, itemID string) error {
 	access, err := h.canAccessItem(r.Context(), user, itemID)
 	if err != nil {
@@ -837,7 +832,6 @@ func (h *Handler) updateAPIKey(w http.ResponseWriter, r *http.Request, current s
 
 type itemAccess struct{ exists, allowed bool }
 
-// CanReadItem exposes the existing per-user item ACL decision to the list route owner.
 func (h *Handler) CanReadItem(ctx context.Context, user store.User, itemID string) (bool, error) {
 	ia, err := h.canAccessItem(ctx, user, itemID)
 	return ia.allowed, err

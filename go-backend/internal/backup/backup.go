@@ -72,8 +72,6 @@ type Backup struct {
 	ServerVersion string `json:"serverVersion"`
 }
 
-// withDefaults fills the backup directory and retention count a settings
-// document leaves out.
 func (h *Handler) withDefaults(opt Options) Options {
 	if strings.TrimSpace(opt.BackupPath) == "" {
 		opt.BackupPath = filepath.Join(h.cfg.MetadataPath, "backups")
@@ -100,8 +98,7 @@ func (h *Handler) schedule(spec string) (*cron.Cron, error) {
 	return c, nil
 }
 
-// New starts the backup service. notify delivers backup lifecycle events to
-// the notification system.
+// New starts the backup service. notify receives backup lifecycle events.
 func New(cfg config.Config, opt Options, emit events.Emitter, notify NotificationFunc) (*Handler, error) {
 	h := &Handler{cfg: cfg, emit: emit, notify: notify}
 	h.opt = h.withDefaults(opt)
@@ -135,8 +132,6 @@ func (h *Handler) notifyEvent(ctx context.Context, name string, data map[string]
 	}
 }
 
-// UpdateOptions applies already-persisted server backup settings. It refreshes
-// backup discovery and reschedules cron work without replacing runtime sockets.
 func (h *Handler) UpdateOptions(ctx context.Context, opt Options) error {
 	opt = h.withDefaults(opt)
 	if err := os.MkdirAll(opt.BackupPath, 0755); err != nil {
@@ -314,9 +309,6 @@ func (h *Handler) create(ctx context.Context) (Backup, error) {
 	return backup, nil
 }
 
-// put adds b to the list (replacing a backup with the same id), keeps the list
-// ordered by creation time and returns the oldest backups beyond keep (all
-// when keep is not positive means none are dropped).
 func (h *Handler) put(b Backup, keep int) (expired []Backup) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

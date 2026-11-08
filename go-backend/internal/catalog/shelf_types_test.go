@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// Shelf replaced a map[string]any literal; encoding/json writes map keys
-// sorted, so the struct has to produce the same bytes.
+// encoding/json writes map keys sorted, so the struct has to produce the same
+// bytes as a map[string]any literal.
 func TestShelfEncodesLikeTheMapItReplaced(t *testing.T) {
 	for _, entities := range []any{[]string{"a"}, []map[string]any{}, []map[string]any(nil), nil} {
 		want, err := json.Marshal(map[string]any{"id": "recently-added", "label": "Recently Added", "labelStringKey": "LabelRecentlyAdded", "type": "book", "entities": entities, "total": 3})

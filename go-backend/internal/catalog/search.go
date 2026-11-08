@@ -153,7 +153,6 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	return out, nil
 }
 
-// libraryItemHit is one {libraryItem} entry of the search response.
 type libraryItemHit struct {
 	LibraryItem libitem.Expanded `json:"libraryItem"`
 }
@@ -276,7 +275,6 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 	return out, nil
 }
 
-// seriesSearchHit is one {series, books} entry of the search response.
 type seriesSearchHit struct {
 	Series seriesView     `json:"series"`
 	Books  []libitem.Full `json:"books"`

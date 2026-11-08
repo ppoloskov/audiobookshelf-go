@@ -109,7 +109,6 @@ func coverProviders(req CoverRequest) []string {
 	return []string{req.Provider}
 }
 
-// providerCovers returns the distinct cover URLs one provider has for req.
 func (h *Handler) providerCovers(ctx context.Context, provider string, req CoverRequest) ([]string, error) {
 	if req.Podcast {
 		query := url.Values{"term": {req.Title}, "entity": {"podcast"}, "media": {"podcast"}}

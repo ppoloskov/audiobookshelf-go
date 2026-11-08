@@ -28,7 +28,6 @@ func (s itemScope) mediaTable() (string, error) {
 	return "", httputil.Status(http.StatusBadRequest, "")
 }
 
-// mediaTableOf is the table holding a media type's rows, "" for an unknown type.
 func mediaTableOf(mediaType string) string {
 	return map[string]string{"book": "books", "podcast": "podcasts"}[mediaType]
 }

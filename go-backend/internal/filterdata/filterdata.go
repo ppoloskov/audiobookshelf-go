@@ -25,7 +25,6 @@ import (
 // (libraryFilters.js:455-461).
 const TTL = 30 * time.Minute
 
-// Named is an author or series entry.
 type Named struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -203,7 +202,6 @@ func sorted(set map[string]struct{}) []string {
 	return out
 }
 
-// Cache holds filter data per library.
 type Cache struct {
 	mu   sync.Mutex
 	libs map[string]*Data
@@ -211,7 +209,6 @@ type Cache struct {
 
 func NewCache() *Cache { return &Cache{libs: map[string]*Data{}} }
 
-// Fresh returns a copy of the entry when it is younger than TTL.
 func (c *Cache) Fresh(libraryID string) (Data, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -256,7 +253,7 @@ func (c *Cache) Store(libraryID string, d Data) {
 	c.libs[libraryID] = &d
 }
 
-// Invalidate drops one library's entry, or all of them when libraryID is empty.
+// Invalidate drops all entries when libraryID is empty.
 func (c *Cache) Invalidate(libraryID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

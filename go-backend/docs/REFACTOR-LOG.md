@@ -712,3 +712,11 @@ Bug fixed: `user_added`/`user_removed` went to the audience "admin", which no so
 (UserController.js:187,402 adminEmitter).
 Risk noted: `server` TestSocketConnectAuthLoop timed out once under heavy load (22/200 sockets); 0/4 failures under load
 on both this tree and the previous commit when re-run.
+
+### Comments pass (2026-11-08)
+About 300 comment lines removed or rewritten across the codebase: comments that restated the implementation, doc
+comments that repeated the declaration, and stale notes naming removed workarounds, packages or roadmap packets.
+Kept: TS/upstream source citations, client/OS/SQLite/ffmpeg/Express facts, contract notes, owner decisions, package
+docs. Checked mechanically: every changed Go file parses to the same syntax tree with comments stripped (only
+blank-line/alignment differences where comments were removed). Handwritten lines 38,622 → 38,361 (comment lines
+count in the ratchet).

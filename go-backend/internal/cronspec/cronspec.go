@@ -7,7 +7,6 @@ import "github.com/robfig/cron/v3"
 
 const fields = cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow
 
-// Parser parses five-field cron expressions.
 func Parser() cron.Parser { return cron.NewParser(fields) }
 
 // Validate reports why expression is not a valid five-field cron expression.
@@ -16,8 +15,6 @@ func Validate(expression string) error {
 	return err
 }
 
-// Valid reports whether expression is a valid five-field cron expression.
 func Valid(expression string) bool { return Validate(expression) == nil }
 
-// New returns a scheduler that parses schedules with Parser.
 func New() *cron.Cron { return cron.New(cron.WithParser(Parser())) }

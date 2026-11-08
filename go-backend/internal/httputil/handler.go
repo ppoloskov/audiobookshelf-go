@@ -43,10 +43,8 @@ func Status(status int, message string) error {
 	return &Error{Status: status, Message: message}
 }
 
-// Empty returns an *Error answering status with no body or Content-Type.
 func Empty(status int) error { return &Error{Status: status, Empty: true} }
 
-// Internal returns a 500 *Error with message as the body and cause logged.
 func Internal(message string, cause error) error {
 	return &Error{Status: http.StatusInternalServerError, Message: message, Cause: cause}
 }
@@ -132,13 +130,12 @@ func stripWeak(tag string) string {
 	return tag
 }
 
-// OK answers 200 "OK", Express res.sendStatus(200).
+// OK is Express res.sendStatus(200).
 func OK(w http.ResponseWriter, r *http.Request) error {
 	SendStatus(w, http.StatusOK, ForRequest(r))
 	return nil
 }
 
-// PeerIP is the address of the socket peer, without its port.
 func PeerIP(r *http.Request) string {
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host

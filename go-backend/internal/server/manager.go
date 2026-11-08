@@ -121,7 +121,6 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 		return errors.New("server is closed")
 	}
 
-	// Validate the extracted database before taking the live service offline.
 	check, err := store.Open(dbTemp)
 	if err != nil {
 		return fmt.Errorf("validate backup database: %w", err)
@@ -317,8 +316,6 @@ func dbOrNil(s *store.Store) *sql.DB {
 	return s.DB()
 }
 
-// closeStore closes a database and drops its cached server settings, so a
-// handle closed during restore does not keep a cache entry.
 func closeStore(s *store.Store) error {
 	serversettings.Forget(s.DB())
 	return s.Close()

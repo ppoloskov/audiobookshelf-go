@@ -77,7 +77,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	h.publicRoutes(mux)
 }
 
-// publicRoutes registers the bearer-free routes.
 func (h *Handler) publicRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /feed/{slug}", httputil.Handler(h.publicFeed))
 	mux.Handle("GET /feed/{slug}/{tail...}", httputil.Handler(h.publicFeed))

@@ -33,7 +33,6 @@ func Read(ctx context.Context, db *sql.DB, userID string) ([]wire.MediaProgress,
 	return out, nil
 }
 
-// fromRow is a stored progress row as the browser receives it.
 func fromRow(m sqlc.Mediaprogress) wire.MediaProgress {
 	var extra struct {
 		LibraryItemID *string  `json:"libraryItemId"`

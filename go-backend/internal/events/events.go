@@ -5,9 +5,7 @@ package events
 
 import "time"
 
-// Audience values understood by the delivery function behind an Emitter. They
-// are the only place the realtime vocabulary is spelled; features call ToUser,
-// ToAdmins or ToAll.
+// Audience values understood by the delivery function behind an Emitter.
 const (
 	AllUsers = "*"
 	Admins   = "@admins"
@@ -25,19 +23,15 @@ func (e Emitter) emit(audience, event string, payload any) {
 	}
 }
 
-// ToUser sends the event to the sockets of one user.
 func (e Emitter) ToUser(userID, event string, payload any) { e.emit(userID, event, payload) }
 
 // ToAdmins sends the event to administrators and root.
 func (e Emitter) ToAdmins(event string, payload any) { e.emit(Admins, event, payload) }
 
-// ToAll sends the event to every authenticated user the payload is visible to.
 func (e Emitter) ToAll(event string, payload any) { e.emit(AllUsers, event, payload) }
 
-// TaskStarted publishes task_started for t.
 func (e Emitter) TaskStarted(t Task) { e.ToAll("task_started", t) }
 
-// TaskFinished publishes task_finished for t.
 func (e Emitter) TaskFinished(t Task) { e.ToAll("task_finished", t) }
 
 // Task is the client's background-task record (server/objects/Task.js
@@ -63,7 +57,6 @@ type Task struct {
 	FinishedAt      *int64   `json:"finishedAt"`
 }
 
-// NewTask starts a task now.
 func NewTask(id, action string, data any) Task {
 	return Task{ID: id, Action: action, Data: data, StartedAt: time.Now().UnixMilli()}
 }
@@ -80,7 +73,6 @@ func (t Task) Described(text, key string, subs ...any) Task {
 	return t
 }
 
-// Finished marks the task finished now.
 func (t Task) Finished() Task {
 	now := time.Now().UnixMilli()
 	t.IsFinished, t.FinishedAt = true, &now

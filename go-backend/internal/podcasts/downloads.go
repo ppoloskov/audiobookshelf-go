@@ -152,7 +152,6 @@ func (h *Handler) clearQueue(itemID string) {
 	}
 }
 
-// episodeTaskData is the data of the download-podcast-episode task.
 type episodeTaskData struct {
 	LibraryID     string `json:"libraryId"`
 	LibraryItemID string `json:"libraryItemId"`

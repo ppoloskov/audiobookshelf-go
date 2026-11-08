@@ -217,7 +217,6 @@ func (h *Handler) Authenticate(r *http.Request) (store.User, error) {
 	return user, nil
 }
 
-// authorize answers the upstream /api/authorize route.
 func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.Authenticate(r)
 	if err != nil {
@@ -685,12 +684,8 @@ func (h *Handler) userByIDOrOldID(ctx context.Context, id string) (store.User, e
 	return h.userByID(ctx, matched)
 }
 
-// queries returns the generated query set on the handler's pool. It is cheap:
-// sqlc.New only stores the handle.
 func (h *Handler) queries() *sqlc.Queries { return sqlc.New(h.db) }
 
-// userResult maps a generated users row to store.User; sql.ErrNoRows passes
-// through unchanged for callers that branch on it.
 func userResult(row sqlc.User, err error) (store.User, error) {
 	if err != nil {
 		return store.User{}, err
@@ -983,7 +978,6 @@ func (h *Handler) InvalidateUserSessions(ctx context.Context, userID, currentRef
 	return "", "", err
 }
 
-// HashPassword is the bcrypt hash stored in users.pash.
 func (*Handler) HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	return string(hash), err
@@ -1027,8 +1021,6 @@ func (h *Handler) ChangePassword(ctx context.Context, userID, password, newPassw
 	return h.queries().UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{Pash: store.Text(encoded), Updatedat: dbtime.Format(time.Now()), ID: userID})
 }
 
-// SetRefreshTokenCookie writes the standard refresh cookie used by login,
-// refresh, and credential-change flows.
 func (h *Handler) SetRefreshTokenCookie(w http.ResponseWriter, r *http.Request, refreshToken string) {
 	setRefreshCookie(w, r, refreshToken, int(h.refreshTTL.Seconds()))
 }
@@ -1055,12 +1047,11 @@ func (h *Handler) apiKeyUser(ctx context.Context, keyID string) (store.User, err
 	return user, nil
 }
 
-// IssueLegacyToken is the permanent users.token credential of a user.
 func (h *Handler) IssueLegacyToken(userID, username string) (string, error) {
 	return auth.IssueLegacy(h.secret, userID, username)
 }
 
-// IssueAPIKeyToken is the credential of an API key; expiresAtUnix 0 never expires.
+// IssueAPIKeyToken: expiresAtUnix 0 never expires.
 func (h *Handler) IssueAPIKeyToken(keyID, name string, expiresAtUnix int64) (string, error) {
 	return auth.IssueAPIKey(h.secret, keyID, name, expiresAtUnix)
 }

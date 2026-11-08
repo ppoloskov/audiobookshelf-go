@@ -16,12 +16,10 @@ import (
 	"strings"
 )
 
-// env is what the follow-up of an author or series edit touches.
 func (h *Handler) env() itemwrite.Env {
 	return itemwrite.Env{DB: h.db, Filters: h.filters, Emit: h.emit}
 }
 
-// saveMetadataFiles is libraryItem.saveMetadataFile for each item.
 func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error {
 	if h.deps.ItemChanged == nil {
 		return nil
@@ -74,8 +72,6 @@ func (h *Handler) coverChanged(ctx context.Context, res sql.Result, itemID strin
 	return nil
 }
 
-// itemWrite is one item's part of a media write: the relation changes its
-// edit collected and what the follow-up owes the item.
 type itemWrite struct {
 	itemID, libraryID string
 	changes           itemwrite.Changes
@@ -115,13 +111,11 @@ func (h *Handler) finishItemWrites(ctx context.Context, writes ...itemWrite) err
 	return nil
 }
 
-// storedRow is one row of a table as read from the database.
 type storedRow struct {
 	names  []string
 	values []any
 }
 
-// get is the stored value of a column (nil for NULL or an unknown column).
 func (r storedRow) get(column string) any {
 	for i, name := range r.names {
 		if name == column {
@@ -131,7 +125,6 @@ func (r storedRow) get(column string) any {
 	return nil
 }
 
-// rowColumns reads one row of table.
 func rowColumns(ctx context.Context, tx *sql.Tx, table, id string) (storedRow, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT * FROM `+table+` WHERE id=?`, id)
 	if err != nil {
@@ -267,7 +260,6 @@ func (c *columnSet) requestFields(metadata, payload map[string]json.RawMessage, 
 	}
 }
 
-// update writes the collected columns and the update stamp.
 func (c *columnSet) update(ctx context.Context, tx *sql.Tx, table, id string) error {
 	sets := make([]string, 0, len(c.set)+1)
 	args := make([]any, 0, len(c.set)+2)
@@ -281,7 +273,6 @@ func (c *columnSet) update(ctx context.Context, tx *sql.Tx, table, id string) er
 	return err
 }
 
-// storedString is a TEXT column value as read into an interface.
 func storedString(v any) any {
 	if b, ok := v.([]byte); ok {
 		return string(b)
@@ -289,7 +280,6 @@ func storedString(v any) any {
 	return v
 }
 
-// storedBool is a BOOLEAN column value.
 func storedBool(v any) bool {
 	switch x := v.(type) {
 	case int64:

@@ -106,8 +106,6 @@ func LoadOne(ctx context.Context, db *sql.DB, id string, opt Options) (Item, err
 	return items[0], nil
 }
 
-// queryIn runs prefix + (?,?,...) + suffix once per chunk of ids and calls fn
-// for each row. Rows are closed before the next chunk.
 func queryIn(ctx context.Context, db *sql.DB, prefix, suffix string, ids []string, fn func(*sql.Rows) error) error {
 	for chunk := range slices.Chunk(ids, chunkSize) {
 		args := make([]any, len(chunk))
@@ -174,7 +172,6 @@ func scanItem(rows *sql.Rows) (Item, error) {
 	return it, nil
 }
 
-// FileType classifies a file extension (with or without the dot).
 func FileType(ext any) string {
 	value, _ := ext.(string)
 	switch strings.ToLower(strings.TrimPrefix(value, ".")) {

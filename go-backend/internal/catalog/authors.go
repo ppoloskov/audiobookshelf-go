@@ -33,7 +33,6 @@ type AuthorFinder interface {
 	FindAuthorByName(ctx context.Context, name, region string) *wire.AuthorMatch
 }
 
-// authorRecord is a row of authors.
 type authorRecord struct {
 	id, libraryID                                 string
 	name, lastFirst, asin, description, imagePath sql.NullString
@@ -307,7 +306,6 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 	return out, nil
 }
 
-// stringOrNull reads a body value that is a string or JSON null.
 func stringOrNull(raw json.RawMessage) (value *string, ok bool) {
 	if string(raw) == "null" {
 		return nil, true
@@ -413,7 +411,6 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 		newLastFirst = authorLastFirst(newName)
 	}
 
-	// An author of the same name in the library absorbs this one.
 	if authorNameUpdate {
 		var existingID string
 		var err error

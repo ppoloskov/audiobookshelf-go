@@ -6,7 +6,6 @@ package httputil
 
 import "net/http"
 
-// Option adjusts how a response is framed.
 type Option func(*options)
 
 type options struct {

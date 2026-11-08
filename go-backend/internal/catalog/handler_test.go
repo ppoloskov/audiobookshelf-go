@@ -519,8 +519,7 @@ func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (m
 	return media, nil
 }
 
-// Independent pre-extraction read oracle. These helpers live in tests only;
-// production book reads and projections are owned by internal/books.
+// Independent read oracle for book JSON; these helpers live in tests only.
 type bookRow struct {
 	id, title, subtitle, year, publishedDate, publisher sql.NullString
 	description, isbn, asin, language, coverPath        sql.NullString
@@ -651,8 +650,7 @@ func floating(value any) float64 {
 	return 0
 }
 
-// bookJSON is the pre-pilot map builder, retained only in tests so each typed
-// builder can be dual-run against the exact implementation it replaces.
+// bookJSON is a map-based book builder kept in tests as an oracle for the typed builders.
 func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded bool) (map[string]any, error) {
 	row, err := h.loadBookRow(ctx, bookID)
 	if err != nil {

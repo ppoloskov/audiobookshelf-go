@@ -17,14 +17,10 @@ import (
 	"strings"
 )
 
-// itemDownload streams a library item: a single-file item is served directly
-// (Express res.download semantics: attachment disposition, configured audio
-// mime type, byte-range support via http.ServeFile); a directory item is
-// streamed as a STORE-mode zip named "<media title>.zip" because upstream
-// zips with compression level 0 (zipHelpers.js:10-13). Disk errors keep the
-// upstream messages: ENOENT → 404 'File not found', otherwise 500
-// 'Download failed' (LibraryItemController.js:152-160) — only until headers
-// are sent, exactly like the source.
+// itemDownload serves a directory item as a STORE-mode zip because upstream zips with
+// compression level 0 (zipHelpers.js:10-13). Disk errors keep the upstream messages:
+// ENOENT -> 404 'File not found', otherwise 500 'Download failed'
+// (LibraryItemController.js:152-160), and only until headers are sent.
 func (h *Handler) itemDownload(w http.ResponseWriter, r *http.Request) error {
 	user, itemID := requestUser(r), r.PathValue("id")
 	var libraryID, itemPath, relPath, mediaType, title string

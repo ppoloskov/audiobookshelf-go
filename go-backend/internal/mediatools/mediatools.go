@@ -21,7 +21,6 @@ func binary(env, name string) string {
 	return name
 }
 
-// Info is what ffprobe reports for a media file.
 type Info struct {
 	Format   Format    `json:"format"`
 	Streams  []Stream  `json:"streams"`
@@ -85,7 +84,6 @@ func (c Chapter) seconds(ticks json.Number) float64 {
 	return float64(n) / den
 }
 
-// Probe reads the format, streams and chapters of a media file.
 func Probe(ctx context.Context, path string) (Info, error) {
 	var info Info
 	raw, err := run(ctx, binary("FFPROBE_PATH", "ffprobe"), "-v", "error", "-show_format", "-show_streams", "-show_chapters", "-of", "json", path)
@@ -126,7 +124,6 @@ func run(ctx context.Context, bin string, args ...string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// FFmpegAvailable reports whether the configured ffmpeg binary can be found.
 func FFmpegAvailable() bool {
 	_, err := exec.LookPath(binary("FFMPEG_PATH", "ffmpeg"))
 	return err == nil

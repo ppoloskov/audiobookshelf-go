@@ -8,7 +8,6 @@ import (
 	"net/http"
 )
 
-// librarySettings are the settings keys catalog routes read from a library row.
 type librarySettings struct {
 	HideSingleBookSeries               bool `json:"hideSingleBookSeries"`
 	OnlyShowLaterBooksInContinueSeries bool `json:"onlyShowLaterBooksInContinueSeries"`

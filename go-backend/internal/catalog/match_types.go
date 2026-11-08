@@ -21,7 +21,6 @@ type batchQuickMatchResult struct {
 	Unmatched int  `json:"unmatched"`
 }
 
-// taskData is the data of a library task.
 type taskData struct {
 	LibraryID   string           `json:"libraryId"`
 	ScanResults *taskScanResults `json:"scanResults,omitempty"`

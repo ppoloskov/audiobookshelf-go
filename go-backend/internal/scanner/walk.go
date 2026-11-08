@@ -202,8 +202,6 @@ func groupFiles(f folder, files []file, isMedia func(ext string) bool) []*group 
 	return out
 }
 
-// walkVisible visits the paths at and below from, skipping directories the
-// scan ignores (relative to the watched folder root) and unreadable entries.
 func walkVisible(root, from string, fn func(p string, d os.DirEntry) error) error {
 	return filepath.WalkDir(from, func(p string, d os.DirEntry, e error) error {
 		if e != nil {

@@ -17,10 +17,8 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-// EmailKey is the row of the SMTP settings and e-reader devices.
 const EmailKey = "email-settings"
 
-// EmailDefaults is the email settings document of a server that never saved one.
 func EmailDefaults() map[string]any {
 	return map[string]any{
 		"id": EmailKey, "host": nil, "port": 465, "secure": true,
@@ -49,7 +47,6 @@ func Load(ctx context.Context, db *sql.DB, key string, defaults map[string]any) 
 	return doc, nil
 }
 
-// Save stores doc under key, creating the row when needed.
 func Save(ctx context.Context, db *sql.DB, key string, doc map[string]any) error {
 	data, err := json.Marshal(doc)
 	if err != nil {

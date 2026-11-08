@@ -13,7 +13,6 @@ import (
 	"audiobookshelf-compat/internal/users"
 )
 
-// APIKeys lists every key with its owner and creator.
 func (h *Handler) APIKeys(ctx context.Context) ([]users.APIKey, error) {
 	rows, err := h.queries().ListApiKeys(ctx)
 	if err != nil {
@@ -72,8 +71,6 @@ func (h *Handler) CreateAPIKey(ctx context.Context, in users.NewAPIKey) (users.A
 	return key, token, err
 }
 
-// UpdateAPIKey moves a key to another owner and, when active is set, turns it
-// on or off.
 func (h *Handler) UpdateAPIKey(ctx context.Context, id, ownerID string, active *bool) error {
 	var isActive sql.NullInt64
 	if active != nil {
@@ -85,7 +82,6 @@ func (h *Handler) UpdateAPIKey(ctx context.Context, id, ownerID string, active *
 	return h.queries().UpdateApiKeyOwner(ctx, sqlc.UpdateApiKeyOwnerParams{UserID: store.Text(ownerID), IsActive: isActive, UpdatedAt: dbtime.Now(), ID: id})
 }
 
-// DeleteAPIKey removes a key and reports whether it existed.
 func (h *Handler) DeleteAPIKey(ctx context.Context, id string) (bool, error) {
 	res, err := h.queries().DeleteApiKey(ctx, id)
 	if err != nil {
@@ -147,7 +143,6 @@ func isoDate(v any) *string {
 	return &s
 }
 
-// parseDate reads a stored DATETIME text; unreadable text is the zero time.
 func parseDate(text string) time.Time {
 	if t, ok := dbtime.Parse(text); ok {
 		return t

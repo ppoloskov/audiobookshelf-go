@@ -116,7 +116,6 @@ func nextCoverPath(current string, files []libraryFile, diff libraryFileDiff) (s
 	return cover, cover != current
 }
 
-// loadStoredAudio reads the book's persisted audioFiles.
 func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []map[string]any {
 	var raw []byte
 	if mediaID == "" || s.db.QueryRowContext(ctx, `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {

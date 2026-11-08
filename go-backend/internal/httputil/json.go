@@ -30,7 +30,6 @@ func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
 	}
 }
 
-// DecodeObjectRequest decodes one JSON object from a request body.
 func DecodeObjectRequest(r *http.Request) (map[string]any, error) {
 	defer r.Body.Close()
 	var out map[string]any

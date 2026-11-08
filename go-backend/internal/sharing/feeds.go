@@ -96,7 +96,6 @@ func feedEpisodeFromRow(r sqlc.Feedepisode) feedEpisodeRow {
 	}
 }
 
-// nullBool reads a nullable TINYINT(1) flag, keeping NULL.
 func nullBool(v sql.NullInt64) sql.NullBool { return sql.NullBool{Bool: v.Int64 != 0, Valid: v.Valid} }
 
 func (h *Handler) feedBySlug(ctx context.Context, slug string) (feedRow, error) {

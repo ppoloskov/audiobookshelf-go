@@ -49,7 +49,6 @@ var clientRoots = []string{"components", "layouts", "middleware", "mixins", "pag
 // vendored code. A $axios or socket use outside clientRoots is an error.
 var clientSkipDirs = []string{".nuxt", "assets", "cypress", "dist", "node_modules", "static"}
 
-// sourceOrder is the order sources are listed in.
 var sourceOrder = map[string]int{srcWeb: 0, srcMobileLog: 1, srcMobileTrial: 2}
 
 // axiosPrefixes start a path taken from a $axios call; axiosExact are the bare
@@ -701,7 +700,6 @@ func trialPathOf(rest, block string) (string, error) {
 	return normalize(raw), nil
 }
 
-// mobileLogCalls turns the fixed production-log list into calls with no caller.
 func mobileLogCalls() []call {
 	calls := make([]call, 0, len(mobileLog))
 	for _, entry := range mobileLog {

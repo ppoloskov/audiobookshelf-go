@@ -89,8 +89,6 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error
 	return httputil.JSON(w, r, dto)
 }
 
-// collectionLibraryID is the library of a collection; sql.ErrNoRows when the
-// collection does not exist.
 func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error {
 	user, id := requestUser(r), r.PathValue("id")
 	c, err := sqlc.New(h.db).GetCollection(r.Context(), id)
@@ -474,7 +472,6 @@ func (h *Handler) collectionRSSFeed(r *http.Request, collectionID string) (map[s
 	return map[string]any{"id": feed.ID, "slug": feed.Slug.String, "userId": feed.Userid.String, "entityType": feed.Entitytype.String, "entityId": feed.Entityid.String, "entityUpdatedAt": dbtime.Millis(feed.Entityupdatedat), "coverPath": store.NullString(feed.Coverpath), "meta": map[string]any{"title": feed.Title.String, "description": feed.Description.String, "author": feed.Author.String, "imageUrl": store.NullString(feed.Imageurl), "feedUrl": store.NullString(feed.Feedurl), "link": store.NullString(feed.Siteurl), "explicit": feed.Explicit.Int64 != 0, "type": feed.Podcasttype.String, "language": feed.Language.String, "preventIndexing": feed.Preventindexing.Int64 != 0, "ownerName": feed.Ownername.String, "ownerEmail": feed.Owneremail.String}, "serverAddress": feed.Serveraddress.String, "feedUrl": feed.Feedurl.String, "episodes": episodes, "createdAt": dbtime.Millis(feed.Createdat), "updatedAt": dbtime.Millis(feed.Updatedat)}, nil
 }
 
-// nullFloat is a nullable FLOAT column as a JSON value: NULL becomes nil.
 func nullFloat(v sql.NullFloat64) any {
 	if !v.Valid {
 		return nil

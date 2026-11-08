@@ -43,7 +43,6 @@ func (l Level) String() string {
 	return levelNames[l]
 }
 
-// Valid reports whether l is one of the seven upstream levels.
 func (l Level) Valid() bool { return l >= LevelTrace && l <= LevelNote }
 
 // ParseLevel maps an upstream level name (case-insensitive) to a Level.

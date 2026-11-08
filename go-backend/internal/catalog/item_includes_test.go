@@ -57,8 +57,7 @@ func includesOf(t *testing.T, items []includedItem) map[string]string {
 }
 
 // TestIncludeRSSFeedAndShareOnItemsAndShelves covers libraryItemsBookFilters'
-// include handling: the feed is found by library item id (the page used to
-// look for entityType "book" and the media id and never found one), the share
+// include handling: the feed is found by library item id, the share
 // is only attached for admins and only while open, and the shelves apply the
 // same include as the library page.
 func TestIncludeRSSFeedAndShareOnItemsAndShelves(t *testing.T) {

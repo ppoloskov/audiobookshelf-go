@@ -37,8 +37,6 @@ func fatal(format string, args ...any) {
 var buildCommit = "dev"
 
 func main() {
-	// Anything still using the standard library logger (and http.Server's own
-	// error log) goes through the one logger.
 	log.SetFlags(0)
 	log.SetOutput(logging.Default().Writer(logging.LevelInfo, "log"))
 

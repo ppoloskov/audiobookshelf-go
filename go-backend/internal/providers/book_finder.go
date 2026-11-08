@@ -86,7 +86,6 @@ func truncateRunes(s string, n int) string {
 	return s
 }
 
-// convertJSON converts provider results into typed matches through their JSON.
 func convertJSON[T any, S any](results []S) []T {
 	out := make([]T, 0, len(results))
 	for _, result := range results {

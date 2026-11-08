@@ -95,10 +95,8 @@ func (m *groupMatcher) firstFree(ino string) int {
 	return list[0]
 }
 
-// claim marks g as matched to a stored item.
 func (m *groupMatcher) claim(g *group) { m.consumed[m.pos[g]] = true }
 
-// unclaimed lists the groups no stored item matched, in scan order.
 func (m *groupMatcher) unclaimed() []*group {
 	var out []*group
 	for i, g := range m.groups {

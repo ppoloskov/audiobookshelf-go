@@ -1,5 +1,4 @@
-// Package textdist measures how far apart two strings are. It is a leaf
-// package: standard library only.
+// Package textdist measures how far apart two strings are.
 package textdist
 
 import "strings"
@@ -26,8 +25,7 @@ func Levenshtein(a, b string) int {
 	return previous[len(br)]
 }
 
-// LevenshteinFold is Levenshtein after lower-casing both strings with
-// strings.ToLower.
+// LevenshteinFold is Levenshtein after strings.ToLower on both strings.
 func LevenshteinFold(a, b string) int {
 	return Levenshtein(strings.ToLower(a), strings.ToLower(b))
 }

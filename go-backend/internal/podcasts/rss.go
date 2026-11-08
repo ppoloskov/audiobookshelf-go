@@ -86,7 +86,6 @@ type chapter struct {
 	End   int    `json:"end"`
 }
 
-// opmlFeed is one feed of an OPML import.
 type opmlFeed struct {
 	Title   string `json:"title"`
 	FeedURL string `json:"feedUrl"`

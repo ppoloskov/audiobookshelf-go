@@ -242,7 +242,6 @@ func (in *Install) request(t testing.TB, method, path, token string, headers map
 	return resp, data
 }
 
-// pathPair is one absolute path recorded at seed time and its new location.
 type pathPair struct{ from, to string }
 
 // rewriteSeedPaths replaces every seed path in every text-like column of every
@@ -363,7 +362,7 @@ func readJSON[T any](t testing.TB, path string) T {
 	return v
 }
 
-// copyTree copies a directory tree, creating dst. Regular files only.
+// copyTree copies regular files only.
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

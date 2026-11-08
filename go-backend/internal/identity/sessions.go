@@ -9,8 +9,7 @@ import (
 	"audiobookshelf-compat/internal/users"
 )
 
-// UserSessions returns one page of the user's unexpired sessions, newest
-// activity first, and the total count.
+// UserSessions lists unexpired sessions, newest activity first.
 func (h *Handler) UserSessions(ctx context.Context, userID, currentRefreshToken string, page, perPage int) (int, []users.SessionInfo, error) {
 	now := dbtime.Now()
 	total, err := h.queries().CountUserSessions(ctx, sqlc.CountUserSessionsParams{Userid: userID, Expiresat: now})
@@ -32,7 +31,6 @@ func (h *Handler) UserSessions(ctx context.Context, userID, currentRefreshToken 
 	return int(total), sessions, nil
 }
 
-// DeleteUserSession ends one of the user's sessions and reports whether it existed.
 func (h *Handler) DeleteUserSession(ctx context.Context, userID, sessionID string) (bool, error) {
 	res, err := h.queries().DeleteUserSession(ctx, sqlc.DeleteUserSessionParams{ID: sessionID, Userid: userID})
 	if err != nil {

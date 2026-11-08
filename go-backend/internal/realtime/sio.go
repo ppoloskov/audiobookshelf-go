@@ -97,10 +97,8 @@ type Socket struct {
 	left     sync.Once
 }
 
-// ID is the Socket.IO socket id sent in the CONNECT acknowledgement.
 func (s *Socket) ID() string { return s.id }
 
-// Request is the HTTP request that opened the WebSocket.
 func (s *Socket) Request() *http.Request { return s.request }
 
 // On registers the handler for an event; "disconnect" receives the reason.
@@ -110,7 +108,6 @@ func (s *Socket) On(event string, fn Handler) {
 	s.mu.Unlock()
 }
 
-// Emit queues one event. It never blocks and reports whether it was queued.
 func (s *Socket) Emit(event string, args ...any) bool {
 	body, err := encodeArray(append([]any{event}, args...))
 	if err != nil {
@@ -213,7 +210,6 @@ func (c *conn) handleConnect(p packet, r *http.Request) bool {
 	return true
 }
 
-// fireDisconnect runs the "disconnect" handler once with the reason.
 func (s *Socket) fireDisconnect(reason string) {
 	s.left.Do(func() {
 		if fn := s.handler("disconnect"); fn != nil {
@@ -222,7 +218,6 @@ func (s *Socket) fireDisconnect(reason string) {
 	})
 }
 
-// fireDisconnect reports the end of the connection to the socket, if any.
 func (c *conn) fireDisconnect() {
 	c.mu.Lock()
 	s := c.sock

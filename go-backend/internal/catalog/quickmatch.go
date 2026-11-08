@@ -40,7 +40,6 @@ type quickMatchOptions struct {
 
 func optionalBool(v bool) *bool { return &v }
 
-// quickMatchItem is the stored state of the item being matched.
 type quickMatchItem struct {
 	id, libraryID, path, mediaType, mediaID string
 	isFile                                  bool
@@ -397,8 +396,6 @@ func storedValue(v any) any {
 	}
 }
 
-// matchSeries are the series of a match with their sequences (a string, a
-// number, or absent).
 func matchSeries(match wire.BookMatch) []itemwrite.Series {
 	var list []struct {
 		Series   string          `json:"series"`

@@ -21,9 +21,6 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-// importGroup stores one scanned group: gather what disk and the stored row
-// say (probing changed audio), plan the writes as plain data, apply them in
-// one transaction, then emit the follow-up effects.
 func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bool) (imported, error) {
 	in, err := s.gather(ctx, l, g, force)
 	if err != nil {
@@ -58,9 +55,6 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 	return tally, nil
 }
 
-// planInput is everything plan decides from: the group, the stored row, the
-// probe results and the clock. Gathering it is the only part that reads disk
-// or the database.
 type planInput struct {
 	lib     library
 	g       *group
@@ -90,8 +84,6 @@ type episodePlan struct {
 	offset          int // position among the scanned audio files
 }
 
-// itemPlan is the outcome of plan: the input with the decisions added (which
-// rows and columns change, and with what).
 type itemPlan struct {
 	planInput
 	skip    bool // nothing to store (no audio in a new book, or no inode)
@@ -192,7 +184,6 @@ func planEpisodes(audio []map[string]any) []episodePlan {
 	return out
 }
 
-// gather reads the stored row, the probe results and the item's stat.
 func (s *Scanner) gather(ctx context.Context, l library, g *group, force bool) (planInput, error) {
 	in := planInput{lib: l, g: g, force: force, old: g.old, now: nowDB()}
 	added := g.old == nil
@@ -237,8 +228,6 @@ func (s *Scanner) gather(ctx context.Context, l library, g *group, force bool) (
 	return in, nil
 }
 
-// resolveMetadata merges folder names, tags and sidecars into the item's
-// title, author, series and book metadata.
 func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 	g, l := in.g, in.lib
 	title, author, series, seq := bookPathMetadata(g.path, g.folder.path, l.parseSubtitle)
@@ -389,8 +378,6 @@ func (p itemPlan) applyItem(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
-// afterImport runs the effects that follow the commit: the metadata sidecar,
-// filter data for new books, and the author/series events.
 func (s *Scanner) afterImport(ctx context.Context, p itemPlan, changes *itemwrite.Changes) {
 	l := p.lib
 	if l.mediaType == "book" && (p.added || (p.rescanMedia && (p.fileDiff.changed() || p.coverChanged))) {

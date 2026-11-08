@@ -61,7 +61,6 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler
 // the request context before dispatch (store.ContextWithUser). Every route but
 // validate-cron, pathexists and upload answers 403 to a non-admin.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	// afterWrite drops the catalog's filter data once a write route has answered.
 	afterWrite := func(fn httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			err := fn(w, r)
@@ -105,7 +104,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/upload", afterWrite(userRoute(h.upload)))
 }
 
-// userRoute passes the request's user to a handler that decides access itself.
 func userRoute(fn func(http.ResponseWriter, *http.Request, store.User) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, _ := store.UserFromContext(r.Context())
@@ -501,9 +499,6 @@ func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, column 
 	return nil
 }
 
-// rewriteTaxonomy applies edit to the tags or genres list of every book and
-// podcast, stores the lists it changed and reports each of those items as
-// changed. It returns how many items it updated.
 func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func([]string) ([]string, bool)) (int, error) {
 	changed := 0
 	for _, table := range []string{"books", "podcasts"} {
@@ -592,8 +587,7 @@ func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request) error {
 		defer rows.Close()
 		for rows.Next() {
 			// REAL and NULL timeListening both occur; adminStats.js sums
-			// `ls.timeListening || 0` as floats. NullInt64 rejected REAL
-			// values and the row was silently skipped.
+			// `ls.timeListening || 0` as floats.
 			var listen sql.NullFloat64
 			var raw []byte
 			if rows.Scan(&listen, &raw) != nil {
@@ -654,7 +648,6 @@ func (o *orderedTimes) add(k string, v float64) {
 // topTimes is adminStats.getStatsForYear's top list
 // (server/utils/queries/adminStats.js:120-146): Object.keys in insertion
 // order, time Math.round-ed, stable sort by time descending, first 3.
-// Ranging over a Go map made ties come out in random order.
 func topTimes(o *orderedTimes, key string) []map[string]any {
 	a := make([]map[string]any, 0, len(o.order))
 	for _, n := range o.order {

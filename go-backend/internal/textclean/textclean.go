@@ -31,8 +31,7 @@ var hrefScheme = regexp.MustCompile(`(?i)^([a-z][a-z0-9.+-]*):`)
 // while their markup is kept.
 var rawTextTag = regexp.MustCompile(`(?i)<(/?)\s*(iframe|noscript)(\s[^>]*)?>`)
 
-// escaper matches the escaping of the previous implementation, except that an
-// apostrophe stays an apostrophe.
+// escaper leaves an apostrophe as a plain apostrophe.
 var escaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&#34;")
 
 type tokenKind int

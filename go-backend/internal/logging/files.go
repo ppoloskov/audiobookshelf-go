@@ -283,12 +283,11 @@ func (l *Logger) Recent() []wire.LogEntry {
 	return out
 }
 
-// LoggerData is the GET /api/logger-data body.
 func (l *Logger) LoggerData() wire.LoggerData {
 	return wire.LoggerData{CurrentDailyLogs: l.Recent()}
 }
 
-// Close releases the open daily file handle. Later entries reopen it.
+// Close releases the open daily file handle; later entries reopen it.
 func (l *Logger) Close() {
 	l.files.mu.Lock()
 	l.files.closeFileLocked()

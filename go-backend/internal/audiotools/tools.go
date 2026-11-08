@@ -94,8 +94,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/tools/item/{id}/embed-metadata", h.itemRoute(h.embed))
 }
 
-// itemRoute answers a tool on one library item: admins only, and the item must
-// exist.
 func (h *Handler) itemRoute(action func(http.ResponseWriter, *http.Request, string, item) error) httputil.Handler {
 	return access.RequireAdmin(403, func(w http.ResponseWriter, r *http.Request) error {
 		it, err := h.loadItem(r.Context(), r.PathValue("id"))
@@ -126,7 +124,6 @@ func (h *Handler) Tasks(includeQueue bool) any {
 	for _, t := range h.tasks {
 		list = append(list, t.snapshot())
 	}
-	// Stable order for clients and tests.
 	slices.SortStableFunc(list, func(a, b events.Task) int { return cmp.Compare(a.StartedAt, b.StartedAt) })
 	out := map[string]any{"tasks": list}
 	if includeQueue {
@@ -289,7 +286,6 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
 	return httputil.OK(w, r)
 }
 
-// enqueueEmbed queues an embed-metadata task for the item and announces the queue change.
 func (h *Handler) enqueueEmbed(userID string, it item, q url.Values) {
 	t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription")
 	force := q.Get("forceEmbedChapters") == "1"

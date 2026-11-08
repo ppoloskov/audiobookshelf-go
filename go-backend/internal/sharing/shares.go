@@ -107,8 +107,6 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	if !errors.Is(err, sql.ErrNoRows) {
 		return httputil.Internal("Internal server error", err)
 	}
-	// The media table is chosen by type; books and podcastEpisodes are not
-	// sharing tables, so this existence check stays a plain query.
 	table := "books"
 	if mediaType == "podcastEpisode" {
 		table = "podcastEpisodes"

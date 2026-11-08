@@ -23,7 +23,6 @@ import (
 	"audiobookshelf-compat/internal/wire"
 )
 
-// Rules are the per-caller differences of a relation edit.
 type Rules struct {
 	Exact         bool // parents match by exact name instead of case-insensitively (scanner)
 	Replace       bool // links the list does not name are removed
@@ -52,7 +51,6 @@ type Changes struct {
 	SeriesUnlinked  []string
 }
 
-// Merge appends the changes of another edit.
 func (c *Changes) Merge(o Changes) {
 	c.Events = append(c.Events, o.Events...)
 	c.AuthorsAdded = append(c.AuthorsAdded, o.AuthorsAdded...)
@@ -76,7 +74,6 @@ func (c *Clock) Now() string {
 	return dbtime.Format(t)
 }
 
-// kind is one relation: authors or series.
 type kind struct {
 	parent, junction, col string
 	author                bool
@@ -94,7 +91,7 @@ type link struct {
 	seq      sql.NullString
 }
 
-// SetAuthors links the book to the named authors, creating the missing ones.
+// LinkAuthors links the book to the named authors, creating the missing ones.
 func (c *Changes) LinkAuthors(ctx context.Context, tx *sql.Tx, libraryID, bookID string, names []string, r Rules) (bool, error) {
 	k := kind{parent: "authors", junction: "bookAuthors", col: "authorId", author: true, derived: nameparse.ToLastFirst}
 	var wants []want
@@ -106,7 +103,7 @@ func (c *Changes) LinkAuthors(ctx context.Context, tx *sql.Tx, libraryID, bookID
 	return c.relate(ctx, tx, k, libraryID, bookID, wants, r)
 }
 
-// SetSeries links the book to the given series with their sequences.
+// LinkSeries links the book to the given series with their sequences.
 func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID string, series []Series, prefixes []string, r Rules) (bool, error) {
 	k := kind{parent: "series", junction: "bookSeries", col: "seriesId", prefixes: prefixes, derived: func(name string) string { return textsort.TitleIgnorePrefix(name, prefixes) }}
 	var wants []want

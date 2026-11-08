@@ -39,7 +39,6 @@ func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...
 	return item, nil
 }
 
-// instanceShape rewrites, in place, the entries whose path was scanned.
 func instanceShape(entries []map[string]any, scanned []string) {
 	for _, entry := range entries {
 		meta, _ := entry["metadata"].(map[string]any)

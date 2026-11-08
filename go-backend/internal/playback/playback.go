@@ -138,13 +138,10 @@ type audioFile struct {
 	Fields   map[string]any `json:"-"`
 }
 
-// New uses the existing database and configuration. It doesn't initialize a
-// playbackSessions table or any other schema.
 func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*session{}, localIDs: map[string]string{}}
 }
 
-// Close stops every in-memory session and waits briefly for FFmpeg children.
 func (h *Handler) Close() {
 	h.mu.Lock()
 	sessions := h.sessions
@@ -356,7 +353,6 @@ func (h *Handler) handleTrack(w http.ResponseWriter, r *http.Request) error {
 	}
 	isPodcastFirst := s.MediaType == "podcast" && index == 0 // episodes were once addressed as track 0
 	if s.PlayMethod == 2 {
-		// The only track of a transcoded session is the HLS playlist.
 		if index != 1 && !isPodcastFirst {
 			return httputil.Status(http.StatusNotFound, "")
 		}

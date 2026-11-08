@@ -25,7 +25,6 @@ var (
 	ErrSchema   = errors.New("store: unsupported or incomplete Audiobookshelf schema")
 )
 
-// Store is a handle to an existing Audiobookshelf database.
 type Store struct{ db *sql.DB }
 
 // User is the database representation of the upstream Sequelize user model.
@@ -47,7 +46,6 @@ type User struct {
 	UpdatedAt   *int64          `json:"updatedAt"`
 }
 
-// DatabasePath is the database file inside the configuration directory.
 func DatabasePath(configPath string) string {
 	return filepath.Join(configPath, "absdatabase.sqlite")
 }
@@ -109,7 +107,6 @@ func OpenUnchecked(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-// DB exposes the underlying database handle to the packages that query it.
 func (s *Store) DB() *sql.DB { return s.db }
 
 func (s *Store) validateSchema(ctx context.Context) error {
@@ -136,7 +133,6 @@ func (s *Store) validateSchema(ctx context.Context) error {
 }
 
 func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]struct{}, error) {
-	// table is selected exclusively from a fixed internal list.
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(\""+table+"\")")
 	if err != nil {
 		return nil, err
@@ -186,7 +182,6 @@ func UserFromRow(r sqlc.User) (User, error) {
 	return u, nil
 }
 
-// NullString is a nullable text column as a JSON value: NULL becomes nil.
 func NullString(s sql.NullString) any {
 	if !s.Valid {
 		return nil
@@ -203,7 +198,6 @@ func NullStringPtr(s sql.NullString) *string {
 	return &s.String
 }
 
-// StringPtrValue unwraps an optional string for a dynamic JSON value.
 func StringPtrValue(s *string) any {
 	if s == nil {
 		return nil
@@ -211,7 +205,6 @@ func StringPtrValue(s *string) any {
 	return *s
 }
 
-// NullInt64 is a nullable integer column as a JSON value: NULL becomes nil.
 func NullInt64(v sql.NullInt64) any {
 	if !v.Valid {
 		return nil

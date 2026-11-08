@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-// DefaultPrefixes are the sorting prefixes of a fresh server.
 var DefaultPrefixes = []string{"the", "a"}
 
 // ParsePrefixes reads sortingPrefixes from the server-settings JSON; non-string

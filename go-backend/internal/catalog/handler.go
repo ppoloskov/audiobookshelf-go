@@ -49,7 +49,6 @@ type Deps struct {
 	PodcastScheduleChanged func(ctx context.Context, itemID string)
 }
 
-// Handler reads library and media catalog data from an existing database.
 type Handler struct {
 	db      *sql.DB
 	cfg     config.Config
@@ -58,10 +57,8 @@ type Handler struct {
 	deps    Deps
 }
 
-// Option configures New.
 type Option func(*Handler)
 
-// WithDeps supplies the collaborators of the handler's routes.
 func WithDeps(deps Deps) Option {
 	return func(h *Handler) {
 		h.deps = deps
@@ -71,8 +68,7 @@ func WithDeps(deps Deps) Option {
 	}
 }
 
-// New constructs a catalog handler. The emit callback is used for events from
-// catalog write routes.
+// New's emit callback sends events from catalog write routes.
 func New(db *sql.DB, cfg config.Config, emit events.Emitter, options ...Option) *Handler {
 	h := &Handler{db: db, cfg: cfg, emit: emit, filters: filterdata.NewCache()}
 	for _, option := range options {
@@ -81,7 +77,6 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, options ...Option) 
 	return h
 }
 
-// loadItems loads ids with one libitem.Load; missing ids are skipped.
 func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]libitem.Item, error) {
 	return libitem.Load(ctx, h.db, ids, libitem.Options{Episodes: episodes})
 }
@@ -119,7 +114,6 @@ func (h *Handler) expandedItems(ctx context.Context, ids []string) ([]libitem.Ex
 	return out, nil
 }
 
-// sortingPrefixes reads the server's sortingPrefixes setting.
 func (h *Handler) sortingPrefixes(ctx context.Context) []string {
 	return serversettings.Load(ctx, h.db).SortingPrefixes()
 }
@@ -128,7 +122,6 @@ func stringValue(v any) string { s, _ := v.(string); return s }
 
 func naturalLess(a, b string) bool { return strings.ToLower(a) < strings.ToLower(b) }
 
-// pageOf is the page of list that starts at page*limit.
 func pageOf[T any](list []T, page, limit int) []T {
 	start := page * limit
 	if start > len(list) {

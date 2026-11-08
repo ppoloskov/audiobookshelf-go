@@ -11,8 +11,6 @@ import (
 	"strings"
 )
 
-// Config is the normalized process configuration. CONFIG_PATH and
-// METADATA_PATH follow the upstream directory defaults.
 type Config struct {
 	Port           int
 	Host           string
@@ -105,8 +103,6 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
-// normalizeBasePath matches Server.js: trim whitespace, add a leading slash,
-// and remove one trailing slash.
 func normalizeBasePath(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" || value == "/" {

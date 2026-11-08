@@ -38,7 +38,6 @@ func (h *Handler) deleteLibraryItem(ctx context.Context, user store.User, itemID
 	return http.StatusOK, ""
 }
 
-// itemLinks are the authors and series a removed book was linked to.
 type itemLinks struct {
 	authors, series []string
 	libraryID       string

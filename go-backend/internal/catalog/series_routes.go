@@ -17,7 +17,6 @@ import (
 	"strings"
 )
 
-// seriesRecord is a row of series.
 type seriesRecord struct {
 	id, libraryID        string
 	name, description    sql.NullString
@@ -35,7 +34,6 @@ func (h *Handler) seriesOldJSON(ctx context.Context, s seriesRecord) (seriesView
 	return newSeriesView(s, h.sortingPrefixes(ctx))
 }
 
-// seriesItem is a library item of a series with the book it holds.
 type seriesItem struct{ itemID, bookID string }
 
 // seriesItems is libraryItemsBookFilters.getLibraryItemsForSeries

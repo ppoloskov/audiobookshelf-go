@@ -63,9 +63,6 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 	dayOfWeek := stats["dayOfWeek"].(map[string]any)
 	recent := make([]any, 0, min(len(sessions), 10))
 	for index, session := range sessions {
-		// Only the ten most recent sessions are serialized; building the JSON row
-		// loads the session's device info, so doing it for every session was one
-		// query per session.
 		if index < 10 {
 			row, err := h.listeningSessionJSON(r, session)
 			if err != nil {

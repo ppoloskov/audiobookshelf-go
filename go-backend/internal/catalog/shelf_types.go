@@ -3,8 +3,7 @@ package catalog
 // shelf is one home-page shelf of GET /api/libraries/:id/personalized
 // (LibraryItem.getPersonalizedShelves, server/models/LibraryItem.js:384-491).
 // Entities holds the shelf's entries (minified items, series or authors).
-// The fields are declared in the alphabetical order encoding/json gave the map
-// this replaced, so the response bytes are unchanged.
+// The fields are in alphabetical key order, which is the response order.
 type shelf struct {
 	Entities       any    `json:"entities"`
 	ID             string `json:"id"`

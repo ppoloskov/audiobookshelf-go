@@ -125,7 +125,6 @@ var sortDefs = map[string]sortDef{
 
 var markers = regexp.MustCompile(`\$(?:v|u|y9|y|recent)`)
 
-// bind turns a clause's markers into placeholders and their arguments.
 func bind(clause, value string, user store.User) (string, []any, error) {
 	var args []any
 	var err error

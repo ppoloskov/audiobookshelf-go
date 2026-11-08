@@ -47,7 +47,6 @@ type bookMatch struct {
 	Explicit         *bool    `json:"explicit,omitempty"`
 }
 
-// sanitize cleans the description and derives its plain-text form.
 func (m *bookMatch) sanitize() {
 	if m.Description != "" {
 		clean := textclean.Sanitize(string(m.Description))

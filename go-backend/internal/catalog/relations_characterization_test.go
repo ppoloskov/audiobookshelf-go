@@ -71,8 +71,7 @@ func relationSnapshot(t *testing.T, rig *authorRig) string {
 }
 
 // TestItemMutationRelationsAcrossRoutes pins what PATCH media, batch update and
-// quick match do to the author and series relations of one book (the packet C2
-// characterisation table).
+// quick match do to the author and series relations of one book.
 func TestItemMutationRelationsAcrossRoutes(t *testing.T) {
 	type scenario struct {
 		name    string
@@ -138,8 +137,7 @@ func TestItemMutationRelationsAcrossRoutes(t *testing.T) {
 	}
 }
 
-// wantRelations was recorded from the code before the C2 refactor. The routes
-// differ on purpose: quick match announces neither author_updated nor the
+// The routes differ in what they record on purpose: quick match announces neither author_updated nor the
 // reuse of an existing author, and adds series_added.
 var wantRelations = map[string]string{
 	"new_author/patch":                               "links=Ada Author,Zed Newbie authors=Ada Author,Ben Writer,Zed Newbie series=First Series seq=First Series#1 events=author_added,item_updated filter=Ada Author,Ben Writer,Zed Newbie|First Series touched=i1",

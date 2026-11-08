@@ -13,7 +13,6 @@ import (
 	"strings"
 )
 
-// requestUser returns the authenticated user the server attached to the request.
 func requestUser(r *http.Request) store.User {
 	user, _ := store.UserFromContext(r.Context())
 	return user

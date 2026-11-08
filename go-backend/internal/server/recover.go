@@ -109,8 +109,6 @@ func (g *panicGuard) Flush() {
 
 func (g *panicGuard) Unwrap() http.ResponseWriter { return g.ResponseWriter }
 
-// isLivenessProbe reports the Docker/Kubernetes health probe paths, with or
-// without the router base prefix.
 func isLivenessProbe(urlPath string) bool {
 	if strings.HasPrefix(urlPath, "/api/") {
 		return false

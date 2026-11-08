@@ -49,11 +49,9 @@ type Scanner struct {
 	mu          sync.Mutex
 	runs        map[string]context.CancelFunc
 	watchCancel context.CancelFunc
-	// filters is the shared library filter data cache the scanner patches.
-	filters *filterdata.Cache
+	filters     *filterdata.Cache
 }
 
-// New creates a scanner that patches the shared filter data cache.
 func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters *filterdata.Cache) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
@@ -180,8 +178,7 @@ func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath,
 	return err
 }
 
-// Scan imports the library's folders; force rescans items even when no file
-// changed.
+// Scan's force rescans items even when no file changed.
 func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Result, error) {
 	ctx, end, err := s.begin(ctx, libraryID)
 	if err != nil {
@@ -431,8 +428,6 @@ func (s *Scanner) Start(ctx context.Context) error {
 	return nil
 }
 
-// arm registers every watched library: fsnotify directories and cron scans.
-// roots maps each folder root to its library.
 func (s *Scanner) arm(ctx context.Context) (_ *fsnotify.Watcher, _ *cron.Cron, _ *fsWatcher, roots map[string]string, err error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -484,7 +479,6 @@ func (s *Scanner) arm(ctx context.Context) (_ *fsnotify.Watcher, _ *cron.Cron, _
 	return watcher, cronJobs, fw, roots, nil
 }
 
-// watchDirs registers the visible directories at and below from.
 func watchDirs(watcher *fsnotify.Watcher, root, from string) error {
 	return walkVisible(root, from, func(p string, d os.DirEntry) error {
 		if d.IsDir() {
@@ -496,7 +490,6 @@ func watchDirs(watcher *fsnotify.Watcher, root, from string) error {
 	})
 }
 
-// eventLoop turns fsnotify events into watcher file updates until ctx ends.
 func (s *Scanner) eventLoop(ctx context.Context, watcher *fsnotify.Watcher, cronJobs *cron.Cron, fw *fsWatcher, roots map[string]string) {
 	defer watcher.Close()
 	defer cronJobs.Stop()
@@ -781,7 +774,6 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	}
 	emitUpdated()
 
-	// Then new items.
 	var addedItems []libitem.Expanded
 	for _, g := range matcher.unclaimed() {
 		if ctx.Err() != nil {
@@ -862,7 +854,6 @@ func (t *scanTally) merge(n imported) {
 	t.seriesRemoved = append(t.seriesRemoved, n.seriesRemoved...)
 }
 
-// existingItem is a stored library item row as the scans need it.
 type existingItem struct {
 	id, mediaID, path, relPath, ino, mediaType string
 	missing                                    bool
@@ -896,7 +887,6 @@ func (s *Scanner) loadExistingItems(ctx context.Context, libraryID string) ([]ex
 	return s.queryItems(ctx, `libraryId=? ORDER BY rowid`, libraryID)
 }
 
-// storedItemByID is the row a single-item rescan updates.
 func (s *Scanner) storedItemByID(ctx context.Context, id string) (*existingItem, error) {
 	items, err := s.queryItems(ctx, `id=?`, id)
 	if err != nil || len(items) == 0 {

@@ -38,7 +38,6 @@ func (e Env) Announce(libraryID string, c *Changes) {
 	}
 }
 
-// Sweep removes the given authors and then series that no book uses any more.
 func (e Env) Sweep(ctx context.Context, authorIDs, seriesIDs []string) {
 	e.SweepAuthors(ctx, authorIDs)
 	e.SweepSeries(ctx, seriesIDs)

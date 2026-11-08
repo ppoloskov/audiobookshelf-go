@@ -17,7 +17,6 @@ func readOnly(h httputil.Handler) httputil.Handler {
 	}
 }
 
-// Routes mounts the list API on the runtime's authenticated mux.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/collections", readOnly(h.collectionRoot))
 	mux.Handle("POST /api/collections", httputil.Handler(h.createCollection))

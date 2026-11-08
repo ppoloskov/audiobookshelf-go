@@ -160,7 +160,6 @@ func (w *fsWatcher) addUpdate(libraryID, p, kind string) bool {
 	return true
 }
 
-// scanTaskData is the data of a library-scan or watcher-scan task.
 type scanTaskData struct {
 	LibraryID        string       `json:"libraryId"`
 	LibraryName      string       `json:"libraryName"`
@@ -186,7 +185,6 @@ func newWatcherTask(lib *libraryWatch) *events.Task {
 	return &t
 }
 
-// withResults returns the scan task with its results set.
 func withResults(t events.Task, results *scanResults) events.Task {
 	data := t.Data.(scanTaskData)
 	data.ScanResults = results
@@ -339,7 +337,6 @@ func joinSlash(a, b string) string {
 	return a + "/" + b
 }
 
-// storedItem is a library item row as the watcher lookups need it.
 type storedItem struct {
 	id, path, relPath, ino string
 	isFile                 bool

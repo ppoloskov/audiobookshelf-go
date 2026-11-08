@@ -16,7 +16,6 @@ import (
 	"strings"
 )
 
-// batchItem is a library item row of LibraryItem.findAllExpandedWhere.
 type batchItem struct {
 	id, libraryID, mediaType, mediaID, path string
 }

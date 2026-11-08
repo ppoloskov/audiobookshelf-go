@@ -32,7 +32,6 @@ type libraryFile struct {
 	FileType        string              `json:"fileType"`
 }
 
-// newLibraryFile describes a file found on disk.
 func newLibraryFile(root string, f file) libraryFile {
 	meta := makeFileMeta(root, f)
 	flat, _ := meta["metadata"].(map[string]any)
@@ -65,7 +64,6 @@ func (d libraryFileDiff) changed() bool {
 	return len(d.removed)+len(d.modified)+len(d.added) > 0
 }
 
-// touchedPaths returns the paths whose entries were updated or created.
 func (d libraryFileDiff) touchedPaths() map[string]bool {
 	out := map[string]bool{}
 	for _, list := range [][]libraryFile{d.modified, d.added} {
@@ -84,7 +82,6 @@ func parseStoredLibraryFiles(raw []byte) []libraryFile {
 	return out
 }
 
-// parseStoredObjects decodes a JSON column holding an array of objects.
 func parseStoredObjects(raw []byte) []map[string]any {
 	var out []map[string]any
 	if len(raw) > 0 {

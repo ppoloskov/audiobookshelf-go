@@ -273,7 +273,6 @@ func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) error {
 	return httputil.Empty(204)
 }
 
-// shareCover serves /public/share/:slug/cover.
 func (h *Handler) shareCover(w http.ResponseWriter, r *http.Request) error {
 	_, s, err := h.shareSessionFor(r, r.PathValue("slug"))
 	if err != nil {
@@ -286,7 +285,6 @@ func (h *Handler) shareCover(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// shareTrack serves /public/share/:slug/track/:index.
 func (h *Handler) shareTrack(w http.ResponseWriter, r *http.Request) error {
 	_, s, err := h.shareSessionFor(r, r.PathValue("slug"))
 	if err != nil {
@@ -305,7 +303,6 @@ func (h *Handler) shareTrack(w http.ResponseWriter, r *http.Request) error {
 	return httputil.Status(404, "Track not found")
 }
 
-// shareDownload serves /public/share/:slug/download.
 func (h *Handler) shareDownload(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	cookie, err := r.Cookie("share_session_id")

@@ -61,16 +61,13 @@ type Runtime struct {
 	sharing       *sharing.Handler
 	podcasts      *podcasts.Handler
 	providers     *providers.Handler
-	// routes holds the handlers registered with method patterns (Routes);
-	// everything else goes through the Handle chain below.
-	routes *http.ServeMux
+	routes        *http.ServeMux
 }
 
 func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }
 
-// newRuntime builds the handlers over db in dependency order: each takes the
-// collaborators it needs as constructor arguments. The hub belongs to the
-// manager and survives a restore.
+// newRuntime builds the handlers over db. The hub belongs to the manager and
+// survives a restore.
 func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
 	// A restored database may carry a different logLevel.
 	if settings, err := serversettings.Get(context.Background(), db); err == nil {
@@ -150,15 +147,12 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	return rt, nil
 }
 
-// DB, Authenticate, Session and Dispatch make the runtime the realtime hub's
-// Backend.
 func (rt *Runtime) DB() *sql.DB { return rt.db }
 
 func (rt *Runtime) Authenticate(r *http.Request) (store.User, error) {
 	return rt.identity.Authenticate(r)
 }
 
-// Session is the open playback session of a user, or nil.
 func (rt *Runtime) Session(userID string) any {
 	for _, session := range rt.playback.OpenSessions() {
 		if session["userId"] == userID {
@@ -168,7 +162,6 @@ func (rt *Runtime) Session(userID string) any {
 	return nil
 }
 
-// Dispatch performs the domain actions sockets request.
 func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
 	switch action.Event {
 	case "cancel_scan":

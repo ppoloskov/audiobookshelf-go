@@ -128,7 +128,6 @@ func (h *Handler) ItemJSON(ctx context.Context, itemID string, expanded bool) (a
 	return it.Full(), nil
 }
 
-// ItemMinifiedJSON returns the upstream shelf/collection item shape.
 func (h *Handler) ItemMinifiedJSON(ctx context.Context, itemID string) (libitem.Minified, error) {
 	out, err := h.minifiedItems(ctx, []string{itemID})
 	if err != nil {
