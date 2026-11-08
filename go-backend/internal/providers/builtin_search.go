@@ -27,12 +27,10 @@ func (h *Handler) searchBooks(w http.ResponseWriter, r *http.Request) error {
 	if id := r.URL.Query().Get("id"); id != "" {
 		var found int
 		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraryItems WHERE id = ?`, id).Scan(&found); err != nil {
-			httputil.ErrorJSON(w, http.StatusInternalServerError, "Internal server error")
-			return nil
+			return httputil.JSONStatus(w, r, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		}
 		if found == 0 {
-			httputil.ErrorJSON(w, http.StatusNotFound, fmt.Sprintf(`library item "%s" not found`, id))
-			return nil
+			return httputil.JSONStatus(w, r, http.StatusNotFound, map[string]string{"error": fmt.Sprintf(`library item "%s" not found`, id)})
 		}
 	}
 	var results []bookMatch
@@ -360,14 +358,12 @@ func (h *Handler) searchPodcasts(w http.ResponseWriter, r *http.Request) error {
 	term, err := queryParamAsString(r, "term", "", true)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		httputil.ErrorJSON(w, http.StatusBadRequest, err.Error())
-		return nil
+		return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	country, err := queryParamAsString(r, "country", "us", false)
 	if err != nil {
 		logging.Errorf("[SearchController] findPodcasts: %s", err.Error())
-		httputil.ErrorJSON(w, http.StatusBadRequest, err.Error())
-		return nil
+		return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	if term == "" {
 		return httputil.JSON(w, r, nil)
@@ -402,8 +398,7 @@ func (h *Handler) itunesPodcasts(ctx context.Context, term, country string) ([]p
 func (h *Handler) searchCovers(w http.ResponseWriter, r *http.Request) error {
 	title := r.URL.Query().Get("title")
 	if _, exists := r.URL.Query()["title"]; !exists {
-		httputil.ErrorJSON(w, http.StatusBadRequest, "Missing required query parameter: title")
-		return nil
+		return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"error": "Missing required query parameter: title"})
 	}
 	if title == "" {
 		return httputil.JSON(w, r, map[string]any{"results": nil})
@@ -430,8 +425,7 @@ func (h *Handler) searchAuthor(w http.ResponseWriter, r *http.Request) error {
 	name := r.URL.Query().Get("q")
 	if _, exists := r.URL.Query()["q"]; !exists {
 		// TS SearchController.findAuthor: a missing required parameter is a ValidationError, 400.
-		httputil.ErrorJSON(w, http.StatusBadRequest, `Query parameter "q" is required`)
-		return nil
+		return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"error": `Query parameter "q" is required`})
 	}
 	if name == "" {
 		return httputil.JSON(w, r, nil)

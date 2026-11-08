@@ -179,19 +179,14 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, patch boo
 	if e != nil {
 		return httputil.Internal("database error", e)
 	}
-	keys := []string{"authLoginCustomMessage", "authActiveAuthMethods", "authOpenIDIssuerURL", "authOpenIDAuthorizationURL", "authOpenIDTokenURL", "authOpenIDUserInfoURL", "authOpenIDJwksURL", "authOpenIDLogoutURL", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDTokenSigningAlgorithm", "authOpenIDButtonText", "authOpenIDAutoLaunch", "authOpenIDAutoRegister", "authOpenIDMatchExistingBy", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim", "authOpenIDSubfolderForRedirectURLs"}
 	if patch {
 		var p map[string]any
 		if json.NewDecoder(r.Body).Decode(&p) != nil || p == nil {
 			return httputil.Status(400, "Invalid auth settings update object")
 		}
-		allowed := map[string]bool{}
-		for _, k := range keys {
-			allowed[k] = true
-		}
 		updated := false
 		for k, v := range p {
-			if !allowed[k] {
+			if !slices.Contains(serversettings.AuthKeys, k) {
 				continue
 			}
 			if k == "authActiveAuthMethods" {
@@ -258,7 +253,7 @@ func (h *Handler) authSettings(w http.ResponseWriter, r *http.Request, patch boo
 		return h.writeSettings(w, r, map[string]any{"updated": updated})
 	}
 	out := map[string]any{}
-	for _, k := range keys {
+	for _, k := range serversettings.AuthKeys {
 		if v, ok := m[k]; ok {
 			out[k] = v
 		}
@@ -526,7 +521,7 @@ func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func(
 			return changed, err
 		}
 		for _, u := range updates {
-			res, err := h.db.ExecContext(ctx, `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, u.list, sqlDate(), u.mediaID)
+			res, err := h.db.ExecContext(ctx, `UPDATE `+table+` SET `+column+`=?,updatedAt=? WHERE id=?`, u.list, dbtime.Now(), u.mediaID)
 			if err != nil {
 				return changed, err
 			}
@@ -542,7 +537,6 @@ func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func(
 	}
 	return changed, nil
 }
-func sqlDate() string { return dbtime.Now() }
 
 func (h *Handler) statsForYear(w http.ResponseWriter, r *http.Request) error {
 	year, err := strconv.Atoi(r.PathValue("year"))
@@ -716,8 +710,7 @@ func (h *Handler) pathExists(w http.ResponseWriter, r *http.Request, u store.Use
 	}
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.Directory == "" || p.FolderPath == "" {
 		// Upstream answers res.status(400).json({error}), FileSystemController.js:94-97.
-		httputil.ErrorJSON(w, http.StatusBadRequest, "Invalid request body")
-		return nil
+		return httputil.JSONStatus(w, r, http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 	}
 	var libraryID string
 	e := h.db.QueryRowContext(r.Context(), `SELECT libraryId FROM libraryFolders WHERE path=? LIMIT 1`, p.FolderPath).Scan(&libraryID)

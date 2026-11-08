@@ -72,10 +72,10 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 	// Express: res.status(n).send(message) is text/html, res.sendStatus(n)
 	// (no message) is the status text as text/plain; both carry a weak ETag.
 	if e.Message == "" {
-		SendStatus(w, e.Status, ForRequest(r))
+		SendStatus(w, r, e.Status)
 		return
 	}
-	SendText(w, e.Status, e.Message, ForRequest(r))
+	SendText(w, r, e.Status, e.Message)
 }
 
 // JSON answers 200 with value as JSON. GET and HEAD responses carry a weak
@@ -125,7 +125,7 @@ func stripWeak(tag string) string {
 
 // OK is Express res.sendStatus(200).
 func OK(w http.ResponseWriter, r *http.Request) error {
-	SendStatus(w, http.StatusOK, ForRequest(r))
+	SendStatus(w, r, http.StatusOK)
 	return nil
 }
 

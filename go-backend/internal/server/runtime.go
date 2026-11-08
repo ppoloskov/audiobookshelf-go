@@ -23,6 +23,7 @@ import (
 	"audiobookshelf-compat/internal/backup"
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/emailapi"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
@@ -231,7 +232,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
 	}
 	if isGet(r) && path == "/ping" {
-		httputil.WriteJSON(w, 200, map[string]any{"success": true}, httputil.ForRequest(r))
+		httputil.WriteJSON(w, r, 200, map[string]any{"success": true})
 		return
 	}
 	if isGet(r) && path == "/healthcheck" {
@@ -375,8 +376,8 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database not ready", 503)
 		return
 	}
-	var roots int
-	if err := rt.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM users WHERE type='root'`).Scan(&roots); err != nil {
+	roots, err := sqlc.New(rt.db).CountRootUsers(r.Context())
+	if err != nil {
 		http.Error(w, "database not ready", 503)
 		return
 	}
@@ -407,7 +408,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
 		payload["ConfigPath"] = rt.cfg.ConfigPath
 		payload["MetadataPath"] = rt.cfg.MetadataPath
 	}
-	httputil.WriteJSON(w, 200, payload, httputil.ForRequest(r))
+	httputil.WriteJSON(w, r, 200, payload)
 }
 func (rt *Runtime) settingsAllowIframe() bool {
 	settings, err := serversettings.Get(context.Background(), rt.db)

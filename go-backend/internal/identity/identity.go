@@ -756,7 +756,7 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	if allowed {
 		return true
 	}
-	httputil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})
+	httputil.WriteJSON(w, r, http.StatusTooManyRequests, map[string]string{"error": h.rateMessage})
 	return false
 }
 

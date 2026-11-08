@@ -781,3 +781,14 @@ adminops `WatcherUpdate` is the scanner's queueing function directly (no 500 bra
    after commit (Playlist.js:172-208) from item delete, library delete, library-file episode delete and podcast episode
    delete/trim. Pending: scanner episode removal (PodcastScanner.js:80).
 Ratchet raised for the new behaviour: +121 handwritten lines, +15 complexity, +5 map[string]any, +2 []any.
+
+### Verifier round 3 and fix wave F (2026-11-08)
+Round 3 (six read-only verifiers): media, scanner and cross-cutting had nothing worth fixing; catalog, identity and
+infra had small leftovers; clean DAG, no unreasonable imports, no special case without a contract reason.
+Fixed: one `store.DeleteEpisodes` (progress, playlist cleanup, episode rows) for catalog library-file delete, podcasts
+deleteEpisode and the scanner; `serversettings.AuthKeys` is the one list of auth setting keys; adminops `sqlDate`,
+httputil `Option`/`ForRequest`/`ErrorJSON` and five dead sqlc queries deleted; `/status` uses `CountRootUsers`.
+Bug fixed (TS proof): the scanner never removed podcast episodes whose audio file was deleted (orphan episode rows,
+progress and playlist entries); it now matches removed files by path then inode and deletes them with playlist
+events after commit (PodcastScanner.js:66-102, :80). Ratchet raised by that behaviour: +13 lines, +5 complexity,
++1 []any.

@@ -19,27 +19,24 @@ func ExpressETag(body []byte) string {
 
 // SendStatus is Express res.sendStatus: the English status text as a
 // text/plain body, with Content-Length and a weak ETag.
-func SendStatus(w http.ResponseWriter, status int, opts ...Option) {
-	writeText(w, status, "text/plain; charset=utf-8", http.StatusText(status), apply(opts))
+func SendStatus(w http.ResponseWriter, r *http.Request, status int) {
+	writeText(w, r, status, "text/plain; charset=utf-8", http.StatusText(status))
 }
 
 // SendText is Express res.status(n).send(string): a text/html body without a
 // trailing newline, with Content-Length and a weak ETag.
-func SendText(w http.ResponseWriter, status int, body string, opts ...Option) {
-	o := apply(opts)
-	writeText(w, status, "text/html; charset=utf-8", body, o)
+func SendText(w http.ResponseWriter, r *http.Request, status int, body string) {
+	writeText(w, r, status, "text/html; charset=utf-8", body)
 }
 
-func ErrorJSON(w http.ResponseWriter, status int, message string, opts ...Option) {
-	WriteJSON(w, status, map[string]string{"error": message}, opts...)
-}
-
-func writeText(w http.ResponseWriter, status int, contentType, body string, o options) {
+// writeText answers a HEAD request with the headers of the GET response and
+// no body.
+func writeText(w http.ResponseWriter, r *http.Request, status int, contentType, body string) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.Header().Set("ETag", ExpressETag([]byte(body)))
 	w.WriteHeader(status)
-	if !o.head() {
+	if r.Method != http.MethodHead {
 		_, _ = w.Write([]byte(body))
 	}
 }

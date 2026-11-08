@@ -12,7 +12,7 @@ import (
 
 func TestWriteJSONFramesLikeExpress(t *testing.T) {
 	rec := httptest.NewRecorder()
-	WriteJSON(rec, http.StatusCreated, map[string]any{"b": 1, "a": "<&>"})
+	WriteJSON(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusCreated, map[string]any{"b": 1, "a": "<&>"})
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d", rec.Code)
 	}
@@ -32,7 +32,7 @@ func TestWriteJSONFramesLikeExpress(t *testing.T) {
 func TestWriteJSONHeadKeepsHeadersAndDropsBody(t *testing.T) {
 	req := httptest.NewRequest(http.MethodHead, "/ping", nil)
 	rec := httptest.NewRecorder()
-	WriteJSON(rec, http.StatusOK, map[string]bool{"success": true}, ForRequest(req))
+	WriteJSON(rec, req, http.StatusOK, map[string]bool{"success": true})
 	if rec.Body.Len() != 0 {
 		t.Fatalf("HEAD body = %q, want empty", rec.Body.String())
 	}
@@ -40,7 +40,7 @@ func TestWriteJSONHeadKeepsHeadersAndDropsBody(t *testing.T) {
 
 	get := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rec = httptest.NewRecorder()
-	WriteJSON(rec, http.StatusOK, map[string]bool{"success": true}, ForRequest(get))
+	WriteJSON(rec, get, http.StatusOK, map[string]bool{"success": true})
 	var got map[string]any
 	decodeOneJSONDocument(t, rec.Body.String(), &got)
 	if len(got) != 1 || got["success"] != true {
@@ -65,7 +65,7 @@ func decodeOneJSONDocument(t *testing.T, body string, dst any) {
 
 func TestWriteJSONMarshalFailureIsPlain500(t *testing.T) {
 	rec := httptest.NewRecorder()
-	WriteJSON(rec, http.StatusOK, map[string]any{"c": make(chan int)})
+	WriteJSON(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusOK, map[string]any{"c": make(chan int)})
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}

@@ -7,6 +7,7 @@ import (
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/textsort"
 	"audiobookshelf-compat/internal/version"
 	"context"
@@ -38,8 +39,9 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 	defer tx.Rollback()
 	var changes itemwrite.Changes
 	tally := imported{id: p.itemID, added: p.added, updated: p.updated, scannedAudio: in.scannedNew}
+	var playlistChanges []store.PlaylistChange
 	if p.lib.mediaType == "podcast" {
-		err = p.applyPodcast(ctx, tx)
+		playlistChanges, err = p.applyPodcast(ctx, tx)
 	} else if err = p.applyBook(ctx, tx); err == nil && p.rescanMedia {
 		err = p.applyRelations(ctx, tx, &changes, &tally)
 	}
@@ -52,6 +54,7 @@ func (s *Scanner) importGroup(ctx context.Context, l library, g *group, force bo
 	if err != nil {
 		return imported{}, err
 	}
+	playlistview.Announce(ctx, s.db, s.emit, playlistChanges)
 	s.afterImport(ctx, p, &changes)
 	return tally, nil
 }
@@ -290,13 +293,17 @@ func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []libi
 	return nil
 }
 
-func (p itemPlan) applyPodcast(ctx context.Context, tx *sql.Tx) error {
+func (p itemPlan) applyPodcast(ctx context.Context, tx *sql.Tx) ([]store.PlaylistChange, error) {
 	if p.added {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO podcasts(id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,createdAt,updatedAt) VALUES(?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'episodic',0,0,'0 * * * *',?,0,3,NULL,'[]','[]',?,?)`, p.mediaID, p.title, p.now, p.now, p.now); err != nil {
-			return err
+			return nil, err
 		}
 	} else if _, err := tx.ExecContext(ctx, `UPDATE podcasts SET title=CASE WHEN title IS NULL OR title='' THEN ? ELSE title END,updatedAt=? WHERE id=?`, p.title, p.now, p.mediaID); err != nil {
-		return err
+		return nil, err
+	}
+	changes, err := p.removeEpisodes(ctx, tx)
+	if err != nil {
+		return nil, err
 	}
 	// A podcast directory is the library item; each audio file is an episode.
 	var count int
@@ -309,10 +316,44 @@ func (p itemPlan) applyPodcast(ctx context.Context, tx *sql.Tx) error {
 		}
 		n := count + ep.offset + 1
 		if _, err := tx.ExecContext(ctx, `INSERT INTO podcastEpisodes(id,podcastId,"index",season,episode,episodeType,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,pubDate,audioFile,chapters,extraData,publishedAt,createdAt,updatedAt) VALUES(?,?,?,NULL,?,'full',?,NULL,NULL,NULL,NULL,NULL,NULL,?,'[]','{}',NULL,?,?)`, ids.Must(), p.mediaID, n, strconv.Itoa(n), ep.title, ep.audioJSON, p.now, p.now); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return changes, nil
+}
+
+// removeEpisodes drops the episodes whose audio file left the folder, matched
+// by path and then inode (PodcastScanner.js:66-102,
+// LibraryItemScanData.checkAudioFileRemoved), with their playlist entries and
+// progress.
+func (p itemPlan) removeEpisodes(ctx context.Context, tx *sql.Tx) ([]store.PlaylistChange, error) {
+	if len(p.fileDiff.removed) == 0 {
+		return nil, nil
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id,COALESCE(json_extract(audioFile,'$.metadata.path'),''),COALESCE(json_extract(audioFile,'$.ino'),'') FROM podcastEpisodes WHERE podcastId=?`, p.mediaID)
+	if err != nil {
+		return nil, err
+	}
+	var gone []string
+	for rows.Next() {
+		var id, path, ino string
+		if err = rows.Scan(&id, &path, &ino); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		for _, f := range p.fileDiff.removed {
+			if f.Metadata.Path == path || (ino != "" && f.Ino == ino) {
+				gone = append(gone, id)
+				break
+			}
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	return store.DeleteEpisodes(ctx, tx, gone)
 }
 
 func (p itemPlan) applyBook(ctx context.Context, tx *sql.Tx) error {

@@ -23,11 +23,7 @@ func RemoveFromPlaylists(ctx context.Context, tx sqlc.DBTX, mediaIDs []string) (
 	if len(mediaIDs) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(mediaIDs))
-	for i, id := range mediaIDs {
-		args[i] = id
-	}
-	in := Placeholders(len(args))
+	in, args := inList(mediaIDs)
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (`+in+`)`, args...)
 	if err != nil {
 		return nil, err
@@ -74,4 +70,32 @@ func RemoveFromPlaylists(ctx context.Context, tx sqlc.DBTX, mediaIDs []string) (
 		}
 	}
 	return changes, nil
+}
+
+// DeleteEpisodes removes podcast episodes with what hangs off them: their
+// playlist entries (RemoveFromPlaylists, whose changes it returns for the
+// caller to announce after commit), their progress rows and the episode rows.
+func DeleteEpisodes(ctx context.Context, tx sqlc.DBTX, episodeIDs []string) ([]PlaylistChange, error) {
+	if len(episodeIDs) == 0 {
+		return nil, nil
+	}
+	changes, err := RemoveFromPlaylists(ctx, tx, episodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	in, args := inList(episodeIDs)
+	for _, del := range [...]string{`DELETE FROM mediaProgresses WHERE mediaItemId IN (`, `DELETE FROM podcastEpisodes WHERE id IN (`} {
+		if _, err = tx.ExecContext(ctx, del+in+`)`, args...); err != nil {
+			return nil, err
+		}
+	}
+	return changes, nil
+}
+
+func inList(ids []string) (string, []any) {
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	return Placeholders(len(ids)), args
 }

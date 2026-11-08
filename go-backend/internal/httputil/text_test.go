@@ -11,7 +11,7 @@ import (
 func TestSendStatusIsExpressSendStatus(t *testing.T) {
 	rec := httptest.NewRecorder()
 	body := "Forbidden"
-	SendStatus(rec, http.StatusForbidden)
+	SendStatus(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusForbidden)
 	if rec.Code != http.StatusForbidden || rec.Body.String() != body {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}

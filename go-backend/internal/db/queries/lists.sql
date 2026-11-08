@@ -85,9 +85,6 @@ DELETE FROM collectionBooks WHERE id = ?;
 DELETE FROM collectionBooks
 WHERE collectionId = CAST(sqlc.arg(collection_id) AS TEXT) AND bookId = CAST(sqlc.arg(book_id) AS TEXT);
 
--- name: ListAllPlaylistIDs :many
-SELECT id FROM playlists;
-
 -- name: ListUserPlaylistIDs :many
 SELECT id FROM playlists WHERE userId = CAST(sqlc.arg(user_id) AS TEXT);
 
@@ -143,9 +140,3 @@ DELETE FROM playlistMediaItems WHERE id = ?;
 -- name: DeletePlaylistMediaItems :exec
 DELETE FROM playlistMediaItems WHERE playlistId = CAST(sqlc.arg(playlist_id) AS TEXT);
 
--- name: DeletePlaylistMediaItemsByMediaID :exec
-DELETE FROM playlistMediaItems WHERE mediaItemId = CAST(sqlc.arg(media_id) AS TEXT);
-
--- name: DeletePodcastEpisodePlaylistEntries :exec
-DELETE FROM playlistMediaItems
-WHERE mediaItemId = CAST(sqlc.arg(episode_id) AS TEXT) AND mediaItemType = 'podcastEpisode';

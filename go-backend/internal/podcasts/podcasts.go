@@ -428,14 +428,8 @@ func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeI
 		return err
 	}
 	defer tx.Rollback()
-	playlistChanges, err := store.RemoveFromPlaylists(ctx, tx, []string{episodeID})
+	playlistChanges, err := store.DeleteEpisodes(ctx, tx, []string{episodeID})
 	if err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId=?`, episodeID); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM podcastEpisodes WHERE id=?`, episodeID); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, string(encoded), now, item.ID); err != nil {

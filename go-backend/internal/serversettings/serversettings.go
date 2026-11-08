@@ -65,7 +65,12 @@ func (s Settings) AllowIframe() bool { return s.Bool("allowIframe") || EnvAllowI
 // DefaultSigningAlgorithm is the OpenID signing algorithm of a fresh server.
 const DefaultSigningAlgorithm = "RS256"
 
-// secretKeys are the settings no browser may see (ServerSettings.toJSONForBrowser).
+// AuthKeys are the authentication settings the auth-settings routes read and
+// patch (AuthSettings), in response order. Secret ones are withheld from the
+// browser view (ServerSettings.toJSONForBrowser).
+var AuthKeys = []string{"authLoginCustomMessage", "authActiveAuthMethods", "authOpenIDIssuerURL", "authOpenIDAuthorizationURL", "authOpenIDTokenURL", "authOpenIDUserInfoURL", "authOpenIDJwksURL", "authOpenIDLogoutURL", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDTokenSigningAlgorithm", "authOpenIDButtonText", "authOpenIDAutoLaunch", "authOpenIDAutoRegister", "authOpenIDMatchExistingBy", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim", "authOpenIDSubfolderForRedirectURLs"}
+
+// secretKeys are the settings no browser may see.
 var secretKeys = []string{"tokenSecret", "authOpenIDClientID", "authOpenIDClientSecret", "authOpenIDMobileRedirectURIs", "authOpenIDGroupClaim", "authOpenIDAdvancedPermsClaim"}
 
 var defaults = func() map[string]any {

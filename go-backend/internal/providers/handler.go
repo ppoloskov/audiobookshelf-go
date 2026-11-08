@@ -193,8 +193,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	h.emit.ToAll("custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
-	httputil.SendStatus(w, http.StatusOK)
-	return nil
+	return httputil.OK(w, r)
 }
 
 var bookProviderNames = map[string]string{"all": "All", "best": "Best", "google": "Google Books", "itunes": "iTunes", "openlibrary": "Open Library", "fantlab": "FantLab.ru", "audiobookcovers": "AudiobookCovers.com", "audible": "Audible.com", "audible.ca": "Audible.ca", "audible.uk": "Audible.co.uk", "audible.au": "Audible.com.au", "audible.fr": "Audible.fr", "audible.de": "Audible.de", "audible.jp": "Audible.co.jp", "audible.it": "Audible.it", "audible.in": "Audible.in", "audible.es": "Audible.es", "audnexus": "Audnexus"}

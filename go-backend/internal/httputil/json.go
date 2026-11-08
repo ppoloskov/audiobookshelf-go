@@ -15,14 +15,14 @@ const jsonContentType = "application/json; charset=utf-8"
 // is not an error-returning Handler (the 401 paths, /ping). It marshals first,
 // so a value that cannot be encoded yields a plain 500 instead of a truncated
 // body. Handlers use JSON, which adds the ETag and 304.
-func WriteJSON(w http.ResponseWriter, status int, value any, opts ...Option) {
+func WriteJSON(w http.ResponseWriter, r *http.Request, status int, value any) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		logging.Errorf("[httputil] WriteJSON: internal server error: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	sendJSON(w, status, data, apply(opts).head())
+	sendJSON(w, status, data, r.Method == http.MethodHead)
 }
 
 // sendJSON is the one place a marshalled JSON body is framed.

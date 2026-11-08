@@ -161,25 +161,6 @@ func (q *Queries) DeletePlaylistMediaItems(ctx context.Context, playlistID strin
 	return err
 }
 
-const deletePlaylistMediaItemsByMediaID = `-- name: DeletePlaylistMediaItemsByMediaID :exec
-DELETE FROM playlistMediaItems WHERE mediaItemId = CAST(?1 AS TEXT)
-`
-
-func (q *Queries) DeletePlaylistMediaItemsByMediaID(ctx context.Context, mediaID string) error {
-	_, err := q.db.ExecContext(ctx, deletePlaylistMediaItemsByMediaID, mediaID)
-	return err
-}
-
-const deletePodcastEpisodePlaylistEntries = `-- name: DeletePodcastEpisodePlaylistEntries :exec
-DELETE FROM playlistMediaItems
-WHERE mediaItemId = CAST(?1 AS TEXT) AND mediaItemType = 'podcastEpisode'
-`
-
-func (q *Queries) DeletePodcastEpisodePlaylistEntries(ctx context.Context, episodeID string) error {
-	_, err := q.db.ExecContext(ctx, deletePodcastEpisodePlaylistEntries, episodeID)
-	return err
-}
-
 const deleteUserPlaylists = `-- name: DeleteUserPlaylists :exec
 DELETE FROM playlists WHERE userId = CAST(?1 AS TEXT)
 `
@@ -339,33 +320,6 @@ func (q *Queries) InsertPlaylistMediaItem(ctx context.Context, arg InsertPlaylis
 		arg.Createdat,
 	)
 	return err
-}
-
-const listAllPlaylistIDs = `-- name: ListAllPlaylistIDs :many
-SELECT id FROM playlists
-`
-
-func (q *Queries) ListAllPlaylistIDs(ctx context.Context) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listAllPlaylistIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listCollectionBookItemIDs = `-- name: ListCollectionBookItemIDs :many

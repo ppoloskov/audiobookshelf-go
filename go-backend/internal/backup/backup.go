@@ -392,7 +392,7 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) error {
 	}
 	opt := h.options()
 	if path == opt.BackupPath {
-		httputil.SendText(w, http.StatusOK, "Backup path unchanged", httputil.ForRequest(r))
+		httputil.SendText(w, r, http.StatusOK, "Backup path unchanged")
 		return nil
 	}
 	if err = os.MkdirAll(path, 0755); err != nil {

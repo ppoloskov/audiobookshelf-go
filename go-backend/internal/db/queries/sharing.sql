@@ -29,9 +29,6 @@ VALUES (sqlc.arg(id), CAST(sqlc.arg(media_id) AS TEXT), CAST(sqlc.arg(media_type
 -- name: DeleteMediaItemShare :exec
 DELETE FROM mediaItemShares WHERE id = ?;
 
--- name: DeleteBookShares :exec
-DELETE FROM mediaItemShares WHERE mediaItemType = 'book' AND mediaItemId = CAST(sqlc.arg(media_id) AS TEXT);
-
 -- name: DeleteBookSharesByMediaIDs :exec
 DELETE FROM mediaItemShares WHERE mediaItemType = 'book' AND mediaItemId IN (sqlc.slice(media_ids));
 
@@ -80,9 +77,6 @@ WHERE id = sqlc.arg(id);
 
 -- name: DeleteFeed :exec
 DELETE FROM feeds WHERE id = ?;
-
--- name: DeleteLibraryItemFeeds :exec
-DELETE FROM feeds WHERE entityType = 'libraryItem' AND entityId = CAST(sqlc.arg(item_id) AS TEXT);
 
 -- name: DeleteLibraryItemFeedsByItemIDs :exec
 DELETE FROM feeds WHERE entityType = 'libraryItem' AND entityId IN (sqlc.slice(item_ids));

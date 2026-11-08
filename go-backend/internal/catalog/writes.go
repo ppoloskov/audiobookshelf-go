@@ -300,14 +300,8 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		playlistChanges, err = store.RemoveFromPlaylists(r.Context(), tx, []string{episodeID})
+		playlistChanges, err = store.DeleteEpisodes(r.Context(), tx, []string{episodeID})
 		if err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM mediaProgresses WHERE mediaItemId=? AND mediaItemType='podcastEpisode'`, episodeID); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM podcastEpisodes WHERE id=?`, episodeID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, jsonValue(remaining), now, itemID); err != nil {

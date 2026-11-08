@@ -19,13 +19,13 @@ func TestExpressETagMatchesExpress(t *testing.T) {
 // comparisons as an opt-in representation diagnostic.
 func TestTSRepresentationR01(t *testing.T) {
 	status := httptest.NewRecorder()
-	SendStatus(status, http.StatusForbidden)
+	SendStatus(status, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusForbidden)
 	if got, want := status.Header().Get("ETag"), ExpressETag([]byte("Forbidden")); got != want {
 		t.Fatalf("status ETag = %q, want helper result %q", got, want)
 	}
 
 	text := httptest.NewRecorder()
-	SendText(text, http.StatusBadRequest, "Invalid request body")
+	SendText(text, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusBadRequest, "Invalid request body")
 	if got, want := text.Header().Get("ETag"), ExpressETag([]byte("Invalid request body")); got != want {
 		t.Fatalf("text ETag = %q, want helper result %q", got, want)
 	}

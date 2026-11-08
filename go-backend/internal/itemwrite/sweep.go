@@ -1,7 +1,6 @@
 package itemwrite
 
 import (
-	"audiobookshelf-compat/internal/feeds"
 	"cmp"
 	"context"
 	"database/sql"
@@ -11,6 +10,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -38,8 +38,6 @@ func (c *Changes) Announce(libraryID string, filters *filterdata.Cache, emit eve
 		filters.AddAuthor(libraryID, au.Name, au.ID)
 	}
 }
-
-// Announce is Changes.Announce with the Env's filter data and emitter.
 
 func (e Env) Sweep(ctx context.Context, authorIDs, seriesIDs []string) {
 	e.SweepAuthors(ctx, authorIDs)

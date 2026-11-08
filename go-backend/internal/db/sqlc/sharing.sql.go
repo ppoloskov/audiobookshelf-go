@@ -22,15 +22,6 @@ func (q *Queries) CountFeedsBySlug(ctx context.Context, slug string) (int64, err
 	return count, err
 }
 
-const deleteBookShares = `-- name: DeleteBookShares :exec
-DELETE FROM mediaItemShares WHERE mediaItemType = 'book' AND mediaItemId = CAST(?1 AS TEXT)
-`
-
-func (q *Queries) DeleteBookShares(ctx context.Context, mediaID string) error {
-	_, err := q.db.ExecContext(ctx, deleteBookShares, mediaID)
-	return err
-}
-
 const deleteBookSharesByMediaIDs = `-- name: DeleteBookSharesByMediaIDs :exec
 DELETE FROM mediaItemShares WHERE mediaItemType = 'book' AND mediaItemId IN (/*SLICE:media_ids*/?)
 `
@@ -65,15 +56,6 @@ DELETE FROM feedEpisodes WHERE id = ?
 
 func (q *Queries) DeleteFeedEpisode(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteFeedEpisode, id)
-	return err
-}
-
-const deleteLibraryItemFeeds = `-- name: DeleteLibraryItemFeeds :exec
-DELETE FROM feeds WHERE entityType = 'libraryItem' AND entityId = CAST(?1 AS TEXT)
-`
-
-func (q *Queries) DeleteLibraryItemFeeds(ctx context.Context, itemID string) error {
-	_, err := q.db.ExecContext(ctx, deleteLibraryItemFeeds, itemID)
 	return err
 }
 

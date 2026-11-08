@@ -10,7 +10,7 @@ import (
 func TestSendTextIsExpressSend(t *testing.T) {
 	rec := httptest.NewRecorder()
 	body := "Invalid request body"
-	SendText(rec, http.StatusBadRequest, body)
+	SendText(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusBadRequest, body)
 	if rec.Code != http.StatusBadRequest || rec.Body.String() != body {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
