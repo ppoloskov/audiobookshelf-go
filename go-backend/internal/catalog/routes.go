@@ -2,37 +2,14 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/httputil"
-	"context"
 	"net/http"
 )
-
-// RouteDeps are the collaborators of the routes Routes registers. They are
-// interfaces defined here and satisfied by feature packages, because feature
-// packages do not import each other; the composition root wires them.
-type RouteDeps struct {
-	// Authors looks authors up at the metadata provider (POST /api/authors/:id/match).
-	Authors AuthorFinder
-	// Books searches the metadata providers for a quick match.
-	Books BookFinder
-	// PodcastEpisodes quick matches a podcast's unmatched episodes against its
-	// feed (Scanner.quickMatchPodcastEpisodes); it returns the number updated.
-	PodcastEpisodes func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
-	// PodcastScheduleChanged re-evaluates a podcast's auto-download cron entry
-	// after PATCH /api/items/:id/media changed its schedule or enabled flag
-	// (CronManager.checkUpdatePodcastCron, LibraryItemController.js:276). May be nil.
-	PodcastScheduleChanged func(ctx context.Context, itemID string)
-}
 
 // Routes registers the catalog routes that use method patterns on mux
 // (ARCHITECTURE.md "Routing"). The server authenticates a request and attaches
 // the user to its context before dispatching (store.ContextWithUser); the
 // public image read gets none.
-func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
-	h.authorFinder = deps.Authors
-	h.finder = deps.Books
-	h.episodes = deps.PodcastEpisodes
-	h.podcastScheduleChanged = deps.PodcastScheduleChanged
-
+func (h *Handler) Routes(mux *http.ServeMux) {
 	// server/routers/ApiRouter.js:217-223.
 	mux.Handle("GET /api/authors/{id}", httputil.Handler(h.authorFindOne))
 	mux.Handle("PATCH /api/authors/{id}", httputil.Handler(h.authorUpdate))

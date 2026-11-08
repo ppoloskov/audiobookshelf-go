@@ -40,7 +40,7 @@ func TestUploadWritesSanitizedFileAndRejectsInvalidRequests(t *testing.T) {
 	if _, err := db.Exec(`CREATE TABLE libraries(id TEXT PRIMARY KEY,mediaType TEXT); CREATE TABLE libraryFolders(id TEXT PRIMARY KEY,path TEXT,libraryId TEXT); INSERT INTO libraries VALUES('lib','book'); INSERT INTO libraryFolders VALUES('folder',?,'lib')`, root); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, Deps{})
 	u := store.User{IsActive: true, Permissions: []byte(`{"upload":true,"accessAllLibraries":true}`)}
 	w := httptest.NewRecorder()
 	serve(h, w, uploadRequest(t, map[string]string{"title": "Title", "library": "lib", "folder": "folder", "author": "A/B"}, "a:b?.mp3"), u)

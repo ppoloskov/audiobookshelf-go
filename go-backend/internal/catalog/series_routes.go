@@ -199,8 +199,8 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if len(changes.columns) > 0 && h.emit != nil {
-		h.emit("*", "series_updated", oldJSON)
+	if len(changes.columns) > 0 {
+		h.emit.ToAll("series_updated", oldJSON)
 	}
 	return httputil.JSON(w, r, oldJSON)
 }

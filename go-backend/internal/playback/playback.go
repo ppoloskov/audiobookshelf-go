@@ -6,6 +6,7 @@ package playback
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/version"
 	"bytes"
@@ -18,7 +19,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -140,10 +140,7 @@ type audioFile struct {
 
 // New uses the existing database and configuration. It doesn't initialize a
 // playbackSessions table or any other schema.
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
-	if emit == nil {
-		emit = func(string, string, any) {}
-	}
+func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*session{}, localIDs: map[string]string{}}
 }
 
@@ -240,7 +237,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 		s.BookID = item.MediaID
 	}
 	if playMethod == 2 {
-		if _, err := exec.LookPath(ffmpegExecutable()); err != nil {
+		if !mediatools.FFmpegAvailable() {
 			httputil.WriteJSON(w, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 			return nil
 		}
@@ -258,7 +255,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 	h.mu.Lock()
 	h.sessions[s.ID] = s
 	h.mu.Unlock()
-	h.emit("@admins", "user_stream_update", h.publicUser(user, s))
+	h.emit.ToAdmins("user_stream_update", h.publicUser(user, s))
 	httputil.WriteJSON(w, http.StatusOK, s.client())
 	return nil
 }
@@ -462,7 +459,7 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) error {
 				logging.Errorf("[PlaybackSessionManager] Failed to close stream for session %q: %v", s.ID, closeErr)
 			}
 		}
-		h.emit(user.ID, "user_session_closed", s.ID)
+		h.emit.ToUser(user.ID, "user_session_closed", s.ID)
 	}
 	httputil.OK(w, r)
 	return nil
@@ -562,7 +559,7 @@ func (h *Handler) syncProgress(ctx context.Context, userID string, s *session, d
 	if err != nil {
 		return false, err
 	}
-	h.emit(userID, "user_item_progress_updated", ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: s.Device.description(), Data: progress})
+	h.emit.ToUser(userID, "user_item_progress_updated", ProgressUpdatedEvent{ID: progress.ID, SessionID: s.ID, DeviceDescription: s.Device.description(), Data: progress})
 	return true, nil
 }
 

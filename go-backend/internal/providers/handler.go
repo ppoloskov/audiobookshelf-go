@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"audiobookshelf-compat/internal/store"
 	"github.com/google/uuid"
 )
 
@@ -59,14 +58,7 @@ func (h *Handler) endpoint(name string) string {
 // (store.ContextWithUser). The custom-provider routes answer 403 to a user who
 // is not an admin.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	admin := func(fn httputil.Handler) httputil.Handler {
-		return func(w http.ResponseWriter, r *http.Request) error {
-			if user, _ := store.UserFromContext(r.Context()); !access.AdminUser(user) {
-				return httputil.Status(http.StatusForbidden, "")
-			}
-			return fn(w, r)
-		}
-	}
+	admin := func(fn httputil.Handler) httputil.Handler { return access.RequireAdmin(http.StatusForbidden, fn) }
 	mux.Handle("GET /api/search/providers", httputil.Handler(h.getProviders))
 	mux.Handle("GET /api/search/books", httputil.Handler(h.searchBooks))
 	mux.Handle("GET /api/search/covers", httputil.Handler(h.searchCovers))
@@ -180,9 +172,7 @@ func (h *Handler) createCustomProvider(w http.ResponseWriter, r *http.Request) e
 	if extraValue != nil {
 		p.ExtraData = []byte(extraValue.(string))
 	}
-	if h.emit != nil {
-		h.emit("*", "custom_metadata_provider_added", map[string]any{"id": id, "name": name, "mediaType": mediaType, "slug": "custom-" + id})
-	}
+	h.emit.ToAll("custom_metadata_provider_added", map[string]any{"id": id, "name": name, "mediaType": mediaType, "slug": "custom-" + id})
 	// The created instance has no extraData attribute unless one was sent, so
 	// upstream's response omits it (the list reads the column, which is null).
 	created := struct {
@@ -225,9 +215,7 @@ func (h *Handler) deleteCustomProvider(w http.ResponseWriter, r *http.Request, i
 	if err = tx.Commit(); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	if h.emit != nil {
-		h.emit("*", "custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
-	}
+	h.emit.ToAll("custom_metadata_provider_removed", map[string]any{"id": id, "name": p.Name, "mediaType": p.MediaType, "slug": "custom-" + id})
 	httputil.SendStatus(w, http.StatusOK)
 	return nil
 }

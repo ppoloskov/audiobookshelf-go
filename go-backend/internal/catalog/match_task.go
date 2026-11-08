@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"context"
@@ -8,52 +9,31 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
 
-// background runs fn after the HTTP response is written, the way the source
-// lets a request handler's promise continue (batchQuickMatch, matchAll).
-func (h *Handler) background(fn func(ctx context.Context)) {
-	go fn(context.Background())
-}
-
-// matchTask is the 'library-match-all' task of Scanner.matchLibraryItems
-// (Scanner.js:489-497, 518-548) and its start time.
-type matchTask struct {
-	scanID string
-	task   task
-}
-
-func (h *Handler) startTask(library libraryScope) *matchTask {
-	t := &matchTask{scanID: uuid.NewString()}
-	t.task = task{
-		ID: uuid.NewString(), Action: "library-match-all", Data: taskData{LibraryID: library.id},
-		Title: fmt.Sprintf("Matching books in %q", library.name), TitleKey: "MessageTaskMatchingBooksInLibrary", TitleSubs: []string{library.name},
-		ShowSuccess: true, StartedAt: time.Now().UnixMilli(),
-	}
-	if h.emit != nil {
-		h.emit("*", "task_started", t.task)
-	}
+// startMatchTask announces the 'library-match-all' task of
+// Scanner.matchLibraryItems (Scanner.js:489-497).
+func (h *Handler) startMatchTask(library libraryScope) events.Task {
+	t := events.NewTask(uuid.NewString(), "library-match-all", taskData{LibraryID: library.id}).
+		Titled(fmt.Sprintf("Matching books in %q", library.name), "MessageTaskMatchingBooksInLibrary", []string{library.name})
+	t.ShowSuccess = true
+	h.emit.TaskStarted(t)
 	return t
 }
 
-// finishTask ends the task: failed with 'No items found' for an empty library,
-// otherwise finished with the scan results and the description cleared.
-func (h *Handler) finishTask(t *matchTask, numItems, updated int) {
-	finished := time.Now().UnixMilli()
-	t.task.IsFinished, t.task.FinishedAt = true, &finished
-	elapsed := finished - t.task.StartedAt
+// finishMatchTask ends the task: failed with 'No items found' for an empty
+// library, otherwise finished with the scan results (Scanner.js:518-548).
+func (h *Handler) finishMatchTask(t events.Task, libraryID string, numItems, updated int) {
+	t = t.Finished()
 	if numItems == 0 {
-		text, key := "No items found", "MessageNoItemsFound"
-		t.task.IsFailed, t.task.Error, t.task.ErrorKey = true, &text, &key
+		t = t.Failed("No items found", "MessageNoItemsFound")
 	} else {
-		t.task.Data.ScanResults = &taskScanResults{Added: 0, Updated: updated, Missing: 0, Elapsed: elapsed, Text: matchResultsText(updated, elapsed)}
+		elapsed := *t.FinishedAt - t.StartedAt
+		t.Data = taskData{LibraryID: libraryID, ScanResults: &taskScanResults{Added: 0, Updated: updated, Missing: 0, Elapsed: elapsed, Text: matchResultsText(updated, elapsed)}}
 	}
-	if h.emit != nil {
-		h.emit("*", "task_finished", t.task)
-	}
+	h.emit.TaskFinished(t)
 }
 
 // matchResultsText is LibraryScan.scanResultsString (LibraryScan.js:61-68).
@@ -83,7 +63,7 @@ func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request, librar
 		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, library.user.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	h.background(func(ctx context.Context) { h.matchLibraryItems(ctx, library) })
+	go h.matchLibraryItems(context.Background(), library)
 	return httputil.OK(w, r)
 }
 
@@ -93,8 +73,8 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
 		return
 	}
 	settings := library.settings
-	task := h.startTask(library)
-	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, task.scanID, library.name)
+	task := h.startMatchTask(library)
+	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, uuid.NewString(), library.name)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.title,b.asin,b.isbn FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? ORDER BY li.createdAt`, library.id)
 	if err != nil {
 		logging.Errorf("[Scanner] matchLibraryItems: %v", err)
@@ -135,5 +115,5 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
 			updated++
 		}
 	}
-	h.finishTask(task, len(targets), updated)
+	h.finishMatchTask(task, library.id, len(targets), updated)
 }

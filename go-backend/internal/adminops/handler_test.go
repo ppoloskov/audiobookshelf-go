@@ -22,7 +22,7 @@ import (
 // in the request context.
 func serve(h *Handler, w http.ResponseWriter, r *http.Request, u store.User) {
 	mux := http.NewServeMux()
-	h.Routes(mux, RouteDeps{})
+	h.Routes(mux)
 	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), u)))
 }
 
@@ -55,7 +55,14 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cache, "items", "stale"), []byte("cached"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{MetadataPath: metadata}, nil)
+	called := false
+	h := New(db, config.Config{MetadataPath: metadata}, nil, Deps{WatcherUpdate: func(_ context.Context, libraryID, path, kind string) error {
+		called = true
+		if libraryID != "lib" || path != "/new" || kind != "rename" {
+			t.Fatalf("watch args %q %q %q", libraryID, path, kind)
+		}
+		return nil
+	}})
 	admin := store.User{Type: "admin"}
 	stats := httptest.NewRecorder()
 	serve(h, stats, httptest.NewRequest(http.MethodGet, "/api/stats/server", nil), admin)
@@ -74,14 +81,6 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(cache, "items")); err != nil {
 		t.Fatalf("item cache was not recreated: %v", err)
 	}
-	called := false
-	h.SetWatcherUpdate(func(_ context.Context, libraryID, path, kind, oldPath string) error {
-		called = true
-		if libraryID != "lib" || path != "/new" || kind != "rename" || oldPath != "/old" {
-			t.Fatalf("watch args %q %q %q %q", libraryID, path, kind, oldPath)
-		}
-		return nil
-	})
 	watch := httptest.NewRecorder()
 	serve(h, watch, httptest.NewRequest(http.MethodPost, "/api/watcher/update", strings.NewReader(`{"libraryId":"lib","path":"/new","type":"rename","oldPath":"/old"}`)), admin)
 	if watch.Code != 200 || !called {
@@ -90,7 +89,7 @@ func TestAdminStatsCachePurgeAndWatcherCallback(t *testing.T) {
 }
 func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 	db := adminopsDB(t)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, Deps{})
 	u := store.User{Type: "admin"}
 	if _, err := serversettings.Get(context.Background(), db); err != nil {
 		t.Fatal(err)
@@ -127,7 +126,7 @@ func TestSettingsPatchWhitelistAndSecretMasking(t *testing.T) {
 }
 func TestAuthSettingsAdminOnlyAndCronValidation(t *testing.T) {
 	db := adminopsDB(t)
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, Deps{})
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/auth-settings", nil), store.User{Type: "user"})
 	if w.Code != 403 {
@@ -149,7 +148,7 @@ func TestAuthSettingsAdminOnlyAndCronValidation(t *testing.T) {
 // res.status(400).json({error: 'Invalid request body'}) (FileSystemController.js:94-97),
 // so the response carries a JSON Content-Type.
 func TestPathExistsInvalidBodyIsJSON(t *testing.T) {
-	h := New(adminopsDB(t), config.Config{}, nil)
+	h := New(adminopsDB(t), config.Config{}, nil, Deps{})
 	u := store.User{Type: "admin", IsActive: true, Permissions: json.RawMessage(`{"upload":true}`)}
 	for _, body := range []string{`{}`, `{"directory":"a"}`, `{"folderPath":"/x"}`, `not json`} {
 		w := httptest.NewRecorder()
@@ -179,7 +178,7 @@ INSERT INTO series VALUES('s1','Der Ring','Der Ring')`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, Deps{})
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPatch, "/api/sorting-prefixes", strings.NewReader(`{"sortingPrefixes":["der"]}`)).WithContext(ctx)

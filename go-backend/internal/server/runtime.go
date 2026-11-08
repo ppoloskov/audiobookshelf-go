@@ -24,6 +24,8 @@ import (
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/emailapi"
+	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/lists"
@@ -47,7 +49,6 @@ type Runtime struct {
 	db            *sql.DB
 	identity      *identity.Handler
 	realtime      *realtime.Hub
-	closeRealtime bool
 	catalog       *catalog.Handler
 	playback      *playback.Handler
 	userapi       *userapi.Handler
@@ -67,170 +68,139 @@ type Runtime struct {
 
 func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method == http.MethodHead }
 
-func newRuntime(db *sql.DB, cfg config.Config, manager *Manager, preservedHub ...*realtime.Hub) (*Runtime, error) {
-	if manager != nil {
-		// A restored database may carry a different logLevel.
-		if settings, err := serversettings.Get(context.Background(), db); err == nil {
-			ApplyLoggingSettings(settings.Doc())
-		}
+// newRuntime builds the handlers over db in dependency order: each takes the
+// collaborators it needs as constructor arguments. The hub belongs to the
+// manager and survives a restore.
+func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
+	// A restored database may carry a different logLevel.
+	if settings, err := serversettings.Get(context.Background(), db); err == nil {
+		ApplyLoggingSettings(settings.Doc())
 	}
-	ident, err := identity.New(db, cfg)
-	if err != nil {
-		return nil, err
-	}
-	var hub *realtime.Hub
-	closeHub := true
-	if len(preservedHub) > 0 && preservedHub[0] != nil {
-		hub = preservedHub[0]
-		closeHub = false
-		if err := hub.SetDatabase(db, ident.Authenticate); err != nil {
-			return nil, err
-		}
-	} else {
-		hub, err = realtime.New(db, cfg, ident.Authenticate)
+	hub := m.hub
+	emit := events.Emitter(hub.Emit)
+	rt = &Runtime{cfg: cfg, db: db, realtime: hub}
+	defer func() {
 		if err != nil {
-			return nil, err
+			rt.Close()
+			rt = nil
 		}
+	}()
+	filters := filterdata.NewCache()
+	if rt.identity, err = identity.New(db, cfg, emit); err != nil {
+		return rt, err
 	}
-	ident.SetUserAddedEmitter(func(payload map[string]any) {
-		hub.Emit("@admins", "user_added", payload)
+	if rt.providers, err = providers.New(db, emit); err != nil {
+		return rt, err
+	}
+	rt.podcasts = podcasts.New(db, cfg, emit)
+	if rt.scanner, err = scanner.New(db, cfg, emit, filters); err != nil {
+		return rt, err
+	}
+	rt.catalog = catalog.New(db, cfg, emit, catalog.WithDeps(catalog.Deps{
+		Filters:                filters,
+		Downloads:              rt.podcasts,
+		ItemChanged:            rt.scanner.WriteMetadata,
+		LibraryChanged:         func(string) { _ = rt.scanner.Refresh(context.Background()) },
+		Authors:                rt.providers,
+		Books:                  rt.providers,
+		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
+		PodcastScheduleChanged: rt.podcasts.Reschedule,
+	}))
+	rt.playback = playback.New(db, cfg, emit)
+	if rt.userapi, err = userapi.New(db, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
+		return rt, err
+	}
+	rt.notifications = notifications.New(db, cfg, emit)
+	stored, err := serversettings.Get(context.Background(), db)
+	if err != nil {
+		return rt, err
+	}
+	if rt.backup, err = backup.New(cfg, backupOptions(stored.Doc(), m), emit, rt.notifications.TriggerEvent); err != nil {
+		return rt, err
+	}
+	rt.adminops = adminops.New(db, cfg, emit, adminops.Deps{
+		AfterWrite: func() { filters.Invalidate("") },
+		SettingsChanged: func(ctx context.Context, settings map[string]any) error {
+			if err := rt.backup.UpdateOptions(ctx, backupOptions(settings, m)); err != nil {
+				return err
+			}
+			return rt.scanner.Refresh(ctx)
+		},
+		ItemChanged:   rt.catalog.ItemChanged,
+		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
-	podcastsHandler := podcasts.New(db, cfg, hub.Emit)
-	catalogHandler := catalog.New(db, cfg, hub.Emit, catalog.WithDownloadQueue(podcastsHandler))
-	sc, err := scanner.New(db, cfg, hub.Emit, catalogHandler)
-	if err != nil {
-		podcastsHandler.Close()
-		hub.Close()
-		return nil, err
-	}
-	prov, err := providers.New(db, hub.Emit)
-	if err != nil {
-		podcastsHandler.Close()
-		sc.Close()
-		hub.Close()
-		return nil, err
-	}
-	userapiHandler, err := userapi.New(db, ident, hub.Emit, hub.Refresh)
-	if err != nil {
-		podcastsHandler.Close()
-		sc.Close()
-		hub.Close()
-		return nil, err
-	}
-	listHandler := lists.New(db, hub.Emit, userapiHandler.CanReadItem)
-	rt := &Runtime{
-		cfg: cfg, db: db, identity: ident, realtime: hub, closeRealtime: closeHub,
-		catalog:       catalogHandler,
-		playback:      playback.New(db, cfg, hub.Emit),
-		userapi:       userapiHandler,
-		adminops:      adminops.New(db, cfg, hub.Emit),
-		emailapi:      emailapi.New(db, cfg, hub.Emit),
-		notifications: notifications.New(db, cfg, hub.Emit),
-		sharing:       sharing.New(db, cfg, hub.Emit),
-		podcasts:      podcastsHandler,
-		providers:     prov,
-		scanner:       sc, audiotools: audiotools.New(db, cfg, hub.Emit),
-	}
+	rt.emailapi = emailapi.New(db, cfg, emit)
+	rt.sharing = sharing.New(db, cfg, emit)
+	rt.audiotools = audiotools.New(db, cfg, emit)
+	listHandler := lists.New(db, emit, rt.userapi.CanReadItem)
+
+	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
-	rt.catalog.Routes(rt.routes, catalog.RouteDeps{Authors: prov, Books: prov, PodcastEpisodes: sc.QuickMatchPodcastEpisodes, PodcastScheduleChanged: rt.podcasts.Reschedule})
-	rt.adminops.Routes(rt.routes, adminops.RouteDeps{AfterWrite: func() { rt.catalog.FilterCache().Invalidate("") }})
-	rt.audiotools.Routes(rt.routes)
-	rt.providers.Routes(rt.routes)
-	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts} {
+	rt.catalog.Routes(rt.routes)
+	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}
-	rt.podcasts.SetQuickMatchHandler(sc.QuickMatchPodcastEpisodes)
-	sc.SetPodcastFeedFetcher(rt.podcasts.FetchFeedEpisodes)
-	rt.userapi.SetOnlineData(hub.UsersOnline, rt.playback.OpenSessions)
-	hub.SetSessionLookup(func(userID string) any {
-		for _, session := range rt.playback.OpenSessions() {
-			if session["userId"] == userID {
-				return session
-			}
-		}
-		return nil
-	})
-	rt.catalog.SetItemChanged(func(ctx context.Context, itemID string) error { return sc.WriteMetadata(ctx, itemID) })
-	rt.adminops.SetWatcherUpdate(func(ctx context.Context, libraryID, path, kind, oldPath string) error {
-		mapped := map[string]string{"add": "added", "unlink": "deleted", "rename": "renamed"}[kind]
-		if mapped == "" {
-			return fmt.Errorf("unsupported watcher update %q", kind)
-		}
-		return sc.UpdateWatchedPath(ctx, libraryID, path, mapped, oldPath)
-	})
 	logging.Default().BindSockets(func(socketID string, entry wire.LogEntry) {
 		hub.EmitSocket(socketID, "log", entry)
 	})
-	hub.SetDispatcher(func(ctx context.Context, action realtime.Action) error {
-		switch action.Event {
-		case "cancel_scan":
-			libraryID, ok := action.Payload.(string)
-			if !ok || libraryID == "" {
-				return fmt.Errorf("invalid cancel_scan payload")
-			}
-			sc.Cancel(libraryID)
-		case "set_log_listener":
-			level, ok := logLevel(action.Payload)
-			if !ok {
-				return fmt.Errorf("invalid log listener level")
-			}
-			logging.Default().AddSocketListener(action.SocketID, logging.Level(level))
-		case "remove_log_listener", "disconnect":
-			logging.Default().RemoveSocketListener(action.SocketID)
-		case "search_covers":
-			payload, _ := action.Payload.(map[string]any)
-			requestID, _ := payload["requestId"].(string)
-			title, _ := payload["title"].(string)
-			author, _ := payload["author"].(string)
-			provider, _ := payload["provider"].(string)
-			podcast, _ := payload["podcast"].(bool)
-			prov.StartCoverSearch(providers.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
-		case "cancel_cover_search":
-			requestID, _ := action.Payload.(string)
-			prov.CancelCoverSearch(requestID, action.Reply)
-		}
-		return nil
-	})
-	if manager != nil {
-		rt.catalog.SetLibraryChanged(func(string) { _ = sc.Refresh(context.Background()) })
-		rt.adminops.SetSettingsChanged(func(ctx context.Context, settings map[string]any) error {
-			if rt.backup != nil {
-				options := backupOptions(settings, manager)
-				if err := rt.backup.UpdateOptions(ctx, options); err != nil {
-					return err
-				}
-			}
-			return sc.Refresh(ctx)
-		})
-		rt.adminops.SetItemChanged(rt.catalog.ItemChanged)
-		if err := sc.Start(context.Background()); err != nil {
-			rt.Close()
-			return nil, err
-		}
-		stored, settingsErr := serversettings.Get(context.Background(), db)
-		if settingsErr != nil {
-			rt.Close()
-			return nil, settingsErr
-		}
-		backupSettings := backupOptions(stored.Doc(), manager)
-		rt.backup, err = backup.New(db, cfg, backupSettings, hub.Emit)
-		if err != nil {
-			rt.Close()
-			return nil, err
-		}
-		rt.backup.SetNotificationHandler(rt.notifications.TriggerEvent)
-		rt.backup.Routes(rt.routes)
+	if err = rt.scanner.Start(context.Background()); err != nil {
+		return rt, err
 	}
 	return rt, nil
 }
 
-func (rt *Runtime) Close() {
-	rt.close(rt.closeRealtime)
+// DB, Authenticate, Session and Dispatch make the runtime the realtime hub's
+// Backend.
+func (rt *Runtime) DB() *sql.DB { return rt.db }
+
+func (rt *Runtime) Authenticate(r *http.Request) (store.User, error) {
+	return rt.identity.Authenticate(r)
 }
 
-// close releases runtime-owned resources and optionally the shared transport.
-func (rt *Runtime) close(closeRealtime bool) {
+// Session is the open playback session of a user, or nil.
+func (rt *Runtime) Session(userID string) any {
+	for _, session := range rt.playback.OpenSessions() {
+		if session["userId"] == userID {
+			return session
+		}
+	}
+	return nil
+}
+
+// Dispatch performs the domain actions sockets request.
+func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
+	switch action.Event {
+	case "cancel_scan":
+		libraryID, ok := action.Payload.(string)
+		if !ok || libraryID == "" {
+			return fmt.Errorf("invalid cancel_scan payload")
+		}
+		rt.scanner.Cancel(libraryID)
+	case "set_log_listener":
+		level, ok := logLevel(action.Payload)
+		if !ok {
+			return fmt.Errorf("invalid log listener level")
+		}
+		logging.Default().AddSocketListener(action.SocketID, logging.Level(level))
+	case "remove_log_listener", "disconnect":
+		logging.Default().RemoveSocketListener(action.SocketID)
+	case "search_covers":
+		payload, _ := action.Payload.(map[string]any)
+		requestID, _ := payload["requestId"].(string)
+		title, _ := payload["title"].(string)
+		author, _ := payload["author"].(string)
+		provider, _ := payload["provider"].(string)
+		podcast, _ := payload["podcast"].(bool)
+		rt.providers.StartCoverSearch(providers.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
+	case "cancel_cover_search":
+		requestID, _ := action.Payload.(string)
+		rt.providers.CancelCoverSearch(requestID, action.Reply)
+	}
+	return nil
+}
+
+func (rt *Runtime) Close() {
 	if rt.backup != nil {
 		rt.backup.Close()
 	}
@@ -245,9 +215,6 @@ func (rt *Runtime) close(closeRealtime bool) {
 	}
 	if rt.playback != nil {
 		rt.playback.Close()
-	}
-	if closeRealtime && rt.realtime != nil {
-		rt.realtime.Close()
 	}
 }
 

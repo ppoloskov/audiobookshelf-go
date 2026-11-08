@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/textclean"
@@ -19,16 +18,16 @@ import (
 
 // env is what the follow-up of an author or series edit touches.
 func (h *Handler) env() itemwrite.Env {
-	return itemwrite.Env{DB: h.db, Filters: h.filters, Emit: events.Emitter(h.emit)}
+	return itemwrite.Env{DB: h.db, Filters: h.filters, Emit: h.emit}
 }
 
 // saveMetadataFiles is libraryItem.saveMetadataFile for each item.
 func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error {
-	if h.itemChanged == nil {
+	if h.deps.ItemChanged == nil {
 		return nil
 	}
 	for _, id := range itemIDs {
-		if err := h.itemChanged(ctx, id); err != nil {
+		if err := h.deps.ItemChanged(ctx, id); err != nil {
 			return err
 		}
 	}
@@ -38,14 +37,14 @@ func (h *Handler) saveMetadataFiles(ctx context.Context, itemIDs []string) error
 // itemUpdated announces item_updated with the expanded item
 // (SocketAuthority.libraryItemEmitter).
 func (h *Handler) itemUpdated(ctx context.Context, itemID string) error {
-	if h.emit == nil {
+	if h.emit == nil { // nobody listens: skip building the expanded item
 		return nil
 	}
 	expanded, err := h.ItemJSON(ctx, itemID, true)
 	if err != nil {
 		return err
 	}
-	h.emit("*", "item_updated", expanded)
+	h.emit.ToAll("item_updated", expanded)
 	return nil
 }
 
@@ -109,8 +108,8 @@ func (h *Handler) finishItemWrites(ctx context.Context, writes ...itemWrite) err
 		if err := h.ItemChanged(ctx, w.itemID); err != nil {
 			return err
 		}
-		if w.reschedule && h.podcastScheduleChanged != nil {
-			h.podcastScheduleChanged(ctx, w.itemID)
+		if w.reschedule && h.deps.PodcastScheduleChanged != nil {
+			h.deps.PodcastScheduleChanged(ctx, w.itemID)
 		}
 	}
 	return nil

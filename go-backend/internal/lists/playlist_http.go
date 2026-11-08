@@ -158,9 +158,7 @@ func (h *Handler) createPlaylist(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit(user.ID, "playlist_added", item)
-	}
+	h.emit.ToUser(user.ID, "playlist_added", item)
 	return httputil.JSON(w, r, item)
 }
 
@@ -292,8 +290,8 @@ func (h *Handler) updatePlaylist(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if (changed || itemsChanged) && h.emit != nil {
-		h.emit(user.ID, "playlist_updated", item)
+	if changed || itemsChanged {
+		h.emit.ToUser(user.ID, "playlist_updated", item)
 	}
 	return httputil.JSON(w, r, item)
 }
@@ -322,9 +320,7 @@ func (h *Handler) deletePlaylist(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if h.emit != nil {
-		h.emit(user.ID, "playlist_removed", item)
-	}
+	h.emit.ToUser(user.ID, "playlist_removed", item)
 	return httputil.OK(w, r)
 }
 
@@ -429,8 +425,8 @@ func (h *Handler) addPlaylistItem(w http.ResponseWriter, r *http.Request, id str
 			}
 		}
 	}
-	if changed && h.emit != nil {
-		h.emit(user.ID, "playlist_updated", item)
+	if changed {
+		h.emit.ToUser(user.ID, "playlist_updated", item)
 	}
 	return httputil.JSON(w, r, item)
 }
@@ -544,12 +540,12 @@ func (h *Handler) deletePlaylistMediaIDs(w http.ResponseWriter, r *http.Request,
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if changed && h.emit != nil {
+	if changed {
 		event := "playlist_updated"
 		if order == 1 {
 			event = "playlist_removed"
 		}
-		h.emit(user.ID, event, finalDTO)
+		h.emit.ToUser(user.ID, event, finalDTO)
 	}
 	return httputil.JSON(w, r, finalDTO)
 }
@@ -603,9 +599,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit(user.ID, "playlist_added", item)
-	}
+	h.emit.ToUser(user.ID, "playlist_added", item)
 	return httputil.JSON(w, r, item)
 }
 

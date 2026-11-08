@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
 	"context"
 	"fmt"
@@ -45,7 +46,7 @@ type fsWatcher struct {
 	pending   []fileUpdate
 	being     map[string]bool
 	timer     *time.Timer
-	task      *watcherTask
+	task      *events.Task
 
 	scanMu   sync.Mutex
 	scanning bool
@@ -54,7 +55,7 @@ type fsWatcher struct {
 
 type queuedUpdates struct {
 	updates []fileUpdate
-	task    *watcherTask
+	task    *events.Task
 }
 
 func newFSWatcher(ctx context.Context, s *Scanner) *fsWatcher {
@@ -152,35 +153,15 @@ func (w *fsWatcher) addUpdate(libraryID, p, kind string) bool {
 	}
 	if w.task == nil {
 		w.task = newWatcherTask(lib)
-		w.s.emitTask("task_started", w.task)
+		w.s.emit.TaskStarted(*w.task)
 	}
 	w.pending = append(w.pending, fileUpdate{path: p, relPath: relPath, folderID: folder.id, libraryID: libraryID, kind: kind})
 	w.armTimer()
 	return true
 }
 
-// watcherTask is Task.toJSON() for the scan tasks (Task.js:53-71).
-type watcherTask struct {
-	ID              string          `json:"id"`
-	Action          string          `json:"action"`
-	Data            watcherTaskData `json:"data"`
-	Title           string          `json:"title"`
-	TitleKey        string          `json:"titleKey"`
-	TitleSubs       []string        `json:"titleSubs"`
-	Description     *string         `json:"description"`
-	DescriptionKey  *string         `json:"descriptionKey"`
-	DescriptionSubs []string        `json:"descriptionSubs"`
-	Error           *string         `json:"error"`
-	ErrorKey        *string         `json:"errorKey"`
-	ErrorSubs       []string        `json:"errorSubs"`
-	ShowSuccess     bool            `json:"showSuccess"`
-	IsFailed        bool            `json:"isFailed"`
-	IsFinished      bool            `json:"isFinished"`
-	StartedAt       int64           `json:"startedAt"`
-	FinishedAt      *int64          `json:"finishedAt"`
-}
-
-type watcherTaskData struct {
+// scanTaskData is the data of a library-scan or watcher-scan task.
+type scanTaskData struct {
 	LibraryID        string       `json:"libraryId"`
 	LibraryName      string       `json:"libraryName"`
 	LibraryMediaType string       `json:"libraryMediaType,omitempty"`
@@ -198,12 +179,19 @@ type scanResults struct {
 	Elapsed int64  `json:"elapsed"`
 }
 
-func newWatcherTask(lib *libraryWatch) *watcherTask {
-	return &watcherTask{
-		ID: uuid.NewString(), Action: "watcher-scan", Data: watcherTaskData{LibraryID: lib.id, LibraryName: lib.name},
-		Title: fmt.Sprintf("Scanning file changes in %q", lib.name), TitleKey: "MessageTaskScanningFileChanges", TitleSubs: []string{lib.name},
-		ShowSuccess: true, StartedAt: time.Now().UnixMilli(),
-	}
+func newWatcherTask(lib *libraryWatch) *events.Task {
+	t := events.NewTask(uuid.NewString(), "watcher-scan", scanTaskData{LibraryID: lib.id, LibraryName: lib.name}).
+		Titled(fmt.Sprintf("Scanning file changes in %q", lib.name), "MessageTaskScanningFileChanges", []string{lib.name})
+	t.ShowSuccess = true
+	return &t
+}
+
+// withResults returns the scan task with its results set.
+func withResults(t events.Task, results *scanResults) events.Task {
+	data := t.Data.(scanTaskData)
+	data.ScanResults = results
+	t.Data = data
+	return t
 }
 
 // armTimer is Watcher.handlePendingFileUpdatesTimeout (Watcher.js:327-350).
@@ -229,38 +217,16 @@ func (w *fsWatcher) fire() {
 	w.mu.Unlock()
 	if len(updates) == 0 {
 		if task != nil {
-			description, key := "No files to scan", "MessageTaskNoFilesToScan"
-			task.Description, task.DescriptionKey = &description, &key
-			finishTask(task)
-			w.s.emitTask("task_finished", task)
+			w.s.emit.TaskFinished(task.Described("No files to scan", "MessageTaskNoFilesToScan").Finished())
 		}
 		return
 	}
 	w.s.scanFilesChanged(w.ctx, updates, task, w)
 }
 
-func finishTask(task *watcherTask) {
-	finished := time.Now().UnixMilli()
-	task.IsFinished, task.FinishedAt = true, &finished
-}
-
-// emitTask sends a snapshot so later mutations of the task do not reach
-// listeners that hold the payload.
-func (s *Scanner) emitTask(event string, task *watcherTask) {
-	if s.emit == nil {
-		return
-	}
-	snapshot := *task
-	if task.Data.ScanResults != nil {
-		results := *task.Data.ScanResults
-		snapshot.Data.ScanResults = &results
-	}
-	s.emit("*", event, snapshot)
-}
-
 // scanFilesChanged is LibraryScanner.scanFilesChanged (LibraryScanner.js:
 // 372-452): one watcher batch at a time, later batches queue.
-func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, task *watcherTask, w *fsWatcher) {
+func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, task *events.Task, w *fsWatcher) {
 	w.scanMu.Lock()
 	if w.scanning {
 		w.queue = append(w.queue, queuedUpdates{updates, task})
@@ -297,9 +263,7 @@ func (s *Scanner) scanFilesChanged(ctx context.Context, updates []fileUpdate, ta
 			s.filters.ResetIssues(ctx, s.db, group[0].libraryID) // LibraryScanner.js:419-441
 		}
 	}
-	task.Data.ScanResults = &scanResults{Added: added, Updated: updated, Removed: &removed, Text: changesText(added, updated, removed), Elapsed: time.Now().UnixMilli() - task.StartedAt}
-	finishTask(task)
-	s.emitTask("task_finished", task)
+	s.emit.TaskFinished(withResults(*task, &scanResults{Added: added, Updated: updated, Removed: &removed, Text: changesText(added, updated, removed), Elapsed: time.Now().UnixMilli() - task.StartedAt}).Finished())
 
 	w.scanMu.Lock()
 	w.scanning = false
@@ -498,9 +462,7 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 					if e != nil {
 						return results, e
 					}
-					if s.emit != nil {
-						s.emit("*", "item_updated", item)
-					}
+					s.emit.ToAll("item_updated", item)
 					results[itemDir] = scanRemoved
 					continue
 				}
@@ -534,8 +496,8 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 		}
 		tally.merge(n)
 		if n.added {
-			if item, e := s.itemEvent(ctx, n.id); e == nil && s.emit != nil {
-				s.emit("*", "item_added", item)
+			if item, e := s.itemEvent(ctx, n.id); e == nil {
+				s.emit.ToAll("item_added", item)
 			}
 			results[itemDir] = scanAdded
 		} else {
@@ -611,8 +573,8 @@ func (s *Scanner) rescanStoredItem(ctx context.Context, itemID string, details *
 		return scanNothing, nil
 	}
 	tally.merge(n)
-	if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil && s.emit != nil {
-		s.emit("*", "item_updated", item)
+	if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
+		s.emit.ToAll("item_updated", item)
 	}
 	if err := s.finalizeScan(ctx, libraryID, &scanTally{authorsChanged: n.authorsChanged, authorsRemoved: n.authorsRemoved, seriesRemoved: n.seriesRemoved}); err != nil {
 		return scanUpdated, err

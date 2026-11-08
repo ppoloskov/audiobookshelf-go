@@ -61,12 +61,13 @@ func newAuthorRig(t *testing.T, finder AuthorFinder) *authorRig {
 		defer rig.mu.Unlock()
 		rig.events = append(rig.events, recordedEvent{event, payload})
 	})
-	rig.h.SetItemChanged(func(_ context.Context, itemID string) error {
+	rig.h.deps.ItemChanged = func(_ context.Context, itemID string) error {
 		rig.touched = append(rig.touched, itemID)
 		return nil
-	})
+	}
 	rig.mux = http.NewServeMux()
-	rig.h.Routes(rig.mux, RouteDeps{Authors: finder})
+	rig.h.deps.Authors = finder
+	rig.h.Routes(rig.mux)
 	for _, q := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,
 		`INSERT INTO books VALUES ('b2','Second',NULL,NULL,'2025',NULL,NULL,NULL,NULL,NULL,'en',0,0,NULL,5,'[]','[]','null','[]','[]','[]','2024-01-02T00:00:00Z','2024-01-02T00:00:00Z')`,

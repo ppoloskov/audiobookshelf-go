@@ -5,7 +5,6 @@ package backup
 import (
 	"archive/zip"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,7 +49,6 @@ type Options struct {
 }
 
 type Handler struct {
-	db      *sql.DB
 	cfg     config.Config
 	opt     Options
 	emit    events.Emitter
@@ -102,11 +100,10 @@ func (h *Handler) schedule(spec string) (*cron.Cron, error) {
 	return c, nil
 }
 
-func New(db *sql.DB, cfg config.Config, opt Options, emit events.Emitter) (*Handler, error) {
-	if emit == nil {
-		emit = func(string, string, any) {}
-	}
-	h := &Handler{db: db, cfg: cfg, emit: emit}
+// New starts the backup service. notify delivers backup lifecycle events to
+// the notification system.
+func New(cfg config.Config, opt Options, emit events.Emitter, notify NotificationFunc) (*Handler, error) {
+	h := &Handler{cfg: cfg, emit: emit, notify: notify}
 	h.opt = h.withDefaults(opt)
 	if err := os.MkdirAll(h.opt.BackupPath, 0755); err != nil {
 		return nil, fmt.Errorf("create backup directory: %w", err)
@@ -132,20 +129,9 @@ func (h *Handler) Close() {
 	}
 }
 
-// SetNotificationHandler wires runtime notification delivery for backup
-// lifecycle events without coupling this package to notification storage.
-func (h *Handler) SetNotificationHandler(fn NotificationFunc) {
-	h.mu.Lock()
-	h.notify = fn
-	h.mu.Unlock()
-}
-
 func (h *Handler) notifyEvent(ctx context.Context, name string, data map[string]any) {
-	h.mu.Lock()
-	fn := h.notify
-	h.mu.Unlock()
-	if fn != nil {
-		_ = fn(ctx, name, data)
+	if h.notify != nil {
+		_ = h.notify(ctx, name, data)
 	}
 }
 
@@ -274,9 +260,6 @@ func (h *Handler) Create(ctx context.Context) (Backup, error) {
 
 func (h *Handler) create(ctx context.Context) (Backup, error) {
 	opt := h.options()
-	if h.db == nil {
-		return Backup{}, errors.New("database is unavailable")
-	}
 	now := time.Now()
 	id := now.Format("2006-01-02T1504")
 	dir := opt.BackupPath
@@ -531,7 +514,7 @@ func (h *Handler) apply(w http.ResponseWriter, r *http.Request, b Backup) error 
 	if err = httputil.OK(w, r); err != nil {
 		return err
 	}
-	h.emit("*", "backup_applied", nil) // BackupManager.js:263-266: sendStatus(200), then the event
+	h.emit.ToAll("backup_applied", nil) // BackupManager.js:263-266: sendStatus(200), then the event
 	return nil
 }
 

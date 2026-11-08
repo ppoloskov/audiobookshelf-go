@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/mediatools"
 	"cmp"
@@ -101,7 +102,7 @@ func (h *Handler) enqueue(item libitem.Item, episodes []Episode, auto bool) erro
 			h.queueMu.Lock()
 		} else {
 			h.queue = append(h.queue, d)
-			h.emit("*", "episode_download_queued", d.clientJSON())
+			h.emit.ToAll("episode_download_queued", d.clientJSON())
 		}
 	}
 	h.queueMu.Unlock()
@@ -147,8 +148,24 @@ func (h *Handler) clearQueue(itemID string) {
 	changed := len(h.queue) != before
 	h.queueMu.Unlock()
 	if changed {
-		h.emit("*", "episode_download_queue_cleared", itemID)
+		h.emit.ToAll("episode_download_queue_cleared", itemID)
 	}
+}
+
+// episodeTaskData is the data of the download-podcast-episode task.
+type episodeTaskData struct {
+	LibraryID     string `json:"libraryId"`
+	LibraryItemID string `json:"libraryItemId"`
+}
+
+// task is the download's 'download-podcast-episode' task, unfinished.
+func (d *downloadTask) task() events.Task {
+	title := episodeTitle(d)
+	t := events.NewTask(d.id, "download-podcast-episode", episodeTaskData{LibraryID: d.item.LibraryID, LibraryItemID: d.item.ID}).
+		Titled("Downloading episode", "MessageDownloadingEpisode", nil).
+		Described(`Downloading episode "`+title+`".`, "MessageTaskDownloadingEpisodeDescription", title)
+	t.StartedAt = d.startedAt
+	return t
 }
 
 func (h *Handler) startDownload(d *downloadTask) {
@@ -156,9 +173,8 @@ func (h *Handler) startDownload(d *downloadTask) {
 	d.ctx = ctx
 	d.cancel = cancel
 	d.startedAt = time.Now().UnixMilli()
-	h.emit("*", "episode_download_started", d.clientJSON())
-	task := map[string]any{"id": d.id, "action": "download-podcast-episode", "data": map[string]any{"libraryId": d.item.LibraryID, "libraryItemId": d.item.ID}, "title": "Downloading episode", "titleKey": "MessageDownloadingEpisode", "titleSubs": nil, "description": "Downloading episode \"" + episodeTitle(d) + "\".", "descriptionKey": "MessageTaskDownloadingEpisodeDescription", "descriptionSubs": []string{episodeTitle(d)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": false, "isFailed": false, "isFinished": false, "startedAt": d.startedAt, "finishedAt": nil}
-	h.emit("*", "task_started", task)
+	h.emit.ToAll("episode_download_started", d.clientJSON())
+	h.emit.TaskStarted(d.task())
 	go h.runDownload(d)
 }
 
@@ -187,15 +203,13 @@ func (h *Handler) runDownload(d *downloadTask) {
 	if d.cancel != nil {
 		d.cancel()
 	}
-	taskError := any(nil)
-	errorKey := any(nil)
+	finished := d.task()
+	finished.IsFinished, finished.FinishedAt = true, &d.finishedAt
 	if err != nil {
-		taskError = "Failed"
-		errorKey = "MessageTaskFailed"
+		finished = finished.Failed("Failed", "MessageTaskFailed")
 	}
-	task := map[string]any{"id": d.id, "action": "download-podcast-episode", "data": map[string]any{"libraryId": d.item.LibraryID, "libraryItemId": d.item.ID}, "title": "Downloading episode", "titleKey": "MessageDownloadingEpisode", "titleSubs": nil, "description": "Downloading episode \"" + episodeTitle(d) + "\".", "descriptionKey": "MessageTaskDownloadingEpisodeDescription", "descriptionSubs": []string{episodeTitle(d)}, "error": taskError, "errorKey": errorKey, "errorSubs": nil, "showSuccess": false, "isFailed": err != nil, "isFinished": true, "startedAt": d.startedAt, "finishedAt": d.finishedAt}
-	h.emit("*", "task_finished", task)
-	h.emit("*", "episode_download_finished", d.clientJSON())
+	h.emit.TaskFinished(finished)
+	h.emit.ToAll("episode_download_finished", d.clientJSON())
 	h.queueMu.Lock()
 	if h.current == d {
 		h.current = nil
@@ -404,9 +418,9 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 		}
 	}
 	expanded := h.expanded(d.ctx, updated)
-	h.emit("@admins", "item_updated", expanded)
+	h.emit.ToAdmins("item_updated", expanded)
 	if episode, ok := episodeOf(updated, episodeID); ok {
-		h.emit("*", "episode_added", struct {
+		h.emit.ToAll("episode_added", struct {
 			libitem.EpisodeExpanded
 			LibraryItem libitem.Expanded `json:"libraryItem"`
 		}{episode.Expanded(d.item.ID), expanded})

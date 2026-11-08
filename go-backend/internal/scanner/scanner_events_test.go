@@ -377,7 +377,7 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 	if (*events)[0].event != "task_started" || (*events)[len(*events)-1].event != "task_finished" {
 		t.Fatalf("scan task lifecycle events = %v ... %v", (*events)[0].event, (*events)[len(*events)-1].event)
 	}
-	finished, ok := (*events)[len(*events)-1].payload.(watcherTask)
+	finished, ok := (*events)[len(*events)-1].payload.(eventsTask)
 	if !ok || !finished.IsFinished || finished.IsFailed {
 		t.Fatalf("finished task payload = %v", (*events)[len(*events)-1].payload)
 	}
@@ -387,7 +387,7 @@ func TestScanSequentialAuthorTimestampsAndCounts(t *testing.T) {
 	if finished.FinishedAt == nil {
 		t.Fatalf("finished task timestamp missing: %v", finished)
 	}
-	if finished.Data.ScanResults == nil {
+	if finished.Data.(scanTaskData).ScanResults == nil {
 		t.Fatalf("scan result missing from task: %v", finished)
 	}
 
@@ -521,3 +521,6 @@ func TestScanRelationTable(t *testing.T) {
 		t.Fatalf("series_removed %d", got)
 	}
 }
+
+// eventsTask names events.Task where a test's local "events" hides the package.
+type eventsTask = events.Task

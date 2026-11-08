@@ -271,7 +271,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) error {
 		logging.RequestError(r, "Error during login", err)
 		return h.oidcFailure(w, http.StatusInternalServerError, "Error during login")
 	}
-	logging.Infof("[OidcAuth] User %q logged in with OpenID from ip %s", user.Username, clientIP(r))
+	logging.Infof("[OidcAuth] User %q logged in with OpenID from ip %s", user.Username, httputil.ClientIP(r))
 	setExpressCookie(w, "openid_id_token", idToken, 10*365*24*60*60, true, true, "Strict")
 	if flow.mobile || cookieValue(r, "auth_method") == "openid-mobile" || cookieValue(r, "auth_method") == "api" {
 		payload, err := h.loginPayload(r.Context(), user)
@@ -571,9 +571,7 @@ func (h *Handler) userFromOIDCInfo(ctx context.Context, cfg oidcConfig, info map
 			return store.User{}, err
 		}
 		created = true
-		if h.userAddedEmitter != nil {
-			h.userAddedEmitter(users.UserDTO(user, nil))
-		}
+		h.emit.ToAdmins("user_added", users.UserDTO(user, nil))
 	}
 	if !user.IsActive {
 		return user, errors.New("user not active or not found")

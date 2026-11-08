@@ -295,9 +295,7 @@ func (h *Handler) openFeed(w http.ResponseWriter, r *http.Request, u store.User,
 	}
 	minified := feed.minified()
 	logging.Infof("[RssFeedManager] Opened RSS feed %q", feedURLText(minified)) // RssFeedManager.js:301
-	if h.emit != nil {
-		h.emit("*", "rss_feed_open", minified)
-	}
+	h.emit.ToAll("rss_feed_open", minified)
 	write(w, FeedOpened{Feed: minified})
 	return nil
 }
@@ -445,9 +443,7 @@ func (h *Handler) closeFeed(w http.ResponseWriter, r *http.Request, u store.User
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	logging.Infof("[RssFeedManager] Closed RSS feed %q", feedURLText(feed.minified())) // RssFeedManager.js:359
-	if h.emit != nil {
-		h.emit("*", "rss_feed_closed", feed.minified())
-	}
+	h.emit.ToAll("rss_feed_closed", feed.minified())
 	return httputil.OK(w, r)
 }
 

@@ -43,25 +43,25 @@ type Result struct {
 }
 
 type Scanner struct {
-	db                 *sql.DB
-	cfg                config.Config
-	emit               events.Emitter
-	mu                 sync.Mutex
-	runs               map[string]context.CancelFunc
-	watchCancel        context.CancelFunc
-	podcastFeedFetcher func(context.Context, string) ([]map[string]any, error)
+	db          *sql.DB
+	cfg         config.Config
+	emit        events.Emitter
+	mu          sync.Mutex
+	runs        map[string]context.CancelFunc
+	watchCancel context.CancelFunc
 	// filters is the shared library filter data cache the scanner patches.
 	filters *filterdata.Cache
 }
 
-func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters interface{ FilterCache() *filterdata.Cache }) (*Scanner, error) {
+// New creates a scanner that patches the shared filter data cache.
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, filters *filterdata.Cache) (*Scanner, error) {
 	if db == nil {
 		return nil, errors.New("scanner: database is nil")
 	}
 	if filters == nil {
 		return nil, errors.New("scanner: filter data provider is nil")
 	}
-	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filters: filters.FilterCache()}, nil
+	return &Scanner{db: db, cfg: cfg, emit: emit, runs: make(map[string]context.CancelFunc), filters: filters}, nil
 }
 
 // begin registers a running scan of the library, which at most one may be at a
@@ -120,10 +120,8 @@ func (s *Scanner) ScanItemForce(ctx context.Context, itemID string) (Result, err
 	}
 	if n.updated {
 		result.Updated = 1
-		if s.emit != nil {
-			if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
-				s.emit("*", "item_updated", item)
-			}
+		if item, e := s.itemEvent(ctx, n.id, n.scannedAudio...); e == nil {
+			s.emit.ToAll("item_updated", item)
 		}
 	}
 	tally := &scanTally{}
@@ -144,22 +142,12 @@ func (s *Scanner) Cancel(libraryID string) {
 	}
 }
 
-// SetPodcastFeedFetcher wires the podcast package's secure RSS parser without
-// introducing an import cycle between the scanner and podcast controllers.
-func (s *Scanner) SetPodcastFeedFetcher(fetcher func(context.Context, string) ([]map[string]any, error)) {
-	s.mu.Lock()
-	s.podcastFeedFetcher = fetcher
-	s.mu.Unlock()
-}
-
-// UpdateWatchedPath applies one source-compatible watcher notification. The
-// scanner currently reconciles the containing library because its import
-// pipeline commits complete book groups; this preserves additions, removals,
-// and renames without constructing partial libraryFiles records.
-func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath, kind, oldPath string) error {
-	if kind != "added" && kind != "deleted" && kind != "renamed" {
-		return fmt.Errorf("scanner: unsupported watcher change %q", kind)
-	}
+// UpdateWatchedPath applies one watcher notification (kind add, unlink or
+// rename, as POST /api/watcher/update validates it). The scanner reconciles the
+// containing library because its import pipeline commits complete book groups;
+// this preserves additions, removals, and renames without constructing partial
+// libraryFiles records.
+func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath, kind string) error {
 	absPath, err := filepath.Abs(filepath.Clean(watchedPath))
 	if err != nil {
 		return err
@@ -183,7 +171,7 @@ func (s *Scanner) UpdateWatchedPath(ctx context.Context, libraryID, watchedPath,
 	if !inside {
 		return fmt.Errorf("scanner: watcher path is outside library folders")
 	}
-	if kind != "deleted" {
+	if kind != "unlink" {
 		if _, err := os.Stat(absPath); err != nil {
 			return err
 		}
@@ -201,11 +189,12 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Resul
 	}
 	defer end()
 	task := s.startScanTask(ctx, libraryID)
+	libraryName := task.Data.(scanTaskData).LibraryName
 	forced := ""
 	if force {
 		forced = " (forced)"
 	}
-	logging.Infof("[LibraryScanner] Starting%s library scan %s for %s", forced, task.ID, task.Data.LibraryName) // LibraryScanner.js:86
+	logging.Infof("[LibraryScanner] Starting%s library scan %s for %s", forced, task.ID, libraryName) // LibraryScanner.js:86
 	result, err := s.scanLibrary(ctx, libraryID, force)
 	if errors.Is(ctx.Err(), context.Canceled) {
 		result.Canceled = true
@@ -226,34 +215,30 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Resul
 	return result, err
 }
 
-func (s *Scanner) startScanTask(ctx context.Context, libraryID string) *watcherTask {
+func (s *Scanner) startScanTask(ctx context.Context, libraryID string) events.Task {
 	name := libraryID
 	mediaType := ""
 	var libraryName string
 	if s.db.QueryRowContext(ctx, `SELECT name,mediaType FROM libraries WHERE id=?`, libraryID).Scan(&libraryName, &mediaType) == nil && libraryName != "" {
 		name = libraryName
 	}
-	task := &watcherTask{
-		ID: uuid.NewString(), Action: "library-scan", Data: watcherTaskData{LibraryID: libraryID, LibraryName: name, LibraryMediaType: mediaType},
-		Title: fmt.Sprintf("Scanning %q library", name), TitleKey: "MessageTaskScanningLibrary", TitleSubs: []string{name},
-		ShowSuccess: true, StartedAt: time.Now().UnixMilli(),
-	}
-	s.emitTask("task_started", task)
+	task := events.NewTask(uuid.NewString(), "library-scan", scanTaskData{LibraryID: libraryID, LibraryName: name, LibraryMediaType: mediaType}).
+		Titled(fmt.Sprintf("Scanning %q library", name), "MessageTaskScanningLibrary", []string{name})
+	task.ShowSuccess = true
+	s.emit.TaskStarted(task)
 	return task
 }
 
-func (s *Scanner) finishScanTask(task *watcherTask, result Result, err error) {
-	finishTask(task)
-	elapsed := time.Now().UnixMilli() - task.StartedAt
-	task.Data.ScanResults = &scanResults{Added: result.Added, Updated: result.Updated, Missing: &result.Missing, Elapsed: elapsed, Text: fmt.Sprintf("%s (%s)", changesText(result.Added, result.Updated, result.Missing), elapsedPretty(float64(elapsed)/1000))}
+func (s *Scanner) finishScanTask(task events.Task, result Result, err error) {
+	task = task.Finished()
+	elapsed := *task.FinishedAt - task.StartedAt
+	task = withResults(task, &scanResults{Added: result.Added, Updated: result.Updated, Missing: &result.Missing, Elapsed: elapsed, Text: fmt.Sprintf("%s (%s)", changesText(result.Added, result.Updated, result.Missing), elapsedPretty(float64(elapsed)/1000))})
 	if err != nil {
-		failed, key := "Failed", "MessageTaskFailed"
-		task.IsFailed, task.Error, task.ErrorKey = true, &failed, &key
+		task = task.Failed("Failed", "MessageTaskFailed")
 	} else if result.Canceled {
-		description, key := "Task canceled by user", "MessageTaskCanceledByUser"
-		task.Description, task.DescriptionKey = &description, &key
+		task = task.Described("Task canceled by user", "MessageTaskCanceledByUser")
 	}
-	s.emitTask("task_finished", task)
+	s.emit.TaskFinished(task)
 }
 
 // markMissing flags a stored item whose files are gone and returns it as the
@@ -747,8 +732,8 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	tally := &scanTally{}
 	var updatedItems []libitem.Expanded
 	emitUpdated := func() {
-		if len(updatedItems) > 0 && s.emit != nil {
-			s.emit("*", "items_updated", updatedItems)
+		if len(updatedItems) > 0 {
+			s.emit.ToAll("items_updated", updatedItems)
 		}
 		updatedItems = nil
 	}
@@ -814,13 +799,13 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 				addedItems = append(addedItems, item)
 			}
 		}
-		if len(addedItems) == 10 && s.emit != nil {
-			s.emit("*", "items_added", addedItems)
+		if len(addedItems) == 10 {
+			s.emit.ToAll("items_added", addedItems)
 			addedItems = nil
 		}
 	}
-	if len(addedItems) > 0 && s.emit != nil {
-		s.emit("*", "items_added", addedItems)
+	if len(addedItems) > 0 {
+		s.emit.ToAll("items_added", addedItems)
 	}
 	if ctx.Err() == nil {
 		_, err = s.db.ExecContext(ctx, `UPDATE libraries SET lastScan=?,lastScanVersion=? WHERE id=?`, nowDB(), version.Server, libraryID)
@@ -946,8 +931,8 @@ func (s *Scanner) finalizeScan(ctx context.Context, libraryID string, t *scanTal
 		if err := rows.Close(); err != nil {
 			return err
 		}
-		if len(authors) > 0 && s.emit != nil {
-			s.emit("*", "authors_num_books_updated", authorsNumBooksUpdated{LibraryID: libraryID, Authors: authors})
+		if len(authors) > 0 {
+			s.emit.ToAll("authors_num_books_updated", authorsNumBooksUpdated{LibraryID: libraryID, Authors: authors})
 		}
 	}
 	itemwrite.Env{DB: s.db, Filters: s.filters, Emit: s.emit}.Sweep(ctx, t.authorsRemoved, t.seriesRemoved)

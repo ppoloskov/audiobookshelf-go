@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/realtime"
@@ -24,10 +25,31 @@ import (
 type Manager struct {
 	mu       sync.Mutex
 	cfg      config.Config
-	current  *Runtime
+	hub      *realtime.Hub // outlives restores so sockets stay connected
+	current  atomic.Pointer[Runtime]
 	database *store.Store
 	closed   bool
 }
+
+// backend is the realtime hub's view of the server: the current runtime, or
+// an unavailable stand-in while a restore has left none.
+func (m *Manager) backend() realtime.Backend {
+	if rt := m.current.Load(); rt != nil {
+		return rt
+	}
+	return unavailable{}
+}
+
+type unavailable struct{}
+
+var errUnavailable = errors.New("server is restarting")
+
+func (unavailable) Authenticate(*http.Request) (store.User, error) {
+	return store.User{}, errUnavailable
+}
+func (unavailable) DB() *sql.DB                                     { return nil }
+func (unavailable) Dispatch(context.Context, realtime.Action) error { return errUnavailable }
+func (unavailable) Session(string) any                              { return nil }
 
 type restoredDir struct {
 	target, previous string
@@ -39,18 +61,21 @@ func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
 		return nil, errors.New("server: database is nil")
 	}
 	m := &Manager{cfg: cfg, database: database}
+	m.hub = realtime.New(cfg, m.backend)
 	rt, err := newRuntime(database.DB(), cfg, m)
 	if err != nil {
+		m.hub.Close()
 		return nil, err
 	}
-	m.current = rt
+	m.current.Store(rt)
 	return m, nil
 }
 
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.mu.Lock()
-	rt, closed := m.current, m.closed
+	closed := m.closed
 	m.mu.Unlock()
+	rt := m.current.Load()
 	if closed || rt == nil {
 		http.Error(w, "server is restarting", http.StatusServiceUnavailable)
 		return
@@ -65,9 +90,10 @@ func (m *Manager) Close() {
 		return
 	}
 	m.closed = true
-	if m.current != nil {
-		m.current.Close()
+	if rt := m.current.Load(); rt != nil {
+		rt.Close()
 	}
+	m.hub.Close()
 	if m.database != nil {
 		_ = closeStore(m.database)
 	}
@@ -91,7 +117,7 @@ func (m *Manager) updateBackupPath(ctx context.Context, path string) error {
 func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthors string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.closed || m.current == nil || m.database == nil {
+	if m.closed || m.current.Load() == nil || m.database == nil {
 		return errors.New("server is closed")
 	}
 
@@ -102,7 +128,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	}
 	_ = closeStore(check)
 
-	oldRuntime, oldStore := m.current, m.database
+	oldRuntime, oldStore := m.current.Load(), m.database
 	dbPath := store.DatabasePath(m.cfg.ConfigPath)
 	dbOld := dbPath + ".restore-previous"
 	metaTargets := []struct{ target, source string }{
@@ -113,8 +139,7 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 	var newStore *store.Store
 	var nextRuntime *Runtime
 
-	sharedHub := oldRuntime.realtime
-	oldRuntime.close(false)
+	oldRuntime.Close()
 	if err = closeStore(oldStore); err != nil {
 		return fmt.Errorf("close current database: %w", err)
 	}
@@ -160,12 +185,13 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 
 	newStore, err = store.Open(dbPath)
 	if err == nil {
-		nextRuntime, err = newRuntime(dbOrNil(newStore), m.cfg, m, sharedHub)
+		nextRuntime, err = newRuntime(dbOrNil(newStore), m.cfg, m)
 	}
 	if err != nil {
 		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, oldStore, oldRuntime, err)
 	}
-	m.database, m.current = newStore, nextRuntime
+	m.database = newStore
+	m.current.Store(nextRuntime)
 	// Upstream BackupManager.js sends 200 before emitting backup_applied
 	// (lines 263-266); restore returns to the handler, which emits via this hub.
 	_ = os.Remove(dbOld)
@@ -178,20 +204,19 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 func (m *Manager) resumeOld(oldStore *store.Store, oldRuntime *Runtime, cause error) error {
 	opened, err := store.Open(store.DatabasePath(m.cfg.ConfigPath))
 	if err != nil {
-		m.current, m.database = nil, nil
+		m.current.Store(nil)
+		m.database = nil
 		return fmt.Errorf("%v; reopen current database: %w", cause, err)
 	}
-	var hub []*realtime.Hub
-	if oldRuntime != nil && oldRuntime.realtime != nil {
-		hub = append(hub, oldRuntime.realtime)
-	}
-	rt, err := newRuntime(opened.DB(), m.cfg, m, hub...)
+	rt, err := newRuntime(opened.DB(), m.cfg, m)
 	if err != nil {
 		_ = closeStore(opened)
-		m.current, m.database = nil, nil
+		m.current.Store(nil)
+		m.database = nil
 		return fmt.Errorf("%v; rebuild current runtime: %w", cause, err)
 	}
-	m.database, m.current = opened, rt
+	m.database = opened
+	m.current.Store(rt)
 	_ = oldStore
 	_ = oldRuntime
 	return cause

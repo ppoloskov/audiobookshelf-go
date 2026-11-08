@@ -299,9 +299,7 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "item_updated", item)
-	}
+	h.emit.ToAll("item_updated", item)
 	httputil.WriteJSON(w, http.StatusOK, item, httputil.ForRequest(r))
 	return nil
 }

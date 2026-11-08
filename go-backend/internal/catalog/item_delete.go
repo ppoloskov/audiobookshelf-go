@@ -208,9 +208,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, user *store.User, itemI
 			logging.Errorf("[LibraryItemController] Failed to delete library item from file system at %q: %v", itemPath, err)
 		}
 	}
-	if h.emit != nil {
-		h.emit("*", "item_removed", map[string]any{"id": itemID, "libraryId": scope.libraryID})
-	}
+	h.emit.ToAll("item_removed", map[string]any{"id": itemID, "libraryId": scope.libraryID})
 	return http.StatusOK, ""
 
 }

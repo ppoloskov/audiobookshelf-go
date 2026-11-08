@@ -118,9 +118,7 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	if err := sqlc.New(h.db).DeleteCollection(r.Context(), id); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "collection_removed", dto)
-	}
+	h.emit.ToAll("collection_removed", dto)
 	return httputil.OK(w, r)
 }
 

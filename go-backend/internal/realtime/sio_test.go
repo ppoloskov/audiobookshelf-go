@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
 
 	"golang.org/x/net/websocket"
 )
@@ -63,10 +62,7 @@ func TestEncodeArrayDoesNotEscapeHTML(t *testing.T) {
 func testServer(t *testing.T, connect func(*Socket)) (*Hub, string) {
 	t.Helper()
 	db, _ := testDB(t)
-	hub, err := New(db, config.Config{}, func(*http.Request) (store.User, error) { return store.User{}, nil })
-	if err != nil {
-		t.Fatal(err)
-	}
+	hub := newTestHub(config.Config{}, &fakeBackend{db: db})
 	hub.connectFn = func(s *Socket, _ string) { connect(s) }
 	server := httptest.NewServer(hub)
 	t.Cleanup(func() { server.Close(); hub.Close() })

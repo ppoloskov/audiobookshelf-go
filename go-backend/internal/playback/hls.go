@@ -64,7 +64,7 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 		if ext == ".ts" {
 			if seg, ok := segmentNumber(name); ok {
 				if at := t.checkSegment(seg); at >= 0 {
-					h.emit("*", "stream_reset", map[string]any{"startTime": at, "streamId": id})
+					h.emit.ToAll("stream_reset", map[string]any{"startTime": at, "streamId": id})
 				}
 			}
 		}
@@ -283,11 +283,4 @@ func segmentNumber(name string) (int, bool) {
 	}
 	n, e := strconv.Atoi(parts[1])
 	return n, e == nil && n >= 0
-}
-
-func ffmpegExecutable() string {
-	if p := strings.TrimSpace(os.Getenv("FFMPEG_PATH")); p != "" {
-		return p
-	}
-	return "ffmpeg"
 }

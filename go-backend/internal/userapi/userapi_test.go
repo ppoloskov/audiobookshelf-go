@@ -38,11 +38,11 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	ident, err := identity.New(db, config.Config{JWTSecret: "userapi-test-secret"})
+	ident, err := identity.New(db, config.Config{JWTSecret: "userapi-test-secret"}, nil)
 	if err != nil {
 		panic(err)
 	}
-	h, err := New(db, ident, emit, nil)
+	h, err := New(db, ident, emit, Deps{})
 	if err != nil {
 		panic(err)
 	}

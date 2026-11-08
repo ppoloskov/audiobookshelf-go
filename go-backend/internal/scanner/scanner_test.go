@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -40,7 +40,7 @@ func newScannerForTest(db *sql.DB, cfg config.Config, emit events.Emitter) (*Sca
 	if cfg.MetadataPath == "" {
 		cfg.MetadataPath = scannerTestMetadataRoot
 	}
-	return New(db, cfg, emit, catalog.New(db, cfg, nil))
+	return New(db, cfg, emit, filterdata.NewCache())
 }
 
 // These DDL statements are copied from the pinned v2.37.2 baseline schema.sql.
@@ -1618,46 +1618,4 @@ func TestCronScheduleRunsLibraryScan(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("configured cron schedule did not scan the library")
-}
-
-func TestQuickMatchPodcastEpisodesPersistsFeedFields(t *testing.T) {
-	root := t.TempDir()
-	db := scannerTestDB(t, root)
-	for _, ddl := range []string{
-		`CREATE TABLE podcasts(id UUID PRIMARY KEY,feedURL TEXT)`,
-		`CREATE TABLE podcastEpisodes(id UUID PRIMARY KEY,podcastId UUID,"index" INTEGER,season TEXT,episode TEXT,episodeType TEXT,title TEXT,subtitle TEXT,description TEXT,pubDate TEXT,enclosureURL TEXT,enclosureSize INTEGER,enclosureType TEXT,publishedAt DATETIME,audioFile JSON,chapters JSON,extraData JSON,createdAt DATETIME,updatedAt DATETIME)`,
-		`INSERT INTO podcasts(id,feedURL) VALUES('pod-1','https://feed.test/rss')`,
-	} {
-		if _, err := db.Exec(ddl); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := db.Exec(`INSERT INTO libraryItems(id,mediaId,mediaType,isFile,isMissing,path,libraryId,libraryFolderId,createdAt,updatedAt) VALUES('item-podcast','pod-1','podcast',0,0,?,'lib-1','folder-1','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`, root); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`INSERT INTO podcastEpisodes(id,podcastId,title,createdAt,updatedAt) VALUES('ep-1','pod-1','The Story','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`); err != nil {
-		t.Fatal(err)
-	}
-	s, err := newScannerForTest(db, config.Config{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.SetPodcastFeedFetcher(func(_ context.Context, feedURL string) ([]map[string]any, error) {
-		if feedURL != "https://feed.test/rss" {
-			t.Fatalf("feed URL=%q", feedURL)
-		}
-		return []map[string]any{{"title": "The Story", "subtitle": "Episode One", "description": "Details", "episode": "1", "episodeType": "full", "season": "1", "pubDate": "Wed, 01 Jan 2025 00:00:00 GMT", "publishedAt": int64(1735689600000), "enclosure": map[string]any{"url": "https://feed.test/audio.mp3", "length": "1234", "type": "audio/mpeg"}}}, nil
-	})
-	updated, err := s.QuickMatchPodcastEpisodes(context.Background(), "item-podcast", false)
-	if err != nil || updated != 1 {
-		t.Fatalf("quick match updated=%d err=%v", updated, err)
-	}
-	var title, subtitle, audioURL string
-	var size int64
-	if err := db.QueryRow(`SELECT title,subtitle,enclosureURL,enclosureSize FROM podcastEpisodes WHERE id='ep-1'`).Scan(&title, &subtitle, &audioURL, &size); err != nil {
-		t.Fatal(err)
-	}
-	if title != "The Story" || subtitle != "Episode One" || audioURL != "https://feed.test/audio.mp3" || size != 1234 {
-		t.Fatalf("matched episode=%q/%q/%q/%d", title, subtitle, audioURL, size)
-	}
 }

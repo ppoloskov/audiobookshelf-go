@@ -3,6 +3,7 @@ package notifications
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/settingsdoc"
@@ -26,10 +27,10 @@ const notificationKey = "notification-settings"
 
 type Handler struct {
 	db   *sql.DB
-	emit func(string, string, any)
+	emit events.Emitter
 }
 
-func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
+func New(db *sql.DB, _ config.Config, emit events.Emitter) *Handler {
 	return &Handler{db: db, emit: emit}
 }
 
@@ -65,10 +66,10 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, data bool) error {
 		return httputil.Internal("database error", e)
 	}
 	if data {
-		write(w, map[string]any{"events": events})
+		write(w, map[string]any{"events": notificationEvents})
 		return nil
 	}
-	write(w, map[string]any{"data": map[string]any{"events": events}, "settings": s})
+	write(w, map[string]any{"data": map[string]any{"events": notificationEvents}, "settings": s})
 	return nil
 }
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
@@ -346,9 +347,7 @@ func (h *Handler) deliverActive(ctx context.Context, s map[string]any, event str
 	if err := h.save(ctx, s); err != nil {
 		return false, err
 	}
-	if h.emit != nil {
-		h.emit("*", "notifications_updated", s)
-	}
+	h.emit.ToAll("notifications_updated", s)
 	return ok, nil
 }
 func (h *Handler) deliver(ctx context.Context, endpoint string, p map[string]any) error {
@@ -408,7 +407,7 @@ func template(raw any, data map[string]any) any {
 	return s
 }
 func eventData(name string) map[string]any {
-	for _, raw := range events {
+	for _, raw := range notificationEvents {
 		m := raw.(map[string]any)
 		if m["name"] == name {
 			return m
@@ -453,7 +452,7 @@ func write(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-var events = []any{
+var notificationEvents = []any{
 	map[string]any{"name": "onPodcastEpisodeDownloaded", "requiresLibrary": true, "libraryMediaType": "podcast", "description": "Triggered when a podcast episode is auto-downloaded", "descriptionKey": "NotificationOnEpisodeDownloadedDescription", "variables": []string{"libraryItemId", "libraryId", "podcastTitle", "podcastAuthor", "podcastDescription", "podcastGenres", "episodeTitle", "episodeSubtitle", "episodeDescription", "libraryName", "episodeId", "mediaTags"}, "defaults": map[string]string{"title": "New {{podcastTitle}} Episode!", "body": "{{episodeTitle}} has been added to {{libraryName}} library."}, "testData": map[string]any{"libraryItemId": "li_notification_test", "libraryId": "lib_test", "libraryName": "Podcasts", "mediaTags": "TestTag1, TestTag2", "podcastTitle": "Abs Test Podcast", "podcastAuthor": "Audiobookshelf", "podcastDescription": "Description of the Abs Test Podcast belongs here.", "podcastGenres": "TestGenre1, TestGenre2", "episodeId": "ep_notification_test", "episodeTitle": "Successful Test Episode", "episodeSubtitle": "Episode Subtitle", "episodeDescription": "Some description of the podcast episode."}},
 	map[string]any{"name": "onBackupCompleted", "requiresLibrary": false, "description": "Triggered when a backup is completed", "descriptionKey": "NotificationOnBackupCompletedDescription", "variables": []string{"completionTime", "backupPath", "backupSize", "backupCount", "removedOldest"}, "defaults": map[string]string{"title": "Backup Completed", "body": "Backup has been completed successfully.\n\nPath: {{backupPath}}\nSize: {{backupSize}} bytes\nCount: {{backupCount}}\nRemoved Oldest: {{removedOldest}}"}, "testData": map[string]any{"completionTime": "12:00 AM", "backupPath": "path/to/backup", "backupSize": "1.23 MB", "backupCount": "1", "removedOldest": "false"}},
 	map[string]any{"name": "onBackupFailed", "requiresLibrary": false, "description": "Triggered when a backup fails", "descriptionKey": "NotificationOnBackupFailedDescription", "variables": []string{"errorMsg"}, "defaults": map[string]string{"title": "Backup Failed", "body": "Backup failed, check ABS logs for more information.\nError message: {{errorMsg}}"}, "testData": map[string]any{"errorMsg": "Example error message"}},

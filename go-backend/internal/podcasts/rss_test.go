@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"bytes"
 	"context"
 	"database/sql"
@@ -234,18 +235,6 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("OPML import did not create podcast: count=%d err=%v", n, err)
 	}
-	h.SetQuickMatchHandler(func(_ context.Context, got string, override bool) (int, error) {
-		if got != itemID || !override {
-			t.Errorf("quick-match arguments item=%q override=%v", got, override)
-		}
-		return 2, nil
-	})
-	r = httptest.NewRequest("POST", "/api/podcasts/"+itemID+"/match-episodes?override=1", nil)
-	w = httptest.NewRecorder()
-	serveAdmin(h, w, r)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"numEpisodesUpdated":2`) {
-		t.Fatalf("quick-match route: %d %s", w.Code, w.Body.String())
-	}
 	failedFeed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "fixture unavailable", 503) }))
 	defer failedFeed.Close()
 	h.SetHTTPClientForTests(failedFeed.Client())
@@ -352,45 +341,45 @@ func TestOPMLImportCreationOutcomesAndEventPayloads(t *testing.T) {
 	defer server.Close()
 	h := New(db, config.Config{}, nil)
 	h.SetHTTPClientForTests(server.Client())
-	events := make(chan struct {
+	type taskEvent struct {
 		name string
-		data map[string]any
-	}, 8)
+		task events.Task
+	}
+	taskEvents := make(chan taskEvent, 8)
 	h.emit = func(_ string, name string, payload any) {
-		if task, ok := payload.(map[string]any); ok && (name == "task_started" || name == "task_finished") {
-			events <- struct {
-				name string
-				data map[string]any
-			}{name, task}
+		if task, ok := payload.(events.Task); ok && (name == "task_started" || name == "task_finished") {
+			taskEvents <- taskEvent{name, task}
 		}
 	}
-	finished := map[string]any{"id": "test", "description": "", "descriptionKey": "", "descriptionSubs": nil, "isFinished": false, "finishedAt": nil}
-	h.runOPMLImport([]string{server.URL + "/new", server.URL + "/new", server.URL + "/failure"}, "lib", "folder", folder, false, finished)
-	if finished["description"] != "Added 1 podcasts" || finished["descriptionKey"] != "MessageTaskOpmlImportFinished" || finished["descriptionSubs"].([]any)[0] != 1 || finished["isFinished"] != true || finished["finishedAt"] == nil {
+	h.runOPMLImport([]string{server.URL + "/new", server.URL + "/new", server.URL + "/failure"}, "lib", "folder", folder, false, events.NewTask("test", "opml-import", struct{}{}))
+	var finished events.Task
+	var failures []events.Task
+	for len(taskEvents) > 0 {
+		event := <-taskEvents
+		if event.task.IsFailed {
+			failures = append(failures, event.task)
+		} else if event.name == "task_finished" {
+			finished = event.task
+		}
+	}
+	if str(finished.Description) != "Added 1 podcasts" || str(finished.DescriptionKey) != "MessageTaskOpmlImportFinished" || finished.DescriptionSubs[0] != 1 || !finished.IsFinished || finished.FinishedAt == nil {
 		t.Fatalf("finished task payload mismatch: %#v", finished)
 	}
 	var count int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM podcasts WHERE title='Fixture Cast'`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("created podcasts=%d err=%v", count, err)
 	}
-	var failures []map[string]any
-	for len(events) > 0 {
-		event := <-events
-		if event.data["isFailed"] == true {
-			failures = append(failures, event.data)
-		}
-	}
 	if len(failures) != 2 {
 		t.Fatalf("failure tasks=%#v", failures)
 	}
-	if failures[0]["description"] != `Creating podcast "Fixture Cast"` || failures[0]["descriptionKey"] != "MessageTaskOpmlImportFeedPodcastDescription" ||
-		failures[0]["descriptionSubs"].([]string)[0] != "Fixture Cast" || failures[0]["error"] != "Podcast already exists at path" || failures[0]["errorKey"] != "MessageTaskOpmlImportFeedPodcastExists" {
+	if str(failures[0].Description) != `Creating podcast "Fixture Cast"` || str(failures[0].DescriptionKey) != "MessageTaskOpmlImportFeedPodcastDescription" ||
+		failures[0].DescriptionSubs[0] != "Fixture Cast" || str(failures[0].Error) != "Podcast already exists at path" || str(failures[0].ErrorKey) != "MessageTaskOpmlImportFeedPodcastExists" {
 		t.Fatalf("duplicate task payload mismatch: %#v", failures[0])
 	}
 	// PodcastManager.js:605-622: "Failed to create podcast folder" uses the
 	// Creating-podcast description for a path failure.
-	if failures[1]["description"] != `Creating podcast "Failure Show"` || failures[1]["descriptionKey"] != "MessageTaskOpmlImportFeedPodcastDescription" ||
-		failures[1]["error"] != "Failed to create podcast library item" || failures[1]["errorKey"] != "MessageTaskOpmlImportFeedPodcastFailed" {
+	if str(failures[1].Description) != `Creating podcast "Failure Show"` || str(failures[1].DescriptionKey) != "MessageTaskOpmlImportFeedPodcastDescription" ||
+		str(failures[1].Error) != "Failed to create podcast library item" || str(failures[1].ErrorKey) != "MessageTaskOpmlImportFeedPodcastFailed" {
 		t.Fatalf("other failure payload mismatch: %#v", failures[1])
 	}
 }

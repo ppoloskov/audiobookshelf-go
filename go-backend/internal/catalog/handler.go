@@ -4,6 +4,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/serversettings"
@@ -19,55 +20,65 @@ type DownloadQueue interface {
 	EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload)
 }
 
-type emitFunc func(userID, event string, payload any)
+// Deps are the collaborators catalog routes use outside this package. They are
+// interfaces and functions defined here and satisfied by feature packages,
+// because feature packages do not import each other; the composition root
+// supplies them to New. Every field is optional.
+type Deps struct {
+	// Filters is the library filter data cache shared with the scanner; New
+	// makes its own when nil.
+	Filters *filterdata.Cache
+	// Downloads reports the podcast downloads GET /api/items/:id?include=downloads lists.
+	Downloads DownloadQueue
+	// ItemChanged ends a media mutation: the metadata sidecar file and the
+	// item_updated event of one library item.
+	ItemChanged func(context.Context, string) error
+	// LibraryChanged refreshes the scanner's watcher and schedules after a
+	// library mutation committed.
+	LibraryChanged func(libraryID string)
+	// Authors looks authors up at the metadata provider (POST /api/authors/:id/match).
+	Authors AuthorFinder
+	// Books searches the metadata providers for a quick match.
+	Books BookFinder
+	// PodcastEpisodes quick matches a podcast's unmatched episodes against its
+	// feed (Scanner.quickMatchPodcastEpisodes); it returns the number updated.
+	PodcastEpisodes func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
+	// PodcastScheduleChanged re-evaluates a podcast's auto-download cron entry
+	// after PATCH /api/items/:id/media changed its schedule or enabled flag
+	// (CronManager.checkUpdatePodcastCron, LibraryItemController.js:276).
+	PodcastScheduleChanged func(ctx context.Context, itemID string)
+}
 
 // Handler reads library and media catalog data from an existing database.
 type Handler struct {
-	db             *sql.DB
-	cfg            config.Config
-	emit           emitFunc
-	libraryChanged func(libraryID string)
-	itemChanged    func(context.Context, string) error
-	filters        *filterdata.Cache
-	downloads      DownloadQueue
-	authorFinder   AuthorFinder
-	finder         BookFinder
-	episodes       func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
-	// podcastScheduleChanged is CronManager.checkUpdatePodcastCron.
-	podcastScheduleChanged func(ctx context.Context, itemID string)
+	db      *sql.DB
+	cfg     config.Config
+	emit    events.Emitter
+	filters *filterdata.Cache
+	deps    Deps
 }
 
-// Option configures optional collaborators of New.
+// Option configures New.
 type Option func(*Handler)
 
-// WithDownloadQueue supplies the podcast download queue that
-// GET /api/items/:id?include=downloads reports.
-func WithDownloadQueue(queue DownloadQueue) Option {
-	return func(h *Handler) { h.downloads = queue }
+// WithDeps supplies the collaborators of the handler's routes.
+func WithDeps(deps Deps) Option {
+	return func(h *Handler) {
+		h.deps = deps
+		if deps.Filters != nil {
+			h.filters = deps.Filters
+		}
+	}
 }
 
 // New constructs a catalog handler. The emit callback is used for events from
 // catalog write routes.
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any), options ...Option) *Handler {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, options ...Option) *Handler {
 	h := &Handler{db: db, cfg: cfg, emit: emit, filters: filterdata.NewCache()}
 	for _, option := range options {
 		option(h)
 	}
 	return h
-}
-
-// FilterCache exposes the library filter data cache to the scanner and the
-// server, which patch and invalidate it.
-func (h *Handler) FilterCache() *filterdata.Cache { return h.filters }
-
-// SetLibraryChanged installs the scanner watcher refresh callback. It runs
-// only after a catalog library mutation commits successfully.
-func (h *Handler) SetLibraryChanged(callback func(libraryID string)) { h.libraryChanged = callback }
-
-// SetItemChanged installs the source-compatible metadata sidecar callback for
-// media mutations. It runs only after the catalog row has been saved.
-func (h *Handler) SetItemChanged(callback func(context.Context, string) error) {
-	h.itemChanged = callback
 }
 
 // loadItems loads ids with one libitem.Load; missing ids are skipped.

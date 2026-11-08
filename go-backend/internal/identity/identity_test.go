@@ -272,7 +272,7 @@ func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 			t.Fatal(err)
 		}
 	}
-	handler, err := New(db, config.Config{RouterBasePath: "/audiobookshelf", Source: "test"})
+	handler, err := New(db, config.Config{RouterBasePath: "/audiobookshelf", Source: "test"}, nil)
 	if err != nil {
 		db.Close()
 		t.Fatal(err)

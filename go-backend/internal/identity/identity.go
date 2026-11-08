@@ -5,6 +5,7 @@ package identity
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/settingsdoc"
@@ -53,28 +54,22 @@ const (
 )
 
 type Handler struct {
-	db               *sql.DB
-	cfg              config.Config
-	secret           []byte
-	accessTTL        time.Duration
-	refreshTTL       time.Duration
-	refreshGrace     time.Duration
-	userAddedEmitter func(map[string]any)
-	rateMax          int
-	rateWindow       time.Duration
-	rateMessage      string
-	rateMu           sync.Mutex
-	rateLimiters     map[string]*rate.Limiter
-	rateSwept        time.Time
-	oidcMu           sync.Mutex
-	oidcFlows        map[string]oidcFlow
-	mobileFlows      map[string]mobileFlow
-}
-
-// SetUserAddedEmitter installs the realtime event used by OpenID auto-registration.
-// Runtime composition supplies the shared Socket.IO hub before serving requests.
-func (h *Handler) SetUserAddedEmitter(emit func(map[string]any)) {
-	h.userAddedEmitter = emit
+	db           *sql.DB
+	cfg          config.Config
+	secret       []byte
+	accessTTL    time.Duration
+	refreshTTL   time.Duration
+	refreshGrace time.Duration
+	emit         events.Emitter
+	rateMax      int
+	rateWindow   time.Duration
+	rateMessage  string
+	rateMu       sync.Mutex
+	rateLimiters map[string]*rate.Limiter
+	rateSwept    time.Time
+	oidcMu       sync.Mutex
+	oidcFlows    map[string]oidcFlow
+	mobileFlows  map[string]mobileFlow
 }
 
 type session struct {
@@ -118,7 +113,8 @@ func (d *nullableDate) Scan(value any) error {
 // New validates the baseline auth schema and obtains the signing key. If no
 // JWT_SECRET_KEY is configured and settings.tokenSecret is absent, it stores a
 // generated secret in the existing server-settings row (upstream behavior).
-func New(db *sql.DB, cfg config.Config) (*Handler, error) {
+// emit announces users that OpenID auto-registration adds.
+func New(db *sql.DB, cfg config.Config, emit events.Emitter) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("identity: database is required")
 	}
@@ -134,7 +130,7 @@ func New(db *sql.DB, cfg config.Config) (*Handler, error) {
 		}
 	}
 	h := &Handler{
-		db: db, cfg: cfg, secret: []byte(cfg.JWTSecret),
+		db: db, cfg: cfg, emit: emit, secret: []byte(cfg.JWTSecret),
 		accessTTL:    durationFromEnv("ACCESS_TOKEN_EXPIRY", accessTokenTTL),
 		refreshTTL:   durationFromEnv("REFRESH_TOKEN_EXPIRY", refreshTokenTTL),
 		refreshGrace: durationFromEnv("REFRESH_TOKEN_GRACE_PERIOD", refreshGraceTTL),
@@ -270,7 +266,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
 		h.logFailedLogin(r, user.Username, "Invalid password")
 		return writePassportDenied(w)
 	}
-	logging.Infof("[LocalAuth] User %q logged in from ip %s", user.Username, clientIP(r)) // LocalAuthStrategy.js:74,88
+	logging.Infof("[LocalAuth] User %q logged in from ip %s", user.Username, httputil.ClientIP(r)) // LocalAuthStrategy.js:74,88
 	access, refresh, err := h.createSession(r.Context(), user, r)
 	if err != nil {
 		logging.RequestError(r, "error", err)
@@ -300,7 +296,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
 
 // logFailedLogin is LocalAuthStrategy.logFailedLoginAttempt (LocalAuthStrategy.js:104).
 func (h *Handler) logFailedLogin(r *http.Request, username, message string) {
-	logging.Errorf("[LocalAuth] Failed login attempt for username %q from ip %s (%s)", username, clientIP(r), message)
+	logging.Errorf("[LocalAuth] Failed login attempt for username %q from ip %s (%s)", username, httputil.ClientIP(r), message)
 }
 
 func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
@@ -491,7 +487,7 @@ func (h *Handler) createSession(ctx context.Context, user store.User, r *http.Re
 	}
 	now := time.Now().UTC()
 	err = h.queries().InsertSession(ctx, sqlc.InsertSessionParams{
-		ID: id, Ipaddress: store.Text(clientIP(r)), Useragent: store.Text(r.UserAgent()), Refreshtoken: refresh,
+		ID: id, Ipaddress: store.Text(httputil.ClientIP(r)), Useragent: store.Text(r.UserAgent()), Refreshtoken: refresh,
 		Expiresat: dbtime.Format(now.Add(h.refreshTTL)), Createdat: dbtime.Format(now), Updatedat: dbtime.Format(now), Userid: user.ID,
 	})
 	if err != nil {
@@ -829,16 +825,6 @@ func requestSecure(r *http.Request) bool {
 	return false
 }
 
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	if host, _, err := strings.Cut(r.RemoteAddr, ":"); err {
-		return host
-	}
-	return r.RemoteAddr
-}
-
 func durationFromEnv(name string, fallback time.Duration) time.Duration {
 	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
 	if err != nil || value == 0 {
@@ -869,7 +855,7 @@ func (h *Handler) allowAuthRequest(w http.ResponseWriter, r *http.Request) bool 
 	if h.rateMax <= 0 || h.rateWindow <= 0 {
 		return true
 	}
-	key := clientIP(r)
+	key := httputil.ClientIP(r)
 	h.rateMu.Lock()
 	if time.Since(h.rateSwept) >= h.rateWindow {
 		h.rateSwept = time.Now()

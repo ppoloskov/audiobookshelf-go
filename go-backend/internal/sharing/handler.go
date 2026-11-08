@@ -3,6 +3,7 @@ package sharing
 
 import (
 	"archive/zip"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filekind"
 	"database/sql"
 	"encoding/json"
@@ -22,7 +23,7 @@ import (
 type Handler struct {
 	db       *sql.DB
 	cfg      config.Config
-	emit     func(string, string, any)
+	emit     events.Emitter
 	mu       sync.Mutex
 	sessions map[string]*shareSession
 }
@@ -48,7 +49,7 @@ type shareSession struct {
 	BookID      string
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(string, string, any)) *Handler {
+func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	return &Handler{db: db, cfg: cfg, emit: emit, sessions: map[string]*shareSession{}}
 }
 

@@ -29,9 +29,9 @@ func raw(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 func matchRig(t *testing.T, finder *fakeBooks) *authorRig {
 	t.Helper()
 	rig := newAuthorRig(t, nil)
-	rig.h.finder = finder
+	rig.h.deps.Books = finder
 	rig.mux = http.NewServeMux()
-	rig.h.Routes(rig.mux, RouteDeps{Books: finder})
+	rig.h.Routes(rig.mux)
 	return rig
 }
 

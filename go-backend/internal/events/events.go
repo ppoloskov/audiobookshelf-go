@@ -1,9 +1,94 @@
 // Package events defines how feature packages publish Socket.IO events. It is
-// a leaf package: the composition root supplies the implementation (the
-// realtime hub), and packages only see this function type.
+// a leaf package: the composition root supplies the delivery function (the
+// realtime hub), and packages only see Emitter and Task.
 package events
 
-// Emitter publishes event with payload to the sockets selected by userID: a
-// user id, "*" for every authenticated user, or "@admins" for administrators.
-// The hub decides which connected sockets match.
-type Emitter func(userID, event string, payload any)
+import "time"
+
+// Audience values understood by the delivery function behind an Emitter. They
+// are the only place the realtime vocabulary is spelled; features call ToUser,
+// ToAdmins or ToAll.
+const (
+	AllUsers = "*"
+	Admins   = "@admins"
+)
+
+// Emitter publishes events to an audience through a delivery function (the
+// realtime hub in production). The nil Emitter discards every event, so a
+// feature never checks for a missing emitter. The hub decides which connected
+// sockets match the audience.
+type Emitter func(audience, event string, payload any)
+
+func (e Emitter) emit(audience, event string, payload any) {
+	if e != nil {
+		e(audience, event, payload)
+	}
+}
+
+// ToUser sends the event to the sockets of one user.
+func (e Emitter) ToUser(userID, event string, payload any) { e.emit(userID, event, payload) }
+
+// ToAdmins sends the event to administrators and root.
+func (e Emitter) ToAdmins(event string, payload any) { e.emit(Admins, event, payload) }
+
+// ToAll sends the event to every authenticated user the payload is visible to.
+func (e Emitter) ToAll(event string, payload any) { e.emit(AllUsers, event, payload) }
+
+// TaskStarted publishes task_started for t.
+func (e Emitter) TaskStarted(t Task) { e.ToAll("task_started", t) }
+
+// TaskFinished publishes task_finished for t.
+func (e Emitter) TaskFinished(t Task) { e.ToAll("task_finished", t) }
+
+// Task is the client's background-task record (server/objects/Task.js
+// toJSON), shared by the scanner, audio tools, library match and podcasts.
+// It is a value: an emitted copy is a snapshot that later changes do not reach.
+type Task struct {
+	ID              string   `json:"id"`
+	Action          string   `json:"action"`
+	Data            any      `json:"data"`
+	Title           string   `json:"title"`
+	TitleKey        string   `json:"titleKey"`
+	TitleSubs       []string `json:"titleSubs"`
+	Description     *string  `json:"description"`
+	DescriptionKey  *string  `json:"descriptionKey"`
+	DescriptionSubs []any    `json:"descriptionSubs"`
+	Error           *string  `json:"error"`
+	ErrorKey        *string  `json:"errorKey"`
+	ErrorSubs       []string `json:"errorSubs"`
+	ShowSuccess     bool     `json:"showSuccess"`
+	IsFailed        bool     `json:"isFailed"`
+	IsFinished      bool     `json:"isFinished"`
+	StartedAt       int64    `json:"startedAt"`
+	FinishedAt      *int64   `json:"finishedAt"`
+}
+
+// NewTask starts a task now.
+func NewTask(id, action string, data any) Task {
+	return Task{ID: id, Action: action, Data: data, StartedAt: time.Now().UnixMilli()}
+}
+
+// Titled sets the title and its translation key and substitutions.
+func (t Task) Titled(title, key string, subs []string) Task {
+	t.Title, t.TitleKey, t.TitleSubs = title, key, subs
+	return t
+}
+
+// Described sets the description, replacing an earlier one.
+func (t Task) Described(text, key string, subs ...any) Task {
+	t.Description, t.DescriptionKey, t.DescriptionSubs = &text, &key, subs
+	return t
+}
+
+// Finished marks the task finished now.
+func (t Task) Finished() Task {
+	now := time.Now().UnixMilli()
+	t.IsFinished, t.FinishedAt = true, &now
+	return t
+}
+
+// Failed marks the task failed with an error message and its key.
+func (t Task) Failed(text, key string) Task {
+	t.IsFailed, t.Error, t.ErrorKey = true, &text, &key
+	return t
+}

@@ -16,13 +16,10 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
-
-// Authenticate resolves the JWT carried in the Socket.IO "auth" event. The
-// callback is reused from HTTP auth by placing the token in a Bearer header.
-type Authenticate func(*http.Request) (store.User, error)
 
 // Action is a request delegated to another domain package. Replies may be
 // emitted asynchronously for streaming actions such as cover search.
@@ -35,9 +32,17 @@ type Action struct {
 	Ack      Ack
 }
 
-// DispatchFunc lets scan, logging, and cover-search packages provide the
-// domain behavior while this package keeps transport and authorization.
-type DispatchFunc func(context.Context, Action) error
+// Backend is the running server as the hub needs it: it authenticates the
+// token of a Socket.IO "auth" event (the HTTP bearer check), reaches the
+// database for last-seen writes and permission refreshes, performs domain
+// actions, and describes a user's open playback session. The hub outlives a
+// backup restore, so it asks for the current Backend on every use.
+type Backend interface {
+	Authenticate(*http.Request) (store.User, error)
+	DB() *sql.DB
+	Dispatch(context.Context, Action) error
+	Session(userID string) any
+}
 
 type client struct {
 	socket      *Socket
@@ -68,14 +73,10 @@ func (h *Hub) SetTestEmitter(id string, emit func(string)) {
 // Hub owns one or two Socket.IO servers: the legacy /socket.io path and, when
 // configured, the additional router-prefix path used by upstream.
 type Hub struct {
-	db           *sql.DB
-	cfg          config.Config
-	authenticate Authenticate
+	backend func() Backend
 
-	mu            sync.RWMutex
-	clients       map[string]*client
-	dispatch      DispatchFunc
-	sessionLookup func(userID string) any
+	mu      sync.RWMutex
+	clients map[string]*client
 
 	paths        []string
 	pingInterval time.Duration
@@ -90,15 +91,9 @@ type Hub struct {
 // New creates an Engine.IO + Socket.IO server for compatible polling and
 // WebSocket-upgrade clients. Authentication is deferred to the upstream-style
 // Socket.IO "auth" event; HTTP bearer headers alone do not associate a user.
-func New(db *sql.DB, cfg config.Config, authenticate func(*http.Request) (store.User, error)) (*Hub, error) {
-	if db == nil {
-		return nil, errors.New("realtime: database is required")
-	}
-	if authenticate == nil {
-		return nil, errors.New("realtime: authenticate callback is required")
-	}
+func New(cfg config.Config, backend func() Backend) *Hub {
 	h := &Hub{
-		db: db, cfg: cfg, authenticate: authenticate,
+		backend: backend,
 		clients: make(map[string]*client), conns: make(map[*conn]struct{}),
 		pingInterval: defaultPingInterval, pingTimeout: defaultPingTimeout,
 		paths: []string{"/socket.io"},
@@ -108,36 +103,7 @@ func New(db *sql.DB, cfg config.Config, authenticate func(*http.Request) (store.
 		h.paths = append(h.paths, base+"/socket.io")
 	}
 	h.connectFn = h.connected
-	return h, nil
-}
-
-// SetDispatcher installs domain handlers. It is safe to call before or after
-// connections are accepted.
-func (h *Hub) SetDispatcher(dispatch DispatchFunc) {
-	h.mu.Lock()
-	h.dispatch = dispatch
-	h.mu.Unlock()
-}
-
-// SetDatabase rebinds database-backed socket authentication writes after an
-// in-process database restore. Existing socket connections remain untouched.
-func (h *Hub) SetDatabase(db *sql.DB, authenticate Authenticate) error {
-	if db == nil || authenticate == nil {
-		return errors.New("realtime: database and authenticate callback are required")
-	}
-	h.mu.Lock()
-	h.db = db
-	h.authenticate = authenticate
-	h.mu.Unlock()
-	return nil
-}
-
-// SetSessionLookup supplies the current public playback-session payload for
-// GET /api/users/online. A nil callback keeps session fields null.
-func (h *Hub) SetSessionLookup(lookup func(userID string) any) {
-	h.mu.Lock()
-	h.sessionLookup = lookup
-	h.mu.Unlock()
+	return h
 }
 
 // ServeHTTP serves the Engine.IO WebSocket endpoint on the configured paths.
@@ -233,7 +199,7 @@ func (h *Hub) connected(s *Socket, path string) {
 		if candidate, exists := payload["message"]; exists && jsonvalue.Truthy(candidate) {
 			message = candidate
 		}
-		h.Emit("*", "admin_message", message)
+		h.Emit(events.AllUsers, "admin_message", message)
 	})
 	s.On("ping", func([]any, Ack) { s.Emit("pong") })
 	s.On("disconnect", func(args []any, _ Ack) { h.disconnected(id, first(args)) })
@@ -266,17 +232,10 @@ func (h *Hub) disconnected(id string, reason any) {
 	if online {
 		offline = h.publicUser(user)
 	}
-	h.mu.RLock()
-	dispatch := h.dispatch
-	h.mu.RUnlock()
-	if dispatch != nil {
-		_ = dispatch(context.Background(), Action{SocketID: id, User: user, Event: "remove_log_listener"})
-	}
+	_ = h.backend().Dispatch(context.Background(), Action{SocketID: id, User: user, Event: "remove_log_listener"})
 	if offline != nil {
-		h.Emit("@admins", "user_offline", offline)
-		if dispatch != nil {
-			_ = dispatch(context.Background(), Action{SocketID: id, User: user, Event: "disconnect"})
-		}
+		h.Emit(events.Admins, "user_offline", offline)
+		_ = h.backend().Dispatch(context.Background(), Action{SocketID: id, User: user, Event: "disconnect"})
 	}
 	h.mu.Lock()
 	delete(h.clients, id)
@@ -284,17 +243,8 @@ func (h *Hub) disconnected(id string, reason any) {
 }
 
 func (h *Hub) dispatchAction(s *Socket, user store.User, event string, payload any, reply func(string, any), ack Ack) {
-	h.mu.RLock()
-	dispatch := h.dispatch
-	h.mu.RUnlock()
-	if dispatch == nil {
-		if event == "search_covers" {
-			h.emitCoverError(s, object(payload)["requestId"], "Cover search is unavailable")
-		}
-		return
-	}
 	action := Action{SocketID: s.ID(), User: user, Event: event, Payload: payload, Reply: reply, Ack: ack}
-	if err := dispatch(context.Background(), action); err != nil && event == "search_covers" {
+	if err := h.backend().Dispatch(context.Background(), action); err != nil && event == "search_covers" {
 		h.emitCoverError(s, object(payload)["requestId"], err.Error())
 	}
 }
@@ -317,9 +267,9 @@ func (h *Hub) Emit(userID, event string, payload any) {
 		allowed := false
 		userPayload := payload
 		switch userID {
-		case "*":
+		case events.AllUsers:
 			userPayload, allowed = payloadForUser(&c.grants, payload)
-		case "@admins":
+		case events.Admins:
 			allowed = access.AdminUser(*c.user)
 		default:
 			allowed = c.user.ID == userID
@@ -345,10 +295,7 @@ func (h *Hub) Emit(userID, event string, payload any) {
 // connections take the new permissions, and those of a deleted or deactivated
 // user are disconnected, as socket auth already refuses them.
 func (h *Hub) Refresh(ctx context.Context, userID string) error {
-	h.mu.RLock()
-	db := h.db
-	h.mu.RUnlock()
-	row, err := sqlc.New(db).GetUserByID(ctx, userID)
+	row, err := sqlc.New(h.backend().DB()).GetUserByID(ctx, userID)
 	var user store.User
 	if err == nil {
 		user, err = store.UserFromRow(row)
@@ -429,7 +376,6 @@ func (h *Hub) UsersOnline() []map[string]any {
 			users[c.user.ID] = entry
 		}
 	}
-	lookup := h.sessionLookup
 	h.mu.RUnlock()
 	ids := make([]string, 0, len(users))
 	for id := range users {
@@ -439,7 +385,7 @@ func (h *Hub) UsersOnline() []map[string]any {
 	result := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
 		entry := users[id]
-		public := h.publicUserWithLookup(entry.user, lookup)
+		public := h.publicUser(entry.user)
 		public["connections"] = entry.connections
 		result = append(result, public)
 	}
@@ -447,13 +393,6 @@ func (h *Hub) UsersOnline() []map[string]any {
 }
 
 func (h *Hub) publicUser(user store.User) map[string]any {
-	h.mu.RLock()
-	lookup := h.sessionLookup
-	h.mu.RUnlock()
-	return h.publicUserWithLookup(user, lookup)
-}
-
-func (h *Hub) publicUserWithLookup(user store.User, lookup func(string) any) map[string]any {
 	var lastSeen, createdAt any
 	if user.LastSeen != nil && *user.LastSeen != 0 {
 		lastSeen = *user.LastSeen
@@ -461,13 +400,9 @@ func (h *Hub) publicUserWithLookup(user store.User, lookup func(string) any) map
 	if user.CreatedAt != nil {
 		createdAt = *user.CreatedAt
 	}
-	var session any
-	if lookup != nil {
-		session = lookup(user.ID)
-	}
 	return map[string]any{
 		"id": user.ID, "username": user.Username, "type": user.Type,
-		"session": session, "lastSeen": lastSeen, "createdAt": createdAt,
+		"session": h.backend().Session(user.ID), "lastSeen": lastSeen, "createdAt": createdAt,
 	}
 }
 

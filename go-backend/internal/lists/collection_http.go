@@ -85,9 +85,7 @@ func (h *Handler) createCollection(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "collection_added", dto)
-	}
+	h.emit.ToAll("collection_added", dto)
 	return httputil.JSON(w, r, dto)
 }
 
@@ -176,8 +174,8 @@ func (h *Handler) updateCollection(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if changed && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
+	if changed {
+		h.emit.ToAll("collection_updated", dto)
 	}
 	return httputil.JSON(w, r, dto)
 }
@@ -345,8 +343,8 @@ func (h *Handler) writeCollectionAfterBatch(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if changed && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
+	if changed {
+		h.emit.ToAll("collection_updated", dto)
 	}
 	return httputil.JSON(w, r, dto)
 }
@@ -399,9 +397,7 @@ func (h *Handler) addCollectionBook(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "collection_updated", dto)
-	}
+	h.emit.ToAll("collection_updated", dto)
 	return httputil.JSON(w, r, dto)
 }
 
@@ -453,8 +449,8 @@ func (h *Handler) removeCollectionBook(w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if removed > 0 && h.emit != nil {
-		h.emit("*", "collection_updated", dto)
+	if removed > 0 {
+		h.emit.ToAll("collection_updated", dto)
 	}
 	return httputil.JSON(w, r, dto)
 }

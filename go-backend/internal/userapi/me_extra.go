@@ -255,9 +255,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 			}
 		}
 	}
-	if h.emit != nil {
-		h.emit(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
-	}
+	h.emit.ToUser(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
 	return httputil.JSON(w, r, map[string]any{"ereaderDevices": visible})
 }
 

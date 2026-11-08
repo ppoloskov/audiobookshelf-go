@@ -1333,7 +1333,7 @@ func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 	defer db.Close()
 	h := New(db, config.Config{}, nil)
 	changed := 0
-	h.SetLibraryChanged(func(string) { changed++ })
+	h.deps.LibraryChanged = func(string) { changed++ }
 	u := store.User{ID: "root", Type: "root", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
 	folder := filepath.Join(t.TempDir(), "new-books")
 	body := `{"name":"New Library","mediaType":"book","folders":[{"fullPath":"` + folder + `"}]}`
@@ -1412,7 +1412,7 @@ func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp','u1','b1')`)
 	h := New(db, config.Config{}, nil)
 	refresh := 0
-	h.SetLibraryChanged(func(string) { refresh++ })
+	h.deps.LibraryChanged = func(string) { refresh++ }
 	u := store.User{ID: "root", Type: "admin", IsActive: true}
 	w := httptest.NewRecorder()
 	if !h.Handle(w, httptest.NewRequest("DELETE", "/api/libraries/l1", nil), u) || w.Code != http.StatusOK {
@@ -1845,7 +1845,7 @@ func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
 // route matched, the way the runtime does for the mux.
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
 	mux := http.NewServeMux()
-	h.Routes(mux, RouteDeps{})
+	h.Routes(mux)
 	if _, pattern := mux.Handler(r); pattern == "" {
 		return false
 	}

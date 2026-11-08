@@ -208,7 +208,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		if asin == "" {
 			asin = storedText(item.media.get("asin"))
 		}
-		results := h.finder.SearchBooks(ctx, wire.BookSearch{Provider: provider, Title: searchTitle, Author: searchAuthor, ISBN: isbn, ASIN: asin, Duration: jsonvalue.Float(item.media.get("duration")), MaxFuzzySearches: 2})
+		results := h.deps.Books.SearchBooks(ctx, wire.BookSearch{Provider: provider, Title: searchTitle, Author: searchAuthor, ISBN: isbn, ASIN: asin, Duration: jsonvalue.Float(item.media.get("duration")), MaxFuzzySearches: 2})
 		if len(results) == 0 {
 			warning := fmt.Sprintf("No %s match found", provider)
 			return quickMatchResult{Warning: &warning}, nil
@@ -250,7 +250,7 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		}
 	case "podcast":
 		table = "podcasts"
-		results := h.finder.SearchPodcasts(ctx, searchTitle)
+		results := h.deps.Books.SearchPodcasts(ctx, searchTitle)
 		if len(results) == 0 {
 			warning := fmt.Sprintf("No %s match found", provider)
 			return quickMatchResult{Warning: &warning}, nil
@@ -296,10 +296,10 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		}
 		tx = nil
 	}
-	if hasUpdated && item.mediaType == "podcast" && storedText(item.media.get("feedURL")) != "" && h.episodes != nil {
+	if hasUpdated && item.mediaType == "podcast" && storedText(item.media.get("feedURL")) != "" && h.deps.PodcastEpisodes != nil {
 		// Quick match all unmatched podcast episodes (Scanner.js:113-116); the
 		// episodes do not depend on the podcast row, so this follows the commit.
-		if n, err := h.episodes(ctx, item.id, overrideDetails); err != nil {
+		if n, err := h.deps.PodcastEpisodes(ctx, item.id, overrideDetails); err != nil {
 			logging.Errorf("[Scanner] quickMatchPodcastEpisodes: %v", err)
 		} else if n > 0 {
 			logging.Infof(`[Scanner] quickMatchPodcastEpisodes: Updated %d episodes for "%s"`, n, storedText(item.media.get("title")))
@@ -518,7 +518,10 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) error 
 	var optionBody map[string]json.RawMessage
 	_ = json.Unmarshal(body["options"], &optionBody)
 	options := matchOptionsFromBody(optionBody, "provider")
-	h.background(func(ctx context.Context) {
+	// The work continues after the response is written, the way the source
+	// lets a request handler's promise continue (batchQuickMatch).
+	go func() {
+		ctx := context.Background()
 		updated, unmatched := 0, 0
 		for _, item := range items {
 			result, err := h.quickMatchLibraryItem(ctx, item.id, options)
@@ -532,9 +535,7 @@ func (h *Handler) batchQuickMatch(w http.ResponseWriter, r *http.Request) error 
 				unmatched++
 			}
 		}
-		if h.emit != nil {
-			h.emit(user.ID, "batch_quickmatch_complete", batchQuickMatchResult{Success: updated > 0, Updates: updated, Unmatched: unmatched})
-		}
-	})
+		h.emit.ToUser(user.ID, "batch_quickmatch_complete", batchQuickMatchResult{Success: updated > 0, Updates: updated, Unmatched: unmatched})
+	}()
 	return httputil.OK(w, r)
 }

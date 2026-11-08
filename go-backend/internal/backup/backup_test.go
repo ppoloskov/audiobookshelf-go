@@ -60,7 +60,7 @@ func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(authors, "metadata.json"), []byte(`{"id":"author1"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	h, err := New(db, cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil)
+	h, err := New(cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,14 +129,14 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 		if _, err := db.Exec(`CREATE TABLE example (id INTEGER PRIMARY KEY)`); err != nil {
 			t.Fatal(err)
 		}
-		h, err := New(db, cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil)
+		h, err := New(cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer h.Close()
 
 		var notified bool
-		h.SetNotificationHandler(func(ctx context.Context, event string, payload map[string]any) error {
+		h.notify = func(ctx context.Context, event string, payload map[string]any) error {
 			notified = true
 			if ctx == nil {
 				t.Fatal("notification context is nil")
@@ -159,7 +159,7 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 				t.Fatalf("payload = %#v, want %#v", payload, want)
 			}
 			return errors.New("notification delivery failure must not fail backup")
-		})
+		}
 
 		b, err := h.Create(context.Background())
 		if err != nil {
@@ -172,31 +172,32 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 
 	t.Run("failure notifies with source error message", func(t *testing.T) {
 		root := t.TempDir()
-		h, err := New(nil, config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}, Options{BackupPath: filepath.Join(root, "backups")}, nil)
+		h, err := New(config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer h.Close()
 
 		var notified bool
-		h.SetNotificationHandler(func(_ context.Context, event string, payload map[string]any) error {
+		var sent map[string]any
+		h.notify = func(_ context.Context, event string, payload map[string]any) error {
 			notified = true
 			if event != "onBackupFailed" {
 				t.Fatalf("event = %q, want onBackupFailed", event)
 			}
-			want := map[string]any{"errorMsg": "database is unavailable"}
-			if !reflect.DeepEqual(payload, want) {
-				t.Fatalf("payload = %#v, want %#v", payload, want)
-			}
+			sent = payload
 			if len(h.list()) != 0 {
 				t.Fatalf("failed backup was indexed before notification: %#v", h.list())
 			}
 			return nil
-		})
+		}
 
 		b, err := h.Create(context.Background())
-		if err == nil || err.Error() != "database is unavailable" || b != (Backup{}) {
-			t.Fatalf("Create = (%#v, %v), want empty backup and database-unavailable error", b, err)
+		if msg, _ := sent["errorMsg"].(string); err == nil || len(sent) != 1 || msg != err.Error() {
+			t.Fatalf("payload = %#v, want errorMsg of %v", sent, err)
+		}
+		if err == nil || b != (Backup{}) {
+			t.Fatalf("Create = (%#v, %v), want empty backup and the missing-database error", b, err)
 		}
 		if !notified {
 			t.Fatal("failure notification was not called")
@@ -222,7 +223,7 @@ func TestReadBackupRequiresDatabaseDetailsAndVersion(t *testing.T) {
 
 func TestMissingBackupUsesExpressSendStatus(t *testing.T) {
 	root := t.TempDir()
-	h, err := New(nil, config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil)
+	h, err := New(config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +247,7 @@ func TestMissingBackupUsesExpressSendStatus(t *testing.T) {
 
 func TestUploadInvalidExtensionUsesExpressSend(t *testing.T) {
 	root := t.TempDir()
-	h, err := New(nil, config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil)
+	h, err := New(config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestUpdateOptionsReloadsPathAndSchedule(t *testing.T) {
 	cfg := config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}
 	first := filepath.Join(root, "one")
 	second := filepath.Join(root, "two")
-	h, err := New(nil, cfg, Options{BackupPath: first}, nil)
+	h, err := New(cfg, Options{BackupPath: first}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +346,7 @@ func TestApplyStagesSafeMetadataAndRejectsTraversalAndSymlinks(t *testing.T) {
 	}
 	valid := makeArchive("fixture.audiobookshelf", makeEntries("metadata-items/book1/extra.json", 0600))
 	var gotItem, gotAuthor string
-	h, err := New(nil, cfg, Options{BackupPath: archiveDir, Restore: func(_ context.Context, db, items, authors string) error {
+	h, err := New(cfg, Options{BackupPath: archiveDir, Restore: func(_ context.Context, db, items, authors string) error {
 		if _, e := os.Stat(db); e != nil {
 			return e
 		}
@@ -360,7 +361,7 @@ func TestApplyStagesSafeMetadataAndRejectsTraversalAndSymlinks(t *testing.T) {
 		}
 		gotAuthor = string(a)
 		return nil
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +420,7 @@ func TestUpstreamCreatedBackupImports(t *testing.T) {
 		t.Fatal(err)
 	}
 	var itemMeta, authorAsset string
-	h, err := New(nil, cfg, Options{BackupPath: filepath.Dir(archive), Restore: func(_ context.Context, db, items, authors string) error {
+	h, err := New(cfg, Options{BackupPath: filepath.Dir(archive), Restore: func(_ context.Context, db, items, authors string) error {
 		if _, e := os.Stat(db); e != nil {
 			return e
 		}
@@ -460,7 +461,7 @@ func TestUpstreamCreatedBackupImports(t *testing.T) {
 			return e
 		}
 		return nil
-	}}, nil)
+	}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +521,7 @@ func TestExportNodeFixtureDatabaseForNodeImport(t *testing.T) {
 	if e = os.MkdirAll(outDir, 0755); e != nil {
 		t.Fatal(e)
 	}
-	h, e := New(db, cfg, Options{BackupPath: outDir, BackupsToKeep: 10}, nil)
+	h, e := New(cfg, Options{BackupPath: outDir, BackupsToKeep: 10}, nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

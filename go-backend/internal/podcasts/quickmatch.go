@@ -1,35 +1,27 @@
-package scanner
+package podcasts
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/textdist"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// QuickMatchPodcastEpisodes updates unmatched episodes from the item's RSS
-// feed. The feed fetcher is injected by runtime from the podcasts package.
-func (s *Scanner) QuickMatchPodcastEpisodes(ctx context.Context, itemID string, overrideDetails bool) (int, error) {
+// QuickMatchEpisodes updates unmatched episodes from the item's RSS feed
+// (Scanner.quickMatchPodcastEpisodes) and returns how many it updated.
+func (h *Handler) QuickMatchEpisodes(ctx context.Context, itemID string, overrideDetails bool) (int, error) {
 	var mediaID, feedURL string
-	if err := s.db.QueryRowContext(ctx, `SELECT li.mediaId,p.feedURL FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.id=? AND li.mediaType='podcast'`, itemID).Scan(&mediaID, &feedURL); err != nil {
+	if err := h.db.QueryRowContext(ctx, `SELECT li.mediaId,p.feedURL FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.id=? AND li.mediaType='podcast'`, itemID).Scan(&mediaID, &feedURL); err != nil {
 		return 0, err
 	}
-	s.mu.Lock()
-	fetcher := s.podcastFeedFetcher
-	s.mu.Unlock()
-	if fetcher == nil {
-		return 0, errors.New("scanner: podcast feed fetcher is not configured")
-	}
-	feed, err := fetcher(ctx, feedURL)
+	feed, err := h.FetchFeedEpisodes(ctx, feedURL)
 	if err != nil {
 		return 0, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,episode,episodeType,season,pubDate,publishedAt FROM podcastEpisodes WHERE podcastId=? AND (enclosureURL IS NULL OR enclosureURL='') ORDER BY createdAt ASC`, mediaID)
+	rows, err := h.db.QueryContext(ctx, `SELECT id,title,subtitle,description,enclosureURL,enclosureSize,enclosureType,episode,episodeType,season,pubDate,publishedAt FROM podcastEpisodes WHERE podcastId=? AND (enclosureURL IS NULL OR enclosureURL='') ORDER BY createdAt ASC`, mediaID)
 	if err != nil {
 		return 0, err
 	}
@@ -100,9 +92,9 @@ func (s *Scanner) QuickMatchPodcastEpisodes(ctx context.Context, itemID string, 
 			}
 		}
 		set = append(set, "updatedAt=?")
-		args = append(args, nowDB(), local.id)
-		if _, err := s.db.ExecContext(ctx, `UPDATE podcastEpisodes SET `+strings.Join(set, ",")+` WHERE id=?`, args...); err != nil {
-			return updated, fmt.Errorf("scanner: update podcast episode %q: %w", local.id, err)
+		args = append(args, dbtime.Now(), local.id)
+		if _, err := h.db.ExecContext(ctx, `UPDATE podcastEpisodes SET `+strings.Join(set, ",")+` WHERE id=?`, args...); err != nil {
+			return updated, fmt.Errorf("podcasts: update podcast episode %q: %w", local.id, err)
 		}
 		updated++
 	}
@@ -119,7 +111,7 @@ func bestFeedEpisode(title string, episodes []map[string]any) map[string]any {
 	for _, episode := range episodes {
 		candidate := strings.ToLower(strings.TrimSpace(asString(episode["title"])))
 		subtitle := strings.ToLower(strings.TrimSpace(asString(episode["subtitle"])))
-		titleScore, subtitleScore := editSimilarity(needle, candidate), editSimilarity(needle, subtitle)
+		titleScore, subtitleScore := similarity(needle, candidate), similarity(needle, subtitle)
 		score := titleScore*.7 + subtitleScore*.3
 		if titleScore > score {
 			score = titleScore
@@ -137,13 +129,6 @@ func bestFeedEpisode(title string, episodes []map[string]any) map[string]any {
 	return best
 }
 
-func editSimilarity(a, b string) float64 {
-	if a == "" || b == "" {
-		return 0
-	}
-	n := max(len([]rune(a)), len([]rune(b)))
-	return 1 - float64(textdist.Levenshtein(a, b))/float64(n)
-}
 func asString(value any) string { s, _ := value.(string); return s }
 func nestedString(values map[string]any, key, sub string) any {
 	nested, _ := values[key].(map[string]any)

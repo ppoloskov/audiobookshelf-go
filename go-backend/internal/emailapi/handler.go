@@ -3,6 +3,7 @@ package emailapi
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
@@ -32,10 +33,10 @@ import (
 
 type Handler struct {
 	db   *sql.DB
-	emit func(string, string, any)
+	emit events.Emitter
 }
 
-func New(db *sql.DB, _ config.Config, emit func(string, string, any)) *Handler {
+func New(db *sql.DB, _ config.Config, emit events.Emitter) *Handler {
 	return &Handler{db: db, emit: emit}
 }
 
@@ -128,9 +129,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 		if e = h.save(r.Context(), m); e != nil {
 			return httputil.Internal("database error", e)
 		}
-		if h.emit != nil {
-			h.emit("@admins", "ereader-devices-updated", map[string]any{"ereaderDevices": clean})
-		}
+		h.emit.ToAdmins("ereader-devices-updated", map[string]any{"ereaderDevices": clean})
 	}
 	write(w, map[string]any{"ereaderDevices": clean})
 	return nil

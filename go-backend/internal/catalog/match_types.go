@@ -21,27 +21,6 @@ type batchQuickMatchResult struct {
 	Unmatched int  `json:"unmatched"`
 }
 
-// task is Task.toJSON (server/objects/Task.js:54-74).
-type task struct {
-	ID              string   `json:"id"`
-	Action          string   `json:"action"`
-	Data            taskData `json:"data"`
-	Title           string   `json:"title"`
-	TitleKey        string   `json:"titleKey"`
-	TitleSubs       []string `json:"titleSubs"`
-	Description     *string  `json:"description"`
-	DescriptionKey  *string  `json:"descriptionKey"`
-	DescriptionSubs []string `json:"descriptionSubs"`
-	Error           *string  `json:"error"`
-	ErrorKey        *string  `json:"errorKey"`
-	ErrorSubs       []string `json:"errorSubs"`
-	ShowSuccess     bool     `json:"showSuccess"`
-	IsFailed        bool     `json:"isFailed"`
-	IsFinished      bool     `json:"isFinished"`
-	StartedAt       int64    `json:"startedAt"`
-	FinishedAt      *int64   `json:"finishedAt"`
-}
-
 // taskData is the data of a library task.
 type taskData struct {
 	LibraryID   string           `json:"libraryId"`

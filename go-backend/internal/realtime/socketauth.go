@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -33,10 +34,8 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 	request = request.Clone(context.Background())
 	request.Header = request.Header.Clone()
 	request.Header.Set("Authorization", "Bearer "+token)
-	h.mu.RLock()
-	authenticate := h.authenticate
-	h.mu.RUnlock()
-	user, err := authenticate(request)
+	backend := h.backend()
+	user, err := backend.Authenticate(request)
 	if err != nil {
 		message := authFailureMessage(token, err)
 		// SocketAuthority.js:276-319 words each failure differently.
@@ -66,10 +65,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 	lastSeen := time.Now().UnixMilli()
 	dbTimestamp := dbtime.Format(time.UnixMilli(lastSeen))
 	writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	h.mu.RLock()
-	db := h.db
-	h.mu.RUnlock()
-	_, writeErr := db.ExecContext(writeCtx, `UPDATE users SET lastSeen = ?, updatedAt = ? WHERE id = ?`, dbTimestamp, dbTimestamp, user.ID)
+	_, writeErr := backend.DB().ExecContext(writeCtx, `UPDATE users SET lastSeen = ?, updatedAt = ? WHERE id = ?`, dbTimestamp, dbTimestamp, user.ID)
 	cancel()
 	if writeErr != nil {
 		// The upstream save must complete before init is emitted. Preserve that
@@ -96,7 +92,7 @@ func (h *Hub) handleAuth(s *Socket, raw any) {
 		}
 	}
 
-	h.Emit("@admins", "user_online", h.publicUser(user))
+	h.Emit(events.Admins, "user_online", h.publicUser(user))
 	initial := map[string]any{"userId": user.ID, "username": user.Username}
 	if access.AdminUser(user) {
 		initial["usersOnline"] = h.UsersOnline()

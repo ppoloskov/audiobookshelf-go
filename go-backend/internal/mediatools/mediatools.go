@@ -125,3 +125,9 @@ func run(ctx context.Context, bin string, args ...string) ([]byte, error) {
 	}
 	return stdout.Bytes(), nil
 }
+
+// FFmpegAvailable reports whether the configured ffmpeg binary can be found.
+func FFmpegAvailable() bool {
+	_, err := exec.LookPath(binary("FFMPEG_PATH", "ffmpeg"))
+	return err == nil
+}

@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/textsort"
@@ -29,47 +30,43 @@ import (
 )
 
 type Handler struct {
-	db              *sql.DB
-	cfg             config.Config
-	emit            func(userID, event string, payload any)
-	settingsChanged func(context.Context, map[string]any) error
-	itemChanged     func(context.Context, string) error
-	watcherUpdate   func(context.Context, string, string, string, string) error
+	db   *sql.DB
+	cfg  config.Config
+	emit events.Emitter
+	deps Deps
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
-	return &Handler{db: db, cfg: cfg, emit: emit}
-}
-
-func (h *Handler) SetSettingsChanged(fn func(context.Context, map[string]any) error) {
-	h.settingsChanged = fn
-}
-
-// SetItemChanged installs the end of an item mutation: the metadata file and
-// the item_updated event of one library item.
-func (h *Handler) SetItemChanged(fn func(context.Context, string) error) { h.itemChanged = fn }
-func (h *Handler) SetWatcherUpdate(fn func(context.Context, string, string, string, string) error) {
-	h.watcherUpdate = fn
-}
-
-// RouteDeps are the collaborators Routes calls outside this package.
-type RouteDeps struct {
+// Deps are the collaborators of the routes that act outside this package.
+type Deps struct {
 	// AfterWrite runs once a write route (any method but GET) has answered.
 	// Tag, genre and author edits patch the catalog's filter data cache in
-	// place, so the composition root drops it here.
+	// place, so the composition root drops it here. Optional.
 	AfterWrite func()
+	// SettingsChanged applies saved server settings to the running server
+	// (backup schedule, watcher, cron jobs). Optional.
+	SettingsChanged func(context.Context, map[string]any) error
+	// ItemChanged ends an item mutation: the metadata file and the
+	// item_updated event of one library item.
+	ItemChanged func(context.Context, string) error
+	// WatcherUpdate applies one watcher notification (type add, unlink or
+	// rename) for a path in a library.
+	WatcherUpdate func(ctx context.Context, libraryID, path, kind string) error
+}
+
+func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler {
+	return &Handler{db: db, cfg: cfg, emit: emit, deps: deps}
 }
 
 // Routes registers the admin routes on mux. The server attaches the user to
 // the request context before dispatch (store.ContextWithUser). Every route but
 // validate-cron, pathexists and upload answers 403 to a non-admin.
-func (h *Handler) Routes(mux *http.ServeMux, deps RouteDeps) {
+func (h *Handler) Routes(mux *http.ServeMux) {
 	// afterWrite drops the catalog's filter data once a write route has answered.
 	afterWrite := func(fn httputil.Handler) httputil.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			err := fn(w, r)
-			if deps.AfterWrite != nil {
-				deps.AfterWrite()
+			if h.deps.AfterWrite != nil {
+				h.deps.AfterWrite()
 			}
 			return err
 		}
@@ -124,8 +121,8 @@ func (h *Handler) saveSettings(r *http.Request, m map[string]any) error {
 	if err := serversettings.Save(r.Context(), h.db, m); err != nil {
 		return err
 	}
-	if h.settingsChanged != nil {
-		return h.settingsChanged(r.Context(), m)
+	if h.deps.SettingsChanged != nil {
+		return h.deps.SettingsChanged(r.Context(), m)
 	}
 	return nil
 }
@@ -414,10 +411,7 @@ func (h *Handler) updateWatchedPath(w http.ResponseWriter, r *http.Request) erro
 	if body.Type == "rename" && body.OldPath == "" {
 		return httputil.Status(400, "")
 	}
-	if h.watcherUpdate == nil {
-		return httputil.Status(501, "Watcher is unavailable")
-	}
-	if err := h.watcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type, body.OldPath); err != nil {
+	if err := h.deps.WatcherUpdate(r.Context(), body.LibraryID, body.Path, body.Type); err != nil {
 		return httputil.Internal("Failed to update watched path", err)
 	}
 	return httputil.OK(w, r)
@@ -454,9 +448,6 @@ func (h *Handler) listTaxonomy(w http.ResponseWriter, r *http.Request, column st
 	return nil
 }
 func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, column, oldKey, newKey string) error {
-	if h.itemChanged == nil {
-		return httputil.Status(http.StatusNotImplemented, "item metadata writer is unavailable")
-	}
 	var p map[string]string
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p[oldKey] == "" || p[newKey] == "" {
 		return httputil.Status(400, "")
@@ -486,9 +477,6 @@ func (h *Handler) renameTaxonomy(w http.ResponseWriter, r *http.Request, column,
 	return nil
 }
 func (h *Handler) deleteTaxonomy(w http.ResponseWriter, r *http.Request, column string) error {
-	if h.itemChanged == nil {
-		return httputil.Status(http.StatusNotImplemented, "item metadata writer is unavailable")
-	}
 	// The client sends the name base64-encoded and URL-escaped; PathValue
 	// returns it unescaped.
 	seg := r.PathValue("name")
@@ -546,7 +534,7 @@ func (h *Handler) rewriteTaxonomy(ctx context.Context, column string, edit func(
 			}
 			if n, _ := res.RowsAffected(); n > 0 {
 				changed++
-				if err := h.itemChanged(ctx, u.itemID); err != nil {
+				if err := h.deps.ItemChanged(ctx, u.itemID); err != nil {
 					return changed, err
 				}
 			}

@@ -133,9 +133,9 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib lib
 		}
 		updatedIDs = append(updatedIDs, row.itemID)
 	}
-	if len(updatedIDs) > 0 && h.emit != nil {
+	if len(updatedIDs) > 0 {
 		if updatedItems, err := h.expandedItems(r.Context(), updatedIDs); err == nil && len(updatedItems) > 0 {
-			h.emit("*", "items_updated", updatedItems)
+			h.emit.ToAll("items_updated", updatedItems)
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"updated": len(books)}, httputil.ForRequest(r))

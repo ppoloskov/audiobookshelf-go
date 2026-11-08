@@ -159,7 +159,7 @@ func (h *Handler) authorBookItems(ctx context.Context, authorID string) ([]strin
 // emitItemsUpdated is SocketAuthority.libraryItemsEmitter('items_updated', ...):
 // the hub filters the expanded items per client.
 func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
-	if len(itemIDs) == 0 || h.emit == nil {
+	if len(itemIDs) == 0 {
 		return
 	}
 	expanded, err := h.expandedItems(ctx, itemIDs)
@@ -171,7 +171,7 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 	for i, item := range expanded {
 		items[i] = item
 	}
-	h.emit("*", "items_updated", items)
+	h.emit.ToAll("items_updated", items)
 }
 
 // authorFindOne is AuthorController.findOne (AuthorController.js:40-88).
@@ -473,9 +473,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if h.emit != nil {
-			h.emit("*", "author_updated", authorWithBooks{authorView: oldJSON, NumBooks: numBooks})
-		}
+		h.emit.ToAll("author_updated", authorWithBooks{authorView: oldJSON, NumBooks: numBooks})
 	}
 	saved, err := h.loadAuthor(ctx, a.id)
 	if err != nil {
@@ -551,17 +549,13 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.id); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "author_removed", oldAuthor)
-	}
+	h.emit.ToAll("author_removed", oldAuthor)
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID) // AuthorController.js:164
 	expanded, err := h.authorExpanded(ctx, existing.id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "author_updated", expanded)
-	}
+	h.emit.ToAll("author_updated", expanded)
 	merged := true
 	return httputil.JSON(w, r, authorUpdateResult{Author: expanded.authorView, Merged: &merged})
 }
@@ -591,9 +585,7 @@ func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
 	if err := h.saveMetadataFiles(ctx, itemIDs); err != nil {
 		return httputil.Internal("metadata file write failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "author_removed", oldAuthor)
-	}
+	h.emit.ToAll("author_removed", oldAuthor)
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID)
 	return httputil.OK(w, r)
 }

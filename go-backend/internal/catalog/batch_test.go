@@ -182,7 +182,7 @@ func sameJSON(got, want string) bool {
 // (LibraryItemController.js:276); an unchanged one does not.
 func TestFinishItemWritesReschedulesPodcast(t *testing.T) {
 	var rescheduled []string
-	h := &Handler{podcastScheduleChanged: func(_ context.Context, id string) { rescheduled = append(rescheduled, id) }}
+	h := &Handler{deps: Deps{PodcastScheduleChanged: func(_ context.Context, id string) { rescheduled = append(rescheduled, id) }}}
 	err := h.finishItemWrites(context.Background(),
 		itemWrite{itemID: "changed", updated: true, reschedule: true},
 		itemWrite{itemID: "other", updated: true},

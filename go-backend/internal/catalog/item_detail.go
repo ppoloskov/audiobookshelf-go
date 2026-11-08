@@ -84,8 +84,8 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 			extras.RSSFeed = libitem.JSONNull
 		}
 	}
-	if head.MediaType == "podcast" && has("downloads") && h.downloads != nil {
-		queued, current := h.downloads.EpisodeDownloads(itemID)
+	if head.MediaType == "podcast" && has("downloads") && h.deps.Downloads != nil {
+		queued, current := h.deps.Downloads.EpisodeDownloads(itemID)
 		extras.EpisodeDownloadsQueued = queued
 		if current != nil {
 			extras.EpisodesDownloading = []wire.EpisodeDownload{*current}

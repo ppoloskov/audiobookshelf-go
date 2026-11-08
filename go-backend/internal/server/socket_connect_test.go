@@ -111,11 +111,12 @@ func TestSocketConnectAuthLoop(t *testing.T) {
 	if err := insertTestRoot(db, cfg, "runtime-test", "password"); err != nil {
 		t.Fatal(err)
 	}
-	rt, err := newRuntime(db.DB(), cfg, nil)
+	manager, err := NewManager(db, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rt.Close()
+	defer manager.Close()
+	rt := manager.current.Load()
 	srv := httptest.NewServer(rt)
 	defer srv.Close()
 	token := makeToken(t, "test-secret", `{"userId":"root-test","username":"runtime-test","type":"access","exp":4102444800}`)

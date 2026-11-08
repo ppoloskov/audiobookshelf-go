@@ -31,11 +31,11 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
 		region = "us"
 	}
 	var data *wire.AuthorMatch
-	if h.authorFinder != nil {
+	if h.deps.Authors != nil {
 		if asin := bodyString("asin"); asin != "" && asinPattern.MatchString(strings.ToUpper(asin)) {
-			data = h.authorFinder.FindAuthorByASIN(ctx, asin, region)
+			data = h.deps.Authors.FindAuthorByASIN(ctx, asin, region)
 		} else {
-			data = h.authorFinder.FindAuthorByName(ctx, bodyString("q"), region)
+			data = h.deps.Authors.FindAuthorByName(ctx, bodyString("q"), region)
 		}
 	}
 	if data == nil {
@@ -70,9 +70,7 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if h.emit != nil {
-			h.emit("*", "author_updated", expanded)
-		}
+		h.emit.ToAll("author_updated", expanded)
 	}
 	saved, err := h.loadAuthor(ctx, a.id)
 	if err != nil {

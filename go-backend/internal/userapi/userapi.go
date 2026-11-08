@@ -28,17 +28,26 @@ import (
 )
 
 type Handler struct {
-	db           *sql.DB
-	ident        Credentials
-	emit         events.Emitter
-	usersOnline  func() []map[string]any
-	openSessions func() []map[string]any
-	userChanged  func(ctx context.Context, userID string) error
+	db    *sql.DB
+	ident Credentials
+	emit  events.Emitter
+	deps  Deps
+}
+
+// Deps are the collaborators of the user routes outside this package.
+type Deps struct {
+	// UserChanged (optional) runs after an admin updates or deletes a user, so
+	// live connections stop using the old permissions.
+	UserChanged func(ctx context.Context, userID string) error
+	// UsersOnline lists the connected users; OpenSessions the open playback
+	// sessions (GET /api/users/online). Both optional.
+	UsersOnline  func() []map[string]any
+	OpenSessions func() []map[string]any
 }
 
 func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
-	if h.userChanged != nil {
-		if err := h.userChanged(ctx, id); err != nil {
+	if h.deps.UserChanged != nil {
+		if err := h.deps.UserChanged(ctx, id); err != nil {
 			logging.Errorf("[UserController] Failed to refresh sockets of user %s: %v", id, err)
 		}
 	}
@@ -62,17 +71,11 @@ type Credentials interface {
 }
 
 // New takes identity, which owns tokens, passwords, sessions and API keys.
-// userChanged (optional) runs after an admin updates or deletes a user, so live
-// connections stop using the old permissions.
-func New(db *sql.DB, ident Credentials, emit func(userID, event string, payload any), userChanged func(context.Context, string) error) (*Handler, error) {
+func New(db *sql.DB, ident Credentials, emit events.Emitter, deps Deps) (*Handler, error) {
 	if db == nil {
 		return nil, errors.New("userapi: database is nil")
 	}
-	return &Handler{db: db, ident: ident, emit: events.Emitter(emit), userChanged: userChanged}, nil
-}
-
-func (h *Handler) SetOnlineData(users func() []map[string]any, sessions func() []map[string]any) {
-	h.usersOnline, h.openSessions = users, sessions
+	return &Handler{db: db, ident: ident, emit: emit, deps: deps}, nil
 }
 
 // Routes mounts the user-facing API (ApiRouter.js) on the runtime's mux.
@@ -142,11 +145,11 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User)
 
 func (h *Handler) getOnlineUsers(w http.ResponseWriter, r *http.Request, _ store.User) error {
 	users, sessions := []map[string]any{}, []map[string]any{}
-	if h.usersOnline != nil {
-		users = h.usersOnline()
+	if h.deps.UsersOnline != nil {
+		users = h.deps.UsersOnline()
 	}
-	if h.openSessions != nil {
-		sessions = h.openSessions()
+	if h.deps.OpenSessions != nil {
+		sessions = h.deps.OpenSessions()
 	}
 	return httputil.JSON(w, r, map[string]any{"usersOnline": users, "openSessions": sessions})
 }
@@ -487,9 +490,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request, current sto
 		return httputil.Internal("database read failed", err)
 	}
 	serialized := users.UserDTO(newUser, nil)
-	if h.emit != nil {
-		h.emit("admin", "user_added", serialized)
-	}
+	h.emit.ToAdmins("user_added", serialized)
 	return httputil.JSON(w, r, map[string]any{"user": serialized})
 }
 
@@ -542,9 +543,7 @@ func (h *Handler) openIDUnlink(w http.ResponseWriter, r *http.Request, current s
 		return httputil.Internal("database write failed", err)
 	}
 	u.ExtraData = encoded
-	if h.emit != nil {
-		h.emit(current.ID, "user_updated", users.UserDTO(u, nil))
-	}
+	h.emit.ToUser(current.ID, "user_updated", users.UserDTO(u, nil))
 	return httputil.OK(w, r)
 }
 
@@ -603,9 +602,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request, current sto
 	}
 	logging.Infof("[UserController] Updated %d playback sessions to remove user id", sessionsUpdated) // UserController.js:398
 	h.notifyUserChanged(r.Context(), id)
-	if h.emit != nil {
-		h.emit("admin", "user_removed", users.UserDTO(u, nil))
-	}
+	h.emit.ToAdmins("user_removed", users.UserDTO(u, nil))
 	return httputil.JSON(w, r, map[string]any{"success": true})
 }
 
@@ -714,9 +711,7 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request, current sto
 	h.notifyUserChanged(r.Context(), u.ID)
 	u.Permissions = encoded
 	serialized := users.UserDTO(u, nil)
-	if h.emit != nil {
-		h.emit(current.ID, "user_updated", serialized)
-	}
+	h.emit.ToUser(current.ID, "user_updated", serialized)
 	return httputil.JSON(w, r, map[string]any{"success": true, "user": serialized})
 }
 
@@ -940,12 +935,9 @@ func withUser(fn func(http.ResponseWriter, *http.Request, store.User) error) htt
 }
 
 func (h *Handler) emitUserUpdate(ctx context.Context, user store.User) {
-	if h.emit == nil {
-		return
-	}
 	payload, err := h.userPayload(ctx, user)
 	if err == nil {
-		h.emit(user.ID, "user_updated", payload)
+		h.emit.ToUser(user.ID, "user_updated", payload)
 	}
 }
 

@@ -1,11 +1,11 @@
 package playback
 
 import (
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/version"
 	"cmp"
 	"context"
 	"encoding/json"
-	"net"
 	"net/http"
 
 	"audiobookshelf-compat/internal/deviceinfo"
@@ -80,10 +80,7 @@ func (h *Handler) upsertDevice(ctx context.Context, user store.User, r *http.Req
 	case ua.Browser != "":
 		deviceName = ua.OSName + " " + cmp.Or(ua.OSVersion, "N/A") + " " + ua.Browser
 	}
-	ip := r.RemoteAddr
-	if host, _, err := net.SplitHostPort(ip); err == nil {
-		ip = host
-	}
+	ip := httputil.PeerIP(r)
 	id, deviceID, err := store.UpsertDevice(ctx, h.db, store.Device{
 		DeviceID: client.DeviceID, UserID: user.ID, ClientName: clientName, ClientVersion: clientVersion, IPAddress: ip,
 		DeviceName: deviceName, DeviceVersion: cmp.Or(sdk, ua.BrowserVersion), Manufacturer: manufacturer, Model: model, Info: ua,

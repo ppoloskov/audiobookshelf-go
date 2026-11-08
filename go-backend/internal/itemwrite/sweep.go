@@ -24,12 +24,6 @@ type Env struct {
 	Emit    events.Emitter
 }
 
-func (e Env) emit(event string, payload any) {
-	if e.Emit != nil {
-		e.Emit("*", event, payload)
-	}
-}
-
 // Announce patches the filter data with the newly linked series and authors
 // and sends the events the edits collected (LibraryItemController.js:240-265).
 func (e Env) Announce(libraryID string, c *Changes) {
@@ -37,7 +31,7 @@ func (e Env) Announce(libraryID string, c *Changes) {
 		e.Filters.AddSeries(libraryID, se.Name, se.ID)
 	}
 	for _, ev := range c.Events {
-		e.emit(ev.Name, ev.Payload)
+		e.Emit.ToAll(ev.Name, ev.Payload)
 	}
 	for _, au := range c.AuthorsAdded {
 		e.Filters.AddAuthor(libraryID, au.Name, au.ID)
@@ -117,7 +111,7 @@ func (e Env) sweep(ctx context.Context, parent, junction, col, guard string, ids
 	for _, o := range orphans {
 		forget(o.libraryID, o.id)
 		removed = append(removed, o.id)
-		e.emit(event, map[string]any{"id": o.id, "libraryId": o.libraryID})
+		e.Emit.ToAll(event, map[string]any{"id": o.id, "libraryId": o.libraryID})
 	}
 	return removed
 }
@@ -139,6 +133,6 @@ func (e Env) closeFeeds(ctx context.Context, entityID string) {
 			logging.Errorf("[itemwrite] close feeds of %s: %v", entityID, err)
 			return
 		}
-		e.emit("rss_feed_closed", map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}})
+		e.Emit.ToAll("rss_feed_closed", map[string]any{"id": feed.ID, "entityType": store.NullString(feed.Entitytype), "entityId": store.NullString(feed.Entityid), "feedUrl": store.NullString(feed.Feedurl), "meta": map[string]any{"title": store.NullString(feed.Title), "description": store.NullString(feed.Description), "preventIndexing": feed.Preventindexing.Valid && feed.Preventindexing.Int64 != 0, "ownerName": store.NullString(feed.Ownername), "ownerEmail": store.NullString(feed.Owneremail)}})
 	}
 }

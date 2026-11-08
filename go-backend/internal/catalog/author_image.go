@@ -154,9 +154,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "author_updated", expanded)
-	}
+	h.emit.ToAll("author_updated", expanded)
 	return httputil.JSON(w, r, authorImageResult{Author: expanded.authorView})
 }
 
@@ -188,9 +186,7 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.emit != nil {
-		h.emit("*", "author_updated", expanded)
-	}
+	h.emit.ToAll("author_updated", expanded)
 	return httputil.JSON(w, r, authorImageResult{Author: expanded.authorView})
 }
 

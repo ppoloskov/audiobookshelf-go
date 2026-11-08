@@ -14,13 +14,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
@@ -39,31 +39,28 @@ type Handler struct {
 	queued []*task
 	closed bool
 }
+
+// task is a running or queued tool task: the client-facing record plus the
+// work's own state.
 type task struct {
-	ID              string         `json:"id"`
-	Action          string         `json:"action"`
-	Data            map[string]any `json:"data"`
-	Title           string         `json:"title"`
-	TitleKey        string         `json:"titleKey"`
-	TitleSubs       []string       `json:"titleSubs"`
-	Description     string         `json:"description"`
-	DescriptionKey  string         `json:"descriptionKey"`
-	DescriptionSubs []string       `json:"descriptionSubs"`
-	Error           *string        `json:"error"`
-	ErrorKey        *string        `json:"errorKey"`
-	ErrorSubs       []string       `json:"errorSubs"`
-	ShowSuccess     bool           `json:"showSuccess"`
-	IsFailed        bool           `json:"isFailed"`
-	IsFinished      bool           `json:"isFinished"`
-	StartedAt       int64          `json:"startedAt"`
-	FinishedAt      *int64         `json:"finishedAt"`
-	userID          string
-	itemID          string
-	ctx             context.Context
-	cancel          context.CancelFunc
-	cache           string
-	queuedFlag      bool
+	events.Task
+	data   map[string]any // the record's Data, cloned into each snapshot
+	itemID string
+	ctx    context.Context
+	cancel context.CancelFunc
+	cache  string
 }
+
+// errCanceled is how a user-canceled task ends.
+var errCanceled = errors.New("Task canceled by user")
+
+// snapshot is the record as clients see it now; later changes do not reach it.
+func (t *task) snapshot() events.Task {
+	s := t.Task
+	s.Data = cloneData(t.data)
+	return s
+}
+
 type item struct {
 	id, library, mediaID, typ, path, title, author, subtitle, cover string
 	publishedYear, publisher, description                           string
@@ -83,11 +80,8 @@ type chapter struct {
 	title      string
 }
 
-func New(db *sql.DB, cfg config.Config, emit func(userID, event string, payload any)) *Handler {
-	if emit == nil {
-		emit = func(string, string, any) {}
-	}
-	return &Handler{db: db, cfg: cfg, emit: events.Emitter(emit), tasks: map[string]*task{}}
+func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
+	return &Handler{db: db, cfg: cfg, emit: emit, tasks: map[string]*task{}}
 }
 
 // Routes registers the task and tool routes on mux. The server attaches the
@@ -128,17 +122,17 @@ func requestUser(r *http.Request) store.User {
 func (h *Handler) Tasks(includeQueue bool) any {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	list := make([]*task, 0, len(h.tasks))
+	list := make([]events.Task, 0, len(h.tasks))
 	for _, t := range h.tasks {
-		list = append(list, snapshotTask(t))
+		list = append(list, t.snapshot())
 	}
 	// Stable order for clients and tests.
-	slices.SortStableFunc(list, func(a, b *task) int { return cmp.Compare(a.StartedAt, b.StartedAt) })
+	slices.SortStableFunc(list, func(a, b events.Task) int { return cmp.Compare(a.StartedAt, b.StartedAt) })
 	out := map[string]any{"tasks": list}
 	if includeQueue {
 		q := make([]map[string]any, 0, len(h.queued))
 		for _, t := range h.queued {
-			q = append(q, cloneData(t.Data))
+			q = append(q, cloneData(t.data))
 		}
 		out["queuedTaskData"] = map[string]any{"embedMetadata": q}
 	}
@@ -154,23 +148,6 @@ func (h *Handler) Close() {
 			t.cancel()
 		}
 	}
-}
-
-func snapshotTask(t *task) *task {
-	// Error and errorKey stay null until the task fails (TS Task.js).
-	return &task{ID: t.ID, Action: t.Action, Data: cloneData(t.Data), Title: t.Title, TitleKey: t.TitleKey,
-		TitleSubs: append([]string(nil), t.TitleSubs...), Description: t.Description, DescriptionKey: t.DescriptionKey,
-		DescriptionSubs: append([]string(nil), t.DescriptionSubs...), Error: t.Error, ErrorKey: t.ErrorKey,
-		ErrorSubs: append([]string(nil), t.ErrorSubs...), ShowSuccess: t.ShowSuccess, IsFailed: t.IsFailed,
-		IsFinished: t.IsFinished, StartedAt: t.StartedAt, FinishedAt: cloneTime(t.FinishedAt)}
-}
-
-func cloneTime(t *int64) *int64 {
-	if t == nil {
-		return nil
-	}
-	v := *t
-	return &v
 }
 
 func cloneData(data map[string]any) map[string]any {
@@ -255,10 +232,14 @@ func (h *Handler) encode(w http.ResponseWriter, r *http.Request, userID string, 
 	if h.has(it.id, "encode-m4b") {
 		return httputil.Status(400, "Audiobook is already processing")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t := h.newTask("encode-m4b", userID, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription", false, ctx, cancel)
+	t := h.newTask("encode-m4b", userID, it, "Encoding M4b", "MessageTaskEncodingM4b", fmt.Sprintf("Encoding audiobook %q into a single m4b file.", it.title), "MessageTaskEncodingM4bDescription")
+	h.mu.Lock()
+	h.tasks[t.ID] = t
+	started := t.snapshot()
+	h.mu.Unlock()
+	h.emit.TaskStarted(started)
 	if err := os.MkdirAll(t.cache, 0755); err != nil {
-		cancel()
+		t.cancel()
 		return httputil.Internal("Unable to create task cache", err)
 	}
 	go h.runEncode(t, it, r.URL.Query())
@@ -271,19 +252,7 @@ func (h *Handler) embed(w http.ResponseWriter, r *http.Request, userID string, i
 	if h.has(it.id, "embed-metadata") {
 		return httputil.Status(400, "Library item is already in queue or processing")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
-	backup := r.URL.Query().Get("backup") == "1"
-	force := r.URL.Query().Get("forceEmbedChapters") == "1"
-	t.Data["options"] = map[string]any{"forceEmbedChapters": force, "backupFiles": backup}
-	if force || len(it.files) == 1 {
-		t.Data["chapters"] = chapterDTOs(it.chapters)
-	}
-	h.mu.Lock()
-	h.queued = append(h.queued, t)
-	t.queuedFlag = true
-	h.mu.Unlock()
-	h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
+	h.enqueueEmbed(userID, it, r.URL.Query())
 	h.runNextEmbed()
 	return httputil.OK(w, r)
 }
@@ -314,36 +283,34 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) error {
 		items = append(items, it)
 	}
 	for _, it := range items {
-		ctx, cancel := context.WithCancel(context.Background())
-		t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription", true, ctx, cancel)
-		t.Data["options"] = map[string]any{"forceEmbedChapters": r.URL.Query().Get("forceEmbedChapters") == "1", "backupFiles": r.URL.Query().Get("backup") == "1"}
-		if r.URL.Query().Get("forceEmbedChapters") == "1" || len(it.files) == 1 {
-			t.Data["chapters"] = chapterDTOs(it.chapters)
-		}
-		h.mu.Lock()
-		h.queued = append(h.queued, t)
-		h.mu.Unlock()
-		h.emit("@admins", "metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
+		h.enqueueEmbed(userID, it, r.URL.Query())
 	}
 	h.runNextEmbed()
 	return httputil.OK(w, r)
 }
 
-func (h *Handler) newTask(action string, userID string, it item, title, key, desc, descKey string, queued bool, ctx context.Context, cancel context.CancelFunc) *task {
-	id := randomID()
-	now := time.Now().UnixMilli()
-	cache := filepath.Join(h.cfg.MetadataPath, "cache", "items", it.id)
-	t := &task{ID: id, Action: action, Data: map[string]any{"libraryItemId": it.id, "libraryItemDir": it.path, "userId": userID, "duration": it.duration}, Title: title, TitleKey: key, TitleSubs: []string{}, Description: desc, DescriptionKey: descKey, DescriptionSubs: []string{it.title}, ShowSuccess: false, StartedAt: now, userID: userID, itemID: it.id, ctx: ctx, cancel: cancel, cache: cache, queuedFlag: queued}
+// enqueueEmbed queues an embed-metadata task for the item and announces the queue change.
+func (h *Handler) enqueueEmbed(userID string, it item, q url.Values) {
+	t := h.newTask("embed-metadata", userID, it, "Embedding Metadata", "MessageTaskEmbeddingMetadata", fmt.Sprintf("Embedding metadata in audiobook %q.", it.title), "MessageTaskEmbeddingMetadataDescription")
+	force := q.Get("forceEmbedChapters") == "1"
+	t.data["options"] = map[string]any{"forceEmbedChapters": force, "backupFiles": q.Get("backup") == "1"}
+	if force || len(it.files) == 1 {
+		t.data["chapters"] = chapterDTOs(it.chapters)
+	}
 	h.mu.Lock()
-	if !queued {
-		h.tasks[id] = t
-	}
-	snapshot := snapshotTask(t)
+	h.queued = append(h.queued, t)
 	h.mu.Unlock()
-	if !queued {
-		h.emit("*", "task_started", snapshot)
+	h.emit.ToAdmins("metadata_embed_queue_update", map[string]any{"libraryItemId": it.id, "queued": true})
+}
+
+func (h *Handler) newTask(action string, userID string, it item, title, key, desc, descKey string) *task {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &task{
+		Task:   events.NewTask(randomID(), action, nil).Titled(title, key, []string{}).Described(desc, descKey, it.title),
+		data:   map[string]any{"libraryItemId": it.id, "libraryItemDir": it.path, "userId": userID, "duration": it.duration},
+		itemID: it.id, ctx: ctx, cancel: cancel,
+		cache: filepath.Join(h.cfg.MetadataPath, "cache", "items", it.id),
 	}
-	return t
 }
 func (h *Handler) has(itemID, action string) bool {
 	h.mu.Lock()
@@ -375,7 +342,7 @@ func (h *Handler) cancelEncode(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(404, "")
 	}
 	t.cancel()
-	h.finish(t, errors.New("Task canceled by user"))
+	h.finish(t, errCanceled)
 	return httputil.OK(w, r)
 }
 func (h *Handler) finish(t *task, err error) {
@@ -384,21 +351,19 @@ func (h *Handler) finish(t *task, err error) {
 		h.mu.Unlock()
 		return
 	}
-	t.IsFinished = true
-	n := time.Now().UnixMilli()
-	t.FinishedAt = &n
+	t.Task = t.Task.Finished()
 	if err != nil {
-		msg, key := err.Error(), "MessageTaskCanceledByUser"
-		t.IsFailed = true
-		t.Error, t.ErrorKey = &msg, &key
-		if err.Error() != "Task canceled by user" {
+		// Every failure carries the canceled key (AbMergeManager.js:45 is the
+		// only message the client translates for these tasks).
+		t.Task = t.Task.Failed(err.Error(), "MessageTaskCanceledByUser")
+		if !errors.Is(err, errCanceled) {
 			logging.Errorf("[AbMergeManager] Task %q (%s) failed: %v", t.Action, t.ID, err)
 		}
 	}
-	snapshot := snapshotTask(t)
+	snapshot := t.snapshot()
 	delete(h.tasks, t.ID)
 	h.mu.Unlock()
-	h.emit("*", "task_finished", snapshot)
+	h.emit.TaskFinished(snapshot)
 }
 
 func (h *Handler) runNextEmbed() {
@@ -415,12 +380,11 @@ func (h *Handler) runNextEmbed() {
 	}
 	t := h.queued[0]
 	h.queued = h.queued[1:]
-	t.queuedFlag = false
 	h.tasks[t.ID] = t
-	snapshot := snapshotTask(t)
+	snapshot := t.snapshot()
 	h.mu.Unlock()
-	h.emit("*", "metadata_embed_queue_update", map[string]any{"libraryItemId": t.itemID, "queued": false})
-	h.emit("*", "task_started", snapshot)
+	h.emit.ToAll("metadata_embed_queue_update", map[string]any{"libraryItemId": t.itemID, "queued": false})
+	h.emit.TaskStarted(snapshot)
 	go func() { e := h.runEmbed(t); h.finish(t, e); h.runNextEmbed() }()
 }
 
@@ -429,7 +393,7 @@ func (h *Handler) runEmbed(t *task) error {
 	if e != nil {
 		return e
 	}
-	opt, _ := t.Data["options"].(map[string]any)
+	opt, _ := t.data["options"].(map[string]any)
 	backup := opt["backupFiles"] == true
 	if e = os.MkdirAll(t.cache, 0755); e != nil {
 		return e
@@ -476,7 +440,7 @@ func (h *Handler) runEmbed(t *task) error {
 			_ = os.Remove(out)
 			return e
 		}
-		h.emit("@admins", "track_finished", map[string]any{"libraryItemId": it.id, "ino": f.ino})
+		h.emit.ToAdmins("track_finished", map[string]any{"libraryItemId": it.id, "ino": f.ino})
 	}
 	if !backup {
 		_ = os.RemoveAll(t.cache)

@@ -2,7 +2,7 @@
   "generatedFrom": {
     "routeCoverage": {
       "path": "go-backend/contracts/parity/route-coverage.json",
-      "sha256": "18223324860ebcd721a849d26636cd6f55dea9456658973b47be19ebbb41f6f1"
+      "sha256": "235248cdd7db1ac8c9bdaca94be5b82abd25db49daa44eadc067f8070b198894"
     },
     "replacementTrial": {
       "path": "go-backend/tools/parity/replacement-trial.cjs",

@@ -1,11 +1,10 @@
 package sharing
 
 import (
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/version"
 	"context"
-	"net"
 	"net/http"
-	"strings"
 
 	"audiobookshelf-compat/internal/deviceinfo"
 	"audiobookshelf-compat/internal/store"
@@ -23,7 +22,7 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 	if ua.OSName != "" && ua.Browser != "" {
 		deviceName = ua.OSName + " " + orDefault(ua.OSVersion, "N/A") + " " + ua.Browser
 	}
-	ip := clientIP(r)
+	ip := httputil.ClientIP(r)
 	id, _, err := store.UpsertDevice(ctx, h.db, store.Device{
 		DeviceID: shareSessionID, ClientName: clientName, ClientVersion: version.Server, IPAddress: ip,
 		DeviceName: deviceName, DeviceVersion: ua.BrowserVersion, Info: ua,
@@ -38,16 +37,4 @@ func (h *Handler) shareDevice(ctx context.Context, r *http.Request, shareSession
 		}
 	}
 	return info, nil
-}
-
-// clientIP approximates request-ip's getClientIp: the first X-Forwarded-For
-// address, else the socket peer.
-func clientIP(r *http.Request) string {
-	if xff := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); xff != "" {
-		return xff
-	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return r.RemoteAddr
 }

@@ -22,8 +22,8 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 	currentCfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), RouterBasePath: "/audiobookshelf"}
 	manager, _ := newTestManager(t, currentCfg, "before-restore", "shelf-before")
 	defer manager.Close()
-	oldRuntime := manager.current
-	oldHub := oldRuntime.realtime
+	oldRuntime := manager.current.Load()
+	oldHub := manager.hub
 	oldHub.AddTestClient("restore-socket", store.User{ID: "root-test", Username: "before-restore", Type: "root"})
 	var events []string
 	oldHub.SetTestEmitter("restore-socket", func(event string) { events = append(events, event) })
@@ -56,16 +56,16 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 	if err := manager.restore(context.Background(), backupDB, stagedItems, stagedAuthors); err != nil {
 		t.Fatal(err)
 	}
-	if manager.current == oldRuntime {
+	if manager.current.Load() == oldRuntime {
 		t.Fatal("restore reused the old runtime graph")
 	}
-	if manager.current.realtime != oldHub {
+	if manager.current.Load().realtime != oldHub {
 		t.Fatal("restore replaced the realtime hub")
 	}
 	// SocketAuthority lives in the same process through backup apply; upstream
 	// BackupManager.js:263-266 emits backup_applied after the response, without
 	// disconnecting authenticated clients. Preserve that connected identity.
-	if got := manager.current.realtime.UsersOnline(); len(got) != 1 || got[0]["id"] != "root-test" {
+	if got := oldHub.UsersOnline(); len(got) != 1 || got[0]["id"] != "root-test" {
 		t.Fatalf("online users after restore=%v", got)
 	}
 	oldHub.Emit("*", "backup_applied", nil)
@@ -85,7 +85,7 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 		t.Fatalf("restored author metadata=%q", body)
 	}
 	var raw []byte
-	if err := manager.current.db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
+	if err := manager.current.Load().db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	var settings map[string]any
@@ -204,7 +204,7 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 }
 
 func insertTestRoot(database *store.Store, cfg config.Config, username, password string) error {
-	if _, err := identity.New(database.DB(), cfg); err != nil {
+	if _, err := identity.New(database.DB(), cfg, nil); err != nil {
 		return err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)

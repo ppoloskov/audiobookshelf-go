@@ -166,12 +166,10 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 		libraryView
 		LastScanVersion *string `json:"lastScanVersion,omitempty"` // shadows the embedded field, left out
 	}{libraryView: view}
-	if h.libraryChanged != nil {
-		h.libraryChanged(id)
+	if h.deps.LibraryChanged != nil {
+		h.deps.LibraryChanged(id)
 	}
-	if h.emit != nil {
-		h.emit("*", "library_added", result)
-	}
+	h.emit.ToAll("library_added", result)
 	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 	return nil
 }
@@ -415,12 +413,10 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if h.libraryChanged != nil && (len(newFolders) > 0 || len(removedFolders) > 0 || disableWatcherChanged) {
-		h.libraryChanged(id)
+	if h.deps.LibraryChanged != nil && (len(newFolders) > 0 || len(removedFolders) > 0 || disableWatcherChanged) {
+		h.deps.LibraryChanged(id)
 	}
-	if h.emit != nil {
-		h.emit("*", "library_updated", result)
-	}
+	h.emit.ToAll("library_updated", result)
 	httputil.WriteJSON(w, 200, result, httputil.ForRequest(r))
 	return nil
 }
@@ -585,14 +581,12 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	if h.libraryChanged != nil {
-		h.libraryChanged(id)
+	if h.deps.LibraryChanged != nil {
+		h.deps.LibraryChanged(id)
 	}
-	if h.emit != nil {
-		h.emit("*", "library_removed", result)
-		for _, item := range items {
-			h.emit("*", "item_removed", map[string]any{"id": item.id, "libraryId": id})
-		}
+	h.emit.ToAll("library_removed", result)
+	for _, item := range items {
+		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
 	}
 	if h.cfg.MetadataPath != "" {
 		for _, item := range items {

@@ -37,11 +37,10 @@ INSERT INTO libraryItems VALUES('i-b1','b1'),('i-b2','b2'),('i-b3','b3'),('i-b4'
 			t.Fatal(err)
 		}
 		var touched []string
-		h := New(db, config.Config{}, nil)
-		h.SetItemChanged(func(_ context.Context, id string) error {
+		h := New(db, config.Config{}, nil, Deps{ItemChanged: func(_ context.Context, id string) error {
 			touched = append(touched, id)
 			return nil
-		})
+		}})
 		return db, h, &touched
 	}
 	enc := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }

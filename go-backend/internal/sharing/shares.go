@@ -146,9 +146,7 @@ func (h *Handler) createShare(w http.ResponseWriter, r *http.Request, u store.Us
 	if !share.ExpiresAt.IsZero() && !share.ExpiresAt.After(time.Now()) {
 		_ = q.DeleteMediaItemShare(ctx, id)
 	}
-	if h.emit != nil {
-		h.emit("@admins", "share_open", share.wire())
-	}
+	h.emit.ToAdmins("share_open", share.wire())
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)
 	_ = json.NewEncoder(w).Encode(share.wire())
@@ -173,9 +171,7 @@ func (h *Handler) deleteShare(w http.ResponseWriter, r *http.Request, u store.Us
 		return httputil.Internal("Internal server error", err)
 	}
 	h.dropShareSessions(id)
-	if h.emit != nil {
-		h.emit("@admins", "share_closed", share.wire())
-	}
+	h.emit.ToAdmins("share_closed", share.wire())
 	return httputil.Empty(204)
 }
 
@@ -208,9 +204,7 @@ func (h *Handler) loadShare(ctx context.Context, slug string) (shareRow, error) 
 	if !share.ExpiresAt.IsZero() && share.ExpiresAt.Before(time.Now()) {
 		_ = sqlc.New(h.db).DeleteMediaItemShare(ctx, share.ID)
 		h.dropShareSessions(share.ID)
-		if h.emit != nil {
-			h.emit("@admins", "share_closed", share.wire())
-		}
+		h.emit.ToAdmins("share_closed", share.wire())
 		return shareRow{}, errShareGone
 	}
 	return share, nil

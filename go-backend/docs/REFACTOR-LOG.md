@@ -698,3 +698,17 @@ Ratchet: 39,324 → 38,906 handwritten lines; complexity 8,944 → 8,805; map[st
 Still open: F6 typed events, F20 composition root (constructor wiring; runtime notes below), mediatools availability
 check (playback.ffmpegExecutable), podcasts/providers admin wrappers → access.RequireAdmin, clientIP copies
 (sharing/playback), backup.New's unused db, comments pass, tests pass, verifier loop.
+
+### Wave C4 (2026-11-08)
+F6: `events.Emitter` with explicit audiences (`ToUser`, `ToAdmins`, `ToAll`) and task helpers; a nil emitter discards,
+so features never nil-check; only the hub spells "*"/"@admins". One `events.Task` builder for scanner, audiotools,
+catalog match tasks and podcast downloads/OPML (payloads unchanged by value); audiotools cancel via a sentinel error.
+F20: collaborators are constructor arguments (`Deps` structs for catalog, adminops, userapi; direct arguments for
+identity, backup, scanner); realtime gets a `Backend` interface and the `Manager` owns the hub; the podcasts↔scanner
+cycle is gone (`podcasts.QuickMatchEpisodes`); `newRuntime` builds in dependency order. Set* injectors 17 → 4 (the
+remaining four are a cookie write and three test seams, left to the Tests pass).
+Leftovers done: `mediatools.FFmpegAvailable`, podcasts/providers on `access.RequireAdmin`, `httputil.ClientIP`/`PeerIP`.
+Bug fixed: `user_added`/`user_removed` went to the audience "admin", which no socket joins; they now go to admins
+(UserController.js:187,402 adminEmitter).
+Risk noted: `server` TestSocketConnectAuthLoop timed out once under heavy load (22/200 sockets); 0/4 failures under load
+on both this tree and the previous commit when re-run.

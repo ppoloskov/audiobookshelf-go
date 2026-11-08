@@ -1,6 +1,7 @@
 package audiotools
 
 import (
+	"audiobookshelf-compat/internal/events"
 	"context"
 	"encoding/binary"
 	"math"
@@ -36,7 +37,7 @@ func TestMergeCreatesM4BAndKeepsSourceBackup(t *testing.T) {
 	h := New(nil, configForTest(filepath.Join(root, "metadata")), nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	task := &task{ID: "task-merge", Action: "encode-m4b", Data: map[string]any{}, ctx: ctx, cancel: cancel, cache: filepath.Join(root, "metadata", "cache", "items", "item")}
+	task := &task{Task: events.Task{ID: "task-merge", Action: "encode-m4b"}, data: map[string]any{}, ctx: ctx, cancel: cancel, cache: filepath.Join(root, "metadata", "cache", "items", "item")}
 	libDir := filepath.Join(root, "Merged Book")
 	if err := os.Mkdir(libDir, 0755); err != nil {
 		t.Fatal(err)

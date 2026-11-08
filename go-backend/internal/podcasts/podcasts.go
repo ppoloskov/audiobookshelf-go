@@ -56,13 +56,9 @@ type Handler struct {
 	scheduleIDs     map[string]cron.EntryID
 	failedCheckMap  map[string]int
 	maxFailedChecks int
-	quickMatch      func(context.Context, string, bool) (int, error)
 }
 
 func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
-	if emit == nil {
-		emit = func(string, string, any) {}
-	}
 	maxFailed := 24
 	if raw, err := strconv.Atoi(os.Getenv("MAX_FAILED_EPISODE_CHECKS")); err == nil && raw >= 0 {
 		maxFailed = raw
@@ -72,26 +68,11 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter) *Handler {
 	return h
 }
 
-// SetQuickMatchHandler wires the scanner's podcast episode matcher without a
-// package dependency cycle. A nil callback leaves the route unavailable.
-func (h *Handler) SetQuickMatchHandler(fn func(context.Context, string, bool) (int, error)) {
-	h.queueMu.Lock()
-	h.quickMatch = fn
-	h.queueMu.Unlock()
-}
-
 // Routes registers the podcast routes under /api/podcasts and the two
 // podcast-only library routes. The server attaches the user to the request
 // context before dispatch (store.ContextWithUser).
 func (h *Handler) Routes(mux *http.ServeMux) {
-	adminOnly := func(fn httputil.Handler) httputil.Handler {
-		return func(w http.ResponseWriter, r *http.Request) error {
-			if !access.AdminUser(requestUser(r)) {
-				return httputil.Status(403, "")
-			}
-			return fn(w, r)
-		}
-	}
+	adminOnly := func(fn httputil.Handler) httputil.Handler { return access.RequireAdmin(http.StatusForbidden, fn) }
 	mux.Handle("GET /api/libraries/{id}/recent-episodes", h.libraryRoute(true))
 	mux.Handle("GET /api/libraries/{id}/episode-downloads", h.libraryRoute(false))
 	mux.Handle("POST /api/podcasts/feed", adminOnly(h.feed))
@@ -205,20 +186,13 @@ func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item lib
 }
 
 func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
-	h.queueMu.Lock()
-	matcher := h.quickMatch
-	h.queueMu.Unlock()
-	if matcher == nil {
-		http.Error(w, "Podcast episode matcher unavailable", http.StatusServiceUnavailable)
-		return nil
-	}
-	updated, err := matcher(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
+	updated, err := h.QuickMatchEpisodes(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
 	if err != nil {
 		return httputil.Internal("Podcast episode matching failed", err)
 	}
 	if updated > 0 {
 		if fresh, e := h.loadItem(r.Context(), item.ID); e == nil {
-			h.emit("@admins", "item_updated", h.expanded(r.Context(), fresh))
+			h.emit.ToAdmins("item_updated", h.expanded(r.Context(), fresh))
 		}
 	}
 	return httputil.JSON(w, r, map[string]any{"numEpisodesUpdated": updated})
@@ -320,7 +294,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item lib
 		}
 		updated, err := h.loadItem(r.Context(), item.ID)
 		if err == nil {
-			h.emit("@admins", "item_updated", h.expanded(r.Context(), updated))
+			h.emit.ToAdmins("item_updated", h.expanded(r.Context(), updated))
 			item = updated
 		}
 	}
@@ -394,7 +368,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item lib
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	h.emit("@admins", "item_updated", h.expanded(r.Context(), updated))
+	h.emit.ToAdmins("item_updated", h.expanded(r.Context(), updated))
 	return httputil.JSON(w, r, updated.Full())
 }
 
@@ -718,7 +692,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	if err != nil {
 		return libitem.Item{}, 500, "database read failed", err
 	}
-	h.emit("@admins", "item_added", h.expanded(ctx, item))
+	h.emit.ToAdmins("item_added", h.expanded(ctx, item))
 	return item, 200, "", nil
 }
 
@@ -753,14 +727,16 @@ func (h *Handler) createFromOPML(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	started := time.Now().UnixMilli()
-	task := map[string]any{"id": id, "action": "opml-import", "data": map[string]any{}, "title": "OPML import", "titleKey": "MessageTaskOpmlImport", "titleSubs": nil, "description": fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "descriptionKey": "MessageTaskOpmlImportDescription", "descriptionSubs": []any{len(body.Feeds)}, "error": nil, "errorKey": nil, "errorSubs": nil, "showSuccess": true, "isFailed": false, "isFinished": false, "startedAt": started, "finishedAt": nil}
-	h.emit("*", "task_started", task)
+	task := events.NewTask(id, "opml-import", struct{}{}).
+		Titled("OPML import", "MessageTaskOpmlImport", nil).
+		Described(fmt.Sprintf("Creating podcasts from %d RSS feeds", len(body.Feeds)), "MessageTaskOpmlImportDescription", len(body.Feeds))
+	task.ShowSuccess = true
+	h.emit.TaskStarted(task)
 	go h.runOPMLImport(body.Feeds, body.LibraryID, body.FolderID, folderPath, body.AutoDownloadEpisodes, task)
 	return httputil.OK(w, r)
 }
 
-func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath string, auto bool, task map[string]any) {
+func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath string, auto bool, task events.Task) {
 	added := 0
 	for _, feedURL := range feeds {
 		feed, err := h.getFeed(context.Background(), feedURL)
@@ -795,24 +771,20 @@ func (h *Handler) runOPMLImport(feeds []string, libraryID, folderID, folderPath 
 		// the podcast title, not the feed URL.
 		h.emitFailedOPMLFeed(title, `Creating podcast "`+title+`"`, "MessageTaskOpmlImportFeedPodcastDescription", errorText, errorKey)
 	}
-	finished := time.Now().UnixMilli()
-	task["description"] = fmt.Sprintf("Added %d podcasts", added)
-	task["descriptionKey"] = "MessageTaskOpmlImportFinished"
-	task["descriptionSubs"] = []any{added}
-	task["isFinished"] = true
-	task["finishedAt"] = finished
-	h.emit("*", "task_finished", task)
+	h.emit.TaskFinished(task.Described(fmt.Sprintf("Added %d podcasts", added), "MessageTaskOpmlImportFinished", added).Finished())
 }
 
 func (h *Handler) emitFailedOPMLFeed(title, descriptionText, descriptionKey, errorText, errorKey string) {
-	now := time.Now().UnixMilli()
 	taskID, err := ids.New()
 	if err != nil {
 		logging.Errorf("[PodcastManager] could not create an id for the OPML feed failure task: %v", err)
 		return
 	}
-	task := map[string]any{"id": taskID, "action": "opml-import-feed", "data": map[string]any{}, "title": "OPML import feed", "titleKey": "MessageTaskOpmlImportFeed", "titleSubs": nil, "description": descriptionText, "descriptionKey": descriptionKey, "descriptionSubs": []string{title}, "error": errorText, "errorKey": errorKey, "errorSubs": nil, "showSuccess": false, "isFailed": true, "isFinished": true, "startedAt": now, "finishedAt": now}
-	h.emit("*", "task_started", task)
+	task := events.NewTask(taskID, "opml-import-feed", struct{}{}).
+		Titled("OPML import feed", "MessageTaskOpmlImportFeed", nil).
+		Described(descriptionText, descriptionKey, title).
+		Failed(errorText, errorKey).Finished()
+	h.emit.TaskStarted(task)
 }
 
 func sanitizePodcastFilename(title string) string {
@@ -914,7 +886,7 @@ func (h *Handler) runScheduled(itemID string) {
 			}
 			h.removeSchedule(itemID)
 			if updated, loadErr := h.loadItem(context.Background(), itemID); loadErr == nil {
-				h.emit("@admins", "item_updated", h.expanded(context.Background(), updated))
+				h.emit.ToAdmins("item_updated", h.expanded(context.Background(), updated))
 			}
 		} else {
 			now := dbtime.Now()

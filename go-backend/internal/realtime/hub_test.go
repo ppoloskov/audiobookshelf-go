@@ -56,14 +56,41 @@ func testDB(t *testing.T) (*sql.DB, string) {
 	return db, path
 }
 
+// fakeBackend is a Backend with replaceable behaviour; unset parts do nothing.
+type fakeBackend struct {
+	db       *sql.DB
+	auth     func(*http.Request) (store.User, error)
+	dispatch func(context.Context, Action) error
+	session  func(string) any
+}
+
+func (f *fakeBackend) Authenticate(r *http.Request) (store.User, error) {
+	if f.auth == nil {
+		return store.User{}, nil
+	}
+	return f.auth(r)
+}
+func (f *fakeBackend) DB() *sql.DB { return f.db }
+func (f *fakeBackend) Dispatch(ctx context.Context, a Action) error {
+	if f.dispatch == nil {
+		return nil
+	}
+	return f.dispatch(ctx, a)
+}
+func (f *fakeBackend) Session(id string) any {
+	if f.session == nil {
+		return nil
+	}
+	return f.session(id)
+}
+
+func newTestHub(cfg config.Config, b *fakeBackend) *Hub {
+	return New(cfg, func() Backend { return b })
+}
+
 func TestNewRegistersLegacyAndPrefixedSocketPaths(t *testing.T) {
 	db, _ := testDB(t)
-	hub, err := New(db, config.Config{RouterBasePath: "/abs"}, func(*http.Request) (store.User, error) {
-		return store.User{}, nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, &fakeBackend{db: db})
 	defer hub.Close()
 	if got, want := strings.Join(hub.Paths(), ","), "/socket.io,/abs/socket.io"; got != want {
 		t.Fatalf("Paths() = %q, want %q", got, want)
@@ -138,24 +165,23 @@ func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing
 
 func TestUsersOnlineCallsPlaybackLookupOutsideHubLock(t *testing.T) {
 	db, _ := testDB(t)
-	hub, err := New(db, config.Config{}, func(*http.Request) (store.User, error) { return store.User{}, nil })
-	if err != nil {
-		t.Fatal(err)
-	}
+	backend := &fakeBackend{db: db}
+	hub := newTestHub(config.Config{}, backend)
 	defer hub.Close()
 	hub.mu.Lock()
 	hub.clients["socket-a"] = &client{user: &store.User{ID: "user-1", Username: "alice", Type: "user"}}
 	hub.clients["socket-b"] = &client{user: &store.User{ID: "user-1", Username: "alice", Type: "user"}}
 	hub.mu.Unlock()
-	hub.SetSessionLookup(func(userID string) any {
+	backend.session = func(userID string) any {
 		if userID != "user-1" {
 			t.Errorf("session lookup user=%q", userID)
 		}
 		// A playback lookup may synchronously mutate hub state as it emits a
 		// stream update. This would deadlock if usersOnline held Hub.mu.
-		hub.SetSessionLookup(nil)
+		hub.mu.Lock()
+		hub.mu.Unlock() //nolint:staticcheck // empty critical section: proves Hub.mu is free
 		return map[string]any{"id": "session-1"}
-	})
+	}
 	done := make(chan []map[string]any, 1)
 	go func() { done <- hub.UsersOnline() }()
 	select {
@@ -174,15 +200,13 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	}
 	db, _ := testDB(t)
 	secret := "realtime-integration-secret"
-	authHandler, err := identity.New(db, config.Config{JWTSecret: secret})
+	authHandler, err := identity.New(db, config.Config{JWTSecret: secret}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hub, err := New(db, config.Config{RouterBasePath: "/abs"}, authHandler.Authenticate)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hub.SetDispatcher(func(_ context.Context, action Action) error {
+	backend := &fakeBackend{db: db, auth: authHandler.Authenticate}
+	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
+	backend.dispatch = func(_ context.Context, action Action) error {
 		if action.Event == "cancel_scan" {
 			hub.Emit("*", "probe_item", libitem.Expanded{Head: libitem.Head{LibraryID: "lib-1"},
 				Media: libitem.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
@@ -191,7 +215,7 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 			}
 		}
 		return nil
-	})
+	}
 	defer hub.Close()
 	server := httptest.NewServer(hub)
 	defer server.Close()

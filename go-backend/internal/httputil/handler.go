@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"audiobookshelf-compat/internal/logging"
 )
@@ -134,4 +136,21 @@ func stripWeak(tag string) string {
 func OK(w http.ResponseWriter, r *http.Request) error {
 	SendStatus(w, http.StatusOK, ForRequest(r))
 	return nil
+}
+
+// PeerIP is the address of the socket peer, without its port.
+func PeerIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+// ClientIP approximates request-ip's getClientIp: the first X-Forwarded-For
+// address, else the socket peer.
+func ClientIP(r *http.Request) string {
+	if xff := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); xff != "" {
+		return xff
+	}
+	return PeerIP(r)
 }

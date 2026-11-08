@@ -1,12 +1,12 @@
 package playback
 
 import (
+	"audiobookshelf-compat/internal/mediatools"
 	"encoding/json"
 	"flag"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -152,7 +152,7 @@ func (r *recorder) rows() []any {
 }
 
 func TestSessionGolden(t *testing.T) {
-	if _, err := exec.LookPath(ffmpegExecutable()); err != nil {
+	if !mediatools.FFmpegAvailable() {
 		t.Skip("ffmpeg is unavailable")
 	}
 	got := map[string]any{}

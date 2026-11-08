@@ -13,7 +13,7 @@ import (
 )
 
 func TestLoggerDataAdminOnlyAndShape(t *testing.T) {
-	h := New(adminopsDB(t), config.Config{}, nil)
+	h := New(adminopsDB(t), config.Config{}, nil, Deps{})
 	logging.Info("adminops logger-data marker")
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/logger-data", nil), store.User{Type: "user"})
@@ -47,7 +47,7 @@ func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 	if _, err := db.Exec(`DROP TABLE settings`); err != nil {
 		t.Fatal(err)
 	}
-	h := New(db, config.Config{}, nil)
+	h := New(db, config.Config{}, nil, Deps{})
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings?x=1", strings.NewReader(`{"language":"fr"}`)), store.User{Type: "admin"})
 	if w.Code != 500 || w.Body.String() != "database error" {
@@ -65,7 +65,7 @@ func TestSettingsPatchLogLevelChangesLogger(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
 	t.Cleanup(func() { l.ChangeLevel(before) })
-	h := New(adminopsDB(t), config.Config{}, nil)
+	h := New(adminopsDB(t), config.Config{}, nil, Deps{})
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"logLevel":4}`)), store.User{Type: "admin"})
 	if w.Code != 200 || l.Level() != logging.LevelError {
