@@ -743,3 +743,8 @@ Rejected with evidence: catalog library-file delete updating numEpisodes (TS doe
 unifying batch/single delete sweep order (both match TS); auth.Claims fields and access.Decodes (tests rely on them).
 Ratchet: 38,361 → 37,831 handwritten lines; complexity 8,706 → 8,487; map[string]any 562 → 460; functions >15 124 → 115.
 Open for the owner (not refactor): podcast notification events are never fired.
+
+### Verifier round 2: OIDC fix (2026-11-08)
+`identity/oidc.go`: a failed user re-read after applying OIDC groups/permissions returned an empty user with a nil error,
+so the login could issue a session for a blank user; it now fails the login. Ratchet raised by the fix itself (+4 lines,
++2 complexity: the two error checks).
