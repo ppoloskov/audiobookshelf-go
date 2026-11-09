@@ -2,12 +2,19 @@ package serversettings
 
 import "testing"
 
-// HostTimeZone mirrors upstream ServerSettings.getHostTimeZone; the replacement
-// must never answer Go's unnamed "Local" zone or an empty string.
+// HostTimeZone is the process zone as Node 22 names it (upstream
+// ServerSettings.getHostTimeZone): TZ wins, mapped to ICU's spelling; with TZ
+// unset it must still be a real name, never Go's unnamed "Local" or "".
 func TestHostTimeZone(t *testing.T) {
-	got := HostTimeZone()
-	if got == "" || got == "Local" {
-		t.Fatalf("HostTimeZone returned %q", got)
+	for tz, want := range map[string]string{"US/Pacific": "America/Los_Angeles", "Etc/UTC": "UTC", " Europe/London ": "Europe/London"} {
+		t.Setenv("TZ", tz)
+		if got := HostTimeZone(); got != want {
+			t.Errorf("TZ=%q: HostTimeZone = %q, want %q", tz, got, want)
+		}
+	}
+	t.Setenv("TZ", "")
+	if got := HostTimeZone(); got == "" || got == "Local" {
+		t.Errorf("TZ unset: HostTimeZone = %q", got)
 	}
 }
 

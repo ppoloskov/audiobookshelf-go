@@ -308,3 +308,40 @@ func TestCloseCancelsRunningAndQueuedWork(t *testing.T) {
 		t.Fatal("a queued embed started after Close")
 	}
 }
+
+// The batch route validates every item before queueing any: one unknown or
+// already-queued item rejects the request and leaves the queue untouched; a
+// valid batch queues them all and they run one at a time.
+func TestBatchEmbedIsAllOrNothingAndRunsOneAtATime(t *testing.T) {
+	r := newRig(t)
+	r.addBook("item-1", "One", "a.mp3")
+	r.addBook("item-2", "Two", "b.mp3")
+	calls, release := fakeFFmpeg(t)
+	post := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/api/tools/batch/embed-metadata", strings.NewReader(body))
+		r.mux.ServeHTTP(w, req.WithContext(store.ContextWithUser(req.Context(), store.User{ID: "admin", Type: "root"})))
+		return w
+	}
+	if w := post(`{"libraryItemIds":[]}`); w.Code != 400 {
+		t.Fatalf("empty batch = %d", w.Code)
+	}
+	if w := post(`{"libraryItemIds":["item-1","nope"]}`); w.Code != 404 {
+		t.Fatalf("batch with unknown item = %d", w.Code)
+	}
+	if tasks, queued := r.tasks("?include=queue"); len(tasks) != 0 || len(queued) != 0 {
+		t.Fatalf("rejected batch left work behind: %v %v", tasks, queued)
+	}
+	if w := post(`{"libraryItemIds":["item-1","item-2"]}`); w.Code != 200 {
+		t.Fatalf("batch = %d %s", w.Code, w.Body)
+	}
+	waitFor(t, "first ffmpeg call", exists(filepath.Join(calls, "call-0")))
+	if tasks, queued := r.tasks("?include=queue"); len(tasks) != 1 || len(queued) != 1 {
+		t.Fatalf("running %d, queued %d; want 1 and 1", len(tasks), len(queued))
+	}
+	if w := post(`{"libraryItemIds":["item-2"]}`); w.Code != 400 {
+		t.Fatalf("batch with an already queued item = %d, want 400", w.Code)
+	}
+	release()
+	waitFor(t, "both embeds to finish", func() bool { return len(r.named("task_finished")) == 2 })
+}

@@ -4,64 +4,64 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"audiobookshelf-compat/internal/config"
 )
 
+// rateTestHandler builds the handler from production config with the given
+// login rate limit; the tests drive it through POST /login.
 func rateTestHandler(t *testing.T, limit int, window time.Duration) *Handler {
 	t.Helper()
-	db, h := identityFixture(t)
+	auth := config.DefaultAuth()
+	auth.RateMax, auth.RateWindow = limit, window
+	db, h := identityFixtureWith(t, config.Config{Auth: auth})
 	t.Cleanup(func() { db.Close() })
-	h.rateMax = limit
-	h.rateWindow = window
 	return h
 }
 
-func authRequest(remote string) *http.Request {
-	r := httptest.NewRequest(http.MethodPost, "/login", nil)
+// attempt posts a login for an unknown user from remote and returns the response; a
+// wrong password is 401 when admitted, so any 429 comes from the limiter only.
+func attempt(h *Handler, remote string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"nobody","password":"x"}`))
 	r.RemoteAddr = remote + ":5555"
-	return r
+	w := httptest.NewRecorder()
+	h.Handle(w, r)
+	return w
 }
 
 func TestAuthRateLimitTripsAndResets(t *testing.T) {
 	h := rateTestHandler(t, 4, 300*time.Millisecond)
-	hit := func(remote string) *httptest.ResponseRecorder {
-		w := httptest.NewRecorder()
-		if h.allowAuthRequest(w, authRequest(remote)) {
-			return nil
-		}
-		return w
-	}
 	for i := range 4 {
-		if w := hit("10.0.0.1"); w != nil {
-			t.Fatalf("request %d from a fresh client was limited", i+1)
+		if w := attempt(h, "10.0.0.1"); w.Code != http.StatusUnauthorized {
+			t.Fatalf("request %d from a fresh client: status %d, want 401 (admitted)", i+1, w.Code)
 		}
 	}
-	w := hit("10.0.0.1")
-	if w == nil {
-		t.Fatal("fifth request in the burst was admitted")
-	}
+	w := attempt(h, "10.0.0.1")
 	if w.Code != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want 429", w.Code)
+		t.Fatalf("fifth request in the burst: status %d, want 429", w.Code)
 	}
 	var body map[string]string
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body["error"] != h.rateMessage || len(body) != 1 {
-		t.Fatalf("body = %q, want {\"error\":%q}", w.Body.String(), h.rateMessage)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body["error"] != config.DefaultAuth().RateMessage || len(body) != 1 {
+		t.Fatalf("body = %q, want {\"error\":%q}", w.Body.String(), config.DefaultAuth().RateMessage)
 	}
 	if got := w.Header().Get("RateLimit-Policy"); got != "4;w=0" {
 		t.Fatalf("RateLimit-Policy = %q", got)
 	}
-	if hit("10.0.0.2") != nil {
-		t.Fatal("another client was limited by the first client's bucket")
+	if w := attempt(h, "10.0.0.2"); w.Code != http.StatusUnauthorized {
+		t.Fatalf("another client was limited by the first client's bucket: %d", w.Code)
 	}
+	// The limiter runs on the wall clock, so the window can only be waited out.
 	time.Sleep(350 * time.Millisecond)
 	for i := range 4 {
-		if hit("10.0.0.1") != nil {
-			t.Fatalf("request %d after the window was limited", i+1)
+		if w := attempt(h, "10.0.0.1"); w.Code != http.StatusUnauthorized {
+			t.Fatalf("request %d after the window: status %d, want admitted", i+1, w.Code)
 		}
 	}
-	if hit("10.0.0.1") == nil {
-		t.Fatal("bucket admitted more than the limit after the window")
+	if w := attempt(h, "10.0.0.1"); w.Code != http.StatusTooManyRequests {
+		t.Fatalf("bucket admitted more than the limit after the window: %d", w.Code)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestAuthRateLimitNeverExceedsLimitInAWindow(t *testing.T) {
 	admitted := 0
 	deadline := time.Now().Add(window * 8 / 10)
 	for time.Now().Before(deadline) {
-		if h.allowAuthRequest(httptest.NewRecorder(), authRequest("10.0.0.9")) {
+		if attempt(h, "10.0.0.9").Code != http.StatusTooManyRequests {
 			admitted++
 		}
 	}
@@ -89,19 +89,22 @@ func TestAuthRateLimitNeverExceedsLimitInAWindow(t *testing.T) {
 func TestAuthRateLimitDisabledAdmitsEverything(t *testing.T) {
 	h := rateTestHandler(t, 0, time.Minute)
 	for range 100 {
-		if !h.allowAuthRequest(httptest.NewRecorder(), authRequest("10.0.0.3")) {
-			t.Fatal("limited with the limiter disabled")
+		if w := attempt(h, "10.0.0.3"); w.Code != http.StatusUnauthorized {
+			t.Fatalf("limited with the limiter disabled: %d", w.Code)
 		}
 	}
 }
 
+// Idle clients are forgotten so the table cannot grow without bound. Nothing
+// observable depends on it (a forgotten client gets a fresh full bucket), so
+// this one test reads the table.
 func TestAuthRateLimitPrunesIdleClients(t *testing.T) {
 	h := rateTestHandler(t, 4, 100*time.Millisecond)
 	for _, remote := range []string{"10.1.0.1", "10.1.0.2", "10.1.0.3"} {
-		h.allowAuthRequest(httptest.NewRecorder(), authRequest(remote))
+		attempt(h, remote)
 	}
 	time.Sleep(150 * time.Millisecond)
-	h.allowAuthRequest(httptest.NewRecorder(), authRequest("10.1.0.4"))
+	attempt(h, "10.1.0.4")
 	h.rateMu.Lock()
 	defer h.rateMu.Unlock()
 	if len(h.rateLimiters) != 1 {

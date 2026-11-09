@@ -151,7 +151,7 @@ pre-dispatch, the lists `notImplemented` 404 shim, the 501 fallback, and the
 
 ### M7 notes
 
-- Recorded before the refactor and unchanged after: access/testdata/decisions.json
+- Recorded before the refactor and unchanged after: access/testdata/decisions.json (golden since replaced by hand-derived cases in access_test.go, Step 3)
   (old helpers' decisions over 128 users × 30 items) and
   scanner/testdata/scan_golden.json (rows, sidecars and events for full scan,
   rename/delete/add, a watcher batch and a forced item scan).

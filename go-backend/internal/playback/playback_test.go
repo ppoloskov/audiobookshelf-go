@@ -165,6 +165,8 @@ func TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles(t *testing.T)
 	var s map[string]any
 	_ = json.Unmarshal(start.Body.Bytes(), &s)
 	sid, _ := s["id"].(string)
+	// ffmpeg is an external process: poll for its first segment (bounded) rather
+	// than assume timing; the assertions below fail if it never appears.
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		if _, err := os.Stat(filepath.Join(h.meta, "streams", sid, "output-0.ts")); err == nil {

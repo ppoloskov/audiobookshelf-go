@@ -16,19 +16,27 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/users"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// A created user's permanent token (users.token) is a JWT whose payload has a
+// numeric iat (jsonwebtoken.sign adds it), and it authenticates that user as a
+// bearer token.
 func TestLegacyAccessTokenIncludesJWTIssuedAt(t *testing.T) {
 	db, handler := identityFixture(t)
 	defer db.Close()
-	token, err := handler.IssueLegacyToken("user-1", "reader")
+	id, err := handler.CreateUser(t.Context(), users.NewUser{Username: "newcomer", Type: "user", Active: true})
 	if err != nil {
+		t.Fatal(err)
+	}
+	var token string
+	if err := db.QueryRow(`SELECT token FROM users WHERE id=?`, id).Scan(&token); err != nil {
 		t.Fatal(err)
 	}
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		t.Fatalf("token has %d segments, want JWT", len(parts))
+		t.Fatalf("users.token has %d segments, want JWT: %q", len(parts), token)
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
@@ -38,8 +46,13 @@ func TestLegacyAccessTokenIncludesJWTIssuedAt(t *testing.T) {
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := claims["iat"].(float64); !ok {
-		t.Fatalf("legacy token claims lack numeric iat: %#v", claims)
+	if _, ok := claims["iat"].(float64); !ok || claims["userId"] != id || claims["username"] != "newcomer" {
+		t.Fatalf("legacy token claims %#v lack numeric iat, userId or username", claims)
+	}
+	r := httptest.NewRequest("GET", "/", nil)
+	r.Header.Set("Authorization", "Bearer "+token)
+	if u, err := handler.Authenticate(r); err != nil || u.ID != id {
+		t.Fatalf("legacy token did not authenticate its user: %v %v", u.ID, err)
 	}
 }
 
@@ -234,6 +247,13 @@ func TestAPIKeyAuthenticationAndInitOneTime(t *testing.T) {
 
 func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 	t.Helper()
+	return identityFixtureWith(t, config.Config{})
+}
+
+// identityFixtureWith builds the fixture handler from production config; cfg's
+// router base path and source are fixed, its Auth and secret are kept.
+func identityFixtureWith(t *testing.T, cfg config.Config) (*sql.DB, *Handler) {
+	t.Helper()
 	db, err := sql.Open("sqlite", "file:identity-test-"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared&_pragma=busy_timeout(5000)")
 	if err != nil {
 		t.Fatal(err)
@@ -272,7 +292,8 @@ func identityFixture(t *testing.T) (*sql.DB, *Handler) {
 			t.Fatal(err)
 		}
 	}
-	handler, err := New(db, config.Config{RouterBasePath: "/audiobookshelf", Source: "test"}, nil)
+	cfg.RouterBasePath, cfg.Source = "/audiobookshelf", "test"
+	handler, err := New(db, cfg, nil)
 	if err != nil {
 		db.Close()
 		t.Fatal(err)

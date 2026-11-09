@@ -16,9 +16,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/lists"
-	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/users"
 	_ "modernc.org/sqlite"
 )
 
@@ -281,24 +279,29 @@ func TestProgressReadAndUpdate(t *testing.T) {
 	}
 }
 
+// A progress row stored with Sequelize's timestamp spelling is served with
+// millisecond lastUpdate and startedAt on /api/me.
 func TestProgressReadParsesSequelizeTimestamp(t *testing.T) {
-	db, _ := userFixture(t)
+	db, user := userFixture(t)
 	defer db.Close()
 	const timestamp = "2026-10-28 04:28:27.188 +00:00"
 	if _, err := db.Exec(`INSERT INTO mediaProgresses(id,userId,mediaItemId,mediaItemType,currentTime,isFinished,hideFromContinueListening,extraData,createdAt,updatedAt) VALUES ('p-ts','u1','book1','book',1,0,0,'{}',?,?)`, timestamp, timestamp); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := progressdto.Read(context.Background(), db, "u1")
-	if err != nil {
-		t.Fatal(err)
+	h := newUserAPIForTest(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/me", nil), user) || w.Code != http.StatusOK {
+		t.Fatalf("GET /api/me status=%d body=%s", w.Code, w.Body.String())
 	}
-	if len(rows) != 1 {
-		t.Fatalf("got %d progress rows, want 1", len(rows))
+	var body struct {
+		MediaProgress []map[string]any `json:"mediaProgress"`
 	}
-	progress := rows[0]
-	want := time.Date(2026, time.October, 28, 4, 28, 27, 188_000_000, time.UTC).UnixMilli()
-	if progress.LastUpdate == nil || *progress.LastUpdate != want || progress.StartedAt == nil || *progress.StartedAt != want {
-		t.Fatalf("timestamps = lastUpdate:%v startedAt:%v, want %d", progress.LastUpdate, progress.StartedAt, want)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || len(body.MediaProgress) != 1 {
+		t.Fatalf("mediaProgress = %v err=%v in %s", body.MediaProgress, err, w.Body.String())
+	}
+	want := float64(time.Date(2026, time.October, 28, 4, 28, 27, 188_000_000, time.UTC).UnixMilli())
+	if got := body.MediaProgress[0]; got["lastUpdate"] != want || got["startedAt"] != want {
+		t.Fatalf("timestamps = lastUpdate:%v startedAt:%v, want %v", got["lastUpdate"], got["startedAt"], want)
 	}
 }
 
@@ -320,35 +323,6 @@ func TestMePreservesNullEmail(t *testing.T) {
 	}
 	if value, present := body["email"]; !present || value != nil {
 		t.Fatalf("email = %#v, want JSON null", value)
-	}
-}
-
-func TestUserDTOUsesUpstreamNullAndArrayShapes(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`UPDATE users SET email=NULL, permissions='{}' WHERE id='u1'`); err != nil {
-		t.Fatal(err)
-	}
-	user.Email = nil
-	user.Permissions = json.RawMessage(`{}`)
-	dto := users.ListedUserDTO(user, false)
-	if dto["email"] != nil {
-		t.Fatalf("email=%#v, want null", dto["email"])
-	}
-	// A stored empty string stays "" (User.js toOldJSONForBrowser returns the column as is).
-	empty := ""
-	user.Email = &empty
-	if got := users.ListedUserDTO(user, false)["email"]; got != "" {
-		t.Fatalf("email=%#v, want empty string", got)
-	}
-	for _, key := range []string{"librariesAccessible", "itemTagsSelected"} {
-		got, ok := dto[key].([]string)
-		if !ok || got == nil || len(got) != 0 {
-			t.Fatalf("%s=%#v, want []", key, dto[key])
-		}
-	}
-	if _, ok := dto["isOldToken"]; ok {
-		t.Fatalf("unset isOldToken must be omitted: %#v", dto)
 	}
 }
 
@@ -381,15 +355,6 @@ func TestBookmarkCreateAndLibraryPermissionDenial(t *testing.T) {
 	h.Handle(w, r, denied)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("restricted bookmark status=%d body=%s", w.Code, w.Body.String())
-	}
-}
-
-func TestRouteMissRemainsUnhandled(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	h := newUserAPIForTest(db, config.Config{}, nil)
-	if h.Handle(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/tags", nil), user) {
-		t.Fatal("unsupported user admin route was claimed")
 	}
 }
 

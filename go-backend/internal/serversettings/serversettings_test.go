@@ -79,31 +79,39 @@ func TestConcurrentWritesNeverServeOlderThanLastWrite(t *testing.T) {
 	}
 }
 
-func TestForgetDropsTheEntry(t *testing.T) {
+// A closed handle is forgotten; whatever then opens at the same address must
+// read the row afresh instead of inheriting the old document.
+func TestForgetDiscardsTheCachedDocument(t *testing.T) {
 	db := open(t)
-	_ = Load(context.Background(), db)
+	ctx := context.Background()
+	if Load(ctx, db).String("language") != "" {
+		t.Fatal("fixture already has a language")
+	}
+	if _, err := db.Exec(`UPDATE settings SET value='{"language":"fr"}'`); err != nil {
+		t.Fatal(err)
+	}
 	Forget(db)
-	if _, ok := entries.Load(db); ok {
-		t.Fatal("Forget kept the handle's entry")
+	if got := Load(ctx, db).String("language"); got != "fr" {
+		t.Fatalf("after Forget the row was not read again, language %q", got)
 	}
 }
 
-func TestCacheServesUntilInvalidated(t *testing.T) {
+// Without a readable row the settings are the defaults (no keys, sorting
+// prefixes "the" and "a"), Get reports the error, and a stored document's
+// prefixes replace the defaults.
+func TestUnreadableRowFallsBackToDefaults(t *testing.T) {
 	db := open(t)
-	db.Exec(`UPDATE settings SET value='{"sortingPrefixes":["der"],"language":"de"}'`)
 	ctx := context.Background()
-	if s := Load(ctx, db); !slices.Equal(s.SortingPrefixes(), []string{"der"}) || s.Doc()["language"] != "de" {
-		t.Fatalf("first read %v %v", s.Doc(), s.SortingPrefixes())
-	}
-	db.Exec(`UPDATE settings SET value='{"language":"fr"}'`)
-	if s := Load(ctx, db); s.Doc()["language"] != "de" {
-		t.Fatalf("expected the cached value, got %v", s.Doc()["language"])
+	if _, err := db.Exec(`UPDATE settings SET value='{"sortingPrefixes":["der"],"language":"de"}'`); err != nil {
+		t.Fatal(err)
 	}
 	Invalidate(db)
-	if s := Load(ctx, db); s.Doc()["language"] != "fr" || !slices.Equal(s.SortingPrefixes(), []string{"the", "a"}) {
-		t.Fatalf("after invalidate %v %v", s.Doc(), s.SortingPrefixes())
+	if s := Load(ctx, db); !slices.Equal(s.SortingPrefixes(), []string{"der"}) || s.String("language") != "de" {
+		t.Fatalf("stored document %v %v", s.Doc(), s.SortingPrefixes())
 	}
-	db.Exec(`DELETE FROM settings`)
+	if _, err := db.Exec(`DELETE FROM settings`); err != nil {
+		t.Fatal(err)
+	}
 	Invalidate(db)
 	if _, err := Get(ctx, db); err == nil {
 		t.Fatal("missing row must be an error")
@@ -122,6 +130,12 @@ func TestSaveInvalidates(t *testing.T) {
 	}
 	if s := Load(ctx, db); s.String("language") != "de" || !s.IgnorePrefix() {
 		t.Fatalf("read after Save: %v", s.Doc())
+	}
+	if err := Save(ctx, db, map[string]any{"language": "fr", "sortingPrefixes": []string{"der"}}); err != nil {
+		t.Fatal(err)
+	}
+	if s := Load(ctx, db); s.String("language") != "fr" || s.IgnorePrefix() || !slices.Equal(s.SortingPrefixes(), []string{"der"}) {
+		t.Fatalf("second Save not seen: %v", s.Doc())
 	}
 	if _, err := db.Exec(`DELETE FROM settings`); err != nil {
 		t.Fatal(err)

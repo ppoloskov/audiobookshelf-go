@@ -49,26 +49,7 @@ type client struct {
 	socket      *Socket
 	user        *store.User
 	connectedAt time.Time
-	testEmit    func(string)
 	grants      access.Permissions // decoded from user.Permissions when the user is set
-}
-
-// AddTestClient registers an authenticated event recipient without a network
-// transport. It is intended for cross-package lifecycle regression tests.
-func (h *Hub) AddTestClient(id string, user store.User) {
-	h.mu.Lock()
-	copy := user
-	h.clients[id] = &client{user: &copy, grants: access.Of(copy)}
-	h.mu.Unlock()
-}
-
-// SetTestEmitter attaches an event observer to the named test client.
-func (h *Hub) SetTestEmitter(id string, emit func(string)) {
-	h.mu.Lock()
-	if c := h.clients[id]; c != nil {
-		c.testEmit = emit
-	}
-	h.mu.Unlock()
 }
 
 // Hub owns one or two Socket.IO servers: the legacy /socket.io path and, when
@@ -259,7 +240,7 @@ func (h *Hub) Emit(userID, event string, payload any) {
 	h.mu.RLock()
 	var send []delivery
 	for _, c := range h.clients {
-		if c.user == nil || (c.socket == nil && c.testEmit == nil) {
+		if c.user == nil || c.socket == nil {
 			continue
 		}
 		allowed := false
@@ -278,11 +259,7 @@ func (h *Hub) Emit(userID, event string, payload any) {
 	}
 	h.mu.RUnlock()
 	for _, d := range send {
-		if d.client.testEmit != nil {
-			d.client.testEmit(event)
-		} else {
-			d.client.socket.Emit(event, d.payload)
-		}
+		d.client.socket.Emit(event, d.payload)
 	}
 }
 

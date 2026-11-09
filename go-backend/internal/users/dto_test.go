@@ -42,6 +42,9 @@ func TestUserDTOShape(t *testing.T) {
 		!reflect.DeepEqual(bare["seriesHideFromContinueListening"], []any{}) || bare["hasOpenIDLink"] != false {
 		t.Errorf("empty user = %#v: lists must serialize as arrays", bare)
 	}
+	if _, ok := bare["isOldToken"]; ok {
+		t.Errorf("unset isOldToken must be omitted: %#v", bare)
+	}
 }
 
 func TestListedUserDTOHidesRootTokenAndHeavyFields(t *testing.T) {

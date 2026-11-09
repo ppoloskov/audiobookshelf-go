@@ -15,7 +15,7 @@
     "go-backend/internal/identity/identity.go": "bf88e3452d51e23ada57de6f50b2c3c310a77b7daa45b1930d301e657f16b7ff",
     "go-backend/internal/lists/routes.go": "5ce6d6a6355356a918d13eeedd6de61cd0c137835183ab8f644a3ad6ef0843bf",
     "go-backend/internal/notifications/handler.go": "65acfb6ef73defe854dac29e08778075ca62e4ee590b698e9d0e72874c3f9cde",
-    "go-backend/internal/podcasts/podcasts.go": "50479bc294774977884f2bf2082588865300527e46df8c6924395489ab83a000",
+    "go-backend/internal/podcasts/podcasts.go": "4a8c17054ae36b30a4a9da27a6cd4755abe7015ac76e8192bf34d96492d6abfb",
     "go-backend/internal/providers/handler.go": "9c673eec84c5438d25c6efeb3c44cb12d472849565cb0eb5ed908e706a39811f",
     "go-backend/internal/userapi/userapi.go": "1342e6ec53d91e458cce52aefd53f6b4699c8c0e0889e985894dd5f99b209bea",
     "go-backend/internal/playback/playback.go": "eb9f9e7fa0df5fe56948af88148318c02493bb7cf135b82ca3db4cda2726f7bc",

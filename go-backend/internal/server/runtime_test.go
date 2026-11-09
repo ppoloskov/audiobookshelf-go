@@ -54,13 +54,13 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1") // the feed is on loopback; operators use the same switch
 	manager, err := NewManager(db, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer manager.Close()
 	rt := manager.current.Load()
-	rt.podcasts.SetHTTPClientForTests(feed.Client())
 	r := httptest.NewRequest(http.MethodPost, "/api/podcasts/item-runtime/match-episodes?override=1", nil)
 	r.Header.Set("Authorization", "Bearer "+makeToken(t, "test-secret", `{"userId":"root-test","username":"runtime-test","type":"access","exp":4102444800}`))
 	w := httptest.NewRecorder()

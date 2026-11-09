@@ -21,7 +21,7 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
   41,020 at the start of the refactor); cyclomatic complexity 8,499; functions above 15: 114; `map[string]any` 464;
   `[]any` 202; Set* injectors 4.
 
-## In progress: Step 3, behavioural test-quality pass
+## Step 3, behavioural test-quality pass (done)
 
 Owner-approved spec: `TESTS-SPEC` (classify every candidate in the log's "Tests to change" as replace / rewrite /
 delete / retain; preserve every contractual assertion; remove test-only hooks only via existing injection or
@@ -42,21 +42,23 @@ downloads, restore).
   stores 0 for a string `currentTime` ("7"), TS stores 7 (SQLite numeric affinity); (c) re-uploading an
   existing local session overwrites stored mediaMetadata (`playback.sql:27` ON CONFLICT), TS updates only
   currentTime/timeListening/updatedAt (PlaybackSessionManager.js:207-210).
-- **In progress (relaunched 2026-11-09):** T1 playback/sharing/realtime, T2 scanner/audiotools/backup/server
-  (+ remove podcasts `SetHTTPClientForTests`), T4 catalog/items/lists/playlistview/filterdata, T5 identity/infra.
-  Brief: `TESTS-SPEC` + `TESTS-RELAUNCH` addendum (never remove a test without naming its replacement; never
-  touch manifest-referenced or tsdiagnostic tests). If interrupted: snapshot the tree to a patch, then review
-  per package as in the salvage.
+- **T1/T2/T4/T5 relaunch done (committed with this update):** 3 tests removed, each replaced by a stronger
+  named test; hooks removed (realtime AddTestClient/SetTestEmitter, podcasts SetHTTPClientForTests, access
+  decisions golden); lifecycle tests added (catalog delete cascades, lists lifecycle, identity revocation,
+  audiotools batch). Step 3 is complete.
+- **More Wave G seeds (TS-confirmed, not fixed):** (d) collection delete leaves its RSS feed and emits no
+  `rss_feed_closed` (CollectionController.js:218, RssFeedManager.js:355-361); (e) item delete removes feed rows
+  without `rss_feed_closed` (ApiRouter.js:387; Go item_delete.go:140); (f) TS removes orphan stream dirs
+  (PlaybackSessionManager.js:465-483), no Go equivalent found in internal/playback.
 
 ## Next, in order
 
-1. **Finish Step 3**: restore audit findings, relaunch unfinished test packets (above).
-2. **Wave G — behavioural transition and side-effect parity audit** (owner brief 2026-11-09): six read-only
+1. **Wave G — behavioural transition and side-effect parity audit** (owner brief 2026-11-09): six read-only
    investigations (scanner/filesystem, catalog lifecycle, podcasts/lists/progress, playback/background, security/
    identity/sharing, persistence/runtime) → transition matrix → reproduce the 10–15 highest-risk suspects → minimal
    fixes with a failing test first. Bug class: missing downstream lifecycle transitions (example: scanner removal left
    podcast episodes behind, fixed in wave F).
-3. **Step 4 — final check and report:** CI mirror, rollback, GitHub CI, race runs; final report (behavioural
+2. **Step 4 — final check and report:** CI mirror, rollback, GitHub CI, race runs; final report (behavioural
    evidence, test decisions, remaining exceptions, compatibility, CI, rollback, measured complexity).
 Stop when the exit criteria hold; do not chase 35,000 lines or zero special cases.
 

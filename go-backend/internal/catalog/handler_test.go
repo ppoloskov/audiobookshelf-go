@@ -1051,35 +1051,6 @@ func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 	}
 }
 
-func TestDeleteItemRemovesMediaProgressAndEmptyRelations(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	for _, ddl := range []string{`CREATE TABLE mediaProgresses (id TEXT,userId TEXT,mediaItemId TEXT)`, `CREATE TABLE playlistMediaItems (id TEXT,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`, `CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`, `CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT)`, `CREATE TABLE mediaItemShares (id TEXT,mediaItemType TEXT,mediaItemId TEXT)`} {
-		if _, err := db.Exec(ddl); err != nil {
-			t.Fatal(err)
-		}
-	}
-	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp','u1','b1')`)
-	_, _ = db.Exec(`INSERT INTO playlists VALUES ('pl','Mix',NULL,'2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','l1','u1')`)
-	_, _ = db.Exec(`INSERT INTO playlistMediaItems VALUES ('pli','b1','book',1,'pl')`)
-	_, _ = db.Exec(`INSERT INTO feeds VALUES ('feed','libraryItem','i1')`)
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"delete":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("DELETE", "/api/items/i1", nil), u) || w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	for _, table := range []string{"libraryItems", "books", "mediaProgresses", "playlistMediaItems", "playlists", "feeds", "authors", "series"} {
-		var count int
-		if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
-			t.Fatal(err)
-		}
-		if count != 0 {
-			t.Fatalf("%s still has %d rows", table, count)
-		}
-	}
-}
-
 func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()

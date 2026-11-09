@@ -4,21 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 
 	_ "modernc.org/sqlite"
 )
 
-// decisions.json was recorded from the per-package helpers this package
-// replaced (catalog, libitem, playback, podcasts, emailapi, realtime, userapi,
-// sharing, adminops, audiotools) over testdata/matrix.json: 128 users (root,
-// admin, user, guest; active or not; 16 permission documents) by 30 items.
+// testdata/matrix.json is the input of TestMediaClauseMatchesContent: 128
+// users (root, admin, user, guest; active or not; 16 permission documents) by
+// 30 items. It carries no expected values; the SQL clause is checked against
+// Content, and Content against the hand-written cases below.
 
 type matrix struct {
 	Users []struct {
@@ -33,70 +35,16 @@ type matrix struct {
 	}
 }
 
-func load(t *testing.T) (matrix, map[string]map[string]any) {
+func load(t *testing.T) matrix {
 	var m matrix
-	var d map[string]map[string]any
-	for file, into := range map[string]any{"testdata/matrix.json": &m, "testdata/decisions.json": &d} {
-		raw, err := os.ReadFile(file)
-		if err == nil {
-			err = json.Unmarshal(raw, into)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
+	raw, err := os.ReadFile("testdata/matrix.json")
+	if err == nil {
+		err = json.Unmarshal(raw, &m)
 	}
-	return m, d
-}
-
-// decide computes every recorded decision of the current rules, keyed like
-// testdata/decisions.json. ACCESS_RECORD=1 rewrites that file from it.
-func decide(t *testing.T, m matrix) map[string]map[string]any {
-	d := map[string]map[string]any{}
-	put := func(name, key string, v any) {
-		if d[name] == nil {
-			d[name] = map[string]any{}
-		}
-		d[name][key] = v
+	if err != nil {
+		t.Fatal(err)
 	}
-	for ui, u := range m.Users {
-		p := Of(userOf(u.Type, u.Active, u.Permissions))
-		k := fmt.Sprint(ui)
-		for _, lib := range []string{"lib1", "lib2", "lib3"} {
-			key := k + ":" + lib
-			for _, name := range []string{"catalogLibrary", "userapiLibrary", "shareLibrary", "rtLibrary"} {
-				put(name, key, p.Library(lib))
-			}
-			for _, name := range []string{"podLibrary", "emailLibrary", "adminLibrary", "audioLibrary"} {
-				put(name, key, p.IsAdmin() || p.Library(lib))
-			}
-			put("catalogList", key, p.ListLibrary(lib))
-		}
-		for ii, it := range m.Items {
-			key := k + ":" + fmt.Sprint(ii)
-			a := libitem.Access{LibraryID: it.Lib, Explicit: it.Explicit, Tags: it.Tags}
-			for _, name := range []string{"catalogItem", "libitemAllowed", "playAccess", "rtItem"} {
-				put(name, key, p.Item(a))
-			}
-			put("podAccess", key, p.IsAdmin() || p.Item(a))
-			put("emailContent", key, p.Content(a))
-		}
-		for _, name := range []string{"catalogAuthUpdate", "catalogUpdate"} {
-			put(name, k, p.Update())
-		}
-		put("podUpdate", k, p.IsAdmin() || p.Update())
-		for _, name := range []string{"catalogAuthDelete", "playDelete"} {
-			put(name, k, p.Delete())
-		}
-		put("podDelete", k, p.IsAdmin() || p.Delete())
-		put("catalogAuthUpload", k, p.Upload())
-		put("adminUpload", k, p.Upload())
-		put("catalogAuthDownload", k, p.Download())
-		put("catalogAdminUser", k, p.Active && p.IsAdmin())
-		clause, args := p.MediaClause("b")
-		put("catalogSQL", k, visible(t, m, clause, args))
-		put("podSQL", k, visible(t, m, clause, args)) // MediaClause differs only by alias
-	}
-	return d
+	return m
 }
 
 func userOf(typ string, active bool, permissions *string) store.User {
@@ -107,37 +55,11 @@ func userOf(typ string, active bool, permissions *string) store.User {
 	return user
 }
 
-// TestDecisionsMatchRecorded replays testdata/decisions.json. The file is a
-// regression lock only: it was recorded from this package's own rules (first
-// from the per-package helpers it replaced, then re-recorded for three
-// deliberate changes), so it proves nothing about upstream. The contract is
-// carried by TestMediaClauseMatchesContent and by the named tests below, which
-// state User.js rules by hand. Re-record with ACCESS_RECORD=1 only after a
-// deliberate rule change, and review the diff.
-func TestDecisionsMatchRecorded(t *testing.T) {
-	m, want := load(t)
-	got := decide(t, m)
-	if os.Getenv("ACCESS_RECORD") == "1" {
-		raw, _ := json.MarshalIndent(got, "", " ")
-		if err := os.WriteFile("testdata/decisions.json", append(raw, '\n'), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	for name, cells := range got {
-		for key, v := range cells {
-			if fmt.Sprint(v) != fmt.Sprint(want[name][key]) {
-				t.Errorf("%s[%s] = %v, recorded %v", name, key, v, want[name][key])
-			}
-		}
-	}
-}
-
 // TestMediaClauseMatchesContent is the invariant between list queries and
 // item reads: the SQL clause selects exactly the media Content allows, for
 // every user and item of the matrix.
 func TestMediaClauseMatchesContent(t *testing.T) {
-	m, _ := load(t)
+	m := load(t)
 	for ui, u := range m.Users {
 		p := Of(userOf(u.Type, u.Active, u.Permissions))
 		clause, args := p.MediaClause("b")
@@ -325,5 +247,58 @@ func TestRequestSnapshotIsReusedOnlyForTheSameUserRow(t *testing.T) {
 	}
 	if For(context.Background(), user).Update() != true {
 		t.Error("without a snapshot For decodes the row")
+	}
+}
+
+// User.checkCanAccessLibraryItem (User.js:648-656) joins the library rule with
+// the explicit and tag rules: every one must pass.
+func TestItemNeedsLibraryExplicitAndTagRules(t *testing.T) {
+	const doc = `{"accessAllLibraries":false,"librariesAccessible":["lib1"],"accessAllTags":false,"itemTagsSelected":["ok"],"accessExplicitContent":false}`
+	for _, tc := range []struct {
+		name string
+		item libitem.Access
+		want bool
+	}{
+		{"listed library, allowed tag", libitem.Access{LibraryID: "lib1", Tags: []string{"ok"}}, true},
+		{"other library", libitem.Access{LibraryID: "lib2", Tags: []string{"ok"}}, false},
+		{"disallowed tag", libitem.Access{LibraryID: "lib1", Tags: []string{"no"}}, false},
+		{"explicit item without permission", libitem.Access{LibraryID: "lib1", Explicit: true, Tags: []string{"ok"}}, false},
+	} {
+		if got := perms("user", true, doc).Item(tc.item); got != tc.want {
+			t.Errorf("%s: Item = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	open := `{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`
+	if !perms("user", true, open).Item(libitem.Access{LibraryID: "any", Explicit: true}) {
+		t.Error("an unrestricted active user reads explicit items")
+	}
+	if perms("guest", false, open).Item(libitem.Access{LibraryID: "any", Explicit: true}) {
+		t.Error("a deactivated user reads no explicit item even with every flag set")
+	}
+}
+
+// Admin routes answer the configured status to everyone but
+// root and admin, including a request without a user, and never run the handler.
+func TestRequireAdminDeniesNonAdminsAndMissingUser(t *testing.T) {
+	for _, tc := range []struct {
+		typ  string
+		user bool
+		want int
+	}{{"root", true, 204}, {"admin", true, 204}, {"user", true, 404}, {"guest", true, 404}, {"", false, 404}} {
+		ran := false
+		h := RequireAdmin(http.StatusNotFound, func(w http.ResponseWriter, r *http.Request) error {
+			ran = true
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		})
+		r := httptest.NewRequest("GET", "/", nil)
+		if tc.user {
+			r = r.WithContext(store.ContextWithUser(r.Context(), store.User{ID: "u", Type: tc.typ, IsActive: true}))
+		}
+		w := httptest.NewRecorder()
+		httputil.Handler(h).ServeHTTP(w, r)
+		if w.Code != tc.want || ran != (tc.want == 204) {
+			t.Errorf("type %q (user=%v): status %d ran=%v, want %d", tc.typ, tc.user, w.Code, ran, tc.want)
+		}
 	}
 }

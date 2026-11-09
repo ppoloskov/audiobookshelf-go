@@ -77,13 +77,25 @@ func TestUpstreamAndGoVectorsVerify(t *testing.T) {
 	}
 }
 
-func TestSignMatchesPreviousBytes(t *testing.T) {
-	got, err := sign([]byte(vectorSecret), map[string]any{"userId": "user-1", "username": "reader", "jti": "jti-1", "type": "access", "iat": 1800000000, "exp": 1800003600})
+// sign's output is checked by what a verifier reads back, not by its byte
+// layout (JSON key order is not contract): every claim survives, the token
+// verifies only under its own secret, and an empty secret cannot sign.
+func TestSignedClaimsRoundTrip(t *testing.T) {
+	secret := []byte(vectorSecret)
+	got, err := sign(secret, map[string]any{"userId": "user-1", "username": "reader", "jti": "jti-1", "type": "access", "iat": 1800000000, "exp": 1800003600})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != goAccessVector {
-		t.Fatalf("sign changed the wire format:\n got %s\nwant %s", got, goAccessVector)
+	claims, err := validateToken(got, secret, vectorNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.UserID != "user-1" || claims.Username != "reader" || claims.JTI != "jti-1" || claims.Type != "access" ||
+		claims.IssuedAt.Unix() != 1800000000 || claims.ExpiresAt.Unix() != 1800003600 {
+		t.Fatalf("claims changed on the way: %#v", claims)
+	}
+	if _, err := validateToken(got, []byte("another secret"), vectorNow); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("token verified under another secret: %v", err)
 	}
 	if _, err := sign(nil, map[string]any{"userId": "u"}); err == nil {
 		t.Fatal("empty secret accepted for signing")

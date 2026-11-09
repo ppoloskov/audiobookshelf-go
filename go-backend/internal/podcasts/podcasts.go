@@ -1013,12 +1013,6 @@ func validFeedURL(raw string) string {
 	return u.String()
 }
 
-// SetHTTPClientForTests is kept only for internal/server/runtime_test.go, which
-// is outside this package's ownership. Its fixture can instead set
-// SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 before building the runtime, after
-// which this method has no callers and should be deleted.
-func (h *Handler) SetHTTPClientForTests(c *http.Client) { h.client = c }
-
 // decodedBody unwraps a gzip or deflate Content-Encoding.
 func decodedBody(resp *http.Response) (io.ReadCloser, error) {
 	switch strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding"))) {
