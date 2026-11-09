@@ -11,7 +11,7 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Master:** `5995176` (Step 3 restore). CI-green locally (CI mirror + rollback).
+- **Master:** `df2c4a0` (Step 3 complete). CI-green locally (CI mirror + rollback).
 - **Structural refactor (owner goal, comments + tests chosen): structurally complete.** Waves A–F plus three verifier
   rounds; round 3 found nothing worth fixing beyond small leftovers, all fixed. Clean DAG, no unreasonable imports,
   remaining special cases all have a TS or client-contract reason. Details and every bug fixed with TS evidence:
@@ -53,13 +53,16 @@ downloads, restore).
 
 ## Next, in order
 
-1. **Wave G — behavioural transition and side-effect parity audit** (owner brief 2026-11-09): six read-only
+1. **IN PROGRESS: Wave G — behavioural transition and side-effect parity audit** (owner brief 2026-11-09): six read-only
    investigations (scanner/filesystem, catalog lifecycle, podcasts/lists/progress, playback/background, security/
    identity/sharing, persistence/runtime) → transition matrix → reproduce the 10–15 highest-risk suspects → minimal
    fixes with a failing test first. Bug class: missing downstream lifecycle transitions (example: scanner removal left
    podcast episodes behind, fixed in wave F).
 2. **Step 4 — final check and report:** CI mirror, rollback, GitHub CI, race runs; final report (behavioural
    evidence, test decisions, remaining exceptions, compatibility, CI, rollback, measured complexity).
+Wave G phase 1 outputs: `scratchpad/refactor/wave-g/G1..G6.md` (scanner, catalog, podcasts/lists/progress,
+   playback/background, security/identity/sharing, persistence/runtime); seeds (a)-(f) above go to the matching
+   investigator. If interrupted, finished outputs survive; relaunch only missing ones.
 Stop when the exit criteria hold; do not chase 35,000 lines or zero special cases.
 
 ## Working rules learned this session
