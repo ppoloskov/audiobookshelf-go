@@ -16,17 +16,18 @@ import (
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/net/websocket"
 )
 
 func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
-	currentCfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), RouterBasePath: "/audiobookshelf"}
+	currentCfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), RouterBasePath: "/audiobookshelf", JWTSecret: "test-secret"}
 	manager, _ := newTestManager(t, currentCfg, "before-restore", "shelf-before")
 	defer manager.Close()
 	oldRuntime := manager.current.Load()
 	oldHub := manager.hub
-	oldHub.AddTestClient("restore-socket", store.User{ID: "root-test", Username: "before-restore", Type: "root"})
-	var events []string
-	oldHub.SetTestEmitter("restore-socket", func(event string) { events = append(events, event) })
+	srv := httptest.NewServer(manager)
+	defer srv.Close()
+	socket := openSocket(t, "ws"+strings.TrimPrefix(srv.URL, "http")+"/audiobookshelf/socket.io/?EIO=4&transport=websocket", makeToken(t, currentCfg.JWTSecret, `{"userId":"root-test","username":"before-restore","type":"access","exp":4102444800}`))
 	if err := os.MkdirAll(filepath.Join(currentCfg.MetadataPath, "items"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -64,14 +65,13 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 	}
 	// SocketAuthority lives in the same process through backup apply; upstream
 	// BackupManager.js:263-266 emits backup_applied after the response, without
-	// disconnecting authenticated clients. Preserve that connected identity.
+	// disconnecting authenticated clients. The connected socket must survive and
+	// receive the event.
 	if got := oldHub.UsersOnline(); len(got) != 1 || got[0]["id"] != "root-test" {
 		t.Fatalf("online users after restore=%v", got)
 	}
 	oldHub.Emit("*", "backup_applied", nil)
-	if len(events) != 1 || events[0] != "backup_applied" {
-		t.Fatalf("events after restore=%v", events)
-	}
+	waitFrame(t, socket, `42["backup_applied"`)
 	if got := loginStatus(manager, "after-restore", "shelf-after"); got != http.StatusOK {
 		t.Fatalf("restored login status=%d", got)
 	}
@@ -98,9 +98,12 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 }
 
 func TestManagerRestoreFailureRollsBackDatabaseAndMetadata(t *testing.T) {
-	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), RouterBasePath: "/audiobookshelf"}
+	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), RouterBasePath: "/audiobookshelf", JWTSecret: "test-secret"}
 	manager, _ := newTestManager(t, cfg, "stable-user", "shelf-stable")
 	defer manager.Close()
+	srv := httptest.NewServer(manager)
+	defer srv.Close()
+	socket := openSocket(t, "ws"+strings.TrimPrefix(srv.URL, "http")+"/audiobookshelf/socket.io/?EIO=4&transport=websocket", makeToken(t, cfg.JWTSecret, `{"userId":"root-test","username":"stable-user","type":"access","exp":4102444800}`))
 	if err := os.MkdirAll(filepath.Join(cfg.MetadataPath, "items"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -146,12 +149,112 @@ func TestManagerRestoreFailureRollsBackDatabaseAndMetadata(t *testing.T) {
 	if got := loginStatus(manager, "rejected-user", "shelf-rejected"); got != http.StatusUnauthorized {
 		t.Fatalf("rejected credentials after rollback status=%d", got)
 	}
+	manager.hub.Emit("*", "after_rollback", nil)
+	waitFrame(t, socket, `42["after_rollback"`)
 	if body := readFile(t, filepath.Join(cfg.MetadataPath, "items", "state.txt")); body != "stable item" {
 		t.Fatalf("item metadata after rollback=%q", body)
 	}
 	if body := readFile(t, filepath.Join(cfg.MetadataPath, "authors", "state.txt")); body != "stable author" {
 		t.Fatalf("author metadata after rollback=%q", body)
 	}
+}
+
+// openSocket connects and authenticates a Socket.IO client and returns it once
+// the server has answered with init.
+func openSocket(t *testing.T, wsURL, token string) *websocket.Conn {
+	t.Helper()
+	conn, err := websocket.Dial(wsURL, "", "http://127.0.0.1/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	send := func(m string) {
+		if err := websocket.Message.Send(conn, m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	waitFrame(t, conn, "0{")
+	send("40")
+	waitFrame(t, conn, "40{")
+	send(`42["auth","` + token + `"]`)
+	waitFrame(t, conn, `42["init"`)
+	return conn
+}
+
+// waitFrame reads frames until one starts with prefix; it fails if the
+// connection closes or nothing matching arrives within the deadline.
+func waitFrame(t *testing.T, conn *websocket.Conn, prefix string) {
+	t.Helper()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg string
+		if err := websocket.Message.Receive(conn, &msg); err != nil {
+			t.Fatalf("waiting for %q: %v", prefix, err)
+		}
+		if strings.HasPrefix(msg, prefix) {
+			return
+		}
+	}
+}
+
+// snapshotWithVersion is createSnapshot for a database whose migration state
+// claims another server version.
+func snapshotWithVersion(t *testing.T, cfg config.Config, username, password, ver string) string {
+	t.Helper()
+	path := createSnapshot(t, cfg, username, password)
+	database, err := store.OpenUnchecked(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.DB().Exec(`UPDATE migrationsMeta SET value=? WHERE key IN ('version','maxVersion')`, ver); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// A backup whose database is of another server version is refused before
+// anything is touched: the running database, runtime, metadata and the
+// connected socket are all unchanged.
+func TestManagerRestoreRefusesWrongVersionBackup(t *testing.T) {
+	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), JWTSecret: "test-secret"}
+	manager, _ := newTestManager(t, cfg, "stable-user", "shelf-stable")
+	defer manager.Close()
+	srv := httptest.NewServer(manager)
+	defer srv.Close()
+	socket := openSocket(t, "ws"+strings.TrimPrefix(srv.URL, "http")+"/socket.io/?EIO=4&transport=websocket", makeToken(t, cfg.JWTSecret, `{"userId":"root-test","username":"stable-user","type":"access","exp":4102444800}`))
+	if err := os.MkdirAll(filepath.Join(cfg.MetadataPath, "items"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfg.MetadataPath, "items", "state.txt"), []byte("stable item"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	oldRuntime := manager.current.Load()
+	wrong := snapshotWithVersion(t, config.Config{ConfigPath: filepath.Join(t.TempDir(), "c"), MetadataPath: filepath.Join(t.TempDir(), "m")}, "other-user", "shelf-other", "2.0.0")
+	stagedItems := t.TempDir()
+	if err := os.WriteFile(filepath.Join(stagedItems, "state.txt"), []byte("replacement"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	err := manager.restore(context.Background(), wrong, stagedItems, t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "validate backup database") {
+		t.Fatalf("restore error = %v, want the validation failure", err)
+	}
+	if manager.current.Load() != oldRuntime {
+		t.Fatal("a refused backup replaced the runtime")
+	}
+	if got := loginStatus(manager, "stable-user", "shelf-stable"); got != http.StatusOK {
+		t.Fatalf("login after refused restore = %d", got)
+	}
+	if got := loginStatus(manager, "other-user", "shelf-other"); got != http.StatusUnauthorized {
+		t.Fatalf("refused backup's user can log in: %d", got)
+	}
+	if body := readFile(t, filepath.Join(cfg.MetadataPath, "items", "state.txt")); body != "stable item" {
+		t.Fatalf("metadata after refused restore = %q", body)
+	}
+	manager.hub.Emit("*", "ping_after_refusal", nil)
+	waitFrame(t, socket, `42["ping_after_refusal"`)
 }
 
 func newTestManager(t *testing.T, cfg config.Config, username, password string) (*Manager, *store.Store) {

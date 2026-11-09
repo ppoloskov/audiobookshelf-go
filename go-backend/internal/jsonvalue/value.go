@@ -102,6 +102,8 @@ func Text(value any) string {
 
 // Float is Number's value, 0 when value is not a finite number.
 func Float(value any) float64 {
-	n, _ := Number(value)
-	return n
+	if n, ok := Number(value); ok {
+		return n
+	}
+	return 0
 }

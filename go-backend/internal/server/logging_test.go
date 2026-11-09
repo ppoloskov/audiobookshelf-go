@@ -1,12 +1,9 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,6 +13,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
+	"golang.org/x/net/websocket"
 )
 
 func TestApplyLoggingSettings(t *testing.T) {
@@ -40,10 +38,6 @@ func TestApplyLoggingSettings(t *testing.T) {
 // The runtime wires set_log_listener to the logger: an admin socket that
 // registered a level receives "log" events with the upstream LogObject shape.
 func TestSetLogListenerDeliversLogEvents(t *testing.T) {
-	clientModules, _ := filepath.Abs("../../../client/node_modules")
-	if _, err := os.Stat(filepath.Join(clientModules, "socket.io-client")); err != nil {
-		t.Skip("socket.io-client is not installed")
-	}
 	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), JWTSecret: "test-secret"}
 	if err := bootstrap.Ensure(cfg); err != nil {
 		t.Fatal(err)
@@ -65,45 +59,47 @@ func TestSetLogListenerDeliversLogEvents(t *testing.T) {
 	srv := httptest.NewServer(rt)
 	defer srv.Close()
 
-	const probe = `
-const { io } = require('socket.io-client');
-const socket = io(process.env.ABS_URL, { path: '/socket.io', transports: ['websocket'] });
-const timer = setTimeout(() => { console.error('timeout'); process.exit(1) }, 8000);
-socket.on('connect', () => socket.emit('auth', process.env.ABS_TOKEN));
-socket.on('init', () => { socket.emit('set_log_listener', 2); console.log('listening') });
-socket.on('log', (entry) => {
-  if (entry.message !== 'log listener probe') return;
-  const keys = Object.keys(entry).join(',');
-  if (keys !== 'timestamp,source,message,levelName,level' || entry.levelName !== 'INFO' || entry.level !== 2) {
-    console.error('bad entry ' + JSON.stringify(entry)); process.exit(1)
-  }
-  clearTimeout(timer); console.log('got ' + JSON.stringify(entry)); process.exit(0)
-});
-`
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", "-e", probe)
-	cmd.Env = append(cmd.Environ(), "NODE_PATH="+clientModules, "ABS_URL="+srv.URL,
-		"ABS_TOKEN="+makeToken(t, "test-secret", `{"userId":"root-test","username":"runtime-test","type":"access","exp":4102444800}`))
-	var output strings.Builder
-	cmd.Stdout, cmd.Stderr = &output, &output
-	if err := cmd.Start(); err != nil {
+	socket := openSocket(t, "ws"+strings.TrimPrefix(srv.URL, "http")+"/socket.io/?EIO=4&transport=websocket", makeToken(t, "test-secret", `{"userId":"root-test","username":"runtime-test","type":"access","exp":4102444800}`))
+	if err := websocket.Message.Send(socket, `42["set_log_listener",2]`); err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	tick := time.NewTicker(50 * time.Millisecond)
-	defer tick.Stop()
-	for {
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("socket probe failed: %v\n%s", err, output.String())
+	// Log until the registration is in effect and the probe line arrives.
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				return
+			case <-time.After(20 * time.Millisecond):
+				logging.Info("log listener probe")
 			}
-			return
-		case <-tick.C:
-			logging.Info("log listener probe")
 		}
+	}()
+	_ = socket.SetDeadline(time.Now().Add(10 * time.Second))
+	for {
+		var msg string
+		if err := websocket.Message.Receive(socket, &msg); err != nil {
+			t.Fatalf("no log event arrived: %v", err)
+		}
+		if !strings.HasPrefix(msg, `42["log",`) {
+			continue
+		}
+		var frame []json.RawMessage
+		if err := json.Unmarshal([]byte(msg[2:]), &frame); err != nil || len(frame) != 2 {
+			t.Fatalf("log frame %q: %v", msg, err)
+		}
+		var entry map[string]any
+		if err := json.Unmarshal(frame[1], &entry); err != nil {
+			t.Fatal(err)
+		}
+		if entry["message"] != "log listener probe" {
+			continue
+		}
+		if len(entry) != 5 || entry["levelName"] != "INFO" || entry["level"] != float64(2) || entry["source"] == nil || entry["timestamp"] == nil {
+			t.Fatalf("log entry = %v, want timestamp, source, message, levelName and level", entry)
+		}
+		return
 	}
 }
 

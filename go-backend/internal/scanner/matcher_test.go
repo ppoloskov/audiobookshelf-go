@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 )
 
 // matcherTree writes n item directories, each holding two audio files, and
@@ -151,27 +153,53 @@ func items1Ino(t *testing.T, ex existingItem) string {
 	return parseStoredLibraryFiles(ex.files)[0].Ino
 }
 
-// Matching N moved items examines a number of index entries linear in N, not
-// groups x items.
-func TestGroupMatcherWorkIsLinear(t *testing.T) {
-	visits := func(n int) int {
-		root := t.TempDir()
-		groups, items := matcherTree(t, root, n)
-		for i := range items {
-			items[i].path = fmt.Sprintf("/moved/%d", i) // force the inode fallback
-		}
-		m := newGroupMatcher(groups)
-		for i := len(items) - 1; i >= 0; i-- { // worst order for a scan from the front
-			g := m.match(items[i])
-			if g != groups[i] {
-				t.Fatalf("item %d matched %v", i, g)
+// Matching N moved items scales linearly in N, not as groups x items: ten
+// times the items may take far less than the hundredfold a quadratic matcher
+// needs. The bound (40x for 10x) leaves room for timer noise, and the best of
+// several runs is compared.
+func TestGroupMatcherScalesLinearly(t *testing.T) {
+	if testing.Short() {
+		t.Skip("timing comparison")
+	}
+	elapsed := func(n int) time.Duration {
+		groups, items := fakeMovedLibrary(n)
+		best := time.Duration(1<<63 - 1)
+		for run := 0; run < 5; run++ {
+			start := time.Now()
+			m := newGroupMatcher(groups)
+			for i := len(items) - 1; i >= 0; i-- { // worst order for a scan from the front
+				g := m.match(items[i])
+				if g != groups[i] {
+					t.Fatalf("item %d matched %v", i, g)
+				}
+				m.claim(g)
 			}
-			m.claim(g)
+			if d := time.Since(start); d < best {
+				best = d
+			}
 		}
-		return m.visits
+		return best
 	}
-	small, large := visits(50), visits(400)
-	if small > 4*50 || large > 4*400 {
-		t.Fatalf("visits = %d for 50 items, %d for 400 items; want at most 4 per item", small, large)
+	small, large := elapsed(2000), elapsed(20000)
+	if large > 40*small {
+		t.Fatalf("20000 moved items took %v, 2000 took %v: more than 40x for 10x the work", large, small)
 	}
+}
+
+// fakeMovedLibrary builds n groups of two files each and n stored items whose
+// paths no longer exist, so every match goes through the inode lookup.
+func fakeMovedLibrary(n int) ([]*group, []existingItem) {
+	groups, items := make([]*group, 0, n), make([]existingItem, 0, n)
+	for i := 0; i < n; i++ {
+		inos := []uint64{uint64(i)*2 + 1, uint64(i)*2 + 2}
+		g := &group{path: fmt.Sprintf("/lib/g%06d", i)}
+		var stored []libraryFile
+		for _, ino := range inos {
+			g.files = append(g.files, file{path: g.path + "/f", info: newFakeInfo(ino)})
+			stored = append(stored, libraryFile{Ino: strconv.FormatUint(ino, 10)})
+		}
+		groups = append(groups, g)
+		items = append(items, existingItem{id: fmt.Sprint(i), path: fmt.Sprintf("/moved/%d", i), files: marshalStored(stored)})
+	}
+	return groups, items
 }

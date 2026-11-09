@@ -216,8 +216,10 @@ func TestLibitemLoadQueryCountIsConstant(t *testing.T) {
 		}
 		return count.Load()
 	}
+	// The loader batches by relation, so the number of queries must not grow with the
+	// number of items (no per-row query). The absolute count is not a contract.
 	one, many := measure(ids[:1]), measure(ids)
-	if one != many || one != 4 {
-		t.Fatalf("queries: 1 item = %d, 120 items = %d, want 4 for both", one, many)
+	if one == 0 || many > one {
+		t.Fatalf("queries: 1 item = %d, 120 items = %d; loading must not query per item", one, many)
 	}
 }

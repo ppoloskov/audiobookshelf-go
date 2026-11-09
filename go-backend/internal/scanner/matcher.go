@@ -11,8 +11,6 @@ type groupMatcher struct {
 	pos      map[*group]int
 	byIno    map[string][]int
 	consumed []bool
-	// visits counts list entries examined by inode lookups (for tests).
-	visits int
 }
 
 func newGroupMatcher(groups []*group) *groupMatcher {
@@ -84,11 +82,9 @@ func (m *groupMatcher) match(ex existingItem) *group {
 func (m *groupMatcher) firstFree(ino string) int {
 	list := m.byIno[ino]
 	for len(list) > 0 && m.consumed[list[0]] {
-		m.visits++
 		list = list[1:]
 	}
 	m.byIno[ino] = list
-	m.visits++
 	if len(list) == 0 {
 		return -1
 	}

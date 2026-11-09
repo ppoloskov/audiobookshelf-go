@@ -32,6 +32,10 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	scannerTestMetadataRoot = root
+	// The watcher's quiet period and file poll are package variables
+	// (Watcher.js:20,259). They are shortened once, before any watcher
+	// goroutine exists, and never changed again.
+	watcherPendingDelay, watcherFilePoll = 300*time.Millisecond, 20*time.Millisecond
 	code := m.Run()
 	_ = os.RemoveAll(root)
 	os.Exit(code)
@@ -203,13 +207,7 @@ func TestPrecedenceChangeForcesAndPersistsSnapshot(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	_ = os.Setenv("FFPROBE_PATH", ffprobe)
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", old) })
+	fakeFFprobe(t)
 	if err := os.WriteFile(filepath.Join(dir, "track.mp3"), []byte("audio"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -256,13 +254,7 @@ func TestPrecedenceChangeForcesAndPersistsSnapshot(t *testing.T) {
 // rewrite unchanged items (LibraryItemScanData.js:264-280).
 func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 	root := t.TempDir()
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	oldProbe := os.Getenv("FFPROBE_PATH")
-	_ = os.Setenv("FFPROBE_PATH", ffprobe)
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", oldProbe) })
+	fakeFFprobe(t)
 	dir := filepath.Join(root, "Old Book")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
@@ -343,13 +335,7 @@ func TestScanRenameCompanionChangeAndUnchangedBookkeeping(t *testing.T) {
 // the newly-missing row; podcast folders still present are explicitly exempt.
 func TestScanMissingIsStableAndExistingPodcastFolderIsNotMissing(t *testing.T) {
 	root := t.TempDir()
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	_ = os.Setenv("FFPROBE_PATH", ffprobe)
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", old) })
+	fakeFFprobe(t)
 	dir := filepath.Join(root, "Missing Book")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
@@ -434,13 +420,7 @@ func TestAudioEntryIdentityPreservedOnCompanionUpdateAndRemoval(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	_ = os.Setenv("FFPROBE_PATH", ffprobe)
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", old) })
+	fakeFFprobe(t)
 	for _, name := range []string{"a.mp3", "b.mp3"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0644); err != nil {
 			t.Fatal(err)
@@ -505,13 +485,7 @@ func TestScanPersistsConfiguredTitleIgnorePrefixes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	_ = os.Setenv("FFPROBE_PATH", ffprobe)
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", old) })
+	fakeFFprobe(t)
 	db := scannerTestDB(t, root)
 	if _, err := db.Exec(`INSERT INTO settings(key,value,createdAt,updatedAt) VALUES('server-settings',?,'2020','2020')`, `{"sortingPrefixes":["the","a"]}`); err != nil {
 		t.Fatal(err)
@@ -836,22 +810,15 @@ func TestScanDropsProbeFailedAudio(t *testing.T) {
 // LibraryScanner.js:224-279 emits expanded item updates/additions in ordered
 // batches of ten; this catches a lost tail or incorrect membership at boundary.
 func TestScanEmitsAddedAndUpdatedItemsInChunksOfTen(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg unavailable")
-	}
-	if _, err = exec.LookPath("ffprobe"); err != nil {
-		t.Skip("ffprobe unavailable")
-	}
+	fakeFFprobe(t)
 	root := t.TempDir()
 	makeAudio := func(dir string) {
 		t.Helper()
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.15", "-q:a", "9", filepath.Join(dir, "track.mp3"))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("generate audio: %v: %s", err, out)
+		if err := os.WriteFile(filepath.Join(dir, "track.mp3"), []byte(dir), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
 	for i := 0; i < 11; i++ {
@@ -971,21 +938,14 @@ func chunkSizes(chunks [][]string) []int {
 // LibraryItemScanner.js finalization and BookScanner.js:926-930 retain
 // associated authors and emit their final book counts while deleting empty rows.
 func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg unavailable")
-	}
-	if _, err := exec.LookPath("ffprobe"); err != nil {
-		t.Skip("ffprobe unavailable")
-	}
+	fakeFFprobe(t)
 	root := t.TempDir()
 	dir := filepath.Join(root, "Healthy Book")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=duration=0.2", "-q:a", "9", filepath.Join(dir, "track.mp3"))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("generate audio: %v: %s", err, out)
+	if err := os.WriteFile(filepath.Join(dir, "track.mp3"), []byte(dir), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), []byte(`{"title":"Healthy","authors":["Healthy Author"]}`), 0644); err != nil {
 		t.Fatal(err)
@@ -1065,21 +1025,14 @@ func TestScanCleansOrphanAuthorsAndEmptySeriesAndReportsBookCounts(t *testing.T)
 // BookScanner.js:483-508 assigns a shared millisecond timestamp plus the
 // author position, so new author rows remain ordered even within one scan.
 func TestScanCreatesAuthorsInMetadataOrder(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg unavailable")
-	}
-	if _, err := exec.LookPath("ffprobe"); err != nil {
-		t.Skip("ffprobe unavailable")
-	}
+	fakeFFprobe(t)
 	root := t.TempDir()
 	dir := filepath.Join(root, "Book")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=duration=0.2", "-q:a", "9", filepath.Join(dir, "track.mp3"))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("generate audio: %v: %s", err, out)
+	if err := os.WriteFile(filepath.Join(dir, "track.mp3"), []byte(dir), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), []byte(`{"title":"Book","authors":["A","B","C"]}`), 0644); err != nil {
 		t.Fatal(err)
@@ -1139,22 +1092,16 @@ func TestSmartAudioOrderKeepsMissingTrackStableAndSetsOneBasedIndex(t *testing.T
 }
 
 func TestProbeAudioDropsFilesWithoutAudioStreams(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg unavailable")
-	}
-	if _, err = exec.LookPath("ffprobe"); err != nil {
-		t.Skip("ffprobe unavailable")
-	}
+	// ffprobe reports a video stream and no audio stream.
+	fakeFFprobeJSON(t, `{"format":{"format_name":"mov,mp4","duration":"0.5"},"streams":[{"codec_type":"video","codec_name":"h264"}]}`)
 	root := t.TempDir()
 	dir := filepath.Join(root, "Video Only")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "silent.mp4")
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=duration=0.5", "-q:a", "9", path)
-	if out, e := cmd.CombinedOutput(); e != nil {
-		t.Fatalf("generate video-only mp4: %v: %s", e, out)
+	if err := os.WriteFile(path, []byte("not really video"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	db := scannerTestDB(t, root)
 	s, err := newScannerForTest(db, config.Config{}, nil)
@@ -1199,24 +1146,8 @@ func TestBuildChaptersMetaTitleAndSingleFileRules(t *testing.T) {
 }
 
 func TestProbeAudioMissingBitRateIsNull(t *testing.T) {
-	ffprobe, err := exec.LookPath("ffprobe")
-	if err != nil {
-		t.Skip("ffprobe unavailable")
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	if err := os.Setenv("FFPROBE_PATH", ffprobe); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Setenv("FFPROBE_PATH", old)
-	// A deterministic fake emits valid probe JSON with no usable stream/format bitrate.
-	// Use a short-lived executable script so the production parser sees the real wire shape.
-	script := filepath.Join(t.TempDir(), "probe.sh")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\",\"bit_rate\":\"-1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\",\"bit_rate\":\"0\"}]} '\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Setenv("FFPROBE_PATH", script); err != nil {
-		t.Fatal(err)
-	}
+	// ffprobe reports valid JSON with no usable stream or format bitrate.
+	fakeFFprobeJSON(t, `{"format":{"format_name":"mp3","duration":"1","bit_rate":"-1"},"streams":[{"codec_type":"audio","codec_name":"mp3","bit_rate":"0"}]}`)
 	// Flat FileMetadata is the caller contract since the audio-shape fix.
 	meta := libitem.FileMetadata{Filename: "x.mp3", Ext: ".mp3"}
 	af, err := probeAudio(context.Background(), "ignored", meta, "1")
@@ -1282,15 +1213,7 @@ func serveScan(s *Scanner, w http.ResponseWriter, r *http.Request) {
 }
 
 func TestScannedFileRelPathsAreItemRelative(t *testing.T) {
-	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nprintf '%s' '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"1\"},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\"}]}'\n"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	old := os.Getenv("FFPROBE_PATH")
-	if err := os.Setenv("FFPROBE_PATH", ffprobe); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Setenv("FFPROBE_PATH", old) })
+	fakeFFprobe(t)
 	cases := []struct {
 		name  string
 		files map[string]string
@@ -1539,85 +1462,4 @@ func TestStartRejectsInvalidPerLibraryCron(t *testing.T) {
 		t.Fatal("Start accepted invalid library cron expression")
 	}
 	s.Close()
-}
-
-func TestWatcherDiscoversNewNestedFoldersAndCloseStopsIt(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Fatal("test requires FFmpeg")
-	}
-	root := t.TempDir()
-	db := scannerTestDB(t, root)
-	s, err := newScannerForTest(db, config.Config{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	delay, poll := watcherPendingDelay, watcherFilePoll
-	watcherPendingDelay, watcherFilePoll = 300*time.Millisecond, 100*time.Millisecond
-	defer func() { watcherPendingDelay, watcherFilePoll = delay, poll }()
-	if err := s.Start(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	itemDir := filepath.Join(root, "New Author", "New Series", "New Book")
-	if err := os.MkdirAll(itemDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	mediaPath := filepath.Join(itemDir, "track.mp3")
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=0.5", "-q:a", "9", mediaPath)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("create watcher audio: %v: %s", err, out)
-	}
-	deadline := time.Now().Add(6 * time.Second)
-	for time.Now().Before(deadline) {
-		var count int
-		if err := db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryId='lib-1'`).Scan(&count); err != nil {
-			t.Fatal(err)
-		}
-		if count == 1 {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatal("recursive fsnotify watcher did not import media in newly created nested directories")
-}
-
-func TestCronScheduleRunsLibraryScan(t *testing.T) {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Fatal("test requires FFmpeg")
-	}
-	root := t.TempDir()
-	itemDir := filepath.Join(root, "Scheduled Book")
-	if err := os.MkdirAll(itemDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=510:duration=0.5", "-q:a", "9", filepath.Join(itemDir, "audio.mp3"))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("create scheduled scan audio: %v: %s", err, out)
-	}
-	db := scannerTestDB(t, root)
-	if _, err := db.Exec(`UPDATE libraries SET settings=? WHERE id='lib-1'`, `{"autoScanCronExpression":"@every 1s"}`); err != nil {
-		t.Fatal(err)
-	}
-	s, err := newScannerForTest(db, config.Config{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Start(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		var count int
-		if err := db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryId='lib-1'`).Scan(&count); err != nil {
-			t.Fatal(err)
-		}
-		if count == 1 {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatal("configured cron schedule did not scan the library")
 }

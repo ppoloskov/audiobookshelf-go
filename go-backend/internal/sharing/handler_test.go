@@ -15,11 +15,17 @@ import (
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
 
 func sharingFixture(t *testing.T) (*sql.DB, *Handler, store.User, string) {
+	t.Helper()
+	return sharingFixtureWith(t, nil)
+}
+
+func sharingFixtureWith(t *testing.T, emit events.Emitter) (*sql.DB, *Handler, store.User, string) {
 	t.Helper()
 	db, e := sql.Open("sqlite", "file:sharing-test-"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared")
 	if e != nil {
@@ -49,7 +55,7 @@ func sharingFixture(t *testing.T) (*sql.DB, *Handler, store.User, string) {
 	if _, e = db.Exec(`INSERT INTO libraryItems(id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,title,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId) VALUES('li-1',?, 'book.mp3','book-1','book',1,0,0,'[]','{}','A Book','Author Name','Name, Author',?,?,'lib-1')`, media, now, now); e != nil {
 		t.Fatal(e)
 	}
-	return db, New(db, config.Config{RouterBasePath: "/audiobookshelf"}, nil), user, media
+	return db, New(db, config.Config{RouterBasePath: "/audiobookshelf"}, emit), user, media
 }
 func TestRSSFeedOpenListAndPublicMedia(t *testing.T) {
 	db, h, admin, media := sharingFixture(t)
@@ -149,18 +155,110 @@ func TestShareSessionProgressTrackAndDownload(t *testing.T) {
 	}
 	_ = db
 }
-func TestShareRejectsExpiredAndDownloadDisabled(t *testing.T) {
-	_, h, admin, _ := sharingFixture(t)
-	create := httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(`{"slug":"expires","expiresAt":1,"mediaItemType":"book","mediaItemId":"book-1"}`))
+func createShare(t *testing.T, h *Handler, admin store.User, body string) {
+	t.Helper()
 	w := httptest.NewRecorder()
-	serve(h, w, create, admin)
+	serve(h, w, httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(body)), admin)
 	if w.Code != 201 {
-		t.Fatalf("create status %d %s", w.Code, w.Body.String())
+		t.Fatalf("create share %d %s", w.Code, w.Body.String())
 	}
-	public := httptest.NewRecorder()
-	serve(h, public, httptest.NewRequest(http.MethodGet, "/public/share/expires", nil), store.User{})
-	if public.Code != 404 {
-		t.Fatalf("expired share status %d", public.Code)
+}
+
+func shareCall(h *Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	if cookie != nil {
+		r.AddCookie(cookie)
+	}
+	w := httptest.NewRecorder()
+	serve(h, w, r, store.User{})
+	return w
+}
+
+func countShares(t *testing.T, db *sql.DB) (n int) {
+	t.Helper()
+	if e := db.QueryRow(`SELECT COUNT(*) FROM mediaItemShares`).Scan(&n); e != nil {
+		t.Fatal(e)
+	}
+	return n
+}
+
+// ShareManager removes a share when it expires and closes its sessions
+// (ShareManager.js:125, removeMediaItemShare); every public route then answers
+// 404. The share is created live and then expires, as a real one does.
+func TestExpiredShareIsRefusedRemovedAndItsSessionsClosed(t *testing.T) {
+	db, h, admin, _, events := recordingFixture(t)
+	createShare(t, h, admin, `{"slug":"soon","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1","isDownloadable":true}`)
+	w := shareCall(h, http.MethodGet, "/public/share/soon", "", nil)
+	if w.Code != 200 || len(w.Result().Cookies()) == 0 {
+		t.Fatalf("open share %d %s", w.Code, w.Body.String())
+	}
+	cookie := w.Result().Cookies()[0]
+	for _, path := range []string{"/public/share/soon/download", "/public/share/soon/track/0"} {
+		if got := shareCall(h, http.MethodGet, path, "", cookie); got.Code != 200 {
+			t.Fatalf("%s while live = %d", path, got.Code)
+		}
+	}
+	if _, e := db.Exec(`UPDATE mediaItemShares SET expiresAt=?`, dbtime.Format(time.Now().Add(-time.Minute))); e != nil {
+		t.Fatal(e)
+	}
+	// The session cookie does not keep an expired share usable.
+	if got := shareCall(h, http.MethodPatch, "/public/share/soon/progress", `{"currentTime":3}`, cookie); got.Code != 404 {
+		t.Fatalf("progress on expired share = %d, want 404", got.Code)
+	}
+	if got := shareCall(h, http.MethodGet, "/public/share/soon/download", "", cookie); got.Code != 404 {
+		t.Fatalf("download on expired share = %d, want 404", got.Code)
+	}
+	if n := countShares(t, db); n != 0 {
+		t.Fatalf("expired share still stored: %d", n)
+	}
+	if got := shareCall(h, http.MethodGet, "/public/share/soon", "", nil); got.Code != 404 {
+		t.Fatalf("public share after expiry = %d, want 404", got.Code)
+	}
+	closed := 0
+	for _, ev := range *events {
+		if ev.event == "share_closed" && ev.room == "@admins" {
+			closed++
+		}
+	}
+	if closed != 1 {
+		t.Fatalf("share_closed emitted %d times, want 1: %#v", closed, *events)
+	}
+	// The session died with the share: a new share under the same slug does not revive it.
+	createShare(t, h, admin, `{"slug":"soon","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1","isDownloadable":true}`)
+	if got := shareCall(h, http.MethodGet, "/public/share/soon/download", "", cookie); got.Code != 404 {
+		t.Fatalf("old session on a re-created share = %d, want 404", got.Code)
+	}
+}
+
+// Deleting a share closes its playback sessions (ShareManager.js:40).
+func TestDeletingShareClosesItsSessions(t *testing.T) {
+	_, h, admin, _ := sharingFixture(t)
+	createShare(t, h, admin, `{"slug":"gone","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1","isDownloadable":true}`)
+	w := shareCall(h, http.MethodGet, "/public/share/gone", "", nil)
+	cookie := w.Result().Cookies()[0]
+	var share map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &share)
+	id := share["id"].(string)
+	if got := shareCall(h, http.MethodGet, "/public/share/gone/download", "", cookie); got.Code != 200 {
+		t.Fatalf("download while live = %d", got.Code)
+	}
+	del := httptest.NewRecorder()
+	serve(h, del, httptest.NewRequest(http.MethodDelete, "/api/share/mediaitem/"+id, nil), admin)
+	if del.Code != 204 {
+		t.Fatalf("delete %d", del.Code)
+	}
+	createShare(t, h, admin, `{"slug":"gone","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1","isDownloadable":true}`)
+	if got := shareCall(h, http.MethodGet, "/public/share/gone/download", "", cookie); got.Code != 404 {
+		t.Fatalf("old session after delete and re-create = %d, want 404", got.Code)
+	}
+}
+
+func TestShareWithoutDownloadFlagRefusesDownload(t *testing.T) {
+	_, h, admin, _ := sharingFixture(t)
+	createShare(t, h, admin, `{"slug":"nodl","expiresAt":0,"mediaItemType":"book","mediaItemId":"book-1"}`)
+	cookie := shareCall(h, http.MethodGet, "/public/share/nodl", "", nil).Result().Cookies()[0]
+	if got := shareCall(h, http.MethodGet, "/public/share/nodl/download", "", cookie); got.Code != 403 {
+		t.Fatalf("download of a non-downloadable share = %d, want 403", got.Code)
 	}
 }
 
@@ -169,19 +267,18 @@ type emitted struct {
 	payload     any
 }
 
-func emittingHandler(t *testing.T, h *Handler) *[]emitted {
+func recordingFixture(t *testing.T) (*sql.DB, *Handler, store.User, string, *[]emitted) {
 	t.Helper()
-	var events []emitted
-	h.emit = func(room, event string, payload any) { events = append(events, emitted{room, event, payload}) }
-	return &events
+	var evs []emitted
+	db, h, admin, media := sharingFixtureWith(t, func(room, event string, payload any) { evs = append(evs, emitted{room, event, payload}) })
+	return db, h, admin, media, &evs
 }
 
 // Feed.getFeedObjForLibraryItem copies media.description, media.language and
 // the owner options verbatim: NULL stays NULL (server/models/Feed.js:112-149,
 // RssFeedManager.getFeedOptionsFromReqOptions).
 func TestOpenFeedKeepsNullColumnsNull(t *testing.T) {
-	db, h, admin, media := sharingFixture(t)
-	events := emittingHandler(t, h)
+	db, h, admin, media, events := recordingFixture(t)
 	now := dbtime.Format(time.Now())
 	audio := `[{"index":1,"duration":12,"mimeType":"audio/mpeg","exclude":false,"metadata":{"path":"` + media + `","filename":"book.mp3","size":10}}]`
 	if _, e := db.Exec(`INSERT INTO books(id,title,explicit,duration,chapters,audioFiles,tags,genres,createdAt,updatedAt) VALUES('book-2','Bare Book',0,12,'[]',?,'[]','[]',?,?)`, audio, now, now); e != nil {
@@ -225,8 +322,7 @@ func TestOpenFeedKeepsNullColumnsNull(t *testing.T) {
 // Sequelize Dates reach res.json and Socket.IO as ISO strings with
 // milliseconds, not epoch millis (MediaItemShare.toJSONForClient).
 func TestShareDatesAreISOStrings(t *testing.T) {
-	db, h, admin, _ := sharingFixture(t)
-	events := emittingHandler(t, h)
+	db, h, admin, _, events := recordingFixture(t)
 	create := func(body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
 		serve(h, w, httptest.NewRequest(http.MethodPost, "/api/share/mediaitem", strings.NewReader(body)), admin)

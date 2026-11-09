@@ -115,10 +115,11 @@ func Load(ctx context.Context, db *sql.DB, libraryID, mediaType string) (Data, e
 			add("tags", list(tags)...)
 			add("genres", list(genres)...)
 			add("narrators", list(narrators)...)
-			if publisher.Valid {
+			// Empty strings are falsy in libraryFilters.js:662,666.
+			if publisher.String != "" {
 				add("publishers", publisher.String)
 			}
-			if language.Valid {
+			if language.String != "" {
 				add("languages", language.String)
 			}
 			if n, e := strconv.Atoi(year.String); year.Valid && e == nil && n > 0 && n < 3000 {
@@ -154,7 +155,7 @@ func Load(ctx context.Context, db *sql.DB, libraryID, mediaType string) (Data, e
 			d.PodcastCount++
 			add("tags", list(tags)...)
 			add("genres", list(genres)...)
-			if language.Valid {
+			if language.String != "" {
 				add("languages", language.String)
 			}
 		}

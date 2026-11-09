@@ -1,224 +1,118 @@
 package contracttest
 
 import (
-	"audiobookshelf-compat/internal/textsort"
-	"context"
 	"encoding/json"
-	"fmt"
-	"reflect"
-	"sort"
-	"strings"
 	"testing"
-
-	"audiobookshelf-compat/internal/libitem"
 )
 
-// TestLibitemEquivalence proves that internal/libitem serializes every library
-// item of the fixture exactly as the HTTP routes return it, by JSON
-// value (key order is not contract, ADR-002).
-func TestLibitemEquivalence(t *testing.T) {
-	in := Boot(t)
-	compareAllItems(t, in)
-
-	// Null and zero columns the fixture does not exercise.
-	for _, stmt := range []string{
-		`UPDATE books SET title=NULL, subtitle=NULL, explicit=1, duration=NULL, ebookFile=NULL WHERE id=(SELECT mediaId FROM libraryItems WHERE mediaType='book' ORDER BY id LIMIT 1)`,
-		`UPDATE books SET description='<p>Hi <b>there</b></p>', narrators='["A B","C"]', abridged=1 WHERE id=(SELECT mediaId FROM libraryItems WHERE mediaType='book' ORDER BY id DESC LIMIT 1)`,
-		`UPDATE libraryItems SET lastScan=NULL, ino=NULL, mtime=NULL, lastScanVersion=NULL, size=0 WHERE mediaType='book'`,
-		`UPDATE libraryItems SET lastScan=NULL, size=1234 WHERE mediaType='podcast'`,
-		`UPDATE podcasts SET title=NULL, numEpisodes=NULL, lastEpisodeCheck=0, maxEpisodesToKeep=NULL, explicit=1`,
-		`UPDATE podcastEpisodes SET enclosureURL='http://x/y.mp3', enclosureSize=77, "index"=NULL WHERE rowid=(SELECT min(rowid) FROM podcastEpisodes)`,
-	} {
-		if _, err := in.DB.Exec(stmt); err != nil {
-			t.Fatalf("%s: %v", stmt, err)
-		}
-	}
-	compareAllItems(t, in)
-}
-
-func compareAllItems(t *testing.T, in *Install) {
+// itemDoc is GET /api/items/:id?expanded=1 as the root user decodes it.
+func itemDoc(t *testing.T, in *Install, token, id string) map[string]any {
 	t.Helper()
-	ctx := context.Background()
-	var settings []byte
-	_ = in.DB.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&settings)
-	prefixes := textsort.ParsePrefixes(settings)
-
-	rows, err := in.DB.Query(`SELECT id FROM libraryItems ORDER BY id`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			t.Fatal(err)
-		}
-		ids = append(ids, id)
-	}
-	_ = rows.Close()
-	if len(ids) < 5 {
-		t.Fatalf("fixture has %d library items", len(ids))
-	}
-	plain, err := libitem.Load(ctx, in.DB, ids, libitem.Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	withEpisodes, err := libitem.Load(ctx, in.DB, ids, libitem.Options{Episodes: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(plain) != len(ids) || len(withEpisodes) != len(ids) {
-		t.Fatalf("Load returned %d/%d items for %d ids", len(plain), len(withEpisodes), len(ids))
-	}
-
-	// The library items page rows come from the HTTP list (the only builder).
-	root := in.Login(t, in.Users["root"].Username, in.Users["root"].Password)
-	listRows := map[string]any{}
-	var libraries []string
-	lrows, err := in.DB.Query(`SELECT id FROM libraries`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for lrows.Next() {
-		var id string
-		_ = lrows.Scan(&id)
-		libraries = append(libraries, id)
-	}
-	_ = lrows.Close()
-	for _, lib := range libraries {
-		resp, body := in.Do(t, "GET", "/api/libraries/"+lib+"/items?limit=0", root, nil)
-		if resp.StatusCode != 200 {
-			t.Fatalf("list %s: %d %s", lib, resp.StatusCode, body)
-		}
-		var page struct {
-			Results []map[string]any `json:"results"`
-		}
-		if err := json.Unmarshal(body, &page); err != nil {
-			t.Fatal(err)
-		}
-		for _, row := range page.Results {
-			listRows[row["id"].(string)] = row
-		}
-	}
-
-	kinds := map[string]int{}
-	for i, id := range ids {
-		it, full := plain[i], withEpisodes[i]
-		if it.ID != id {
-			t.Fatalf("Load order: got %s want %s", it.ID, id)
-		}
-		kinds[it.MediaType]++
-		compare(t, id+" Full", itemOverHTTP(t, in, root, id, ""), full.Full())
-		compare(t, id+" Expanded", itemOverHTTP(t, in, root, id, "?expanded=1"), full.Expanded(prefixes))
-		if row, ok := listRows[id]; ok {
-			compare(t, id+" ListRow", row, it.ListRow(prefixes))
-			delete(listRows, id)
-		} else {
-			t.Errorf("%s: not in any library list", id)
-		}
-	}
-	if len(listRows) != 0 {
-		t.Errorf("list rows without a loaded item: %d", len(listRows))
-	}
-	if kinds["book"] == 0 || kinds["podcast"] == 0 {
-		t.Errorf("fixture must cover books and podcasts, got %v", kinds)
-	}
-	t.Logf("compared %v items in 4 shapes", kinds)
-}
-
-// itemOverHTTP is GET /api/items/:id as the root user decodes it.
-func itemOverHTTP(t *testing.T, in *Install, token, id, query string) any {
-	t.Helper()
-	resp, body := in.Do(t, "GET", "/api/items/"+id+query, token, nil)
+	resp, body := in.Do(t, "GET", "/api/items/"+id+"?expanded=1", token, nil)
 	if resp.StatusCode != 200 {
-		t.Fatalf("item %s%s: %d %s", id, query, resp.StatusCode, body)
+		t.Fatalf("item %s: %d %s", id, resp.StatusCode, body)
 	}
-	var out any
+	var out map[string]any
 	if err := json.Unmarshal(body, &out); err != nil {
 		t.Fatal(err)
 	}
 	return out
 }
 
-func compare(t *testing.T, name string, old, new any) {
+func at(doc map[string]any, path ...string) any {
+	var cur any = doc
+	for _, key := range path {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil
+		}
+		cur = m[key]
+	}
+	return cur
+}
+
+func oneID(t *testing.T, in *Install, query string) string {
 	t.Helper()
-	a, b := normalize(t, old), normalize(t, new)
-	for _, diff := range diffJSON("$", a, b) {
-		t.Errorf("%s: %s", name, diff)
+	var id string
+	if err := in.DB.QueryRow(query).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// TestItemJSONReflectsStoredColumns checks what the item routes report for the
+// stored rows, including the NULL and zero columns the fixture does not use.
+// The expected values follow LibraryItem/Book/Podcast toOldJSONExpanded in the
+// upstream models.
+func TestItemJSONReflectsStoredColumns(t *testing.T) {
+	in := Boot(t)
+	root := in.Login(t, in.Users["root"].Username, in.Users["root"].Password)
+	firstBook := oneID(t, in, `SELECT id FROM libraryItems WHERE mediaType='book' ORDER BY id LIMIT 1`)
+	lastBook := oneID(t, in, `SELECT id FROM libraryItems WHERE mediaType='book' ORDER BY id DESC LIMIT 1`)
+	podcast := oneID(t, in, `SELECT id FROM libraryItems WHERE mediaType='podcast' LIMIT 1`)
+
+	for _, stmt := range []string{
+		`UPDATE books SET title=NULL, subtitle=NULL, explicit=1, duration=NULL, ebookFile=NULL WHERE id=(SELECT mediaId FROM libraryItems WHERE id='` + firstBook + `')`,
+		`UPDATE books SET description='<p>Hi <b>there</b></p>', narrators='["A B","C"]', abridged=1 WHERE id=(SELECT mediaId FROM libraryItems WHERE id='` + lastBook + `')`,
+		`UPDATE libraryItems SET lastScan=NULL, lastScanVersion=NULL, ino=NULL WHERE mediaType='book'`,
+		`UPDATE libraryItems SET lastScan=NULL, size=1234 WHERE mediaType='podcast'`,
+		`UPDATE podcasts SET title=NULL, numEpisodes=NULL, lastEpisodeCheck=0, maxEpisodesToKeep=NULL, explicit=1`,
+	} {
+		if _, err := in.DB.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+
+	book := itemDoc(t, in, root, firstBook)
+	for path, want := range map[string]any{
+		"media.metadata.title": nil, "media.metadata.subtitle": nil, "media.metadata.explicit": true,
+		"media.duration": nil, "media.ebookFile": nil,
+		"lastScan": nil, "scanVersion": nil, "ino": nil,
+	} {
+		if got := at(book, splitPath(path)...); got != want {
+			t.Errorf("book %s = %#v, want %#v", path, got, want)
+		}
+	}
+	if at(book, "media", "metadata", "authorName") != "Terry Fixture" || at(book, "mediaType") != "book" {
+		t.Errorf("columns that were not touched must still be reported: %v", at(book, "media", "metadata"))
+	}
+
+	described := itemDoc(t, in, root, lastBook)
+	for path, want := range map[string]any{
+		"media.metadata.description":      "<p>Hi <b>there</b></p>",
+		"media.metadata.descriptionPlain": "Hi there",
+		"media.metadata.narratorName":     "A B, C",
+		"media.metadata.abridged":         true,
+	} {
+		if got := at(described, splitPath(path)...); got != want {
+			t.Errorf("book %s = %#v, want %#v", path, got, want)
+		}
+	}
+	if narrators, _ := at(described, "media", "metadata", "narrators").([]any); len(narrators) != 2 || narrators[0] != "A B" || narrators[1] != "C" {
+		t.Errorf("narrators = %v", narrators)
+	}
+
+	cast := itemDoc(t, in, root, podcast)
+	for path, want := range map[string]any{
+		"media.metadata.title": nil, "media.metadata.explicit": true,
+		"media.lastEpisodeCheck": nil, "media.maxEpisodesToKeep": float64(0),
+		"media.numEpisodes": float64(3), // counted from the episode rows, not the column
+		"size":              float64(1234), "lastScan": nil,
+	} {
+		if got := at(cast, splitPath(path)...); got != want {
+			t.Errorf("podcast %s = %#v, want %#v", path, got, want)
+		}
 	}
 }
 
-func normalize(t *testing.T, v any) any {
-	t.Helper()
-	raw, err := json.Marshal(v)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out any
-	if err := json.Unmarshal(raw, &out); err != nil {
-		t.Fatal(err)
+func splitPath(path string) []string {
+	var out []string
+	start := 0
+	for i := 0; i <= len(path); i++ {
+		if i == len(path) || path[i] == '.' {
+			out = append(out, path[start:i])
+			start = i + 1
+		}
 	}
 	return out
-}
-
-func diffJSON(path string, a, b any) []string {
-	switch x := a.(type) {
-	case map[string]any:
-		y, ok := b.(map[string]any)
-		if !ok {
-			return []string{fmt.Sprintf("%s: old object, new %T", path, b)}
-		}
-		keys := map[string]bool{}
-		for k := range x {
-			keys[k] = true
-		}
-		for k := range y {
-			keys[k] = true
-		}
-		sorted := make([]string, 0, len(keys))
-		for k := range keys {
-			sorted = append(sorted, k)
-		}
-		sort.Strings(sorted)
-		var out []string
-		for _, k := range sorted {
-			av, aok := x[k]
-			bv, bok := y[k]
-			switch {
-			case !aok:
-				out = append(out, fmt.Sprintf("%s.%s: only in new (%s)", path, k, short(bv)))
-			case !bok:
-				out = append(out, fmt.Sprintf("%s.%s: only in old (%s)", path, k, short(av)))
-			default:
-				out = append(out, diffJSON(path+"."+k, av, bv)...)
-			}
-		}
-		return out
-	case []any:
-		y, ok := b.([]any)
-		if !ok {
-			return []string{fmt.Sprintf("%s: old array, new %T", path, b)}
-		}
-		if len(x) != len(y) {
-			return []string{fmt.Sprintf("%s: old len %d, new len %d", path, len(x), len(y))}
-		}
-		var out []string
-		for i := range x {
-			out = append(out, diffJSON(fmt.Sprintf("%s[%d]", path, i), x[i], y[i])...)
-		}
-		return out
-	}
-	if !reflect.DeepEqual(a, b) {
-		return []string{fmt.Sprintf("%s: old %s, new %s", path, short(a), short(b))}
-	}
-	return nil
-}
-
-func short(v any) string {
-	raw, _ := json.Marshal(v)
-	s := string(raw)
-	if len(s) > 80 {
-		s = s[:80] + "..."
-	}
-	return strings.TrimSpace(s)
 }

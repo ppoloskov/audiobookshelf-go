@@ -622,9 +622,6 @@ func (b audnexusBook) toMatch() bookMatch {
 	m := bookMatch{Region: string(b.Region), Rating: string(b.Rating), Abridged: new(b.FormatType == "abridged"), Explicit: new(b.IsAdult),
 		matchCore: matchCore{Title: b.Title, Subtitle: b.Subtitle, Author: joinNames(b.Authors), Narrator: joinNames(b.Narrators), Publisher: b.PublisherName,
 			PublishedYear: year{strings.Split(b.ReleaseDate, "-")[0]}, Description: b.Summary, Cover: b.Image, ASIN: b.ASIN, ISBN: b.ISBN, Duration: b.RuntimeMin}}
-	if m.Rating == "" {
-		m.Rating = m.Region
-	}
 	if b.Language != "" {
 		m.Language = text(strings.ToUpper(b.Language[:1]) + b.Language[1:])
 	}

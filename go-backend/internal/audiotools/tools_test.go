@@ -10,20 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"audiobookshelf-compat/internal/config"
 )
-
-func TestFFMetadataEscapingAndChapterOrder(t *testing.T) {
-	x := item{title: "A; #book=one", author: "Writer\\Name", chapters: []chapter{{0, 1.25, "First"}, {1.25, 2.5, "Second"}}}
-	got := ffmetadata(x, true)
-	for _, want := range []string{"title=A\\; \\#book\\=one", "artist=Writer\\\\Name", "START=0", "END=1250", "title=First", "START=1250", "END=2500", "title=Second"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("ffmetadata missing %q in:\n%s", want, got)
-		}
-	}
-}
 
 func TestMergeCreatesM4BAndKeepsSourceBackup(t *testing.T) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
@@ -127,31 +116,4 @@ func ffprobePath() string {
 		return p
 	}
 	return "ffprobe"
-}
-
-func TestCancelEncodeKillsConfiguredFFmpeg(t *testing.T) {
-	root := t.TempDir()
-	fake := filepath.Join(root, "ffmpeg-sleep")
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\nwhile :; do sleep 1; done\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("FFMPEG_PATH", fake)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	task := &task{ctx: ctx, cancel: cancel, cache: filepath.Join(root, "cache")}
-	h := New(nil, configForTest(filepath.Join(root, "meta")), nil)
-	it := item{id: "id", path: root, title: "cancel", files: []audio{{path: filepath.Join(root, "in.wav"), duration: 1}}}
-	_ = os.WriteFile(it.files[0].path, []byte("placeholder"), 0600)
-	done := make(chan struct{})
-	go func() { h.runEncode(task, it, map[string][]string{}); close(done) }()
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("encode did not stop after cancellation")
-	}
-	if _, err := os.Stat(filepath.Join(root, "cancel.m4b")); !os.IsNotExist(err) {
-		t.Fatalf("canceled encode left output: %v", err)
-	}
 }

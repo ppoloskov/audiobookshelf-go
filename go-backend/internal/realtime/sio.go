@@ -204,7 +204,7 @@ func (c *conn) handleConnect(p packet, r *http.Request) bool {
 	// Register the socket and attach every handler before the client can learn
 	// it is connected; otherwise an event sent right after the acknowledgement
 	// would find no listener.
-	c.hub.connectFn(s, c.path)
+	c.hub.connected(s, c.path)
 	body, _ := json.Marshal(map[string]string{"sid": s.id})
 	c.send("40" + string(body))
 	return true

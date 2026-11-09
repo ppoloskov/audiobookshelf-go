@@ -11,6 +11,8 @@ import (
 	"audiobookshelf-compat/internal/config"
 )
 
+// REGRESSION LOCK: recorded from the code. The TS-derived evidence for the item
+// JSON is TestBookItemSerializersMatchPinnedSourceGolden.
 // itemGoldenPath holds the output of fullItem, expandedItem and
 // minifiedItem for the fixture items. It was captured from the
 // map-based serializers before they were typed, so a typed

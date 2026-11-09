@@ -1,7 +1,6 @@
 package realtime
 
 import (
-	"audiobookshelf-compat/internal/access"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -12,7 +11,9 @@ import (
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
+	"golang.org/x/net/websocket"
 
 	_ "modernc.org/sqlite"
 )
@@ -86,112 +88,6 @@ func (f *fakeBackend) Session(id string) any {
 
 func newTestHub(cfg config.Config, b *fakeBackend) *Hub {
 	return New(cfg, func() Backend { return b })
-}
-
-func TestNewRegistersLegacyAndPrefixedSocketPaths(t *testing.T) {
-	db, _ := testDB(t)
-	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, &fakeBackend{db: db})
-	defer hub.Close()
-	if got, want := strings.Join(hub.Paths(), ","), "/socket.io,/abs/socket.io"; got != want {
-		t.Fatalf("Paths() = %q, want %q", got, want)
-	}
-	response := httptest.NewRecorder()
-	hub.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/elsewhere", nil))
-	if response.Code != http.StatusNotFound {
-		t.Fatalf("unknown path status = %d, want 404", response.Code)
-	}
-}
-
-func TestPayloadAccessibleAppliesLibraryAndItemPermissionsWhenPresent(t *testing.T) {
-	user := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)}
-	book := func(libraryID string, explicit bool, tags ...string) libitem.Expanded {
-		return libitem.Expanded{Head: libitem.Head{ID: "li-" + libraryID, LibraryID: libraryID},
-			Media: libitem.BookExpanded{ID: "book-1", Tags: tags, Metadata: libitem.BookMetadataExpanded{BookMetadataFull: libitem.BookMetadataFull{Explicit: explicit}}}}
-	}
-	allowed, wrongLibrary, wrongTag := book("lib-1", false, "mystery"), book("lib-2", false, "mystery"), book("lib-1", false, "romance")
-	if !payloadAccessible(grantsOf(user), allowed) {
-		t.Fatal("expected allowed library and tag payload to pass")
-	}
-	if payloadAccessible(grantsOf(user), wrongLibrary) {
-		t.Fatal("payload from inaccessible library passed")
-	}
-	if payloadAccessible(grantsOf(user), wrongTag) {
-		t.Fatal("payload with inaccessible tag passed")
-	}
-	if !payloadAccessible(grantsOf(user), map[string]any{"message": "global"}) {
-		t.Fatal("global payload without item metadata should pass")
-	}
-	if payloadAccessible(grantsOf(user), book("lib-1", true, "mystery")) {
-		t.Fatal("explicit book passed without explicit-content permission")
-	}
-	podcast := libitem.Minified{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}
-	if !payloadAccessible(grantsOf(user), podcast) {
-		t.Fatal("podcast with an accessible tag should pass")
-	}
-	if payloadAccessible(grantsOf(user), map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}) {
-		t.Fatal("an untyped item map must not be delivered")
-	}
-	collection := map[string]any{"id": "collection-1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
-	if !payloadAccessible(grantsOf(user), collection) {
-		t.Fatal("collection event with library access should be delivered")
-	}
-	libraryOnly := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"]}`)}
-	if !payloadAccessible(grantsOf(libraryOnly), collection) {
-		t.Fatal("collection event should not require item/tag permissions")
-	}
-	if payloadAccessible(grantsOf(user), map[string]any{"id": "collection-2", "libraryId": "lib-2", "name": "Other", "books": []any{}}) {
-		t.Fatal("collection event without library access passed")
-	}
-	noLibrary := store.User{Permissions: []byte(`{"librariesAccessible":["lib-2"]}`)}
-	if payloadAccessible(grantsOf(noLibrary), collection) {
-		t.Fatal("collection event was delivered to a user without library access")
-	}
-	if _, send := payloadForUser(grantsOf(user), collection); !send {
-		t.Fatal("collection broadcast was not sent to a user with library access")
-	}
-	if _, send := payloadForUser(grantsOf(noLibrary), collection); send {
-		t.Fatal("collection broadcast was sent to a user without library access")
-	}
-	filtered, send := payloadForUser(grantsOf(user), []libitem.Expanded{allowed, wrongLibrary})
-	items, ok := filtered.([]libitem.Expanded)
-	if !send || !ok || len(items) != 1 {
-		t.Fatalf("item-list broadcast filter = %#v, send=%v", filtered, send)
-	}
-	mixed, send := payloadForUser(grantsOf(user), []any{allowed, wrongLibrary})
-	if list, ok := mixed.([]any); !send || !ok || len(list) != 1 {
-		t.Fatalf("untyped item-list broadcast filter = %#v, send=%v", mixed, send)
-	}
-}
-
-func TestUsersOnlineCallsPlaybackLookupOutsideHubLock(t *testing.T) {
-	db, _ := testDB(t)
-	backend := &fakeBackend{db: db}
-	hub := newTestHub(config.Config{}, backend)
-	defer hub.Close()
-	hub.mu.Lock()
-	hub.clients["socket-a"] = &client{user: &store.User{ID: "user-1", Username: "alice", Type: "user"}}
-	hub.clients["socket-b"] = &client{user: &store.User{ID: "user-1", Username: "alice", Type: "user"}}
-	hub.mu.Unlock()
-	backend.session = func(userID string) any {
-		if userID != "user-1" {
-			t.Errorf("session lookup user=%q", userID)
-		}
-		// A playback lookup may synchronously mutate hub state as it emits a
-		// stream update. This would deadlock if usersOnline held Hub.mu.
-		hub.mu.Lock()
-		hub.mu.Unlock() //nolint:staticcheck // empty critical section: proves Hub.mu is free
-		return map[string]any{"id": "session-1"}
-	}
-	done := make(chan []map[string]any, 1)
-	go func() { done <- hub.UsersOnline() }()
-	select {
-	case users := <-done:
-		if len(users) != 1 || users[0]["connections"] != 2 || users[0]["session"].(map[string]any)["id"] != "session-1" {
-			t.Fatalf("online users=%v", users)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("playback lookup deadlocked under Hub.mu")
-	}
 }
 
 func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
@@ -319,18 +215,246 @@ func signedToken(t *testing.T, secret string, claims map[string]any) string {
 	return unsigned + "." + encode(mac.Sum(nil))
 }
 
-func grantsOf(u store.User) *access.Permissions { g := access.Of(u); return &g }
+// sentinel is emitted to everyone after a probe; events reach one connection in
+// order, so reading up to it shows exactly what was delivered.
+var marks atomic.Int64
 
-func TestPayloadForUserFiltersTypedItemSlices(t *testing.T) {
-	user := store.User{Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)}
-	item := func(lib string, tags ...string) libitem.Expanded {
-		return libitem.Expanded{Head: libitem.Head{LibraryID: lib}, Media: libitem.BookExpanded{ID: "b", Tags: tags}}
+// mark emits a sentinel to everyone and returns its id for collect.
+func mark(srv *sioServer) string {
+	id := strconv.FormatInt(marks.Add(1), 10)
+	srv.hub.Emit("*", "sentinel", id)
+	return id
+}
+
+func collect(t *testing.T, ws *websocket.Conn, name, mark string) []event {
+	t.Helper()
+	var got []event
+	for {
+		e := next(t, ws)
+		if e.name == "sentinel" && string(e.payload) == `"`+mark+`"` {
+			return got
+		}
+		if e.name == name {
+			got = append(got, e)
+		}
 	}
-	got, send := payloadForUser(grantsOf(user), []libitem.Expanded{item("lib-1", "mystery"), item("lib-2", "mystery"), item("lib-1", "romance")})
-	if list, ok := got.([]libitem.Expanded); !send || !ok || len(list) != 1 {
-		t.Fatalf("typed filter = %#v, send=%v", got, send)
+}
+
+func TestSocketPathsLegacyAndPrefixed(t *testing.T) {
+	srv := testServer(t)
+	if got, want := strings.Join(srv.hub.Paths(), ","), "/socket.io,/abs/socket.io"; got != want {
+		t.Fatalf("Paths() = %q, want %q", got, want)
 	}
-	if _, send := payloadForUser(grantsOf(user), item("lib-1", "romance")); send {
-		t.Fatal("typed item with an inaccessible tag was sent")
+	prefixed := strings.Replace(srv.url, "/socket.io/", "/abs/socket.io/", 1)
+	ws, _ := connect(t, prefixed)
+	if init := login(t, ws, "tok-alice"); init["userId"] != "user-1" {
+		t.Fatalf("init on the prefixed path = %v", init)
+	}
+	response := httptest.NewRecorder()
+	srv.hub.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/elsewhere", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("unknown path status = %d, want 404", response.Code)
+	}
+}
+
+// Socket authentication (SocketAuthority.js authenticateSocket): only a valid,
+// active user gets init; everyone else is told and stays anonymous, receiving
+// no user-addressed or broadcast events.
+func TestSocketAuthentication(t *testing.T) {
+	srv := testServer(t)
+	for _, tc := range []struct{ send, message string }{
+		{`42["auth","tok-nobody"]`, "Invalid token"},
+		{`42["auth",""]`, "Invalid token"},
+		{`42["auth"]`, "Invalid token"},
+		{`42["auth","tok-inactive"]`, "Invalid user"},
+	} {
+		ws, _ := connect(t, srv.url)
+		send(t, ws, tc.send)
+		e := next(t, ws)
+		var body map[string]string
+		_ = json.Unmarshal(e.payload, &body)
+		if e.name != "auth_failed" || body["message"] == "" {
+			t.Errorf("%s -> %s %s, want auth_failed", tc.send, e.name, e.payload)
+			continue
+		}
+		if tc.message == "Invalid user" && body["message"] != tc.message {
+			t.Errorf("%s -> %q, want %q", tc.send, body["message"], tc.message)
+		}
+		srv.hub.Emit("*", "broadcast", map[string]any{"message": "x"})
+		srv.hub.Emit("user-1", "mine", 1)
+		mark(srv)
+		// An unauthenticated socket receives nothing, not even the sentinel.
+		_ = ws.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
+		var msg string
+		for websocket.Message.Receive(ws, &msg) == nil {
+			if strings.HasPrefix(msg, "42") {
+				t.Errorf("%s: unauthenticated socket received %q", tc.send, msg)
+			}
+		}
+	}
+	// A valid login records lastSeen and tells admins (only) the user is online.
+	admin, _ := connect(t, srv.url)
+	if init := login(t, admin, "tok-admin"); init["usersOnline"] == nil {
+		t.Fatalf("admin init lacks usersOnline: %v", init)
+	}
+	alice, _ := connect(t, srv.url)
+	if init := login(t, alice, "tok-alice"); init["usersOnline"] != nil || init["username"] != "alice" {
+		t.Fatalf("user init = %v", init)
+	}
+	if e := next(t, admin); e.name != "user_online" {
+		t.Fatalf("admin got %s, want user_online", e.name)
+	}
+	var lastSeen string
+	if err := srv.backend.db.QueryRow(`SELECT lastSeen FROM users WHERE id='user-1'`).Scan(&lastSeen); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
+		t.Fatalf("lastSeen = %q err=%v", lastSeen, err)
+	}
+	if got := collect(t, alice, "user_online", mark(srv)); len(got) != 0 {
+		t.Fatalf("non-admin received user_online: %v", got)
+	}
+}
+
+// Item events reach only sockets whose user may see the item: library, tags
+// and explicit content are checked, collections need only the library, and a
+// payload that cannot be classified is withheld.
+func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
+	srv := testServer(t)
+	conns := map[string]*websocket.Conn{}
+	for _, who := range []string{"alice", "bob", "admin"} {
+		ws, _ := connect(t, srv.url)
+		login(t, ws, "tok-"+who)
+		conns[who] = ws
+	}
+	m := mark(srv) // drains the user_online announcements of the logins
+	for _, ws := range conns {
+		collect(t, ws, "", m)
+	}
+	book := func(lib string, explicit bool, tags ...string) libitem.Expanded {
+		return libitem.Expanded{Head: libitem.Head{ID: "li-" + lib, LibraryID: lib},
+			Media: libitem.BookExpanded{ID: "book-1", Tags: tags, Metadata: libitem.BookMetadataExpanded{BookMetadataFull: libitem.BookMetadataFull{Explicit: explicit}}}}
+	}
+	collection := map[string]any{"id": "c1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
+	cases := []struct {
+		name            string
+		payload         any
+		alice, bob, adm int // number of items delivered (-1: not delivered at all); lists count elements
+	}{
+		{"allowed book", book("lib-1", false, "mystery"), 1, -1, 1},
+		{"other library", book("lib-2", false, "mystery"), -1, 1, 1},
+		{"tag not selected", book("lib-1", false, "romance"), -1, -1, 1},
+		{"explicit without permission", book("lib-1", true, "mystery"), -1, -1, 1},
+		{"podcast with accessible tag", libitem.Minified{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
+		{"untyped item map", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, -1, -1, -1},
+		{"global message", map[string]any{"message": "global"}, 1, 1, 1},
+		{"collection in library", collection, 1, -1, 1},
+		{"typed item list", []libitem.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
+		{"untyped item list", []any{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
+	}
+	count := func(e event) int {
+		var list []json.RawMessage
+		if json.Unmarshal(e.payload, &list) == nil {
+			return len(list)
+		}
+		return 1
+	}
+	for _, tc := range cases {
+		srv.hub.Emit("*", "probe", tc.payload)
+		m := mark(srv)
+		for who, want := range map[string]int{"alice": tc.alice, "bob": tc.bob, "admin": tc.adm} {
+			got := collect(t, conns[who], "probe", m)
+			switch {
+			case want < 0 && len(got) != 0:
+				t.Errorf("%s: %s received %s", tc.name, who, got[0].payload)
+			case want >= 0 && len(got) != 1:
+				t.Errorf("%s: %s got %d probe events, want 1", tc.name, who, len(got))
+			case want >= 0 && count(got[0]) != want && tc.name != "global message":
+				t.Errorf("%s: %s got %d items, want %d", tc.name, who, count(got[0]), want)
+			}
+		}
+	}
+	// A collection needs only library access, not tag permissions.
+	srv.backend.db.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	srv.hub.Emit("*", "probe", collection)
+	if got := collect(t, conns["alice"], "probe", mark(srv)); len(got) != 1 {
+		t.Fatalf("library-only user got %d collection events, want 1", len(got))
+	}
+}
+
+// Refresh (permissions changed, user deactivated or deleted) takes effect on
+// live sockets: new permissions apply at once and a revoked user is
+// disconnected and told admins are informed.
+func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testing.T) {
+	srv := testServer(t)
+	admin, _ := connect(t, srv.url)
+	login(t, admin, "tok-admin")
+	alice, aliceID := connect(t, srv.url)
+	login(t, alice, "tok-alice")
+	next(t, admin) // user_online
+	item := libitem.Expanded{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
+
+	srv.hub.Emit("*", "probe", item)
+	m := mark(srv)
+	if got := collect(t, alice, "probe", m); len(got) != 1 {
+		t.Fatalf("before revocation alice got %d probes", len(got))
+	}
+	collect(t, admin, "", m)
+
+	if _, err := srv.backend.db.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	srv.hub.Emit("*", "probe", item)
+	m = mark(srv)
+	if got := collect(t, alice, "probe", m); len(got) != 0 {
+		t.Fatalf("alice still receives lib-1 items after losing access: %v", got)
+	}
+	collect(t, admin, "", m)
+
+	if _, err := srv.backend.db.Exec(`DELETE FROM users WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
+		t.Fatal(err)
+	}
+	expectClosed(t, alice)
+	srv.waitDisconnect(t, aliceID)
+	if e := next(t, admin); e.name != "user_offline" {
+		t.Fatalf("admin got %s, want user_offline", e.name)
+	}
+	// Refreshing a user nobody is connected as is harmless.
+	if err := srv.hub.Refresh(context.Background(), "nobody"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// UsersOnline asks the backend for each user's playback session; that lookup
+// may itself change hub state (a stream update, Refresh) and must not run under
+// the hub's lock.
+func TestUsersOnlineListsConnectionsAndToleratesReentrantLookups(t *testing.T) {
+	srv := testServer(t)
+	for i := 0; i < 2; i++ {
+		ws, _ := connect(t, srv.url)
+		login(t, ws, "tok-alice")
+	}
+	srv.backend.session = func(userID string) any {
+		if userID != "user-1" {
+			t.Errorf("session lookup user=%q", userID)
+		}
+		_ = srv.hub.Refresh(context.Background(), "user-1") // takes the hub's write lock
+		return map[string]any{"id": "session-1"}
+	}
+	done := make(chan []map[string]any, 1)
+	go func() { done <- srv.hub.UsersOnline() }()
+	select {
+	case users := <-done:
+		if len(users) != 1 || users[0]["connections"] != 2 || users[0]["session"].(map[string]any)["id"] != "session-1" {
+			t.Fatalf("online users=%v", users)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("playback lookup deadlocked under the hub lock")
 	}
 }

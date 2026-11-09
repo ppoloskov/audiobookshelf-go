@@ -8,11 +8,16 @@ import (
 	"sync"
 	"testing"
 
+	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/filterdata"
 
 	_ "modernc.org/sqlite"
 )
 
+const stamp = "2024-01-02 03:04:05.000 +00:00"
+
+// openDB opens a file database with the real schema, foreign keys on, one
+// library (l1) and one book (b1).
 func openDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "db.sqlite")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
@@ -22,13 +27,9 @@ func openDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
 	for _, stmt := range []string{
-		"CREATE TABLE books (id TEXT PRIMARY KEY)",
-		"CREATE TABLE authors (id TEXT PRIMARY KEY, libraryId TEXT, asin TEXT, description TEXT, imagePath TEXT)",
-		"CREATE TABLE series (id TEXT PRIMARY KEY, libraryId TEXT)",
-		"CREATE TABLE bookAuthors (id TEXT PRIMARY KEY, bookId TEXT REFERENCES books(id) ON DELETE CASCADE, authorId TEXT REFERENCES authors(id) ON DELETE CASCADE)",
-		"CREATE TABLE bookSeries (id TEXT PRIMARY KEY, bookId TEXT REFERENCES books(id) ON DELETE CASCADE, seriesId TEXT REFERENCES series(id) ON DELETE CASCADE)",
-		"CREATE TABLE feeds (id TEXT PRIMARY KEY, entityType TEXT, entityId TEXT, feedUrl TEXT, title TEXT, description TEXT, preventIndexing INTEGER, ownerName TEXT, ownerEmail TEXT)",
-		"INSERT INTO books VALUES ('b1')",
+		schemaassets.SchemaSQL,
+		`INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,settings,extraData,createdAt,updatedAt) VALUES('l1','Lib',0,'books','book','google','{}','{}','` + stamp + `','` + stamp + `')`,
+		`INSERT INTO books(id,title,createdAt,updatedAt) VALUES('b1','Book','` + stamp + `','` + stamp + `')`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			t.Fatal(stmt, err)
@@ -37,21 +38,35 @@ func openDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// mustExec inserts fixture rows; they carry the NOT NULL timestamps.
+func mustExec(t *testing.T, db *sql.DB, query string, args ...any) {
+	t.Helper()
+	if _, err := db.Exec(query, args...); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+}
+
 type recorder struct {
 	mu     sync.Mutex
 	events []string
+	names  []string
 }
 
 func (r *recorder) emit(_ string, event string, payload any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.events = append(r.events, fmt.Sprintf("%s %v", event, payload.(map[string]any)["id"]))
+	r.names = append(r.names, event)
+	id := any("")
+	if m, ok := payload.(map[string]any); ok {
+		id = m["id"]
+	}
+	r.events = append(r.events, fmt.Sprintf("%s %v", event, id))
 }
 
 func TestSweepAuthorsRemovesOnlyUnguardedOrphans(t *testing.T) {
 	db := openDB(t)
-	db.Exec(`INSERT INTO authors VALUES ('orphan','l1',NULL,'',NULL),('withAsin','l1','B00X',NULL,NULL),('linked','l1',NULL,NULL,NULL)`)
-	db.Exec(`INSERT INTO bookAuthors VALUES ('ba1','b1','linked')`)
+	mustExec(t, db, `INSERT INTO authors(id,name,asin,description,libraryId,createdAt,updatedAt) VALUES ('orphan','O',NULL,'','l1',?,?),('withAsin','W','B00X',NULL,'l1',?,?),('linked','L',NULL,NULL,'l1',?,?)`, stamp, stamp, stamp, stamp, stamp, stamp)
+	mustExec(t, db, `INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES ('ba1','b1','linked',?)`, stamp)
 	var r recorder
 	e := Env{DB: db, Filters: filterdata.NewCache(), Emit: r.emit}
 	e.SweepAuthors(context.Background(), []string{"orphan", "withAsin", "linked", "orphan", ""})
@@ -70,7 +85,7 @@ func TestSweepAuthorsRemovesOnlyUnguardedOrphans(t *testing.T) {
 
 func TestOverlappingSweepsAnnounceOnce(t *testing.T) {
 	db := openDB(t)
-	db.Exec(`INSERT INTO series VALUES ('s1','l1')`)
+	mustExec(t, db, `INSERT INTO series(id,name,libraryId,createdAt,updatedAt) VALUES ('s1','S','l1',?,?)`, stamp, stamp)
 	var r recorder
 	e := Env{DB: db, Filters: filterdata.NewCache(), Emit: r.emit}
 	var wg sync.WaitGroup
@@ -93,7 +108,7 @@ func TestSweepNeverDropsAConcurrentLink(t *testing.T) {
 	e := Env{DB: db, Filters: filterdata.NewCache()}
 	for i := 0; i < 1500; i++ {
 		author, link := fmt.Sprintf("a%d", i), fmt.Sprintf("ba%d", i)
-		if _, err := db.Exec(`INSERT INTO authors VALUES (?,'l1',NULL,NULL,NULL)`, author); err != nil {
+		if _, err := db.Exec(`INSERT INTO authors(id,name,libraryId,createdAt,updatedAt) VALUES (?,?,'l1',?,?)`, author, author, stamp, stamp); err != nil {
 			t.Fatal(err)
 		}
 		var wg sync.WaitGroup
@@ -102,7 +117,7 @@ func TestSweepNeverDropsAConcurrentLink(t *testing.T) {
 		go func() { defer wg.Done(); e.SweepAuthors(context.Background(), []string{author}) }()
 		go func() {
 			defer wg.Done()
-			_, linkErr = db.Exec(`INSERT INTO bookAuthors VALUES (?,'b1',?)`, link, author)
+			_, linkErr = db.Exec(`INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES (?,'b1',?,?)`, link, author, stamp)
 		}()
 		wg.Wait()
 		var n int
@@ -115,7 +130,7 @@ func TestSweepNeverDropsAConcurrentLink(t *testing.T) {
 
 func TestSweepIgnoresRequestCancellation(t *testing.T) {
 	db := openDB(t)
-	db.Exec(`INSERT INTO authors VALUES ('orphan','l1',NULL,NULL,NULL)`)
+	mustExec(t, db, `INSERT INTO authors(id,name,libraryId,createdAt,updatedAt) VALUES ('orphan','O','l1',?,?)`, stamp, stamp)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	Env{DB: db, Filters: filterdata.NewCache()}.SweepAuthors(ctx, []string{"orphan"})

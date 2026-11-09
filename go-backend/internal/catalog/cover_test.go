@@ -1,12 +1,21 @@
 package catalog
 
 import (
+	"bytes"
+	"mime/multipart"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"audiobookshelf-compat/internal/store"
 )
 
+// The sniffed types are the file-type magic numbers upstream uses for
+// downloaded covers. A URL download is SSRF-filtered, so no route test can
+// serve these bytes from a loopback server; the pure function is the only place
+// to check them (RETAIN).
 func TestSniffCoverTypeMatchesPinnedImageTypeHeaders(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -41,23 +50,63 @@ func TestSniffCoverTypeMatchesPinnedImageTypeHeaders(t *testing.T) {
 	}
 }
 
-func TestRemoveOldCoversUsesPinnedExtensionAllowlist(t *testing.T) {
-	dir := t.TempDir()
+// Uploading a cover replaces the item's earlier cover.* images but touches
+// nothing else in the folder (CoverManager.removeOldCovers removes only an
+// explicit allowlist of image extensions).
+func TestUploadCoverRemovesOnlyOlderCoverImages(t *testing.T) {
+	rig := newAuthorRig(t, nil)
+	dir := filepath.Join(rig.h.cfg.Dirs().Items, "i1")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range []string{"cover.svg", "cover.foo", "cover.png", "cover.JIFF", "other.jpg", "COVER.webp", "cover.jpg"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	removeOldCovers(dir, ".jpg")
-	for _, name := range []string{"cover.svg", "cover.foo", "other.jpg", "cover.jpg"} {
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("cover", "new.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write([]byte("\xff\xd8\xffnew-cover"))
+	_ = mw.Close()
+	req := httptest.NewRequest("POST", "/api/items/i1/cover", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req = req.WithContext(store.ContextWithUser(req.Context(), rootUser()))
+	w := httptest.NewRecorder()
+	rig.mux.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("upload %d %s", w.Code, w.Body)
+	}
+	for _, name := range []string{"cover.svg", "cover.foo", "other.jpg"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
-			t.Errorf("removeOldCovers removed unrelated or selected file %q: %v", name, err)
+			t.Errorf("the upload removed unrelated file %q: %v", name, err)
 		}
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "cover.jpg"))
+	if err != nil || string(got) != "\xff\xd8\xffnew-cover" {
+		t.Errorf("cover.jpg = %q, %v; want the uploaded bytes", got, err)
 	}
 	for _, name := range []string{"cover.png", "cover.JIFF", "COVER.webp"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
-			t.Errorf("removeOldCovers retained old image %q, stat error = %v", name, err)
+			t.Errorf("the old image %q survived the upload, stat error = %v", name, err)
 		}
+	}
+	// A file type outside the supported list is refused and removes nothing.
+	body.Reset()
+	mw = multipart.NewWriter(&body)
+	part, _ = mw.CreateFormFile("cover", "new.svg")
+	_, _ = part.Write([]byte("<svg/>"))
+	_ = mw.Close()
+	req = httptest.NewRequest("POST", "/api/items/i1/cover", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req = req.WithContext(store.ContextWithUser(req.Context(), rootUser()))
+	w = httptest.NewRecorder()
+	rig.mux.ServeHTTP(w, req)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), "Invalid image type .svg") {
+		t.Fatalf("svg upload: %d %q", w.Code, w.Body)
 	}
 }
 

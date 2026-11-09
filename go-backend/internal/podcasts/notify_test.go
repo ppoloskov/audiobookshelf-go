@@ -97,10 +97,10 @@ func (r *notifyRig) noNote(t *testing.T) {
 
 // PodcastManager.js:346-351 -> NotificationManager.js:81-121.
 func TestFeedFailureNotifications(t *testing.T) {
+	useLocalFeeds(t)
 	r := newNotifyRig(t)
 	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "down", 503) }))
 	defer down.Close()
-	r.h.SetHTTPClientForTests(down.Client())
 	if _, err := r.db.Exec(`UPDATE podcasts SET feedURL=?`, down.URL); err != nil {
 		t.Fatal(err)
 	}

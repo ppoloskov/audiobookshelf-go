@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"audiobookshelf-compat/internal/access"
 )
 
 // createUser makes an active user with all-access permissions and returns its
@@ -26,24 +24,6 @@ func createUser(t *testing.T, in *Install, root, name string) (string, string) {
 		t.Fatalf("create user: %d %s", resp.StatusCode, raw)
 	}
 	return created.User.ID, in.Login(t, name, name+"-password")
-}
-
-// TestRequestDecodesPermissionsOnce proves the runtime decodes a request user's
-// permissions once, however many checks the handlers make.
-func TestRequestDecodesPermissionsOnce(t *testing.T) {
-	in := Boot(t)
-	root := in.Login(t, in.Users["root"].Username, in.Users["root"].Password)
-	_, token := createUser(t, in, root, "decode-once")
-	lib := "/api/libraries/" + in.IDs["library"]
-	for _, path := range []string{lib + "/items?limit=5", "/api/items/" + in.IDs["novel"] + "?expanded=1", lib + "/personalized?minified=1"} {
-		before := access.Decodes()
-		if resp, raw := in.Do(t, http.MethodGet, path, token, nil); resp.StatusCode != http.StatusOK {
-			t.Fatalf("GET %s: %d %s", path, resp.StatusCode, raw)
-		}
-		if got := access.Decodes() - before; got != 1 {
-			t.Errorf("GET %s decoded permissions %d times, want 1", path, got)
-		}
-	}
 }
 
 // itemSocket is an authenticated socket counting item_updated events.
@@ -89,8 +69,17 @@ func (s *itemSocket) sees(t *testing.T, in *Install, root, title string) bool {
 	if resp, raw := in.Do(t, http.MethodPatch, path, root, map[string]any{"metadata": map[string]any{"title": title}}); resp.StatusCode != http.StatusOK {
 		t.Fatalf("PATCH %s: %d %s", path, resp.StatusCode, raw)
 	}
-	time.Sleep(400 * time.Millisecond)
-	return s.updated.Load() > before
+	// A positive result returns as soon as the event arrives. Proving that an
+	// event does NOT arrive cannot be awaited; the 400ms window is the
+	// unavoidable wait for the negative cases.
+	deadline := time.Now().Add(400 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if s.updated.Load() > before {
+			return true
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return false
 }
 
 func (s *itemSocket) disconnected() bool {

@@ -15,7 +15,8 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-// The personalized shelves are recorded by value for each user, library and
+// REGRESSION LOCK, recorded from this code (independent expectations are in
+// personalized_independent_test.go). The personalized shelves are recorded by value for each user, library and
 // settings variant. Regenerate with UPDATE_GOLDEN=1 only for an intended
 // behaviour change.
 

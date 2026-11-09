@@ -1,6 +1,7 @@
 package access
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -106,12 +107,13 @@ func userOf(typ string, active bool, permissions *string) store.User {
 	return user
 }
 
-// TestDecisionsMatchRecorded replays testdata/decisions.json. It was first
-// recorded from the per-package helpers this package replaced, then
-// re-recorded once (docs/SIMPLIFICATION.md, M7 fixes) for three deliberate
-// changes, each also pinned by its own test below: a permissions document
-// that does not decode completely grants nothing; explicit items need an
-// active user; an empty allow list hides every item from SQL too.
+// TestDecisionsMatchRecorded replays testdata/decisions.json. The file is a
+// regression lock only: it was recorded from this package's own rules (first
+// from the per-package helpers it replaced, then re-recorded for three
+// deliberate changes), so it proves nothing about upstream. The contract is
+// carried by TestMediaClauseMatchesContent and by the named tests below, which
+// state User.js rules by hand. Re-record with ACCESS_RECORD=1 only after a
+// deliberate rule change, and review the diff.
 func TestDecisionsMatchRecorded(t *testing.T) {
 	m, want := load(t)
 	got := decide(t, m)
@@ -216,13 +218,112 @@ func visible(t *testing.T, m matrix, clause string, args []any) []any {
 	return out
 }
 
-func TestContentAllowlistPartialOverlap(t *testing.T) {
-	permissions, _ := json.Marshal(map[string]any{"accessExplicitContent": true, "itemTagsSelected": []string{"x"}})
-	p := Of(store.User{IsActive: true, Permissions: permissions})
-	if !p.Content(libitem.Access{Tags: []string{"x", "y"}}) {
-		t.Fatal("allowlist must accept an item with at least one selected tag")
+func perms(typ string, active bool, doc string) Permissions {
+	return Of(store.User{ID: "u", Type: typ, IsActive: active, Permissions: json.RawMessage(doc)})
+}
+
+// User.checkCanAccessLibrary (server/models/User.js:641-645).
+func TestLibraryRule(t *testing.T) {
+	if !perms("user", true, `{"accessAllLibraries":true}`).Library("any") {
+		t.Error("accessAllLibraries grants every library")
 	}
-	if p.Content(libitem.Access{Tags: []string{"y"}}) {
-		t.Fatal("allowlist must reject an item with no selected tag")
+	p := perms("user", true, `{"accessAllLibraries":false,"librariesAccessible":["a"]}`)
+	if !p.Library("a") || p.Library("b") {
+		t.Error("a listed library is the only one accessible")
+	}
+	if perms("user", true, `{"accessAllLibraries":false}`).Library("a") {
+		t.Error("no list and not all libraries: nothing")
+	}
+}
+
+// LibraryController.findAll filters only by a non-empty librariesAccessible.
+func TestListLibraryIgnoresAccessAllLibraries(t *testing.T) {
+	if !perms("user", true, `{"accessAllLibraries":false}`).ListLibrary("x") {
+		t.Error("an empty list restricts nothing in the library list")
+	}
+	p := perms("user", true, `{"accessAllLibraries":true,"librariesAccessible":["a"]}`)
+	if !p.ListLibrary("a") || p.ListLibrary("b") {
+		t.Error("a non-empty list restricts the library list even with accessAllLibraries")
+	}
+}
+
+// User.checkCanAccessLibraryItemWithTags (User.js:658-669), every branch.
+func TestTagRule(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		doc     string
+		itemTag []string
+		want    bool
+	}{
+		{"all tags", `{"accessAllTags":true}`, nil, true},
+		{"all tags overrides the list", `{"accessAllTags":true,"itemTagsSelected":["x"],"selectedTagsNotAccessible":true}`, []string{"x"}, true},
+		{"allow list, item shares a tag", `{"itemTagsSelected":["x"]}`, []string{"x", "y"}, true},
+		{"allow list, no shared tag", `{"itemTagsSelected":["x"]}`, []string{"y"}, false},
+		{"allow list, untagged item", `{"itemTagsSelected":["x"]}`, nil, false},
+		{"empty allow list", `{"itemTagsSelected":[]}`, []string{"x"}, false},
+		{"deny list, untagged item", `{"itemTagsSelected":["x"],"selectedTagsNotAccessible":true}`, nil, true},
+		{"deny list, item has a denied tag among others", `{"itemTagsSelected":["x"],"selectedTagsNotAccessible":true}`, []string{"y", "x"}, false},
+		{"deny list, item has other tags only", `{"itemTagsSelected":["x"],"selectedTagsNotAccessible":true}`, []string{"y"}, true},
+		{"empty deny list admits everything", `{"itemTagsSelected":[],"selectedTagsNotAccessible":true}`, []string{"y"}, true},
+	} {
+		if got := perms("user", true, tc.doc).Content(libitem.Access{Tags: tc.itemTag}); got != tc.want {
+			t.Errorf("%s: Content = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// User.canDelete/canUpdate/canDownload/canUpload: the flag is JS-truthy and the
+// user active (User.js:560-571).
+func TestActionFlagsNeedAnActiveUserAndTruthyFlag(t *testing.T) {
+	doc := `{"update":true,"delete":1,"download":"yes","upload":false}`
+	active, inactive := perms("user", true, doc), perms("user", false, doc)
+	if !active.Update() || !active.Delete() || !active.Download() || active.Upload() {
+		t.Errorf("active user: update=%v delete=%v download=%v upload=%v", active.Update(), active.Delete(), active.Download(), active.Upload())
+	}
+	if inactive.Update() || inactive.Delete() || inactive.Download() || inactive.Upload() {
+		t.Error("an inactive user has no action permission")
+	}
+	if perms("admin", true, `{}`).Update() {
+		t.Error("admin type alone grants no flag; the permissions document decides")
+	}
+}
+
+func TestIsAdminIsRootOrAdmin(t *testing.T) {
+	for typ, want := range map[string]bool{"root": true, "admin": true, "user": false, "guest": false, "": false} {
+		if got := perms(typ, true, `{}`).IsAdmin(); got != want {
+			t.Errorf("IsAdmin(%q) = %v", typ, got)
+		}
+		if got := AdminUser(store.User{Type: typ}); got != want {
+			t.Errorf("AdminUser(%q) = %v", typ, got)
+		}
+	}
+}
+
+// The request snapshot exists so a request decodes a user's permissions once.
+// Reuse shows as no allocation; a different user, or the same user with a
+// changed permissions document, is decoded afresh and never served stale.
+func TestRequestSnapshotIsReusedOnlyForTheSameUserRow(t *testing.T) {
+	user := store.User{ID: "u1", Type: "user", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":false,"librariesAccessible":["a"],"update":true}`)}
+	ctx := WithRequest(context.Background(), user)
+	if allocs := testing.AllocsPerRun(50, func() { _ = For(ctx, user) }); allocs != 0 {
+		t.Errorf("For on the request's own user allocated %v times: the snapshot was not reused", allocs)
+	}
+	if allocs := testing.AllocsPerRun(50, func() { _ = Of(user) }); allocs == 0 {
+		t.Fatal("Of is expected to allocate; the reuse check above proves nothing")
+	}
+	if !For(ctx, user).Library("a") {
+		t.Fatal("snapshot lost the user's permissions")
+	}
+	changed := user
+	changed.Permissions = json.RawMessage(`{"accessAllLibraries":false,"librariesAccessible":["b"]}`)
+	if p := For(ctx, changed); p.Library("a") || !p.Library("b") {
+		t.Error("a changed permissions document must be decoded afresh, not served from the snapshot")
+	}
+	other := store.User{ID: "u2", Type: "user", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
+	if !For(ctx, other).Library("zzz") {
+		t.Error("another user must not get the request user's permissions")
+	}
+	if For(context.Background(), user).Update() != true {
+		t.Error("without a snapshot For decodes the row")
 	}
 }

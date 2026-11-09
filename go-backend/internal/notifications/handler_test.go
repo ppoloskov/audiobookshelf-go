@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"audiobookshelf-compat/internal/store"
@@ -220,20 +221,194 @@ func TestNotificationTestEventUsesSendStatusWhenUnconfigured(t *testing.T) {
 	}
 }
 
-func TestApprisePayloadPreservesMissingAndNullTemplates(t *testing.T) {
-	missing := payload(map[string]any{"urls": []any{"discord://test"}}, map[string]any{})
+// What reaches Apprise: a template left out of the notification is absent from
+// the request, while an explicit null or empty template is sent as given.
+func TestAppriseRequestPreservesMissingAndNullTemplates(t *testing.T) {
+	got := make(chan map[string]any, 3)
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var p map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&p)
+		got <- p
+	}))
+	defer mock.Close()
+	h := New(notificationDB(t, mock.URL), nil)
+	for event, body := range map[string]string{
+		"onBackupCompleted": `{"eventName":"onBackupCompleted","urls":["discord://t"],"enabled":true}`,
+		"onBackupFailed":    `{"eventName":"onBackupFailed","urls":["discord://t"],"titleTemplate":null,"bodyTemplate":"","enabled":true}`,
+	} {
+		w := httptest.NewRecorder()
+		serve(h, w, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(body)), store.User{Type: "admin"})
+		if w.Code != 200 {
+			t.Fatalf("create %s: %d %s", event, w.Code, w.Body)
+		}
+	}
+	if err := h.TriggerEvent(context.Background(), "onBackupCompleted", map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	missing := <-got
 	if _, ok := missing["title"]; ok {
-		t.Fatal("missing titleTemplate must omit title from the Apprise payload")
+		t.Errorf("missing titleTemplate must omit title: %#v", missing)
 	}
 	if _, ok := missing["body"]; ok {
-		t.Fatal("missing bodyTemplate must omit body from the Apprise payload")
+		t.Errorf("missing bodyTemplate must omit body: %#v", missing)
 	}
-	nullAndEmpty := payload(map[string]any{"titleTemplate": nil, "bodyTemplate": ""}, map[string]any{})
-	if value, ok := nullAndEmpty["title"]; !ok || value != nil {
-		t.Fatalf("null titleTemplate payload = %#v, key present=%t", value, ok)
+	if err := h.TriggerEvent(context.Background(), "onBackupFailed", map[string]any{}); err != nil {
+		t.Fatal(err)
 	}
-	if value, ok := nullAndEmpty["body"]; !ok || value != "" {
-		t.Fatalf("empty bodyTemplate payload = %#v, key present=%t", value, ok)
+	nullAndEmpty := <-got
+	if v, ok := nullAndEmpty["title"]; !ok || v != nil {
+		t.Errorf("null titleTemplate must send title:null: %#v", nullAndEmpty)
+	}
+	if v, ok := nullAndEmpty["body"]; !ok || v != "" {
+		t.Errorf("empty bodyTemplate must send body:\"\": %#v", nullAndEmpty)
+	}
+}
+
+type notificationState struct {
+	Settings struct {
+		Notifications []struct {
+			EventName                    string
+			Enabled                      bool
+			NumTimesFired                int
+			NumConsecutiveFailedAttempts int
+			LastAttemptFailed            bool
+		}
+	}
+}
+
+func readNotifications(t *testing.T, h *Handler) notificationState {
+	t.Helper()
+	w := httptest.NewRecorder()
+	serve(h, w, httptest.NewRequest(http.MethodGet, "/api/notifications", nil), store.User{Type: "admin"})
+	var st notificationState
+	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil {
+		t.Fatalf("%v: %s", err, w.Body)
+	}
+	return st
+}
+
+func createNotification(t *testing.T, h *Handler, body string) {
+	t.Helper()
+	w := httptest.NewRecorder()
+	serve(h, w, httptest.NewRequest(http.MethodPost, "/api/notifications", strings.NewReader(body)), store.User{Type: "admin"})
+	if w.Code != 200 {
+		t.Fatalf("create %s: %d %s", body, w.Code, w.Body)
+	}
+}
+
+// Only an enabled notification for the fired event is delivered; unknown
+// events and a missing Apprise URL deliver nothing (NotificationManager.js:21-46).
+func TestTriggerEventDeliversOnlyEnabledMatchingNotifications(t *testing.T) {
+	var mu sync.Mutex
+	var titles []string
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var p map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&p)
+		mu.Lock()
+		titles = append(titles, p["title"].(string))
+		mu.Unlock()
+	}))
+	defer mock.Close()
+	h := New(notificationDB(t, mock.URL), nil)
+	createNotification(t, h, `{"eventName":"onBackupFailed","urls":["discord://t"],"titleTemplate":"enabled","enabled":true}`)
+	createNotification(t, h, `{"eventName":"onBackupFailed","urls":["discord://t"],"titleTemplate":"disabled","enabled":false}`)
+	createNotification(t, h, `{"eventName":"onBackupCompleted","urls":["discord://t"],"titleTemplate":"other event","enabled":true}`)
+	ctx := context.Background()
+	if err := h.TriggerEvent(ctx, "onBackupFailed", map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.TriggerEvent(ctx, "onNoSuchEvent", map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	if len(titles) != 1 || titles[0] != "enabled" {
+		t.Errorf("delivered %v, want only [enabled]", titles)
+	}
+	mu.Unlock()
+	st := readNotifications(t, h)
+	for _, n := range st.Settings.Notifications {
+		fired := n.NumTimesFired == 1
+		if want := n.EventName == "onBackupFailed" && n.Enabled; fired != want {
+			t.Errorf("%s enabled=%v numTimesFired=%d", n.EventName, n.Enabled, n.NumTimesFired)
+		}
+	}
+
+	// No Apprise URL configured: nothing is sent and nothing is recorded.
+	t.Run("no Apprise URL", func(t *testing.T) {
+		none := New(notificationDB(t, ""), nil)
+		createNotification(t, none, `{"eventName":"onBackupFailed","urls":["discord://t"],"titleTemplate":"x","enabled":true}`)
+		if err := none.TriggerEvent(ctx, "onBackupFailed", map[string]any{}); err != nil {
+			t.Fatal(err)
+		}
+		if st := readNotifications(t, none); st.Settings.Notifications[0].NumTimesFired != 0 {
+			t.Errorf("fired without Apprise configured: %+v", st.Settings.Notifications[0])
+		}
+	})
+}
+
+// A notification that fails maxFailedAttempts times in a row (2 here) is
+// disabled and no longer delivered; a success in between resets the count
+// (NotificationManager.js:48-79).
+func TestConsecutiveDeliveryFailuresDisableNotification(t *testing.T) {
+	var mu sync.Mutex
+	status, hits := http.StatusInternalServerError, 0
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		hits++
+		code := status
+		mu.Unlock()
+		w.WriteHeader(code)
+	}))
+	defer mock.Close()
+	var updates int
+	h := New(notificationDB(t, mock.URL), func(_, event string, _ any) {
+		if event == "notifications_updated" {
+			updates++
+		}
+	})
+	createNotification(t, h, `{"eventName":"onBackupFailed","urls":["discord://t"],"titleTemplate":"t","enabled":true}`)
+	ctx := context.Background()
+	state := func() (n struct {
+		Enabled                      bool
+		NumTimesFired                int
+		NumConsecutiveFailedAttempts int
+		LastAttemptFailed            bool
+	}) {
+		st := readNotifications(t, h).Settings.Notifications[0]
+		n.Enabled, n.NumTimesFired, n.NumConsecutiveFailedAttempts, n.LastAttemptFailed = st.Enabled, st.NumTimesFired, st.NumConsecutiveFailedAttempts, st.LastAttemptFailed
+		return
+	}
+	_ = h.TriggerEvent(ctx, "onBackupFailed", nil)
+	if s := state(); !s.Enabled || s.NumConsecutiveFailedAttempts != 1 || !s.LastAttemptFailed {
+		t.Fatalf("after one failure: %+v", s)
+	}
+	mu.Lock()
+	status = http.StatusOK
+	mu.Unlock()
+	_ = h.TriggerEvent(ctx, "onBackupFailed", nil)
+	if s := state(); !s.Enabled || s.NumConsecutiveFailedAttempts != 0 || s.LastAttemptFailed || s.NumTimesFired != 2 {
+		t.Fatalf("a success must reset the failure count: %+v", s)
+	}
+	mu.Lock()
+	status = http.StatusInternalServerError
+	mu.Unlock()
+	_ = h.TriggerEvent(ctx, "onBackupFailed", nil)
+	_ = h.TriggerEvent(ctx, "onBackupFailed", nil)
+	if s := state(); s.Enabled || s.NumConsecutiveFailedAttempts != 2 {
+		t.Fatalf("two failures in a row must disable it: %+v", s)
+	}
+	mu.Lock()
+	before := hits
+	mu.Unlock()
+	_ = h.TriggerEvent(ctx, "onBackupFailed", nil)
+	mu.Lock()
+	after := hits
+	mu.Unlock()
+	if after != before {
+		t.Errorf("disabled notification was delivered again (%d -> %d hits)", before, after)
+	}
+	if updates != 4 {
+		t.Errorf("notifications_updated emitted %d times, want 4 (one per delivery)", updates)
 	}
 }
 func TestNotificationRejectsNonAdmin(t *testing.T) {

@@ -56,6 +56,7 @@ func TestParseFeedShapesAndSanitizesRSS(t *testing.T) {
 }
 
 func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
+	useLocalFeeds(t)
 	root := t.TempDir()
 	folder := filepath.Join(root, "podcasts")
 	if err := os.MkdirAll(folder, 0755); err != nil {
@@ -163,7 +164,6 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 		_, _ = fmt.Fprintf(w, `<rss><channel><title>Fixture</title><item><title>Downloaded Episode</title><guid>download-guid</guid><pubDate>Mon, 02 Jan 2006 15:04:05 GMT</pubDate><enclosure url="http://%s/audio.wav" type="audio/wav" length="%d"/></item></channel></rss>`, r.Host, len(tone))
 	}))
 	defer downloadServer.Close()
-	h.SetHTTPClientForTests(downloadServer.Client())
 	feedURL := downloadServer.URL + "/feed"
 	feed, feedErr := h.getFeed(context.Background(), feedURL)
 	if feedErr != nil {
@@ -217,7 +217,6 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	}
 	opmlServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(feedFixture)) }))
 	defer opmlServer.Close()
-	h.SetHTTPClientForTests(opmlServer.Client())
 	opmlBody := `{"feeds":["` + opmlServer.URL + `/feed"],"libraryId":"lib","folderId":"folder","autoDownloadEpisodes":false}`
 	r = httptest.NewRequest("POST", "/api/podcasts/opml/create", strings.NewReader(opmlBody))
 	r.Header.Set("Content-Type", "application/json")
@@ -238,7 +237,6 @@ func TestCreatePodcastValidatesFolderAndPersistsSourceShape(t *testing.T) {
 	}
 	failedFeed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "fixture unavailable", 503) }))
 	defer failedFeed.Close()
-	h.SetHTTPClientForTests(failedFeed.Client())
 	if _, err = db.Exec(`UPDATE podcasts SET feedURL=?,autoDownloadEpisodes=1 WHERE id=?`, failedFeed.URL, mediaID); err != nil {
 		t.Fatal(err)
 	}
@@ -274,13 +272,13 @@ func testToneWAV(duration float64) []byte {
 }
 
 func TestFeedAndOPMLRoutesAgainstControlledHTTPFixture(t *testing.T) {
+	useLocalFeeds(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/rss+xml")
 		_, _ = w.Write([]byte(feedFixture))
 	}))
 	defer server.Close()
 	h := New(nil, config.Config{}, nil, nil)
-	h.SetHTTPClientForTests(server.Client())
 	r := httptest.NewRequest("POST", "/api/podcasts/feed", strings.NewReader(`{"rssFeed":"`+server.URL+`"}`))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -303,6 +301,7 @@ func TestFeedAndOPMLRoutesAgainstControlledHTTPFixture(t *testing.T) {
 }
 
 func TestOPMLImportCreationOutcomesAndEventPayloads(t *testing.T) {
+	useLocalFeeds(t)
 	root := t.TempDir()
 	folder := filepath.Join(root, "podcasts")
 	if err := os.MkdirAll(folder, 0755); err != nil {
@@ -341,7 +340,6 @@ func TestOPMLImportCreationOutcomesAndEventPayloads(t *testing.T) {
 	}))
 	defer server.Close()
 	h := New(db, config.Config{}, nil, nil)
-	h.SetHTTPClientForTests(server.Client())
 	type taskEvent struct {
 		name string
 		task events.Task

@@ -26,17 +26,11 @@ func TestLoadRouterBasePathAndPort(t *testing.T) {
 			if tc.setBase {
 				t.Setenv("ROUTER_BASE_PATH", tc.base)
 			} else {
-				oldValue, wasSet := os.LookupEnv("ROUTER_BASE_PATH")
+				// t.Setenv registers the restore; Unsetenv then makes it absent.
+				t.Setenv("ROUTER_BASE_PATH", "")
 				if err := os.Unsetenv("ROUTER_BASE_PATH"); err != nil {
 					t.Fatal(err)
 				}
-				t.Cleanup(func() {
-					if wasSet {
-						_ = os.Setenv("ROUTER_BASE_PATH", oldValue)
-					} else {
-						_ = os.Unsetenv("ROUTER_BASE_PATH")
-					}
-				})
 			}
 			cfg, err := LoadArgs(nil)
 			if tc.wantErr {
@@ -55,6 +49,8 @@ func TestLoadRouterBasePathAndPort(t *testing.T) {
 	}
 }
 
+// Expected values are hand-derived from normalizeBasePath in server/Server.js:55-63
+// (trim, "" and "/" mean none, add one leading slash, drop one trailing slash).
 func TestNormalizeBasePath(t *testing.T) {
 	for input, want := range map[string]string{
 		"": "", "/": "", "   ": "", "media///": "/media//",

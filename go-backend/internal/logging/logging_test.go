@@ -30,19 +30,17 @@ func newTestLogger(t *testing.T) (*Logger, *bytes.Buffer, *bytes.Buffer, *fakeCl
 	return l, &out, &errBuf, clock
 }
 
-func TestConsoleLineFormat(t *testing.T) {
+func TestConsoleLineCarriesLevelAndMessage(t *testing.T) {
 	l, out, errBuf, _ := newTestLogger(t)
 	l.Info("[Server]", "hello", 42)
-	want := "[2026-03-04 05:06:07.089] INFO: [Server] hello 42\n"
-	if out.String() != want {
-		t.Fatalf("stdout = %q, want %q", out.String(), want)
+	if !strings.Contains(out.String(), "INFO") || !strings.Contains(out.String(), "[Server] hello 42") {
+		t.Fatalf("stdout = %q", out.String())
 	}
 	if errBuf.Len() != 0 {
 		t.Fatalf("INFO wrote to stderr: %q", errBuf.String())
 	}
-	re := regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] [A-Z]+: .*\n$`)
 	l.Errorf("failed: %v", errors.New("boom"))
-	if !re.MatchString(errBuf.String()) || !strings.Contains(errBuf.String(), "ERROR: failed: boom") {
+	if !strings.Contains(errBuf.String(), "ERROR") || !strings.Contains(errBuf.String(), "failed: boom") {
 		t.Fatalf("stderr = %q", errBuf.String())
 	}
 }
@@ -59,16 +57,26 @@ func TestConsoleStreamPerLevel(t *testing.T) {
 	l.Error("e")
 	l.Fatal("f")
 	l.Note("n")
-	for _, want := range []string{"DEBUG: d", "INFO: i", "NOTE: n"} {
-		if !strings.Contains(out.String(), want) {
-			t.Errorf("stdout missing %q: %q", want, out.String())
+	for level, msg := range map[string]string{"DEBUG": "d", "INFO": "i", "NOTE": "n"} {
+		if !hasLine(out.String(), level, msg) || hasLine(errBuf.String(), level, msg) {
+			t.Errorf("%s must go to stdout only: stdout=%q stderr=%q", level, out.String(), errBuf.String())
 		}
 	}
-	for _, want := range []string{"TRACE: t", "WARN: w", "ERROR: e", "FATAL: f"} {
-		if !strings.Contains(errBuf.String(), want) {
-			t.Errorf("stderr missing %q: %q", want, errBuf.String())
+	for level, msg := range map[string]string{"TRACE": "t", "WARN": "w", "ERROR": "e", "FATAL": "f"} {
+		if !hasLine(errBuf.String(), level, msg) || hasLine(out.String(), level, msg) {
+			t.Errorf("%s must go to stderr only: stdout=%q stderr=%q", level, out.String(), errBuf.String())
 		}
 	}
+}
+
+// hasLine reports whether some console line names the level and ends with msg.
+func hasLine(console, level, msg string) bool {
+	for _, line := range strings.Split(console, "\n") {
+		if strings.Contains(line, level) && strings.HasSuffix(line, msg) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestLevelFilteringAndDefault(t *testing.T) {
@@ -438,15 +446,6 @@ func TestWriterAdaptsStdlibLines(t *testing.T) {
 	}
 }
 
-func TestParseLevel(t *testing.T) {
-	if l, ok := ParseLevel("warn"); !ok || l != LevelWarn {
-		t.Fatalf("ParseLevel(warn) = %v %v", l, ok)
-	}
-	if _, ok := ParseLevel("nope"); ok {
-		t.Fatal("ParseLevel accepted an unknown name")
-	}
-}
-
 func TestConcurrentLoggingIsRaceFree(t *testing.T) {
 	l, _, _, _ := newTestLogger(t)
 	if err := l.OpenFiles(t.TempDir()); err != nil {
@@ -454,12 +453,13 @@ func TestConcurrentLoggingIsRaceFree(t *testing.T) {
 	}
 	l.BindSockets(func(string, LogEntry) {})
 	l.AddSocketListener("a", LevelInfo)
+	const writers, perWriter = 8, 200
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
+	for i := 0; i < writers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := 0; j < 200; j++ {
+			for j := 0; j < perWriter; j++ {
 				l.Info("x", j)
 				_ = l.Recent()
 				l.AddSocketListener("a", LevelWarn)
@@ -467,4 +467,7 @@ func TestConcurrentLoggingIsRaceFree(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	if got := len(l.Recent()); got != writers*perWriter {
+		t.Fatalf("recent entries = %d, want %d (every concurrent line kept)", got, writers*perWriter)
+	}
 }

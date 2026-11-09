@@ -14,6 +14,7 @@ import (
 )
 
 func TestQuickMatchEpisodesPersistsFeedFields(t *testing.T) {
+	useLocalFeeds(t)
 	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`<?xml version="1.0"?><rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"><channel><title>Feed</title><item><title>The Story</title><itunes:subtitle>Episode One</itunes:subtitle><description>Details</description><itunes:episode>1</itunes:episode><itunes:season>1</itunes:season><pubDate>Wed, 01 Jan 2025 00:00:00 GMT</pubDate><enclosure url="https://feed.test/audio.mp3" length="1234" type="audio/mpeg"/></item></channel></rss>`))
 	}))
@@ -38,7 +39,6 @@ func TestQuickMatchEpisodesPersistsFeedFields(t *testing.T) {
 	}
 	h := New(db, config.Config{}, nil, nil)
 	defer h.Close()
-	h.SetHTTPClientForTests(feed.Client())
 	updated, err := h.QuickMatchEpisodes(context.Background(), "item-podcast", false)
 	if err != nil || updated != 1 {
 		t.Fatalf("quick match updated=%d err=%v", updated, err)

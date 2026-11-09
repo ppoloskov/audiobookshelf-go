@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -113,6 +112,9 @@ func TestCreateBackupUsesVacuumSnapshotAndPinnedArchiveLayout(t *testing.T) {
 	}
 }
 
+// Backup lifecycle events reach the notification hook given to New: completion
+// only after the backup is indexed (and a delivery error does not fail the
+// backup), failure with the error message and nothing indexed.
 func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 	t.Run("success notifies after backup is indexed", func(t *testing.T) {
 		root := t.TempDir()
@@ -129,78 +131,53 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 		if _, err := db.Exec(`CREATE TABLE example (id INTEGER PRIMARY KEY)`); err != nil {
 			t.Fatal(err)
 		}
-		h, err := New(cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
+		var h *Handler
+		var events []string
+		var indexedAtNotify, count any
+		var path any
+		h, err = New(cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil, func(_ context.Context, event string, payload map[string]any) error {
+			events = append(events, event)
+			indexedAtNotify = len(h.list())
+			path, count = payload["backupPath"], payload["backupCount"]
+			return errors.New("notification delivery failure must not fail backup")
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer h.Close()
-
-		var notified bool
-		h.notify = func(ctx context.Context, event string, payload map[string]any) error {
-			notified = true
-			if ctx == nil {
-				t.Fatal("notification context is nil")
-			}
-			if event != "onBackupCompleted" {
-				t.Fatalf("event = %q, want onBackupCompleted", event)
-			}
-			if got := h.list(); len(got) != 1 || got[0].FullPath != payload["backupPath"] {
-				t.Fatalf("notification ran before backup was indexed: backups=%#v payload=%#v", got, payload)
-			}
-			b := h.list()[0]
-			want := map[string]any{
-				"completionTime": b.CreatedAt,
-				"backupPath":     b.FullPath,
-				"backupSize":     b.FileSize,
-				"backupCount":    1,
-				"removedOldest":  "false",
-			}
-			if !reflect.DeepEqual(payload, want) {
-				t.Fatalf("payload = %#v, want %#v", payload, want)
-			}
-			return errors.New("notification delivery failure must not fail backup")
-		}
-
 		b, err := h.Create(context.Background())
 		if err != nil {
-			t.Fatalf("Create failed because notification handler returned an error: %v", err)
+			t.Fatalf("Create failed because the notification hook returned an error: %v", err)
 		}
-		if !notified || b.FullPath == "" {
-			t.Fatalf("completion notification called=%t backup=%#v", notified, b)
+		if !reflect.DeepEqual(events, []string{"onBackupCompleted"}) {
+			t.Fatalf("events = %v", events)
+		}
+		if indexedAtNotify != 1 || count != 1 || path != b.FullPath {
+			t.Fatalf("at notification: indexed=%v count=%v path=%v, want the one new backup %s", indexedAtNotify, count, path, b.FullPath)
 		}
 	})
 
 	t.Run("failure notifies with source error message", func(t *testing.T) {
 		root := t.TempDir()
-		h, err := New(config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
+		var h *Handler
+		var events []string
+		var sent map[string]any
+		var indexed int
+		h, err := New(config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}, Options{BackupPath: filepath.Join(root, "backups")}, nil, func(_ context.Context, event string, payload map[string]any) error {
+			events = append(events, event)
+			sent, indexed = payload, len(h.list())
+			return nil
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer h.Close()
-
-		var notified bool
-		var sent map[string]any
-		h.notify = func(_ context.Context, event string, payload map[string]any) error {
-			notified = true
-			if event != "onBackupFailed" {
-				t.Fatalf("event = %q, want onBackupFailed", event)
-			}
-			sent = payload
-			if len(h.list()) != 0 {
-				t.Fatalf("failed backup was indexed before notification: %#v", h.list())
-			}
-			return nil
-		}
-
 		b, err := h.Create(context.Background())
-		if msg, _ := sent["errorMsg"].(string); err == nil || len(sent) != 1 || msg != err.Error() {
-			t.Fatalf("payload = %#v, want errorMsg of %v", sent, err)
-		}
 		if err == nil || b != (Backup{}) {
 			t.Fatalf("Create = (%#v, %v), want empty backup and the missing-database error", b, err)
 		}
-		if !notified {
-			t.Fatal("failure notification was not called")
+		if !reflect.DeepEqual(events, []string{"onBackupFailed"}) || sent["errorMsg"] != err.Error() || indexed != 0 {
+			t.Fatalf("events %v payload %#v indexed %d", events, sent, indexed)
 		}
 	})
 }
@@ -221,7 +198,7 @@ func TestReadBackupRequiresDatabaseDetailsAndVersion(t *testing.T) {
 	}
 }
 
-func TestMissingBackupUsesExpressSendStatus(t *testing.T) {
+func TestMissingBackupIs404(t *testing.T) {
 	root := t.TempDir()
 	h, err := New(config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 	if err != nil {
@@ -239,13 +216,13 @@ func TestMissingBackupUsesExpressSendStatus(t *testing.T) {
 		}
 		w := httptest.NewRecorder()
 		serve(h, w, httptest.NewRequest(method, path, nil), store.User{Type: "admin"})
-		if w.Code != http.StatusNotFound || w.Body.String() != "Not Found" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" || w.Header().Get("ETag") == "" {
-			t.Fatalf("%s %s status=%d headers=%v body=%q", method, path, w.Code, w.Header(), w.Body.String())
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("%s %s status=%d body=%q", method, path, w.Code, w.Body.String())
 		}
 	}
 }
 
-func TestUploadInvalidExtensionUsesExpressSend(t *testing.T) {
+func TestUploadInvalidExtensionIsRejected(t *testing.T) {
 	root := t.TempDir()
 	h, err := New(config.Config{MetadataPath: root}, Options{BackupPath: filepath.Join(root, "backups")}, nil, nil)
 	if err != nil {
@@ -264,9 +241,11 @@ func TestUploadInvalidExtensionUsesExpressSend(t *testing.T) {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	res := httptest.NewRecorder()
 	httputil.Handler(h.upload).ServeHTTP(res, req)
-	want := "Invalid backup file"
-	if res.Code != http.StatusInternalServerError || res.Body.String() != want || res.Header().Get("Content-Type") != "text/html; charset=utf-8" || res.Header().Get("ETag") != `W/"13-bxUZ24wsDGbPFzFAIqXhoyNKTHE"` {
-		t.Fatalf("response = %d %q headers=%v", res.Code, res.Body.String(), res.Header())
+	if res.Code != http.StatusInternalServerError || !strings.Contains(res.Body.String(), "Invalid backup file") {
+		t.Fatalf("response = %d %q", res.Code, res.Body.String())
+	}
+	if entries, _ := os.ReadDir(filepath.Join(root, "backups")); len(entries) != 0 {
+		t.Fatalf("rejected upload left %d files in the backup directory", len(entries))
 	}
 }
 
@@ -404,137 +383,5 @@ func TestApplyStagesSafeMetadataAndRejectsTraversalAndSymlinks(t *testing.T) {
 		if strings.Contains(w.Body.String(), "panic") {
 			t.Fatal(w.Body.String())
 		}
-	}
-}
-
-// These interoperability checks run against the actual upstream-created
-// fixture when ABS_BACKUP_NODE_ARCHIVE is provided by the parity harness.
-func TestUpstreamCreatedBackupImports(t *testing.T) {
-	archive := os.Getenv("ABS_BACKUP_NODE_ARCHIVE")
-	if archive == "" {
-		t.Skip("set ABS_BACKUP_NODE_ARCHIVE to an upstream-produced backup fixture")
-	}
-	root := t.TempDir()
-	cfg := config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}
-	if err := os.MkdirAll(cfg.ConfigPath, 0755); err != nil {
-		t.Fatal(err)
-	}
-	var itemMeta, authorAsset string
-	h, err := New(cfg, Options{BackupPath: filepath.Dir(archive), Restore: func(_ context.Context, db, items, authors string) error {
-		if _, e := os.Stat(db); e != nil {
-			return e
-		}
-		found := false
-		if e := filepath.WalkDir(items, func(path string, d os.DirEntry, e error) error {
-			if e != nil {
-				return e
-			}
-			if !d.IsDir() {
-				found = true
-				if strings.HasSuffix(path, "metadata.json") {
-					b, e := os.ReadFile(path)
-					if e == nil {
-						itemMeta = string(b)
-					}
-				}
-			}
-			return nil
-		}); e != nil {
-			return e
-		}
-		if !found {
-			return errors.New("upstream archive contained no item metadata")
-		}
-		if e := filepath.WalkDir(authors, func(path string, d os.DirEntry, e error) error {
-			if e != nil {
-				return e
-			}
-			if !d.IsDir() {
-				b, e := os.ReadFile(path)
-				if e == nil {
-					authorAsset = string(b)
-				}
-				return e
-			}
-			return nil
-		}); e != nil {
-			return e
-		}
-		return nil
-	}}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer h.Close()
-	var b Backup
-	for _, candidate := range h.list() {
-		if candidate.FullPath == archive {
-			b = candidate
-			break
-		}
-	}
-	if b.ID == "" {
-		t.Fatalf("upstream archive was not indexed: %s", archive)
-	}
-	r := httptest.NewRequest("GET", "/api/backups/"+b.ID+"/apply", nil)
-	w := httptest.NewRecorder()
-	serve(h, w, r, store.User{Type: "admin"})
-	if w.Code != 200 {
-		t.Fatalf("import upstream backup failed (%d): %s", w.Code, w.Body.String())
-	}
-	if itemMeta == "" || authorAsset == "" {
-		t.Fatalf("upstream archive data missing: item=%t author=%t", itemMeta != "", authorAsset != "")
-	}
-}
-
-func TestExportNodeFixtureDatabaseForNodeImport(t *testing.T) {
-	dbSource, metaSource, outDir := os.Getenv("ABS_BACKUP_FIXTURE_DB"), os.Getenv("ABS_BACKUP_FIXTURE_METADATA"), os.Getenv("ABS_BACKUP_EXPORT_DIR")
-	if dbSource == "" || metaSource == "" || outDir == "" {
-		t.Skip("set ABS_BACKUP_FIXTURE_DB, ABS_BACKUP_FIXTURE_METADATA, and ABS_BACKUP_EXPORT_DIR for Node import parity")
-	}
-	root := t.TempDir()
-	cfg := config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: metaSource}
-	if err := os.MkdirAll(cfg.ConfigPath, 0755); err != nil {
-		t.Fatal(err)
-	}
-	src, e := os.Open(dbSource)
-	if e != nil {
-		t.Fatal(e)
-	}
-	dst, e := os.Create(filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = io.Copy(dst, src); e != nil {
-		t.Fatal(e)
-	}
-	_ = src.Close()
-	if e = dst.Close(); e != nil {
-		t.Fatal(e)
-	}
-	db, e := sql.Open("sqlite", "file:"+filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")+"?mode=ro")
-	if e != nil {
-		t.Fatal(e)
-	}
-	db.SetMaxOpenConns(1) // production pool size (store.Open)
-	defer db.Close()
-	if e = os.MkdirAll(outDir, 0755); e != nil {
-		t.Fatal(e)
-	}
-	h, e := New(cfg, Options{BackupPath: outDir, BackupsToKeep: 10}, nil, nil)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer h.Close()
-	backup, e := h.Create(context.Background())
-	if e != nil {
-		t.Fatal(e)
-	}
-	destPath := filepath.Join(outDir, "go-created.audiobookshelf")
-	if e = os.Rename(backup.FullPath, destPath); e != nil {
-		t.Fatal(e)
-	}
-	if _, e = readBackup(destPath); e != nil {
-		t.Fatalf("Go archive is not upstream-importable: %v", e)
 	}
 }

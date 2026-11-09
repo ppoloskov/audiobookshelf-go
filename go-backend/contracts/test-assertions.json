@@ -663,7 +663,7 @@
       "symbol": "TestSanitizeGolden",
       "assertionCount": 55,
       "countUnit": "unchanged raw-output corpus rows",
-      "expectation": "All non-target sanitizer corpus rows, including security and malformed cases, remain exact; TestSanitizeDifferences and Strip goldens remain unchanged.",
+      "expectation": "All non-target sanitizer corpus rows, including security and malformed cases, remain exact; TestSanitizeMatchesUpstreamSanitizeHTML and Strip goldens remain unchanged.",
       "disposition": "retained"
     },
     {
@@ -678,7 +678,7 @@
     {
       "id": "C-R07-sanitize-differences",
       "path": "internal/textclean/golden_test.go",
-      "symbol": "TestSanitizeDifferences",
+      "symbol": "TestSanitizeMatchesUpstreamSanitizeHTML",
       "assertionCount": 3,
       "countUnit": "sanitizer parser-difference rows",
       "expectation": "Previously established malformed-input/security differences remain unchanged.",

@@ -34,4 +34,7 @@ func TestLevenshteinFoldIgnoresCase(t *testing.T) {
 	if got := LevenshteinFold("Dune", "Dunk"); got != 1 {
 		t.Fatalf("LevenshteinFold = %d, want 1", got)
 	}
+	if got := LevenshteinFold("Éclair", "éCLAIR"); got != 0 {
+		t.Fatalf("LevenshteinFold on accented capitals = %d, want 0", got)
+	}
 }

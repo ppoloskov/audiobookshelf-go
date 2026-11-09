@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,9 +42,7 @@ func TestTranscodeAudioCodecMatchesPinnedStreamPolicy(t *testing.T) {
 
 func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 	h, user, itemID, mediaPath := fixture(t)
-	type emitted struct{ userID, event string }
-	var emissions []emitted
-	h.emit = func(userID, event string, _ any) { emissions = append(emissions, emitted{userID, event}) }
+	type emitted = emission
 	body := `{"mediaPlayer":"test","forceDirectPlay":true,"deviceInfo":{"deviceId":"device-one","clientName":"test"}}`
 	start := request(h, http.MethodPost, "/api/items/"+itemID+"/play", user, body)
 	if start.Code != http.StatusOK {
@@ -57,8 +56,8 @@ func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 	if sid == "" || sessionJSON["playMethod"] != float64(0) {
 		t.Fatalf("unexpected session payload: %v", sessionJSON)
 	}
-	if len(emissions) == 0 || emissions[0] != (emitted{"@admins", "user_stream_update"}) {
-		t.Fatalf("stream update audience mismatch: %+v", emissions)
+	if got := h.emissions(); len(got) == 0 || got[0] != (emitted{"@admins", "user_stream_update"}) {
+		t.Fatalf("stream update audience mismatch: %+v", got)
 	}
 
 	stream := httptest.NewRecorder()
@@ -88,7 +87,7 @@ func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 	if sync.Code != http.StatusOK {
 		t.Fatalf("sync: %d %s", sync.Code, sync.Body.String())
 	}
-	if got := emissions[len(emissions)-1]; got != (emitted{user.ID, "user_item_progress_updated"}) {
+	if got := last(h.emissions()); got != (emitted{user.ID, "user_item_progress_updated"}) {
 		t.Fatalf("progress event audience mismatch: %+v", got)
 	}
 	var count int
@@ -103,7 +102,7 @@ func TestDirectPlaybackRangeOwnershipAndProgressPersistence(t *testing.T) {
 	if close.Code != http.StatusOK {
 		t.Fatalf("close: %d %s", close.Code, close.Body.String())
 	}
-	if got := emissions[len(emissions)-1]; got != (emitted{user.ID, "user_session_closed"}) {
+	if got := last(h.emissions()); got != (emitted{user.ID, "user_session_closed"}) {
 		t.Fatalf("close event audience mismatch: %+v", got)
 	}
 	missing := httptest.NewRecorder()
@@ -168,7 +167,7 @@ func TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles(t *testing.T)
 	sid, _ := s["id"].(string)
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(filepath.Join(h.cfg.MetadataPath, "streams", sid, "output-0.ts")); err == nil {
+		if _, err := os.Stat(filepath.Join(h.meta, "streams", sid, "output-0.ts")); err == nil {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -261,14 +260,38 @@ func TestOfflineLocalSyncAndAdminHistoryRoutes(t *testing.T) {
 	}
 }
 
-func request(h *Handler, method, path string, user store.User, body string) *httptest.ResponseRecorder {
+func request(h *env, method, path string, user store.User, body string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	serve(h, w, r, user)
 	return w
 }
 
-func fixture(t *testing.T) (*Handler, store.User, string, string) {
+// env is a Handler over the fixture database. It records every emitted event;
+// db and meta are the fixture's own handles so tests can seed and inspect rows.
+type env struct {
+	*Handler
+	db   *sql.DB
+	meta string
+	mu   sync.Mutex
+	sent []emission
+}
+
+type emission struct{ userID, event string }
+
+func (e *env) record(userID, event string, _ any) {
+	e.mu.Lock()
+	e.sent = append(e.sent, emission{userID, event})
+	e.mu.Unlock()
+}
+
+func (e *env) emissions() []emission {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return append([]emission(nil), e.sent...)
+}
+
+func fixture(t *testing.T) (*env, store.User, string, string) {
 	t.Helper()
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -316,8 +339,9 @@ func fixture(t *testing.T) (*Handler, store.User, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Config{MetadataPath: t.TempDir()}
-	h := New(db, cfg, nil)
+	e := &env{db: db, meta: t.TempDir()}
+	e.Handler = New(db, config.Config{MetadataPath: e.meta}, e.record)
+	h := e
 	user := store.User{ID: "user-one", Username: "tester", Type: "user", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	return h, user, "item-one", path
 }
@@ -352,8 +376,10 @@ func writeWAV(t *testing.T, path string) {
 }
 
 // serve dispatches through the route mux as the runtime does.
-func serve(h *Handler, w http.ResponseWriter, r *http.Request, user store.User) {
+func serve(h *env, w http.ResponseWriter, r *http.Request, user store.User) {
 	mux := http.NewServeMux()
 	h.Routes(mux)
 	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 }
+
+func last(e []emission) emission { return e[len(e)-1] }

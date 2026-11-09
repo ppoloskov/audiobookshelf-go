@@ -90,7 +90,10 @@ func TestAccessLineIsDebugOnly(t *testing.T) {
 	count := func() int {
 		n := 0
 		for _, e := range l.Recent() {
-			if strings.HasPrefix(e.Message, "[HTTP] GET /access-line-probe 204 ") {
+			if strings.Contains(e.Message, "/access-line-probe") {
+				if e.Level != int(logging.LevelDebug) {
+					t.Fatalf("access line logged at level %d (%s), want DEBUG", e.Level, e.LevelName)
+				}
 				n++
 			}
 		}
@@ -121,7 +124,12 @@ func TestLivenessProbesAreTraceOnly(t *testing.T) {
 	count := func(path string) int {
 		n := 0
 		for _, e := range l.Recent() {
-			if strings.HasPrefix(e.Message, "[HTTP] GET "+path+" 200 ") {
+			if strings.Contains(e.Message, " "+path+" ") {
+				if want := int(logging.LevelDebug); path == "/other/request" && e.Level != want {
+					t.Fatalf("%s logged at level %s, want DEBUG", path, e.LevelName)
+				} else if path != "/other/request" && e.Level != int(logging.LevelTrace) {
+					t.Fatalf("%s logged at level %s, want TRACE", path, e.LevelName)
+				}
 				n++
 			}
 		}

@@ -30,6 +30,7 @@ type transcode struct {
 	segmentStart int
 	complete     bool
 	resetting    bool
+	closed       bool // set by close; a pending seek restart must not start ffmpeg again
 	done         chan struct{}
 }
 
@@ -158,10 +159,14 @@ func (t *transcode) generatePlaylist(duration float64) error {
 }
 
 func (t *transcode) start(concat string) error {
-	ctx, cancel := context.WithCancel(context.Background())
 	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
+		return nil
+	}
 	startTime, segmentStart := t.startTime, t.segmentStart
 	t.mu.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
 	var args []string
 	adjusted := math.Max(startTime-30, 0)
 	if adjusted > 0 {
@@ -170,6 +175,11 @@ func (t *transcode) start(concat string) error {
 	args = append(args, "-f", "concat", "-safe", "0", "-i", concat, "-map", "0:a", "-c:a", t.audioCodec, "-f", "hls", "-copyts", "-avoid_negative_ts", "make_non_negative", "-max_delay", "5000000", "-max_muxing_queue_size", "2048", "-hls_time", strconv.Itoa(segmentSeconds), "-hls_segment_type", "mpegts", "-start_number", strconv.Itoa(segmentStart), "-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_allow_cache", "0", "-hls_segment_filename", filepath.Join(t.root, "output-%d.ts"), filepath.Join(t.root, "final-output.m3u8"))
 	done := make(chan struct{})
 	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
+		cancel()
+		return nil
+	}
 	t.ctx = ctx
 	t.cancel = cancel
 	t.done = done
@@ -258,6 +268,7 @@ func (t *transcode) checkSegment(seg int) float64 {
 
 func (t *transcode) close() error {
 	t.mu.Lock()
+	t.closed = true
 	cancel := t.cancel
 	done := t.done
 	t.mu.Unlock()

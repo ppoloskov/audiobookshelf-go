@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/wire"
@@ -45,21 +44,18 @@ func relationSnapshot(t *testing.T, rig *authorRig) string {
 		names = append(names, e.event)
 		byName[e.event] += id + ";"
 	}
-	sort.Strings(names)
-	d, fd := rig.h.filters.Fresh("l1")
-	filter := ""
-	if fd {
-		var a, s []string
-		for _, n := range d.Authors {
-			a = append(a, n.Name)
-		}
-		for _, n := range d.Series {
-			s = append(s, n.Name)
-		}
-		sort.Strings(a)
-		sort.Strings(s)
-		filter = strings.Join(a, ",") + "|" + strings.Join(s, ",")
+	var d filterdata.Data
+	decodeAuthorBody(t, rig.do("GET", "/api/libraries/l1/filterdata", "", rootUser()), &d)
+	var a, s []string
+	for _, n := range d.Authors {
+		a = append(a, n.Name)
 	}
+	for _, n := range d.Series {
+		s = append(s, n.Name)
+	}
+	sort.Strings(a)
+	sort.Strings(s)
+	filter := strings.Join(a, ",") + "|" + strings.Join(s, ",")
 	touched := append([]string(nil), rig.touched...)
 	sort.Strings(touched)
 	return fmt.Sprintf("links=%s authors=%s series=%s seq=%s events=%s filter=%s touched=%s",
@@ -99,7 +95,10 @@ func TestItemMutationRelationsAcrossRoutes(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				rig.h.filters.Store("l1", filterdata.Data{Authors: []filterdata.Named{{ID: "a1", Name: "Ada Author"}, {ID: "a2", Name: "Ben Writer"}}, Series: []filterdata.Named{{ID: "s1", Name: "First Series"}}, LoadedAt: time.Now().UnixMilli()})
+				// Load the library's filter data so the mutation patches it in place (it is served up to 30 minutes).
+				if w := rig.do("GET", "/api/libraries/l1/filterdata", "", rootUser()); w.Code != 200 {
+					t.Fatalf("filterdata %d %s", w.Code, w.Body)
+				}
 				var authors, series []map[string]string
 				for _, a := range sc.authors {
 					authors = append(authors, map[string]string{"name": a})
@@ -143,11 +142,11 @@ var wantRelations = map[string]string{
 	"new_author/patch":                               "links=Ada Author,Zed Newbie authors=Ada Author,Ben Writer,Zed Newbie series=First Series seq=First Series#1 events=author_added,item_updated filter=Ada Author,Ben Writer,Zed Newbie|First Series touched=i1",
 	"new_author/batch":                               "links=Ada Author,Zed Newbie authors=Ada Author,Ben Writer,Zed Newbie series=First Series seq=First Series#1 events=author_added,item_updated filter=Ada Author,Ben Writer,Zed Newbie|First Series touched=i1",
 	"new_author/quickmatch":                          "links=Ada Author,Zed Newbie authors=Ada Author,Ben Writer,Zed Newbie series=First Series seq=First Series#1 events=author_added,item_updated filter=Ada Author,Ben Writer,Zed Newbie|First Series touched=i1",
-	"existing_author_other_case/patch":               "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,author_updated,item_updated filter=Ben Writer|First Series touched=i1",
-	"existing_author_other_case/batch":               "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,author_updated,item_updated filter=Ben Writer|First Series touched=i1",
+	"existing_author_other_case/patch":               "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_updated,author_removed,item_updated filter=Ben Writer|First Series touched=i1",
+	"existing_author_other_case/batch":               "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_updated,author_removed,item_updated filter=Ben Writer|First Series touched=i1",
 	"existing_author_other_case/quickmatch":          "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,item_updated filter=Ben Writer|First Series touched=i1",
-	"last_book_removed/patch":                        "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,author_updated,item_updated filter=Ben Writer|First Series touched=i1",
-	"last_book_removed/batch":                        "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,author_updated,item_updated filter=Ben Writer|First Series touched=i1",
+	"last_book_removed/patch":                        "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_updated,author_removed,item_updated filter=Ben Writer|First Series touched=i1",
+	"last_book_removed/batch":                        "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_updated,author_removed,item_updated filter=Ben Writer|First Series touched=i1",
 	"last_book_removed/quickmatch":                   "links=Ben Writer authors=Ben Writer series=First Series seq=First Series#1 events=author_removed,item_updated filter=Ben Writer|First Series touched=i1",
 	"last_book_removed_keeps_asin_author/patch":      "links=Ben Writer authors=Ada Author,Ben Writer series=First Series seq=First Series#1 events=author_updated,item_updated filter=Ada Author,Ben Writer|First Series touched=i1",
 	"last_book_removed_keeps_asin_author/batch":      "links=Ben Writer authors=Ada Author,Ben Writer series=First Series seq=First Series#1 events=author_updated,item_updated filter=Ada Author,Ben Writer|First Series touched=i1",
@@ -155,7 +154,7 @@ var wantRelations = map[string]string{
 	"series_sequence_change/patch":                   "links=Ada Author authors=Ada Author,Ben Writer series=First Series seq=First Series#2 events=item_updated filter=Ada Author,Ben Writer|First Series touched=i1",
 	"series_sequence_change/batch":                   "links=Ada Author authors=Ada Author,Ben Writer series=First Series seq=First Series#2 events=item_updated filter=Ada Author,Ben Writer|First Series touched=i1",
 	"series_sequence_change/quickmatch":              "links=Ada Author authors=Ada Author,Ben Writer series=First Series seq=First Series#2 events=item_updated filter=Ada Author,Ben Writer|First Series touched=i1",
-	"series_replaced/patch":                          "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=item_updated,series_removed filter=Ada Author,Ben Writer|Other Series touched=i1",
-	"series_replaced/batch":                          "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=item_updated,series_removed filter=Ada Author,Ben Writer|Other Series touched=i1",
-	"series_replaced/quickmatch":                     "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=item_updated,series_added,series_removed filter=Ada Author,Ben Writer|Other Series touched=i1",
+	"series_replaced/patch":                          "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=series_removed,item_updated filter=Ada Author,Ben Writer|Other Series touched=i1",
+	"series_replaced/batch":                          "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=series_removed,item_updated filter=Ada Author,Ben Writer|Other Series touched=i1",
+	"series_replaced/quickmatch":                     "links=Ada Author authors=Ada Author,Ben Writer series=Other Series seq=Other Series#1 events=series_removed,series_added,item_updated filter=Ada Author,Ben Writer|Other Series touched=i1",
 }

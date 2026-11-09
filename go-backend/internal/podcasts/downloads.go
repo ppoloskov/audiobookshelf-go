@@ -168,10 +168,13 @@ func (d *downloadTask) task() events.Task {
 
 func (h *Handler) startDownload(d *downloadTask) {
 	ctx, cancel := context.WithCancel(context.Background())
+	h.queueMu.Lock() // pollers and Close read these fields under queueMu
 	d.ctx = ctx
 	d.cancel = cancel
 	d.startedAt = time.Now().UnixMilli()
-	h.emit.ToAll("episode_download_started", d.clientJSON())
+	started := d.clientJSON()
+	h.queueMu.Unlock()
+	h.emit.ToAll("episode_download_started", started)
 	h.emit.TaskStarted(d.task())
 	go h.runDownload(d)
 }

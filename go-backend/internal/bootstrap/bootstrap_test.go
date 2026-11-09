@@ -1,9 +1,11 @@
 package bootstrap
 
 import (
+	"bytes"
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -36,7 +38,7 @@ func TestEnsureCreatesPinnedFreshSchema(t *testing.T) {
 	if err := db.QueryRow(`SELECT value FROM settings WHERE key = 'server-settings'`).Scan(&settings); err != nil {
 		t.Fatal(err)
 	}
-	if string(settings) == "" || contains(string(settings), "tokenSecret") {
+	if string(settings) == "" || strings.Contains(string(settings), "tokenSecret") {
 		t.Fatalf("fresh default settings must omit the generated secret: %s", settings)
 	}
 	if _, err := os.Stat(cfg.MetadataPath); err != nil {
@@ -94,11 +96,25 @@ func TestEnsureConcurrentFirstBoot(t *testing.T) {
 	}
 }
 
-func contains(haystack, needle string) bool {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
+// Ensure on an existing, valid database leaves it as it is.
+func TestEnsureExistingDatabaseIsUnchanged(t *testing.T) {
+	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata")}
+	if err := Ensure(cfg); err != nil {
+		t.Fatal(err)
 	}
-	return false
+	path := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Ensure(cfg); err != nil {
+		t.Fatalf("second Ensure: %v", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("Ensure rewrote an existing database")
+	}
 }

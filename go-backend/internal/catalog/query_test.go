@@ -100,7 +100,9 @@ func sqlNullable(v any) string {
 
 func b64(s string) string { return url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(s))) }
 
-// TestLibraryQueryTable records the item ids (in order) and total of every
+// TestLibraryQueryTable is a REGRESSION LOCK, not independent evidence: the
+// golden was recorded from this code. The hand-derived expectations live in
+// query_independent_test.go. It records the item ids (in order) and total of every
 // filter group and sort key for a book and a podcast library, for an
 // unrestricted and a restricted user. Set UPDATE_QUERY_GOLDEN=1 to rewrite
 // testdata/query_golden.json.

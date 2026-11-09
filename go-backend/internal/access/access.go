@@ -11,7 +11,6 @@ import (
 	"errors"
 	"net/http"
 	"slices"
-	"sync/atomic"
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
@@ -42,7 +41,6 @@ type Permissions struct {
 // completely (malformed JSON or a field of the wrong type) grants nothing:
 // json.Unmarshal can fill earlier fields before failing on a later one.
 func Of(u store.User) Permissions {
-	decodes.Add(1)
 	p := Permissions{Type: u.Type, Active: u.IsActive}
 	if json.Unmarshal(u.Permissions, &p) != nil {
 		return Permissions{Type: u.Type, Active: u.IsActive}
@@ -179,11 +177,6 @@ func (p Permissions) MediaClause(alias string) (string, []any) {
 
 // AdminUser is root or admin by the user row alone, without decoding permissions.
 func AdminUser(u store.User) bool { return u.Type == "root" || u.Type == "admin" }
-
-var decodes atomic.Int64
-
-// Decodes counts Of calls, so tests can prove a request decodes once.
-func Decodes() int64 { return decodes.Load() }
 
 // RequireAdmin runs next for root and admin users and answers denied (an empty
 // body, Express res.sendStatus) to anyone else. Most admin routes answer 403;

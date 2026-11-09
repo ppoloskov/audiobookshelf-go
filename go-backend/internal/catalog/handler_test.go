@@ -2,27 +2,24 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/filterdata"
-	"audiobookshelf-compat/internal/nameparse"
-	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/textclean"
 	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
 )
@@ -68,6 +65,9 @@ func catalogFixture(t *testing.T) *sql.DB {
 	return db
 }
 
+// TestBookItemSerializersMatchPinnedSourceGolden is independent evidence: the
+// expected JSON in contracts/parity/book-item-golden.json was produced by the
+// upstream (TS) serializers for the same input rows.
 func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 	goldenPath := filepath.Join("..", "..", "contracts", "parity", "book-item-golden.json")
 	goldenBytes, err := os.ReadFile(goldenPath)
@@ -215,46 +215,6 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 			t.Errorf("%s %s differs from pinned source golden\nactual: %s\nexpected: %s", name, shape, actualJSON, expectedJSON)
 		}
 	}
-	assertTypedMediaGolden := func(name, shape string, got any) {
-		t.Helper()
-		var expected struct {
-			Media json.RawMessage `json:"media"`
-		}
-		if err := json.Unmarshal(golden.Expected[name][shape], &expected); err != nil {
-			t.Fatalf("%s %s decode expected media: %v", name, shape, err)
-		}
-		actualJSON, err := json.Marshal(got)
-		if err != nil {
-			t.Fatalf("%s %s marshal typed media: %v", name, shape, err)
-		}
-		var actualValue, expectedValue any
-		if err := json.Unmarshal(actualJSON, &actualValue); err != nil {
-			t.Fatal(err)
-		}
-		if err := json.Unmarshal(expected.Media, &expectedValue); err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(actualValue, expectedValue) {
-			t.Errorf("%s typed %s media differs from pinned source golden", name, shape)
-		}
-	}
-	assertDualRun := func(name, shape string, typed, legacy any) {
-		t.Helper()
-		actualJSON, err := json.Marshal(typed)
-		if err != nil {
-			t.Fatalf("%s typed %s marshal: %v", name, shape, err)
-		}
-		legacyJSON, err := json.Marshal(legacy)
-		if err != nil {
-			t.Fatalf("%s legacy %s marshal: %v", name, shape, err)
-		}
-		var actualValue, legacyValue any
-		_ = json.Unmarshal(actualJSON, &actualValue)
-		_ = json.Unmarshal(legacyJSON, &legacyValue)
-		if !reflect.DeepEqual(actualValue, legacyValue) {
-			t.Errorf("%s typed %s builder differs from legacy builder", name, shape)
-		}
-	}
 	for _, fixture := range golden.Input.Books {
 		t.Run(fixture.Name, func(t *testing.T) {
 			full, err := h.fullItem(t.Context(), fixture.Item.ID)
@@ -272,38 +232,6 @@ func TestBookItemSerializersMatchPinnedSourceGolden(t *testing.T) {
 				t.Fatal(err)
 			}
 			assertGolden(fixture.Name, "itemExpandedJSON", expanded)
-			fullMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "full")
-			if err != nil {
-				t.Fatalf("full builder: %v", err)
-			}
-			assertTypedMediaGolden(fixture.Name, "itemJSON", fullMedia)
-			legacyFull, err := h.bookJSON(t.Context(), fixture.Book.ID, fixture.Item.ID, false)
-			if err != nil {
-				t.Fatalf("legacy full builder: %v", err)
-			}
-			assertDualRun(fixture.Name, "full", fullMedia, legacyFull)
-
-			minifiedMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "minified")
-			if err != nil {
-				t.Fatalf("minified builder: %v", err)
-			}
-			assertTypedMediaGolden(fixture.Name, "itemMinifiedJSON", minifiedMedia)
-			legacyMinified, err := h.bookMinifiedJSON(t.Context(), fixture.Book.ID, fixture.Item.ID)
-			if err != nil {
-				t.Fatalf("legacy minified builder: %v", err)
-			}
-			assertDualRun(fixture.Name, "minified", minifiedMedia, legacyMinified)
-
-			expandedMedia, err := h.bookMedia(t.Context(), fixture.Item.ID, "expanded")
-			if err != nil {
-				t.Fatalf("expanded builder: %v", err)
-			}
-			assertTypedMediaGolden(fixture.Name, "itemExpandedJSON", expandedMedia)
-			legacyExpanded, err := legacyExpandedBookMedia(t, h, fixture.Book.ID, fixture.Item.ID)
-			if err != nil {
-				t.Fatalf("legacy expanded builder: %v", err)
-			}
-			assertDualRun(fixture.Name, "expanded", expandedMedia, legacyExpanded)
 		})
 	}
 }
@@ -470,266 +398,6 @@ func TestBookProjectionValues(t *testing.T) {
 	}
 }
 
-func legacyExpandedBookMedia(t *testing.T, h *Handler, bookID, itemID string) (map[string]any, error) {
-	t.Helper()
-	media, err := h.bookJSON(t.Context(), bookID, itemID, false)
-	if err != nil {
-		return nil, err
-	}
-	metadata := media["metadata"].(map[string]any)
-	metadata["titleIgnorePrefix"] = textsort.PrefixAtEnd(stringValue(metadata["title"]), h.sortingPrefixes(t.Context()))
-	authors := metadata["authors"].([]map[string]any)
-	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
-	for _, author := range authors {
-		name := stringValue(author["name"])
-		authorNames = append(authorNames, name)
-		authorNamesLF = append(authorNamesLF, nameparse.ToLastFirst(name))
-	}
-	metadata["authorName"] = strings.Join(authorNames, ", ")
-	metadata["authorNameLF"] = strings.Join(authorNamesLF, ", ")
-	narrators := metadata["narrators"].([]string)
-	metadata["narratorName"] = strings.Join(narrators, ", ")
-	series := metadata["series"].([]map[string]any)
-	seriesNames := make([]string, 0, len(series))
-	for _, row := range series {
-		name := stringValue(row["name"])
-		if sequence := stringValue(row["sequence"]); sequence != "" {
-			name += " #" + sequence
-		}
-		seriesNames = append(seriesNames, name)
-	}
-	metadata["seriesName"] = strings.Join(seriesNames, ", ")
-	if description := stringValue(metadata["description"]); description != "" {
-		metadata["descriptionPlain"] = textclean.Strip(description)
-	} else {
-		metadata["descriptionPlain"] = nil
-	}
-	audio := media["audioFiles"].([]map[string]any)
-	chapters := media["chapters"].([]map[string]any)
-	ebook, _ := media["ebookFile"].(map[string]any)
-	media["numTracks"], media["numAudioFiles"], media["numChapters"] = includedAudioCount(audio), len(audio), len(chapters)
-	var duration any
-	if err := h.db.QueryRowContext(t.Context(), `SELECT duration FROM books WHERE id=?`, bookID).Scan(&duration); err != nil {
-		return nil, err
-	}
-	media["duration"], media["size"] = duration, audioSize(audio, ebook)
-	if format, ok := ebook["ebookFormat"]; ok {
-		media["ebookFormat"] = format
-	}
-	media["tracks"] = makeTracks(itemID, audio)
-	return media, nil
-}
-
-// Independent read oracle for book JSON; these helpers live in tests only.
-type bookRow struct {
-	id, title, subtitle, year, publishedDate, publisher sql.NullString
-	description, isbn, asin, language, coverPath        sql.NullString
-	explicit, abridged                                  int64
-	duration                                            any
-	narrators, audio, ebook, chapters                   []byte
-	tags, genres                                        []byte
-}
-
-func (h *Handler) loadBookRow(ctx context.Context, bookID string) (bookRow, error) {
-	var row bookRow
-	err := h.db.QueryRowContext(ctx, `SELECT id,title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres FROM books WHERE id=?`, bookID).
-		Scan(&row.id, &row.title, &row.subtitle, &row.year, &row.publishedDate, &row.publisher, &row.description, &row.isbn, &row.asin, &row.language, &row.explicit, &row.abridged, &row.coverPath, &row.duration, &row.narrators, &row.audio, &row.ebook, &row.chapters, &row.tags, &row.genres)
-	return row, err
-}
-
-func (h *Handler) bookRelations(ctx context.Context, bookID string) ([]map[string]any, []map[string]any, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId=? ORDER BY ba.createdAt ASC`, bookID)
-	if err != nil {
-		return nil, nil, err
-	}
-	authors := make([]map[string]any, 0)
-	for rows.Next() {
-		var id, name string
-		if err := rows.Scan(&id, &name); err != nil {
-			rows.Close()
-			return nil, nil, err
-		}
-		authors = append(authors, map[string]any{"id": id, "name": name})
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, nil, err
-	}
-	rows, err = h.db.QueryContext(ctx, `SELECT s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId=? ORDER BY bs.createdAt ASC`, bookID)
-	if err != nil {
-		return nil, nil, err
-	}
-	series := make([]map[string]any, 0)
-	for rows.Next() {
-		var id, name string
-		var sequence sql.NullString
-		if err := rows.Scan(&id, &name, &sequence); err != nil {
-			rows.Close()
-			return nil, nil, err
-		}
-		series = append(series, map[string]any{"id": id, "name": name, "sequence": store.NullString(sequence)})
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, nil, err
-	}
-	return authors, series, nil
-}
-
-func (h *Handler) bookMedia(ctx context.Context, itemID, shape string) (any, error) {
-	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
-	if err != nil {
-		return nil, err
-	}
-	switch shape {
-	case "full":
-		return it.Full().Media, nil
-	case "expanded":
-		return it.Expanded(h.sortingPrefixes(ctx)).Media, nil
-	}
-	return it.Minified(h.sortingPrefixes(ctx)).Media, nil
-}
-
-func includedAudioCount(audio []map[string]any) int {
-	n := 0
-	for _, file := range audio {
-		if file["exclude"] != true {
-			n++
-		}
-	}
-	return n
-}
-
-func audioSize(audio []map[string]any, ebook map[string]any) int64 {
-	var size int64
-	for _, file := range audio {
-		if metadata, ok := file["metadata"].(map[string]any); ok {
-			size += number(metadata["size"])
-		}
-	}
-	if metadata, ok := ebook["metadata"].(map[string]any); ok {
-		size += number(metadata["size"])
-	}
-	return size
-}
-
-func makeTracks(itemID string, audio []map[string]any) []map[string]any {
-	tracks := make([]map[string]any, 0)
-	var offset float64
-	for _, file := range audio {
-		if file["exclude"] == true {
-			continue
-		}
-		track := map[string]any{}
-		for key, value := range file {
-			track[key] = value
-		}
-		metadata, _ := file["metadata"].(map[string]any)
-		track["title"], track["startOffset"] = metadata["filename"], offset
-		track["contentUrl"] = "/api/items/" + itemID + "/file/" + url.PathEscape(stringValue(file["ino"]))
-		offset += floating(file["duration"])
-		tracks = append(tracks, track)
-	}
-	return tracks
-}
-
-func floating(value any) float64 {
-	switch number := value.(type) {
-	case float64:
-		return number
-	case int64:
-		return float64(number)
-	case int:
-		return float64(number)
-	}
-	return 0
-}
-
-// bookJSON is a map-based book builder kept in tests as an oracle for the typed builders.
-func (h *Handler) bookJSON(ctx context.Context, bookID, itemID string, expanded bool) (map[string]any, error) {
-	row, err := h.loadBookRow(ctx, bookID)
-	if err != nil {
-		return nil, err
-	}
-	authors, series, err := h.bookRelations(ctx, bookID)
-	if err != nil {
-		return nil, err
-	}
-	narrators := store.DecodeJSONSlice[string](row.narrators)
-	genres, tags := store.DecodeJSONSlice[string](row.genres), store.DecodeJSONSlice[string](row.tags)
-	audio, chapters := store.DecodeJSONSlice[map[string]any](row.audio), store.DecodeJSONSlice[map[string]any](row.chapters)
-	ebook := store.DecodeJSONObject(row.ebook)
-	if len(ebook) == 0 || string(row.ebook) == "null" {
-		ebook = nil
-	}
-	authorNames, authorNamesLF := make([]string, 0, len(authors)), make([]string, 0, len(authors))
-	for _, author := range authors {
-		name := stringValue(author["name"])
-		authorNames = append(authorNames, name)
-		authorNamesLF = append(authorNamesLF, nameparse.ToLastFirst(name))
-	}
-	seriesNames := make([]string, 0, len(series))
-	for _, entry := range series {
-		name := stringValue(entry["name"])
-		if sequence := stringValue(entry["sequence"]); sequence != "" {
-			name += " #" + sequence
-		}
-		seriesNames = append(seriesNames, name)
-	}
-	metadata := map[string]any{
-		"title": store.NullString(row.title), "subtitle": store.NullString(row.subtitle), "authors": authors, "narrators": narrators, "series": series,
-		"genres": genres, "publishedYear": store.NullString(row.year), "publishedDate": store.NullString(row.publishedDate), "publisher": store.NullString(row.publisher),
-		"description": store.NullString(row.description), "isbn": store.NullString(row.isbn), "asin": store.NullString(row.asin), "language": store.NullString(row.language),
-		"explicit": row.explicit != 0, "abridged": row.abridged != 0,
-	}
-	minMetadata := map[string]any{
-		"title": store.NullString(row.title), "titleIgnorePrefix": textsort.PrefixAtEnd(row.title.String, h.sortingPrefixes(ctx)), "subtitle": store.NullString(row.subtitle),
-		"authorName": strings.Join(authorNames, ", "), "authorNameLF": strings.Join(authorNamesLF, ", "), "narratorName": strings.Join(narrators, ", "),
-		"seriesName": strings.Join(seriesNames, ", "), "genres": genres, "publishedYear": store.NullString(row.year), "publishedDate": store.NullString(row.publishedDate),
-		"publisher": store.NullString(row.publisher), "description": store.NullString(row.description), "isbn": store.NullString(row.isbn), "asin": store.NullString(row.asin),
-		"language": store.NullString(row.language), "explicit": row.explicit != 0, "abridged": row.abridged != 0,
-	}
-	book := map[string]any{"id": row.id.String, "metadata": metadata, "coverPath": store.NullString(row.coverPath), "tags": tags, "audioFiles": audio, "chapters": chapters, "ebookFile": ebook}
-	if expanded {
-		if row.description.Valid && row.description.String != "" {
-			minMetadata["descriptionPlain"] = textclean.Strip(row.description.String)
-		} else {
-			minMetadata["descriptionPlain"] = nil
-		}
-		book["metadata"] = minMetadata
-		book["libraryItemId"] = itemID
-		book["numTracks"], book["numAudioFiles"], book["numChapters"] = includedAudioCount(audio), len(audio), len(chapters)
-		book["duration"], book["size"] = row.duration, audioSize(audio, ebook)
-		if format, ok := ebook["ebookFormat"]; ok {
-			book["ebookFormat"] = format
-		}
-		book["tracks"] = makeTracks(itemID, audio)
-		delete(book, "audioFiles")
-		delete(book, "chapters")
-		delete(book, "ebookFile")
-		return book, nil
-	}
-	book["libraryItemId"] = itemID
-	return book, nil
-}
-
-func (h *Handler) bookMinifiedJSON(ctx context.Context, bookID, itemID string) (map[string]any, error) {
-	book, err := h.bookJSON(ctx, bookID, itemID, true)
-	if err != nil {
-		return nil, err
-	}
-	delete(book, "libraryItemId")
-	delete(book, "tracks")
-	delete(book["metadata"].(map[string]any), "descriptionPlain")
-	return book, nil
-}
-
 func TestHandleLibraryItemsAndItemDetail(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
@@ -886,70 +554,82 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 	requireOpaqueETag(t, w.Header().Get("ETag"))
 }
 
-func TestLibraryViewIncludesNullLastScanVersion(t *testing.T) {
+func TestLibraryResponseIncludesNullLastScanVersion(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
 	h := New(db, config.Config{}, nil, testDeps())
-
-	got, err := h.libraryView(t.Context(), "l1")
-	if err != nil {
-		t.Fatal(err)
+	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true}`)}
+	get := func() map[string]any {
+		w := httptest.NewRecorder()
+		if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1", nil), user) || w.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+		}
+		var fields map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil {
+			t.Fatal(err)
+		}
+		return fields
 	}
-	raw, _ := json.Marshal(got)
-	var fields map[string]any
-	_ = json.Unmarshal(raw, &fields)
+	fields := get()
 	if value, ok := fields["lastScanVersion"]; !ok || value != nil {
-		t.Fatalf("lastScanVersion should be present as null: %s", raw)
+		t.Fatalf("lastScanVersion should be present as null: %v", fields)
 	}
 	if value, ok := fields["lastScan"]; !ok || value != nil {
-		t.Fatalf("lastScan must remain present as null: %s", raw)
+		t.Fatalf("lastScan must remain present as null: %v", fields)
 	}
 	if _, err := db.Exec(`UPDATE libraries SET lastScanVersion='2.37.2' WHERE id='l1'`); err != nil {
 		t.Fatal(err)
 	}
-	got, err = h.libraryView(t.Context(), "l1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.LastScanVersion == nil || *got.LastScanVersion != "2.37.2" {
-		t.Fatalf("lastScanVersion=%v", got.LastScanVersion)
+	if got := get()["lastScanVersion"]; got != "2.37.2" {
+		t.Fatalf("lastScanVersion=%v", got)
 	}
 }
 
-func TestLibraryItemsMaterializeBeforeNestedDTOQueries(t *testing.T) {
+// Several items whose rows share one connection (the pool is one connection)
+// must all come back: the list may not hold its rows open while loading the
+// nested media.
+func TestLibraryItemsListReturnsEveryItemWithItsMedia(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	for _, fixture := range []struct{ id, media string }{{"i2", "b2"}, {"i3", "b3"}} {
-		if _, err := db.Exec(`INSERT INTO books SELECT 'b2',title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt FROM books WHERE id='b1'`); fixture.media == "b2" && err != nil {
+	for _, id := range []string{"2", "3"} {
+		if _, err := db.Exec(`INSERT INTO books SELECT 'b` + id + `',title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt FROM books WHERE id='b1'`); err != nil {
 			t.Fatal(err)
 		}
-		if fixture.media == "b3" {
-			if _, err := db.Exec(`INSERT INTO books SELECT 'b3',title,titleIgnorePrefix,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt FROM books WHERE id='b1'`); err != nil {
-				t.Fatal(err)
-			}
-		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		if _, err := db.Exec(`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,title,authorNamesFirstLast,authorNamesLastFirst,libraryId,libraryFolderId,createdAt,updatedAt) VALUES(?,?,?, ?,?,'book',0,0,0,'[]','{}','The Book','Ada Author','Author, Ada','l1','f1',?,?)`, fixture.id, fixture.id, "/media/books/"+fixture.id, fixture.id, fixture.media, now, now); err != nil {
+		if _, err := db.Exec(`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,title,authorNamesFirstLast,authorNamesLastFirst,libraryId,libraryFolderId,createdAt,updatedAt) VALUES(?,?,?, ?,?,'book',0,0,0,'[]','{}','The Book','Ada Author','Author, Ada','l1','f1',?,?)`, "i"+id, "i"+id, "/media/books/i"+id, "i"+id, "b"+id, now, now); err != nil {
 			t.Fatal(err)
 		}
 	}
 	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
 	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1/items", nil), user) {
-		t.Fatal("library items route did not match")
-	}
-	if w.Code != http.StatusOK {
+	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1/items", nil), user) || w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
 	var response struct {
-		Results []any `json:"results"`
+		Total   int `json:"total"`
+		Results []struct {
+			ID    string `json:"id"`
+			Media struct {
+				Metadata struct {
+					Title      string `json:"title"`
+					AuthorName string `json:"authorName"`
+				} `json:"metadata"`
+			} `json:"media"`
+		} `json:"results"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Results) != 3 {
-		t.Fatalf("got %d results, want 3: %s", len(response.Results), w.Body.String())
+	ids := map[string]bool{}
+	for _, r := range response.Results {
+		ids[r.ID] = true
+		if r.Media.Metadata.Title != "The Book" || r.Media.Metadata.AuthorName == "" && r.ID == "i1" {
+			t.Errorf("item %s media %+v", r.ID, r.Media.Metadata)
+		}
+	}
+	if response.Total != 3 || len(ids) != 3 || !ids["i1"] || !ids["i2"] || !ids["i3"] {
+		t.Fatalf("total=%d items=%v: %s", response.Total, ids, w.Body.String())
 	}
 }
 
@@ -1842,26 +1522,23 @@ func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
 
 // Handle serves r through the catalog routes as user and reports whether a
 // route matched, the way the runtime does for the mux.
+// testMuxes holds one routed mux per handler, so a test's requests all go
+// through the same registered routes the server builds once.
+var testMuxes sync.Map
+
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	mux := http.NewServeMux()
-	h.Routes(mux)
+	m, ok := testMuxes.Load(h)
+	if !ok {
+		mux := http.NewServeMux()
+		h.Routes(mux)
+		m, _ = testMuxes.LoadOrStore(h, mux)
+	}
+	mux := m.(*http.ServeMux)
 	if _, pattern := mux.Handler(r); pattern == "" {
 		return false
 	}
 	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
 	return true
-}
-
-func number(v any) int64 {
-	switch n := v.(type) {
-	case float64:
-		return int64(n)
-	case int64:
-		return n
-	case int:
-		return int64(n)
-	}
-	return 0
 }
 
 func (h *Handler) minifiedItem(ctx context.Context, itemID string) (libitem.Minified, error) {

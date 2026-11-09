@@ -1,9 +1,7 @@
 package emailapi
 
 import (
-	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"bufio"
 	"context"
@@ -14,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"slices"
 	"strings"
 	"testing"
 
@@ -184,48 +181,6 @@ func TestEreaderDeviceUpdateNormalizesOnceAndRetainsOptionalUsersShape(t *testin
 	}
 	if len(events) != 2 {
 		t.Fatalf("changed device update events = %#v, want one additional event", events)
-	}
-}
-
-func TestCanAccessContentTagMatrix(t *testing.T) {
-	// Upstream server/models/User.js:658-666: allowlist requires some overlap;
-	// denylist allows untagged items and otherwise requires every tag absent.
-	selections := [][]string{nil, {"x"}, {"x", "y"}}
-	items := [][]string{nil, {"x"}, {"x", "y"}, {"z"}}
-	for _, all := range []bool{false, true} {
-		for _, deny := range []bool{false, true} {
-			for _, selected := range selections {
-				for _, tags := range items {
-					name := fmt.Sprintf("all=%v/deny=%v/selected=%v/tags=%v", all, deny, selected, tags)
-					t.Run(name, func(t *testing.T) {
-						permissions, _ := json.Marshal(map[string]any{"accessExplicitContent": true, "accessAllTags": all, "selectedTagsNotAccessible": deny, "itemTagsSelected": selected})
-						got := access.Of(store.User{Permissions: permissions}).Content(libitem.Access{Tags: tags})
-						want := all
-						if !all {
-							if deny {
-								want = true
-								for _, tag := range tags {
-									if slices.Contains(selected, tag) {
-										want = false
-										break
-									}
-								}
-							} else {
-								for _, tag := range tags {
-									if slices.Contains(selected, tag) {
-										want = true
-										break
-									}
-								}
-							}
-						}
-						if got != want {
-							t.Fatalf("got %v, want %v", got, want)
-						}
-					})
-				}
-			}
-		}
 	}
 }
 

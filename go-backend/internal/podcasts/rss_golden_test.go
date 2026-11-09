@@ -7,8 +7,9 @@ import (
 	"testing"
 )
 
-// The golden files hold the output of the encoding/xml parser that parseFeed
-// replaced, captured on these feeds before the replacement. Each feed covers
+// The .golden.json files are pinned fixtures: the output of the earlier
+// encoding/xml parser, captured before parseFeed replaced it, and reviewed by
+// hand. They are never regenerated from the current code. Each feed covers
 // one shape of real-world feed: Megaphone and Simplecast style iTunes tags,
 // CDATA and escaped HTML descriptions, audioboom style categories and
 // podcast:chapters, windows-1252 encoding, and a plain RSS 2.0 feed.
@@ -27,7 +28,7 @@ func canonicalJSON(t *testing.T, v any) any {
 	return out
 }
 
-func TestParseFeedMatchesOldParserGolden(t *testing.T) {
+func TestParseFeedMatchesPinnedFixtures(t *testing.T) {
 	for _, name := range goldenFeeds {
 		t.Run(name, func(t *testing.T) {
 			raw, err := os.ReadFile("testdata/feeds/" + name + ".xml")
@@ -48,7 +49,7 @@ func TestParseFeedMatchesOldParserGolden(t *testing.T) {
 			}
 			if got := canonicalJSON(t, feed); !reflect.DeepEqual(got, wantValue) {
 				gotBytes, _ := json.MarshalIndent(got, "", "  ")
-				t.Errorf("parseFeed(%s) differs from the old parser golden.\ngot:\n%s", name, gotBytes)
+				t.Errorf("parseFeed(%s) differs from the pinned fixture.\ngot:\n%s", name, gotBytes)
 			}
 		})
 	}

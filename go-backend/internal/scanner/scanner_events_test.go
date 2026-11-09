@@ -39,6 +39,16 @@ printf '%s' '{"format":{"format_name":"mp3","duration":"1"},"streams":[{"codec_t
 	t.Setenv("FFPROBE_PATH", path)
 }
 
+// fakeFFprobeJSON makes ffprobe answer every call with the given JSON.
+func fakeFFprobeJSON(t *testing.T, out string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ffprobe")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nprintf '%s' '"+out+"'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FFPROBE_PATH", path)
+}
+
 func captureEvents() (events.Emitter, *[]capturedEvent) {
 	events := &[]capturedEvent{}
 	return func(userID, event string, payload any) {

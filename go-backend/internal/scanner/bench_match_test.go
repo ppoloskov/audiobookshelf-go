@@ -28,74 +28,6 @@ func (f *fakeInfo) ModTime() time.Time { return time.Time{} }
 func (f *fakeInfo) IsDir() bool        { return false }
 func (f *fakeInfo) Sys() any           { return &f.st }
 
-// oldContainsString, oldGroupInodes and oldMatchGroupByInode are the
-// pre-S2 implementation (git HEAD go-backend/internal/scanner scanner.go and
-// files.go), copied verbatim apart from the old* names.
-func oldContainsString(values []string, value string) bool {
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
-}
-
-func oldGroupInodes(g *group) []string {
-	var inos []string
-	if info, err := os.Stat(g.path); err == nil {
-		inos = append(inos, inode(info))
-	}
-	for _, f := range g.files {
-		inos = append(inos, inode(f.info))
-	}
-	for _, f := range g.companions {
-		inos = append(inos, inode(f.info))
-	}
-	return inos
-}
-
-func oldMatchGroupByInode(ex existingItem, groups []*group, consumed map[*group]bool) *group {
-	stored := parseStoredLibraryFiles(ex.files)
-	for _, g := range groups {
-		if consumed[g] {
-			continue
-		}
-		inos := oldGroupInodes(g)
-		if ex.ino != "" && oldContainsString(inos, ex.ino) {
-			return g
-		}
-		for _, lf := range stored {
-			if lf.Ino != "" && oldContainsString(inos, lf.Ino) {
-				return g
-			}
-		}
-	}
-	return nil
-}
-
-// oldMatchAll is the pre-S2 per-scan matching loop (byPath, then inode scan).
-func oldMatchAll(groups []*group, items []existingItem) (matched int) {
-	byPath := make(map[string]*group, len(groups))
-	for _, g := range groups {
-		byPath[g.path] = g
-	}
-	consumed := map[*group]bool{}
-	for _, ex := range items {
-		g := byPath[ex.path]
-		if g != nil && consumed[g] {
-			g = nil
-		}
-		if g == nil {
-			g = oldMatchGroupByInode(ex, groups, consumed)
-		}
-		if g != nil {
-			consumed[g] = true
-			matched++
-		}
-	}
-	return matched
-}
-
 func newMatchAll(groups []*group, items []existingItem) (matched int) {
 	m := newGroupMatcher(groups)
 	for _, ex := range items {
@@ -146,7 +78,7 @@ func benchLibrary(n int) ([]*group, []existingItem) {
 func BenchmarkMatch(b *testing.B) {
 	for _, n := range []int{1000, 10000, 50000} {
 		groups, items := benchLibrary(n)
-		want := newMatchAll(groups, items)
+		want := n - (n+92)/100 // hand count: every item but the deleted i%100==7
 		b.Run(fmt.Sprintf("new/n=%d", n), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -155,46 +87,38 @@ func BenchmarkMatch(b *testing.B) {
 				}
 			}
 		})
-		if n > 10000 && os.Getenv("BENCH_OLD_LARGE") == "" {
-			// The quadratic old algorithm needs minutes at 50k; opt in.
-			continue
-		}
-		b.Run(fmt.Sprintf("old/n=%d", n), func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				if got := oldMatchAll(groups, items); got != want {
-					b.Fatalf("matched %d, want %d", got, want)
-				}
-			}
-		})
 	}
 }
 
-// Old and new matching pair identical groups on the benchmark library.
-func TestBenchLibraryOldAndNewAgree(t *testing.T) {
-	groups, items := benchLibrary(2000)
-	byPath := map[string]*group{}
-	for _, g := range groups {
-		byPath[g.path] = g
-	}
-	consumed := map[*group]bool{}
+// Every stored item that has a group is paired with the group that holds its
+// files, whether it stayed (same path) or moved (new path, same inodes); the
+// deleted ones (i%100==7) match nothing. Expected values come from how
+// benchLibrary constructs the library, not from the matcher.
+func TestBenchLibraryPairsEachItemWithItsOwnGroup(t *testing.T) {
+	const n = 2000
+	groups, items := benchLibrary(n)
 	m := newGroupMatcher(groups)
-	for _, ex := range items {
-		g := byPath[ex.path]
-		if g != nil && consumed[g] {
-			g = nil
+	matched := 0
+	for i, ex := range items {
+		got := m.match(ex)
+		if i%100 == 7 {
+			if got != nil {
+				t.Fatalf("deleted item %d matched %s", i, got.path)
+			}
+			continue
 		}
-		if g == nil {
-			g = oldMatchGroupByInode(ex, groups, consumed)
+		want := fmt.Sprintf("/bench/lib/item%06d", i)
+		if i%20 == 3 {
+			want = fmt.Sprintf("/bench/lib/moved%06d", i)
 		}
-		if g != nil {
-			consumed[g] = true
+		if got == nil || got.path != want {
+			t.Fatalf("item %d matched %v, want %s", i, got, want)
 		}
-		if got := m.match(ex); got != g {
-			t.Fatalf("item %s: new matched %v, old %v", ex.path, got, g)
-		} else if got != nil {
-			m.claim(got)
-		}
+		m.claim(got)
+		matched++
+	}
+	if left := len(m.unclaimed()); left != 0 || matched != n-n/100 {
+		t.Fatalf("matched %d items, %d groups unclaimed; want %d and 0", matched, left, n-n/100)
 	}
 }
 

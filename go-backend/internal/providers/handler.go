@@ -38,13 +38,6 @@ func New(db *sql.DB, emit events.Emitter) (*Handler, error) {
 	return &Handler{db: db, client: &http.Client{Timeout: 10 * time.Second}, emit: emit, coverSearches: map[string]context.CancelFunc{}, endpoints: map[string]string{"google": "https://www.googleapis.com/books/v1/volumes", "openlibrary": "https://openlibrary.org", "itunes": "https://itunes.apple.com/search", "fantlab": "https://api.fantlab.ru", "audible": "https://api.audible.com/1.0/catalog/products", "audnexus": "https://api.audnex.us", "audiobookcovers": "https://api.audiobookcovers.com/cover/bytext/"}}, nil
 }
 
-// SetEndpoint overrides one public upstream base URL. It supports isolated
-// tests and deployments that proxy public metadata services.
-func (h *Handler) SetEndpoint(name, baseURL string) {
-	h.endpointMu.Lock()
-	h.endpoints[name] = strings.TrimRight(baseURL, "/")
-	h.endpointMu.Unlock()
-}
 func (h *Handler) endpoint(name string) string {
 	h.endpointMu.RLock()
 	defer h.endpointMu.RUnlock()

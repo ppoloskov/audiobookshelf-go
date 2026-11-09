@@ -208,7 +208,7 @@ func (h *Handler) shareSessionFor(r *http.Request, slug string) (shareRow, share
 	if err != nil || cookie.Value == "" {
 		return shareRow{}, shareSession{}, httputil.Status(404, "Share session not set")
 	}
-	share, err := h.findShare(r.Context(), slug)
+	share, err := h.loadShare(r.Context(), slug)
 	if err != nil {
 		return shareRow{}, shareSession{}, httputil.Status(404, "")
 	}
@@ -238,7 +238,7 @@ func (h *Handler) shareProgress(w http.ResponseWriter, r *http.Request) error {
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.CurrentTime == nil || *p.CurrentTime < 0 {
 		return httputil.Status(400, "Invalid current time")
 	}
-	share, err := h.findShare(r.Context(), slug)
+	share, err := h.loadShare(r.Context(), slug)
 	if err != nil {
 		return httputil.Status(404, "")
 	}
@@ -290,7 +290,7 @@ func (h *Handler) shareDownload(w http.ResponseWriter, r *http.Request) error {
 	if err != nil || cookie.Value == "" {
 		return httputil.Status(404, "Share session not set")
 	}
-	share, err := h.findShare(r.Context(), slug)
+	share, err := h.loadShare(r.Context(), slug)
 	if err != nil {
 		return httputil.Status(404, "")
 	}

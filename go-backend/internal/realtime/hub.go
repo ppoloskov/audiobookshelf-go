@@ -82,7 +82,6 @@ type Hub struct {
 	paths        []string
 	pingInterval time.Duration
 	pingTimeout  time.Duration
-	connectFn    func(*Socket, string) // h.connected; tests replace it
 
 	connMu sync.Mutex
 	conns  map[*conn]struct{}
@@ -103,7 +102,6 @@ func New(cfg config.Config, backend func() Backend) *Hub {
 	if base != "" && base != "/" {
 		h.paths = append(h.paths, base+"/socket.io")
 	}
-	h.connectFn = h.connected
 	return h
 }
 

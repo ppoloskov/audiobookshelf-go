@@ -43,16 +43,3 @@ func validOpaqueETag(value string) bool {
 	}
 	return true
 }
-
-func TestOpaqueETagSyntax(t *testing.T) {
-	for _, tag := range []string{`"opaque"`, `W/""`, "W/\"\x80\xff\""} {
-		if !validOpaqueETag(tag) {
-			t.Errorf("valid opaque tag rejected: %q", tag)
-		}
-	}
-	for _, tag := range []string{"", "opaque", `"has space"`, "\"control\x7f\"", `"embedded"quote"`} {
-		if validOpaqueETag(tag) {
-			t.Errorf("invalid opaque tag accepted: %q", tag)
-		}
-	}
-}

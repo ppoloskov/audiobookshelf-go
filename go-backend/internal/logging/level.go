@@ -18,8 +18,6 @@
 // instance once at boot; tests build private instances with New.
 package logging
 
-import "strings"
-
 // Level is an upstream LogLevel (server/utils/constants.js:19).
 type Level int
 
@@ -44,13 +42,3 @@ func (l Level) String() string {
 }
 
 func (l Level) Valid() bool { return l >= LevelTrace && l <= LevelNote }
-
-// ParseLevel maps an upstream level name (case-insensitive) to a Level.
-func ParseLevel(name string) (Level, bool) {
-	for i, n := range levelNames {
-		if strings.EqualFold(n, name) {
-			return Level(i), true
-		}
-	}
-	return 0, false
-}

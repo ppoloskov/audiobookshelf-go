@@ -2,10 +2,10 @@ package textclean
 
 // The golden tables were captured from the implementations this package
 // replaced (auth.SanitizeHTML, catalog/providers stripHTML) on the contract
-// fixture descriptions, the RSS test fixtures and tricky inputs. The only
-// agreed difference is that an apostrophe stays a plain apostrophe (the old
-// escaper wrote &#39;). Inputs whose output deliberately changed are in the
-// *Differences tables, with the old and new values.
+// fixture descriptions, the RSS test fixtures and tricky inputs, so they are a
+// regression lock, not independent evidence. The independent evidence is the
+// *UpstreamCases tables (upstream sanitize-html / stripAllTags behaviour) and
+// TestSanitizeGoldenMeaning (rendered DOM meaning, not byte spelling).
 
 import (
 	"fmt"
@@ -307,43 +307,43 @@ func TestStripGolden(t *testing.T) {
 	}
 }
 
-// sanitizeDifferences: the old HTML parser repaired these inputs; the tokenizer
-// does not, and the new output matches upstream sanitize-html (htmlparser2).
-var sanitizeDifferences = []struct{ in, old, want string }{
-	{"<b>x<i>y</b>z</i>", "<b>x<i>y</i></b><i>z</i>", "<b>x<i>y</i></b>z"},
-	{"<noscript><b>n</b></noscript>", "&lt;b&gt;n&lt;/b&gt;", "<b>n</b>"},
-	{"</p>stray", "<p></p>stray", "stray"},
+// sanitizeUpstreamCases are inputs where upstream sanitize-html (htmlparser2
+// tokenizer, no tree repair) differs from what an HTML5 tree builder would
+// give; the expected values are upstream's behaviour, which clients depend on.
+var sanitizeUpstreamCases = []struct{ in, want string }{
+	{"<b>x<i>y</b>z</i>", "<b>x<i>y</i></b>z"},
+	{"<noscript><b>n</b></noscript>", "<b>n</b>"},
+	{"</p>stray", "stray"},
 }
 
-// stripDifferences: the old regex stripping kept script, style, textarea and option
-// text, treated "<2" as a tag, leaked a malformed href, and kept CRLF. The new
-// output follows upstream stripAllTags (nonTextTags, htmlparser2 text rules)
-// and the HTML newline rules.
-var stripDifferences = []struct{ in, old, want string }{
-	{"Useful <script>alert(1)</script><strong>news</strong>", "Useful alert(1)news", "Useful news"},
-	{"<p>Useful <script>alert(1)</script><strong>news</strong></p>", "Useful alert(1)news", "Useful news"},
-	{"hello <script>alert(1)</script>world", "hello alert(1)world", "hello world"},
-	{"<style>p{color:red}</style>x", "p{color:red}x", "x"},
-	{"<script>var a = \"<b>x</b>\";</script>after", "var a = \"x\";after", "after"},
-	{"<option>o</option>kept <textarea>t</textarea>end", "okept tend", "kept end"},
-	{"<a href=\"<!-- x -->javascript:alert(1)\">c</a>", "javascript:alert(1)\">c", "c"},
-	{"a < b and c > d", "a  d", "a < b and c > d"},
-	{"1<2 and 3>2", "12", "1<2 and 3>2"},
-	{"line1\nline2\r\nline3", "line1\nline2\r\nline3", "line1\nline2\nline3"},
+// stripUpstreamCases follow upstream stripAllTags (nonTextTags such as script,
+// style, textarea and option contribute no text; "<2" is text, not a tag) and
+// the HTML newline rules (CRLF becomes LF).
+var stripUpstreamCases = []struct{ in, want string }{
+	{"Useful <script>alert(1)</script><strong>news</strong>", "Useful news"},
+	{"<p>Useful <script>alert(1)</script><strong>news</strong></p>", "Useful news"},
+	{"hello <script>alert(1)</script>world", "hello world"},
+	{"<style>p{color:red}</style>x", "x"},
+	{"<script>var a = \"<b>x</b>\";</script>after", "after"},
+	{"<option>o</option>kept <textarea>t</textarea>end", "kept end"},
+	{"<a href=\"<!-- x -->javascript:alert(1)\">c</a>", "c"},
+	{"a < b and c > d", "a < b and c > d"},
+	{"1<2 and 3>2", "1<2 and 3>2"},
+	{"line1\nline2\r\nline3", "line1\nline2\nline3"},
 }
 
-func TestSanitizeDifferences(t *testing.T) {
-	for _, tc := range sanitizeDifferences {
+func TestSanitizeMatchesUpstreamSanitizeHTML(t *testing.T) {
+	for _, tc := range sanitizeUpstreamCases {
 		if got := Sanitize(tc.in); got != tc.want {
-			t.Errorf("Sanitize(%q) = %q, want %q (old %q)", tc.in, got, tc.want, tc.old)
+			t.Errorf("Sanitize(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
 
-func TestStripDifferences(t *testing.T) {
-	for _, tc := range stripDifferences {
+func TestStripMatchesUpstreamStripAllTags(t *testing.T) {
+	for _, tc := range stripUpstreamCases {
 		if got := Strip(tc.in); got != tc.want {
-			t.Errorf("Strip(%q) = %q, want %q (old %q)", tc.in, got, tc.want, tc.old)
+			t.Errorf("Strip(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
