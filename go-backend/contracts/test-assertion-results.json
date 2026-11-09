@@ -5,6 +5,7 @@
   "date": "2026-11-06",
   "scope": "Test, harness and diagnostic-lane changes; no production Go behavior, schema, fixture or external Monstrobook changes.",
   "productionGoChanged": false,
+  "note": "Historical record of the 2026-11-06 run. TestUpstreamCreatedBackupImports and TestExportNodeFixtureDatabaseForNodeImport named below were env-gated and always skipped; both were removed in the step 3 test-quality pass.",
   "productionMetricsDelta": 0,
   "snapshot": {
     "path": "/private/tmp/tq01-implementation-20261106/shipping",
@@ -103,11 +104,11 @@
   "unexecuted": [
     {
       "test": "TestUpstreamCreatedBackupImports",
-      "reason": "ABS_BACKUP_NODE_ARCHIVE was not supplied."
+      "reason": "Removed (env-gated, always skipped); superseded by the manual harness tools/parity/test-backup-restore.cjs. ABS_BACKUP_NODE_ARCHIVE was not supplied when recorded."
     },
     {
       "test": "TestExportNodeFixtureDatabaseForNodeImport",
-      "reason": "ABS_BACKUP_FIXTURE_DB, ABS_BACKUP_FIXTURE_METADATA and ABS_BACKUP_EXPORT_DIR were not supplied."
+      "reason": "Removed (env-gated, always skipped); superseded by the manual harness tools/parity/test-backup-restore.cjs. ABS_BACKUP_FIXTURE_DB, ABS_BACKUP_FIXTURE_METADATA and ABS_BACKUP_EXPORT_DIR were not supplied when recorded."
     },
     {
       "test": "TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles",

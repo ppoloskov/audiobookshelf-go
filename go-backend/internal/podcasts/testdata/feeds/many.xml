@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"><channel><title>Many Episodes</title><description>Six items, one without a date.</description>
-<item><title>Season Finale Part 1</title><itunes:subtitle>Recap number 1</itunes:subtitle><guid>many-1</guid><pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate><enclosure url="https://cdn.example/many/1.mp3" type="audio/mpeg" length="1000"/></item>
-<item><title>Season Finale Part 2</title><itunes:subtitle>Recap number 2</itunes:subtitle><guid>many-2</guid><pubDate>Tue, 02 Jan 2024 10:00:00 GMT</pubDate><enclosure url="https://cdn.example/many/2.mp3" type="audio/mpeg" length="1001"/></item>
-<item><title>Season Finale Part 3</title><itunes:subtitle>Recap number 3</itunes:subtitle><guid>many-3</guid><pubDate>Wed, 03 Jan 2024 10:00:00 GMT</pubDate><enclosure url="https://cdn.example/many/3.mp3" type="audio/mpeg" length="1002"/></item>
-<item><title>Season Finale Part 4</title><itunes:subtitle>Recap number 4</itunes:subtitle><guid>many-4</guid><enclosure url="https://cdn.example/many/4.mp3" type="audio/mpeg" length="1003"/></item>
-<item><title>Season Finale Part 5</title><itunes:subtitle>Recap number 5</itunes:subtitle><guid>many-5</guid><pubDate>Fri, 05 Jan 2024 10:00:00 GMT</pubDate><enclosure url="https://cdn.example/many/5.mp3" type="audio/mpeg" length="1004"/></item>
-<item><title>Season Finale Part 6</title><itunes:subtitle>Recap number 6</itunes:subtitle><guid>many-6</guid><pubDate>Sat, 06 Jan 2024 10:00:00 GMT</pubDate><enclosure url="https://cdn.example/many/6.mp3" type="audio/mpeg" length="1005"/></item>
-</channel></rss>

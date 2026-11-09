@@ -133,12 +133,12 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 		}
 		var h *Handler
 		var events []string
-		var indexedAtNotify, count any
-		var path any
+		var indexedAtNotify any
+		var sent map[string]any
 		h, err = New(cfg, Options{BackupPath: filepath.Join(root, "backups")}, nil, func(_ context.Context, event string, payload map[string]any) error {
 			events = append(events, event)
 			indexedAtNotify = len(h.list())
-			path, count = payload["backupPath"], payload["backupCount"]
+			sent = payload
 			return errors.New("notification delivery failure must not fail backup")
 		})
 		if err != nil {
@@ -152,8 +152,46 @@ func TestCreateNotifiesBackupLifecycle(t *testing.T) {
 		if !reflect.DeepEqual(events, []string{"onBackupCompleted"}) {
 			t.Fatalf("events = %v", events)
 		}
-		if indexedAtNotify != 1 || count != 1 || path != b.FullPath {
-			t.Fatalf("at notification: indexed=%v count=%v path=%v, want the one new backup %s", indexedAtNotify, count, path, b.FullPath)
+		if indexedAtNotify != 1 || sent["backupCount"] != 1 || sent["backupPath"] != b.FullPath {
+			t.Fatalf("at notification: indexed=%v payload=%v, want the one new backup %s", indexedAtNotify, sent, b.FullPath)
+		}
+		// Apprise template variables (NotificationManager.js:62: removedOldest || 'false').
+		if sent["completionTime"] != b.CreatedAt || sent["backupSize"] != b.FileSize || b.FileSize <= 0 || sent["removedOldest"] != "false" {
+			t.Fatalf("payload = %#v, want completionTime %d, backupSize %d (>0), removedOldest \"false\"", sent, b.CreatedAt, b.FileSize)
+		}
+	})
+
+	t.Run("creating beyond the retention limit reports removedOldest", func(t *testing.T) {
+		root := t.TempDir()
+		cfg := config.Config{ConfigPath: filepath.Join(root, "config"), MetadataPath: filepath.Join(root, "metadata")}
+		if err := os.MkdirAll(cfg.ConfigPath, 0755); err != nil {
+			t.Fatal(err)
+		}
+		db, err := sql.Open("sqlite", filepath.Join(cfg.ConfigPath, "absdatabase.sqlite"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.SetMaxOpenConns(1)
+		defer db.Close()
+		if _, err := db.Exec(`CREATE TABLE example (id INTEGER PRIMARY KEY)`); err != nil {
+			t.Fatal(err)
+		}
+		var payloads []map[string]any
+		h, err := New(cfg, Options{BackupPath: filepath.Join(root, "backups"), BackupsToKeep: 1}, nil, func(_ context.Context, _ string, payload map[string]any) error {
+			payloads = append(payloads, payload)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer h.Close()
+		for i := 0; i < 2; i++ {
+			if _, err := h.Create(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(payloads) != 2 || payloads[0]["removedOldest"] != "false" || payloads[1]["removedOldest"] != true || payloads[1]["backupCount"] != 1 {
+			t.Fatalf("payloads = %#v, want removedOldest \"false\" then true with one backup kept", payloads)
 		}
 	})
 

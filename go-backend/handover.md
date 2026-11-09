@@ -32,13 +32,16 @@ downloads, restore).
   under `-race`. Behaviour fixes with TS evidence are in the commit message (podcast download race, Audible
   rating, empty filter values, HLS close vs seek restart, share expiry on session routes). TS-diagnostic files
   restored (they back `contracts/test-assertions.json`).
-- **Audit done** ([archive/reviews/2026-11-09-step3-salvage-audit.md](archive/reviews/2026-11-09-step3-salvage-audit.md)):
-  60 tests really gone; most covered. **In progress: restore packet R** for the WEAKER/LOST contractual items:
-  backup notification payload fields; store DecodeJSONSlice partial decode + StringPtrValue; catalog
-  `include=numepisodesincomplete` + an N+1 guard; identity nullableDate/parseDate; playback devices row, episode
-  progress on sync/close, unknown-episode error, local session metadata, local-all tolerance; realtime packet
-  namespaced-ack cases and Emit-after-close; stale doc references. Node-to-Go backup import tests were always
-  skipped (env-gated), so no loss; Node archive import stays covered only by the manual harness.
+- **Audit done and restored** ([archive/reviews/2026-11-09-step3-salvage-audit.md](archive/reviews/2026-11-09-step3-salvage-audit.md)):
+  60 tests really gone; the contractual/lifecycle losses were restored (backup notification fields, store partial
+  decode, catalog numEpisodesIncomplete + N+1 guard via a counting driver in the test, identity dates, playback
+  journeys, realtime parser/Emit-after-close, stale doc references). Node-to-Go backup import tests were always
+  skipped (env-gated); Node archive import stays covered only by the manual harness.
+- **Wave G seeds found by the restore (TS-confirmed, not yet fixed):** (a) `POST /api/items/<book>/play/<ep>`
+  answers 404, TS 400 for a non-podcast item (LibraryItemController.js:461-464); (b) `/api/session/local-all`
+  stores 0 for a string `currentTime` ("7"), TS stores 7 (SQLite numeric affinity); (c) re-uploading an
+  existing local session overwrites stored mediaMetadata (`playback.sql:27` ON CONFLICT), TS updates only
+  currentTime/timeListening/updatedAt (PlaybackSessionManager.js:207-210).
 - Then relaunch the unfinished packets from the current tree: T1 playback/sharing/realtime, T2 scanner/backup/
   server, T4 catalog/items/lists, T5 identity/infra/contracttest. Remaining T3 item: podcasts
   `SetHTTPClientForTests` (replace in `server/runtime_test.go` with `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1`).

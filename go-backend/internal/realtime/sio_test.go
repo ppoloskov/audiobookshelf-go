@@ -508,3 +508,55 @@ func TestHubCloseClosesConnections(t *testing.T) {
 		expectClosed(t, late)
 	}
 }
+
+// Namespace and ack-id framing of the packet grammar: `<type>[/<nsp>,][<id>]<json>`.
+func TestParsePacket(t *testing.T) {
+	cases := []struct {
+		in   string
+		want packet
+	}{
+		{"0", packet{kind: '0', nsp: "/", id: -1}},
+		{`0{"token":"x"}`, packet{kind: '0', nsp: "/", id: -1, data: `{"token":"x"}`}},
+		{"0/chat,", packet{kind: '0', nsp: "/chat", id: -1}},
+		{"0/chat", packet{kind: '0', nsp: "/chat", id: -1}}, // no comma: the whole rest is the namespace
+		{`2["auth","t"]`, packet{kind: '2', nsp: "/", id: -1, data: `["auth","t"]`}},
+		{`212["a",1]`, packet{kind: '2', nsp: "/", id: 12, data: `["a",1]`}},
+		{`2/x,5["a"]`, packet{kind: '2', nsp: "/x", id: 5, data: `["a"]`}},
+		{`37["ok"]`, packet{kind: '3', nsp: "/", id: 7, data: `["ok"]`}},
+	}
+	for _, tc := range cases {
+		got, err := parsePacket(tc.in)
+		if err != nil || got != tc.want {
+			t.Errorf("parsePacket(%q) = %+v, %v; want %+v", tc.in, got, err, tc.want)
+		}
+	}
+	for _, bad := range []string{"", "x", `51-["a",{"_placeholder":true,"num":0}]`, `61-0["a"]`} {
+		if got, err := parsePacket(bad); err == nil {
+			t.Errorf("parsePacket(%q) = %+v, want an error", bad, got)
+		}
+	}
+}
+
+// Socket.Emit reports whether the packet was queued: true while the
+// connection is open, false once it has closed.
+func TestSocketEmitReportsWhetherTheConnectionIsOpen(t *testing.T) {
+	srv := testServer(t)
+	ws, id := connect(t, srv.url)
+	srv.hub.mu.RLock()
+	s := srv.hub.clients[id].socket
+	srv.hub.mu.RUnlock()
+	if !s.Emit("hello", 1) {
+		t.Fatal("Emit on an open connection reported failure")
+	}
+	if got := recv(t, ws); got != `42["hello",1]` {
+		t.Fatalf("frame = %q", got)
+	}
+	if s.Emit("bad", make(chan int)) {
+		t.Fatal("Emit of an unencodable payload reported success")
+	}
+	s.Disconnect()
+	expectClosed(t, ws)
+	if s.Emit("late", 1) {
+		t.Fatal("Emit after close reported success")
+	}
+}

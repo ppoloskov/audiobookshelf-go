@@ -101,9 +101,12 @@ database with the snapshot as work tree, without a branch or Git mutation there.
 
 Unexecuted tests in the final Go run:
 
-- `TestUpstreamCreatedBackupImports`: no `ABS_BACKUP_NODE_ARCHIVE` supplied.
-- `TestExportNodeFixtureDatabaseForNodeImport`: its three fixture/export env
-  variables were not supplied. The independent rollback check above did run.
+- `TestUpstreamCreatedBackupImports` and `TestExportNodeFixtureDatabaseForNodeImport`
+  (historical): both were env-gated (`ABS_BACKUP_*`) and always skipped in
+  `go test`; they were removed in the step 3 test-quality pass. Node/Go backup
+  archive compatibility is covered only by the manual harness
+  `tools/parity/test-backup-restore.cjs`; the independent rollback check above
+  did run.
 - `TestTranscodedSessionServesHLSWithoutBearerAndRejectsBadFiles`: the existing
   test checks `/usr/bin/ffmpeg`, absent on this Mac, despite the verified native
   codec prefix. No skip or production code was added to accommodate this.

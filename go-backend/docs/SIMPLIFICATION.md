@@ -268,7 +268,7 @@ Defects found and fixed:
   which reuses the snapshot only for the request's own user (same id, type,
   isActive and permission bytes) and decodes any other user's row. Nothing is
   cached across requests. Decodes per request: library items 3 → 1, item read
-  2 → 1, personalized page 3 → 1 (`TestRequestDecodesPermissionsOnce`).
+  2 → 1, personalized page 3 → 1 (was `TestRequestDecodesPermissionsOnce`, since removed with the `access.Decodes` hook; now `TestRequestSnapshotIsReusedOnlyForTheSameUserRow`).
 - **Realtime revocation, a deliberate deviation from TS (fail closed).** TS
   keeps the user object a socket authenticated with (`SocketAuthority.js:104-125`).
   `user_updated` goes only to the acting admin (`UserController.js:347`), and

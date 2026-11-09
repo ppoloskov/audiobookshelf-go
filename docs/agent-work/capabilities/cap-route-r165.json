@@ -29,7 +29,7 @@
   },
   "tests": [
     "go-backend/internal/notifications/handler_test.go:TestNotificationTestEventUsesSendStatusWhenUnconfigured",
-    "go-backend/internal/notifications/handler_test.go:TestApprisePayloadPreservesMissingAndNullTemplates",
+    "go-backend/internal/notifications/handler_test.go:TestAppriseRequestPreservesMissingAndNullTemplates",
     "go-backend/tools/parity/differential.cjs:notification-event-test-send-success",
     "go-backend/tools/parity/differential.cjs:notification-event-test-repeat-success",
     "go-backend/tools/parity/differential.cjs:notification-event-test-intentional-failure",
