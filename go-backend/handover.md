@@ -11,7 +11,7 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Master:** `51011d9` (refactor wave F). CI-green locally (CI mirror + rollback).
+- **Master:** `d833484` (Step 3 salvage). CI-green locally (CI mirror + rollback).
 - **Structural refactor (owner goal, comments + tests chosen): structurally complete.** Waves A–F plus three verifier
   rounds; round 3 found nothing worth fixing beyond small leftovers, all fixed. Clean DAG, no unreasonable imports,
   remaining special cases all have a TS or client-contract reason. Details and every bug fixed with TS evidence:
@@ -21,26 +21,28 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
   41,020 at the start of the refactor); cyclomatic complexity 8,499; functions above 15: 114; `map[string]any` 464;
   `[]any` 202; Set* injectors 4.
 
-## In progress: Step 3, behavioural test-quality pass (uncommitted)
+## In progress: Step 3, behavioural test-quality pass
 
 Owner-approved spec: `TESTS-SPEC` (classify every candidate in the log's "Tests to change" as replace / rewrite /
-delete / retain; preserve every contractual assertion; remove test-only production hooks only via existing injection
-or package-private fixtures; lifecycle invariants first: playback, HLS, share expiry, watcher shutdown, podcast
+delete / retain; preserve every contractual assertion; remove test-only hooks only via existing injection or
+package-private fixtures; lifecycle invariants first: playback, HLS, share expiry, watcher shutdown, podcast
 downloads, restore).
 
-- **T3 (podcasts, providers, notifications, emailapi): finished.** Bugs found: data race in podcast `startDownload`
-  (fixed under the queue lock); Audible `rating` fell back to region (TS Audible.js:85 → null). Four self-recorded
-  goldens replaced by hand-derived expectations; providers `SetEndpoint` moved to export_test.go; podcasts
-  `SetHTTPClientForTests` retained only for `server/runtime_test.go:63` (replace with
-  `t.Setenv("SSRF_REQUEST_FILTER_WHITELIST","127.0.0.1")` before `NewManager`, then delete the method).
-- **T1 (playback, sharing, realtime), T2 (scanner, audiotools, backup, server), T4 (catalog, items, lists),
-  T5 (identity, access, users, store, infra, contracttest): stopped by the owner mid-work on 2026-11-09 ~02:09 UTC.**
-  Their partial edits are in the working tree and saved as a patch. Next action: **salvage** — keep what builds and
-  passes per package, revert the rest to master, gated commit, then relaunch the unfinished packages.
+- **Salvaged and committed (`d833484`):** T3 finished; partial T1/T2/T4/T5 work kept where it built and passed
+  under `-race`. Behaviour fixes with TS evidence are in the commit message (podcast download race, Audible
+  rating, empty filter values, HLS close vs seek restart, share expiry on session routes). TS-diagnostic files
+  restored (they back `contracts/test-assertions.json`).
+- **Open:** a read-only audit of the 72 tests removed by the stopped workers is running (output
+  `scratchpad/refactor/salvage-audit.md`). Restore any test classified LOST/WEAKER that is contractual or
+  lifecycle (candidates: share expiry/download-disabled, watcher Close, cron scan, podcast Close/cancel,
+  permissions decode-once).
+- Then relaunch the unfinished packets from the current tree: T1 playback/sharing/realtime, T2 scanner/backup/
+  server, T4 catalog/items/lists, T5 identity/infra/contracttest. Remaining T3 item: podcasts
+  `SetHTTPClientForTests` (replace in `server/runtime_test.go` with `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1`).
 
 ## Next, in order
 
-1. **Salvage Step 3** (above), gated commit; relaunch unfinished test packets.
+1. **Finish Step 3**: restore audit findings, relaunch unfinished test packets (above).
 2. **Wave G — behavioural transition and side-effect parity audit** (owner brief 2026-11-09): six read-only
    investigations (scanner/filesystem, catalog lifecycle, podcasts/lists/progress, playback/background, security/
    identity/sharing, persistence/runtime) → transition matrix → reproduce the 10–15 highest-risk suspects → minimal
@@ -62,4 +64,4 @@ Stop when the exit criteria hold; do not chase 35,000 lines or zero special case
 
 ## Open owner decisions
 
-None pending.
+None blocking. Parked decisions with defaults (O1, O2, O5, MC-C JS client in CI): ROADMAP.md section 5.
