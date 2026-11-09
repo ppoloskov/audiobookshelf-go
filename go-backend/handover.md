@@ -32,10 +32,13 @@ downloads, restore).
   under `-race`. Behaviour fixes with TS evidence are in the commit message (podcast download race, Audible
   rating, empty filter values, HLS close vs seek restart, share expiry on session routes). TS-diagnostic files
   restored (they back `contracts/test-assertions.json`).
-- **Open:** a read-only audit of the 72 tests removed by the stopped workers is running (output
-  `scratchpad/refactor/salvage-audit.md`). Restore any test classified LOST/WEAKER that is contractual or
-  lifecycle (candidates: share expiry/download-disabled, watcher Close, cron scan, podcast Close/cancel,
-  permissions decode-once).
+- **Audit done** ([archive/reviews/2026-11-09-step3-salvage-audit.md](archive/reviews/2026-11-09-step3-salvage-audit.md)):
+  60 tests really gone; most covered. **In progress: restore packet R** for the WEAKER/LOST contractual items:
+  backup notification payload fields; store DecodeJSONSlice partial decode + StringPtrValue; catalog
+  `include=numepisodesincomplete` + an N+1 guard; identity nullableDate/parseDate; playback devices row, episode
+  progress on sync/close, unknown-episode error, local session metadata, local-all tolerance; realtime packet
+  namespaced-ack cases and Emit-after-close; stale doc references. Node-to-Go backup import tests were always
+  skipped (env-gated), so no loss; Node archive import stays covered only by the manual harness.
 - Then relaunch the unfinished packets from the current tree: T1 playback/sharing/realtime, T2 scanner/backup/
   server, T4 catalog/items/lists, T5 identity/infra/contracttest. Remaining T3 item: podcasts
   `SetHTTPClientForTests` (replace in `server/runtime_test.go` with `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1`).
