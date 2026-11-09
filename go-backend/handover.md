@@ -11,7 +11,7 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Master:** `d833484` (Step 3 salvage). CI-green locally (CI mirror + rollback).
+- **Master:** `5995176` (Step 3 restore). CI-green locally (CI mirror + rollback).
 - **Structural refactor (owner goal, comments + tests chosen): structurally complete.** Waves A–F plus three verifier
   rounds; round 3 found nothing worth fixing beyond small leftovers, all fixed. Clean DAG, no unreasonable imports,
   remaining special cases all have a TS or client-contract reason. Details and every bug fixed with TS evidence:
@@ -42,9 +42,11 @@ downloads, restore).
   stores 0 for a string `currentTime` ("7"), TS stores 7 (SQLite numeric affinity); (c) re-uploading an
   existing local session overwrites stored mediaMetadata (`playback.sql:27` ON CONFLICT), TS updates only
   currentTime/timeListening/updatedAt (PlaybackSessionManager.js:207-210).
-- Then relaunch the unfinished packets from the current tree: T1 playback/sharing/realtime, T2 scanner/backup/
-  server, T4 catalog/items/lists, T5 identity/infra/contracttest. Remaining T3 item: podcasts
-  `SetHTTPClientForTests` (replace in `server/runtime_test.go` with `SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1`).
+- **In progress (relaunched 2026-11-09):** T1 playback/sharing/realtime, T2 scanner/audiotools/backup/server
+  (+ remove podcasts `SetHTTPClientForTests`), T4 catalog/items/lists/playlistview/filterdata, T5 identity/infra.
+  Brief: `TESTS-SPEC` + `TESTS-RELAUNCH` addendum (never remove a test without naming its replacement; never
+  touch manifest-referenced or tsdiagnostic tests). If interrupted: snapshot the tree to a patch, then review
+  per package as in the salvage.
 
 ## Next, in order
 
