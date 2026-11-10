@@ -352,6 +352,27 @@
   fixtures move to library (or dissolve) when catalog's read surface is
   empty after PB04b3 and the writes/admin packet. Next after acceptance:
   PB04b3 search/shelves, then library writes/admin.
+- [ ] IN PROGRESS — PB04b3 ACCEPTED 2026-11-11: `internal/library` owns library
+  search, personalized shelves, the shelf/search DTOs and the library-scoped
+  author list. The author list moved from people so library can consume
+  `people.AuthorRecord`/`AuthorView` without the old people → library edge;
+  people is now author entities/CRUD/images/matching only, and library
+  imports people (`go list -deps` verified acyclic; the allow-fixture was
+  flipped to match). Catalog production now contains only library
+  writes/admin, item detail/cover/file routes and item mutations. Actual
+  delta: **+3 LOC / +2 complexity**, with functions over 15, maps, `[]any`
+  and injectors unchanged. Architect rerun verified: gofmt, build, vet, the
+  full suite with the documented FFmpeg prefix (51 packages), `-race` on
+  library/catalog/server/people/items, golangci-lint v2.15.0 (0 issues), 32
+  dependency fixtures, `make ratchet` +0 and dbnest. Search limits/defaults,
+  shelf ordering, admin-only share gates, progress filtering and author
+  pagination were spot-verified as verbatim. Standing rule from the next
+  packet: this is the third self-disclosed missing pre-dispatch budget
+  (PB03a, b2b, b3), each ratified on trivial actuals — from the writes/admin
+  packet onward, a missing pre-recorded budget returns the packet for
+  revision regardless of actual growth. Next after acceptance: library
+  writes/admin (dissolving the catalog `libraryView` alias and moving the
+  remaining item-list fixtures), then the progress/store records.
 
 ### UA01 · User API simplification (2026-11-10)
 

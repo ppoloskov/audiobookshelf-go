@@ -43,13 +43,35 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/libraries/{id}/podcast-titles", InLibrary(h.db, h.podcastTitles))
 	mux.Handle("GET /api/series/{id}", httputil.Handler(h.seriesFindOne))
 	mux.Handle("PATCH /api/series/{id}", httputil.Handler(h.seriesUpdate))
+	mux.Handle("GET /api/libraries/{id}/authors", InLibrary(h.db, h.authors))
 	mux.Handle("GET /api/libraries/{id}/items", InLibrary(h.db, h.libraryItems))
+	mux.Handle("GET /api/libraries/{id}/personalized", InLibrary(h.db, h.personalized))
+	mux.Handle("GET /api/libraries/{id}/search", InLibrary(h.db, h.search))
 	mux.Handle("GET /api/libraries/{id}/series", InLibrary(h.db, h.series))
 	mux.Handle("GET /api/libraries/{id}/series/{seriesId}", InLibrary(h.db, h.seriesByID))
 }
 
 func (h *Handler) sortingPrefixes(ctx context.Context) []string {
 	return serversettings.Load(ctx, h.db).SortingPrefixes()
+}
+
+func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]items.Item, error) {
+	return items.Load(ctx, h.db, ids, items.Options{Episodes: episodes})
+}
+
+// expandedItems renders ids in the expanded shape in id order; missing ids are
+// skipped.
+func (h *Handler) expandedItems(ctx context.Context, ids []string) ([]items.Expanded, error) {
+	loaded, err := h.loadItems(ctx, ids, true)
+	if err != nil {
+		return nil, err
+	}
+	prefixes := h.sortingPrefixes(ctx)
+	out := make([]items.Expanded, len(loaded))
+	for i, it := range loaded {
+		out[i] = it.Expanded(prefixes)
+	}
+	return out, nil
 }
 
 func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]items.Minified, error) {
@@ -91,3 +113,10 @@ func pageOf[T any](list []T, page, limit int) []T {
 }
 
 func naturalLess(a, b string) bool { return strings.ToLower(a) < strings.ToLower(b) }
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}

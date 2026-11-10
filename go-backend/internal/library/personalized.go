@@ -1,11 +1,10 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
@@ -40,7 +39,7 @@ type shelfEnv struct {
 	r         *http.Request
 	user      store.User
 	libraryID string
-	settings  library.Settings
+	settings  Settings
 	limit     int
 	podcast   bool
 	perm      string // the user's media permission clause, with its arguments
@@ -70,7 +69,7 @@ var podcastShelves = []shelfDef{
 	{"listen-again", "Listen Again", "LabelListenAgain", "episode", episodeShelf(true, `mp.isFinished=1`)},
 }
 
-func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
 	limit := cmp.Or(lib.Limit, 10) // `req.query.limit || 10` (LibraryController.js:891)
 	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, settings: lib.Settings, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
@@ -138,7 +137,7 @@ func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
 	}
 	ctx := e.r.Context()
 	args = append(args, e.permArgs...)
-	q := shelfQuery{build: e.attach(library.RequestItemIncludes(e.r, e.user))}
+	q := shelfQuery{build: e.attach(RequestItemIncludes(e.r, e.user))}
 	if err := e.h.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+query+")", args...).Scan(&q.total); err != nil {
 		return q, err
 	}
@@ -148,12 +147,12 @@ func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
 	return q, err
 }
 
-func (e *shelfEnv) attach(inc library.ItemIncludes) func([]shelfItem) ([]any, error) {
+func (e *shelfEnv) attach(inc ItemIncludes) func([]shelfItem) ([]any, error) {
 	return func(items []shelfItem) ([]any, error) {
 		out := make([]any, len(items))
 		for i := range items {
 			item := items[i].min
-			if err := library.AttachItemIncludes(e.r.Context(), e.h.db, inc, item.Head, item.MediaID(), &item.Extras); err != nil {
+			if err := AttachItemIncludes(e.r.Context(), e.h.db, inc, item.Head, item.MediaID(), &item.Extras); err != nil {
 				return nil, err
 			}
 			out[i] = item
@@ -251,7 +250,7 @@ func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 				item.Media = media
 			}
 			if err == nil && httputil.IncludeHas(e.r, "numepisodesincomplete") {
-				item.NumEpisodesIncomplete, err = library.NumEpisodesIncomplete(e.r.Context(), e.h.db, e.user.ID, media.ID)
+				item.NumEpisodesIncomplete, err = NumEpisodesIncomplete(e.r.Context(), e.h.db, e.user.ID, media.ID)
 			}
 			out[i] = item
 		}

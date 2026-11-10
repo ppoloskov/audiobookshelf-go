@@ -186,10 +186,10 @@ matching, library-scoped author lists and author images live in
 `internal/people`. `internal/library` owns `/api/libraries/:id` request scope,
 the filter/sort SQL compiler, series entity/list/detail/update routes, library
 metadata reads (list/detail/view, stats, filterdata, narrators and podcast
-titles) and item-list browsing with collapse/include handling. Search and
-personalized shelves follow in PB04b3. Catalog keeps every library write/admin
-route, item detail/cover/file routes, item mutations and its remaining
-discovery operations.
+titles), item-list browsing with collapse/include handling, library-scoped
+author lists, search and personalized shelves. Catalog now contains only
+library writes/admin, item-detail/cover/file routes and item mutations. Library
+imports people for author projections; people no longer imports library.
 Keep the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing

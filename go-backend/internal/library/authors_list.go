@@ -1,28 +1,28 @@
-package people
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/library"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
 	"sort"
 	"strings"
 )
 
-func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, ctx := lib.User, r.Context()
-	rows, err := h.db.QueryContext(ctx, `SELECT `+AuthorColumns+` FROM authors WHERE libraryId=?`, lib.ID)
+	rows, err := h.db.QueryContext(ctx, `SELECT `+people.AuthorColumns+` FROM authors WHERE libraryId=?`, lib.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	type listed struct {
-		AuthorRecord
+		people.AuthorRecord
 		numBooks int64
 	}
 	var data []listed
 	for rows.Next() {
-		a, err := ScanAuthor(rows)
+		a, err := people.ScanAuthor(rows)
 		if err != nil {
 			rows.Close()
 			return httputil.Internal("database read failed", err)
@@ -72,17 +72,17 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib library.Sc
 	if paginated {
 		filtered = pageOf(filtered, page, limit)
 	}
-	authors := make([]AuthorListEntry, 0, len(filtered))
+	authors := make([]people.AuthorListEntry, 0, len(filtered))
 	for _, a := range filtered {
 		view, err := a.ToOldJSON()
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		authors = append(authors, AuthorListEntry{AuthorWithBooks: AuthorWithBooks{AuthorView: view, NumBooks: int(a.numBooks)}, LastFirst: store.NullStringPtr(a.LastFirst)})
+		authors = append(authors, people.AuthorListEntry{AuthorWithBooks: people.AuthorWithBooks{AuthorView: view, NumBooks: int(a.numBooks)}, LastFirst: store.NullStringPtr(a.LastFirst)})
 	}
 	if !paginated {
 		return httputil.JSON(w, r, struct {
-			Authors []AuthorListEntry `json:"authors"`
+			Authors []people.AuthorListEntry `json:"authors"`
 		}{authors})
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}

@@ -29,10 +29,8 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
 	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
-	mux.Handle("GET /api/libraries/{id}/personalized", library.InLibrary(h.db, h.personalized))
 	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
 	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
-	mux.Handle("GET /api/libraries/{id}/search", library.InLibrary(h.db, h.search))
 
 	// server/routers/ApiRouter.js:92-130 (LibraryItemController).
 	mux.Handle("GET /api/items/{id}", httputil.Handler(h.item))

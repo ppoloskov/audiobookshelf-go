@@ -12,7 +12,6 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -49,7 +48,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("PATCH /api/authors/{id}", httputil.Handler(h.authorUpdate))
 	mux.Handle("DELETE /api/authors/{id}", httputil.Handler(h.authorDelete))
 	mux.Handle("POST /api/authors/{id}/match", httputil.Handler(h.authorMatch))
-	mux.Handle("GET /api/libraries/{id}/authors", library.InLibrary(h.db, h.authors))
 	mux.Handle("GET /api/authors/{id}/image", httputil.Handler(h.authorImage))
 	mux.Handle("POST /api/authors/{id}/image", httputil.Handler(h.authorUploadImage))
 	mux.Handle("DELETE /api/authors/{id}/image", httputil.Handler(h.authorDeleteImage))

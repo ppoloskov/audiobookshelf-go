@@ -59,6 +59,23 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler
 	return &Handler{db: db, cfg: cfg, emit: emit, filters: deps.Filters, deps: deps}
 }
 
+func (h *Handler) queryStrings(ctx context.Context, query string, args ...any) ([]string, error) {
+	rows, err := h.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]string, 0)
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		out = append(out, value)
+	}
+	return out, rows.Err()
+}
+
 func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]items.Item, error) {
 	return items.Load(ctx, h.db, ids, items.Options{Episodes: episodes})
 }
@@ -110,11 +127,4 @@ func pageOf[T any](list []T, page, limit int) []T {
 		return []T{}
 	}
 	return list[start:min(start+limit, len(list))]
-}
-
-func deref(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }

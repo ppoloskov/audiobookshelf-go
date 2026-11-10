@@ -1,12 +1,10 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/textsort"
-	"context"
 	"encoding/json"
 	"math"
 	"sort"
@@ -17,7 +15,6 @@ import (
 
 	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/library"
 )
 
 // Book home-page shelves that LibraryItem.getPersonalizedShelves
@@ -25,30 +22,6 @@ import (
 // progress and recently-added shelves.
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
-
-func editBookMetadata(item *items.Minified, edit func(metadata *books.BookMetadataMinified)) {
-	if media, ok := item.Media.(books.BookMinified); ok {
-		edit(&media.Metadata)
-		item.Media = media
-	}
-}
-
-func (h *Handler) queryStrings(ctx context.Context, query string, args ...any) ([]string, error) {
-	rows, err := h.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := make([]string, 0)
-	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	return out, rows.Err()
-}
 
 // continueSeriesShelf mirrors libraryItemsBookFilters.getContinueSeriesLibraryItems
 // (server/utils/queries/libraryItemsBookFilters.js:704-836).
@@ -178,7 +151,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 	}
 	// The continue-series query only loads feeds; it never sets mediaItemShare
 	// (libraryItemsBookFilters.js:707-826).
-	attach := e.attach(library.ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
+	attach := e.attach(ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	q.build = func(items []shelfItem) ([]any, error) {
 		for i := range items {
 			c := chosenBooks[i]
@@ -250,11 +223,11 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	defer rows.Close()
 	var entries []seriesShelfEntry
 	for rows.Next() {
-		var rec library.SeriesRecord
+		var rec SeriesRecord
 		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			return q, err
 		}
-		view, err := library.NewSeriesView(rec, prefixes)
+		view, err := NewSeriesView(rec, prefixes)
 		if err != nil {
 			return q, err
 		}
@@ -360,7 +333,7 @@ func (e *shelfEnv) discover() (shelfQuery, error) {
 	}
 	q.ids, err = h.queryStrings(ctx, `SELECT li.id`+where+` GROUP BY b.id ORDER BY RANDOM() LIMIT ?`, append(args, e.limit)...)
 	// Discover only loads feeds; it never sets mediaItemShare (js:886-1017).
-	q.build = e.attach(library.ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
+	q.build = e.attach(ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	return q, err
 }
 

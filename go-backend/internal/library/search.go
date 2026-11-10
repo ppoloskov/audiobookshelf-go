@@ -1,11 +1,10 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
@@ -17,7 +16,7 @@ import (
 	"strings"
 )
 
-func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
@@ -230,14 +229,14 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 	if err != nil {
 		return nil, err
 	}
-	var matches []library.SeriesView
+	var matches []SeriesView
 	for rows.Next() {
-		var rec library.SeriesRecord
+		var rec SeriesRecord
 		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		view, err := library.NewSeriesView(rec, prefixes)
+		view, err := NewSeriesView(rec, prefixes)
 		if err != nil {
 			rows.Close()
 			return nil, err
@@ -278,6 +277,6 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 }
 
 type seriesSearchHit struct {
-	Series library.SeriesView `json:"series"`
-	Books  []items.Full       `json:"books"`
+	Series SeriesView   `json:"series"`
+	Books  []items.Full `json:"books"`
 }

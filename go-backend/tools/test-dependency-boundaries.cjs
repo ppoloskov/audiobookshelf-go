@@ -94,8 +94,8 @@ try {
   allows('catalog-people', 'internal/catalog/fixture.go', 'audiobookshelf-compat/internal/people', {
     'internal/people/people.go': 'package people\ntype Handler struct{}\n',
   });
-  allows('people-library', 'internal/people/fixture.go', 'audiobookshelf-compat/internal/library', {
-    'internal/library/library.go': 'package library\ntype Scope struct{}\n',
+  allows('library-people', 'internal/library/fixture.go', 'audiobookshelf-compat/internal/people', {
+    'internal/people/people.go': 'package people\ntype AuthorRecord struct{}\n',
   });
   allows('catalog-library', 'internal/catalog/fixture.go', 'audiobookshelf-compat/internal/library', {
     'internal/library/library.go': 'package library\ntype Scope struct{}\n',
