@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -165,7 +166,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 		filtered := li.seriesByID(seriesID)
 		item := rendered[i]
 		editBookMetadata(&item, func(metadata *books.BookMetadataMinified) {
-			metadata.Series = &bookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
+			metadata.Series = &people.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {
 			ids := make([]string, 0, len(c.books))

@@ -124,6 +124,9 @@ func TestItemsPodcastListRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if a := it.Access(); !a.Explicit || a.LibraryID != "lib" {
+		t.Fatalf("podcast access = %+v", a)
+	}
 	row := it.ListRow([]string{"a"}).Media.(podcastread.PodcastMedia)
 	if *row.NumEpisodes != 7 || *row.Size != 99 || row.Metadata.TitleIgnorePrefix == nil || *row.Metadata.TitleIgnorePrefix != "Show, A" {
 		t.Fatalf("list row = %+v", row)

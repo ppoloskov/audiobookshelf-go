@@ -35,8 +35,6 @@ type Deps struct {
 	// LibraryChanged refreshes the scanner's watcher and schedules after a
 	// library mutation committed.
 	LibraryChanged func(libraryID string)
-	// Authors looks authors up at the metadata provider (POST /api/authors/:id/match).
-	Authors AuthorFinder
 	// Books searches the metadata providers for a quick match.
 	Books BookFinder
 	// PodcastEpisodes quick matches a podcast's unmatched episodes against its

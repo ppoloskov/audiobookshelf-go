@@ -3,8 +3,11 @@ package httputil
 import (
 	"encoding/json"
 	"errors"
+	"io"
+	"mime"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"audiobookshelf-compat/internal/logging"
 )
@@ -23,6 +26,26 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, status int, value any) {
 		return
 	}
 	sendJSON(w, status, data, r.Method == http.MethodHead)
+}
+
+// DecodeObjectFields is express.json for a handler that reads named keys: a
+// request whose content type is not JSON has an empty body object, and a body
+// that is not a JSON object has no keys.
+func DecodeObjectFields(r *http.Request) map[string]json.RawMessage {
+	body := map[string]json.RawMessage{}
+	media, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if media != "application/json" && !strings.HasSuffix(media, "+json") {
+		return body
+	}
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
+	if err != nil {
+		return body
+	}
+	var parsed map[string]json.RawMessage
+	if json.Unmarshal(raw, &parsed) == nil && parsed != nil {
+		return parsed
+	}
+	return body
 }
 
 // sendJSON is the one place a marshalled JSON body is framed.

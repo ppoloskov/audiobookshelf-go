@@ -10,18 +10,10 @@ import (
 // the user to its context before dispatching (store.ContextWithUser); the
 // public image read gets none.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	// server/routers/ApiRouter.js:217-223.
-	mux.Handle("GET /api/authors/{id}", httputil.Handler(h.authorFindOne))
-	mux.Handle("PATCH /api/authors/{id}", httputil.Handler(h.authorUpdate))
-	mux.Handle("DELETE /api/authors/{id}", httputil.Handler(h.authorDelete))
-	mux.Handle("POST /api/authors/{id}/match", httputil.Handler(h.authorMatch))
+	// server/routers/ApiRouter.js:217-223; author entity routes live in people.
 	mux.Handle("GET /api/authors/{id}/image", httputil.Handler(h.authorImage))
 	mux.Handle("POST /api/authors/{id}/image", httputil.Handler(h.authorUploadImage))
 	mux.Handle("DELETE /api/authors/{id}/image", httputil.Handler(h.authorDeleteImage))
-
-	// server/routers/ApiRouter.js:228-229.
-	mux.Handle("GET /api/series/{id}", httputil.Handler(h.seriesFindOne))
-	mux.Handle("PATCH /api/series/{id}", httputil.Handler(h.seriesUpdate))
 
 	// server/routers/ApiRouter.js:102-103.
 	mux.Handle("POST /api/items/batch/delete", httputil.Handler(h.batchDelete))

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"bytes"
 	"encoding/json"
@@ -15,20 +16,7 @@ import (
 // request whose content type is not JSON has an empty body object, and a body
 // that is not a JSON object has no keys.
 func jsonBodyObject(r *http.Request) map[string]json.RawMessage {
-	body := map[string]json.RawMessage{}
-	media, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if media != "application/json" && !strings.HasSuffix(media, "+json") {
-		return body
-	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
-	if err != nil {
-		return body
-	}
-	var parsed map[string]json.RawMessage
-	if json.Unmarshal(raw, &parsed) == nil && parsed != nil {
-		return parsed
-	}
-	return body
+	return httputil.DecodeObjectFields(r)
 }
 
 func firstNonEmpty(values ...string) string {

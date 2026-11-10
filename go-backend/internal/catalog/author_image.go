@@ -6,6 +6,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -21,6 +22,14 @@ import (
 	"strings"
 	"syscall"
 )
+
+// PurgeAuthorImageCache exposes the author cache purge to the people domain.
+func (h *Handler) PurgeAuthorImageCache(entityID string) { h.purgeImageCache(entityID) }
+
+// SaveAuthorImage exposes the author image download to the people domain.
+func (h *Handler) SaveAuthorImage(ctx context.Context, authorID, imageURL string) (string, string) {
+	return h.saveAuthorImage(ctx, authorID, imageURL)
+}
 
 // purgeImageCache is CacheManager.purgeImageCache (CacheManager.js:97-126): it
 // removes every cached image whose name starts with the entity id.
@@ -105,7 +114,7 @@ func axiosMessage(err error) string {
 // authorUploadImage is AuthorController.uploadImage (AuthorController.js:267-304).
 func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) error {
 	user := store.RequestUser(r)
-	a, err := h.authorRequest(r, user)
+	a, err := people.AuthorRequest(r.Context(), h.db, r, user)
 	if err != nil {
 		return err
 	}
@@ -139,56 +148,56 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 		return httputil.Status(http.StatusBadRequest, fmt.Sprintf(`Invalid request payload. Invalid url "%s"`, shown))
 	}
 	logging.Debugf(`[AuthorController] Requesting download author image from url "%s"`, imageURL)
-	imagePath, message := h.saveAuthorImage(ctx, a.id, imageURL)
+	imagePath, message := h.saveAuthorImage(ctx, a.ID, imageURL)
 	if message != "" {
 		return httputil.Status(http.StatusBadRequest, message)
 	}
-	if a.imagePath.Valid && a.imagePath.String != "" {
-		h.purgeImageCache(a.id)
+	if a.ImagePath.Valid && a.ImagePath.String != "" {
+		h.purgeImageCache(a.ID)
 	}
-	update := &authorColumnUpdate{}
-	update.force("imagePath", &imagePath) // changed('imagePath', true): bump updatedAt
-	if err := update.save(ctx, h.db, a.id); err != nil {
+	update := &people.AuthorColumnUpdate{}
+	update.Force("imagePath", &imagePath) // changed('imagePath', true): bump updatedAt
+	if err := update.Save(ctx, h.db, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	expanded, err := h.authorExpanded(ctx, a.id)
+	expanded, err := people.AuthorExpanded(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("author_updated", expanded)
-	return httputil.JSON(w, r, authorImageResult{Author: expanded.authorView})
+	return httputil.JSON(w, r, people.AuthorImageResult{Author: expanded.AuthorView})
 }
 
 // authorDeleteImage is AuthorController.deleteImage (AuthorController.js:313-329).
 func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, store.RequestUser(r))
+	a, err := people.AuthorRequest(r.Context(), h.db, r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}
 	ctx := r.Context()
-	if !a.imagePath.Valid || a.imagePath.String == "" {
-		logging.Errorf(`[AuthorController] Author "%s" has no imagePath set`, a.imagePath.String)
+	if !a.ImagePath.Valid || a.ImagePath.String == "" {
+		logging.Errorf(`[AuthorController] Author "%s" has no imagePath set`, a.ImagePath.String)
 		return httputil.Status(http.StatusBadRequest, "Author has no image path set")
 	}
-	logging.Infof(`[AuthorController] Removing image for author "%s" at "%s"`, a.name.String, a.imagePath.String)
-	h.purgeImageCache(a.id)
+	logging.Infof(`[AuthorController] Removing image for author "%s" at "%s"`, a.Name.String, a.ImagePath.String)
+	h.purgeImageCache(a.ID)
 	// CoverManager.removeFile (CoverManager.js:34-44).
-	if _, err := os.Stat(a.imagePath.String); err != nil {
-		logging.Warnf("[CoverManager] Attempting to remove file that does not exist %s", a.imagePath.String)
-	} else if err := os.Remove(a.imagePath.String); err != nil {
+	if _, err := os.Stat(a.ImagePath.String); err != nil {
+		logging.Warnf("[CoverManager] Attempting to remove file that does not exist %s", a.ImagePath.String)
+	} else if err := os.Remove(a.ImagePath.String); err != nil {
 		return httputil.Internal("internal error", err)
 	}
-	update := &authorColumnUpdate{}
-	update.set("imagePath", store.NullStringPtr(a.imagePath), nil)
-	if err := update.save(ctx, h.db, a.id); err != nil {
+	update := &people.AuthorColumnUpdate{}
+	update.Change("imagePath", store.NullStringPtr(a.ImagePath), nil)
+	if err := update.Save(ctx, h.db, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	expanded, err := h.authorExpanded(ctx, a.id)
+	expanded, err := people.AuthorExpanded(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("author_updated", expanded)
-	return httputil.JSON(w, r, authorImageResult{Author: expanded.authorView})
+	return httputil.JSON(w, r, people.AuthorImageResult{Author: expanded.AuthorView})
 }
 
 // authorImage is AuthorController.getImage (AuthorController.js:391-419) over
@@ -198,7 +207,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	authorID := r.PathValue("id")
 	query := r.URL.Query()
 	if query.Get("raw") != "" {
-		a, err := h.loadAuthor(r.Context(), authorID)
+		a, err := people.LoadAuthor(r.Context(), h.db, authorID)
 		if errors.Is(err, sql.ErrNoRows) {
 			logging.Warnf(`[AuthorController] Author "%s" not found`, authorID)
 			return httputil.Status(http.StatusNotFound, "")
@@ -206,15 +215,15 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if !a.imagePath.Valid || a.imagePath.String == "" {
-			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
+		if !a.ImagePath.Valid || a.ImagePath.String == "" {
+			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.Name.String, a.ImagePath.String)
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		if _, err := os.Stat(a.imagePath.String); err != nil {
-			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.name.String, a.imagePath.String)
+		if _, err := os.Stat(a.ImagePath.String); err != nil {
+			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.Name.String, a.ImagePath.String)
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		h.coverRaw(w, r, a.imagePath.String)
+		h.coverRaw(w, r, a.ImagePath.String)
 		return nil
 	}
 	format := query.Get("format")
@@ -247,20 +256,20 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 		streamCoverCache(w, r, cachePath)
 		return nil
 	}
-	a, err := h.loadAuthor(r.Context(), authorID)
+	a, err := people.LoadAuthor(r.Context(), h.db, authorID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return httputil.Internal("database read failed", err)
 	}
-	if err != nil || !a.imagePath.Valid || a.imagePath.String == "" {
+	if err != nil || !a.ImagePath.Valid || a.ImagePath.String == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if _, err := os.Stat(a.imagePath.String); err != nil {
+	if _, err := os.Stat(a.ImagePath.String); err != nil {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err := os.MkdirAll(h.imageCachePath(), 0o755); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	if err := resizeImage(r.Context(), a.imagePath.String, cachePath, width, height); err != nil {
+	if err := resizeImage(r.Context(), a.ImagePath.String, cachePath, width, height); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
 	streamCoverCache(w, r, cachePath)

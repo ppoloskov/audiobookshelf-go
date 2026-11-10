@@ -109,6 +109,8 @@ linters:
             - "**/internal/books/**/*.go"
             - "**/internal/mediafiles/*.go"
             - "**/internal/mediafiles/**/*.go"
+            - "**/internal/people/*.go"
+            - "**/internal/people/**/*.go"
             - "**/internal/podcasts/read/*.go"
             - "**/internal/podcasts/read/**/*.go"
             - "**/internal/users/*.go"

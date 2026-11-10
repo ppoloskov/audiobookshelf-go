@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -51,23 +52,28 @@ func (f *fakeFinder) FindAuthorByName(_ context.Context, name, region string) *w
 
 var adminPermissions = json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true,"update":true,"delete":true,"upload":true}`)
 
-func newAuthorRig(t *testing.T, finder AuthorFinder) *authorRig {
+func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
 	t.Helper()
 	db := catalogFixture(t)
 	t.Cleanup(func() { db.Close() })
 	rig := &authorRig{t: t, db: db, meta: t.TempDir()}
-	rig.h = New(db, config.Config{MetadataPath: rig.meta}, func(_, event string, payload any) {
+	emit := func(_, event string, payload any) {
 		rig.mu.Lock()
 		defer rig.mu.Unlock()
 		rig.events = append(rig.events, recordedEvent{event, payload})
-	}, testDeps())
-	rig.h.deps.ItemChanged = func(_ context.Context, itemID string) error {
+	}
+	writeMetadata := func(_ context.Context, itemID string) error {
 		rig.touched = append(rig.touched, itemID)
 		return nil
 	}
+	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, testDeps())
+	rig.h.deps.ItemChanged = writeMetadata
 	rig.mux = http.NewServeMux()
-	rig.h.deps.Authors = finder
 	rig.h.Routes(rig.mux)
+	people.New(db, emit, people.Deps{
+		Filters: rig.h.deps.Filters, Authors: finder, WriteMetadata: writeMetadata,
+		PurgeImageCache: rig.h.PurgeAuthorImageCache, SaveAuthorImage: rig.h.SaveAuthorImage,
+	}).Routes(rig.mux)
 	for _, q := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,
 		`INSERT INTO books VALUES ('b2','Second',NULL,NULL,'2025',NULL,NULL,NULL,NULL,NULL,'en',0,0,NULL,5,'[]','[]','null','[]','[]','[]','2024-01-02T00:00:00Z','2024-01-02T00:00:00Z')`,
@@ -252,9 +258,9 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	rig := newAuthorRig(t, nil)
 	body := `{"description":"Bio","asin":"B000000001"}`
 	var first struct {
-		Author  authorView `json:"author"`
-		Updated *bool      `json:"updated"`
-		Merged  *bool      `json:"merged"`
+		Author  people.AuthorView `json:"author"`
+		Updated *bool             `json:"updated"`
+		Merged  *bool             `json:"merged"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", body, rootUser()), &first)
 	if first.Updated == nil || !*first.Updated || first.Merged != nil {
@@ -267,7 +273,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	if len(events) != 1 || events[0].event != "author_updated" {
 		t.Fatalf("events %+v", events)
 	}
-	expanded, ok := events[0].payload.(authorWithBooks)
+	expanded, ok := events[0].payload.(people.AuthorWithBooks)
 	if !ok || expanded.NumBooks != 1 {
 		t.Fatalf("payload %+v", events[0].payload)
 	}
@@ -283,7 +289,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	}
 	// null clears a nullable field.
 	var cleared struct {
-		Author authorView `json:"author"`
+		Author people.AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", `{"asin":null}`, rootUser()), &cleared)
 	if cleared.Author.ASIN != nil {
@@ -324,9 +330,9 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	var body struct {
-		Author authorView `json:"author"`
-		Merged *bool      `json:"merged"`
-		Update *bool      `json:"updated"`
+		Author people.AuthorView `json:"author"`
+		Merged *bool             `json:"merged"`
+		Update *bool             `json:"updated"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Merged == nil || !*body.Merged || body.Update != nil || body.Author.ID != "a2" {
@@ -348,10 +354,10 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 	if strings.Join(names, ",") != "items_updated,author_removed,author_updated" {
 		t.Fatalf("events %v", names)
 	}
-	if removed, ok := events[1].payload.(authorView); !ok || removed.ID != "a1" {
+	if removed, ok := events[1].payload.(people.AuthorView); !ok || removed.ID != "a1" {
 		t.Fatalf("author_removed %+v", events[1].payload)
 	}
-	if updated, ok := events[2].payload.(authorWithBooks); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
+	if updated, ok := events[2].payload.(people.AuthorWithBooks); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
 		t.Fatalf("author_updated %+v", events[2].payload)
 	}
 	if len(rig.touched) != 1 || rig.touched[0] != "i1" {
@@ -479,7 +485,7 @@ func TestAuthorImageUploadAndDelete(t *testing.T) {
 	}
 	want := filepath.Join(rig.meta, "authors", "a1.png")
 	var body struct {
-		Author authorView `json:"author"`
+		Author people.AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Author.ImagePath == nil || *body.Author.ImagePath != want {
@@ -606,8 +612,8 @@ func TestAuthorMatch(t *testing.T) {
 		t.Fatalf("calls %q", got)
 	}
 	var body struct {
-		Updated bool       `json:"updated"`
-		Author  authorView `json:"author"`
+		Updated bool              `json:"updated"`
+		Author  people.AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	want := filepath.Join(rig.meta, "authors", "a1.png")

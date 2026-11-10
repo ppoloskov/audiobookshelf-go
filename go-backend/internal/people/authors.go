@@ -2,7 +2,7 @@
 // v2.37.2), registered on the ServeMux by Routes (routes.go): detail with the
 // author page's items and series, rename/merge, delete, image read/upload/
 // delete and the Audnexus match.
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/access"
@@ -15,7 +15,6 @@ import (
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
-	"audiobookshelf-compat/internal/wire"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -27,45 +26,39 @@ import (
 	"strings"
 )
 
-// AuthorFinder is AuthorFinder.js: the metadata provider lookups behind
-// POST /api/authors/:id/match.
-type AuthorFinder interface {
-	FindAuthorByASIN(ctx context.Context, asin, region string) *wire.AuthorMatch
-	FindAuthorByName(ctx context.Context, name, region string) *wire.AuthorMatch
+type AuthorRecord struct {
+	ID, LibraryID                                 string
+	Name, LastFirst, ASIN, Description, ImagePath sql.NullString
+	CreatedAt, UpdatedAt                          any
 }
 
-type authorRecord struct {
-	id, libraryID                                 string
-	name, lastFirst, asin, description, imagePath sql.NullString
-	createdAt, updatedAt                          any
-}
+const AuthorColumns = `id,name,lastFirst,asin,description,imagePath,libraryId,createdAt,updatedAt`
 
-const authorColumns = `id,name,lastFirst,asin,description,imagePath,libraryId,createdAt,updatedAt`
-
-func scanAuthor(row interface{ Scan(...any) error }) (authorRecord, error) {
-	var a authorRecord
-	err := row.Scan(&a.id, &a.name, &a.lastFirst, &a.asin, &a.description, &a.imagePath, &a.libraryID, &a.createdAt, &a.updatedAt)
+func ScanAuthor(row interface{ Scan(...any) error }) (AuthorRecord, error) {
+	var a AuthorRecord
+	err := row.Scan(&a.ID, &a.Name, &a.LastFirst, &a.ASIN, &a.Description, &a.ImagePath, &a.LibraryID, &a.CreatedAt, &a.UpdatedAt)
 	return a, err
 }
 
-func (h *Handler) loadAuthor(ctx context.Context, id string) (authorRecord, error) {
-	return scanAuthor(h.db.QueryRowContext(ctx, `SELECT `+authorColumns+` FROM authors WHERE id=?`, id))
+// LoadAuthor reads one author row.
+func LoadAuthor(ctx context.Context, db *sql.DB, id string) (AuthorRecord, error) {
+	return ScanAuthor(db.QueryRowContext(ctx, `SELECT `+AuthorColumns+` FROM authors WHERE id=?`, id))
 }
 
-// toOldJSON is Author.toOldJSON (Author.js:177-188).
-func (a authorRecord) toOldJSON() (authorView, error) {
-	added, err := dbtime.OptionalMillis(a.createdAt)
+// ToOldJSON is Author.toOldJSON (Author.js:177-188).
+func (a AuthorRecord) ToOldJSON() (AuthorView, error) {
+	added, err := dbtime.OptionalMillis(a.CreatedAt)
 	if err != nil || added == nil {
-		return authorView{}, fmt.Errorf("author %s createdAt: %v", a.id, err)
+		return AuthorView{}, fmt.Errorf("author %s createdAt: %v", a.ID, err)
 	}
-	updated, err := dbtime.OptionalMillis(a.updatedAt)
+	updated, err := dbtime.OptionalMillis(a.UpdatedAt)
 	if err != nil || updated == nil {
-		return authorView{}, fmt.Errorf("author %s updatedAt: %v", a.id, err)
+		return AuthorView{}, fmt.Errorf("author %s updatedAt: %v", a.ID, err)
 	}
-	return authorView{
-		ID: a.id, ASIN: store.NullStringPtr(a.asin), Name: store.NullStringPtr(a.name),
-		Description: store.NullStringPtr(a.description), ImagePath: store.NullStringPtr(a.imagePath),
-		LibraryID: a.libraryID, AddedAt: *added, UpdatedAt: *updated,
+	return AuthorView{
+		ID: a.ID, ASIN: store.NullStringPtr(a.ASIN), Name: store.NullStringPtr(a.Name),
+		Description: store.NullStringPtr(a.Description), ImagePath: store.NullStringPtr(a.ImagePath),
+		LibraryID: a.LibraryID, AddedAt: *added, UpdatedAt: *updated,
 	}, nil
 }
 
@@ -75,39 +68,40 @@ func (h *Handler) authorNumBooks(ctx context.Context, authorID string) (int, err
 	return n, err
 }
 
-// authorExpanded is Author.toOldJSONExpanded(numBooks) read fresh from the row.
-func (h *Handler) authorExpanded(ctx context.Context, authorID string) (authorWithBooks, error) {
-	a, err := h.loadAuthor(ctx, authorID)
+// AuthorExpanded is Author.toOldJSONExpanded(numBooks) read fresh from the row.
+func AuthorExpanded(ctx context.Context, db *sql.DB, authorID string) (AuthorWithBooks, error) {
+	a, err := LoadAuthor(ctx, db, authorID)
 	if err != nil {
-		return authorWithBooks{}, err
+		return AuthorWithBooks{}, err
 	}
-	oldJSON, err := a.toOldJSON()
+	oldJSON, err := a.ToOldJSON()
 	if err != nil {
-		return authorWithBooks{}, err
+		return AuthorWithBooks{}, err
 	}
-	n, err := h.authorNumBooks(ctx, authorID)
-	return authorWithBooks{authorView: oldJSON, NumBooks: n}, err
+	var n int
+	err = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bookAuthors WHERE authorId=?`, authorID).Scan(&n)
+	return AuthorWithBooks{AuthorView: oldJSON, NumBooks: n}, err
 }
 
-// authorRequest is AuthorController.middleware (AuthorController.js:427-442):
+// AuthorRequest is AuthorController.middleware (AuthorController.js:427-442):
 // an unknown author or one in a library the user cannot access is a 404, and
 // DELETE needs the delete permission, PATCH and POST the update permission.
-func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord, error) {
-	a, err := h.loadAuthor(r.Context(), r.PathValue("id"))
+func AuthorRequest(ctx context.Context, db *sql.DB, r *http.Request, user store.User) (AuthorRecord, error) {
+	a, err := LoadAuthor(ctx, db, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
 		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return a, httputil.Internal("database read failed", err)
 	}
-	if !access.For(r.Context(), user).Library(a.libraryID) {
+	if !access.For(ctx, user).Library(a.LibraryID) {
 		return a, httputil.Status(http.StatusNotFound, "")
 	}
 	switch {
-	case r.Method == http.MethodDelete && !access.For(r.Context(), user).Delete():
+	case r.Method == http.MethodDelete && !access.For(ctx, user).Delete():
 		logging.Warnf(`[AuthorController] User "%s" attempted to delete without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
-	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.For(r.Context(), user).Update():
+	case (r.Method == http.MethodPatch || r.Method == http.MethodPost) && !access.For(ctx, user).Update():
 		logging.Warnf(`[AuthorController] User "%s" attempted to update without permission`, user.Username)
 		return a, httputil.Status(http.StatusForbidden, "")
 	}
@@ -118,9 +112,9 @@ func (h *Handler) authorRequest(r *http.Request, user store.User) (authorRecord,
 // Database.libraryItemModel.getForAuthor (LibraryItem.js:567 over
 // libraryItemsBookFilters.getFilteredLibraryItems, 'authors' group, addedAt
 // descending): only items the user may see (explicit and tag permissions).
-func (h *Handler) authorItemIDs(ctx context.Context, user store.User, author authorRecord) ([]string, error) {
+func (h *Handler) authorItemIDs(ctx context.Context, user store.User, author AuthorRecord) ([]string, error) {
 	permissionSQL, permissionArgs := access.For(ctx, user).MediaClause("b")
-	args := append([]any{author.libraryID, author.id}, permissionArgs...)
+	args := append([]any{author.LibraryID, author.ID}, permissionArgs...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId=b.id AND ba.authorId=?)`+permissionSQL+` ORDER BY li.createdAt DESC`, args...)
 	if err != nil {
 		return nil, err
@@ -177,16 +171,16 @@ func (h *Handler) emitItemsUpdated(ctx context.Context, itemIDs []string) {
 // authorFindOne is AuthorController.findOne (AuthorController.js:40-88).
 func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 	user := store.RequestUser(r)
-	a, err := h.authorRequest(r, user)
+	a, err := AuthorRequest(r.Context(), h.db, r, user)
 	if err != nil {
 		return err
 	}
 	include := strings.Split(r.URL.Query().Get("include"), ",")
-	oldJSON, err := a.toOldJSON()
+	oldJSON, err := a.ToOldJSON()
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	detail := authorDetail{authorView: oldJSON}
+	detail := AuthorDetail{AuthorView: oldJSON}
 	if slices.Contains(include, "items") {
 		ids, err := h.authorItemIDs(r.Context(), user, a)
 		if err != nil {
@@ -194,7 +188,7 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 		}
 		rawItems := make([]json.RawMessage, 0, len(ids))
 		if slices.Contains(include, "series") {
-			groups, err := h.authorSeriesGroups(r.Context(), ids)
+			groups, err := h.AuthorSeriesGroups(r.Context(), ids)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}
@@ -217,11 +211,11 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 	return httputil.JSON(w, r, detail)
 }
 
-// authorSeriesGroups groups the items into their series
+// AuthorSeriesGroups groups the items into their series
 // (AuthorController.js:49-81): each series' items are minified copies whose
 // metadata.series names the series and the item's sequence, sorted by
 // sequence with the natural comparer; groups keep first-seen order.
-func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]authorSeriesGroup, error) {
+func (h *Handler) AuthorSeriesGroups(ctx context.Context, itemIDs []string) ([]AuthorSeriesGroup, error) {
 	type entry struct {
 		raw      json.RawMessage
 		sequence *string
@@ -276,7 +270,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 		}
 		for _, s := range memberships[it.ID] {
 			m := media
-			m.Metadata.Series = bookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
+			m.Metadata.Series = BookSeriesRef{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: store.NullStringPtr(s.prefix), Sequence: store.NullStringPtr(s.number)}
 			withSeries := base
 			withSeries.Media = m
 			raw, err := json.Marshal(withSeries)
@@ -292,7 +286,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 			g.entries = append(g.entries, entry{raw: raw, sequence: store.NullStringPtr(s.number)})
 		}
 	}
-	out := make([]authorSeriesGroup, 0, len(order))
+	out := make([]AuthorSeriesGroup, 0, len(order))
 	for _, id := range order {
 		g := groups[id]
 		sort.SliceStable(g.entries, func(i, j int) bool {
@@ -302,9 +296,16 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 		for i, e := range g.entries {
 			items[i] = e.raw
 		}
-		out = append(out, authorSeriesGroup{ID: g.id, Name: g.name, Items: items})
+		out = append(out, AuthorSeriesGroup{ID: g.id, Name: g.name, Items: items})
 	}
 	return out, nil
+}
+
+func jsNullable(value *string) string {
+	if value == nil {
+		return "null"
+	}
+	return *value
 }
 
 func stringOrNull(raw json.RawMessage) (value *string, ok bool) {
@@ -325,55 +326,51 @@ func samePointer(a, b *string) bool {
 	return *a == *b
 }
 
-// authorColumnUpdate collects the changed columns of an author the way
+// AuthorColumnUpdate collects the changed columns of an author the way
 // Sequelize's set()/changed() does, and saves them with a fresh updatedAt.
-type authorColumnUpdate struct {
-	columns []string
-	values  []any
+type AuthorColumnUpdate struct {
+	Columns []string
+	Values  []any
 }
 
-func (u *authorColumnUpdate) set(column string, current, next *string) bool {
+func (u *AuthorColumnUpdate) Change(column string, current, next *string) bool {
 	if samePointer(current, next) {
 		return false
 	}
-	u.columns = append(u.columns, column)
+	u.Columns = append(u.Columns, column)
 	if next == nil {
-		u.values = append(u.values, nil)
+		u.Values = append(u.Values, nil)
 	} else {
-		u.values = append(u.values, *next)
+		u.Values = append(u.Values, *next)
 	}
 	return true
 }
 
 // force marks a column changed even when the value is the same
 // (changed(column, true)): the update then still bumps updatedAt.
-func (u *authorColumnUpdate) force(column string, next *string) {
-	for i, c := range u.columns {
+func (u *AuthorColumnUpdate) Force(column string, next *string) {
+	for i, c := range u.Columns {
 		if c == column {
-			u.values[i] = store.StringPtrValue(next)
+			u.Values[i] = store.StringPtrValue(next)
 			return
 		}
 	}
-	u.columns = append(u.columns, column)
-	u.values = append(u.values, store.StringPtrValue(next))
+	u.Columns = append(u.Columns, column)
+	u.Values = append(u.Values, store.StringPtrValue(next))
 }
 
-func (u *authorColumnUpdate) save(ctx context.Context, db ctxExecer, authorID string) error {
-	if len(u.columns) == 0 {
+func (u *AuthorColumnUpdate) Save(ctx context.Context, db *sql.DB, authorID string) error {
+	if len(u.Columns) == 0 {
 		return nil
 	}
-	sets := make([]string, 0, len(u.columns)+1)
-	for _, c := range u.columns {
+	sets := make([]string, 0, len(u.Columns)+1)
+	for _, c := range u.Columns {
 		sets = append(sets, c+"=?")
 	}
 	sets = append(sets, "updatedAt=?")
-	args := append(append([]any{}, u.values...), dbtime.Now(), authorID)
+	args := append(append([]any{}, u.Values...), dbtime.Now(), authorID)
 	_, err := db.ExecContext(ctx, `UPDATE authors SET `+strings.Join(sets, ",")+` WHERE id=?`, args...)
 	return err
-}
-
-type ctxExecer interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 func authorLastFirst(name *string) *string {
@@ -387,12 +384,12 @@ func authorLastFirst(name *string) *string {
 // authorUpdate is AuthorController.update (AuthorController.js:96-224).
 func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 	user := store.RequestUser(r)
-	a, err := h.authorRequest(r, user)
+	a, err := AuthorRequest(r.Context(), h.db, r, user)
 	if err != nil {
 		return err
 	}
 	ctx := r.Context()
-	body := jsonBodyObject(r)
+	body := httputil.DecodeObjectFields(r)
 	payload := map[string]*string{}
 	for _, key := range []string{"name", "description", "asin"} {
 		if raw, present := body[key]; present {
@@ -406,7 +403,7 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusBadRequest, "Invalid request payload. No valid keys found")
 	}
 	newName, hasName := payload["name"]
-	authorNameUpdate := hasName && !samePointer(newName, store.NullStringPtr(a.name))
+	authorNameUpdate := hasName && !samePointer(newName, store.NullStringPtr(a.Name))
 	var newLastFirst *string
 	if authorNameUpdate {
 		newLastFirst = authorLastFirst(newName)
@@ -416,9 +413,9 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 		var existingID string
 		var err error
 		if newName == nil {
-			err = h.db.QueryRowContext(ctx, `SELECT id FROM authors WHERE id<>? AND name IS NULL AND libraryId=? LIMIT 1`, a.id, a.libraryID).Scan(&existingID)
+			err = h.db.QueryRowContext(ctx, `SELECT id FROM authors WHERE id<>? AND name IS NULL AND libraryId=? LIMIT 1`, a.ID, a.LibraryID).Scan(&existingID)
 		} else {
-			err = h.db.QueryRowContext(ctx, `SELECT id FROM authors WHERE id<>? AND name=? AND libraryId=? LIMIT 1`, a.id, *newName, a.libraryID).Scan(&existingID)
+			err = h.db.QueryRowContext(ctx, `SELECT id FROM authors WHERE id<>? AND name=? AND libraryId=? LIMIT 1`, a.ID, *newName, a.LibraryID).Scan(&existingID)
 		}
 		if err == nil {
 			h.authorMerge(w, r, a, existingID)
@@ -429,26 +426,26 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	update := &authorColumnUpdate{}
-	current := map[string]*string{"name": store.NullStringPtr(a.name), "description": store.NullStringPtr(a.description), "asin": store.NullStringPtr(a.asin)}
+	update := &AuthorColumnUpdate{}
+	current := map[string]*string{"name": store.NullStringPtr(a.Name), "description": store.NullStringPtr(a.Description), "asin": store.NullStringPtr(a.ASIN)}
 	for _, key := range []string{"name", "description", "asin"} {
 		if value, present := payload[key]; present {
-			update.set(key, current[key], value)
+			update.Change(key, current[key], value)
 		}
 	}
 	if authorNameUpdate {
-		update.set("lastFirst", store.NullStringPtr(a.lastFirst), newLastFirst)
-	} else if !a.lastFirst.Valid || a.lastFirst.String == "" {
-		update.set("lastFirst", store.NullStringPtr(a.lastFirst), authorLastFirst(store.NullStringPtr(a.name)))
+		update.Change("lastFirst", store.NullStringPtr(a.LastFirst), newLastFirst)
+	} else if !a.LastFirst.Valid || a.LastFirst.String == "" {
+		update.Change("lastFirst", store.NullStringPtr(a.LastFirst), authorLastFirst(store.NullStringPtr(a.Name)))
 	}
-	hasUpdated := len(update.columns) > 0
+	hasUpdated := len(update.Columns) > 0
 	if hasUpdated {
-		if err := update.save(ctx, h.db, a.id); err != nil {
+		if err := update.Save(ctx, h.db, a.ID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		numBooks := 0
 		if authorNameUpdate {
-			itemIDs, err := h.authorBookItems(ctx, a.id)
+			itemIDs, err := h.authorBookItems(ctx, a.ID)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}
@@ -459,42 +456,42 @@ func (h *Handler) authorUpdate(w http.ResponseWriter, r *http.Request) error {
 			h.emitItemsUpdated(ctx, itemIDs)
 		} else {
 			var err error
-			if numBooks, err = h.authorNumBooks(ctx, a.id); err != nil {
+			if numBooks, err = h.authorNumBooks(ctx, a.ID); err != nil {
 				return httputil.Internal("database read failed", err)
 			}
 		}
-		saved, err := h.loadAuthor(ctx, a.id)
+		saved, err := LoadAuthor(ctx, h.db, a.ID)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		oldJSON, err := saved.toOldJSON()
+		oldJSON, err := saved.ToOldJSON()
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		h.emit.ToAll("author_updated", authorWithBooks{authorView: oldJSON, NumBooks: numBooks})
+		h.emit.ToAll("author_updated", AuthorWithBooks{AuthorView: oldJSON, NumBooks: numBooks})
 	}
-	saved, err := h.loadAuthor(ctx, a.id)
+	saved, err := LoadAuthor(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	oldJSON, err := saved.toOldJSON()
+	oldJSON, err := saved.ToOldJSON()
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return httputil.JSON(w, r, authorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
+	return httputil.JSON(w, r, AuthorUpdateResult{Author: oldJSON, Updated: &hasUpdated})
 }
 
 // authorMerge is the merge branch of AuthorController.update
 // (AuthorController.js:129-175): every book of the renamed author moves to the
 // existing author of that name, the renamed author is removed.
-func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRecord, existingID string) error {
+func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a AuthorRecord, existingID string) error {
 	ctx := r.Context()
-	existing, err := h.loadAuthor(ctx, existingID)
+	existing, err := LoadAuthor(ctx, h.db, existingID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	logging.Infof(`[AuthorController] Merging author "%s" with "%s"`, a.name.String, existing.name.String) // AuthorController.js:130
-	itemIDs, err := h.authorBookItems(ctx, a.id)
+	logging.Infof(`[AuthorController] Merging author "%s" with "%s"`, a.Name.String, existing.Name.String) // AuthorController.js:130
+	itemIDs, err := h.authorBookItems(ctx, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -504,7 +501,7 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 			return httputil.Internal("database write failed", err)
 		}
 		defer tx.Rollback()
-		rows, err := tx.QueryContext(ctx, `SELECT bookId FROM bookAuthors WHERE authorId=? ORDER BY rowid`, a.id)
+		rows, err := tx.QueryContext(ctx, `SELECT bookId FROM bookAuthors WHERE authorId=? ORDER BY rowid`, a.ID)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
@@ -522,13 +519,13 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		}
 		// bookAuthorModel.removeByIds then bulkCreate({ ignoreDuplicates: true })
 		// (AuthorController.js:151-152).
-		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE authorId=?`, a.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM bookAuthors WHERE authorId=?`, a.ID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
 		now := dbtime.Now()
 		for _, bookID := range bookIDs {
 			linkID := ids.Must()
-			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.id, now); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO bookAuthors(id,bookId,authorId,createdAt) VALUES(?,?,?,?)`, linkID, bookID, existing.ID, now); err != nil {
 				return httputil.Internal("database write failed", err)
 			}
 		}
@@ -540,44 +537,44 @@ func (h *Handler) authorMerge(w http.ResponseWriter, r *http.Request, a authorRe
 		}
 		h.emitItemsUpdated(ctx, itemIDs)
 	}
-	oldAuthor, err := a.toOldJSON()
+	oldAuthor, err := a.ToOldJSON()
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.id); err != nil {
+	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	h.emit.ToAll("author_removed", oldAuthor)
 	h.filters.RemoveAuthor(oldAuthor.LibraryID, oldAuthor.ID) // AuthorController.js:164
-	expanded, err := h.authorExpanded(ctx, existing.id)
+	expanded, err := AuthorExpanded(ctx, h.db, existing.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("author_updated", expanded)
 	merged := true
-	return httputil.JSON(w, r, authorUpdateResult{Author: expanded.authorView, Merged: &merged})
+	return httputil.JSON(w, r, AuthorUpdateResult{Author: expanded.AuthorView, Merged: &merged})
 }
 
 // authorDelete is AuthorController.delete (AuthorController.js:233-258).
 func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, store.RequestUser(r))
+	a, err := AuthorRequest(r.Context(), h.db, r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}
 	ctx := r.Context()
-	logging.Infof(`[AuthorController] Removing author "%s"`, a.name.String)
-	if a.imagePath.Valid && a.imagePath.String != "" {
-		h.purgeImageCache(a.id)
+	logging.Infof(`[AuthorController] Removing author "%s"`, a.Name.String)
+	if a.ImagePath.Valid && a.ImagePath.String != "" && h.deps.PurgeImageCache != nil {
+		h.deps.PurgeImageCache(a.ID)
 	}
-	itemIDs, err := h.authorBookItems(ctx, a.id)
+	itemIDs, err := h.authorBookItems(ctx, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	oldAuthor, err := a.toOldJSON()
+	oldAuthor, err := a.ToOldJSON()
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.id); err != nil {
+	if _, err := h.db.ExecContext(ctx, `DELETE FROM authors WHERE id=?`, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	if err := h.saveMetadataFiles(ctx, itemIDs); err != nil {

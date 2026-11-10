@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
 	"sort"
@@ -11,22 +12,22 @@ import (
 
 func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
 	user, ctx := lib.user, r.Context()
-	rows, err := h.db.QueryContext(ctx, `SELECT `+authorColumns+` FROM authors WHERE libraryId=?`, lib.id)
+	rows, err := h.db.QueryContext(ctx, `SELECT `+people.AuthorColumns+` FROM authors WHERE libraryId=?`, lib.id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	type listed struct {
-		authorRecord
+		people.AuthorRecord
 		numBooks int64
 	}
 	var data []listed
 	for rows.Next() {
-		a, err := scanAuthor(rows)
+		a, err := people.ScanAuthor(rows)
 		if err != nil {
 			rows.Close()
 			return httputil.Internal("database read failed", err)
 		}
-		data = append(data, listed{authorRecord: a})
+		data = append(data, listed{AuthorRecord: a})
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
@@ -38,7 +39,7 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib librarySco
 	filtered := make([]listed, 0, len(data))
 	for _, a := range data {
 		q := `SELECT COUNT(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id=ba.bookId WHERE ba.authorId=?` + where
-		if err := h.db.QueryRowContext(ctx, q, append([]any{a.id}, args...)...).Scan(&a.numBooks); err != nil {
+		if err := h.db.QueryRowContext(ctx, q, append([]any{a.ID}, args...)...).Scan(&a.numBooks); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if admin || a.numBooks > 0 {
@@ -52,13 +53,13 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib librarySco
 		var less bool
 		switch sortBy {
 		case "name":
-			less = strings.ToLower(a.name.String) < strings.ToLower(b.name.String)
+			less = strings.ToLower(a.Name.String) < strings.ToLower(b.Name.String)
 		case "lastFirst":
-			less = strings.ToLower(a.lastFirst.String) < strings.ToLower(b.lastFirst.String)
+			less = strings.ToLower(a.LastFirst.String) < strings.ToLower(b.LastFirst.String)
 		case "addedAt":
-			less = stringValue(a.createdAt) < stringValue(b.createdAt)
+			less = stringValue(a.CreatedAt) < stringValue(b.CreatedAt)
 		case "updatedAt":
-			less = stringValue(a.updatedAt) < stringValue(b.updatedAt)
+			less = stringValue(a.UpdatedAt) < stringValue(b.UpdatedAt)
 		case "numBooks":
 			less = a.numBooks < b.numBooks
 		default:
@@ -71,17 +72,17 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib librarySco
 	if paginated {
 		filtered = pageOf(filtered, page, limit)
 	}
-	authors := make([]authorListEntry, 0, len(filtered))
+	authors := make([]people.AuthorListEntry, 0, len(filtered))
 	for _, a := range filtered {
-		view, err := a.toOldJSON()
+		view, err := a.ToOldJSON()
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		authors = append(authors, authorListEntry{authorWithBooks{view, int(a.numBooks)}, store.NullStringPtr(a.lastFirst)})
+		authors = append(authors, people.AuthorListEntry{AuthorWithBooks: people.AuthorWithBooks{AuthorView: view, NumBooks: int(a.numBooks)}, LastFirst: store.NullStringPtr(a.LastFirst)})
 	}
 	if !paginated {
 		return httputil.JSON(w, r, struct {
-			Authors []authorListEntry `json:"authors"`
+			Authors []people.AuthorListEntry `json:"authors"`
 		}{authors})
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}

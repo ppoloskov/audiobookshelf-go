@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -36,13 +37,13 @@ func TestSeriesFindOneProgressAndFeed(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	var body struct {
-		seriesView
-		Progress *seriesProgress `json:"progress"`
-		RSSFeed  json.RawMessage `json:"rssFeed"`
+		people.SeriesView
+		Progress *people.SeriesProgress `json:"progress"`
+		RSSFeed  json.RawMessage        `json:"rssFeed"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.ID != "s1" || body.NameIgnorePrefix == nil || *body.NameIgnorePrefix != "First Series" {
-		t.Fatalf("series %+v", body.seriesView)
+		t.Fatalf("series %+v", body.SeriesView)
 	}
 	if body.Progress == nil || strings.Join(body.Progress.LibraryItemIDs, ",") != "i1,i2" || strings.Join(body.Progress.LibraryItemIDsFinished, ",") != "i1" || body.Progress.IsFinished {
 		t.Fatalf("progress %+v", body.Progress)
@@ -111,7 +112,7 @@ func TestSeriesUpdate(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
-	var got seriesView
+	var got people.SeriesView
 	decodeAuthorBody(t, w, &got)
 	if got.Name == nil || *got.Name != "The Renamed" || got.NameIgnorePrefix == nil || *got.NameIgnorePrefix != "Renamed, The" || got.Description == nil || *got.Description != "About" || got.UpdatedAt <= got.AddedAt {
 		t.Fatalf("series %+v", got)
@@ -124,11 +125,11 @@ func TestSeriesUpdate(t *testing.T) {
 	if len(events) != 1 || events[0].event != "series_updated" {
 		t.Fatalf("events %+v", events)
 	}
-	if payload, ok := events[0].payload.(seriesView); !ok || payload.ID != "s1" {
+	if payload, ok := events[0].payload.(people.SeriesView); !ok || payload.ID != "s1" {
 		t.Fatalf("payload %+v", events[0].payload)
 	}
 	// The same values again: answered, saved nothing, announced nothing.
-	var again seriesView
+	var again people.SeriesView
 	decodeAuthorBody(t, rig.do("PATCH", "/api/series/s1", `{"name":"The Renamed","description":"About"}`, rootUser()), &again)
 	if again.UpdatedAt != got.UpdatedAt || len(rig.takeEvents()) != 0 {
 		t.Fatalf("no-op changed state: %+v", again)

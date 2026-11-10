@@ -79,7 +79,7 @@
 - Accepted PB02c delta: +29 handwritten LOC and −2 complexity, with
   high-complexity functions, maps and `[]any` unchanged. Only the LOC and
   complexity baseline fields were updated.
-- [ ] IN REVIEW — fourth bounded slice: podcast media ownership moved into
+- [ ] IN PROGRESS — fourth bounded slice ACCEPTED at `a8e1b111`: podcast media ownership moved into
   the foundation read subpackage `internal/podcasts/read`; the existing
   `internal/podcasts` feature keeps HTTP/write paths and consumes the read
   package, so `items` imports a foundation rather than a feature. Shared
@@ -114,6 +114,43 @@
 - The catalog read graph is complete. Next after explicit handover:
   people (author/series) ownership, then library browsing/search/shelves,
   per the package-boundary sequence.
+
+### PB03 · People — author/series entity ownership (2026-11-10)
+
+- [ ] IN PROGRESS — first people slice ACCEPTED 2026-11-10: author/series
+  records and views, detail, update/rename, merge/delete and
+  metadata-provider matching moved from catalog into `internal/people`.
+  `catalog` keeps library-scoped author/series list routes and author image
+  routes until the next slice; `itemwrite` remains the owner of relation
+  cleanup/orphan sweeps. No route, JSON, permission, persistence or event
+  behaviour changed for the moved endpoints. Architect rerun verified:
+  gofmt, build, vet, the full suite with the documented FFmpeg prefix,
+  `-race` across the nine affected packages, golangci-lint v2.15.0
+  (0 issues), 26 dependency fixtures, `make ratchet` +0 and dbnest.
+  Review rulings: the standalone `people` package is justified by
+  measurement (1,149 production lines, well over the agreed ~400-line
+  fold bar; its consumers are catalog and the runtime, not books), and
+  the test coverage is the catalog rig, which constructs `people.New`
+  with `Deps` and asserts people event payloads directly.
+- Accepted PB03a delta: +141 handwritten LOC and +26 complexity, with maps,
+  `[]any`, high-complexity functions and injector metrics unchanged. The
+  growth buys the 111-line `people.Deps` composition surface, the shared
+  bounded `httputil.DecodeObjectFields` body decoder and the runtime
+  wiring that removes catalog's `AuthorFinder` dependency; no smaller
+  alternative preserves the ownership split. Adapter exit task: the
+  `SaveAuthorImage`/`PurgeImageCache` callbacks dissolve when the author
+  image routes move into `people`; `WriteMetadata`/`Filters` stay as
+  scanner/filterdata collaborators. Process note for later packets: the
+  per-metric growth budget must be recorded in the card before dispatch,
+  not reconciled after.
+- Next slice after explicit handover (PB04): move the library-scoped
+  author/series list routes and author image routes to their proper
+  owners, then continue with library browsing/search/shelves. PB04's
+  acceptance conditions: (a) the author/series test rig and tests move to
+  the final owner when catalog's author surface fully dissolves, and
+  (b) the people rig supplies a recording `WriteMetadata` callback
+  instead of relying on its nil-skip, so a runtime wiring omission
+  cannot silently skip metadata writes.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);

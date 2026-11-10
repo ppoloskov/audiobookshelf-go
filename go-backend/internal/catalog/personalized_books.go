@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"encoding/json"
@@ -181,7 +182,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 				// book.series = [] before toOldJSONMinified, then metadata.series
 				// is replaced with the continued series.
 				metadata.SeriesName = ""
-				metadata.Series = &bookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
+				metadata.Series = &people.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
 			})
 		}
 		return attach(items)
@@ -245,15 +246,15 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	defer rows.Close()
 	var entries []seriesShelfEntry
 	for rows.Next() {
-		var rec seriesRecord
-		if err := rows.Scan(&rec.id, &rec.name, &rec.description, &rec.createdAt, &rec.updatedAt, &rec.libraryID); err != nil {
+		var rec people.SeriesRecord
+		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			return q, err
 		}
-		view, err := newSeriesView(rec, prefixes)
+		view, err := people.NewSeriesView(rec, prefixes)
 		if err != nil {
 			return q, err
 		}
-		entries = append(entries, seriesShelfEntry{seriesView: view})
+		entries = append(entries, seriesShelfEntry{SeriesView: view})
 	}
 	if err := rows.Err(); err != nil {
 		return q, err
@@ -364,29 +365,29 @@ func (e *shelfEnv) discover() (shelfQuery, error) {
 func (e *shelfEnv) newestAuthors() (shelfQuery, error) {
 	var q shelfQuery
 	ctx, permission := e.r.Context(), e.perm
-	books := `(SELECT count(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id = ba.bookId WHERE ba.authorId = a.id` + permission + `)`
-	where := ` FROM authors a WHERE a.libraryId = ? AND a.createdAt >= ? AND ` + books + ` > 0`
+	books := `(SELECT count(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id = ba.bookId WHERE ba.authorId = a.ID` + permission + `)`
+	where := ` FROM authors a WHERE a.libraryId = ? AND a.CreatedAt >= ? AND ` + books + ` > 0`
 	args := append([]any{e.libraryID, sixtyDaysAgo()}, e.permArgs...)
 	if err := e.h.db.QueryRowContext(ctx, `SELECT count(*)`+where, args...).Scan(&q.total); err != nil {
 		return q, err
 	}
-	rows, err := e.h.db.QueryContext(ctx, `SELECT a.id, a.asin, a.name, a.description, a.imagePath, a.libraryId, a.createdAt, a.updatedAt, `+books+where+` ORDER BY a.createdAt DESC LIMIT ?`, append(append(append([]any{}, e.permArgs...), args...), e.limit)...)
+	rows, err := e.h.db.QueryContext(ctx, `SELECT a.ID, a.ASIN, a.Name, a.Description, a.ImagePath, a.libraryId, a.CreatedAt, a.UpdatedAt, `+books+where+` ORDER BY a.CreatedAt DESC LIMIT ?`, append(append(append([]any{}, e.permArgs...), args...), e.limit)...)
 	if err != nil {
 		return q, err
 	}
 	defer rows.Close()
 	var authors []any
 	for rows.Next() {
-		var a authorRecord
+		var a people.AuthorRecord
 		var numBooks int
-		if err := rows.Scan(&a.id, &a.asin, &a.name, &a.description, &a.imagePath, &a.libraryID, &a.createdAt, &a.updatedAt, &numBooks); err != nil {
+		if err := rows.Scan(&a.ID, &a.ASIN, &a.Name, &a.Description, &a.ImagePath, &a.LibraryID, &a.CreatedAt, &a.UpdatedAt, &numBooks); err != nil {
 			return q, err
 		}
-		view, err := a.toOldJSON()
+		view, err := a.ToOldJSON()
 		if err != nil {
 			return q, err
 		}
-		authors = append(authors, authorWithBooks{view, numBooks})
+		authors = append(authors, people.AuthorWithBooks{AuthorView: view, NumBooks: numBooks})
 	}
 	q.build = func([]shelfItem) ([]any, error) { return authors, nil }
 	return q, rows.Err()

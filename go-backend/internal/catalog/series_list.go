@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -117,14 +118,14 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScop
 	if limit > 0 {
 		all = pageOf(all, page, limit)
 	}
-	results := make([]seriesListEntry, 0, len(all))
+	results := make([]people.SeriesListEntry, 0, len(all))
 	prefixes := h.sortingPrefixes(r.Context())
 	for _, s := range all {
-		view, err := newSeriesView(seriesRecord{id: s.id, libraryID: s.libraryID, name: s.name, description: s.description, createdAt: s.created, updatedAt: s.updated}, prefixes)
+		view, err := people.NewSeriesView(people.SeriesRecord{ID: s.id, LibraryID: s.libraryID, Name: s.name, Description: s.description, CreatedAt: s.created, UpdatedAt: s.updated}, prefixes)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		entry := seriesListEntry{seriesView: view}
+		entry := people.SeriesListEntry{SeriesView: view}
 		if sortBy == "totalDuration" {
 			entry.TotalDuration = s.duration
 		}
@@ -183,21 +184,21 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 }
 
 func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	s, err := h.loadSeries(r.Context(), r.PathValue("seriesId"))
-	if errors.Is(err, sql.ErrNoRows) || s.libraryID != lib.id {
+	s, err := people.LoadSeries(r.Context(), h.db, r.PathValue("seriesId"))
+	if errors.Is(err, sql.ErrNoRows) || s.LibraryID != lib.id {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	items, err := h.seriesItems(r.Context(), lib.user, s)
+	items, err := people.SeriesItemsFor(r.Context(), h.db, lib.user, s)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	if len(items) == 0 {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	detail, err := h.seriesDetailOf(r.Context(), lib.user, s, items, includeHas(r, "progress"), includeHas(r, "rssfeed"))
+	detail, err := people.SeriesDetailFor(r.Context(), h.db, lib.user, s, items, includeHas(r, "progress"), includeHas(r, "rssfeed"), h.sortingPrefixes(r.Context()))
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

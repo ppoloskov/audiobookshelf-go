@@ -1,4 +1,4 @@
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
@@ -10,8 +10,8 @@ import (
 	"errors"
 )
 
-// seriesView is Series.toOldJSON (server/models/Series.js:168-178).
-type seriesView struct {
+// SeriesView is Series.toOldJSON (server/models/Series.js:168-178).
+type SeriesView struct {
 	ID               string  `json:"id"`
 	Name             *string `json:"name"`
 	NameIgnorePrefix *string `json:"nameIgnorePrefix"`
@@ -21,47 +21,47 @@ type seriesView struct {
 	LibraryID        string  `json:"libraryId"`
 }
 
-// seriesProgress is the include=progress object of GET /api/series/:id
+// SeriesProgress is the include=progress object of GET /api/series/:id
 // (SeriesController.js:44-54).
-type seriesProgress struct {
+type SeriesProgress struct {
 	LibraryItemIDs         []string `json:"libraryItemIds"`
 	LibraryItemIDsFinished []string `json:"libraryItemIdsFinished"`
 	IsFinished             bool     `json:"isFinished"`
 }
 
-// seriesDetail is the body of GET /api/series/:id: the series, then progress
+// SeriesDetail is the body of GET /api/series/:id: the series, then progress
 // (include=progress) and rssFeed (include=rssfeed; null when the series has no
 // open feed), assigned in that order (SeriesController.js:41-61).
-type seriesDetail struct {
-	seriesView
-	Progress *seriesProgress `json:"progress,omitempty"`
+type SeriesDetail struct {
+	SeriesView
+	Progress *SeriesProgress `json:"progress,omitempty"`
 	RSSFeed  json.RawMessage `json:"rssFeed,omitempty"`
 }
 
-// newSeriesView is Series.toOldJSON (server/models/Series.js:168-178); the
+// NewSeriesView is Series.toOldJSON (server/models/Series.js:168-178); the
 // prefix-free name is computed from the name, not read from the column, which
 // a rename (PATCH /api/series/:id) leaves unchanged (Series.js:172).
-func newSeriesView(s seriesRecord, prefixes []string) (seriesView, error) {
-	added, err := dbtime.OptionalMillis(s.createdAt)
+func NewSeriesView(s SeriesRecord, prefixes []string) (SeriesView, error) {
+	added, err := dbtime.OptionalMillis(s.CreatedAt)
 	if err != nil || added == nil {
-		return seriesView{}, errors.New("series createdAt")
+		return SeriesView{}, errors.New("series createdAt")
 	}
-	updated, err := dbtime.OptionalMillis(s.updatedAt)
+	updated, err := dbtime.OptionalMillis(s.UpdatedAt)
 	if err != nil || updated == nil {
-		return seriesView{}, errors.New("series updatedAt")
+		return SeriesView{}, errors.New("series updatedAt")
 	}
 	var prefixFree *string
-	if s.name.Valid {
-		value := textsort.PrefixAtEnd(s.name.String, prefixes)
+	if s.Name.Valid {
+		value := textsort.PrefixAtEnd(s.Name.String, prefixes)
 		prefixFree = &value
 	}
-	return seriesView{ID: s.id, Name: store.NullStringPtr(s.name), NameIgnorePrefix: prefixFree, Description: store.NullStringPtr(s.description), AddedAt: *added, UpdatedAt: *updated, LibraryID: s.libraryID}, nil
+	return SeriesView{ID: s.ID, Name: store.NullStringPtr(s.Name), NameIgnorePrefix: prefixFree, Description: store.NullStringPtr(s.Description), AddedAt: *added, UpdatedAt: *updated, LibraryID: s.LibraryID}, nil
 }
 
-// seriesListEntry is one result of GET /api/libraries/:id/series: the series
+// SeriesListEntry is one result of GET /api/libraries/:id/series: the series
 // with its visible books, the total duration when sorted by it, and its feed.
-type seriesListEntry struct {
-	seriesView
+type SeriesListEntry struct {
+	SeriesView
 	TotalDuration float64          `json:"totalDuration,omitempty"`
 	Books         []items.Minified `json:"books"`
 	RSSFeed       *feeds.Minified  `json:"rssFeed,omitempty"`

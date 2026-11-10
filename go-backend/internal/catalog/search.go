@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
@@ -196,24 +197,24 @@ func (h *Handler) searchJSONValues(ctx context.Context, libraryID, table, column
 	return out, rows.Err()
 }
 
-func (h *Handler) searchAuthors(ctx context.Context, libraryID, query string, limit int) ([]authorWithBooks, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT `+authorColumns+`,(SELECT COUNT(*) FROM bookAuthors ba WHERE ba.authorId=authors.id) FROM authors WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, libraryID, "%"+query+"%", limit)
+func (h *Handler) searchAuthors(ctx context.Context, libraryID, query string, limit int) ([]people.AuthorWithBooks, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT `+people.AuthorColumns+`,(SELECT COUNT(*) FROM bookAuthors ba WHERE ba.authorId=authors.id) FROM authors WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, libraryID, "%"+query+"%", limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := make([]authorWithBooks, 0)
+	out := make([]people.AuthorWithBooks, 0)
 	for rows.Next() {
-		var a authorRecord
+		var a people.AuthorRecord
 		var count int
-		if err := rows.Scan(&a.id, &a.name, &a.lastFirst, &a.asin, &a.description, &a.imagePath, &a.libraryID, &a.createdAt, &a.updatedAt, &count); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.LastFirst, &a.ASIN, &a.Description, &a.ImagePath, &a.LibraryID, &a.CreatedAt, &a.UpdatedAt, &count); err != nil {
 			return nil, err
 		}
-		view, err := a.toOldJSON()
+		view, err := a.ToOldJSON()
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, authorWithBooks{view, count})
+		out = append(out, people.AuthorWithBooks{AuthorView: view, NumBooks: count})
 	}
 	return out, rows.Err()
 }
@@ -228,14 +229,14 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 	if err != nil {
 		return nil, err
 	}
-	var matches []seriesView
+	var matches []people.SeriesView
 	for rows.Next() {
-		var rec seriesRecord
-		if err := rows.Scan(&rec.id, &rec.name, &rec.description, &rec.createdAt, &rec.updatedAt, &rec.libraryID); err != nil {
+		var rec people.SeriesRecord
+		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		view, err := newSeriesView(rec, prefixes)
+		view, err := people.NewSeriesView(rec, prefixes)
 		if err != nil {
 			rows.Close()
 			return nil, err
@@ -276,6 +277,6 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 }
 
 type seriesSearchHit struct {
-	Series seriesView   `json:"series"`
-	Books  []items.Full `json:"books"`
+	Series people.SeriesView `json:"series"`
+	Books  []items.Full      `json:"books"`
 }

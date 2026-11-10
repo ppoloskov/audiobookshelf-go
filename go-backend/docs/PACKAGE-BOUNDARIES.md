@@ -1,10 +1,11 @@
 # Package and object boundaries proposal
 
 2026-11-10. Status: both email-settings packets accepted; the catalog read
-graph (PB02a–d) is implemented with PB02d pending review. Scope: current Go
-package ownership, catalog decomposition, settings, shared objects and
-dependency rules. This is a response to the owner's request for better package
-division, rather than another line-reduction exercise.
+graph (PB02a–d) is accepted; the first people slice (PB03a) is implemented
+pending review. Scope: current Go package ownership, catalog decomposition,
+settings, shared objects and dependency rules. This is a response to the
+owner's request for better package division, rather than another line-reduction
+exercise.
 
 ## Findings
 
@@ -75,6 +76,12 @@ shared file models in `internal/mediafiles`, and deletes `libitem`. `items`
 composes `books` + `podcastread` + `mediafiles`; feature `podcasts` keeps its
 HTTP/write paths and consumes the read package. `store.QueryIn` owns the
 shared chunked-query mechanics.
+
+People first slice: author/series entity records/views, detail, update/rename,
+merge/delete and metadata matching now live in `internal/people`. Catalog keeps
+the library-scoped author/series list routes and author image routes for the
+next slice; itemwrite keeps relation cleanup and orphan sweeps. The dependency
+is `catalog` → `people`, with no people → catalog edge.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess

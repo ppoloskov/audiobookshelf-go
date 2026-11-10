@@ -1,4 +1,4 @@
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/httputil"
@@ -13,14 +13,23 @@ import (
 
 var asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
 
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 // authorMatch is AuthorController.match (AuthorController.js:337-383).
 func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
-	a, err := h.authorRequest(r, store.RequestUser(r))
+	a, err := AuthorRequest(r.Context(), h.db, r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}
 	ctx := r.Context()
-	body := jsonBodyObject(r)
+	body := httputil.DecodeObjectFields(r)
 	bodyString := func(key string) string {
 		var s string
 		_ = json.Unmarshal(body[key], &s)
@@ -42,43 +51,47 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Status(http.StatusNotFound, "Author not found")
 	}
 	logging.Debugf(`[AuthorController] match author with "%s"`, firstNonEmpty(bodyString("q"), bodyString("asin")))
-	update := &authorColumnUpdate{}
+	update := &AuthorColumnUpdate{}
 	hasUpdates := false
-	if data.ASIN != "" && (!a.asin.Valid || a.asin.String != data.ASIN) {
+	if data.ASIN != "" && (!a.ASIN.Valid || a.ASIN.String != data.ASIN) {
 		asin := data.ASIN
-		update.set("asin", store.NullStringPtr(a.asin), &asin)
+		update.Change("asin", store.NullStringPtr(a.ASIN), &asin)
 		hasUpdates = true
 	}
 	// Only updates the image if there was none before or the ASIN was updated.
-	if data.Image != nil && *data.Image != "" && (!a.imagePath.Valid || a.imagePath.String == "" || hasUpdates) {
-		h.purgeImageCache(a.id)
-		if imagePath, message := h.saveAuthorImage(ctx, a.id, *data.Image); message == "" {
-			update.set("imagePath", store.NullStringPtr(a.imagePath), &imagePath)
-			hasUpdates = true
+	if data.Image != nil && *data.Image != "" && (!a.ImagePath.Valid || a.ImagePath.String == "" || hasUpdates) {
+		if h.deps.PurgeImageCache != nil {
+			h.deps.PurgeImageCache(a.ID)
+		}
+		if h.deps.SaveAuthorImage != nil {
+			if imagePath, message := h.deps.SaveAuthorImage(ctx, a.ID, *data.Image); message == "" {
+				update.Change("imagePath", store.NullStringPtr(a.ImagePath), &imagePath)
+				hasUpdates = true
+			}
 		}
 	}
-	if data.Description != "" && (!a.description.Valid || a.description.String != data.Description) {
+	if data.Description != "" && (!a.Description.Valid || a.Description.String != data.Description) {
 		description := data.Description
-		update.set("description", store.NullStringPtr(a.description), &description)
+		update.Change("description", store.NullStringPtr(a.Description), &description)
 		hasUpdates = true
 	}
 	if hasUpdates {
-		if err := update.save(ctx, h.db, a.id); err != nil {
+		if err := update.Save(ctx, h.db, a.ID); err != nil {
 			return httputil.Internal("database write failed", err)
 		}
-		expanded, err := h.authorExpanded(ctx, a.id)
+		expanded, err := AuthorExpanded(ctx, h.db, a.ID)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		h.emit.ToAll("author_updated", expanded)
 	}
-	saved, err := h.loadAuthor(ctx, a.id)
+	saved, err := LoadAuthor(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	oldJSON, err := saved.toOldJSON()
+	oldJSON, err := saved.ToOldJSON()
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	return httputil.JSON(w, r, authorMatchResult{Updated: hasUpdates, Author: oldJSON})
+	return httputil.JSON(w, r, AuthorMatchResult{Updated: hasUpdates, Author: oldJSON})
 }
