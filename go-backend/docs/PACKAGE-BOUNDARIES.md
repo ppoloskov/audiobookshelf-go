@@ -3,10 +3,10 @@
 2026-11-11. Status: email-settings, catalog read graph (PB02a–d), people
 entities (PB03a) and the people remainder/library scope (PB04a) are accepted;
 PB04b1 (filter/sort compiler and series), PB04b2a (library metadata reads) and
-PB04b2b (item browsing, collapse helpers and item includes) and PB04b3
-(search, shelves and library-scoped author lists) are accepted; PB04c1
-(library create/update/reorder, narrator update, OPML, remove-metadata) is
-implemented pending review. Scope: current Go package ownership, catalog decomposition, settings,
+PB04b2b (item browsing, collapse helpers and item includes), PB04b3 (search,
+shelves and library-scoped author lists) and PB04c1 (library create/update/
+reorder, narrator update, OPML, remove-metadata) are accepted; PB04c2-D
+(deletion mechanics in itemwrite) is implemented pending review. Scope: current Go package ownership, catalog decomposition, settings,
 shared objects and dependency rules. This is a response to the owner's request
 for better package division, rather than another line-reduction exercise.
 
@@ -89,9 +89,10 @@ routes, library metadata reads (list/detail/view, stats, filterdata,
 narrators and podcast titles), item-list browsing with collapse/include
 handling, library-scoped author lists, search, personalized shelves and
 self-contained library writes/admin (create/update/reorder, narrator update,
-OPML, remove-metadata). Catalog retains library delete/issues, download and
-match-all until item-deletion/quick-match ownership is resolved. `itemwrite`
-keeps relation cleanup and orphan sweeps. Dependencies are acyclic:
+OPML, remove-metadata). `itemwrite` owns row deletion on caller transactions
+plus concrete soft/hard/folder post-commit effects; `mediafiles` owns shared
+path safety and cover-cache purge. Catalog retains library delete/issues,
+download and match-all for PB04c2. Dependencies are acyclic:
 `catalog` → `library`/`people`; `library` → `people`; people imports neither
 catalog nor library. Generic changed-column
 saving is the foundation leaf `internal/sqlupdate`.

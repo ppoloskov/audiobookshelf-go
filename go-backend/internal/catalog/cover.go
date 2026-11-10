@@ -299,7 +299,7 @@ func (h *Handler) uploadCover(w http.ResponseWriter, r *http.Request) error {
 		source.Close()
 	}
 	removeOldCovers(coverDir, "."+ext)
-	h.purgeCoverCache(itemID)
+	mediafiles.PurgeCoverCache(h.coverCachePath(), itemID)
 	table := "books"
 	if scope.mediaType == "podcast" {
 		table = "podcasts"
@@ -359,19 +359,6 @@ func removeOldCovers(coverDir, keptExt string) {
 			continue
 		}
 		_ = os.Remove(filepath.Join(coverDir, name))
-	}
-}
-
-// purgeCoverCache mirrors CacheManager.purgeCoverCache (CacheManager.js:93-98).
-func (h *Handler) purgeCoverCache(itemID string) {
-	entries, err := os.ReadDir(h.coverCachePath())
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), itemID+"_") {
-			_ = os.Remove(filepath.Join(h.coverCachePath(), entry.Name()))
-		}
 	}
 }
 

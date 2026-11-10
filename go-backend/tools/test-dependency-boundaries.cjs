@@ -106,6 +106,15 @@ try {
   allows('library-sqlupdate', 'internal/library/fixture.go', 'audiobookshelf-compat/internal/sqlupdate', {
     'internal/sqlupdate/update.go': 'package sqlupdate\ntype Update struct{}\n',
   });
+  allows('library-itemwrite', 'internal/library/fixture.go', 'audiobookshelf-compat/internal/itemwrite', {
+    'internal/itemwrite/itemwrite.go': 'package itemwrite\ntype Deleter struct{}\n',
+  });
+  allows('itemwrite-mediafiles', 'internal/itemwrite/fixture.go', 'audiobookshelf-compat/internal/mediafiles', {
+    'internal/mediafiles/mediafiles.go': 'package mediafiles\ntype File struct{}\n',
+  });
+  allows('itemwrite-playlistview', 'internal/itemwrite/fixture.go', 'audiobookshelf-compat/internal/playlistview', {
+    'internal/playlistview/playlistview.go': 'package playlistview\nfunc Announce(){}\n',
+  });
   rejects('sqlupdate-feature', 'internal/sqlupdate/fixture.go', 'audiobookshelf-compat/internal/catalog');
   allows('feature-leaf', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/httputil', {
     'internal/httputil/leaf.go': 'package httputil\ntype Helper struct{}\n',

@@ -1,5 +1,5 @@
 // Package itemwrite is the one write path for the book-to-author and
-// book-to-series relations and for the cleanup that follows them. The PATCH
+// book-to-series relations, item-row deletion and the cleanup that follows. The PATCH
 // media route, batch update, quick match and the scanner all link a book to
 // authors and series, drop what a new list leaves out, and then sweep the
 // authors and series that no book uses any more. They differ only in a few

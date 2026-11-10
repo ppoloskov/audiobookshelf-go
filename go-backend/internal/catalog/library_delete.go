@@ -3,12 +3,11 @@ package catalog
 import (
 	"context"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playlistview"
@@ -44,7 +43,12 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	_, _, playlistChanges, closedFeeds, err := deleteItemRows(r.Context(), tx, items)
+	targets := make([]itemwrite.DeleteTarget, len(items))
+	for i, item := range items {
+		targets[i] = deletionTarget(item)
+	}
+	changes, err := itemwrite.DeleteRows(r.Context(), tx, targets)
+	playlistChanges, closedFeeds := changes.PlaylistChanges, changes.ClosedFeeds
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
@@ -105,11 +109,8 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 				h.emit.ToAll("rss_feed_closed", feed)
 			}
 		}
-		h.purgeCoverCache(item.id)
-		if h.cfg.MetadataPath != "" {
-			_ = os.RemoveAll(filepath.Join(h.cfg.Dirs().Items, item.id))
-		}
-		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
+		h.deleter().RemoveItemArtifacts(r.Context(), deletionTarget(item))
+		h.deleter().AnnounceItemRemoved(deletionTarget(item))
 	}
 	h.emit.ToAll("library_removed", result)
 	return httputil.JSON(w, r, result)
@@ -131,20 +132,4 @@ func (h *Handler) libraryItemsWhere(ctx context.Context, where string, arg any) 
 		items = append(items, item)
 	}
 	return items, rows.Err()
-}
-
-// RemoveFolderItems removes every item in folderID and its empty author/series
-// relations. It is the composition seam used by library's update folder
-// removal until item deletion moves.
-func (h *Handler) RemoveFolderItems(ctx context.Context, libraryID, folderID string) error {
-	items, err := h.libraryItemsWhere(ctx, `libraryFolderId=?`, folderID)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	for _, item := range items {
-		if err := h.removeAndSweep(ctx, item, false); err != nil {
-			return err
-		}
-	}
-	return nil
 }

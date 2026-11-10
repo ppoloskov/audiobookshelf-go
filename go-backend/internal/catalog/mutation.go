@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/textclean"
 	"bytes"
 	"context"
@@ -65,7 +66,7 @@ func (h *Handler) coverChanged(ctx context.Context, res sql.Result, itemID strin
 	if _, err := h.db.ExecContext(ctx, `UPDATE libraryItems SET updatedAt=? WHERE id=?`, dbtime.Now(), itemID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	h.purgeCoverCache(itemID)
+	mediafiles.PurgeCoverCache(h.coverCachePath(), itemID)
 	if err := h.itemUpdated(ctx, itemID); err != nil {
 		return httputil.Internal("database read failed", err)
 	}

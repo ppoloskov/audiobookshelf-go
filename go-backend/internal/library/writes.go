@@ -339,11 +339,8 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for _, folderID := range removedFolders {
-		if h.deps.RemoveFolderItems == nil {
-			return httputil.Internal("database write failed", errors.New("remove folder items: callback not configured"))
-		}
-		if e := h.deps.RemoveFolderItems(r.Context(), id, folderID); e != nil {
-			return e
+		if e := h.deps.ItemDeleter.DeleteFolderSoft(r.Context(), id, folderID); e != nil {
+			return httputil.Internal("database write failed", e)
 		}
 	}
 	hasUpdates := len(fields) > 0 || settingsChanged || len(newFolders) > 0 || len(removedFolders) > 0

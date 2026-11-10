@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -19,12 +20,14 @@ import (
 // cascadeRig is the production schema (foreign keys on) with two books that
 // share one author, so a deletion shows both what goes and what must stay.
 type cascadeRig struct {
-	t      *testing.T
-	db     *sql.DB
-	mux    *http.ServeMux
-	mu     sync.Mutex
-	events []recordedEvent
-	to     map[string][]string // event -> audiences
+	t              *testing.T
+	db             *sql.DB
+	mux            *http.ServeMux
+	cfg            config.Config
+	libraryChanged int
+	mu             sync.Mutex
+	events         []recordedEvent
+	to             map[string][]string // event -> audiences
 }
 
 func newCascadeRig(t *testing.T) *cascadeRig {
@@ -66,12 +69,16 @@ func newCascadeRig(t *testing.T) *cascadeRig {
 		r.exec(q, args...)
 	}
 	filters := filterdata.NewCache()
-	h := New(db, config.Config{MetadataPath: t.TempDir()}, func(audience, event string, payload any) {
+	r.cfg = config.Config{MetadataPath: t.TempDir()}
+	h := New(db, r.cfg, func(audience, event string, payload any) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.events = append(r.events, recordedEvent{event, payload})
 		r.to[event] = append(r.to[event], audience)
-	}, Deps{Filters: filters})
+	}, Deps{
+		Filters:        filters,
+		LibraryChanged: func(string) { r.libraryChanged++ },
+	})
 	r.mux = http.NewServeMux()
 	h.Routes(r.mux)
 	library.New(db, nil, library.Deps{Filters: filters}).Routes(r.mux)
@@ -232,5 +239,62 @@ func TestDeleteLibraryCascades(t *testing.T) {
 	}
 	if got := r.to["library_removed"]; len(got) != 1 {
 		t.Errorf("library_removed audiences %v", got)
+	}
+}
+
+// A failure in a library-owned statement after item rows were removed must
+// roll the whole library deletion back: no rows, watcher calls, files/cache or
+// events survive. The one-connection pool makes any nested transaction or
+// pool query fail decisively.
+func TestDeleteLibraryRollbackAfterItemRows(t *testing.T) {
+	r := newCascadeRig(t)
+	r.exec(`CREATE TRIGGER fail_library_delete BEFORE DELETE ON libraries BEGIN SELECT RAISE(ABORT,'test rollback'); END`)
+	coverDir := r.cfg.Dirs().CoverCache
+	if err := os.MkdirAll(coverDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cover := filepath.Join(coverDir, "i1_400.jpeg")
+	if err := os.WriteFile(cover, []byte("cover"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	itemDir := filepath.Join(r.cfg.Dirs().Items, "i1")
+	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	itemFile := filepath.Join(itemDir, "metadata.json")
+	if err := os.WriteFile(itemFile, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := r.do("DELETE", "/api/libraries/l1")
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if r.libraryChanged != 0 || len(r.events) != 0 {
+		t.Fatalf("libraryChanged=%d events=%v", r.libraryChanged, r.events)
+	}
+	for _, table := range []struct {
+		query string
+		want  int
+	}{
+		{`SELECT COUNT(*) FROM libraries WHERE id='l1'`, 1},
+		{`SELECT COUNT(*) FROM libraryFolders WHERE libraryId='l1'`, 1},
+		{`SELECT COUNT(*) FROM libraryItems WHERE libraryId='l1'`, 2},
+		{`SELECT COUNT(*) FROM books`, 2},
+		{`SELECT COUNT(*) FROM authors WHERE libraryId='l1'`, 2},
+		{`SELECT COUNT(*) FROM series WHERE libraryId='l1'`, 1},
+		{`SELECT COUNT(*) FROM feeds`, 2},
+	} {
+		var got int
+		if err := r.db.QueryRow(table.query).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != table.want {
+			t.Errorf("%s = %d, want %d", table.query, got, table.want)
+		}
+	}
+	for _, path := range []string{cover, itemFile} {
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("post-commit artifact removed despite rollback: %s: %v", path, err)
+		}
 	}
 }

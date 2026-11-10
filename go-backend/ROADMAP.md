@@ -423,13 +423,31 @@
   accurate: the gate review found both the inherited defect the PB04c1
   architect review missed and the no-op callback mislabeled as recording
   coverage; both are now closed.
-- [ ] PB04c2-D — deletion ownership prerequisite, after R acceptance:
-  move deletion rows/results/effects to existing itemwrite, dissolve catalog's
-  RemoveFolderItems bridge. Caller-owned transaction for whole-library
-  deletion; explicit post-commit phases preserve each caller's sweep/event
-  order. Budget **+120 LOC / +25 complexity**, zero growth in other metrics.
-  No implementation dispatched in this review; stop for review after this
-  one ownership change. See the decision for file scope and rollback proof.
+- [ ] IN PROGRESS — PB04c2-D ACCEPTED 2026-11-11: deletion rows/results moved to
+  `internal/itemwrite.DeleteRows(ctx, tx, targets)` with caller-owned
+  transactions and no pool/files/cache/event access. Concrete soft/hard
+  operations and folder deletion run post-commit phases; catalog single/batch/
+  issues and whole-library callers were mapped to the owner with their
+  distinct schedules preserved (single/folder: sweep+issues-reset per item;
+  batch: series then authors per item; issues: accumulate, sweep once).
+  The `RemoveFolderItems` bridge is deleted; library folder update calls
+  `itemwrite.Deleter.DeleteFolderSoft` directly before its own transaction.
+  Shared path safety and cover-cache purge moved once to `mediafiles` with
+  direct tests. Whole-library deletion keeps its enclosing transaction and
+  effect order. The rollback proof landed exactly as the decision required:
+  a trigger fails `DELETE FROM libraries` after item rows were removed → 500,
+  every row survives, no watcher call, events, cache purge or metadata-file
+  removal. Actual delta: **+109 LOC / +14 complexity / −1 map**, with
+  functions over 15, `[]any` and other metrics unchanged — within the
+  pre-recorded +120/+25 ceiling. Architect rerun verified: gofmt, build,
+  vet, the full suite with the documented FFmpeg prefix (52 packages),
+  `-race` on itemwrite/library/catalog/server/mediafiles/scanner,
+  golangci-lint v2.15.0 (0 issues), 35 dependency fixtures, `make ratchet`
+  +0 and dbnest. Residual risk recorded: `DeleteRows` skips media-specific
+  reference cleanup for an unknown media type where the old single-item path
+  returned 400 (the single route still checks `mediaTable()`; only a corrupt
+  row in folder deletion could reach it — unreachable through validated
+  writes). Stop for review before c2.
 - [ ] PB04c2 — **GATED**, not merely queued. Architect selects deletion-owner
   first, not another independently committing deletion callback. A typed
   per-item quick-match operation seam is accepted in principle; library owns

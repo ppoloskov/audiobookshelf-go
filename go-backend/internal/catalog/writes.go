@@ -257,7 +257,7 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	}
 	var playlistChanges []store.PlaylistChange
 	target := removed.Path()
-	if target == "" || !h.pathAllowed(r.Context(), target, scope.libraryID) {
+	if target == "" || !mediafiles.PathAllowed(r.Context(), h.db, target, scope.libraryID) {
 		return httputil.Status(404, "")
 	}
 	_ = os.Remove(target)

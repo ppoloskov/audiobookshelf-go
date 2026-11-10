@@ -12,6 +12,7 @@ import (
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -151,7 +152,7 @@ func (h *Handler) saveCoverFromURL(ctx context.Context, itemID, itemPath string,
 		return "", "Failed to fetch image from url"
 	}
 	removeOldCovers(coverDir, "."+ext)
-	h.purgeCoverCache(itemID)
+	mediafiles.PurgeCoverCache(h.coverCachePath(), itemID)
 	logging.Infof(`[CoverManager] Downloaded libraryItem cover "%s" from url "%s"`, coverFullPath, imageURL)
 	return coverFullPath, ""
 }

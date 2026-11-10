@@ -194,7 +194,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
+	if !mediafiles.PathAllowed(r.Context(), h.db, target, scope.libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	result, err := mediatools.ProbeRaw(r.Context(), target)

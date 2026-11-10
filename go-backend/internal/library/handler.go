@@ -13,6 +13,7 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/serversettings"
 )
 
@@ -21,9 +22,9 @@ type Deps struct {
 	Filters *filterdata.Cache
 	// LibraryChanged refreshes watchers after a committed library change.
 	LibraryChanged func(string)
-	// RemoveFolderItems removes the items of a folder before that folder is
-	// deleted. It stays a composition callback until item deletion moves.
-	RemoveFolderItems func(context.Context, string, string) error
+	// ItemDeleter is the concrete item-deletion owner used before folder
+	// removal and by other library writes.
+	ItemDeleter itemwrite.Deleter
 }
 
 // Handler serves library reads and writes over db.

@@ -46,7 +46,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 			w.Header().Set("Content-Type", mimeType)
 		}
 	}
-	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
+	if !mediafiles.PathAllowed(r.Context(), h.db, target, scope.libraryID) {
 		if download {
 			if _, statErr := os.Stat(target); statErr != nil {
 				if os.IsNotExist(statErr) {
@@ -94,7 +94,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	if !h.pathAllowed(r.Context(), target, scope.libraryID) {
+	if !mediafiles.PathAllowed(r.Context(), h.db, target, scope.libraryID) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	return h.servePath(w, r, target)
@@ -130,7 +130,7 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 		if err != nil || target == "" {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		if !(h.pathAllowed(r.Context(), target, scope.libraryID) || h.cfg.MetadataPath != "" && withinAny(target, []string{h.cfg.MetadataPath})) {
+		if !(mediafiles.PathAllowed(r.Context(), h.db, target, scope.libraryID) || h.cfg.MetadataPath != "" && mediafiles.WithinAny(target, []string{h.cfg.MetadataPath})) {
 			return httputil.Status(http.StatusNotFound, "")
 		}
 		return httputil.RawFile(w, r, target)

@@ -6,6 +6,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -23,7 +24,7 @@ func (h *Handler) itemsExpandedWhere(ctx context.Context, ids []string) ([]itemS
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+store.Placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, stringArgs(ids)...)
+	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId AND li.mediaType='book' LEFT JOIN bookAuthors ba ON ba.bookId=b.id LEFT JOIN bookSeries bs ON bs.bookId=b.id WHERE li.id IN (`+store.Placeholders(len(ids))+`) ORDER BY ba.createdAt ASC, bs.createdAt ASC`, store.StringArgs(ids)...)
 	if err != nil {
 		return nil, err
 	}
@@ -100,13 +101,18 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request) error {
 	}
 	libraryID := items[0].libraryID
 	for _, item := range items {
-		var linked itemLinks
-		if err := h.removeLibraryItem(ctx, item, hard, &linked); err != nil {
-			return err
+		var changes itemwrite.DeleteChanges
+		if hard {
+			changes, err = h.deleter().DeleteHard(ctx, deletionTarget(item))
+		} else {
+			changes, err = h.deleter().DeleteSoft(ctx, deletionTarget(item))
+		}
+		if err != nil {
+			return httputil.Internal("database write failed", err)
 		}
 		// The series check runs before the authors check (js:610-615).
-		h.env().SweepSeries(ctx, linked.series)
-		h.env().SweepAuthors(ctx, linked.authors)
+		h.env().SweepSeries(ctx, changes.Series)
+		h.env().SweepAuthors(ctx, changes.Authors)
 	}
 	h.filters.ResetIssues(ctx, h.db, libraryID) // Database.resetLibraryIssuesFilterData
 	return httputil.OK(w, r)
@@ -245,12 +251,4 @@ func (h *Handler) batchGet(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, map[string]any{"libraryItems": selected})
-}
-
-func stringArgs(values []string) []any {
-	args := make([]any, len(values))
-	for i, value := range values {
-		args[i] = value
-	}
-	return args
 }
