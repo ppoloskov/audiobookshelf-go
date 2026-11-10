@@ -184,11 +184,12 @@ or invent a universal DTO. The `items` coordinator may consume `books`/
 `lists`, `playback` or `server`. Author identity, detail, CRUD, merge/delete,
 matching, library-scoped author lists and author images live in
 `internal/people`. `internal/library` owns `/api/libraries/:id` request scope,
-the filter/sort SQL compiler, series entity/list/detail/update routes and
-library metadata reads (list/detail/view, stats, filterdata, narrators and
-podcast titles). Item browsing and search/shelves follow in PB04b2b/b3.
-Catalog still calls the library compiler for its remaining browse/search
-operations and keeps every library write/admin route.
+the filter/sort SQL compiler, series entity/list/detail/update routes, library
+metadata reads (list/detail/view, stats, filterdata, narrators and podcast
+titles) and item-list browsing with collapse/include handling. Search and
+personalized shelves follow in PB04b3. Catalog keeps every library write/admin
+route, item detail/cover/file routes, item mutations and its remaining
+discovery operations.
 Keep the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing

@@ -1,13 +1,18 @@
 package catalog
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	schemaassets "audiobookshelf-compat/contracts/parity"
+	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -18,7 +23,7 @@ import (
 // recently-added shelf contains them.
 func includesFixture(t *testing.T) *Handler {
 	t.Helper()
-	h, _ := subseriesFixture(t)
+	h, _ := catalogSubseriesFixture(t)
 	now := dbtime.Format(time.Now())
 	past := dbtime.Format(time.Now().Add(-time.Hour))
 	for _, q := range []string{
@@ -128,4 +133,36 @@ func TestIncludeRSSFeedAndShareOnItemsAndShelves(t *testing.T) {
 	if _, present := memberItem["mediaItemShare"]; present {
 		t.Errorf("non-admin item carries mediaItemShare")
 	}
+}
+
+// catalogSubseriesFixture mirrors the library collapse fixture for the
+// cross-domain include test (item list + personalized + item detail).
+func catalogSubseriesFixture(t *testing.T) (*Handler, store.User) {
+	t.Helper()
+	db, err := sql.Open("sqlite", "file:includes-"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(schemaassets.SchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	const now = "2024-01-01 00:00:00.000 +00:00"
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(q, args...); err != nil {
+			t.Fatalf("%v\n%s", err, q)
+		}
+	}
+	exec(`INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,settings,extraData,createdAt,updatedAt) VALUES('lib1','Lib',0,'database','book','google','{}','{}',?,?)`, now, now)
+	exec(`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('f1','/books','lib1',?,?)`, now, now)
+	exec(`INSERT INTO series(id,name,nameIgnorePrefix,libraryId,createdAt,updatedAt) VALUES('mega','Mega','Mega','lib1',?,?),('sub','The Sub','Sub, The','lib1',?,?)`, now, now, now, now)
+	for i, b := range []struct{ id, title string }{{"A", "Alpha"}, {"B", "Bravo"}, {"C", "Charlie"}, {"D", "Delta"}} {
+		exec(`INSERT INTO books(id,title,titleIgnorePrefix,explicit,abridged,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES(?,?,?,0,0,?,'[]','[]','null','[]','[]','[]',?,?)`, b.id, b.title, b.title, float64(100-i*10)+0.5, now, now)
+		exec(`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,size,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId,libraryFolderId) VALUES(?,?,?,?,?, 'book',0,0,0,'[]','{}',?,?,?,'','',?,?,'lib1','f1')`, "li"+b.id, "ino"+b.id, "/books/"+b.id, b.id, b.id, 10*(i+1), b.title, b.title, now, now)
+	}
+	exec(`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('m1','1','A','mega',?),('m2','2','B','mega',?),('m4',NULL,'D','mega',?),('m3','3','C','mega',?),('s1','1','A','sub',?),('s2','2','B','sub',?)`, now, now, now, now, now, now)
+	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
+	return New(db, config.Config{}, nil, Deps{Filters: filterdata.NewCache()}), user
 }

@@ -178,7 +178,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 	}
 	// The continue-series query only loads feeds; it never sets mediaItemShare
 	// (libraryItemsBookFilters.js:707-826).
-	attach := e.attach(itemIncludes{rssFeed: httputil.IncludeHas(e.r, "rssfeed")})
+	attach := e.attach(library.ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	q.build = func(items []shelfItem) ([]any, error) {
 		for i := range items {
 			c := chosenBooks[i]
@@ -186,7 +186,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 				// book.series = [] before toOldJSONMinified, then metadata.series
 				// is replaced with the continued series.
 				metadata.SeriesName = ""
-				metadata.Series = &people.BookSeries{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
+				metadata.Series = &books.SeriesRef{ID: c.series.id, Name: c.series.name, Sequence: c.sequence}
 			})
 		}
 		return attach(items)
@@ -360,7 +360,7 @@ func (e *shelfEnv) discover() (shelfQuery, error) {
 	}
 	q.ids, err = h.queryStrings(ctx, `SELECT li.id`+where+` GROUP BY b.id ORDER BY RANDOM() LIMIT ?`, append(args, e.limit)...)
 	// Discover only loads feeds; it never sets mediaItemShare (js:886-1017).
-	q.build = e.attach(itemIncludes{rssFeed: httputil.IncludeHas(e.r, "rssfeed")})
+	q.build = e.attach(library.ItemIncludes{RSSFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	return q, err
 }
 

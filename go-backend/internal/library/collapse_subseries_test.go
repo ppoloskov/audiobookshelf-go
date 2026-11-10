@@ -1,4 +1,4 @@
-package catalog
+package library
 
 import (
 	"database/sql"
@@ -11,10 +11,19 @@ import (
 	"testing"
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
-	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/library"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 )
+
+func serveLibrary(h *Handler, w *httptest.ResponseRecorder, r *http.Request, user store.User) bool {
+	mux := http.NewServeMux()
+	h.Routes(mux)
+	if _, pattern := mux.Handler(r); pattern == "" {
+		return false
+	}
+	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), user)))
+	return true
+}
 
 // TestSeriesSequenceListMatchesUpstream pins libraryHelpers.js:236-257. The
 // expectations are the output of that same naturalSort + reduce code run in
@@ -55,8 +64,8 @@ func TestNodeBase64DecodeMatchesBufferFrom(t *testing.T) {
 		"bm8tc2VyaWVz": "no-series", "bm8tc2VyaWVz==": "no-series", "YWJj": "abc", "YWI=": "ab", "YW": "a", "Y": "", "": "",
 		"YW-_": "ao\xbf", "Y W\nJj": "abc",
 	} {
-		if got := library.DecodeFilterValue(in); got != want {
-			t.Errorf("library.DecodeFilterValue(%q) = %q, want %q", in, got, want)
+		if got := DecodeFilterValue(in); got != want {
+			t.Errorf("DecodeFilterValue(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -98,7 +107,7 @@ func subseriesFixture(t *testing.T) (*Handler, store.User) {
 	}
 	exec(`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('m1','1','A','mega',?),('m2','2','B','mega',?),('m4',NULL,'D','mega',?),('m3','3','C','mega',?),('s1','1','A','sub',?),('s2','2','B','sub',?)`, now, now, now, now, now, now)
 	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
-	return New(db, config.Config{}, nil, testDeps()), user
+	return New(db, nil, Deps{Filters: filterdata.NewCache()}), user
 }
 
 func getSubseriesPage(t *testing.T, h *Handler, user store.User, query string) (page struct {
@@ -129,7 +138,7 @@ func getSubseriesPage(t *testing.T, h *Handler, user store.User, query string) (
 	t.Helper()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/api/libraries/lib1/items?minified=1&collapseseries=1&filter=series.bWVnYQ=="+query, nil)
-	if !h.Handle(w, r, user) || w.Code != http.StatusOK {
+	if !serveLibrary(h, w, r, user) || w.Code != http.StatusOK {
 		t.Fatalf("GET %s = %d %s", r.URL, w.Code, w.Body.String())
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
@@ -198,7 +207,7 @@ func TestCollapseSubseriesFilteredPage(t *testing.T) {
 	// a single collapsed entry is left uncollapsed with the uncollapsed total.
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/api/libraries/lib1/items?collapseseries=1&filter=series.c3Vi", nil)
-	h.Handle(w, r, user)
+	serveLibrary(h, w, r, user)
 	if !strings.Contains(w.Body.String(), `"total":2`) || strings.Contains(w.Body.String(), `"collapsedSeries"`) {
 		t.Errorf("sub-series alone = %s", w.Body.String())
 	}

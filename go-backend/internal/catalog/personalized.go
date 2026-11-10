@@ -138,7 +138,7 @@ func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
 	}
 	ctx := e.r.Context()
 	args = append(args, e.permArgs...)
-	q := shelfQuery{build: e.attach(requestItemIncludes(e.r, e.user))}
+	q := shelfQuery{build: e.attach(library.RequestItemIncludes(e.r, e.user))}
 	if err := e.h.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+query+")", args...).Scan(&q.total); err != nil {
 		return q, err
 	}
@@ -148,12 +148,12 @@ func (e *shelfEnv) itemQuery(query string, args ...any) (shelfQuery, error) {
 	return q, err
 }
 
-func (e *shelfEnv) attach(inc itemIncludes) func([]shelfItem) ([]any, error) {
+func (e *shelfEnv) attach(inc library.ItemIncludes) func([]shelfItem) ([]any, error) {
 	return func(items []shelfItem) ([]any, error) {
 		out := make([]any, len(items))
 		for i := range items {
 			item := items[i].min
-			if err := e.h.attachItemIncludes(e.r.Context(), inc, item.Head, item.MediaID(), &item.Extras); err != nil {
+			if err := library.AttachItemIncludes(e.r.Context(), e.h.db, inc, item.Head, item.MediaID(), &item.Extras); err != nil {
 				return nil, err
 			}
 			out[i] = item
@@ -251,7 +251,7 @@ func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 				item.Media = media
 			}
 			if err == nil && httputil.IncludeHas(e.r, "numepisodesincomplete") {
-				item.NumEpisodesIncomplete, err = e.h.numEpisodesIncomplete(e.r.Context(), e.user.ID, media.ID)
+				item.NumEpisodesIncomplete, err = library.NumEpisodesIncomplete(e.r.Context(), e.h.db, e.user.ID, media.ID)
 			}
 			out[i] = item
 		}

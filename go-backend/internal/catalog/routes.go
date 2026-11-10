@@ -28,7 +28,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
 	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
-	mux.Handle("GET /api/libraries/{id}/items", library.InLibrary(h.db, h.libraryItems))
 	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
 	mux.Handle("GET /api/libraries/{id}/personalized", library.InLibrary(h.db, h.personalized))
 	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))

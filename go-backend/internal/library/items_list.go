@@ -1,16 +1,15 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
 )
 
-func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
 	page, limit := lib.Page, lib.Limit
 	var err error
@@ -28,11 +27,11 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	}
 	podcast := mediaType == "podcast"
 	sortBy, desc := r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1"
-	order, orderArgs, err := library.OrderSQL(sortBy, filterValue, desc, ignorePrefix, podcast, user)
+	order, orderArgs, err := OrderSQL(sortBy, filterValue, desc, ignorePrefix, podcast, user)
 	if err != nil {
 		return httputil.Status(http.StatusBadRequest, err.Error())
 	}
-	filterWhere, filterArgs, err := library.FilterSQL(filterValue, podcast, user)
+	filterWhere, filterArgs, err := FilterSQL(filterValue, podcast, user)
 	if err != nil {
 		return httputil.Status(http.StatusNotImplemented, err.Error())
 	}
@@ -80,11 +79,11 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	results := make([]items.Minified, 0, len(pageItems))
 	for _, it := range pageItems {
 		item := it.ListRow(prefixes)
-		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, it.MediaID, &item.Extras); err != nil {
+		if err := AttachItemIncludes(r.Context(), h.db, RequestItemIncludes(r, user), item.Head, it.MediaID, &item.Extras); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if mediaType == "podcast" && httputil.IncludeHas(r, "numepisodesincomplete") {
-			incomplete, err := h.numEpisodesIncomplete(r.Context(), user.ID, it.MediaID)
+			incomplete, err := NumEpisodesIncomplete(r.Context(), h.db, user.ID, it.MediaID)
 			if err != nil {
 				return httputil.Internal("database read failed", err)
 			}

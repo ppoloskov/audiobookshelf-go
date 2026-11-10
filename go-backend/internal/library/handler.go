@@ -43,6 +43,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/libraries/{id}/podcast-titles", InLibrary(h.db, h.podcastTitles))
 	mux.Handle("GET /api/series/{id}", httputil.Handler(h.seriesFindOne))
 	mux.Handle("PATCH /api/series/{id}", httputil.Handler(h.seriesUpdate))
+	mux.Handle("GET /api/libraries/{id}/items", InLibrary(h.db, h.libraryItems))
 	mux.Handle("GET /api/libraries/{id}/series", InLibrary(h.db, h.series))
 	mux.Handle("GET /api/libraries/{id}/series/{seriesId}", InLibrary(h.db, h.seriesByID))
 }

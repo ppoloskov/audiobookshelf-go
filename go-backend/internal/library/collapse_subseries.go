@@ -1,12 +1,10 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
-	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -72,14 +70,14 @@ func collapseSubseriesFilter(r *http.Request) (seriesID string, ok bool) {
 	if group != "series" || r.URL.Query().Get("collapseseries") != "1" {
 		return "", false
 	}
-	if library.DecodeFilterValue(rest) == "no-series" {
+	if DecodeFilterValue(rest) == "no-series" {
 		return "", false
 	}
 	if !hasDot {
 		return "", true
 	}
 	value, _, _ := strings.Cut(rest, ".")
-	return library.DecodeFilterValue(value), true
+	return DecodeFilterValue(value), true
 }
 
 // collapseSubseries serves GET /api/libraries/:id/items for a series filter
@@ -89,7 +87,7 @@ func collapseSubseriesFilter(r *http.Request) (seriesID string, ok bool) {
 // series is looked up by id in any library; its books are filtered by the
 // user's access and, when they belong to other series too, collapsed behind
 // the first book of each of those series.
-func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib library.Scope, seriesID string, ignorePrefix bool) error {
+func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib Scope, seriesID string, ignorePrefix bool) error {
 	page, limit := lib.Page, lib.Limit
 	query := r.URL.Query()
 	payload := collapsedSubseriesPage{
@@ -167,7 +165,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 		filtered := li.seriesByID(seriesID)
 		item := rendered[i]
 		editBookMetadata(&item, func(metadata *books.BookMetadataMinified) {
-			metadata.Series = &people.BookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
+			metadata.Series = &books.SeriesRef{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {
 			ids := make([]string, 0, len(c.books))
@@ -457,4 +455,11 @@ func seriesSequenceList(c *subseriesCollapsed) string {
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+func editBookMetadata(item *items.Minified, edit func(metadata *books.BookMetadataMinified)) {
+	if media, ok := item.Media.(books.BookMinified); ok {
+		edit(&media.Metadata)
+		item.Media = media
+	}
 }

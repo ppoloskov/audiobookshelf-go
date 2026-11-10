@@ -2,8 +2,9 @@
 
 2026-11-11. Status: email-settings, catalog read graph (PB02a–d), people
 entities (PB03a) and the people remainder/library scope (PB04a) are accepted;
-PB04b1 (filter/sort compiler and series) is accepted; PB04b2a (library
-metadata reads) is implemented pending review. Scope: current Go package ownership, catalog decomposition, settings,
+PB04b1 (filter/sort compiler and series) and PB04b2a (library metadata reads)
+are accepted; PB04b2b (item browsing, collapse helpers and item includes) is
+implemented pending review. Scope: current Go package ownership, catalog decomposition, settings,
 shared objects and dependency rules. This is a response to the owner's request
 for better package division, rather than another line-reduction exercise.
 
@@ -82,8 +83,9 @@ metadata matching, library-scoped author lists and author images now live in
 `internal/people`; series routes and projections moved to `internal/library` in
 PB04b1. `internal/library` owns request scope/`InLibrary`, media-table
 selection, the filter/sort SQL compiler, series entity/list/detail/update
-routes and library metadata reads (list/detail/view, stats, filterdata,
-narrators and podcast titles). `itemwrite` keeps relation cleanup and orphan sweeps. Dependencies
+routes, library metadata reads (list/detail/view, stats, filterdata,
+narrators and podcast titles) and item-list browsing with collapse/include
+handling. `itemwrite` keeps relation cleanup and orphan sweeps. Dependencies
 remain acyclic: `catalog` → `people`/`library`; `people` → `library`; neither
 imports catalog, and library does not import people. Generic changed-column
 saving is the foundation leaf `internal/sqlupdate`.

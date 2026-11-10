@@ -332,6 +332,26 @@
   catalog alias file (`library_view.go`, 16 lines) dissolves when library
   writes/admin move. Next after acceptance: PB04b2b item-list browsing,
   then PB04b3 search/shelves.
+- [ ] IN PROGRESS — PB04b2b ACCEPTED 2026-11-11: `internal/library` owns the item-list
+  route, collapse-series/subseries helpers and the item rssFeed/mediaItemShare
+  include seam. `books.SeriesRef` replaces the duplicate `people.BookSeries`
+  representation (identical json tags, shape-safe dedup); `catalog` keeps
+  personalized shelves, search, item detail, cover/file routes and item
+  mutations. Catalog's item-list/query integration tests mount the library
+  handler; library owns the collapse/subseries tests. Actual delta: **+3 LOC
+  / +2 complexity**, with functions over 15, maps, `[]any` and injectors
+  unchanged. Architect rerun verified: gofmt, build, vet, the full suite
+  with the documented FFmpeg prefix (51 packages), `-race` on
+  library/catalog/server/people/items/sharing, golangci-lint v2.15.0
+  (0 issues), 32 dependency fixtures, `make ratchet` +0 and dbnest.
+  The admin-only mediaItemShare gate, feed lookup and expiry/null behavior
+  were verified as verbatim. Notes: (1) no separate b2b budget was recorded
+  before dispatch — self-disclosed; the trivial actual growth is ratified
+  this once, and every packet records its budget before dispatch from now
+  on, small ones included; (2) exit task: the catalog-side item-list/query
+  fixtures move to library (or dissolve) when catalog's read surface is
+  empty after PB04b3 and the writes/admin packet. Next after acceptance:
+  PB04b3 search/shelves, then library writes/admin.
 
 ### UA01 · User API simplification (2026-11-10)
 
