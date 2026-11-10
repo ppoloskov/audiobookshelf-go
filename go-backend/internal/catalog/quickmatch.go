@@ -232,18 +232,24 @@ func (h *Handler) quickMatchLibraryItem(ctx context.Context, itemID string, opti
 		// has none or the details are overridden (Scanner.js:255-364).
 		rules := itemwrite.Rules{Replace: true, SeriesAdded: true}
 		if jsTruthyRaw(match.Author) && (item.authorName() == "" || overrideDetails) {
-			changed, e := changes.LinkAuthors(ctx, tx, item.libraryID, item.mediaID, matchList(match.Author), rules)
-			if e != nil {
-				return quickMatchResult{}, e
+			authors := matchList(match.Author)
+			if len(authors) > 0 {
+				changed, e := changes.LinkAuthors(ctx, tx, item.libraryID, item.mediaID, authors, rules)
+				if e != nil {
+					return quickMatchResult{}, e
+				}
+				hasUpdated = hasUpdated || changed
 			}
-			hasUpdated = hasUpdated || changed
 		}
 		if jsTruthyRaw(match.Series) && (item.seriesName() == "" || overrideDetails) {
-			changed, e := changes.LinkSeries(ctx, tx, item.libraryID, item.mediaID, matchSeries(match), prefixes, rules)
-			if e != nil {
-				return quickMatchResult{}, e
+			series := matchSeries(match)
+			if len(series) > 0 {
+				changed, e := changes.LinkSeries(ctx, tx, item.libraryID, item.mediaID, series, prefixes, rules)
+				if e != nil {
+					return quickMatchResult{}, e
+				}
+				hasUpdated = hasUpdated || changed
 			}
-			hasUpdated = hasUpdated || changed
 		}
 	case "podcast":
 		table = "podcasts"
@@ -407,12 +413,23 @@ func matchSeries(match wire.BookMatch) []itemwrite.Series {
 	}
 	out := make([]itemwrite.Series, len(list))
 	for i, e := range list {
-		out[i] = itemwrite.Series{Name: e.Series}
-		if jsTruthyRaw(e.Sequence) {
-			out[i].Sequence = matchString(e.Sequence)
-		}
+		out[i] = itemwrite.Series{Name: e.Series, Sequence: matchSeriesSequence(e.Sequence)}
 	}
 	return out
+}
+
+func matchSeriesSequence(raw json.RawMessage) *sql.NullString {
+	if len(raw) == 0 {
+		return nil
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return nil
+	}
+	if value == nil {
+		return &sql.NullString{}
+	}
+	return &sql.NullString{String: jsonvalue.Text(value), Valid: true}
 }
 
 // matchOptionsFromBody reads the string overrides and the two booleans of a

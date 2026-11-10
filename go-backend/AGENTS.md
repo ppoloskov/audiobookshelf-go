@@ -40,10 +40,26 @@ clients, books and progress, using simple, clear, fast Go.
   removal are not behavior-preserving savings. Absence from selected client
   calls or CI does not authorize dropping an implemented feature.
 - B01–B09, I01–I06, L01–L05, PR01–PR07, MC-05/F1, S9b-R1 and D01 remain
-  accepted at published `82110311`. Production baseline stays 44,674 lines /
-  10,809 complexity. D01's large feature footprints are KEEP under the clarified
+  accepted at published `82110311`. Historical quickmatch consolidation was
+  reported at 44,639 lines / 10,801 complexity / 177 high-complexity functions;
+  these are not current ratchet values. Use `ratchet-baseline.json` and
+  `make ratchet` for the active metric gate. Wave G evidence and its current
+  blocked validation state are in `docs/WAVE-G-AUDIT.md` and
+  `docs/wave-g/VALIDATION.md`; no untracked assessment document is required to
+  interpret this policy. D01's large feature footprints are KEEP under the clarified
   requirement, not an available deletion wave. No safe 1,000-line consolidation
   is currently established; do not force that number by removing functionality.
+- R1's OpenSessions pass-through is reviewed locally: preserve its typed JSON
+  payload and array/null behavior. Its isolated HEAD-plus-R1 ratchet decreases
+  production LOC by 2 and `map[string]any` by 3, with no other metric growth;
+  that disposable baseline update is not the combined Wave G baseline.
+- N2, R1, RT1 and QM01 now pass on the canonical current worktree, including
+  real Socket.IO, SQLC v1.31.1, required local workflow checks and TS rollback.
+  The measured baseline is 38,119 handwritten LOC / 8,531 complexity / 115
+  functions over 15 / 461 `map[string]any` / 202 `[]any`; only those three
+  changing fields were updated. See the final integration addendum for hashes,
+  commands, versions and limitations. Mark those four cards DONE in the same
+  accepted source commit; N3 stays open until remote CI passes after push.
 - No new domain extraction until its end-to-end behavior-preserving deletion
   case is established: exact duplicate bodies, retained consumers/contracts,
   replacement cost, net savings and tests. No provider/ebook/admin feature cut
@@ -148,6 +164,11 @@ correctness/security guard or call an unimplemented policy machine-enforced.
 
 ## Code rules
 
+- The owner's 2026-11-10 package/object-boundary request is recorded in
+  [the boundary proposal](docs/PACKAGE-BOUNDARIES.md). Treat its layout as
+  proposed, not current implementation. Inventory actual consumers before
+  extraction; do not duplicate existing models or claim moves as deletions.
+
 - No schema changes/migrations. DATETIME writes use `dbtime`; preserve JSON
   columns, IDs, enum strings and metadata meaning.
 - Preserve client fields, types, meaningful values, nullability, auth, event
@@ -164,6 +185,11 @@ correctness/security guard or call an unimplemented policy machine-enforced.
   committing is authorized. Never report a skipped/unrun check as passing.
 
 ## Operational commands
+
+FFmpeg single-executable research is recorded in
+[the feasibility review](docs/FFMPEG-LIBRARY-FEASIBILITY.md). It adds no approved
+dependency or implementation work: retain current media functionality and
+CGO-free/subprocess defaults until a separate build/dependency decision.
 
 Run from root: `make ratchet`, `make bench`, `make client-usage` (writes the
 inventory), `make parity-replacement`, `make parity-scan`, `make route-probe`.

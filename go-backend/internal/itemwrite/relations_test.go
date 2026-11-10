@@ -51,6 +51,12 @@ func eventNames(c Changes) []string {
 	return out
 }
 
+func sequence(value string) *sql.NullString {
+	return &sql.NullString{String: value, Valid: true}
+}
+
+func nullSequence() *sql.NullString { return &sql.NullString{} }
+
 func TestLinkAuthorsCreatesLinksAndDerivesLastFirst(t *testing.T) {
 	db := openDB(t)
 	var c Changes
@@ -169,7 +175,7 @@ func TestLinkSeriesSequenceRules(t *testing.T) {
 		return c, changed
 	}
 
-	c, changed := link(Rules{SeriesAdded: true}, Series{"The Saga", "1"}, Series{"Side", ""})
+	c, changed := link(Rules{SeriesAdded: true}, Series{Name: "The Saga", Sequence: sequence("1")}, Series{Name: "Side", Sequence: nullSequence()})
 	if !changed || seqs() != "The Saga#1#Saga,Side#NULL#Side" {
 		t.Fatalf("created: changed=%v %s", changed, seqs())
 	}
@@ -177,24 +183,64 @@ func TestLinkSeriesSequenceRules(t *testing.T) {
 		t.Fatalf("events %v", eventNames(c))
 	}
 	// SeriesAdded is off for PATCH: the series exist but no event is sent.
-	if c, _ := link(Rules{}, Series{"Third", "3"}); len(c.Events) != 0 || len(c.SeriesAdded) != 1 {
+	if c, _ := link(Rules{}, Series{Name: "Third", Sequence: sequence("3")}); len(c.Events) != 0 || len(c.SeriesAdded) != 1 {
 		t.Fatalf("without SeriesAdded: %+v", c)
 	}
-	// A blank sequence clears a stored one unless KeepSequence (scanner).
-	if _, changed := link(Rules{KeepSequence: true}, Series{"the saga", ""}); changed || !strings.Contains(seqs(), "The Saga#1#") {
-		t.Fatalf("KeepSequence changed the sequence: %s", seqs())
+	// An absent value preserves the existing sequence, as scanner import does.
+	if _, changed := link(Rules{}, Series{Name: "the saga"}); changed || !strings.Contains(seqs(), "The Saga#1#") {
+		t.Fatalf("absent sequence changed the sequence: %s", seqs())
 	}
-	if _, changed := link(Rules{}, Series{"the saga", ""}); !changed || !strings.Contains(seqs(), "The Saga#NULL#") {
-		t.Fatalf("blank sequence did not clear: %s", seqs())
+	if _, changed := link(Rules{}, Series{Name: "the saga", Sequence: nullSequence()}); !changed || !strings.Contains(seqs(), "The Saga#NULL#") {
+		t.Fatalf("explicit null did not clear: %s", seqs())
 	}
 	// An identical sequence is not a change.
-	if _, changed := link(Rules{}, Series{"Side", ""}); changed {
+	if _, changed := link(Rules{}, Series{Name: "Side", Sequence: nullSequence()}); changed {
 		t.Fatal("unchanged sequence reported a change")
 	}
 	// Replace unlinks series the list leaves out.
-	c, changed = link(Rules{Replace: true}, Series{"Side", ""})
+	c, changed = link(Rules{Replace: true}, Series{Name: "Side", Sequence: nullSequence()})
 	if !changed || len(c.SeriesUnlinked) != 2 || seqs() != "Side#NULL#Side" {
 		t.Fatalf("replace: changed=%v unlinked=%v %s", changed, c.SeriesUnlinked, seqs())
+	}
+	if _, changed := link(Rules{}, Series{Name: "Side", Sequence: sequence("")}); !changed {
+		t.Fatal("explicit empty sequence did not change NULL")
+	}
+	var empty sql.NullString
+	if err := db.QueryRow(`SELECT sequence FROM bookSeries WHERE bookId='b1'`).Scan(&empty); err != nil {
+		t.Fatal(err)
+	}
+	if empty != (sql.NullString{String: "", Valid: true}) {
+		t.Fatalf("empty sequence=%+v, want valid empty text", empty)
+	}
+}
+
+func TestLinkSeriesProcessesDuplicatesInOrder(t *testing.T) {
+	db := openDB(t)
+	ctx := context.Background()
+	var initial Changes
+	withTx(t, db, func(tx *sql.Tx) {
+		if _, err := initial.LinkSeries(ctx, tx, "l1", "b1", []Series{{Name: "The Saga", Sequence: sequence("1")}}, nil, Rules{}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var changes Changes
+	var changed bool
+	withTx(t, db, func(tx *sql.Tx) {
+		var err error
+		changed, err = changes.LinkSeries(ctx, tx, "l1", "b1", []Series{{Name: "The Saga", Sequence: sequence("2")}, {Name: "the saga", Sequence: sequence("1")}}, nil, Rules{})
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	var got sql.NullString
+	if err := db.QueryRow(`SELECT sequence FROM bookSeries WHERE bookId='b1'`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if !changed || got != (sql.NullString{String: "1", Valid: true}) {
+		t.Fatalf("changed=%v sequence=%+v, want changed true and final 1", changed, got)
+	}
+	if len(column(t, db, `SELECT id FROM bookSeries WHERE bookId='b1'`)) != 1 || len(changes.SeriesAdded) != 0 {
+		t.Fatalf("duplicate relations created another link: %+v", changes)
 	}
 }
 

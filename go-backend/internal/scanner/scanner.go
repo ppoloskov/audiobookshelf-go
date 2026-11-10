@@ -695,6 +695,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	matcher := newGroupMatcher(ordered)
 	tally := &scanTally{}
 	var updatedItems []libitem.Expanded
+	var newlyMissing []string
 	emitUpdated := func() {
 		if len(updatedItems) > 0 {
 			s.emit.ToAll("items_updated", updatedItems)
@@ -722,6 +723,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 					return result, e
 				}
 				updatedItems = append(updatedItems, item)
+				newlyMissing = append(newlyMissing, ex.id)
 			}
 		} else {
 			matcher.claim(g)
@@ -744,6 +746,11 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		}
 	}
 	emitUpdated()
+	if len(newlyMissing) > 0 {
+		if _, err = s.db.ExecContext(ctx, `UPDATE libraryItems SET lastScan=?,lastScanVersion=? WHERE id IN (SELECT value FROM json_each(?))`, dbtime.Now(), version.Server, mustJSON(newlyMissing)); err != nil {
+			return result, err
+		}
+	}
 
 	var addedItems []libitem.Expanded
 	for _, g := range matcher.unclaimed() {

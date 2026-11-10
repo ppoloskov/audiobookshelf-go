@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playlistview"
@@ -61,7 +62,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	authors, series, playlistChanges, err := deleteItemRows(ctx, tx, []itemScope{item})
+	authors, series, playlistChanges, closedFeeds, err := deleteItemRows(ctx, tx, []itemScope{item})
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
@@ -69,6 +70,10 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 		return httputil.Internal("database write failed", err)
 	}
 	playlistview.Announce(ctx, h.db, h.emit, playlistChanges)
+	for _, feed := range closedFeeds {
+		h.emit.ToAll("rss_feed_closed", feed)
+	}
+	h.purgeCoverCache(item.id)
 	linked.authors = append(linked.authors, authors...)
 	linked.series = append(linked.series, series...)
 	if h.cfg.MetadataPath != "" {
@@ -87,7 +92,7 @@ func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bo
 // deleteItemRows removes the items and everything that references them (the
 // one list of tables to extend when a table starts referencing a book or an
 // episode). It returns the authors and series the books were linked to.
-func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors, series []string, playlistChanges []store.PlaylistChange, err error) {
+func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors, series []string, playlistChanges []store.PlaylistChange, closedFeeds []feeds.Minified, err error) {
 	var itemIDs, bookIDs, podcastIDs []string
 	for _, item := range items {
 		itemIDs = append(itemIDs, item.id)
@@ -122,7 +127,15 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	authors = list("authorId", "bookAuthors", "bookId", bookIDs)
 	series = list("seriesId", "bookSeries", "bookId", bookIDs)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+	for _, itemID := range itemIDs {
+		var closed []feeds.Minified
+		closed, err = feeds.CloseEntity(ctx, tx, itemID)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		closedFeeds = append(closedFeeds, closed...)
 	}
 	exec := func(table, by string, ids []string) {
 		if err != nil || len(ids) == 0 {
@@ -136,9 +149,6 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	if err == nil && len(mediaIDs) > 0 {
 		playlistChanges, err = store.RemoveFromPlaylists(ctx, tx, mediaIDs)
 	}
-	if err == nil && len(itemIDs) > 0 {
-		err = q.DeleteLibraryItemFeedsByItemIDs(ctx, store.Texts(itemIDs))
-	}
 	exec("bookAuthors", "bookId", bookIDs)
 	exec("bookSeries", "bookId", bookIDs)
 	if err == nil && len(bookIDs) > 0 {
@@ -151,5 +161,5 @@ func deleteItemRows(ctx context.Context, tx *sql.Tx, items []itemScope) (authors
 	exec("podcastEpisodes", "id", episodeIDs)
 	exec("podcasts", "id", podcastIDs)
 	exec("libraryItems", "id", itemIDs)
-	return authors, series, playlistChanges, err
+	return authors, series, playlistChanges, closedFeeds, err
 }

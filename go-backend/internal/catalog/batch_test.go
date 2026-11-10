@@ -19,7 +19,7 @@ func batchRig(t *testing.T) *authorRig {
 		`CREATE TABLE mediaProgresses (id TEXT,userId TEXT,mediaItemId TEXT)`,
 		`CREATE TABLE playlistMediaItems (id TEXT,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`,
 		`CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`,
-		`CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT)`,
+		`CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT,feedURL TEXT,title TEXT,description TEXT,preventIndexing BOOLEAN,ownerName TEXT,ownerEmail TEXT)`,
 		`CREATE TABLE mediaItemShares (id TEXT,mediaItemType TEXT,mediaItemId TEXT)`,
 	} {
 		if _, err := rig.db.Exec(ddl); err != nil {

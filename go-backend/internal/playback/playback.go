@@ -618,13 +618,10 @@ func (h *Handler) SessionOf(userID string) any {
 	return v
 }
 
-// OpenSessions returns the current in-memory playback sessions in the same
-// shape used by GET /api/sessions/open, for the online-users response.
-func (h *Handler) OpenSessions() []map[string]any {
-	raw, _ := json.Marshal(h.openSessions())
-	out := []map[string]any{}
-	_ = json.Unmarshal(raw, &out)
-	return out
+// OpenSessions returns the current in-memory playback sessions for JSON
+// encoding in the online-users response.
+func (h *Handler) OpenSessions() any {
+	return h.openSessions()
 }
 
 func (h *Handler) removeOpenSession(id string) {

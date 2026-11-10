@@ -17,9 +17,9 @@
     "go-backend/internal/notifications/handler.go": "65acfb6ef73defe854dac29e08778075ca62e4ee590b698e9d0e72874c3f9cde",
     "go-backend/internal/podcasts/podcasts.go": "4a8c17054ae36b30a4a9da27a6cd4755abe7015ac76e8192bf34d96492d6abfb",
     "go-backend/internal/providers/handler.go": "9c673eec84c5438d25c6efeb3c44cb12d472849565cb0eb5ed908e706a39811f",
-    "go-backend/internal/userapi/userapi.go": "1342e6ec53d91e458cce52aefd53f6b4699c8c0e0889e985894dd5f99b209bea",
-    "go-backend/internal/playback/playback.go": "eb9f9e7fa0df5fe56948af88148318c02493bb7cf135b82ca3db4cda2726f7bc",
-    "go-backend/internal/scanner/scanner.go": "b20f9e30b147eb69d3a6f965eb527e4805da34627e55e28587064f1877ddf123",
+    "go-backend/internal/userapi/userapi.go": "1023e69adcbf6fb0b07e009d677338d7acb769e6eabb9d19e6fa29558ddf54f6",
+    "go-backend/internal/playback/playback.go": "e2837e38cce56df85573aa79755dce788b9f1f70ed140912b7a9dc0d94ce8877",
+    "go-backend/internal/scanner/scanner.go": "8f27ded4d8f90eb9c3db393982e2b4526ae2de237f9cb94db24a389b87acb7d1",
     "go-backend/internal/sharing/handler.go": "e83302872c90258f22e06edef2917b0fe511fb283eef1e954e995f298110f12c"
   },
   "limitations": [

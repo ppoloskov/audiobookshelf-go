@@ -226,8 +226,9 @@ func seriesEntries(raw json.RawMessage) ([]itemwrite.Series, bool) {
 		if strings.TrimSpace(name) == "" {
 			return nil, false
 		}
-		sequence, _ := s["sequence"].(string)
-		series[i] = itemwrite.Series{Name: name, Sequence: sequence}
+		sequence, isString := s["sequence"].(string)
+		seq := sql.NullString{String: sequence, Valid: isString}
+		series[i] = itemwrite.Series{Name: name, Sequence: &seq}
 	}
 	return series, true
 }

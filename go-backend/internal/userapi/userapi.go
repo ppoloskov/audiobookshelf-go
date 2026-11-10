@@ -40,7 +40,7 @@ type Deps struct {
 	// UsersOnline lists the connected users; OpenSessions the open playback
 	// sessions (GET /api/users/online). Both optional.
 	UsersOnline  func() []map[string]any
-	OpenSessions func() []map[string]any
+	OpenSessions func() any
 }
 
 func (h *Handler) notifyUserChanged(ctx context.Context, id string) {
@@ -142,7 +142,8 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request, user store.User)
 }
 
 func (h *Handler) getOnlineUsers(w http.ResponseWriter, r *http.Request, _ store.User) error {
-	users, sessions := []map[string]any{}, []map[string]any{}
+	users := []map[string]any{}
+	var sessions any = []map[string]any{}
 	if h.deps.UsersOnline != nil {
 		users = h.deps.UsersOnline()
 	}

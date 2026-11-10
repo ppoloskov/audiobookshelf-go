@@ -3,6 +3,21 @@
 Use the Go version declared by go.mod. On this host validation used installed
 Go 1.27.0 with GOTOOLCHAIN=local, without changing the suggested 1.27.3 toolchain.
 
+## Pinned SQLC generator
+
+SQLC v1.31.1 is installed at `/Users/paul/go/bin/sqlc` on this host but is not
+on the login-shell `PATH`. Verify the pinned version directly, then invoke the
+root target with the absolute executable path:
+
+```sh
+/Users/paul/go/bin/sqlc version
+make sqlc SQLC=/Users/paul/go/bin/sqlc
+```
+
+This avoids relying on network access or assuming `command -v sqlc` reflects
+the available pinned generator. After generation, review both tracked and
+untracked output under `go-backend/internal/db/sqlc/`.
+
 ## Shipping source and inherited work
 
 The canonical development checkout is master. Inherited untracked
@@ -32,8 +47,8 @@ FFMPEG_PATH="$FFMPEG_TEST_PREFIX/bin/ffmpeg" \
 GOTOOLCHAIN=local go test ./... -count=1
 ```
 
-Both settings matter: playback/audiotools honor FFMPEG_PATH, while catalog
-looks up `ffmpeg` on PATH. Keep ffprobe from the same prefix. Local httptest
+Both settings matter: production media calls, including catalog covers, honor
+FFMPEG_PATH; some tests invoke tools on PATH. Keep ffprobe from the same prefix. Local httptest
 listeners need loopback access; sandbox bind denial is an environment failure,
 not a passing/skipped test. No cwebp wrapper, codec substitution or test skip.
 

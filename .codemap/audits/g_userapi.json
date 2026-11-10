@@ -1,0 +1,54 @@
+{
+  "score": 73,
+  "grade": "C",
+  "tags": [
+    "legacy",
+    "god-component",
+    "silent-except",
+    "duplication",
+    "bloat",
+    "glue"
+  ],
+  "findings": [
+    {
+      "sev": "MED",
+      "loc": "go-backend/internal/userapi/userapi.go:730-731,794-795",
+      "text": "handleUser returns without writing a response for unrecognized tails while Handle unconditionally claims the route (case strings.HasPrefix(path, \"/users/\") → return true) — a claimed route silently yields an empty-body 200 instead of an upstream 404."
+    },
+    {
+      "sev": "MED",
+      "loc": "go-backend/internal/userapi/userapi.go:1936-1941",
+      "text": "removeCollectionBook reorder loop inside a live transaction ignores all errors ('_ = rows.Scan(&link)', '_, _ = tx.ExecContext(...)') then tx.Commit() unconditionally — a failed re-order is swallowed and a partially reordered collection is committed."
+    },
+    {
+      "sev": "MED",
+      "loc": "go-backend/internal/userapi/userapi.go:1-2535",
+      "text": "God-file: userapi.go is 2,535 lines mixing /me, progress, bookmarks, admin /users CRUD, /api-keys signing, and ~700 lines of collection handlers, even though sibling files (sessions.go, listening.go, playlist.go, me_extra.go, collection_feed.go) exist — collection CRUD belongs in its own file; the file is the package's dispatch sink."
+    },
+    {
+      "sev": "LOW",
+      "loc": "go-backend/internal/userapi/userapi.go:74-129",
+      "text": "Hand-rolled ~50-case Handle(...)...bool route chain with manual path matching, contrary to the ServeMux rule — shared by all 13 handler packages, explicitly planned Phase 5; codebase-wide legacy, not module-owned drift."
+    },
+    {
+      "sev": "LOW",
+      "loc": "go-backend/internal/userapi/userapi.go:1034",
+      "text": "Blanket fall-through writeNotImplemented(w) at the end of handleUser: any unhandled method (e.g. POST /users/:id) on a live-wired route family answers 501 instead of returning false like other routes (1297-1298 fall through correctly)."
+    },
+    {
+      "sev": "LOW",
+      "loc": "go-backend/internal/userapi/userapi.go:1536-1538,1638-1650",
+      "text": "updateCollection/batch remove answer a client-supplied non-string description with http.Error(w, \"database write failed\", 500) — validation failure surfaced as a fake database error without a comment."
+    },
+    {
+      "sev": "LOW",
+      "loc": "go-backend/internal/userapi/userapi.go:665-684,977-1020",
+      "text": "Permission-merge logic (default keys restriction, bool coercion, array handling) duplicated between createUser and handleUser PATCH."
+    },
+    {
+      "sev": "LOW",
+      "loc": "go-backend/internal/userapi/userapi.go:361",
+      "text": "updateProgress parses the whole mediaProgress PATCH contract (~15 optional keys) from a raw map with jsTruthy coercion — the natural first candidate for a typed internal/wire DTO."
+    }
+  ]
+}

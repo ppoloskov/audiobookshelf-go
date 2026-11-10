@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -34,10 +35,11 @@ type conn struct {
 	done chan struct{}
 	once sync.Once
 
-	mu     sync.Mutex
-	reason string
-	pong   chan struct{}
-	sock   *Socket
+	mu      sync.Mutex
+	reason  string
+	aborted bool
+	pong    chan struct{}
+	sock    *Socket
 }
 
 func randomID() string {
@@ -113,7 +115,7 @@ func (c *conn) send(packet string) bool {
 		return true
 	default:
 		logging.Warnf("[SocketAuthority] Socket send buffer full, closing connection")
-		c.close("transport error")
+		c.abort("transport error")
 		return false
 	}
 }
@@ -129,6 +131,14 @@ func (c *conn) close(reason string) {
 	})
 }
 
+func (c *conn) abort(reason string) {
+	c.close(reason)
+	c.mu.Lock()
+	c.aborted = true
+	_ = c.ws.SetWriteDeadline(time.Now())
+	c.mu.Unlock()
+}
+
 func (c *conn) closeReason() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -136,7 +146,13 @@ func (c *conn) closeReason() string {
 }
 
 func (c *conn) write(packet string) error {
+	c.mu.Lock()
+	if c.aborted {
+		c.mu.Unlock()
+		return net.ErrClosed
+	}
 	_ = c.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+	c.mu.Unlock()
 	return websocket.Message.Send(c.ws, packet)
 }
 

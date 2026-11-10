@@ -119,7 +119,7 @@ func TestScanGolden(t *testing.T) {
 	goldenHold = t.TempDir()
 	podRoot := t.TempDir()
 	ffprobe := filepath.Join(t.TempDir(), "ffprobe")
-	script := "#!/bin/sh\nfor a; do f=\"$a\"; done\nn=$(wc -c < \"$f\")\nprintf '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"%s\",\"bit_rate\":\"64000\",\"tags\":{\"title\":\"T-%s\"}},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\",\"channels\":2}]}' \"$n\" \"$n\"\n"
+	script := "#!/bin/sh\nfor a; do f=\"$a\"; done\nn=$(wc -c < \"$f\" | tr -d '[:space:]')\nprintf '{\"format\":{\"format_name\":\"mp3\",\"duration\":\"%s\",\"bit_rate\":\"64000\",\"tags\":{\"title\":\"T-%s\"}},\"streams\":[{\"codec_type\":\"audio\",\"codec_name\":\"mp3\",\"channels\":2}]}' \"$n\" \"$n\"\n"
 	if err := os.WriteFile(ffprobe, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -971,6 +971,31 @@ func TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched(t *testi
 	if authorCount != 2 || seriesCount != 2 {
 		t.Fatalf("relations authors=%d series=%d", authorCount, seriesCount)
 	}
+	for _, tc := range []struct {
+		name, body string
+		want       sql.NullString
+	}{
+		{"missing sequence", `{"metadata":{"series":[{"name":"Another Series"}]}}`, sql.NullString{}},
+		{"non-string sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":0}]}}`, sql.NullString{}},
+		{"empty sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":""}]}}`, sql.NullString{String: "", Valid: true}},
+		{"string sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":"7"}]}}`, sql.NullString{String: "7", Valid: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("PATCH", "/api/items/i1/media", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			if !h.Handle(w, req, u) || w.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+			}
+			var got sql.NullString
+			if err := db.QueryRow(`SELECT bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId='b1' AND s.name='Another Series'`).Scan(&got); err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("sequence=%+v, want %+v", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestDeleteLibraryFileRemovesManagedMediaAndMarksEmptyBookMissing(t *testing.T) {
@@ -1054,7 +1079,7 @@ func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
-	for _, ddl := range []string{`CREATE TABLE mediaProgresses (id TEXT,userId TEXT,mediaItemId TEXT)`, `CREATE TABLE playlistMediaItems (id TEXT,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`, `CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`, `CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT)`, `CREATE TABLE mediaItemShares (id TEXT,mediaItemType TEXT,mediaItemId TEXT)`, `CREATE TABLE collections (id TEXT,libraryId TEXT)`, `CREATE TABLE collectionBooks (id TEXT,collectionId TEXT,bookId TEXT)`, `CREATE TABLE playbackSessions (id TEXT,libraryId TEXT)`} {
+	for _, ddl := range []string{`CREATE TABLE mediaProgresses (id TEXT,userId TEXT,mediaItemId TEXT)`, `CREATE TABLE playlistMediaItems (id TEXT,mediaItemId TEXT,mediaItemType TEXT,"order" INTEGER,playlistId TEXT)`, `CREATE TABLE playlists (id TEXT,name TEXT,description TEXT,createdAt TEXT,updatedAt TEXT,libraryId TEXT,userId TEXT)`, `CREATE TABLE feeds (id TEXT,entityType TEXT,entityId TEXT,feedURL TEXT,title TEXT,description TEXT,preventIndexing BOOLEAN,ownerName TEXT,ownerEmail TEXT)`, `CREATE TABLE mediaItemShares (id TEXT,mediaItemType TEXT,mediaItemId TEXT)`, `CREATE TABLE collections (id TEXT,libraryId TEXT)`, `CREATE TABLE collectionBooks (id TEXT,collectionId TEXT,bookId TEXT)`, `CREATE TABLE playbackSessions (id TEXT,libraryId TEXT)`} {
 		if _, err := db.Exec(ddl); err != nil {
 			t.Fatal(err)
 		}

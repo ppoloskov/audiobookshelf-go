@@ -1,0 +1,9 @@
+{
+  "lang": "en",
+  "project": "audiobookshelf-go",
+  "subtitle": "Audiobookshelf media server — TS server and its Go rewrite",
+  "outputDir": ".codemap",
+  "htmlFile": "codemap.html",
+  "mdFile": "codemap.md",
+  "scope": ["server", "go-backend"]
+}

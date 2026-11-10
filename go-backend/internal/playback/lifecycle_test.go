@@ -372,7 +372,23 @@ func TestSegmentRequestsResetOnlyWhenBehindTheTranscodeStart(t *testing.T) {
 	if w := hls(h, id, "output-5.ts"); w.Code != http.StatusNotFound || resets() != 0 {
 		t.Fatalf("segment ahead of the start: status %d, resets %d; want 404 and no reset", w.Code, resets())
 	}
-	if w := hls(h, id, "output-0.ts"); w.Code != http.StatusNotFound || resets() != 1 {
-		t.Fatalf("segment behind the start: status %d, resets %d; want 404 and one reset", w.Code, resets())
+	if w := hls(h, id, "output-0.ts"); w.Code != http.StatusNotFound || resets() != 0 {
+		t.Fatalf("segment behind the start: status %d, resets %d; want 404 and no event (TS HlsRouter uses a truthy guard for startTime)", w.Code, resets())
+	}
+	h.mu.Lock()
+	stream := h.sessions[id].stream
+	h.mu.Unlock()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		stream.mu.Lock()
+		resetting, segmentStart := stream.resetting, stream.segmentStart
+		stream.mu.Unlock()
+		if !resetting && segmentStart == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("segment zero did not restart the transcode")
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

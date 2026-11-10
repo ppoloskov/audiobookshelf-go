@@ -19,6 +19,10 @@ fast Go.
 
 ## Where things live
 
+Package/object ownership is under review following the 2026-11-10 owner
+request. See the source-backed [boundary proposal](docs/PACKAGE-BOUNDARIES.md)
+for findings, proposed owners and migration proof. It is not implemented.
+
 | Concern | File |
 |---------|------|
 | Agent rules and the required checks per packet | [AGENTS.md](AGENTS.md) |
@@ -27,6 +31,7 @@ fast Go.
 | Last recorded differential run (generated; advisory since V1) | [STATUS.md](STATUS.md) |
 | Current gotchas for whoever works here next | [handover.md](handover.md) |
 | Clean-source validation and native FFmpeg/WebP setup | [TESTING.md](TESTING.md) |
+| Library migration and single-executable feasibility (analysis only) | [FFMPEG-LIBRARY-FEASIBILITY.md](docs/FFMPEG-LIBRARY-FEASIBILITY.md) |
 | Earlier pruning review (PR01–PR07 implemented) | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
 | Reviewed large deletion candidates and first-wave decisions | [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md) |
 | Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
@@ -77,6 +82,49 @@ See the [mobile audit](contracts/mobile-client-audit.md),
 records findings, risks and choices. Owner has authorized roadmap implementation
 and reviewed pushes to `master`. All development stays on `master`; no new
 development branches. CI publication and live cutover have distinct acceptance.
+
+### Current Wave G status
+
+The [transition audit](docs/WAVE-G-AUDIT.md) records 15 exercised transitions;
+the [validation report](docs/wave-g/VALIDATION.md) retains detailed findings.
+The earlier [integration update](docs/wave-g/INTEGRATION-VALIDATION.md) is
+historical and is superseded by the [final canonical validation addendum](docs/refactor-final-validation-20261110.md).
+The current worktree passes the full Go suite with required real Socket.IO,
+build, vet, golangci-lint v2.15.0, ratchet/dbnest, SQLC v1.31.1, both Linux
+cross-builds, source/contract checks, and the TS rollback journey. Its metrics
+are 38,119 handwritten LOC / 8,531 complexity / 115 functions over 15 / 461
+`map[string]any` / 202 `[]any`. N2 is locally verified; commit, push and remote
+CI are still pending.
+
+### R1 · OpenSessions local review (2026-11-10)
+
+R1 is reviewed locally: typed session DTOs pass through the userapi callback
+without a marshal/unmarshal round trip. The implementation worker reports
+focused endpoint, full userapi/playback package, and targeted race checks pass.
+In an isolated HEAD-plus-R1 snapshot, production code decreased by 2 lines and
+3 `map[string]any` uses, with no growth in other metrics; the lower-only
+ratchet update and gate passed in that disposable snapshot. This is separate
+from the separate Wave G and RT1 metric effects. The final combined snapshot
+also passed the full Go suite and TS rollback; see the final validation report.
+R1 passes the endpoint, package and race checks. It reduced production code by
+2 lines and `map[string]any` uses by 3. The approved completion commit will
+mark its card done. Neither comment nor test cleanup was selected.
+
+### RT1 · Realtime queue lifecycle (2026-11-10)
+
+RT1 promptly aborts a full outbound queue while preserving graceful normal
+close. The unchanged buffer regression and realtime race tests pass. RT1 used
+16 LOC and 2 complexity points within its reviewed +30/+8 budget; other metrics
+were unchanged. The approved completion commit will mark its card done.
+
+### QM01 · QuickMatch relation semantics (2026-11-10)
+
+QuickMatch now preserves existing relations for empty converted lists, applies
+duplicate series updates sequentially, preserves stored position when sequence
+metadata is absent, and distinguishes missing, null, empty text, and numeric
+zero (`"0"`). Scanner and PATCH inputs retain their existing boundary
+semantics. Focused regressions, affected package race tests, and the final full
+suite pass. The approved completion commit will mark QM01 done.
 
 Node differential commands remain advisory diagnostics (`make parity`,
 `make parity-replacement`, `make parity-scan`, `make route-probe`; Node 22 and

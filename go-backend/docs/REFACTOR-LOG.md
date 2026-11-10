@@ -106,6 +106,47 @@ Read a fix section as the list of problems it removes; `Special cases` marks eac
 - `internal/userapi/listening.go:158` `minInt` — builtin `min` available (go 1.27) (wrapper)
 - `internal/userapi/userapi.go:33` `queries()` — no caller in userapi (dead; identity/lists/catalog copies of `queries()` are used)
 
+### R1 — F8 follow-up: pass typed OpenSessions JSON directly
+
+- `OpenSessions` now returns the typed session DTO slice as an opaque JSON
+  value, and the userapi callback accepts that value directly. The
+  `/api/users/online` endpoint preserves the produced fields, values, explicit
+  nulls, empty-array shape, membership and admin gate. `online_users_test.go`
+  checks typed payloads, a present `mediaMetadata: null`, and empty arrays.
+- Checks reported by the implementation worker: focused online-users test,
+  full `go test ./internal/userapi ./internal/playback`, and targeted race runs
+  pass. The independent HEAD-plus-R1 ratchet comparison and lower-only update
+  pass in the disposable snapshot; no shared baseline change is implied.
+- Metric delta against clean HEAD: handwritten Go 37,927 → 37,925 (−2);
+  `map[string]any` 464 → 461 (−3); complexity 8,490 unchanged, functions over
+  15 unchanged at 114, `[]any` unchanged at 202, and all other metrics
+  unchanged. No dependency, package, persistence or protocol changes.
+
+### RT1 — Abort a full realtime transport without draining its backlog
+
+- The full-buffer regression exposed a lifecycle ordering gap: overflow only
+  closes the writer's `done` signal, after which the writer deliberately drains
+  every queued packet before the transport teardown can unregister the client.
+  Normal connection shutdown must keep that graceful drain. The approved fix
+  gives queue overflow a distinct abort path: set an `aborted` state and an
+  immediate WebSocket write deadline while holding the existing connection
+  mutex; the writer checks that state and sets ordinary write deadlines under
+  the same mutex, then releases it before sending. This prevents concurrent
+  deadline refresh from undoing the abort, preserves first-close-reason wins,
+  and lets the existing deferred WebSocket close unblock the reader. No new
+  lock, channel, package, dependency or protocol behavior is introduced.
+- The existing `TestFullBufferClosesConnectionWithoutBlocking` remains
+  unchanged. Verification must also retain graceful `Hub.Close`, close-reason,
+  and real Socket.IO interop coverage. This is a bounded structural lifecycle
+  correction; unrelated realtime findings and Wave G work remain separate.
+- Reviewed locally within the preassigned +30 LOC / +8 complexity budget:
+  actual RT1 delta is +16 LOC / +2 complexity; high-complexity functions,
+  maps, arrays, dependencies and other ratchet measures are unchanged. The
+  full realtime package and race tests pass, and the combined snapshot passes
+  the required full suite with the real Socket.IO client required. See the
+  [final validation report](refactor-final-validation-20261110.md). Keep the
+  roadmap checkbox open until the completion commit is accepted.
+
 ### F8 — DTOs live with their single producer; store and logging stop importing wire
 - `internal/store/device.go:9`, `internal/store/playbacksession.go:10`, `internal/logging` (`wire.LogEntry`) — storage and logging import the DTO package (direction)
 - `internal/wire/log.go`, `wire/device.go`, `wire/match.go`, `wire/podcast.go`, `wire/shelves.go` — one-user DTOs grouped by TS origin (layout)
@@ -118,7 +159,7 @@ Read a fix section as the list of problems it removes; `Special cases` marks eac
 - `internal/store/playbacksession.go:63-82` `millisOf` copies `dbtime.Millis`; `:106` `nullFloat` copied at `internal/lists/collection_http.go:482` (copy)
 - `internal/store/playbacksession.go:12-61` — `PlaybackSessionColumns` order must mirror sqlc model (shallow)
 - `internal/providers/book_finder.go:81-100` — `convertJSON` round trip typed -> JSON -> `wire.BookMatch` (internals)
-- `internal/playback/playback.go:751-756` — `OpenSessions` JSON round trip to `[]map[string]any` (internals)
+- `internal/playback/playback.go:751-756` — `OpenSessions` JSON round trip to `[]map[string]any` (resolved by R1 above)
 
 ### F9 — One request prologue for /api/libraries/:id/* and one listParams
 - Library lookup + access + mediaType prologue pasted in `internal/catalog/handler.go:255,376,434,765,914,1219,1716`, `personalized.go:76`, `library_issues.go:17`, `library_extras.go:17,63,152`, `cover.go:355`, `download.go:68`, `batch_chapters.go:224,297`; intended owner `library_routes.go:36 libraryAccess` used by only 3 (copy/convention)
@@ -405,7 +446,39 @@ Owner decided to remove `ABS_GO_READ_ONLY` entirely; the server always runs read
 - Docs: `README.md:60`, `ROADMAP.md:258,266-267`, `PRUNING-REVIEW.md:24`, `docs/SIMPLIFICATION.md` ledger entries (RO01/RO02 say "retain it"): mark superseded by the owner decision
 - After removal: `if manager != nil` (`internal/server/runtime.go:198`) stays only for tests (F20); `cmd` line count and ratchet baseline change (`make ratchet-update`)
 
-### Unassigned
+### Historical survey leads — dispositions checked 2026-11-10
+
+The bullets below preserve the original survey evidence and line references; some are stale after later waves. The dispositions check the current Go symbols named here, not every statement or source line in the repository. No package/file split is proposed solely to reduce file size. Comment cleanup and test cleanup were declined and remain separate scope. Wave G and quickmatch implementation are complete locally; remote integration
+acceptance remains under N3.
+
+| Survey lead | Current disposition |
+|---|---|
+| `/ping`, repeated 503 response (`runtime.go`, old `server.go`) | **Resolved / not worthwhile.** F21 removed the read-only server surface; `internal/server/runtime.go:234-237` is the sole production `/ping` handler. `internal/server/runtime.go:373-382` emits the same readiness response for two distinct failed reads; a helper adds a call without reducing the decision logic. |
+| Realtime disconnect dispatch errors; full-buffer close | **Mixed disposition.** Disconnect cleanup dispatches at `internal/realtime/hub.go:214,217` are best effort after the peer is gone. Socket auth's lastSeen write must complete before `init`; a failure logs and leaves the socket unauthenticated (`internal/realtime/socketauth.go:68-75`), so adding a client error event is a behavior decision rather than a structural consolidation. The full-buffer backlog lifecycle fix is separately reviewed and validated under RT1; see the RT1 section and final validation report. |
+| Realtime heartbeat `time.After` (`eio.go`) | **Required protocol timing / not worthwhile.** `internal/realtime/eio.go:167-190` waits for interval and pong deadlines, restarting the interval only after the pong. A ticker changes that cadence; a stoppable timer adds lifecycle code with no deletion benefit. |
+| Playback ignored errors (`CountPlaybackSessionByID`, user lookup, marshal, library settings) | **Mixed; no demonstrated structural replacement.** R1 removed the `OpenSessions` marshal/unmarshal round trip (`internal/playback/playback.go:573-584,621-624`); typed empty sessions remain `[]`. `setUser` (`internal/playback/playback.go:588-599`) and `libraryFinishSettings` (`internal/playback/playback.go:516-525`) retain optional listing/settings fallback behavior. The count lookup is now `internal/playback/localsync.go:161`: no test-only SQL fault injector exists, and ordinary cancelled/closed-DB failures also fail later writes, so an isolated observable counterexample and proportionate regression were not established. Keep it as an owner error-path lead, not a proven structural fix. |
+| Playback session date/media identity copies; `syncProgress` flags; `serveMedia(mime)` | **Required distinctions / no net reduction.** Online session date fields are derived from current time (`internal/playback/playback.go:247`); local sessions preserve supplied date/day when inserting (`internal/playback/localsync.go:160-170`, `internal/playback/session_journeys_test.go:165`). `session.mediaRef` centralizes persisted media identity (`internal/playback/playback.go:112,483,533`). Online and offline progress have different duration and last-update rules (`internal/playback/playback.go:532-562`, called at `:450` and `internal/playback/localsync.go:195`). `serveMedia` uses the audio metadata MIME and only falls back to the path extension when empty (`internal/playback/playback.go:387,701-719`), so removing the parameter changes behavior for metadata/path disagreement. |
+| Podcast track-zero fallback | **Required client behavior.** `internal/playback/playback.go:366-379` retains the podcast episode fallback; `internal/playback/playback_test.go:198` covers it. |
+| Playlist `batch` and removal-map parameters | **Workflow semantics / no worthwhile replacement.** `internal/lists/playlist_http.go:328-380` distinguishes batch validation and duplicate handling from the single-item route. `remove` at `internal/lists/playlist_http.go:492` is a set-membership map, used by both remove routes. Splitting helpers or introducing a set type adds code without deleting the common mutation flow. |
+| Podcast create status/message and OPML task | **Caller boundary is explicit.** `internal/podcasts/podcasts.go:534-552` maps creation validation to HTTP status/message, while `internal/podcasts/podcasts.go:739-756` uses only item/error and formats feed-task failures differently. A typed HTTP error would add a type and mappings without reducing required response distinctions. `createFromOPML` hands the task to the async worker (`internal/podcasts/podcasts.go:727-739`), which completes its own task; this is ownership transfer, not an unnoticed mutation. |
+| Podcast and download swallowed errors | **No blanket propagation change.** The historical list mixes best-effort filesystem rollback/removal, optional metadata/JSON decoding, and background task cleanup with primary transaction failures. Current transactional errors in `internal/podcasts/podcasts.go:661-692` and `internal/podcasts/downloads.go:372-402` are returned; cleanup failures remain secondary after rollback/commit. No common deleted branch or safe shared replacement was demonstrated; changing these individually needs a failure contract and regression per operation. |
+| Built-in/custom provider failures return empty results | **Required upstream-compatible result.** The empty-list behavior is the documented provider fallback (`internal/providers/builtin_search.go`, `internal/providers/custom_search.go`); converting it to an error changes caller-visible search semantics. |
+| Sharing ignored errors / `findShare` and `loadShare` | **Mixed cleanup and resolved expiry routing.** `loadShare` now owns expiry checks (`internal/sharing/shares.go:187-205`); public routes use it. Expired-share deletion is best effort after expiry is already enforced; transaction rollback is deferred cleanup. Other ignored write/cleanup failures in the survey have no demonstrated shared replacement and should not be converted wholesale into route errors. |
+| Sharing feed argument lists | **Not worth replacing with an aggregate.** `internal/sharing/feeds.go:312-329` builds a feed row; `internal/sharing/feeds.go:361-370` has one `createFeed` call at `:253`, and `newFeedRow` has two concrete construction sites. A parameter struct would add a type and field literals with no meaningful production deletion. |
+| Identity flow maps and OIDC feature layout | **Not exposed outside the package; split has no established net benefit.** `internal/identity/identity.go:47-65` fields are unexported; same-package OIDC tests inspect flow expiry (`internal/identity/oidc_test.go:131-149`). `internal/identity/oidc.go` shares the handler's private DB/config/token lifecycle. A package move requires a new collaborator seam; a file-only split is layout-only. |
+| `userapi` file size and raw SQL | **Historical size is stale; remaining queries are local behavior.** `internal/userapi/userapi.go` is now 893 lines, with listening and extra-user work in sibling files. Further file splitting alone does not reduce coupling. Current raw SQL includes specialized progress decoration joins (`internal/userapi/userapi.go:829-831`) and user extra-data reads/writes (`internal/userapi/me_extra.go:37-46,103`); moving one-off statements to store/sqlc would add generated query declarations and code without removing duplicate ownership. |
+| Access imports, `Of`/`For`/`WithRequest`, SQL alias, `Library`/`ListLibrary`, flag fields | **Reasonable dependency and distinct contracts.** `internal/access/access.go:11-17` evaluates `store.User` against `libitem.Access`; both are stable foundations. `WithRequest` is installed on HTTP requests (`internal/server/runtime.go:300`); realtime socket auth has no such request snapshot (`internal/realtime/socketauth.go:68-84`, `internal/realtime/hub.go:295-298`) and identity uses `Of` once while building its login payload (`internal/identity/identity.go:572-583`). `Library` and `ListLibrary` intentionally differ and both are used (`internal/access/access.go:101-109`; `TestLibraryRule`, `TestListLibraryIgnoresAccessAllLibraries`). SQL aliases are trusted query identifiers; `TestMediaClauseMatchesContent` guards SQL/content alignment. Exported permission fields are required by JSON decoding (`internal/access/access.go:24-40`). |
+| Auth user ID rule split | **Appropriate boundary.** `internal/auth/token.go:140-152` validates the token claim’s shape; `internal/identity/identity.go:196,332` resolves the validated identifier to an active/current or legacy user row. Combining them would tie token parsing to DB policy. |
+| UA return shape; nullable-value vocabulary | **Resolved / distinct domains.** UA parsing returns `deviceinfo.Info` (`internal/deviceinfo/ua.go:5-12`), not four strings. `dbtime` parses/formats persisted timestamps; `store/sqlvalue.go` binds nullable SQL values, so similarly named null helpers have separate data contracts. |
+| Text-sort collator mutex | **Required for concurrent use.** Retain the lock around non-goroutine-safe collators (`internal/textsort/textsort.go:27-30`). |
+| `libitem` fan-in | **Not a defect.** `internal/libitem` is a shared item-model foundation; no unreasonable feature-to-feature dependency follows from its consumers. |
+| Stale itemwrite comment; relation insertion order | **Comment cleanup declined; order is behavior.** Keep the historical comment lead separate from implementation. Relation order in `internal/itemwrite/relations.go:210-225` preserves book-author ordering. |
+| `itemwrite.Env` optional fields; sweep errors | **Small explicit collaborator value; post-commit best effort.** `internal/itemwrite/sweep.go:19-25` names DB/filter/event dependencies used after relation changes. Sweeps run after the primary transaction; their errors are logged (`:85-122`) because returning them cannot roll back the committed edit. |
+| Lenient stored JSON | **Required persistence compatibility.** `internal/store/json.go:11-30` preserves partial fields around malformed values; `store/json_test.go:36` covers that behavior. |
+| Logger depth and zero-level default | **Required call-site reporting/default.** Private logger calls use depth 2; the stdlib writer uses 0 (`internal/logging/logger.go:110,190-236`). `TestSourceIsCallerFileAndLine` checks attribution; `TestLevelFilteringAndDefault` covers the default level. |
+| Email/notification timeouts | **Request bounds, not retry/sleep special cases.** Keep the 8s/6s limits at the call sites unless a client or provider contract changes. |
+| Compat comparator; test helpers; schema transform; diagnostic package lists; ratchet baseline | **Resolved or separate scope.** `internal/compat` was removed by F16; `tools/parity` remains the comparison harness. Contract-test helper deduplication and schema-test cleanup are declined test cleanup. The schema test independently checks the Makefile transform. Diagnostic package lists are tooling maintenance, outside a general tools refactor. ICU regeneration remains a reproducibility caveat, not a tool-refactor target: `tools/icuzones/generate.cjs:13,50-64` reads host zoneinfo, Node Intl and Go `zoneinfo.zip`; runtime output remains the checked-in table stamped at `internal/serversettings/icu_zones_gen.go:1-3`. The shared ratchet-baseline mismatch is owner/Wave G integration state, not an architectural deletion; do not reconcile it here. |
+
 - `internal/server/runtime.go:298-308`, `server/server.go:66-76` duplicated `/ping` (second goes with F21); `http.Error` 503 strings `runtime.go:428,434` (copy; server-local, can follow F21)
 - `internal/realtime/hub.go:269-278,350-358` `dispatch` error ignored in `disconnected`; DB write failure leaves socket unauthenticated without `auth_failed` (swallowed-error)
 - `internal/realtime/eio.go:176,189` `time.After` per heartbeat tick (retry-sleep, minor; use ticker)
@@ -792,3 +865,44 @@ Bug fixed (TS proof): the scanner never removed podcast episodes whose audio fil
 progress and playlist entries); it now matches removed files by path then inode and deletes them with playlist
 events after commit (PodcastScanner.js:66-102, :80). Ratchet raised by that behaviour: +13 lines, +5 complexity,
 +1 []any.
+
+### R1 reviewed locally (2026-11-10)
+
+Removed the `OpenSessions` marshal/unmarshal map conversion and passed its typed
+session DTO slice through the userapi callback. The endpoint regression checks
+typed JSON, explicit null preservation and empty-array shape. Independent
+contract and craft review found no blocker; it confirmed the nonnil empty-slice
+shape, explicit `mediaMetadata: null`, and unchanged admin gate. The import
+graph of 50 internal packages plus a targeted source/runtime-asset sweep
+established that no further justified behavior-preserving deletion candidate
+was found. Retain required backup/restore, manual audio tools, strict transport
+and authorization paths. Time-zone regeneration
+inputs remain Node ICU, host tzdb, and Go `zoneinfo.zip`; runtime data is
+unchanged. R1 metrics decrease by 2 production LOC and 3 maps with no increases
+elsewhere. The lower-only ratchet update and gate pass only in the isolated R1
+snapshot; shared Wave G baseline, N2 acceptance and publication remain separate.
+
+### QM01 — Preserve quickmatch relation metadata semantics (2026-11-10)
+
+The raw QuickMatch adapter preserves absent, null, empty and numeric text; raw
+zero persists as `"0"`, verified through the actual adapter rather than the
+prior fake-finder path. Empty converted lists leave existing relations alone,
+duplicate series updates apply sequentially, and absent sequence metadata
+preserves the stored position. Scanner and PATCH boundaries retain their
+distinct absent/null rules, and event order remains covered by existing Go
+characterization. Focused regressions, full catalog/itemwrite/scanner tests and
+race runs pass. Assigned budget was +50 LOC/+12 complexity; actual was +26/+5
+with all other metrics unchanged. Canonical full-suite and rollback evidence
+is in the final validation addendum.
+
+### Final local integration validation (2026-11-10)
+
+The final canonical worktree including Wave G, R1, RT1, QM01 and the user's
+identity/routes addition passed the required Go and source/contract workflow
+gates, SQLC v1.31.1 regeneration, both Linux cross-builds and the TS v2.37.2
+rollback. Ratchet metrics are 38,119 handwritten LOC / 8,531 complexity / 115
+functions over 15 / 461 `map[string]any` / 202 `[]any`; the canonical worktree
+baseline now records these measured values. N2, R1, RT1 and QM01 are complete
+in the accepted source packet; N3 remains open until remote CI passes after
+push. Exact commands, hashes, skips and environment limits are in the [final
+validation report](refactor-final-validation-20261110.md).

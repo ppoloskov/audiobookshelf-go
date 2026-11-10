@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/store"
 )
@@ -62,6 +63,10 @@ func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
 	}
 	m := &Manager{cfg: cfg, database: database}
 	m.hub = realtime.New(cfg, m.backend)
+	if err := playback.CleanupOrphanStreams(cfg.Dirs().Streams); err != nil {
+		m.hub.Close()
+		return nil, err
+	}
 	rt, err := newRuntime(database.DB(), cfg, m)
 	if err != nil {
 		m.hub.Close()

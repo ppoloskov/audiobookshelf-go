@@ -432,7 +432,7 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database write failed", err)
 	}
 	defer tx.Rollback()
-	_, _, playlistChanges, err := deleteItemRows(r.Context(), tx, items)
+	_, _, playlistChanges, closedFeeds, err := deleteItemRows(r.Context(), tx, items)
 	if err != nil {
 		return httputil.Internal("database write failed", err)
 	}
@@ -486,16 +486,20 @@ func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
 	if h.deps.LibraryChanged != nil {
 		h.deps.LibraryChanged(id)
 	}
-	h.emit.ToAll("library_removed", result)
 	playlistview.Announce(r.Context(), h.db, h.emit, playlistChanges)
 	for _, item := range items {
-		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
-	}
-	if h.cfg.MetadataPath != "" {
-		for _, item := range items {
+		for _, feed := range closedFeeds {
+			if feed.EntityID != nil && *feed.EntityID == item.id {
+				h.emit.ToAll("rss_feed_closed", feed)
+			}
+		}
+		h.purgeCoverCache(item.id)
+		if h.cfg.MetadataPath != "" {
 			_ = os.RemoveAll(filepath.Join(h.cfg.Dirs().Items, item.id))
 		}
+		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
 	}
+	h.emit.ToAll("library_removed", result)
 	return httputil.JSON(w, r, result)
 }
 

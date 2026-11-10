@@ -375,13 +375,17 @@ func (p itemPlan) applyBook(ctx context.Context, tx *sql.Tx) error {
 // match by exact case.
 func (p itemPlan) applyRelations(ctx context.Context, tx *sql.Tx, changes *itemwrite.Changes, tally *imported) error {
 	l := p.lib
-	rules := itemwrite.Rules{Exact: true, Replace: !p.added && len(p.authors) > 0, KeepSequence: true}
+	rules := itemwrite.Rules{Exact: true, Replace: !p.added && len(p.authors) > 0}
 	if _, err := changes.LinkAuthors(ctx, tx, l.id, p.mediaID, p.authors, rules); err != nil {
 		return err
 	}
 	if p.series != "" {
 		rules.Replace = !p.added
-		if _, err := changes.LinkSeries(ctx, tx, l.id, p.mediaID, []itemwrite.Series{{Name: p.series, Sequence: p.seq}}, l.sortingPrefixes, rules); err != nil {
+		var sequence *sql.NullString
+		if p.seq != "" {
+			sequence = &sql.NullString{String: p.seq, Valid: true}
+		}
+		if _, err := changes.LinkSeries(ctx, tx, l.id, p.mediaID, []itemwrite.Series{{Name: p.series, Sequence: sequence}}, l.sortingPrefixes, rules); err != nil {
 			return err
 		}
 	}

@@ -109,9 +109,27 @@ func (h *Handler) deleteCollection(w http.ResponseWriter, r *http.Request) error
 	if !access.For(r.Context(), user).Delete() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
-	dto, _, _ := h.collection(r.Context(), id, user)
-	if err := sqlc.New(h.db).DeleteCollection(r.Context(), id); err != nil {
+	dto, _, err := h.collection(r.Context(), id, user)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
 		return httputil.Internal("database write failed", err)
+	}
+	defer tx.Rollback()
+	closed, err := feeds.CloseEntity(r.Context(), tx, id)
+	if err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	if err := sqlc.New(tx).DeleteCollection(r.Context(), id); err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return httputil.Internal("database write failed", err)
+	}
+	for _, feed := range closed {
+		h.emit.ToAll("rss_feed_closed", feed)
 	}
 	h.emit.ToAll("collection_removed", dto)
 	return httputil.OK(w, r)

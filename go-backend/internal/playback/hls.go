@@ -64,7 +64,7 @@ func (h *Handler) handleHLS(w http.ResponseWriter, r *http.Request) error {
 	if _, err := os.Stat(path); err != nil {
 		if ext == ".ts" {
 			if seg, ok := segmentNumber(name); ok {
-				if at := t.checkSegment(seg); at >= 0 {
+				if at := t.checkSegment(seg); at > 0 {
 					h.emit.ToAll("stream_reset", map[string]any{"startTime": at, "streamId": id})
 				}
 			}
@@ -207,60 +207,63 @@ func (t *transcode) start(concat string) error {
 			logging.Errorf("[Stream] FFmpeg transcode in %q failed: %v", t.root, err)
 			return
 		}
-		if err == nil {
-			if promoteErr := t.promoteFinalPlaylist(); promoteErr != nil {
-				logging.Errorf("[Stream] Failed to publish the final playlist in %q: %v", t.root, promoteErr)
-			}
-		}
 	}()
 	return nil
-}
-
-func (t *transcode) promoteFinalPlaylist() error {
-	src := filepath.Join(t.root, "final-output.m3u8")
-	dst := filepath.Join(t.root, "output.m3u8")
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	// Keep the upstream public playlist URI stable while letting FFmpeg finalize
-	// segment ordering and durations.
-	return os.WriteFile(dst, b, 0600)
 }
 
 // checkSegment returns a nonnegative reset seek time or -1 when no reset is due.
 func (t *transcode) checkSegment(seg int) float64 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.resetting || t.complete {
+	if t.resetting || t.closed {
 		return -1
 	}
 	start := seg * segmentSeconds
 	reset := t.segmentStart > seg
+	if !reset && !t.complete {
+		if entries, err := os.ReadDir(t.root); err == nil {
+			furthest := 0
+			for _, entry := range entries {
+				if filepath.Ext(entry.Name()) != ".ts" {
+					continue
+				}
+				if n, ok := segmentNumber(entry.Name()); ok && n > furthest {
+					furthest = n
+				}
+			}
+			reset = furthest > 0 && seg-furthest > 10
+		}
+	}
 	if !reset {
 		return -1
 	}
 	seek := math.Max(float64(start-30), 0)
 	t.resetting = true
 	oldCancel := t.cancel
+	oldDone := t.done
 	root := t.root
 	concat := filepath.Join(root, "files.txt")
 	if oldCancel != nil {
 		oldCancel()
 	}
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		if oldDone != nil {
+			<-oldDone
+		}
+		t.mu.Lock()
+		if t.closed {
+			t.mu.Unlock()
+			return
+		}
 		entries, _ := os.ReadDir(root)
 		for _, e := range entries {
-			if e.Name() != "files.txt" {
+			if e.Name() != "files.txt" && e.Name() != "output.m3u8" {
 				_ = os.Remove(filepath.Join(root, e.Name()))
 			}
 		}
-		t.mu.Lock()
 		t.startTime = seek
-		t.segmentStart = int(math.Floor(seek / segmentSeconds))
+		t.segmentStart = int(math.Floor(math.Max(seek-30, 0) / segmentSeconds))
 		t.mu.Unlock()
-		_ = t.generatePlaylist(float64(math.Max(float64(seg*segmentSeconds+segmentSeconds), segmentSeconds)))
 		_ = t.start(concat)
 	}()
 	return float64(start)

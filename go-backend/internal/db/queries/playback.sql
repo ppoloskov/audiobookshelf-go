@@ -24,7 +24,7 @@ WHERE userId = sqlc.arg(user_id) AND createdAt >= sqlc.arg(start_at) AND created
 -- name: UpsertPlaybackSession :exec
 INSERT INTO playbackSessions (id, mediaItemId, mediaItemType, displayTitle, displayAuthor, duration, playMethod, mediaPlayer, startTime, currentTime, serverVersion, coverPath, timeListening, mediaMetadata, date, dayOfWeek, extraData, userId, deviceId, libraryId, createdAt, updatedAt)
 VALUES (sqlc.arg(id), sqlc.arg(media_item_id), sqlc.arg(media_item_type), sqlc.arg(display_title), sqlc.arg(display_author), sqlc.arg(duration), sqlc.arg(play_method), sqlc.arg(media_player), sqlc.arg(start_time), sqlc.arg(current_position), '2.37.2', sqlc.arg(cover_path), sqlc.arg(time_listening), sqlc.arg(media_metadata), sqlc.arg(date), sqlc.arg(day_of_week), sqlc.arg(extra_data), sqlc.arg(user_id), sqlc.arg(device_id), sqlc.arg(library_id), sqlc.arg(created_at), sqlc.arg(updated_at))
-ON CONFLICT(id) DO UPDATE SET currentTime = excluded.currentTime, timeListening = excluded.timeListening, updatedAt = excluded.updatedAt, date = excluded.date, dayOfWeek = excluded.dayOfWeek, mediaMetadata = excluded.mediaMetadata;
+ON CONFLICT(id) DO UPDATE SET currentTime = excluded.currentTime, timeListening = excluded.timeListening, updatedAt = excluded.updatedAt, date = excluded.date, dayOfWeek = excluded.dayOfWeek;
 
 -- name: DeletePlaybackSession :exec
 DELETE FROM playbackSessions WHERE id = ?;

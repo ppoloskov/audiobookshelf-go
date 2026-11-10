@@ -27,11 +27,14 @@ type Rules struct {
 	Replace       bool // links the list does not name are removed
 	AuthorUpdates bool // author_updated for a reused author and for one that keeps books after an unlink (PATCH)
 	SeriesAdded   bool // series_added for a created series (quick match)
-	KeepSequence  bool // a blank sequence leaves a stored one alone (scanner)
 }
 
-// Series is one series of a book with its sequence ("" for none).
-type Series struct{ Name, Sequence string }
+// Series is one series of a book. A nil sequence preserves an existing value
+// and defaults to SQL NULL for a new link; a nonnil sequence carries its value.
+type Series struct {
+	Name     string
+	Sequence *sql.NullString
+}
 
 // Event is a socket event a relation edit announces.
 type Event struct {
@@ -235,22 +238,22 @@ func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID 
 		}
 	}
 	var clock Clock
-	done := map[string]bool{}
 	for _, w := range wants {
 		key := r.key(w.Name)
-		if done[key] {
-			continue
+		var seq sql.NullString
+		if w.Sequence != nil {
+			seq = *w.Sequence
 		}
-		done[key] = true
-		seq := sql.NullString{String: w.Sequence, Valid: w.Sequence != ""}
 		if l, ok := current[key]; ok {
-			if (!seq.Valid && r.KeepSequence) || l.seq == seq {
+			if w.Sequence == nil || l.seq == seq {
 				continue
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE bookSeries SET sequence=? WHERE bookId=? AND seriesId=?`, store.NullString(seq), bookID, l.id); err != nil {
 				return false, err
 			}
 			changed = true
+			l.seq = seq
+			current[key] = l
 			continue
 		}
 		now := clock.Now()
@@ -261,6 +264,7 @@ func (c *Changes) LinkSeries(ctx context.Context, tx *sql.Tx, libraryID, bookID 
 		if _, err := tx.ExecContext(ctx, `INSERT INTO bookSeries(id,bookId,seriesId,sequence,createdAt) VALUES(?,?,?,?,?)`, ids.Must(), bookID, id, store.NullString(seq), now); err != nil {
 			return false, err
 		}
+		current[key] = link{id: id, name: w.Name, seq: seq}
 		changed = true
 		c.SeriesAdded = append(c.SeriesAdded, filterdata.Named{ID: id, Name: w.Name})
 		if created && r.SeriesAdded {

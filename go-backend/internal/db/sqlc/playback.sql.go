@@ -184,7 +184,7 @@ func (q *Queries) ListPlaybackSessionsForUser(ctx context.Context, arg ListPlayb
 const upsertPlaybackSession = `-- name: UpsertPlaybackSession :exec
 INSERT INTO playbackSessions (id, mediaItemId, mediaItemType, displayTitle, displayAuthor, duration, playMethod, mediaPlayer, startTime, currentTime, serverVersion, coverPath, timeListening, mediaMetadata, date, dayOfWeek, extraData, userId, deviceId, libraryId, createdAt, updatedAt)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, '2.37.2', ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
-ON CONFLICT(id) DO UPDATE SET currentTime = excluded.currentTime, timeListening = excluded.timeListening, updatedAt = excluded.updatedAt, date = excluded.date, dayOfWeek = excluded.dayOfWeek, mediaMetadata = excluded.mediaMetadata
+ON CONFLICT(id) DO UPDATE SET currentTime = excluded.currentTime, timeListening = excluded.timeListening, updatedAt = excluded.updatedAt, date = excluded.date, dayOfWeek = excluded.dayOfWeek
 `
 
 type UpsertPlaybackSessionParams struct {
