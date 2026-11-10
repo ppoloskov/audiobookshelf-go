@@ -1,4 +1,4 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
@@ -152,7 +152,7 @@ func bind(clause, value string, user store.User) (string, []any, error) {
 // filterSQL is the AND clause of a "group.value" filter on the media row b and
 // item row li. Podcast libraries ignore the groups they do not support; book
 // libraries reject an unknown group.
-func filterSQL(raw string, podcast bool, user store.User) (string, []any, error) {
+func FilterSQL(raw string, podcast bool, user store.User) (string, []any, error) {
 	group, value, hasValue := strings.Cut(raw, ".")
 	// LibraryFilters splits only the valued groups at the dot for podcasts
 	// (libraryFilters.js:35); anything else is taken whole.
@@ -187,7 +187,7 @@ func filterSQL(raw string, podcast bool, user store.User) (string, []any, error)
 
 // orderSQL is the ORDER BY clause of a sort key. A book library rejects an
 // unknown key; a podcast library adds no ORDER BY for one.
-func orderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user store.User) (string, []any, error) {
+func OrderSQL(sortBy, filter string, desc, ignorePrefix, podcast bool, user store.User) (string, []any, error) {
 	if sortBy == "" {
 		return "", nil, nil
 	}
@@ -253,3 +253,6 @@ func trimPartial(s string) string {
 	}
 	return s
 }
+
+// DecodeFilterValue is decodeFilterValue for callers that parse a filter.
+func DecodeFilterValue(text string) string { return decodeFilterValue(text) }

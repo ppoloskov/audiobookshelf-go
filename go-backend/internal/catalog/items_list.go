@@ -15,7 +15,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	page, limit := lib.Page, lib.Limit
 	var err error
 	collapse := r.URL.Query().Get("collapseseries") == "1"
-	include := normalizedInclude(r)
+	include := httputil.NormalizedInclude(r)
 	settings := serversettings.Load(r.Context(), h.db)
 	ignorePrefix := settings.IgnorePrefix()
 	if seriesID, ok := collapseSubseriesFilter(r); ok {
@@ -28,11 +28,11 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	}
 	podcast := mediaType == "podcast"
 	sortBy, desc := r.URL.Query().Get("sort"), r.URL.Query().Get("desc") == "1"
-	order, orderArgs, err := orderSQL(sortBy, filterValue, desc, ignorePrefix, podcast, user)
+	order, orderArgs, err := library.OrderSQL(sortBy, filterValue, desc, ignorePrefix, podcast, user)
 	if err != nil {
 		return httputil.Status(http.StatusBadRequest, err.Error())
 	}
-	filterWhere, filterArgs, err := filterSQL(filterValue, podcast, user)
+	filterWhere, filterArgs, err := library.FilterSQL(filterValue, podcast, user)
 	if err != nil {
 		return httputil.Status(http.StatusNotImplemented, err.Error())
 	}
@@ -83,7 +83,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, it.MediaID, &item.Extras); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if mediaType == "podcast" && includeHas(r, "numepisodesincomplete") {
+		if mediaType == "podcast" && httputil.IncludeHas(r, "numepisodesincomplete") {
 			incomplete, err := h.numEpisodesIncomplete(r.Context(), user.ID, it.MediaID)
 			if err != nil {
 				return httputil.Internal("database read failed", err)

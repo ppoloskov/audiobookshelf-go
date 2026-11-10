@@ -54,7 +54,6 @@ func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
 	rig.h.Routes(rig.mux)
 	people.New(db, config.Config{MetadataPath: rig.meta}, emit, people.Deps{
 		Filters: filterdata.NewCache(), Authors: finder, WriteMetadata: writeMetadata,
-		SeriesMatchesFilter: rig.h.SeriesMatchesFilter,
 	}).Routes(rig.mux)
 	for _, query := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,

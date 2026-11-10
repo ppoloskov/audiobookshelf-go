@@ -1,56 +1,16 @@
-package catalog
+package library
 
 import (
-	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/feeds"
-	"audiobookshelf-compat/internal/store"
 	"context"
-	"database/sql"
-	"errors"
-	"net/http"
 	"strings"
+
+	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/store"
 )
 
-func normalizedInclude(r *http.Request) string {
-	values := strings.Split(r.URL.Query().Get("include"), ",")
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "" {
-			out = append(out, value)
-		}
-	}
-	return strings.Join(out, ",")
-}
-func includeHas(r *http.Request, value string) bool {
-	for _, item := range strings.Split(normalizedInclude(r), ",") {
-		if item == value {
-			return true
-		}
-	}
-	return false
-}
-
-func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string) (feeds.Minified, bool, error) {
-	// An empty entityType matches upstream RssFeedManager.findFeedForEntityId
-	// (server/managers/RssFeedManager.js:59), which filters on entityId only.
-	feed, err := sqlc.New(h.db).GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
-	if errors.Is(err, sql.ErrNoRows) {
-		return feeds.Minified{}, false, nil
-	}
-	if err != nil {
-		return feeds.Minified{}, false, err
-	}
-	return feeds.FromSummary(feed), true, nil
-}
-
-// SeriesMatchesFilter exposes the series filter predicate to the people domain
-// until the filter/sort compiler moves into internal/library.
-func (h *Handler) SeriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {
-	return h.seriesMatchesFilter(ctx, seriesID, raw, user)
-}
-
+// seriesMatchesFilter reports whether a series has a visible book matching the
+// request filter. Progress and missing-authors semantics mirror
+// libraryItemsBookFilters.js.
 func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {
 	if raw == "" {
 		return true, nil
@@ -65,7 +25,7 @@ func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string,
 	queryArgs := []any{seriesID}
 	switch group {
 	case "genres", "tags", "narrators", "authors", "publishers", "languages":
-		clause, clauseArgs, err := filterSQL(raw, false, user)
+		clause, clauseArgs, err := FilterSQL(raw, false, user)
 		if err != nil {
 			return false, err
 		}

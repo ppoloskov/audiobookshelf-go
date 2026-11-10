@@ -113,6 +113,8 @@ linters:
             - "**/internal/people/**/*.go"
             - "**/internal/library/*.go"
             - "**/internal/library/**/*.go"
+            - "**/internal/sqlupdate/*.go"
+            - "**/internal/sqlupdate/**/*.go"
             - "**/internal/podcasts/read/*.go"
             - "**/internal/podcasts/read/**/*.go"
             - "**/internal/users/*.go"

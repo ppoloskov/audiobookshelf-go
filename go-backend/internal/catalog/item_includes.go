@@ -10,6 +10,9 @@ import (
 	"database/sql"
 	"net/http"
 	"time"
+
+	"audiobookshelf-compat/internal/feeds"
+	"audiobookshelf-compat/internal/httputil"
 )
 
 // itemIncludes are the include= entities the library item queries attach to
@@ -27,7 +30,7 @@ type itemIncludes struct {
 // requestItemIncludes reads include= from the request. mediaItemShare is only
 // attached for admins (`!!user?.isAdminOrUp && include.includes('share')`).
 func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
-	return itemIncludes{rssFeed: includeHas(r, "rssfeed"), share: access.AdminUser(user) && includeHas(r, "share")}
+	return itemIncludes{rssFeed: httputil.IncludeHas(r, "rssfeed"), share: access.AdminUser(user) && httputil.IncludeHas(r, "share")}
 }
 
 // attachItemIncludes sets rssFeed (the item's feed, Feed.toOldJSONMinified)
@@ -37,7 +40,7 @@ func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
 // and only for books.
 func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, head items.Head, mediaID string, extras *items.Extras) error {
 	if inc.rssFeed {
-		feed, ok, err := h.feedMinified(ctx, "libraryItem", head.ID)
+		feed, ok, err := feeds.LoadMinified(ctx, h.db, "libraryItem", head.ID)
 		if err != nil {
 			return err
 		}

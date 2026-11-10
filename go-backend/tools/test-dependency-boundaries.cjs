@@ -97,6 +97,16 @@ try {
   allows('people-library', 'internal/people/fixture.go', 'audiobookshelf-compat/internal/library', {
     'internal/library/library.go': 'package library\ntype Scope struct{}\n',
   });
+  allows('catalog-library', 'internal/catalog/fixture.go', 'audiobookshelf-compat/internal/library', {
+    'internal/library/library.go': 'package library\ntype Scope struct{}\n',
+  });
+  allows('people-sqlupdate', 'internal/people/fixture.go', 'audiobookshelf-compat/internal/sqlupdate', {
+    'internal/sqlupdate/update.go': 'package sqlupdate\ntype Update struct{}\n',
+  });
+  allows('library-sqlupdate', 'internal/library/fixture.go', 'audiobookshelf-compat/internal/sqlupdate', {
+    'internal/sqlupdate/update.go': 'package sqlupdate\ntype Update struct{}\n',
+  });
+  rejects('sqlupdate-feature', 'internal/sqlupdate/fixture.go', 'audiobookshelf-compat/internal/catalog');
   allows('feature-leaf', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/httputil', {
     'internal/httputil/leaf.go': 'package httputil\ntype Helper struct{}\n',
   });

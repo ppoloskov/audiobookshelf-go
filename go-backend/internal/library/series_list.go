@@ -1,11 +1,11 @@
-package people
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -16,7 +16,7 @@ import (
 	"sort"
 )
 
-func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, libraryID := lib.User, lib.ID
 	// A podcast library has no series rows, so the shared query below yields
 	// the empty list upstream returns (seriesFilters.getFilteredSeries).
@@ -132,8 +132,8 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib library.Sco
 		if entry.Books, err = h.seriesBooks(r.Context(), s.id, user); err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		if includeHas(r, "rssfeed") {
-			if feed, ok, e := h.feedMinified(r.Context(), "series", s.id); e != nil {
+		if httputil.IncludeHas(r, "rssfeed") {
+			if feed, ok, e := feeds.LoadMinified(r.Context(), h.db, "series", s.id); e != nil {
 				return httputil.Internal("database read failed", e)
 			} else if ok {
 				entry.RSSFeed = &feed
@@ -141,7 +141,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib library.Sco
 		}
 		results = append(results, entry)
 	}
-	payload := map[string]any{"results": results, "total": total, "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1", "include": normalizedInclude(r)}
+	payload := map[string]any{"results": results, "total": total, "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1", "include": httputil.NormalizedInclude(r)}
 	if filter != "" {
 		payload["filterBy"] = filter
 	}
@@ -183,7 +183,7 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 	return h.minifiedItems(ctx, ids)
 }
 
-func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	s, err := LoadSeries(r.Context(), h.db, r.PathValue("seriesId"))
 	if errors.Is(err, sql.ErrNoRows) || s.LibraryID != lib.ID {
 		return httputil.Status(http.StatusNotFound, "")
@@ -198,7 +198,7 @@ func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib library
 	if len(items) == 0 {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	detail, err := SeriesDetailFor(r.Context(), h.db, lib.User, s, items, includeHas(r, "progress"), includeHas(r, "rssfeed"), h.sortingPrefixes(r.Context()))
+	detail, err := SeriesDetailFor(r.Context(), h.db, lib.User, s, items, httputil.IncludeHas(r, "progress"), httputil.IncludeHas(r, "rssfeed"), h.sortingPrefixes(r.Context()))
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

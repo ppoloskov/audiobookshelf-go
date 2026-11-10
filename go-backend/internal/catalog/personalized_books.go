@@ -14,6 +14,10 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"audiobookshelf-compat/internal/feeds"
+	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 )
 
 // Book home-page shelves that LibraryItem.getPersonalizedShelves
@@ -174,7 +178,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 	}
 	// The continue-series query only loads feeds; it never sets mediaItemShare
 	// (libraryItemsBookFilters.js:707-826).
-	attach := e.attach(itemIncludes{rssFeed: includeHas(e.r, "rssfeed")})
+	attach := e.attach(itemIncludes{rssFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	q.build = func(items []shelfItem) ([]any, error) {
 		for i := range items {
 			c := chosenBooks[i]
@@ -246,11 +250,11 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	defer rows.Close()
 	var entries []seriesShelfEntry
 	for rows.Next() {
-		var rec people.SeriesRecord
+		var rec library.SeriesRecord
 		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			return q, err
 		}
-		view, err := people.NewSeriesView(rec, prefixes)
+		view, err := library.NewSeriesView(rec, prefixes)
 		if err != nil {
 			return q, err
 		}
@@ -266,8 +270,8 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 	members := make([]int, len(entries))
 	for i := range entries {
 		entry := &entries[i]
-		if includeHas(e.r, "rssfeed") {
-			if feed, ok, err := h.feedMinified(ctx, "", entry.ID); err != nil {
+		if httputil.IncludeHas(e.r, "rssfeed") {
+			if feed, ok, err := feeds.LoadMinified(ctx, h.db, "", entry.ID); err != nil {
 				return q, err
 			} else if ok {
 				entry.RSSFeed = feed
@@ -356,7 +360,7 @@ func (e *shelfEnv) discover() (shelfQuery, error) {
 	}
 	q.ids, err = h.queryStrings(ctx, `SELECT li.id`+where+` GROUP BY b.id ORDER BY RANDOM() LIMIT ?`, append(args, e.limit)...)
 	// Discover only loads feeds; it never sets mediaItemShare (js:886-1017).
-	q.build = e.attach(itemIncludes{rssFeed: includeHas(e.r, "rssfeed")})
+	q.build = e.attach(itemIncludes{rssFeed: httputil.IncludeHas(e.r, "rssfeed")})
 	return q, err
 }
 

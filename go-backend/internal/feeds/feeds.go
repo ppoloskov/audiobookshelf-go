@@ -35,6 +35,20 @@ type MinifiedMeta struct {
 	OwnerEmail      *string `json:"ownerEmail"`
 }
 
+// LoadMinified reads the feed attached to entityType/entityID. An empty
+// entityType matches RssFeedManager.findFeedForEntityId
+// (server/managers/RssFeedManager.js:59), which filters on entityId only.
+func LoadMinified(ctx context.Context, db *sql.DB, entityType, entityID string) (Minified, bool, error) {
+	feed, err := sqlc.New(db).GetFeedSummaryByEntity(ctx, sqlc.GetFeedSummaryByEntityParams{EntityType: entityType, EntityID: entityID})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Minified{}, false, nil
+	}
+	if err != nil {
+		return Minified{}, false, err
+	}
+	return FromSummary(feed), true, nil
+}
+
 // FromSummary is the minified feed of a GetFeedSummaryByEntity row.
 func FromSummary(f sqlc.GetFeedSummaryByEntityRow) Minified {
 	return Minified{

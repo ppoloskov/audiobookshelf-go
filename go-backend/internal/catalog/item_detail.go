@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+
+	"audiobookshelf-compat/internal/feeds"
 )
 
 // numEpisodesIncomplete is podcasts.numEpisodes minus the user's finished
@@ -74,7 +76,7 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head it
 		}
 	}
 	if has("rssfeed") {
-		feed, ok, err := h.feedMinified(r.Context(), "", itemID)
+		feed, ok, err := feeds.LoadMinified(r.Context(), h.db, "", itemID)
 		if err != nil {
 			return err
 		}

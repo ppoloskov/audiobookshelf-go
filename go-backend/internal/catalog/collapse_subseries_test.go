@@ -12,6 +12,7 @@ import (
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -54,8 +55,8 @@ func TestNodeBase64DecodeMatchesBufferFrom(t *testing.T) {
 		"bm8tc2VyaWVz": "no-series", "bm8tc2VyaWVz==": "no-series", "YWJj": "abc", "YWI=": "ab", "YW": "a", "Y": "", "": "",
 		"YW-_": "ao\xbf", "Y W\nJj": "abc",
 	} {
-		if got := decodeFilterValue(in); got != want {
-			t.Errorf("decodeFilterValue(%q) = %q, want %q", in, got, want)
+		if got := library.DecodeFilterValue(in); got != want {
+			t.Errorf("library.DecodeFilterValue(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

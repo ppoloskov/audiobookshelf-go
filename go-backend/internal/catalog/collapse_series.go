@@ -4,6 +4,8 @@ import (
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"strings"
+
+	"audiobookshelf-compat/internal/library"
 )
 
 // collapsedSeriesInfo is the per-bookSeries record of upstream
@@ -30,7 +32,7 @@ type collapsedSeries struct {
 // series in first-appearance order with their books in row order.
 func (h *Handler) collapseSeries(ctx context.Context, libraryID, filterValue, filterSQL string, filterArgs []any, permissionSQL string, permissionArgs []any) (collapsedSeries, error) {
 	group, raw, _ := strings.Cut(filterValue, ".")
-	value := decodeFilterValue(raw)
+	value := library.DecodeFilterValue(raw)
 	where := filterSQL + permissionSQL
 	args := append([]any{libraryID}, filterArgs...)
 	args = append(args, permissionArgs...)

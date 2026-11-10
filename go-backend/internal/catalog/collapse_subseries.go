@@ -72,14 +72,14 @@ func collapseSubseriesFilter(r *http.Request) (seriesID string, ok bool) {
 	if group != "series" || r.URL.Query().Get("collapseseries") != "1" {
 		return "", false
 	}
-	if decodeFilterValue(rest) == "no-series" {
+	if library.DecodeFilterValue(rest) == "no-series" {
 		return "", false
 	}
 	if !hasDot {
 		return "", true
 	}
 	value, _, _ := strings.Cut(rest, ".")
-	return decodeFilterValue(value), true
+	return library.DecodeFilterValue(value), true
 }
 
 // collapseSubseries serves GET /api/libraries/:id/items for a series filter
@@ -95,7 +95,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib 
 	payload := collapsedSubseriesPage{
 		Results: []any{}, Limit: limit, Page: page,
 		SortDesc: query.Get("desc") == "1", FilterBy: query.Get("filter"), MediaType: lib.MediaType,
-		Minified: query.Get("minified") == "1", CollapseSeries: true, Include: normalizedInclude(r),
+		Minified: query.Get("minified") == "1", CollapseSeries: true, Include: httputil.NormalizedInclude(r),
 		Offset: page * limit,
 	}
 	sortBy := ""

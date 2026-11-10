@@ -29,6 +29,7 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/notifications"
@@ -140,11 +141,11 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	listHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes)
 	people.New(db, cfg, emit, people.Deps{
-		Filters:             filters,
-		Authors:             rt.providers,
-		WriteMetadata:       rt.scanner.WriteMetadata,
-		SeriesMatchesFilter: rt.catalog.SeriesMatchesFilter,
+		Filters:       filters,
+		Authors:       rt.providers,
+		WriteMetadata: rt.scanner.WriteMetadata,
 	}).Routes(rt.routes)
+	library.New(db, emit).Routes(rt.routes)
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}

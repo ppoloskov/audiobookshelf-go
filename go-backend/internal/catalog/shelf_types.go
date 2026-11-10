@@ -1,6 +1,8 @@
 package catalog
 
-import "audiobookshelf-compat/internal/people"
+import (
+	"audiobookshelf-compat/internal/library"
+)
 
 // shelf is one home-page shelf of GET /api/libraries/:id/personalized
 // (LibraryItem.getPersonalizedShelves, server/models/LibraryItem.js:384-491).
@@ -16,11 +18,11 @@ type shelf struct {
 }
 
 // seriesShelfEntry is one entity of the "recent-series" home shelf:
-// people.SeriesView.toOldJSON (server/models/Series.js:168) plus the rssFeed and books
+// library.SeriesView.toOldJSON (server/models/Series.js:168) plus the rssFeed and books
 // that libraryFilters.getSeriesMostRecentlyAdded attaches
 // (server/utils/queries/libraryFilters.js:286-312), in assignment order.
 type seriesShelfEntry struct {
-	people.SeriesView
+	library.SeriesView
 	RSSFeed any `json:"rssFeed,omitempty"`
 	// Books are minified library items whose author and series names are
 	// blank, because upstream empties book.authors and book.series first.

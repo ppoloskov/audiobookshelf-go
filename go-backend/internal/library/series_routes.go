@@ -1,13 +1,14 @@
 // Series routes mirroring server/controllers/SeriesController.js (pinned
 // v2.37.2): the deprecated GET /api/series/:id the mobile apps still call and
 // PATCH /api/series/:id.
-package people
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/sqlupdate"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -133,7 +134,7 @@ func SeriesDetailFor(ctx context.Context, db *sql.DB, user store.User, s SeriesR
 	}
 	if withFeed {
 		// RssFeedManager.findFeedForEntityId matches on entityId alone.
-		feed, found, err := feedMinified(ctx, db, "", s.ID)
+		feed, found, err := feeds.LoadMinified(ctx, db, "", s.ID)
 		if err != nil {
 			return detail, err
 		}
@@ -158,7 +159,7 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	body := httputil.DecodeObjectFields(r)
 	current := map[string]*string{"name": store.NullStringPtr(s.Name), "description": store.NullStringPtr(s.Description)}
-	changes := &AuthorColumnUpdate{}
+	changes := &sqlupdate.Update{}
 	valid := 0
 	for _, key := range []string{"name", "description"} {
 		raw, present := body[key]
@@ -175,16 +176,8 @@ func (h *Handler) seriesUpdate(w http.ResponseWriter, r *http.Request) error {
 	if valid == 0 {
 		return httputil.Status(http.StatusBadRequest, "No valid fields to update")
 	}
-	if len(changes.Columns) > 0 {
-		sets := make([]string, 0, len(changes.Columns)+1)
-		for _, c := range changes.Columns {
-			sets = append(sets, c+"=?")
-		}
-		sets = append(sets, "updatedAt=?")
-		args := append(append([]any{}, changes.Values...), dbtime.Now(), s.ID)
-		if _, err := h.db.ExecContext(ctx, `UPDATE series SET `+strings.Join(sets, ",")+` WHERE id=?`, args...); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
+	if err := changes.Save(ctx, h.db, "series", s.ID); err != nil {
+		return httputil.Internal("database write failed", err)
 	}
 	saved, err := LoadSeries(ctx, h.db, s.ID)
 	if err != nil {

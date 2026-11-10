@@ -1,11 +1,11 @@
 # Package and object boundaries proposal
 
-2026-11-10. Status: both email-settings packets accepted; the catalog read
-graph (PB02a–d) is accepted; the first people slice (PB03a) is implemented
-pending review. Scope: current Go package ownership, catalog decomposition,
-settings, shared objects and dependency rules. This is a response to the
-owner's request for better package division, rather than another line-reduction
-exercise.
+2026-11-11. Status: email-settings, catalog read graph (PB02a–d), people
+entities (PB03a) and the people remainder/library scope (PB04a) are accepted;
+PB04b1 (filter/sort compiler and series in `library`) is implemented pending
+review. Scope: current Go package ownership, catalog decomposition, settings,
+shared objects and dependency rules. This is a response to the owner's request
+for better package division, rather than another line-reduction exercise.
 
 ## Findings
 
@@ -41,10 +41,10 @@ Do not create a service/repository/interface per entity by convention.
 
 | Owner | Responsibilities | Current code to migrate or absorb |
 |---|---|---|
-| `library` | Libraries/folders, browsing, filtering, search, shelves and aggregate statistics | catalog library/query/search/personalized files; filterdata cache |
+| `library` | Libraries/folders, browsing, filter/sort compiler, series, search, shelves and aggregate statistics | catalog library/query/search/personalized/series files; filterdata cache |
 | `items` | Library-item identity, common files/artwork, item endpoint dispatch, batch orchestration and deletion workflow | catalog item/cover/file/batch code; common libitem data |
 | `books` | Book metadata, chapters, book projections and author/series association updates | book-specific catalog mutation code; libitem.Book; relevant itemwrite operations |
-| `people` | Author/series identities, CRUD, matching and orphan policy | catalog author/series files; relevant itemwrite sweeps |
+| `people` | Author identity, CRUD, matching, images and orphan policy | catalog author files; relevant itemwrite sweeps |
 | `podcasts` | Podcast/episode model and projections, metadata updates, feed/download/schedule lifecycle | existing podcasts; podcast-specific libitem and catalog code |
 | `lists` | Playlist/collection membership, projections and change notifications | existing lists; playlistview and store playlist operations |
 | `progress` | Durable media progress, bookmarks and offline reconciliation | progressdto; relevant userapi/playback operations, after caller inventory |
@@ -77,12 +77,15 @@ composes `books` + `podcastread` + `mediafiles`; feature `podcasts` keeps its
 HTTP/write paths and consumes the read package. `store.QueryIn` owns the
 shared chunked-query mechanics.
 
-People slice: author/series entity records/views, detail, update/rename,
-merge/delete, metadata matching, library-scoped author/series lists and author
-image routes now live in `internal/people`. The first `internal/library` slice
-owns request scope/`InLibrary` and media-table selection. `itemwrite` keeps
-relation cleanup and orphan sweeps. Dependencies remain acyclic:
-`catalog` → `people`/`library`; `people` → `library`; neither imports catalog.
+People slice: author entity records/views, detail, update/rename, merge/delete,
+metadata matching, library-scoped author lists and author images now live in
+`internal/people`; series routes and projections moved to `internal/library` in
+PB04b1. `internal/library` owns request scope/`InLibrary`, media-table
+selection, the filter/sort SQL compiler and series entity/list/detail/update
+routes. `itemwrite` keeps relation cleanup and orphan sweeps. Dependencies
+remain acyclic: `catalog` → `people`/`library`; `people` → `library`; neither
+imports catalog, and library does not import people. Generic changed-column
+saving is the foundation leaf `internal/sqlupdate`.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess

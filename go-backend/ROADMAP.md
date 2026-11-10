@@ -268,6 +268,43 @@
   ends as authors-only. Owner may veto before PB04b dispatch.
 - Next: PB04b library browsing/search plus the series move per the ruling,
   keeping library writes/admin in catalog until a later packet.
+- PB04b decomposition (proposed before any PB04b move, 2026-11-11): the
+  browsing/search/read surface does not fit one coherent ownership packet. It
+  splits into:
+  1. **PB04b1 — query compiler and series**: `library` owns the filter/sort
+     SQL compiler and the series entity/list/detail/update routes; `people`
+     becomes authors-only; `SeriesMatchesFilter` is deleted. Catalog item
+     browsing/search keeps calling the compiler until its own move.
+  2. **PB04b2 — browse and library reads**: item-list browsing, library
+     read/detail/filterdata/stats and the narrator/podcast-title read routes.
+     Library view types become public for catalog write responses; narrator
+     updates and all library/admin writes stay in catalog.
+  3. **PB04b3 — discovery**: library search and personalized shelves. Item
+     detail, cover/file routes and item mutations stay in catalog.
+  Each slice is independently verifiable and keeps writes/admin out. PB04b1
+  budget was **+120 handwritten LOC / +25 complexity**, with zero growth in
+  functions over 15, maps, `[]any` and injector metrics.
+- [ ] IN PROGRESS — PB04b1 ACCEPTED 2026-11-11: `internal/library` owns the filter/sort
+  SQL compiler and the series entity/list/detail/update routes; `people` is
+  authors-only and the `SeriesMatchesFilter` callback is deleted. Catalog
+  browsing/search still calls the library compiler until PB04b2/b3. Support
+  extractions: `feeds.LoadMinified`, `httputil.NormalizedInclude`/`IncludeHas`
+  and the generic `sqlupdate.Update` used by author and series edits. Series
+  tests moved to `internal/library`, including list/filter/include/pagination
+  coverage. Actual delta: **+53 LOC / −2 complexity / −1 `[]any`**,
+  with functions over 15, maps and injector metrics unchanged — under the
+  pre-recorded +120/+25 budget on both fields. Architect rerun verified:
+  gofmt, build, vet, the full suite with the documented FFmpeg prefix
+  (51 packages), `-race` across the affected packages, golangci-lint
+  v2.15.0 (0 issues), 32 dependency fixtures, `make ratchet` +0 and
+  dbnest. Review rulings: the compiler move is a pure rename-plus-export
+  (`filterSQL`/`orderSQL` → `FilterSQL`/`OrderSQL`); the changed-only
+  `series_updated` event contract is preserved (`Update.Change` gates the
+  emit); `sqlupdate` passes the new-package rule (two consumers, one
+  Sequelize-`changed()` concept; folding it into `store` was the
+  acceptable alternative and is not worth churn). No route, JSON,
+  permission, persistence or event behavior changed. Next after acceptance:
+  PB04b2 browse/library reads, then PB04b3 search/shelves.
 
 ### UA01 · User API simplification (2026-11-10)
 

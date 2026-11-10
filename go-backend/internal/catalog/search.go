@@ -230,14 +230,14 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 	if err != nil {
 		return nil, err
 	}
-	var matches []people.SeriesView
+	var matches []library.SeriesView
 	for rows.Next() {
-		var rec people.SeriesRecord
+		var rec library.SeriesRecord
 		if err := rows.Scan(&rec.ID, &rec.Name, &rec.Description, &rec.CreatedAt, &rec.UpdatedAt, &rec.LibraryID); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		view, err := people.NewSeriesView(rec, prefixes)
+		view, err := library.NewSeriesView(rec, prefixes)
 		if err != nil {
 			rows.Close()
 			return nil, err
@@ -278,6 +278,6 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 }
 
 type seriesSearchHit struct {
-	Series people.SeriesView `json:"series"`
-	Books  []items.Full      `json:"books"`
+	Series library.SeriesView `json:"series"`
+	Books  []items.Full       `json:"books"`
 }

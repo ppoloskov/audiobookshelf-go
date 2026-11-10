@@ -250,7 +250,7 @@ func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 				media.Size = &size
 				item.Media = media
 			}
-			if err == nil && includeHas(e.r, "numepisodesincomplete") {
+			if err == nil && httputil.IncludeHas(e.r, "numepisodesincomplete") {
 				item.NumEpisodesIncomplete, err = e.h.numEpisodesIncomplete(e.r.Context(), e.user.ID, media.ID)
 			}
 			out[i] = item

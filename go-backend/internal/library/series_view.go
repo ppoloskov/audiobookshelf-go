@@ -1,4 +1,4 @@
-package people
+package library
 
 import (
 	"audiobookshelf-compat/internal/dbtime"

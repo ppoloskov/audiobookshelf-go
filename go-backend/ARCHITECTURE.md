@@ -135,10 +135,10 @@ internal/
   media       ffmpeg/ffprobe runner
   textclean   HTML sanitize/strip (x/net/html tokenizer)
 
-  library     libraries, folders, filter data, search, stats
+  library     libraries, folders, filter/sort compiler, series, search, stats
   items       common library-item identity, files, covers, media dispatch
   books       book metadata, author/series links, chapters, book projections
-  people      authors, series, narrators
+  people      authors, narrators
   lists       collections, playlists
   progress    media progress, bookmarks, listening sessions, playback, HLS
   podcasts    podcast metadata/episodes/projections, feeds, downloads, schedules
@@ -158,9 +158,9 @@ roadmap touches them; current packages (`catalog`, `userapi`, `identity`,
 
 `books` is an explicit domain, not hidden inside a generic item service.
 It owns book records, book metadata/author-series links and chapter meaning,
-and the full/minified/expanded book projections. `people` owns the author and
-series entities and their CRUD; book association reads do not transfer that
-ownership. The first milestone extracts reads/projections only; metadata and
+and the full/minified/expanded book projections. `people` owns author
+entities and their CRUD; `library` owns series entities and routes; book
+association reads do not transfer that ownership. The first milestone extracts reads/projections only; metadata and
 chapter writes remain in their current owners until separately scoped packets.
 
 `items` owns library-item identity/common fields, file/cover access, batch
@@ -181,11 +181,13 @@ composes `books` + `podcastread` + `mediafiles`, and `store.QueryIn` owns shared
 chunked-query mechanics. Do not move every wire type, add a generic repository,
 or invent a universal DTO. The `items` coordinator may consume `books`/
 `podcasts` data; those domains must never import `items`, `catalog`, `library`,
-`lists`, `playback` or `server`. Author/series entity detail, CRUD, merge/delete,
-matching, library-scoped author/series lists and author images live in
-`internal/people`. The first `internal/library` slice owns `/api/libraries/:id`
-request scope and media-table selection; browsing/search/shelves follow. Keep
-the graph acyclic and preserve the existing item loader's query counts.
+`lists`, `playback` or `server`. Author identity, detail, CRUD, merge/delete,
+matching, library-scoped author lists and author images live in
+`internal/people`. `internal/library` owns `/api/libraries/:id` request scope,
+the filter/sort SQL compiler and series entity/list/detail/update routes;
+item browsing and library reads/search/shelves follow in PB04b2/b3. Catalog
+still calls the library compiler for its remaining browse/search operations.
+Keep the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing
 lenient column semantics; it is not HTTP request validation.

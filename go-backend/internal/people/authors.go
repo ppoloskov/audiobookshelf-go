@@ -13,6 +13,7 @@ import (
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/sqlupdate"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -326,51 +327,12 @@ func samePointer(a, b *string) bool {
 	return *a == *b
 }
 
-// AuthorColumnUpdate collects the changed columns of an author the way
-// Sequelize's set()/changed() does, and saves them with a fresh updatedAt.
-type AuthorColumnUpdate struct {
-	Columns []string
-	Values  []any
-}
+// AuthorColumnUpdate is the author-table specialization of sqlupdate.Update.
+type AuthorColumnUpdate struct{ sqlupdate.Update }
 
-func (u *AuthorColumnUpdate) Change(column string, current, next *string) bool {
-	if samePointer(current, next) {
-		return false
-	}
-	u.Columns = append(u.Columns, column)
-	if next == nil {
-		u.Values = append(u.Values, nil)
-	} else {
-		u.Values = append(u.Values, *next)
-	}
-	return true
-}
-
-// force marks a column changed even when the value is the same
-// (changed(column, true)): the update then still bumps updatedAt.
-func (u *AuthorColumnUpdate) Force(column string, next *string) {
-	for i, c := range u.Columns {
-		if c == column {
-			u.Values[i] = store.StringPtrValue(next)
-			return
-		}
-	}
-	u.Columns = append(u.Columns, column)
-	u.Values = append(u.Values, store.StringPtrValue(next))
-}
-
+// Save writes the changed author columns with a fresh updatedAt.
 func (u *AuthorColumnUpdate) Save(ctx context.Context, db *sql.DB, authorID string) error {
-	if len(u.Columns) == 0 {
-		return nil
-	}
-	sets := make([]string, 0, len(u.Columns)+1)
-	for _, c := range u.Columns {
-		sets = append(sets, c+"=?")
-	}
-	sets = append(sets, "updatedAt=?")
-	args := append(append([]any{}, u.Values...), dbtime.Now(), authorID)
-	_, err := db.ExecContext(ctx, `UPDATE authors SET `+strings.Join(sets, ",")+` WHERE id=?`, args...)
-	return err
+	return u.Update.Save(ctx, db, "authors", authorID)
 }
 
 func authorLastFirst(name *string) *string {
