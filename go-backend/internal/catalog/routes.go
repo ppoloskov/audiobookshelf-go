@@ -19,18 +19,11 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/libraries/{id}/matchall", library.InLibrary(h.db, h.libraryMatchAll))
 	mux.Handle("POST /api/items/batch/quickmatch", httputil.Handler(h.batchQuickMatch))
 	mux.Handle("POST /api/items/{id}/match", httputil.Handler(h.itemMatch))
-	mux.Handle("GET /api/libraries/{id}/opml", library.InLibrary(h.db, h.libraryOPML))
-	mux.Handle("POST /api/libraries/{id}/remove-metadata", library.InLibrary(h.db, h.libraryRemoveMetadata))
 	mux.Handle("GET /api/libraries/{id}/download", library.InLibrary(h.db, h.libraryDownload))
 
 	// server/routers/ApiRouter.js:60-91 (LibraryController), Express GET covers HEAD.
-	mux.Handle("POST /api/libraries", httputil.Handler(h.createLibrary))
-	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
-	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
 	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
-	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
-	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
 
 	// server/routers/ApiRouter.js:92-130 (LibraryItemController).
 	mux.Handle("GET /api/items/{id}", httputil.Handler(h.item))

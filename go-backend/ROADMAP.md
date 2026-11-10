@@ -373,6 +373,37 @@
   revision regardless of actual growth. Next after acceptance: library
   writes/admin (dissolving the catalog `libraryView` alias and moving the
   remaining item-list fixtures), then the progress/store records.
+- PB04c split before moving (2026-11-11): library delete/issues are coupled to
+  catalog item deletion rows, sweeps and playlist/feed/cover events; library
+  download needs catalog item-scope/access helpers; match-all starts the item
+  quick-match task. These do not fit one coherent write packet. Split:
+  1. **PB04c1 — library writes/admin reads**: create, update, reorder, narrator
+     update, OPML and remove-metadata; library view aliases dissolve. Update's
+     folder-removal branch keeps one explicit `RemoveFolderItems` composition
+     callback until item deletion ownership moves.
+  2. **PB04c2 — library delete/issues/download/match-all**: move only after the
+     item-deletion/quick-match dependency is resolved or a transaction-safe
+     seam is accepted. Catalog keeps those routes until then.
+  c1 budget: **+120 LOC / +25 complexity**, zero growth in functions over 15,
+  maps, `[]any` and injector metrics. c2 budget is set at dispatch.
+- [ ] IN PROGRESS — PB04c1 ACCEPTED 2026-11-11: `internal/library` owns library
+  create, update, reorder, narrator update, OPML and remove-metadata. The
+  catalog `libraryView`/`libraryFolderView` alias file is deleted (its exit
+  task completed); catalog delete uses `library.ReadView` directly. Update's
+  folder-removal branch calls the composition `RemoveFolderItems` callback
+  implemented by catalog (`library_delete.go`), with the exit task when item
+  deletion moves; an unwired callback fails loudly with a 500 instead of
+  silently skipping, and the library write tests supply a recording callback.
+  Catalog retains delete/issues, download and match-all as PB04c2. Actual
+  delta: **+51 LOC / +9 complexity**, with functions over 15, maps, `[]any`
+  and injectors unchanged — within the pre-recorded +120/+25 budget. Architect
+  rerun verified: gofmt, build, vet, the full suite with the documented FFmpeg
+  prefix (51 packages), `-race` on library/catalog/server/items/scanner,
+  golangci-lint v2.15.0 (0 issues), 32 dependency fixtures, `make ratchet`
+  +0 and dbnest. The c-split and budget were recorded before moving, as the
+  standing rule requires. Next after acceptance: PB04c2 after the
+  item-deletion/quick-match dependency is resolved, with its budget set at
+  dispatch.
 
 ### UA01 · User API simplification (2026-11-10)
 

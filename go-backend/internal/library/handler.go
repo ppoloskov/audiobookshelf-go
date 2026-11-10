@@ -1,6 +1,6 @@
 // Package library owns library identity, request scoping, the filter/sort
-// compiler, library metadata reads and series browsing. Item browsing and
-// discovery move here in the next slices; writes/admin remain in catalog.
+// compiler, library reads/writes and series/item browsing. Item detail,
+// cover/file routes and item mutations remain in catalog.
 package library
 
 import (
@@ -16,30 +16,43 @@ import (
 	"audiobookshelf-compat/internal/serversettings"
 )
 
-// Deps are the collaborators owned outside the library read domain.
+// Deps are the collaborators owned outside the library domain.
 type Deps struct {
 	Filters *filterdata.Cache
+	// LibraryChanged refreshes watchers after a committed library change.
+	LibraryChanged func(string)
+	// RemoveFolderItems removes the items of a folder before that folder is
+	// deleted. It stays a composition callback until item deletion moves.
+	RemoveFolderItems func(context.Context, string, string) error
 }
 
-// Handler serves library-scoped reads over db.
+// Handler serves library reads and writes over db.
 type Handler struct {
 	db      *sql.DB
 	emit    events.Emitter
 	filters *filterdata.Cache
+	deps    Deps
 }
 
 // New builds the library handler.
 func New(db *sql.DB, emit events.Emitter, deps Deps) *Handler {
-	return &Handler{db: db, emit: emit, filters: deps.Filters}
+	return &Handler{db: db, emit: emit, filters: deps.Filters, deps: deps}
 }
 
-// Routes registers the library-owned reads.
+// Routes registers library-owned reads and writes.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/libraries", httputil.Handler(h.libraries))
+	mux.Handle("POST /api/libraries", httputil.Handler(h.createLibrary))
+	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
+	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("GET /api/libraries/{id}", InLibrary(h.db, h.library))
 	mux.Handle("GET /api/libraries/{id}/stats", InLibrary(h.db, h.libraryStats))
 	mux.Handle("GET /api/libraries/{id}/filterdata", InLibrary(h.db, h.libraryFilterData))
+	mux.Handle("GET /api/libraries/{id}/opml", InLibrary(h.db, h.libraryOPML))
+	mux.Handle("POST /api/libraries/{id}/remove-metadata", InLibrary(h.db, h.libraryRemoveMetadata))
 	mux.Handle("GET /api/libraries/{id}/narrators", InLibrary(h.db, h.narrators))
+	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", InLibrary(h.db, h.updateNarrator))
+	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", InLibrary(h.db, h.updateNarrator))
 	mux.Handle("GET /api/libraries/{id}/podcast-titles", InLibrary(h.db, h.podcastTitles))
 	mux.Handle("GET /api/series/{id}", httputil.Handler(h.seriesFindOne))
 	mux.Handle("PATCH /api/series/{id}", httputil.Handler(h.seriesUpdate))

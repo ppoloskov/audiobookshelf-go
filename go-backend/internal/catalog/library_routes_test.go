@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -49,11 +50,11 @@ func TestGenerateOPMLMatchesUpstream(t *testing.T) {
 		t.Fatalf("golden has %d cases", len(golden))
 	}
 	for name, c := range golden {
-		var podcasts []opmlPodcast
+		var podcasts []library.OPMLPodcast
 		for _, p := range c.Podcasts {
-			podcasts = append(podcasts, opmlPodcast{title: ns(p.Title), feedURL: ns(p.FeedURL), description: ns(p.Description), language: ns(p.Language)})
+			podcasts = append(podcasts, library.OPMLPodcast{Title: ns(p.Title), FeedURL: ns(p.FeedURL), Description: ns(p.Description), Language: ns(p.Language)})
 		}
-		if err := compareOPMLSemantics(c.XML, generateOPML(podcasts)); err != nil {
+		if err := compareOPMLSemantics(c.XML, library.GenerateOPML(podcasts)); err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
 	}

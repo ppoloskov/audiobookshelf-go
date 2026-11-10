@@ -1,16 +1,13 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
-	"context"
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -156,7 +153,7 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	view, err := h.libraryView(r.Context(), id)
+	view, err := ReadView(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -165,9 +162,9 @@ func (h *Handler) createLibrary(w http.ResponseWriter, r *http.Request) error {
 	// like lastScanVersion are undefined and dropped from the JSON; the
 	// database-loaded instances returned by other routes emit them as null.
 	result := struct {
-		libraryView
+		View
 		LastScanVersion *string `json:"lastScanVersion,omitempty"` // shadows the embedded field, left out
-	}{libraryView: view}
+	}{View: view}
 	if h.deps.LibraryChanged != nil {
 		h.deps.LibraryChanged(id)
 	}
@@ -342,19 +339,16 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for _, folderID := range removedFolders {
-		items, e := h.libraryItemsWhere(r.Context(), `libraryFolderId=?`, folderID)
-		if e != nil {
-			return httputil.Internal("database read failed", e)
+		if h.deps.RemoveFolderItems == nil {
+			return httputil.Internal("database write failed", errors.New("remove folder items: callback not configured"))
 		}
-		for _, item := range items {
-			if e = h.removeAndSweep(r.Context(), item, false); e != nil {
-				return e
-			}
+		if e := h.deps.RemoveFolderItems(r.Context(), id, folderID); e != nil {
+			return e
 		}
 	}
 	hasUpdates := len(fields) > 0 || settingsChanged || len(newFolders) > 0
 	if !hasUpdates {
-		result, e := h.libraryView(r.Context(), id)
+		result, e := ReadView(r.Context(), h.db, id)
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
@@ -394,7 +388,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 	if err := tx.Commit(); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	result, err := h.libraryView(r.Context(), id)
+	result, err := ReadView(r.Context(), h.db, id)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -402,104 +396,6 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 		h.deps.LibraryChanged(id)
 	}
 	h.emit.ToAll("library_updated", result)
-	return httputil.JSON(w, r, result)
-}
-
-func (h *Handler) deleteLibrary(w http.ResponseWriter, r *http.Request) error {
-	user, id := store.RequestUser(r), r.PathValue("id")
-	defer h.filters.Invalidate(id) // LibraryController.js:591
-	if !adminUser(user) {
-		return httputil.Status(http.StatusForbidden, "")
-	}
-	var count int
-	if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM libraries WHERE id=?`, id).Scan(&count); err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	if count == 0 {
-		return httputil.Status(404, "Library not found")
-	}
-	result, err := h.libraryView(r.Context(), id)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	items, err := h.libraryItemsWhere(r.Context(), `libraryId=?`, id)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	logging.Infof("[LibraryController] Removing %d library items in library %q", len(items), result.Name) // LibraryController.js:557
-	tx, err := h.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	defer tx.Rollback()
-	_, _, playlistChanges, closedFeeds, err := deleteItemRows(r.Context(), tx, items)
-	if err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM authors WHERE libraryId=?`, id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM series WHERE libraryId=?`, id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if err := sqlc.New(tx).DeleteCollectionBooksByLibraryID(r.Context(), id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if err := sqlc.New(tx).DeleteCollectionsByLibraryID(r.Context(), id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if res, err := tx.ExecContext(r.Context(), `UPDATE playbackSessions SET libraryId=NULL WHERE libraryId=?`, id); err != nil {
-		return httputil.Internal("database write failed", err)
-	} else if n, rowsErr := res.RowsAffected(); rowsErr == nil {
-		logging.Infof("[LibraryController] Updated %d playback sessions to remove library id", n) // LibraryController.js:580
-	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraryFolders WHERE libraryId=?`, id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if _, err := tx.ExecContext(r.Context(), `DELETE FROM libraries WHERE id=?`, id); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	orderRows, err := tx.QueryContext(r.Context(), `SELECT id FROM libraries ORDER BY displayOrder,id`)
-	if err != nil {
-		return httputil.Internal("database read failed", err)
-	}
-	remainingLibraries := []string{}
-	for orderRows.Next() {
-		var libraryID string
-		if orderRows.Scan(&libraryID) == nil {
-			remainingLibraries = append(remainingLibraries, libraryID)
-		}
-	}
-	if err := orderRows.Err(); err != nil {
-		orderRows.Close()
-		return httputil.Internal("database read failed", err)
-	}
-	orderRows.Close()
-	for order, libraryID := range remainingLibraries {
-		if _, err := tx.ExecContext(r.Context(), `UPDATE libraries SET displayOrder=? WHERE id=?`, order+1, libraryID); err != nil {
-			return httputil.Internal("database write failed", err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return httputil.Internal("database write failed", err)
-	}
-	if h.deps.LibraryChanged != nil {
-		h.deps.LibraryChanged(id)
-	}
-	playlistview.Announce(r.Context(), h.db, h.emit, playlistChanges)
-	for _, item := range items {
-		for _, feed := range closedFeeds {
-			if feed.EntityID != nil && *feed.EntityID == item.id {
-				h.emit.ToAll("rss_feed_closed", feed)
-			}
-		}
-		h.purgeCoverCache(item.id)
-		if h.cfg.MetadataPath != "" {
-			_ = os.RemoveAll(filepath.Join(h.cfg.Dirs().Items, item.id))
-		}
-		h.emit.ToAll("item_removed", map[string]any{"id": item.id, "libraryId": id})
-	}
-	h.emit.ToAll("library_removed", result)
 	return httputil.JSON(w, r, result)
 }
 
@@ -551,9 +447,9 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 		}
 	}
 	rows.Close()
-	result := make([]libraryView, 0, len(ids))
+	result := make([]View, 0, len(ids))
 	for _, id := range ids {
-		library, e := h.libraryView(r.Context(), id)
+		library, e := ReadView(r.Context(), h.db, id)
 		if e != nil {
 			return httputil.Internal("database read failed", e)
 		}
@@ -562,20 +458,21 @@ func (h *Handler) reorderLibraries(w http.ResponseWriter, r *http.Request) error
 	return httputil.JSON(w, r, map[string]any{"libraries": result})
 }
 
-// libraryItemsWhere lists the items matching one column condition.
-func (h *Handler) libraryItemsWhere(ctx context.Context, where string, arg any) ([]itemScope, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT `+itemScopeColumns+` FROM libraryItems li WHERE `+where, arg)
-	if err != nil {
-		return nil, err
+func requestString(data map[string]json.RawMessage, key string) (any, bool) {
+	raw, ok := data[key]
+	if !ok {
+		return nil, false
 	}
-	defer rows.Close()
-	var items []itemScope
-	for rows.Next() {
-		item, err := scanItemScope(rows)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil, true
 	}
-	return items, rows.Err()
+	var value string
+	if json.Unmarshal(raw, &value) == nil {
+		return value, true
+	}
+	var number json.Number
+	if json.Unmarshal(raw, &number) == nil {
+		return number.String(), true
+	}
+	return nil, false
 }

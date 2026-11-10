@@ -96,15 +96,16 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	if rt.scanner, err = scanner.New(db, cfg, emit, filters); err != nil {
 		return rt, err
 	}
+	libraryChanged := func(string) {
+		if err := rt.scanner.Refresh(context.Background()); err != nil {
+			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
+		}
+	}
 	rt.catalog = catalog.New(db, cfg, emit, catalog.Deps{
-		Filters:     filters,
-		Downloads:   rt.podcasts,
-		ItemChanged: rt.scanner.WriteMetadata,
-		LibraryChanged: func(string) {
-			if err := rt.scanner.Refresh(context.Background()); err != nil {
-				logging.Errorf("[Server] refresh watchers and schedules: %v", err)
-			}
-		},
+		Filters:                filters,
+		Downloads:              rt.podcasts,
+		ItemChanged:            rt.scanner.WriteMetadata,
+		LibraryChanged:         libraryChanged,
 		Books:                  rt.providers,
 		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
 		PodcastScheduleChanged: rt.podcasts.Reschedule,
@@ -145,7 +146,11 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 		Authors:       rt.providers,
 		WriteMetadata: rt.scanner.WriteMetadata,
 	}).Routes(rt.routes)
-	library.New(db, emit, library.Deps{Filters: filters}).Routes(rt.routes)
+	library.New(db, emit, library.Deps{
+		Filters:           filters,
+		LibraryChanged:    libraryChanged,
+		RemoveFolderItems: rt.catalog.RemoveFolderItems,
+	}).Routes(rt.routes)
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}

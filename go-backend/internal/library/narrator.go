@@ -1,4 +1,4 @@
-package catalog
+package library
 
 import (
 	"encoding/base64"
@@ -9,11 +9,10 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 )
 
-func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	remove := r.Method == http.MethodDelete
 	libraryID, encodedID := lib.ID, r.PathValue("narratorId")
 	// Narrator renames and removals patch the filter data upstream

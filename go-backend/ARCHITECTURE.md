@@ -187,9 +187,12 @@ matching, library-scoped author lists and author images live in
 the filter/sort SQL compiler, series entity/list/detail/update routes, library
 metadata reads (list/detail/view, stats, filterdata, narrators and podcast
 titles), item-list browsing with collapse/include handling, library-scoped
-author lists, search and personalized shelves. Catalog now contains only
-library writes/admin, item-detail/cover/file routes and item mutations. Library
-imports people for author projections; people no longer imports library.
+author lists, search, personalized shelves and the self-contained library
+writes/admin (create, update, reorder, narrator update, OPML, remove-metadata).
+Catalog retains library delete/issues, download and match-all until the
+item-deletion/quick-match dependency is resolved, plus item-detail/cover/file
+routes and item mutations. Library imports people for author projections;
+people no longer imports library.
 Keep the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing

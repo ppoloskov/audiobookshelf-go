@@ -961,50 +961,6 @@ func TestDeleteLibraryFileRemovesManagedMediaAndMarksEmptyBookMissing(t *testing
 	}
 }
 
-func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	changed := 0
-	h.deps.LibraryChanged = func(string) { changed++ }
-	u := store.User{ID: "root", Type: "root", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	folder := filepath.Join(t.TempDir(), "new-books")
-	body := `{"name":"New Library","mediaType":"book","folders":[{"fullPath":"` + folder + `"}]}`
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("POST", "/api/libraries", strings.NewReader(body)), u) || w.Code != http.StatusOK {
-		t.Fatalf("create status=%d body=%s", w.Code, w.Body.String())
-	}
-	var created map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
-		t.Fatal(err)
-	}
-	id := created["id"].(string)
-	if changed != 1 {
-		t.Fatalf("watcher refresh count after create=%d", changed)
-	}
-	second := filepath.Join(t.TempDir(), "new-books-2")
-	updateBody := `{"name":"Renamed","settings":{"disableWatcher":true},"folders":[{"id":"` + created["folders"].([]any)[0].(map[string]any)["id"].(string) + `"},{"fullPath":"` + second + `"}]}`
-	w = httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("PATCH", "/api/libraries/"+id, strings.NewReader(updateBody)), u) || w.Code != http.StatusOK {
-		t.Fatalf("update status=%d body=%s", w.Code, w.Body.String())
-	}
-	if changed != 2 {
-		t.Fatalf("watcher refresh count after update=%d", changed)
-	}
-	var name string
-	var settingsRaw []byte
-	var folderCount int
-	if err := db.QueryRow(`SELECT name,settings FROM libraries WHERE id=?`, id).Scan(&name, &settingsRaw); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId=?`, id).Scan(&folderCount); err != nil {
-		t.Fatal(err)
-	}
-	if name != "Renamed" || folderCount != 2 || store.DecodeJSONObject(settingsRaw)["disableWatcher"] != true {
-		t.Fatalf("name=%s folders=%d settings=%s", name, folderCount, settingsRaw)
-	}
-}
-
 func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
