@@ -19,7 +19,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -1077,11 +1077,11 @@ func TestFilenameTrackDiscParsingMatchesUpstream(t *testing.T) {
 }
 
 func TestSmartAudioOrderKeepsMissingTrackStableAndSetsOneBasedIndex(t *testing.T) {
-	makeAudio := func(name string, track *int) libitem.AudioFile {
-		return libitem.AudioFile{TrackNumFromMeta: track, Metadata: libitem.FileMetadata{Filename: name}}
+	makeAudio := func(name string, track *int) mediafiles.AudioFile {
+		return mediafiles.AudioFile{TrackNumFromMeta: track, Metadata: mediafiles.FileMetadata{Filename: name}}
 	}
 	one, two := 1, 2
-	audio := []libitem.AudioFile{makeAudio("a.mp3", &one), makeAudio("b.mp3", &two), makeAudio("zz.mp3", nil)}
+	audio := []mediafiles.AudioFile{makeAudio("a.mp3", &one), makeAudio("b.mp3", &two), makeAudio("zz.mp3", nil)}
 	smartAudioOrder(audio)
 	want := []string{"a.mp3", "b.mp3", "zz.mp3"}
 	for i, af := range audio {
@@ -1128,18 +1128,18 @@ func TestProbeAudioDropsFilesWithoutAudioStreams(t *testing.T) {
 }
 
 func TestBuildChaptersMetaTitleAndSingleFileRules(t *testing.T) {
-	makeAudio := func(name, title string, duration float64) libitem.AudioFile {
-		return libitem.AudioFile{Duration: duration, Metadata: libitem.FileMetadata{Filename: name}, MetaTags: map[string]string{"tagTitle": title}}
+	makeAudio := func(name, title string, duration float64) mediafiles.AudioFile {
+		return mediafiles.AudioFile{Duration: duration, Metadata: mediafiles.FileMetadata{Filename: name}, MetaTags: map[string]string{"tagTitle": title}}
 	}
-	got := buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "First", 2), makeAudio("b.mp3", "Second", 3)}, "Book")
+	got := buildChapters([]mediafiles.AudioFile{makeAudio("a.mp3", "First", 2), makeAudio("b.mp3", "Second", 3)}, "Book")
 	if len(got) != 2 || got[0].Title != "First" || got[1].Title != "Second" {
 		t.Fatalf("unique tag titles: %v", got)
 	}
-	got = buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "Book", 2), makeAudio("b.mp3", "Book", 3)}, "Book")
+	got = buildChapters([]mediafiles.AudioFile{makeAudio("a.mp3", "Book", 2), makeAudio("b.mp3", "Book", 3)}, "Book")
 	if len(got) != 2 || got[0].Title != "a" || got[1].Title != "b" {
 		t.Fatalf("book-title tags should use filenames: %v", got)
 	}
-	got = buildChapters([]libitem.AudioFile{makeAudio("a.mp3", "Only", 2)}, "Book")
+	got = buildChapters([]mediafiles.AudioFile{makeAudio("a.mp3", "Only", 2)}, "Book")
 	if len(got) != 0 {
 		t.Fatalf("single unchaptered file chapters=%v, want none", got)
 	}
@@ -1149,7 +1149,7 @@ func TestProbeAudioMissingBitRateIsNull(t *testing.T) {
 	// ffprobe reports valid JSON with no usable stream or format bitrate.
 	fakeFFprobeJSON(t, `{"format":{"format_name":"mp3","duration":"1","bit_rate":"-1"},"streams":[{"codec_type":"audio","codec_name":"mp3","bit_rate":"0"}]}`)
 	// Flat FileMetadata is the caller contract since the audio-shape fix.
-	meta := libitem.FileMetadata{Filename: "x.mp3", Ext: ".mp3"}
+	meta := mediafiles.FileMetadata{Filename: "x.mp3", Ext: ".mp3"}
 	af, err := probeAudio(context.Background(), "ignored", meta, "1")
 	if err != nil {
 		t.Fatal(err)

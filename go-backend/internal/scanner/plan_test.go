@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 )
 
 func planFixture() planInput {
@@ -14,7 +14,7 @@ func planFixture() planInput {
 		g:      &group{path: "/lib/Book", folder: folder{id: "f", path: "/lib"}},
 		itemID: "item", mediaID: "media", rel: "Book", now: "2024-01-01 00:00:00.000 +00:00",
 		fileDiff: libraryFileDiff{files: []libraryFile{file}},
-		audio:    []libitem.AudioFile{{Duration: 60, Metadata: libitem.FileMetadata{Filename: "a.mp3"}}},
+		audio:    []mediafiles.AudioFile{{Duration: 60, Metadata: mediafiles.FileMetadata{Filename: "a.mp3"}}},
 		title:    "Book", author: "Writer",
 		itemIno: "7", mtime: "2023-05-05 00:00:00.000 +00:00", ctime: "2023-05-05 00:00:00.000 +00:00", birthtime: "2023-05-05 00:00:00.000 +00:00",
 	}
@@ -147,9 +147,9 @@ func TestPlanPodcast(t *testing.T) {
 	in := planFixture()
 	in.lib.mediaType = "podcast"
 	in.g.path = "/lib/My Show"
-	in.audio = []libitem.AudioFile{
-		{Metadata: libitem.FileMetadata{Filename: "e1.mp3"}},
-		{Metadata: libitem.FileMetadata{Filename: "e2.mp3"}},
+	in.audio = []mediafiles.AudioFile{
+		{Metadata: mediafiles.FileMetadata{Filename: "e1.mp3"}},
+		{Metadata: mediafiles.FileMetadata{Filename: "e2.mp3"}},
 	}
 	in.md = bookMetadata{} // podcasts never read book metadata
 	p := plan(in)

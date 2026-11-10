@@ -5,7 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
 	"database/sql"
@@ -243,7 +243,7 @@ func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 		out, err := attach(entries)
 		for i := range out {
 			item := out[i].(items.Minified)
-			media, _ := item.Media.(libitem.PodcastMedia)
+			media, _ := item.Media.(podcastread.PodcastMedia)
 			if item.Size != nil && *item.Size != 0 && (media.Size == nil || *media.Size == 0) {
 				size := *item.Size
 				media.Size = &size

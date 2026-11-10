@@ -13,8 +13,8 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 )
@@ -23,11 +23,11 @@ import (
 // episode with its minified podcast. MediaID (the book or episode id) is not
 // serialized.
 type Entry struct {
-	MediaID       string                   `json:"-"`
-	EpisodeID     string                   `json:"episodeId,omitempty"`
-	Episode       *libitem.EpisodeExpanded `json:"episode,omitempty"`
-	LibraryItemID string                   `json:"libraryItemId"`
-	LibraryItem   any                      `json:"libraryItem"`
+	MediaID       string                       `json:"-"`
+	EpisodeID     string                       `json:"episodeId,omitempty"`
+	Episode       *podcastread.EpisodeExpanded `json:"episode,omitempty"`
+	LibraryItemID string                       `json:"libraryItemId"`
+	LibraryItem   any                          `json:"libraryItem"`
 }
 
 // entryItems resolves each entry to its library item; orphaned
@@ -89,7 +89,7 @@ func Load(ctx context.Context, db *sql.DB, id string) (map[string]any, string, e
 			if it.Podcast == nil {
 				continue
 			}
-			i := slices.IndexFunc(it.Podcast.Episodes, func(ep libitem.Episode) bool { return ep.ID == e.EpisodeID })
+			i := slices.IndexFunc(it.Podcast.Episodes, func(ep podcastread.Episode) bool { return ep.ID == e.EpisodeID })
 			if i < 0 {
 				continue
 			}

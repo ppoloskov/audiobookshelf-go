@@ -21,7 +21,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/websocket"
 
@@ -344,7 +344,7 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		{"other library", book("lib-2", false, "mystery"), -1, 1, 1},
 		{"tag not selected", book("lib-1", false, "romance"), -1, -1, 1},
 		{"explicit without permission", book("lib-1", true, "mystery"), -1, -1, 1},
-		{"podcast with accessible tag", items.Minified{Head: items.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
+		{"podcast with accessible tag", items.Minified{Head: items.Head{LibraryID: "lib-1"}, Media: podcastread.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
 		{"untyped item map", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, -1, -1, -1},
 		{"global message", map[string]any{"message": "global"}, 1, 1, 1},
 		{"collection in library", collection, 1, -1, 1},

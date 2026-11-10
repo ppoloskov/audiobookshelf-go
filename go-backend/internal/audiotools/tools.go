@@ -25,8 +25,8 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
 )
@@ -180,7 +180,7 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 	if x.typ != "book" {
 		return x, nil
 	}
-	var files []libitem.AudioFile
+	var files []mediafiles.AudioFile
 	_ = json.Unmarshal([]byte(rawAudio.String), &files)
 	for i, f := range files {
 		if f.Exclude {
@@ -196,7 +196,7 @@ func (h *Handler) loadItem(ctx context.Context, id string) (item, error) {
 			x.duration = f.Duration
 		}
 	}
-	var chapters []libitem.AudioChapter
+	var chapters []mediafiles.AudioChapter
 	_ = json.Unmarshal([]byte(rawChapters.String), &chapters)
 	for _, c := range chapters {
 		x.chapters = append(x.chapters, chapter{c.Start, c.End, c.Title})

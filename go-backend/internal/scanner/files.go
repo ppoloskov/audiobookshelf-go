@@ -4,7 +4,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filekind"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/mediatools"
 	"context"
 	"encoding/json"
@@ -118,19 +118,19 @@ func nextCoverPath(current string, files []libraryFile, diff libraryFileDiff) (s
 	return cover, cover != current
 }
 
-func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []libitem.AudioFile {
+func (s *Scanner) loadStoredAudio(ctx context.Context, mediaID string) []mediafiles.AudioFile {
 	var raw []byte
 	if mediaID == "" || s.db.QueryRowContext(ctx, `SELECT audioFiles FROM books WHERE id=?`, mediaID).Scan(&raw) != nil {
 		return nil
 	}
-	var out []libitem.AudioFile
+	var out []mediafiles.AudioFile
 	_ = json.Unmarshal(raw, &out)
 	return out
 }
 
 // findStoredAudio matches a scanned file to a stored audio entry by path, then
 // inode (BookScanner.js:97-101).
-func findStoredAudio(entries []libitem.AudioFile, currentPath, currentIno string) *libitem.AudioFile {
+func findStoredAudio(entries []mediafiles.AudioFile, currentPath, currentIno string) *mediafiles.AudioFile {
 	for i := range entries {
 		if entries[i].Metadata.Path == currentPath {
 			return &entries[i]
@@ -542,7 +542,7 @@ func inode(info os.FileInfo) string {
 // probeAudio shapes the imported audio file per the upstream AudioFile object
 // (server/objects/files/AudioFile.js:113-136): meta is the flat FileMetadata
 // object; the inode belongs top-level only.
-func probeAudio(ctx context.Context, p string, meta libitem.FileMetadata, fileIno string) (*libitem.AudioFile, error) {
+func probeAudio(ctx context.Context, p string, meta mediafiles.FileMetadata, fileIno string) (*mediafiles.AudioFile, error) {
 	res, err := mediatools.Probe(ctx, p)
 	if err != nil {
 		return nil, err
@@ -573,7 +573,7 @@ func probeAudio(ctx context.Context, p string, meta libitem.FileMetadata, fileIn
 		return nil, nil
 	}
 	now := time.Now().UnixMilli()
-	out := &libitem.AudioFile{Index: 1, Ino: fileIno, Metadata: meta, AddedAt: now, UpdatedAt: now, Format: format, Duration: duration,
+	out := &mediafiles.AudioFile{Index: 1, Ino: fileIno, Metadata: meta, AddedAt: now, UpdatedAt: now, Format: format, Duration: duration,
 		Codec: &audio.Codec, TimeBase: &audio.TimeBase, EmbeddedCoverArt: embedded, MimeType: filekind.AudioMime(meta.Ext)}
 	if bitRate, _ := strconv.ParseInt(res.Format.BitRate, 10, 64); bitRate > 0 {
 		out.BitRate = &bitRate
@@ -600,10 +600,10 @@ func probeAudio(ctx context.Context, p string, meta libitem.FileMetadata, fileIn
 	out.TrackNumFromMeta = firstTrackNumber(out.MetaTags["tagTrack"])
 	out.DiscNumFromMeta = firstTrackNumber(out.MetaTags["tagDisc"])
 	out.TrackNumFromFilename, out.DiscNumFromFilename = filenameNumbers(meta.Filename, filepath.Dir(p))
-	out.Chapters = make([]libitem.AudioChapter, 0, len(res.Chapters))
+	out.Chapters = make([]mediafiles.AudioChapter, 0, len(res.Chapters))
 	for _, ch := range res.Chapters {
 		start, end := ch.Seconds()
-		out.Chapters = append(out.Chapters, libitem.AudioChapter{Start: start, End: end, Title: strings.TrimSpace(ch.Tags["title"])})
+		out.Chapters = append(out.Chapters, mediafiles.AudioChapter{Start: start, End: end, Title: strings.TrimSpace(ch.Tags["title"])})
 	}
 	sort.Slice(out.Chapters, func(i, j int) bool { return out.Chapters[i].Start < out.Chapters[j].Start })
 	for i := range out.Chapters {
@@ -621,7 +621,7 @@ func firstTrackNumber(value string) *int {
 	return &number
 }
 
-func audioFilename(af libitem.AudioFile) string {
+func audioFilename(af mediafiles.AudioFile) string {
 	return strings.TrimSuffix(af.Metadata.Filename, filepath.Ext(af.Metadata.Filename))
 }
 
@@ -658,12 +658,12 @@ func filenameNumbers(filename, dir string) (track, disc *int) {
 
 // smartAudioOrder sorts the book's audio files by disc and track number and
 // numbers them from 1 (AudioFileScanner.runSmartTrackOrder).
-func smartAudioOrder(audio []libitem.AudioFile) {
-	type number func(*libitem.AudioFile) *int
-	trackMeta := func(a *libitem.AudioFile) *int { return a.TrackNumFromMeta }
-	trackName := func(a *libitem.AudioFile) *int { return a.TrackNumFromFilename }
-	discMeta := func(a *libitem.AudioFile) *int { return a.DiscNumFromMeta }
-	discName := func(a *libitem.AudioFile) *int { return a.DiscNumFromFilename }
+func smartAudioOrder(audio []mediafiles.AudioFile) {
+	type number func(*mediafiles.AudioFile) *int
+	trackMeta := func(a *mediafiles.AudioFile) *int { return a.TrackNumFromMeta }
+	trackName := func(a *mediafiles.AudioFile) *int { return a.TrackNumFromFilename }
+	discMeta := func(a *mediafiles.AudioFile) *int { return a.DiscNumFromMeta }
+	discName := func(a *mediafiles.AudioFile) *int { return a.DiscNumFromFilename }
 	// usable: every file has the number and the numbers have no gap.
 	usable := func(get number) bool {
 		nums := []int{}
@@ -701,7 +701,7 @@ func smartAudioOrder(audio []libitem.AudioFile) {
 	if len(fm) > len(mm) {
 		track = trackName
 	}
-	less := func(a, b *libitem.AudioFile) bool {
+	less := func(a, b *mediafiles.AudioFile) bool {
 		if disc != nil {
 			var x, y int
 			if n := disc(a); n != nil {
@@ -729,8 +729,8 @@ func smartAudioOrder(audio []libitem.AudioFile) {
 	}
 }
 
-func buildChapters(audio []libitem.AudioFile, bookTitle string) []libitem.AudioChapter {
-	out := []libitem.AudioChapter{}
+func buildChapters(audio []mediafiles.AudioFile, bookTitle string) []mediafiles.AudioChapter {
+	out := []mediafiles.AudioChapter{}
 	if len(audio) == 0 {
 		return out
 	}
@@ -789,7 +789,7 @@ func buildChapters(audio []libitem.AudioFile, bookTitle string) []libitem.AudioC
 		if useMetaTitles {
 			title = a.MetaTags["tagTitle"]
 		}
-		out = append(out, libitem.AudioChapter{ID: len(out), Start: offset, End: offset + a.Duration, Title: title})
+		out = append(out, mediafiles.AudioChapter{ID: len(out), Start: offset, End: offset + a.Duration, Title: title})
 		offset += a.Duration
 	}
 	return out

@@ -7,8 +7,8 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
 	"encoding/json"
@@ -112,7 +112,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	audioCount := 0
-	for _, file := range store.DecodeJSONSlice[libitem.File](audioRaw) {
+	for _, file := range store.DecodeJSONSlice[mediafiles.File](audioRaw) {
 		if !file.Excluded() {
 			audioCount++
 		}
@@ -181,13 +181,13 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	target := ""
-	for _, file := range store.DecodeJSONSlice[libitem.File](filesRaw) {
+	for _, file := range store.DecodeJSONSlice[mediafiles.File](filesRaw) {
 		if file.Ino() == ino {
 			target = file.Path()
 			break
 		}
-		if audio, ok := file["audioFile"].(map[string]any); ok && libitem.File(audio).Ino() == ino {
-			target = libitem.File(audio).Path()
+		if audio, ok := file["audioFile"].(map[string]any); ok && mediafiles.File(audio).Ino() == ino {
+			target = mediafiles.File(audio).Path()
 			break
 		}
 	}
@@ -227,21 +227,21 @@ func (h *Handler) updateTracks(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(r.Context(), `SELECT audioFiles FROM books WHERE id=?`, scope.mediaID).Scan(&raw); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[libitem.File](raw)
-	byIno := make(map[string]libitem.File, len(files))
+	files := store.DecodeJSONSlice[mediafiles.File](raw)
+	byIno := make(map[string]mediafiles.File, len(files))
 	for _, file := range files {
 		byIno[file.Ino()] = file
 	}
 	for _, ordered := range request.Ordered {
-		ino := libitem.File(ordered).Ino()
+		ino := mediafiles.File(ordered).Ino()
 		if ino == "" || byIno[ino] == nil {
 			return httputil.Status(http.StatusBadRequest, "")
 		}
 	}
-	orderedFiles := make([]libitem.File, 0, len(request.Ordered))
+	orderedFiles := make([]mediafiles.File, 0, len(request.Ordered))
 	index := 1
 	for _, ordered := range request.Ordered {
-		file := byIno[libitem.File(ordered).Ino()]
+		file := byIno[mediafiles.File(ordered).Ino()]
 		file["manuallyVerified"] = true
 		excluded := jsonvalue.Truthy(ordered["exclude"])
 		file["exclude"] = excluded
@@ -283,7 +283,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&rawFiles, &rawAudio); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[libitem.File](rawFiles)
+	files := store.DecodeJSONSlice[mediafiles.File](rawFiles)
 	selected := -1
 	for i, file := range files {
 		if file.Ino() == ino {
@@ -296,7 +296,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	}
 	var primary any
 	if jsonvalue.Truthy(files[selected]["isSupplementary"]) {
-		primaryFile := make(libitem.File, len(files[selected]))
+		primaryFile := make(mediafiles.File, len(files[selected]))
 		for key, value := range files[selected] {
 			if key != "isSupplementary" && key != "fileType" {
 				primaryFile[key] = value
@@ -307,7 +307,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 		primary = primaryFile
 	}
 	primaryIno := ""
-	if m, ok := primary.(libitem.File); ok {
+	if m, ok := primary.(mediafiles.File); ok {
 		primaryIno = m.Ino()
 	}
 	for _, file := range files {
@@ -318,7 +318,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request) erro
 	filesJSON, _ := json.Marshal(files)
 	encodedPrimary, _ := json.Marshal(primary)
 	missing := 1
-	for _, audio := range store.DecodeJSONSlice[libitem.File](rawAudio) {
+	for _, audio := range store.DecodeJSONSlice[mediafiles.File](rawAudio) {
 		if !audio.Excluded() {
 			missing = 0
 			break

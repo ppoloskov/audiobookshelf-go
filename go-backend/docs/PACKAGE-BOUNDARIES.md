@@ -1,10 +1,10 @@
 # Package and object boundaries proposal
 
-2026-11-10. Status: first runtime packet (email settings policy) implemented
-and accepted; second packet (typed email settings) implemented pending review.
-Scope: current Go package ownership, catalog decomposition, settings, shared
-objects and dependency rules. This is a response to the owner's request for
-better package division, rather than another line-reduction exercise.
+2026-11-10. Status: both email-settings packets accepted; the catalog read
+graph (PB02a–d) is implemented with PB02d pending review. Scope: current Go
+package ownership, catalog decomposition, settings, shared objects and
+dependency rules. This is a response to the owner's request for better package
+division, rather than another line-reduction exercise.
 
 ## Findings
 
@@ -69,9 +69,12 @@ First catalog read-graph slice: the permission projection of an item
 slice moves common item identity, the batched loader and common response
 envelopes into `internal/items`. The third slice moves book identity,
 author/series associations, book projections and batched book loading into
-`internal/books`; `items` composes concrete book reads, `libitem` retains only
-podcast media/projections, and `store.QueryIn` owns the shared chunked-query
-mechanics. The podcast ownership move remains for the next packet.
+`internal/books`. The fourth slice moves podcast models/projections/episode
+loading into the foundation read subpackage `internal/podcasts/read`, puts
+shared file models in `internal/mediafiles`, and deletes `libitem`. `items`
+composes `books` + `podcastread` + `mediafiles`; feature `podcasts` keeps its
+HTTP/write paths and consumes the read package. `store.QueryIn` owns the
+shared chunked-query mechanics.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess
@@ -84,11 +87,11 @@ different home. Avoid collecting all of them into a generic admin package.
 - A domain owns the authoritative Go meaning of its objects. SQL rows, input
   commands and API projections may be different types with explicit mapping.
   Do not turn sqlc rows or the global wire package into a universal model.
-- `libitem.AudioFile` already shares scanner-produced and persisted file
+- `mediafiles.AudioFile` already shares scanner-produced and persisted file
   data. Reuse that representation when semantics match; inventory its callers
   before relocating. A probe Chapter and a persisted AudioChapter have
   different contracts and are not proven duplicate implementations.
-- `libitem.Author` is a book association reference, not a complete author
+- `books.Author` is a book association reference, not a complete author
   entity. Likewise provider BookMatch is not a stored Book. Consolidate
   duplicated policy, not merely similarly named structures.
 - Preserve unknown persisted JSON fields and nil/empty/missing distinctions.
@@ -140,8 +143,10 @@ baseline change nor implements the proposal.
    ownership/dependency rule with less risk than book mutation extraction.
 3. Establish the books/podcasts/common-item read dependency graph together;
    migrate existing libitem models/loaders without a second implementation.
-   Then move library browsing and people operations out of catalog, one
-   coherent operation/caller set at a time. Preserve batching/query counts.
+   Implemented as PB02a–d: access, items, books, podcastread and mediafiles
+   now own the graph. Then move library browsing and people operations out of
+   catalog, one coherent operation/caller set at a time. Preserve
+   batching/query counts.
 4. Move write workflows with transaction, cleanup, sidecars, events and
    schedules together. Close each adapter before starting another ownership
    expansion. Then migrate progress and remaining store domain records.

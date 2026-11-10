@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,8 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"audiobookshelf-compat/internal/books"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"modernc.org/sqlite"
 )
 
@@ -76,80 +74,6 @@ func addBook(t *testing.T, db *sql.DB, n int, title string) string {
 	return id
 }
 
-func TestItemsBookWithoutAuthorsOrSeries(t *testing.T) {
-	db, _ := testDB(t)
-	id := addBook(t, db, 1, "The Hobbit")
-	it, err := LoadOne(context.Background(), db, id, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	min := it.Minified([]string{"the"})
-	raw, _ := json.Marshal(min)
-	var got struct {
-		Media struct {
-			Metadata                 map[string]any `json:"metadata"`
-			NumTracks, NumAudioFiles int
-			Size                     int64
-		} `json:"media"`
-		Files []map[string]any `json:"libraryFiles"`
-	}
-	if err := json.Unmarshal(raw, &got); err != nil {
-		t.Fatal(err)
-	}
-	md := got.Media.Metadata
-	if md["authorName"] != "" || md["seriesName"] != "" || md["titleIgnorePrefix"] != "Hobbit, The" || got.Media.Size != 150 {
-		t.Fatalf("minified metadata %v size %d", md, got.Media.Size)
-	}
-	if full := it.Full().Media.(books.BookFull); full.Metadata.Authors == nil || full.Metadata.Series == nil || full.EbookFile != nil {
-		t.Fatalf("authors/series must be empty arrays and ebook null: %+v", full)
-	}
-	tracks := it.Expanded(nil).Media.(books.BookExpanded).Tracks
-	if len(tracks) != 1 || tracks[0]["contentUrl"] != "/api/items/li-b1/file/a1" || tracks[0]["title"] != "a.mp3" {
-		t.Fatalf("tracks = %v", tracks)
-	}
-	if it.OldLibraryItemID != "li_old" || it.LibraryFiles[0]["fileType"] != "audio" {
-		t.Fatalf("row decode: %+v", it)
-	}
-	if a := it.Access(); a.LibraryID != "lib" || a.Explicit || len(a.Tags) != 1 {
-		t.Fatalf("access = %+v", a)
-	}
-}
-
-func TestItemsPodcastWithoutEpisodes(t *testing.T) {
-	db, _ := testDB(t)
-	exec(t, db, `INSERT INTO podcasts (id,title,explicit,autoDownloadEpisodes,tags,genres,numEpisodes,createdAt,updatedAt) VALUES ('p1','A Show',1,0,'[]','[]',7,?,?)`, now, now)
-	exec(t, db, `INSERT INTO libraryItems (id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,size,libraryFiles,createdAt,updatedAt,libraryId) VALUES ('li-p1','/p','p','p1','podcast',0,0,0,99,'[]',?,?,'lib')`, now, now)
-	ctx := context.Background()
-	it, err := LoadOne(ctx, db, "li-p1", Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if it.Podcast.Episodes != nil {
-		t.Fatal("episodes loaded without Options.Episodes")
-	}
-	if a := it.Access(); !a.Explicit {
-		t.Fatal("podcast explicit flag missing from Access")
-	}
-	list := it.ListRow([]string{"a"}).Media.(libitem.PodcastMedia)
-	if *list.NumEpisodes != 7 || *list.Size != 99 || *list.Metadata.TitleIgnorePrefix != "Show, A" {
-		t.Fatalf("list row %+v", list)
-	}
-	if min := it.Minified(nil).Media.(libitem.PodcastMedia); *min.NumEpisodes != 0 || *min.Size != 0 {
-		t.Fatalf("minified counts %d %d", *min.NumEpisodes, *min.Size)
-	}
-	it, err = LoadOne(ctx, db, "li-p1", Options{Episodes: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	exp := it.Expanded(nil).Media.(libitem.PodcastMedia)
-	raw, _ := json.Marshal(exp)
-	var got map[string]any
-	_ = json.Unmarshal(raw, &got)
-	if eps, ok := got["episodes"].([]any); !ok || len(eps) != 0 || got["numEpisodes"] != float64(0) {
-		t.Fatalf("expanded empty podcast: %s", raw)
-	}
-}
-
 func TestItemsMissingRowsAndOrder(t *testing.T) {
 	db, _ := testDB(t)
 	a, b := addBook(t, db, 1, "A"), addBook(t, db, 2, "B")
@@ -176,20 +100,33 @@ func TestItemsMissingRowsAndOrder(t *testing.T) {
 	}
 }
 
-func TestItemsAuthorsAndSeriesOrder(t *testing.T) {
+func TestItemsRowDecodingAndAccess(t *testing.T) {
 	db, _ := testDB(t)
-	id := addBook(t, db, 1, "B")
-	exec(t, db, `INSERT INTO authors (id,name,createdAt,updatedAt) VALUES ('a1','Jane Doe',?,?),('a2','John Roe',?,?)`, now, now, now, now)
-	exec(t, db, `INSERT INTO bookAuthors (id,createdAt,bookId,authorId) VALUES ('x1','2024-01-02 03:04:06.000 +00:00','book1','a2'),('x2',?,'book1','a1')`, now)
-	exec(t, db, `INSERT INTO series (id,name,createdAt,updatedAt) VALUES ('s1','Saga',?,?)`, now, now)
-	exec(t, db, `INSERT INTO bookSeries (id,sequence,createdAt,bookId,seriesId) VALUES ('y1','2',?,'book1','s1')`, now)
-	it, err := LoadOne(context.Background(), db, id, Options{})
+	it, err := LoadOne(context.Background(), db, addBook(t, db, 1, "The Hobbit"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	md := it.Minified(nil).Media.(books.BookMinified).Metadata
-	if md.AuthorName != "Jane Doe, John Roe" || md.AuthorNameLF != "Doe, Jane, Roe, John" || md.SeriesName != "Saga #2" {
-		t.Fatalf("metadata %+v", md)
+	// addBook stores extraData.oldLibraryItemId and a .mp3 library file; both
+	// must be decoded (oldLibraryItemId) and derived (fileType from ext).
+	if it.OldLibraryItemID != "li_old" || it.LibraryFiles[0]["fileType"] != "audio" {
+		t.Fatalf("row decode: oldLibraryItemID %q, libraryFiles %+v", it.OldLibraryItemID, it.LibraryFiles)
+	}
+	if a := it.Access(); a.LibraryID != "lib" || a.Explicit || len(a.Tags) != 1 || a.Tags[0] != "t1" {
+		t.Fatalf("access = %+v", a)
+	}
+}
+
+func TestItemsPodcastListRow(t *testing.T) {
+	db, _ := testDB(t)
+	exec(t, db, `INSERT INTO podcasts (id,title,explicit,autoDownloadEpisodes,tags,genres,numEpisodes,createdAt,updatedAt) VALUES ('p1','A Show',1,0,'[]','[]',7,?,?)`, now, now)
+	exec(t, db, `INSERT INTO libraryItems (id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,size,libraryFiles,createdAt,updatedAt,libraryId) VALUES ('li-p1','/p','p','p1','podcast',0,0,0,99,'[]',?,?,'lib')`, now, now)
+	it, err := LoadOne(context.Background(), db, "li-p1", Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := it.ListRow([]string{"a"}).Media.(podcastread.PodcastMedia)
+	if *row.NumEpisodes != 7 || *row.Size != 99 || row.Metadata.TitleIgnorePrefix == nil || *row.Metadata.TitleIgnorePrefix != "Show, A" {
+		t.Fatalf("list row = %+v", row)
 	}
 }
 

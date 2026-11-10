@@ -4,7 +4,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"fmt"
@@ -29,7 +29,7 @@ func (h *Handler) mediaFile(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	var target string
-	for _, file := range store.DecodeJSONSlice[libitem.File](raw) {
+	for _, file := range store.DecodeJSONSlice[mediafiles.File](raw) {
 		if file.Ino() == ino {
 			target = file.Path()
 			break
@@ -75,7 +75,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 	}
 	target := ""
 	if fileID != "" {
-		for _, file := range store.DecodeJSONSlice[libitem.File](raw) {
+		for _, file := range store.DecodeJSONSlice[mediafiles.File](raw) {
 			if file.Ino() == fileID && file.Kind() == filekind.Ebook {
 				target = file.Path()
 				break
@@ -89,7 +89,7 @@ func (h *Handler) ebookFile(w http.ResponseWriter, r *http.Request) error {
 		if err := h.db.QueryRowContext(r.Context(), `SELECT ebookFile FROM books WHERE id=?`, scope.mediaID).Scan(&ebookRaw); err != nil {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		target = libitem.File(store.DecodeJSONObject(ebookRaw)).Path()
+		target = mediafiles.File(store.DecodeJSONObject(ebookRaw)).Path()
 	}
 	if target == "" {
 		return httputil.Status(http.StatusNotFound, "")

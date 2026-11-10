@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 )
 
 // Expected feeds are read off the OPML text by hand: rss outlines with an
@@ -68,8 +68,8 @@ func TestFilterNewSelectsUnseenEpisodesAfterCutoff(t *testing.T) {
 		{Title: "new b", PublishedAt: publishedAt(500), Enclosure: enclosureOf("u6")},
 		{Title: "new c", GUID: ptr("g7"), PublishedAt: publishedAt(600), Enclosure: enclosureOf("u7")},
 	}
-	item := items.Item{Podcast: &libitem.Podcast{Episodes: []libitem.Episode{
-		{GUID: "known"}, {Enclosure: &libitem.Enclosure{URL: "known-url"}},
+	item := items.Item{Podcast: &podcastread.Podcast{Episodes: []podcastread.Episode{
+		{GUID: "known"}, {Enclosure: &podcastread.Enclosure{URL: "known-url"}},
 	}}}
 	titles := func(limit int, after int64) string {
 		var out []string

@@ -17,8 +17,8 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/playlistview"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 )
@@ -612,7 +612,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 // unlike a reloaded playlist whose podcasts have none.
 func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistview.Entry) any {
 	minified, ok := e.LibraryItem.(items.Minified)
-	podcast, isPodcast := minified.Media.(libitem.PodcastMedia)
+	podcast, isPodcast := minified.Media.(podcastread.PodcastMedia)
 	if !ok || !isPodcast {
 		return e.LibraryItem
 	}
@@ -620,7 +620,7 @@ func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistview.Entry) a
 	if err != nil {
 		return e.LibraryItem
 	}
-	loaded, _ := full.Expanded(nil).Media.(libitem.PodcastMedia)
+	loaded, _ := full.Expanded(nil).Media.(podcastread.PodcastMedia)
 	podcast.NumEpisodes, podcast.Size = loaded.NumEpisodes, loaded.Size
 	minified.Media = podcast
 	return minified

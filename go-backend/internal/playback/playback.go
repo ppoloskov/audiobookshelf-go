@@ -34,8 +34,8 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/users"
@@ -301,13 +301,13 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 		}
 	} else {
 		p := it.Podcast
-		out.Title, out.Author, out.CoverPath, out.Metadata = deref(p.Title), deref(p.Author), p.CoverPath, media.(libitem.PodcastMedia).Metadata
+		out.Title, out.Author, out.CoverPath, out.Metadata = deref(p.Title), deref(p.Author), p.CoverPath, media.(podcastread.PodcastMedia).Metadata
 	}
 	if episodeID != "" {
 		if it.Podcast == nil {
 			return nil, sql.ErrNoRows
 		}
-		i := slices.IndexFunc(it.Podcast.Episodes, func(e libitem.Episode) bool { return e.ID == episodeID })
+		i := slices.IndexFunc(it.Podcast.Episodes, func(e podcastread.Episode) bool { return e.ID == episodeID })
 		if i < 0 {
 			return nil, sql.ErrNoRows
 		}

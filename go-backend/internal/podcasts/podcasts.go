@@ -34,9 +34,10 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/playlistview"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textdist"
@@ -302,7 +303,7 @@ func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item ite
 	return httputil.JSON(w, r, h.expanded(r.Context(), item))
 }
 
-func episodeStringField(e libitem.Episode, key string) *string {
+func episodeStringField(e podcastread.Episode, key string) *string {
 	switch key {
 	case "title":
 		return e.Title
@@ -377,13 +378,13 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item items.It
 	return httputil.JSON(w, r, map[string]any{"episodes": found})
 }
 
-func episodeOf(it items.Item, id string) (libitem.Episode, bool) {
+func episodeOf(it items.Item, id string) (podcastread.Episode, bool) {
 	for _, ep := range it.Podcast.Episodes {
 		if ep.ID == id {
 			return ep, true
 		}
 	}
-	return libitem.Episode{}, false
+	return podcastread.Episode{}, false
 }
 
 // knownEpisodes keys an item's episodes by guid and enclosure URL.
@@ -416,7 +417,7 @@ func (h *Handler) expanded(ctx context.Context, it items.Item) items.Expanded {
 // deleteEpisode removes an episode row with its playlist entries and progress,
 // drops its audio file from the item's libraryFiles and recounts numEpisodes.
 func (h *Handler) deleteEpisode(ctx context.Context, item items.Item, episodeID, ino string) error {
-	files := []libitem.File{}
+	files := []mediafiles.File{}
 	for _, f := range h.rawLibraryFiles(ctx, item.ID) {
 		if f.Ino() != ino {
 			files = append(files, f)
@@ -447,12 +448,12 @@ func (h *Handler) deleteEpisode(ctx context.Context, item items.Item, episodeID,
 }
 
 // rawLibraryFiles reads the stored libraryFiles without the derived fileType.
-func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []libitem.File {
+func (h *Handler) rawLibraryFiles(ctx context.Context, itemID string) []mediafiles.File {
 	var raw []byte
 	if err := h.db.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, itemID).Scan(&raw); err != nil {
 		logging.Errorf("[PodcastManager] read libraryFiles of %s: %v", itemID, err)
 	}
-	return store.DecodeJSONSlice[libitem.File](raw)
+	return store.DecodeJSONSlice[mediafiles.File](raw)
 }
 
 func str(s *string) string {

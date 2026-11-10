@@ -42,10 +42,10 @@ function fixture(name, sourcePath, source, extra = {}) {
   });
   return { ...result, output: `${result.stdout || ''}${result.stderr || ''}` };
 }
-function rejects(name, sourcePath, importPath) {
-  const extra = importPath.startsWith('audiobookshelf-compat/internal/')
-    ? { 'internal/catalog/catalog.go': 'package catalog\ntype Stub struct{}\n' } : {};
-  const result = fixture(name, sourcePath, `package fixture\nimport _ "${importPath}"\n`, extra);
+function rejects(name, sourcePath, importPath, extra = {}) {
+  const deps = importPath.startsWith('audiobookshelf-compat/internal/')
+    ? { 'internal/catalog/catalog.go': 'package catalog\ntype Stub struct{}\n', ...extra } : extra;
+  const result = fixture(name, sourcePath, `package fixture\nimport _ "${importPath}"\n`, deps);
   assert.notEqual(result.status, 0, `${name}: forbidden import unexpectedly passed\n${result.output}`);
   assert.match(result.output, /\(depguard\)/, `${name}: missing explicit depguard diagnostic\n${result.output}`);
   assert.match(result.output, new RegExp(importPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${name}: diagnostic did not name forbidden import\n${result.output}`);
@@ -69,6 +69,9 @@ try {
   rejects('foundation-emailsettings-feature', 'internal/emailsettings/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('foundation-items-feature', 'internal/items/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('foundation-books-feature', 'internal/books/fixture.go', 'audiobookshelf-compat/internal/catalog');
+  rejects('podcast-read-feature', 'internal/podcasts/read/fixture.go', 'audiobookshelf-compat/internal/podcasts', {
+    'internal/podcasts/podcasts.go': 'package podcasts\n',
+  });
   rejects('feature-server', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/server');
   rejects('production-httptest', 'internal/scanner/fixture.go', 'net/http/httptest');
   // The rules must permit intended dependencies, not merely reject everything.
@@ -82,6 +85,9 @@ try {
   });
   allows('foundation-leaf', 'internal/store/fixture.go', 'audiobookshelf-compat/internal/dbtime', {
     'internal/dbtime/dbtime.go': 'package dbtime\ntype Clock struct{}\n',
+  });
+  allows('items-podcast-read', 'internal/items/fixture.go', 'audiobookshelf-compat/internal/podcasts/read', {
+    'internal/podcasts/read/read.go': 'package read\ntype Podcast struct{}\n',
   });
   allows('feature-leaf', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/httputil', {
     'internal/httputil/leaf.go': 'package httputil\ntype Helper struct{}\n',

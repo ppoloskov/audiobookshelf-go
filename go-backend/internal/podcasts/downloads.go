@@ -23,8 +23,9 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -342,10 +343,10 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	}
 	mime := filekind.AudioMime(ext)
 	mtime := float64(st.ModTime().UnixMilli())
-	fileMeta := libitem.FileMetadata{Filename: filename, Ext: ext, Path: filepath.ToSlash(path), RelPath: rel, Size: float64(size), MtimeMs: mtime, CtimeMs: mtime, BirthtimeMs: mtime}
-	audio := libitem.AudioFile{Index: 1, Ino: ino, Metadata: fileMeta, AddedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Format: format, Duration: duration, BitRate: &bitRate,
-		Codec: &stream.Codec, TimeBase: &stream.TimeBase, Channels: &stream.Channels, ChannelLayout: &stream.ChannelLayout, Chapters: []libitem.AudioChapter{}, MetaTags: map[string]string{}, MimeType: mime}
-	libFile := libitem.File{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
+	fileMeta := mediafiles.FileMetadata{Filename: filename, Ext: ext, Path: filepath.ToSlash(path), RelPath: rel, Size: float64(size), MtimeMs: mtime, CtimeMs: mtime, BirthtimeMs: mtime}
+	audio := mediafiles.AudioFile{Index: 1, Ino: ino, Metadata: fileMeta, AddedAt: now.UnixMilli(), UpdatedAt: now.UnixMilli(), Format: format, Duration: duration, BitRate: &bitRate,
+		Codec: &stream.Codec, TimeBase: &stream.TimeBase, Channels: &stream.Channels, ChannelLayout: &stream.ChannelLayout, Chapters: []mediafiles.AudioChapter{}, MetaTags: map[string]string{}, MimeType: mime}
+	libFile := mediafiles.File{"ino": ino, "metadata": fileMeta, "isSupplementary": nil, "addedAt": now.UnixMilli(), "updatedAt": now.UnixMilli(), "fileType": "audio"}
 	episodeID, err := ids.New()
 	if err != nil {
 		return err
@@ -382,7 +383,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	if err = tx.QueryRowContext(d.ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, d.item.ID).Scan(&rawFiles); err != nil {
 		return err
 	}
-	var files []libitem.File
+	var files []mediafiles.File
 	if err = json.Unmarshal([]byte(rawFiles), &files); err != nil {
 		return err
 	}
@@ -420,7 +421,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	h.emit.ToAdmins("item_updated", expanded)
 	if episode, ok := episodeOf(updated, episodeID); ok {
 		h.emit.ToAll("episode_added", struct {
-			libitem.EpisodeExpanded
+			podcastread.EpisodeExpanded
 			LibraryItem items.Expanded `json:"libraryItem"`
 		}{episode.Expanded(d.item.ID), expanded})
 		if d.auto { // PodcastManager.js:257: notifications only for auto downloaded episodes
@@ -432,7 +433,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 
 // notifyEpisodeDownloaded fires onPodcastEpisodeDownloaded
 // (NotificationManager.js:21-46); delivery is not awaited, as upstream.
-func (h *Handler) notifyEpisodeDownloaded(item items.Item, ep libitem.Episode) {
+func (h *Handler) notifyEpisodeDownloaded(item items.Item, ep podcastread.Episode) {
 	p := item.Podcast
 	libraryName := "Unknown"
 	_ = h.db.QueryRow(`SELECT name FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryName)
@@ -489,7 +490,7 @@ func (h *Handler) trimOldestEpisode(ctx context.Context, item items.Item, justAd
 		if id == justAdded {
 			continue
 		}
-		audio := libitem.File(store.DecodeJSONObject([]byte(audioRaw.String)))
+		audio := mediafiles.File(store.DecodeJSONObject([]byte(audioRaw.String)))
 		if path := audio.Path(); path != "" {
 			candidate = &old{id, path, audio.Ino()}
 			break

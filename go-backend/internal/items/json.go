@@ -1,6 +1,6 @@
 // Package items owns library-item identity, the batched item loader and every
-// common item response envelope. Book/podcast media projections still live in
-// libitem until the media domains are extracted.
+// common item response envelope. It composes the concrete book and podcast
+// read packages without owning their media models.
 package items
 
 import (
@@ -8,7 +8,8 @@ import (
 
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/books"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
+	"audiobookshelf-compat/internal/podcasts/read"
 )
 
 // Item is a library item row with its media. Exactly one of Book and Podcast
@@ -36,21 +37,14 @@ type Item struct {
 	OldLibraryItemID string
 	// LibraryFiles is passed through opaquely; each entry's fileType is derived
 	// from metadata.ext at load time.
-	LibraryFiles []libitem.File
+	LibraryFiles []mediafiles.File
 
 	Book    *books.Book
-	Podcast *libitem.Podcast
+	Podcast *podcastread.Podcast
 }
 
-// Options selects the optional associations Load reads.
-type Options struct {
-	// Episodes loads Podcast.Episodes (createdAt ascending). List pages must
-	// leave it unset.
-	Episodes bool
-	// EpisodeIDs, when set with Episodes, limits the episodes loaded to these
-	// ids (a shelf needs only the episodes it shows).
-	EpisodeIDs []string
-}
+// Options configures optional podcast episode loading.
+type Options = podcastread.Options
 
 // JSONNull sets a decorator to an explicit JSON null (the zero value omits it).
 var JSONNull = json.RawMessage("null")
@@ -93,22 +87,22 @@ type Extras struct {
 // Full is GET /api/items/:id without expanded (LibraryItem.toOldJSON).
 type Full struct {
 	Head
-	LastScan     *int64         `json:"lastScan,omitempty"`
-	ScanVersion  *string        `json:"scanVersion"`
-	LibraryFiles []libitem.File `json:"libraryFiles"`
-	Media        any            `json:"media"` // books.BookFull or libitem.PodcastMedia
+	LastScan     *int64            `json:"lastScan,omitempty"`
+	ScanVersion  *string           `json:"scanVersion"`
+	LibraryFiles []mediafiles.File `json:"libraryFiles"`
+	Media        any               `json:"media"` // books.BookFull or podcastread.PodcastMedia
 	Extras
 }
 
 // Expanded is toOldJSONExpanded: item detail, socket events, playlists.
 type Expanded struct {
 	Head
-	LastScan     *int64         `json:"lastScan"`
-	ScanVersion  *string        `json:"scanVersion"`
-	LibraryFiles []libitem.File `json:"libraryFiles"`
-	NumFiles     int            `json:"numFiles"`
-	Size         *int64         `json:"size,omitempty"`
-	Media        any            `json:"media"` // books.BookExpanded or libitem.PodcastMedia
+	LastScan     *int64            `json:"lastScan"`
+	ScanVersion  *string           `json:"scanVersion"`
+	LibraryFiles []mediafiles.File `json:"libraryFiles"`
+	NumFiles     int               `json:"numFiles"`
+	Size         *int64            `json:"size,omitempty"`
+	Media        any               `json:"media"` // books.BookExpanded or podcastread.PodcastMedia
 	Extras
 }
 
@@ -117,7 +111,7 @@ type Minified struct {
 	Head
 	NumFiles int    `json:"numFiles"`
 	Size     *int64 `json:"size,omitempty"`
-	Media    any    `json:"media"` // books.BookMinified or libitem.PodcastMedia
+	Media    any    `json:"media"` // books.BookMinified or podcastread.PodcastMedia
 	Extras
 }
 
@@ -184,7 +178,7 @@ func (it Item) Minified(prefixes []string) Minified {
 // (LibraryItem.getByFilterAndSort, server/models/LibraryItem.js:310-312).
 func (it Item) ListRow(prefixes []string) Minified {
 	m := it.Minified(prefixes)
-	if p, ok := m.Media.(libitem.PodcastMedia); ok {
+	if p, ok := m.Media.(podcastread.PodcastMedia); ok {
 		n := it.Podcast.NumEpisodes
 		size := int64(0)
 		if it.Size != nil {
@@ -207,7 +201,7 @@ func (h Head) access(media any) access.Access {
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
 	case books.BookExpanded:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case libitem.PodcastMedia:
+	case podcastread.PodcastMedia:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
 	}
 	return a
@@ -222,7 +216,7 @@ func mediaID(media any) string {
 		return m.ID
 	case books.BookExpanded:
 		return m.ID
-	case libitem.PodcastMedia:
+	case podcastread.PodcastMedia:
 		return m.ID
 	}
 	return ""

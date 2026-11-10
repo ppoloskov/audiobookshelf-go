@@ -19,9 +19,9 @@ import (
 	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -159,15 +159,15 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		}
 		li := it.Minified(prefixes)
 		li.ProgressLastUpdate, _ = dbtime.Millis(p.updated).(int64)
-		if media, ok := li.Media.(libitem.PodcastMedia); ok && p.typ == "podcastEpisode" {
+		if media, ok := li.Media.(podcastread.PodcastMedia); ok && p.typ == "podcastEpisode" {
 			// findAllExpandedWhere loads the episodes, so the minified media
 			// reports their count and total size (MeController.js:490).
-			loadedMedia, _ := it.Expanded(prefixes).Media.(libitem.PodcastMedia)
+			loadedMedia, _ := it.Expanded(prefixes).Media.(podcastread.PodcastMedia)
 			media.NumEpisodes, media.Size = loadedMedia.NumEpisodes, loadedMedia.Size
 			li.Media = media
 			// Upstream sends episode.toOldJSON, not the expanded form
 			// (MeController.js getAllLibraryItemsInProgress).
-			if i := slices.IndexFunc(it.Podcast.Episodes, func(e libitem.Episode) bool { return e.ID == p.mediaID }); i >= 0 {
+			if i := slices.IndexFunc(it.Podcast.Episodes, func(e podcastread.Episode) bool { return e.ID == p.mediaID }); i >= 0 {
 				li.RecentEpisode = it.Podcast.Episodes[i].JSON(it.ID)
 			}
 		}

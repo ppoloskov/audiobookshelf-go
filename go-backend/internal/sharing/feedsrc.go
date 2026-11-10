@@ -14,7 +14,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 )
 
 // feedSource is the feed-shaped view of a library item, collection or series:
@@ -257,7 +257,7 @@ func (h *Handler) loadItemSource(ctx context.Context, id string) (*feedSource, e
 
 // podcastSource is Feed.getFeedObjForLibraryItem for a podcast plus
 // FeedEpisode.createFromPodcastEpisodes (server/models/FeedEpisode.js:87).
-func podcastSource(p *libitem.Podcast, src *feedSource) {
+func podcastSource(p *podcastread.Podcast, src *feedSource) {
 	src.Title, src.Author, src.Description, src.CoverPath, src.Language = deref(p.Title), nullable(p.Author), nullable(p.Description), nullable(p.CoverPath), nullable(p.Language)
 	src.PodcastType = deref(p.Type)
 	src.Explicit = p.Explicit

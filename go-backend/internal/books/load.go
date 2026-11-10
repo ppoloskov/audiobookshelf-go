@@ -6,7 +6,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -37,8 +37,8 @@ func LoadMany(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book, 
 			b.Duration = &n
 		}
 		b.Narrators, b.Genres, b.Tags = store.DecodeJSONSlice[string](narrators), store.DecodeJSONSlice[string](genres), store.DecodeJSONSlice[string](tags)
-		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[libitem.File](audio), store.DecodeJSONSlice[map[string]any](chapters)
-		if b.Ebook = libitem.File(store.DecodeJSONObject(ebook)); len(b.Ebook) == 0 {
+		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[mediafiles.File](audio), store.DecodeJSONSlice[map[string]any](chapters)
+		if b.Ebook = mediafiles.File(store.DecodeJSONObject(ebook)); len(b.Ebook) == 0 {
 			b.Ebook = nil
 		}
 		b.Authors, b.Series = []Author{}, []SeriesRef{}

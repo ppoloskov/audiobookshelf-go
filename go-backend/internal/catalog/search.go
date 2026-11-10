@@ -5,7 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
 	"context"
@@ -139,8 +139,8 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	for i, x := range refs {
 		item := expanded[i]
 		item.RecentEpisode = items.JSONNull
-		if media, ok := item.Media.(libitem.PodcastMedia); ok {
-			episodes, _ := media.Episodes.([]libitem.EpisodeExpanded)
+		if media, ok := item.Media.(podcastread.PodcastMedia); ok {
+			episodes, _ := media.Episodes.([]podcastread.EpisodeExpanded)
 			for _, ep := range episodes {
 				if ep.ID == x.episodeID {
 					item.RecentEpisode = ep
@@ -160,9 +160,9 @@ type libraryItemHit struct {
 // withoutEpisodes empties a podcast media value's episodes, count and size, as
 // the search responses send podcasts.
 func withoutEpisodes(media any) any {
-	if p, ok := media.(libitem.PodcastMedia); ok {
+	if p, ok := media.(podcastread.PodcastMedia); ok {
 		zero := int64(0)
-		p.Episodes, p.NumEpisodes, p.Size = []libitem.EpisodeExpanded{}, &zero, &zero
+		p.Episodes, p.NumEpisodes, p.Size = []podcastread.EpisodeExpanded{}, &zero, &zero
 		return p
 	}
 	return media

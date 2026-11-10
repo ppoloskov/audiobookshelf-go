@@ -2,14 +2,14 @@ package scanner
 
 import (
 	"audiobookshelf-compat/internal/filekind"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"encoding/json"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-type libraryFileMetadata = libitem.FileMetadata
+type libraryFileMetadata = mediafiles.FileMetadata
 
 // libraryFile is one entry of libraryItems.libraryFiles
 // (server/objects/files/LibraryFile.js:22-30).

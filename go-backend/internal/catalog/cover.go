@@ -10,8 +10,8 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
@@ -459,7 +459,7 @@ func (h *Handler) updateCover(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	valid := false
-	for _, file := range store.DecodeJSONSlice[libitem.File](raw) {
+	for _, file := range store.DecodeJSONSlice[mediafiles.File](raw) {
 		if file.Path() == body.Cover {
 			valid = true
 			break

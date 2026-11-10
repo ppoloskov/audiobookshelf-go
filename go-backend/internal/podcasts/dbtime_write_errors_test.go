@@ -9,7 +9,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -40,7 +40,7 @@ func TestManualCheckNewReturns500WhenEpisodeCheckWriteFails(t *testing.T) {
 	}
 
 	feedURL := feed.URL + "/rss"
-	item := items.Item{ID: "pod-1", MediaID: "pod-1", Podcast: &libitem.Podcast{FeedURL: &feedURL}}
+	item := items.Item{ID: "pod-1", MediaID: "pod-1", Podcast: &podcastread.Podcast{FeedURL: &feedURL}}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/checknew?limit=3", nil)
 	r = r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"}))

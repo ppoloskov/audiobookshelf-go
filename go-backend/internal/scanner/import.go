@@ -4,7 +4,6 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/playlistview"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -70,8 +70,8 @@ type planInput struct {
 	now     string // DB-format time of this import
 
 	fileDiff                   libraryFileDiff
-	audio                      []libitem.AudioFile // probed or kept entries, in file order
-	scannedNew                 []string            // audio paths new to an existing book
+	audio                      []mediafiles.AudioFile // probed or kept entries, in file order
+	scannedNew                 []string               // audio paths new to an existing book
 	md                         bookMetadata
 	title, author, series, seq string
 
@@ -94,7 +94,7 @@ type itemPlan struct {
 	added   bool
 	updated bool // the import result's "updated" flag
 
-	chapters     any // []libitem.AudioChapter, or the sidecar's chapters verbatim
+	chapters     any // []mediafiles.AudioChapter, or the sidecar's chapters verbatim
 	authors      []string
 	duration     float64
 	size         int64
@@ -170,7 +170,7 @@ func plan(in planInput) itemPlan {
 	return p
 }
 
-func planEpisodes(audio []libitem.AudioFile) []episodePlan {
+func planEpisodes(audio []mediafiles.AudioFile) []episodePlan {
 	out := make([]episodePlan, 0, len(audio))
 	for i, af := range audio {
 		filename := audioFilename(af)
@@ -185,7 +185,7 @@ func (s *Scanner) gather(ctx context.Context, l library, g *group, force bool) (
 	added := g.old == nil
 	in.itemID, in.mediaID = ids.Must(), ids.Must()
 	var stored []libraryFile
-	var oldAudio []libitem.AudioFile
+	var oldAudio []mediafiles.AudioFile
 	var oldID string
 	if !added {
 		o := g.old
@@ -253,10 +253,10 @@ func (s *Scanner) resolveMetadata(in *planInput, oldID string) {
 // probeFiles builds the audio entries: unchanged files keep their stored
 // entry untouched, as BookScanner.rescanExistingBookLibraryItem only rescans
 // added or modified files (BookScanner.js:68-96); the rest are probed.
-func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []libitem.AudioFile) error {
+func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []mediafiles.AudioFile) error {
 	g, added := in.g, in.old == nil
 	touched := in.fileDiff.touchedPaths()
-	in.audio = make([]libitem.AudioFile, 0, len(g.files))
+	in.audio = make([]mediafiles.AudioFile, 0, len(g.files))
 	for _, f := range g.files {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -264,7 +264,7 @@ func (s *Scanner) probeFiles(ctx context.Context, in *planInput, oldAudio []libi
 		if in.itemIno == "" {
 			in.itemIno = inode(f.info)
 		}
-		var prior *libitem.AudioFile
+		var prior *mediafiles.AudioFile
 		if !added {
 			prior = findStoredAudio(oldAudio, f.path, inode(f.info))
 			if !touched[f.path] && prior != nil {

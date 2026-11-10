@@ -6,7 +6,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -245,9 +245,9 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	if err := h.db.QueryRowContext(r.Context(), `SELECT li.libraryFiles,b.audioFiles,b.ebookFile FROM libraryItems li LEFT JOIN books b ON b.id=li.mediaId WHERE li.id=?`, itemID).Scan(&libraryFilesRaw, &audioRaw, &ebookRaw); err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	files := store.DecodeJSONSlice[libitem.File](libraryFilesRaw)
-	var removed libitem.File
-	remaining := make([]libitem.File, 0, len(files))
+	files := store.DecodeJSONSlice[mediafiles.File](libraryFilesRaw)
+	var removed mediafiles.File
+	remaining := make([]mediafiles.File, 0, len(files))
 	for _, f := range files {
 		if f.Ino() == fileID {
 			removed = f
@@ -271,14 +271,14 @@ func (h *Handler) deleteLibraryFile(w http.ResponseWriter, r *http.Request) erro
 	defer tx.Rollback()
 	now := dbtime.Now()
 	if scope.mediaType == "book" {
-		audio := store.DecodeJSONSlice[libitem.File](audioRaw)
-		nextAudio := make([]libitem.File, 0, len(audio))
+		audio := store.DecodeJSONSlice[mediafiles.File](audioRaw)
+		nextAudio := make([]mediafiles.File, 0, len(audio))
 		for _, f := range audio {
 			if f.Ino() != fileID {
 				nextAudio = append(nextAudio, f)
 			}
 		}
-		ebookChanged := libitem.File(store.DecodeJSONObject(ebookRaw)).Ino() == fileID
+		ebookChanged := mediafiles.File(store.DecodeJSONObject(ebookRaw)).Ino() == fileID
 		if len(nextAudio) != len(audio) || ebookChanged {
 			var ebookValue any
 			if !ebookChanged {

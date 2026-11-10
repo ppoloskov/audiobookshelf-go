@@ -8,7 +8,7 @@ import (
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -60,7 +60,7 @@ func (h *Handler) libraryDownloadQueue(libraryID string) EpisodeDownloadQueue {
 
 // recentEpisode is an expanded episode with its bare podcast and library.
 type recentEpisode struct {
-	libitem.EpisodeExpanded
+	podcastread.EpisodeExpanded
 	Podcast   any    `json:"podcast"`
 	LibraryID string `json:"libraryId"`
 }

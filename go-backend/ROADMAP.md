@@ -39,11 +39,15 @@
 
 ### PB02 · Catalog read graph (2026-11-10)
 
-- [ ] IN PROGRESS — first bounded slice ACCEPTED at `7c2a1c0e`: `Access`,
+- [x] DONE 2026-11-10 — first bounded slice ACCEPTED at `7c2a1c0e`: `Access`,
   its permission-only `LoadAccess` query and `ItemAccess`/`CanReadItem` now
   live in `internal/access`; `libitem` item envelopes expose
   `access.Access`. This removed the `access` → `libitem` dependency;
-  `libitem` now depends on `access`.
+  `libitem` now depends on `access`. DONE with the fourth slice below: the
+  catalog read graph is complete (`access` permissions, `items`
+  composition, `books` and `podcasts/read` media owners, `mediafiles`
+  shared types, `libitem` deleted) and every architect-verified check
+  passed on each slice.
 - [ ] IN PROGRESS — second bounded slice ACCEPTED 2026-11-10: common
   library-item identity, the
   batched loader and the common response envelopes (`Item`, `Options`,
@@ -75,13 +79,41 @@
 - Accepted PB02c delta: +29 handwritten LOC and −2 complexity, with
   high-complexity functions, maps and `[]any` unchanged. Only the LOC and
   complexity baseline fields were updated.
-- Next slice after explicit handover: extract podcast media ownership into
-  `internal/podcasts`, then remove the remaining `libitem` media package
-  without changing `items` composition or stored-row semantics. That slice
-  must also close the test-placement follow-up: give `books` (and the
-  podcast owner) direct projection tests, or move the separable
-  book-projection assertions out of `items_test.go`, so each media owner
-  is tested at its own boundary.
+- [ ] IN REVIEW — fourth bounded slice: podcast media ownership moved into
+  the foundation read subpackage `internal/podcasts/read`; the existing
+  `internal/podcasts` feature keeps HTTP/write paths and consumes the read
+  package, so `items` imports a foundation rather than a feature. Shared
+  `File`/`AudioFile`/`FileMetadata`/`AudioChapter` moved to the
+  `internal/mediafiles` leaf. `libitem` is deleted. `items` composes
+  `books` + `podcastread` + `mediafiles`; no feature-to-feature import or
+  cycle remains. Architect rerun verified: gofmt, build, vet, the full
+  suite with the documented FFmpeg prefix (49 packages), `-race` across
+  all thirteen affected packages, golangci-lint v2.15.0 (0 issues), 24
+  dependency fixtures, `make ratchet` +0 and dbnest. Review rulings:
+  `mediafiles` approved as the shared file/audio representation leaf
+  (consumed by books, podcasts/read, items, scanner and audiotools)
+  rather than `store`, which stays connection/lifecycle-only;
+  `podcasts/read` approved as a foundation read subpackage with
+  fixture rules both ways (`items` → `podcasts/read` allowed,
+  `podcasts/read` → feature rejected). Architect acceptance restored the
+  items row-decode/access wiring assertions dropped by the test split
+  (`TestItemsRowDecodingAndAccess`: extraData `oldLibraryItemId`,
+  libraryFiles fileType derivation, `Item.Access()` book wiring); no
+  metric change, as test lines are outside the ratchet's production LOC.
+- Test placement closed with the split: `books` has direct `LoadMany` and
+  projection tests, `podcasts/read` has direct loader/projection/episode
+  tests, and `items` retains common item composition/list-row/query
+  tests plus the restored row-decode/access wiring test. No mixed-media
+  test package remains.
+- Accepted PB02d delta: +15 handwritten LOC with complexity,
+  high-complexity functions, maps and `[]any` unchanged. Only the LOC
+  baseline field was updated. Checks: gofmt, build, vet, affected package
+  tests, full suite with the documented FFmpeg prefix, targeted races,
+  golangci-lint (0 issues), 24 dependency fixtures, `make ratchet` and
+  dbnest.
+- The catalog read graph is complete. Next after explicit handover:
+  people (author/series) ownership, then library browsing/search/shelves,
+  per the package-boundary sequence.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);

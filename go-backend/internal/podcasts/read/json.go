@@ -1,8 +1,78 @@
-package libitem
+// Package podcastread owns the podcast/episode media model, its stored-row
+package podcastread
 
 import (
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/textsort"
 )
+
+// Podcast is a podcasts row. Episodes is nil unless the loader requested them;
+// NumEpisodes is the stored column.
+type Podcast struct {
+	ID                       string
+	Title                    *string
+	Author                   *string
+	Description              *string
+	ReleaseDate              *string
+	FeedURL                  *string
+	ImageURL                 *string
+	ITunesPageURL            *string
+	ITunesID                 *string
+	ITunesArtistID           *string
+	Language                 *string
+	Type                     *string
+	Explicit                 bool
+	AutoDownloadEpisodes     bool
+	AutoDownloadSchedule     *string
+	LastEpisodeCheck         *int64 // nil when NULL or 0
+	MaxEpisodesToKeep        int64
+	MaxNewEpisodesToDownload int64
+	CoverPath                *string
+	Tags                     []string
+	Genres                   []string
+	NumEpisodes              int64
+
+	Episodes []Episode
+}
+
+// Episode is a podcastEpisodes row.
+type Episode struct {
+	ID           string
+	PodcastID    string
+	OldEpisodeID string
+	GUID         string
+	Index        *int64
+	Season       *string
+	Episode      *string
+	EpisodeType  *string
+	Title        *string
+	Subtitle     *string
+	Description  *string
+	PubDate      *string
+	Enclosure    *Enclosure
+	PublishedAt  *int64 // nil when NULL or 0
+	AddedAt      *int64
+	UpdatedAt    *int64
+	Chapters     []map[string]any
+	AudioFile    mediafiles.File
+}
+
+// Enclosure is the feed enclosure of an episode; Length is the decimal size.
+type Enclosure struct {
+	URL    string  `json:"url"`
+	Type   *string `json:"type"`
+	Length *string `json:"length"`
+}
+
+// Options selects the optional associations Load reads.
+type Options struct {
+	// Episodes loads Podcast.Episodes (createdAt ascending). List pages must
+	// leave it unset.
+	Episodes bool
+	// EpisodeIDs, when set with Episodes, limits the episodes loaded to these
+	// ids (a shelf needs only the episodes it shows).
+	EpisodeIDs []string
+}
 
 // ---- podcasts ----
 
@@ -60,7 +130,7 @@ type EpisodeJSON struct {
 	GUID          *string          `json:"guid"`
 	PubDate       *string          `json:"pubDate"`
 	Chapters      []map[string]any `json:"chapters"`
-	AudioFile     File             `json:"audioFile"`
+	AudioFile     mediafiles.File  `json:"audioFile"`
 	PublishedAt   *int64           `json:"publishedAt"`
 	AddedAt       *int64           `json:"addedAt"`
 	UpdatedAt     *int64           `json:"updatedAt"`

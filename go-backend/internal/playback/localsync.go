@@ -12,8 +12,8 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -125,7 +125,7 @@ func overlayMetadata(base any, client json.RawMessage) any {
 	case books.BookMetadataFull:
 		_ = unmarshalLoose(client, &m)
 		return m
-	case libitem.PodcastMetadata:
+	case podcastread.PodcastMetadata:
 		_ = unmarshalLoose(client, &m)
 		m.TitleIgnorePrefix = nil
 		return m

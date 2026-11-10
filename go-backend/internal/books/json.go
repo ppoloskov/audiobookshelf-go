@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/textsort"
@@ -45,9 +45,9 @@ type Book struct {
 	Narrators     []string
 	Genres        []string
 	Tags          []string
-	AudioFiles    []libitem.File
+	AudioFiles    []mediafiles.File
 	Chapters      []map[string]any
-	Ebook         libitem.File // nil when the book has no ebook file
+	Ebook         mediafiles.File // nil when the book has no ebook file
 
 	Authors []Author
 	Series  []SeriesRef
@@ -107,14 +107,14 @@ type BookMetadataExpanded struct {
 }
 
 type BookFull struct {
-	ID            string           `json:"id"`
-	LibraryItemID string           `json:"libraryItemId"`
-	Metadata      BookMetadataFull `json:"metadata"`
-	CoverPath     *string          `json:"coverPath"`
-	Tags          []string         `json:"tags"`
-	AudioFiles    []libitem.File   `json:"audioFiles"`
-	Chapters      []map[string]any `json:"chapters"`
-	EbookFile     libitem.File     `json:"ebookFile"`
+	ID            string            `json:"id"`
+	LibraryItemID string            `json:"libraryItemId"`
+	Metadata      BookMetadataFull  `json:"metadata"`
+	CoverPath     *string           `json:"coverPath"`
+	Tags          []string          `json:"tags"`
+	AudioFiles    []mediafiles.File `json:"audioFiles"`
+	Chapters      []map[string]any  `json:"chapters"`
+	EbookFile     mediafiles.File   `json:"ebookFile"`
 }
 
 type BookMinified struct {
@@ -142,9 +142,9 @@ type BookExpanded struct {
 	Size          int64                `json:"size"`
 	EbookFormat   json.RawMessage      `json:"ebookFormat,omitempty"`
 	LibraryItemID string               `json:"libraryItemId"`
-	AudioFiles    []libitem.File       `json:"audioFiles"`
+	AudioFiles    []mediafiles.File    `json:"audioFiles"`
 	Chapters      []map[string]any     `json:"chapters"`
-	EbookFile     libitem.File         `json:"ebookFile"`
+	EbookFile     mediafiles.File      `json:"ebookFile"`
 	Tracks        []map[string]any     `json:"tracks"`
 }
 
