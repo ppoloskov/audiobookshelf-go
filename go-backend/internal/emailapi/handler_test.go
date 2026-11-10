@@ -1,6 +1,7 @@
 package emailapi
 
 import (
+	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/store"
 	"bufio"
@@ -62,6 +63,41 @@ func TestEmailSettingsUseUpstreamDefaultsAndPersistFirstUpdate(t *testing.T) {
 	var saved map[string]any
 	if err := json.Unmarshal([]byte(persisted), &saved); err != nil || saved["secure"] != true || saved["host"] != "smtp.example.invalid" || saved["port"] != float64(587) {
 		t.Fatalf("persisted settings %#v, decode error %v", saved, err)
+	}
+}
+
+func TestEmailSettingsPatchUsesTypedDeviceCoercion(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:email-settings-patch-devices?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE settings(key TEXT PRIMARY KEY,value JSON,createdAt DATETIME NOT NULL,updatedAt DATETIME NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	h := New(db, nil)
+	w := httptest.NewRecorder()
+	body := `{"port":"invalid","ereaderDevices":[{"name":"kindle","email":"reader@example.test","availabilityOption":"bogus","users":["other"],"extra":"kept"}]}`
+	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/emails/settings", strings.NewReader(body)), store.User{Type: "admin"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("PATCH status %d: %s", w.Code, w.Body)
+	}
+	var response struct {
+		Settings struct {
+			Port    int              `json:"port"`
+			Devices []map[string]any `json:"ereaderDevices"`
+		} `json:"settings"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Settings.Port != 465 || len(response.Settings.Devices) != 1 {
+		t.Fatalf("patched settings = %#v", response.Settings)
+	}
+	device := response.Settings.Devices[0]
+	if device["availabilityOption"] != "adminOrUp" || len(jsonvalue.Array(device["users"])) != 0 || device["extra"] != "kept" {
+		t.Fatalf("patched device = %#v", device)
 	}
 }
 
@@ -247,7 +283,8 @@ func TestSendMailAgainstLocalSMTPServer(t *testing.T) {
 	host, portText, _ := net.SplitHostPort(listener.Addr().String())
 	var port int
 	_, _ = fmt.Sscan(portText, &port)
-	settings := map[string]any{"host": host, "port": port, "secure": false, "rejectUnauthorized": true, "fromAddress": "abs@example.test"}
+	from := "abs@example.test"
+	settings := emailsettings.Settings{Host: &host, Port: emailsettings.Port(port), RejectUnauthorized: true, FromAddress: &from}
 	if err := sendMail(context.Background(), settings, "reader@example.test", "Test subject", "Success!", nil); err != nil {
 		t.Fatal(err)
 	}

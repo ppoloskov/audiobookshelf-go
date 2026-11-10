@@ -8,18 +8,23 @@ owners, alternatives, migration hazards and required proof (ROADMAP PB01).
 The first bounded ownership packet is ACCEPTED (2026-11-10): email
 defaults and e-reader device policy moved from `settingsdoc` to
 `internal/emailsettings`; `emailapi`, `identity` and `userapi`
-consume that owner, while `settingsdoc` retains only generic `Load`/`Save` row
-mechanics. Architect rerun verified build, vet, the full suite with the
-documented FFmpeg prefix, lint, dependency fixtures and `make ratchet` at +0
-on every metric; the identity nil→defaults loading change is unobservable.
-Catalog decomposition and unrelated settings behavior were not changed.
-Next packets, in order: (1) convert the email-settings document to a struct
-with json tags per the new agents.md rule 1 — device entries stay
-`map[string]any` for unknown-key round-trip parity — which also removes the
-unchecked `device["email"].(string)` assertion in emailapi sendEbook; (2)
-after explicit handover, the catalog books/podcasts/common-item read
-dependency graph, migrating existing libitem models without a second
-implementation. Earlier read-only review confirmed
+consume that owner, while `settingsdoc` retains generic row mechanics.
+The second packet is ACCEPTED (2026-11-10): `emailsettings.Settings` is a
+typed json-tagged document, PATCH
+decodes onto the loaded struct, device maps preserve unknown fields, the SMTP
+password is redacted by `String`, `settingsdoc.LoadInto` supports typed
+documents, and sendEbook no longer asserts the device email type. Revised
+accepted growth after the port-parity fix is +115 handwritten LOC and +13
+complexity, offset by −10 `map[string]any`, −6 `[]any` and −1 function over 15;
+only those measured baseline fields changed. Stored ports now round-trip
+verbatim and PATCH applies upstream `Number()` coercion rather than the old Go
+clamp; the clamp removal is a parity restoration. Residual risks: a malformed
+stored `ereaderDevices` non-object element now returns 500 instead of being
+ignored (unreachable through validated TS/Go writes), and the pre-existing
+`name`/`email != nil` versus JS truthiness mismatch in device visibility stays
+a separate follow-up parity nit. Next after explicit handover: the catalog
+books/podcasts/common-item read dependency graph, migrating existing libitem
+models without a second implementation. Earlier read-only review confirmed
 progressdto, playlistview, settingsdoc and store ownership problems; libitem
 and itemwrite already consolidate useful shared behavior and must not be
 duplicated during extraction. The blanket feature import ban was not weakened:
@@ -36,11 +41,11 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Base:** local `master` now includes upstream `fc5aa760963c639f61ccfe9ceeb6a16c51b7b714`; the reviewed source changes are still uncommitted. The current working tree contains Wave G, R1, RT1 and QM01, plus the user's other in-scope WIP.
-- **Local acceptance:** the canonical worktree passes `go test ./... -count=1` with real Socket.IO required, `go build ./...`, `go vet ./...`, golangci-lint v2.15.0, `make ratchet`, `make sqlc SQLC=/Users/paul/go/bin/sqlc`, `go run ./tools/dbnest`, required Node/Python source and contract checks, Linux amd64/arm64 builds, and the TS rollback journey. See the [final validation report](docs/refactor-final-validation-20261110.md) for exact environment, commands and results.
-- **Metrics:** 38,119 handwritten LOC / 8,531 complexity / 115 functions over 15 / 461 `map[string]any` / 202 `[]any`. The canonical worktree baseline matches these measured values; no other baseline fields changed.
+- **Base:** local `master` contains the accepted first email-settings packet at `9d2ac6a7`, plus the accepted typed email-settings packet in this commit.
+- **Local acceptance:** the current worktree passes `go build ./...`, `go vet ./...`, `go test ./... -count=1` with the documented FFmpeg prefix, targeted `-race` tests, golangci-lint v2.15.0, dependency-boundary fixtures and `make ratchet`.
+- **Metrics:** 38,234 handwritten LOC / 8,544 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. The revised typed-packet growth updated only those measured baseline fields.
 - **QM01:** empty converted match lists preserve existing links; duplicate series updates run sequentially; missing sequence preserves the current position; absent, null, empty and numeric text stay distinct. The actual QuickMatch adapter stores raw zero as `"0"`; PATCH and scanner adapters retain their respective null/absence rules. Existing Go characterization preserves event ordering.
-- **Git state:** ROADMAP, handover, `internal/catalog/quickmatch.go` and `ratchet-baseline.json` still have index stages 1/2/3. The current worktree versions are the reviewed resolution candidates; stage only the explicit approved paths and preserve all other user WIP. Commit/push and remote CI are not yet complete. No deployment is claimed.
+- **Git state:** the accepted first packet is committed at `9d2ac6a7`; the accepted typed email-settings packet, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
 
 ## Step 3, behavioural test-quality pass (done)
 

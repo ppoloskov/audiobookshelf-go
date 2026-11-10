@@ -8,7 +8,6 @@ import (
 	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/serversettings"
-	"audiobookshelf-compat/internal/settingsdoc"
 	"bytes"
 	"context"
 	"crypto/hmac"
@@ -591,7 +590,7 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
 		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}
-	emailSettings, err := settingsdoc.Load(ctx, h.db, emailsettings.Key, emailsettings.Defaults())
+	emailSettings, err := emailsettings.Load(ctx, h.db)
 	if err != nil {
 		return nil, err
 	}

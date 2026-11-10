@@ -2,23 +2,38 @@
 
 ### PB01 · Package and object ownership review (2026-11-10)
 
-- [ ] IN REVIEW — owner requested better package division and object
+- [ ] IN PROGRESS — owner requested better package division and object
   boundaries. [Source-backed review](docs/PACKAGE-BOUNDARIES.md) records
   catalog scope, misleading helper ownership, dependency-rule pressure,
   proposed owners and migration sequence. First runtime packet ACCEPTED
   2026-11-10: email defaults and e-reader device policy moved from
   `settingsdoc` to `internal/emailsettings`; `emailapi`, `identity` and
   `userapi` consume it, and generic settings-row `Load`/`Save` remain in
-  `settingsdoc`. Catalog decomposition and unrelated settings behavior were
-  not changed. Architect rerun verified: build, vet, full suite with the
-  documented FFmpeg prefix, lint (0 issues), 20 dependency fixtures,
-  `make ratchet` +0 on every metric (no baseline edit; the 38,119 baseline
-  belongs to 74734477), and that the identity nil→defaults change is
-  unobservable (Load substitutes only for missing/null rows; VisibleTo is
-  empty either way). Follow-ups recorded in handover: email-settings
-  document to struct with json tags (new agents.md rule 1; also fixes the
-  unchecked `device["email"].(string)` in emailapi sendEbook), then catalog
-  decomposition after explicit handover.
+  `settingsdoc`. Second runtime packet ACCEPTED
+  2026-11-10: the email-settings document is now typed `emailsettings.Settings`
+  with json tags; PATCH decodes onto the loaded struct, device maps retain
+  unknown fields, the SMTP password is redacted by `String`, `settingsdoc`
+  adds `LoadInto` and saves any JSON value, and the unchecked
+  `device["email"].(string)` assertion is removed. Architect rerun verified:
+  gofmt, build, vet, the full suite with the documented FFmpeg prefix,
+  targeted `-race` on all five affected packages, golangci-lint v2.15.0
+  (0 issues), 20 dependency fixtures, `make ratchet` +0 and dbnest.
+- Accepted growth for the typed packet after the port-parity fix:
+  +115 handwritten LOC and +13 complexity, with `map[string]any` −10,
+  `[]any` −6 and functions over 15 −1; the baseline is updated only for those
+  measured fields. Catalog
+  decomposition remains unstarted and requires explicit handover.
+- Port parity restored: stored numeric ports load and save verbatim
+  (`99999`, `-1`, `12.5`); PATCH now applies upstream `Number()` semantics
+  instead of the old Go clamp/truncation (`""`→0, `"1e2"`→100, `"0x10"`→16,
+  `true`→1, `[]`→0, `[5]`→5, invalid/null/`{}`→465). The clamp removal is a
+  parity restoration, not a new behaviour choice.
+- Residual risks: a malformed stored `ereaderDevices` non-object element now
+  returns 500 instead of being ignored; TS and Go write paths validate before
+  saving, so this is reachable only through manually corrupted rows. Separate
+  parity nit: `CleanDevices`/`VisibleTo` filter `name`/`email` with `!= nil`,
+  while TS uses truthiness (`""` is filtered by TS but kept by Go); this is
+  pre-existing from the accepted policy packet and is not changed here.
 - Documentation validation only: source/test/lint inspection and targeted
   whitespace/link checks. Existing implementation cards retain their state.
 

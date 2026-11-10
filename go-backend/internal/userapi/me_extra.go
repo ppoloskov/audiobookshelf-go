@@ -20,7 +20,6 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/settingsdoc"
 
 	"audiobookshelf-compat/internal/store"
 )
@@ -188,12 +187,13 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	if err != nil {
 		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
-	provided, ok := body["ereaderDevices"].([]any)
+	raw, ok := body["ereaderDevices"].([]any)
 	if !ok {
 		return httputil.Status(400, "Invalid payload. ereaderDevices array required")
 	}
-	for _, raw := range provided {
-		d, ok := raw.(map[string]any)
+	provided := make([]emailsettings.Device, 0, len(raw))
+	for _, entry := range raw {
+		d, ok := entry.(map[string]any)
 		if !ok || !jsonvalue.Truthy(d["name"]) || !jsonvalue.Truthy(d["email"]) {
 			return httputil.Status(400, "Invalid payload. ereaderDevices array items must have name and email")
 		}
@@ -201,38 +201,33 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 		if d["availabilityOption"] != "specificUsers" || !ok || len(users) != 1 || users[0] != user.ID {
 			return httputil.Status(400, `Invalid payload. ereaderDevices array items must have availabilityOption "specificUsers" and only the current user`)
 		}
+		provided = append(provided, emailsettings.Device(d))
 	}
 	// A database without an email-settings row starts from the defaults TS
-	// EmailSettings (objects/settings/EmailSettings.js) and emailapi's load use,
-	// and the write below creates the row, as TS's updateSetting does.
-	settings, err := settingsdoc.Load(r.Context(), h.db, emailsettings.Key, emailsettings.Defaults())
+	// EmailSettings (objects/settings/EmailSettings.js), and the write below
+	// creates the row, as TS's updateSetting does.
+	settings, err := emailsettings.Load(r.Context(), h.db)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	all, _ := settings["ereaderDevices"].([]any)
-	kept := make([]any, 0)
-	for _, entry := range all {
-		d, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		users, _ := d["users"].([]any)
-		if !emailsettings.DeviceAllowed(d, user) || len(users) != 1 {
-			kept = append(kept, d)
+	kept := make([]emailsettings.Device, 0, len(settings.EreaderDevices))
+	for _, device := range settings.EreaderDevices {
+		users, _ := device["users"].([]any)
+		if !emailsettings.DeviceAllowed(device, user) || len(users) != 1 {
+			kept = append(kept, device)
 		}
 	}
 	combined := append(kept, provided...)
 	names := map[string]bool{}
-	for _, entry := range combined {
-		d, _ := entry.(map[string]any)
-		name := jsonvalue.String(d["name"])
+	for _, device := range combined {
+		name := jsonvalue.String(device["name"])
 		if names[name] {
 			return httputil.Status(400, `Invalid payload. Duplicate "name" field found.`)
 		}
 		names[name] = true
 	}
-	settings["ereaderDevices"] = combined
-	if err := settingsdoc.Save(r.Context(), h.db, emailsettings.Key, settings); err != nil {
+	settings.EreaderDevices = combined
+	if err := emailsettings.Save(r.Context(), h.db, settings); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
 	visible := emailsettings.VisibleTo(settings, user)

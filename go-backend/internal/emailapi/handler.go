@@ -8,7 +8,6 @@ import (
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
-	"audiobookshelf-compat/internal/settingsdoc"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -44,63 +43,53 @@ func New(db *sql.DB, emit events.Emitter) *Handler {
 // non-admin is answered 404 on the admin routes.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	adminOnly := func(f httputil.Handler) httputil.Handler { return access.RequireAdmin(http.StatusNotFound, f) }
-	mux.Handle("GET /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, false) }))
-	mux.Handle("PATCH /api/emails/settings", adminOnly(func(w http.ResponseWriter, r *http.Request) error { return h.settings(w, r, true) }))
+	mux.Handle("GET /api/emails/settings", adminOnly(h.getSettings))
+	mux.Handle("PATCH /api/emails/settings", adminOnly(h.updateSettings))
 	mux.Handle("POST /api/emails/test", adminOnly(h.sendTest))
 	mux.Handle("POST /api/emails/ereader-devices", adminOnly(h.ereaderDevices))
 	mux.Handle("POST /api/emails/send-ebook-to-device", httputil.Handler(h.sendEbook))
 }
 
-func (h *Handler) load(ctx context.Context) (map[string]any, error) {
-	return settingsdoc.Load(ctx, h.db, emailsettings.Key, emailsettings.Defaults())
-}
-func (h *Handler) save(ctx context.Context, m map[string]any) error {
-	return settingsdoc.Save(ctx, h.db, emailsettings.Key, m)
-}
-func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) error {
-	m, e := h.load(r.Context())
-	if e != nil {
-		return httputil.Internal("database error", e)
+func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) error {
+	settings, err := emailsettings.Load(r.Context(), h.db)
+	if err != nil {
+		return httputil.Internal("database error", err)
 	}
-	if patch {
-		before, _ := json.Marshal(m)
-		var p map[string]any
-		if json.NewDecoder(r.Body).Decode(&p) != nil {
-			return httputil.Status(400, "")
-		}
-		for _, k := range []string{"host", "port", "secure", "rejectUnauthorized", "user", "pass", "testAddress", "fromAddress", "ereaderDevices"} {
-			v, ok := p[k]
-			if !ok {
-				continue
-			}
-			if k == "port" {
-				if n, ok := numeric(v); ok && n >= 0 && n <= 65535 {
-					v = n
-				} else {
-					v = 465
-				}
-			}
-			if k == "secure" || k == "rejectUnauthorized" {
-				v = jsonvalue.Truthy(v)
-			}
-			if k == "ereaderDevices" {
-				if list, ok := v.([]any); ok {
-					v = emailsettings.CleanDevices(list)
-				} else {
-					continue
-				}
-			}
-			m[k] = v
-		}
-		after, _ := json.Marshal(m)
-		if !bytes.Equal(before, after) {
-			if e = h.save(r.Context(), m); e != nil {
-				return httputil.Internal("database error", e)
-			}
+	return httputil.JSON(w, r, map[string]any{"settings": settings})
+}
+func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) error {
+	settings, err := emailsettings.Load(r.Context(), h.db)
+	if err != nil {
+		return httputil.Internal("database error", err)
+	}
+	before := settings
+	patch := settingsPatch{Settings: settings}
+	if json.NewDecoder(r.Body).Decode(&patch) != nil {
+		return httputil.Status(400, "")
+	}
+	settings = patch.Settings
+	settings.ID = before.ID
+	if len(patch.EreaderDevices) > 0 {
+		var value any
+		_ = json.Unmarshal(patch.EreaderDevices, &value) // the request decoder already validated the JSON
+		if devices, ok := value.([]any); ok {
+			settings.EreaderDevices = emailsettings.CleanDevices(devices)
 		}
 	}
-	return httputil.JSON(w, r, map[string]any{"settings": m})
+	if !reflect.DeepEqual(before, settings) {
+		if err = emailsettings.Save(r.Context(), h.db, settings); err != nil {
+			return httputil.Internal("database error", err)
+		}
+	}
+	return httputil.JSON(w, r, map[string]any{"settings": settings})
 }
+
+// settingsPatch ignores non-array ereaderDevices like EmailSettings.update.
+type settingsPatch struct {
+	emailsettings.Settings
+	EreaderDevices json.RawMessage `json:"ereaderDevices"`
+}
+
 func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	var p struct {
 		Devices []map[string]any `json:"ereaderDevices"`
@@ -113,7 +102,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 			return httputil.Status(400, "Invalid payload. ereaderDevices array items must have name and email")
 		}
 	}
-	m, e := h.load(r.Context())
+	settings, e := emailsettings.Load(r.Context(), h.db)
 	if e != nil {
 		return httputil.Internal("database error", e)
 	}
@@ -122,10 +111,10 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 		provided[i] = device
 	}
 	clean := emailsettings.CleanDevices(provided)
-	changed := !reflect.DeepEqual(m["ereaderDevices"], clean)
-	m["ereaderDevices"] = clean
+	changed := !reflect.DeepEqual(settings.EreaderDevices, clean)
+	settings.EreaderDevices = clean
 	if changed {
-		if e = h.save(r.Context(), m); e != nil {
+		if e = emailsettings.Save(r.Context(), h.db, settings); e != nil {
 			return httputil.Internal("database error", e)
 		}
 		h.emit.ToAdmins("ereader-devices-updated", map[string]any{"ereaderDevices": clean})
@@ -133,18 +122,18 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	return httputil.JSON(w, r, map[string]any{"ereaderDevices": clean})
 }
 func (h *Handler) sendTest(w http.ResponseWriter, r *http.Request) error {
-	m, e := h.load(r.Context())
+	settings, e := emailsettings.Load(r.Context(), h.db)
 	if e != nil {
 		return httputil.Internal("database error", e)
 	}
-	if e = verifySMTP(r.Context(), m); e != nil {
+	if e = verifySMTP(r.Context(), settings); e != nil {
 		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 	}
-	to, _ := m["testAddress"].(string)
+	to := deref(settings.TestAddress)
 	if to == "" {
-		to, _ = m["fromAddress"].(string)
+		to = deref(settings.FromAddress)
 	}
-	if e = sendMail(r.Context(), m, to, "Test email from Audiobookshelf", "Success!", nil); e != nil {
+	if e = sendMail(r.Context(), settings, to, "Test email from Audiobookshelf", "Success!", nil); e != nil {
 		message := e.Error()
 		if message == "" {
 			message = "Failed to send test email"
@@ -162,11 +151,17 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if json.NewDecoder(r.Body).Decode(&p) != nil || p.LibraryItemID == "" || p.DeviceName == "" {
 		return httputil.Status(400, "")
 	}
-	m, e := h.load(r.Context())
+	settings, e := emailsettings.Load(r.Context(), h.db)
 	if e != nil {
 		return httputil.Internal("database error", e)
 	}
-	device := device(m, p.DeviceName)
+	var device emailsettings.Device
+	for _, candidate := range settings.EreaderDevices {
+		if jsonvalue.String(candidate["name"]) == p.DeviceName {
+			device = candidate
+			break
+		}
+	}
 	if device == nil {
 		return httputil.Status(404, "Ereader device not found")
 	}
@@ -211,10 +206,10 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if e != nil {
 		return httputil.Internal("Failed to read ebook file", e)
 	}
-	if e = verifySMTP(r.Context(), m); e != nil {
+	if e = verifySMTP(r.Context(), settings); e != nil {
 		return httputil.Status(http.StatusBadRequest, "Failed to verify SMTP connection configuration")
 	}
-	if e = sendMail(r.Context(), m, device["email"].(string), "Here is your Ebook!", "", &attachment{name: ebook.Metadata.Filename, data: data}); e != nil {
+	if e = sendMail(r.Context(), settings, jsonvalue.String(device["email"]), "Here is your Ebook!", "", &attachment{name: ebook.Metadata.Filename, data: data}); e != nil {
 		message := e.Error()
 		if message == "" {
 			message = "Failed to send ebook to device"
@@ -229,12 +224,12 @@ type attachment struct {
 	data []byte
 }
 
-func verifySMTP(ctx context.Context, m map[string]any) error {
-	return smtpConnect(ctx, m, func(c *smtp.Client) error { return c.Noop() })
+func verifySMTP(ctx context.Context, settings emailsettings.Settings) error {
+	return smtpConnect(ctx, settings, func(c *smtp.Client) error { return c.Noop() })
 }
-func sendMail(ctx context.Context, m map[string]any, to, subject, body string, a *attachment) error {
-	return smtpConnect(ctx, m, func(c *smtp.Client) error {
-		from, _ := m["fromAddress"].(string)
+func sendMail(ctx context.Context, settings emailsettings.Settings, to, subject, body string, a *attachment) error {
+	return smtpConnect(ctx, settings, func(c *smtp.Client) error {
+		from := deref(settings.FromAddress)
 		if from == "" || to == "" {
 			return fmt.Errorf("SMTP from and recipient addresses are required")
 		}
@@ -257,20 +252,20 @@ func sendMail(ctx context.Context, m map[string]any, to, subject, body string, a
 		return w.Close()
 	})
 }
-func smtpConnect(ctx context.Context, m map[string]any, fn func(*smtp.Client) error) error {
-	host, _ := m["host"].(string)
+func smtpConnect(ctx context.Context, settings emailsettings.Settings, fn func(*smtp.Client) error) error {
+	host := deref(settings.Host)
 	if host == "" {
 		return fmt.Errorf("SMTP host is required")
 	}
-	port := 465
-	if n, ok := numeric(m["port"]); ok && n > 0 {
-		port = int(n)
+	port := int(settings.Port)
+	if port <= 0 {
+		port = 465
 	}
-	secure := m["secure"] == true
+	secure := bool(settings.Secure)
 	if port != 465 {
 		secure = false
 	}
-	reject := m["rejectUnauthorized"] != false
+	reject := bool(settings.RejectUnauthorized)
 	timeout := 8 * time.Second
 	dialer := net.Dialer{Timeout: timeout}
 	var conn net.Conn
@@ -298,8 +293,8 @@ func smtpConnect(ctx context.Context, m map[string]any, fn func(*smtp.Client) er
 			}
 		}
 	}
-	user, _ := m["user"].(string)
-	pass, _ := m["pass"].(string)
+	user := deref(settings.User)
+	pass := deref(settings.Pass)
 	if user != "" {
 		if e = client.Auth(smtp.PlainAuth("", user, pass, host)); e != nil {
 			return e
@@ -343,25 +338,9 @@ func buildMessage(from, to, subject, body string, a *attachment) []byte {
 func urlQuery(s string) string {
 	return strings.ReplaceAll(url.PathEscape(filepath.Base(s)), "+", "%20")
 }
-func numeric(v any) (int, bool) {
-	switch x := v.(type) {
-	case float64:
-		return int(x), true
-	case int:
-		return x, true
-	case string:
-		var n int
-		_, e := fmt.Sscan(x, &n)
-		return n, e == nil
+func deref(value *string) string {
+	if value == nil {
+		return ""
 	}
-	return 0, false
-}
-func device(m map[string]any, name string) map[string]any {
-	for _, x := range jsonvalue.Array(m["ereaderDevices"]) {
-		d, _ := x.(map[string]any)
-		if d["name"] == name {
-			return d
-		}
-	}
-	return nil
+	return *value
 }

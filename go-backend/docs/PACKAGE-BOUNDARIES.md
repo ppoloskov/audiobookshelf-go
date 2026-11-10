@@ -1,10 +1,10 @@
 # Package and object boundaries proposal
 
 2026-11-10. Status: first runtime packet (email settings policy) implemented
-and accepted; further packets pending. Scope:
-current Go package ownership, catalog decomposition, settings, shared objects
-and dependency rules. This is a response to the owner's request for better
-package division, rather than another line-reduction exercise.
+and accepted; second packet (typed email settings) implemented pending review.
+Scope: current Go package ownership, catalog decomposition, settings, shared
+objects and dependency rules. This is a response to the owner's request for
+better package division, rather than another line-reduction exercise.
 
 ## Findings
 
@@ -56,9 +56,12 @@ Do not create a service/repository/interface per entity by convention.
 First packet decision: email settings defaults and e-reader device policy live
 in `internal/emailsettings`, a foundation package, because `identity` and
 `userapi` also consume them. `emailapi` keeps the HTTP operations; `settingsdoc`
-keeps only generic row `Load`/`Save`. This avoids a feature-to-feature import
+keeps only generic row loading/saving. This avoids a feature-to-feature import
 from identity/userapi to emailapi while preserving the reviewed dependency
-direction.
+direction. The second packet makes `emailsettings.Settings` the typed document;
+device entries remain maps so unknown device fields round-trip, while unknown
+top-level fields are not persisted because upstream `EmailSettings.toJSON`
+does not emit them.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess
