@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/libitem"
 )
 
@@ -37,7 +38,7 @@ type Item struct {
 	// from metadata.ext at load time.
 	LibraryFiles []libitem.File
 
-	Book    *libitem.Book
+	Book    *books.Book
 	Podcast *libitem.Podcast
 }
 
@@ -95,7 +96,7 @@ type Full struct {
 	LastScan     *int64         `json:"lastScan,omitempty"`
 	ScanVersion  *string        `json:"scanVersion"`
 	LibraryFiles []libitem.File `json:"libraryFiles"`
-	Media        any            `json:"media"` // libitem.BookFull or libitem.PodcastMedia
+	Media        any            `json:"media"` // books.BookFull or libitem.PodcastMedia
 	Extras
 }
 
@@ -107,7 +108,7 @@ type Expanded struct {
 	LibraryFiles []libitem.File `json:"libraryFiles"`
 	NumFiles     int            `json:"numFiles"`
 	Size         *int64         `json:"size,omitempty"`
-	Media        any            `json:"media"` // libitem.BookExpanded or libitem.PodcastMedia
+	Media        any            `json:"media"` // books.BookExpanded or libitem.PodcastMedia
 	Extras
 }
 
@@ -116,7 +117,7 @@ type Minified struct {
 	Head
 	NumFiles int    `json:"numFiles"`
 	Size     *int64 `json:"size,omitempty"`
-	Media    any    `json:"media"` // libitem.BookMinified or libitem.PodcastMedia
+	Media    any    `json:"media"` // books.BookMinified or libitem.PodcastMedia
 	Extras
 }
 
@@ -200,11 +201,11 @@ func (it Item) ListRow(prefixes []string) Minified {
 func (h Head) access(media any) access.Access {
 	a := access.Access{LibraryID: h.LibraryID}
 	switch m := media.(type) {
-	case libitem.BookFull:
+	case books.BookFull:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case libitem.BookMinified:
+	case books.BookMinified:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case libitem.BookExpanded:
+	case books.BookExpanded:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
 	case libitem.PodcastMedia:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
@@ -215,11 +216,11 @@ func (h Head) access(media any) access.Access {
 // mediaID is the id of a serialized media value ("" for an unknown one).
 func mediaID(media any) string {
 	switch m := media.(type) {
-	case libitem.BookFull:
+	case books.BookFull:
 		return m.ID
-	case libitem.BookMinified:
+	case books.BookMinified:
 		return m.ID
-	case libitem.BookExpanded:
+	case books.BookExpanded:
 		return m.ID
 	case libitem.PodcastMedia:
 		return m.ID

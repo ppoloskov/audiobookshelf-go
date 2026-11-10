@@ -41,12 +41,12 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a` and the accepted PB02a slice at `7c2a1c0e`, plus the accepted PB02b slice in this commit.
+- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, PB02a at `7c2a1c0e` and PB02b at `013b0caf`, plus the accepted PB02c slice in this commit.
 - **Local acceptance:** the current worktree passes `go build ./...`, `go vet ./...`, `go test ./... -count=1` with the documented FFmpeg prefix, targeted `-race` tests, golangci-lint v2.15.0, dependency-boundary fixtures and `make ratchet`.
-- **Metrics:** 38,258 handwritten LOC / 8,544 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. PB02b has an accepted +24 LOC budget with every other metric unchanged.
-- **Catalog read graph (PB02):** PB02a moved item permission inputs (`Access`, `LoadAccess`, `ItemAccess`, `CanReadItem`) into `internal/access`. PB02b is ACCEPTED (2026-11-10): common item identity, the batched loader and common response envelopes (`Item`, `Options`, `Load`/`LoadOne`, `Head`, `Full`, `Expanded`, `Minified`, `Extras`, `JSONNull`, `ListRow`) moved into `internal/items`; `libitem` now owns book/podcast media models and exported media projections, composed by `items` without a second loader or model. Both directions are acyclic: `items` → `libitem`/`access`; `libitem` → `access`.
+- **Metrics:** 38,287 handwritten LOC / 8,542 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. PB02c has an accepted +29 LOC budget and a 2-point complexity reduction.
+- **Catalog read graph (PB02):** PB02a moved item permission inputs into `internal/access`. PB02b moved common item identity, the batched loader and common response envelopes into `internal/items`. PB02c is ACCEPTED (2026-11-10): `Book`, book author/series associations, book projections and `LoadMany` moved into `internal/books`; `items` composes concrete book reads, while `libitem` retains only podcast media/projections. The graph is acyclic: `items` → `books`/`libitem`/`access`; `books` → `libitem`; `libitem` → shared leaves. Shared chunked queries live in `store.QueryIn`.
 - **QM01:** empty converted match lists preserve existing links; duplicate series updates run sequentially; missing sequence preserves the current position; absent, null, empty and numeric text stay distinct. The actual QuickMatch adapter stores raw zero as `"0"`; PATCH and scanner adapters retain their respective null/absence rules. Existing Go characterization preserves event ordering.
-- **Git state:** accepted work is committed through `7c2a1c0e` and pushed. The accepted PB02b slice, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
+- **Git state:** accepted work is committed through `013b0caf` and pushed. The accepted PB02c slice, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
 
 ## Step 3, behavioural test-quality pass (done)
 

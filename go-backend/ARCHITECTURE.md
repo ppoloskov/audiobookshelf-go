@@ -171,10 +171,12 @@ Library browsing/filtering/shelves belong to `library`, lists to `lists`, and
 playback/progress to `progress`. Media domains supply data, not user-specific
 shelf/list/playback orchestration.
 
-Common item identity, the batched loader and the common response envelopes now
-live in `internal/items`. Book and podcast media models/projections still live
-in `internal/libitem` until their extraction packets: `items` composes them
-through exported `Book.Full/Minified/Expanded` and `Podcast.Media`. Do not move
+Common item identity, the batched loader and the common response envelopes live
+in `internal/items`. Book identity, author/series associations, projections and
+batched book loading live in `internal/books`; podcast media/projections remain
+in `internal/libitem` until the next extraction. `items` consumes concrete book
+reads via `books.LoadMany` and the exported `Book.Full/Minified/Expanded`
+projections; `store.QueryIn` owns shared chunked-query mechanics. Do not move
 every wire type, add a generic repository, or invent a universal DTO. The
 `items` coordinator may consume `books`/`podcasts` data; those domains must
 never import `items`, `catalog`, `library`, `lists`, `playback` or `server`.

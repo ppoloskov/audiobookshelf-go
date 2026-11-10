@@ -60,9 +60,28 @@
 - Accepted growth for PB02b: +24 handwritten LOC with complexity,
   high-complexity functions, maps and `[]any` unchanged; only the LOC
   baseline field was updated.
-- Next slice after explicit handover: extract book media ownership into
-  `internal/books`, then podcast media ownership, without changing the
-  existing `items` read composition or stored-row semantics.
+- [ ] IN PROGRESS — third bounded slice ACCEPTED 2026-11-10: `Book`, book author/series
+  associations, book projections and `LoadMany` moved from
+  `libitem`/`items` into `internal/books`. `items` now depends on concrete
+  book reads; `libitem` retains only podcast media/projections. The shared
+  `store.QueryIn` chunked-query helper owns batching for both item and book
+  reads. No route, JSON, permission, persistence, query-count or event
+  behaviour changed. Architect rerun verified: gofmt, build, vet, the full
+  suite with the documented FFmpeg prefix, `-race` across all twelve
+  affected packages, golangci-lint v2.15.0 (0 issues), 22 dependency
+  fixtures, `make ratchet` +0 and dbnest. Accepted deviation: `books` has
+  no package-local tests yet; the items integration tests cover `LoadMany`
+  and every book projection.
+- Accepted PB02c delta: +29 handwritten LOC and −2 complexity, with
+  high-complexity functions, maps and `[]any` unchanged. Only the LOC and
+  complexity baseline fields were updated.
+- Next slice after explicit handover: extract podcast media ownership into
+  `internal/podcasts`, then remove the remaining `libitem` media package
+  without changing `items` composition or stored-row semantics. That slice
+  must also close the test-placement follow-up: give `books` (and the
+  podcast owner) direct projection tests, or move the separable
+  book-projection assertions out of `items_test.go`, so each media owner
+  is tested at its own boundary.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);

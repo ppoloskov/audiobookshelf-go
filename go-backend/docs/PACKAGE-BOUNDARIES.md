@@ -67,9 +67,11 @@ First catalog read-graph slice: the permission projection of an item
 (`Access`, `LoadAccess`, `ItemAccess`, `CanReadItem`) now belongs to
 `internal/access`, removing the old `access` → `libitem` edge. The second
 slice moves common item identity, the batched loader and common response
-envelopes into `internal/items`; `libitem` retains book/podcast media models
-and exported media projections. The books/podcasts ownership moves remain for
-later packets.
+envelopes into `internal/items`. The third slice moves book identity,
+author/series associations, book projections and batched book loading into
+`internal/books`; `items` composes concrete book reads, `libitem` retains only
+podcast media/projections, and `store.QueryIn` owns the shared chunked-query
+mechanics. The podcast ownership move remains for the next packet.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess

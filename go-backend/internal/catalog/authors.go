@@ -6,11 +6,11 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/store"
@@ -270,7 +270,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 			continue
 		}
 		base := it.Minified(prefixes)
-		media, ok := base.Media.(libitem.BookMinified)
+		media, ok := base.Media.(books.BookMinified)
 		if !ok {
 			return nil, fmt.Errorf("item %s has no book media", it.ID)
 		}

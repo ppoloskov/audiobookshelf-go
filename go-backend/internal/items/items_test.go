@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/libitem"
 	"modernc.org/sqlite"
 )
@@ -99,10 +100,10 @@ func TestItemsBookWithoutAuthorsOrSeries(t *testing.T) {
 	if md["authorName"] != "" || md["seriesName"] != "" || md["titleIgnorePrefix"] != "Hobbit, The" || got.Media.Size != 150 {
 		t.Fatalf("minified metadata %v size %d", md, got.Media.Size)
 	}
-	if full := it.Full().Media.(libitem.BookFull); full.Metadata.Authors == nil || full.Metadata.Series == nil || full.EbookFile != nil {
+	if full := it.Full().Media.(books.BookFull); full.Metadata.Authors == nil || full.Metadata.Series == nil || full.EbookFile != nil {
 		t.Fatalf("authors/series must be empty arrays and ebook null: %+v", full)
 	}
-	tracks := it.Expanded(nil).Media.(libitem.BookExpanded).Tracks
+	tracks := it.Expanded(nil).Media.(books.BookExpanded).Tracks
 	if len(tracks) != 1 || tracks[0]["contentUrl"] != "/api/items/li-b1/file/a1" || tracks[0]["title"] != "a.mp3" {
 		t.Fatalf("tracks = %v", tracks)
 	}
@@ -186,7 +187,7 @@ func TestItemsAuthorsAndSeriesOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	md := it.Minified(nil).Media.(libitem.BookMinified).Metadata
+	md := it.Minified(nil).Media.(books.BookMinified).Metadata
 	if md.AuthorName != "Jane Doe, John Roe" || md.AuthorNameLF != "Doe, Jane, Roe, John" || md.SeriesName != "Saga #2" {
 		t.Fatalf("metadata %+v", md)
 	}

@@ -14,6 +14,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
@@ -560,8 +561,8 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	books, _ := dto["books"].([]any)
-	if len(books) == 0 {
+	bookItems, _ := dto["books"].([]any)
+	if len(bookItems) == 0 {
 		return httputil.Status(400, "Collection has no books")
 	}
 	name, _ := dto["name"].(string)
@@ -580,8 +581,8 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 	if err = q.InsertPlaylist(r.Context(), sqlc.InsertPlaylistParams{ID: id, Name: name, Description: store.TextOrNull(desc), LibraryID: libraryID, UserID: user.ID, Createdat: now, Updatedat: now}); err != nil {
 		return httputil.Internal("Failed to create playlist", err)
 	}
-	for i, raw := range books {
-		book, _ := raw.(items.Expanded).Media.(libitem.BookExpanded)
+	for i, raw := range bookItems {
+		book, _ := raw.(items.Expanded).Media.(books.BookExpanded)
 		mediaID := book.ID
 		if mediaID == "" {
 			continue

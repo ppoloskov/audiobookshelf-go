@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/items"
@@ -106,7 +107,7 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	backend.dispatch = func(_ context.Context, action Action) error {
 		if action.Event == "cancel_scan" {
 			hub.Emit("*", "probe_item", items.Expanded{Head: items.Head{LibraryID: "lib-1"},
-				Media: libitem.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
+				Media: books.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
 			if action.Ack != nil {
 				action.Ack("scan_cancelled")
 			}
@@ -331,7 +332,7 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 	}
 	book := func(lib string, explicit bool, tags ...string) items.Expanded {
 		return items.Expanded{Head: items.Head{ID: "li-" + lib, LibraryID: lib},
-			Media: libitem.BookExpanded{ID: "book-1", Tags: tags, Metadata: libitem.BookMetadataExpanded{BookMetadataFull: libitem.BookMetadataFull{Explicit: explicit}}}}
+			Media: books.BookExpanded{ID: "book-1", Tags: tags, Metadata: books.BookMetadataExpanded{BookMetadataFull: books.BookMetadataFull{Explicit: explicit}}}}
 	}
 	collection := map[string]any{"id": "c1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
 	cases := []struct {
@@ -393,7 +394,7 @@ func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testin
 	alice, aliceID := connect(t, srv.url)
 	login(t, alice, "tok-alice")
 	next(t, admin) // user_online
-	item := items.Expanded{Head: items.Head{LibraryID: "lib-1"}, Media: libitem.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
+	item := items.Expanded{Head: items.Head{LibraryID: "lib-1"}, Media: books.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
 
 	srv.hub.Emit("*", "probe", item)
 	m := mark(srv)

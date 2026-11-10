@@ -1,49 +1,7 @@
-// Package libitem owns the typed book and podcast media models plus their
-// stored-row and API projections. Common library-item identity and loading
-// live in internal/items.
+// Package libitem owns the podcast media model, its projections and shared
+// file/audio-file representations. Common item loading lives in internal/items;
+// book media lives in internal/books.
 package libitem
-
-// Author and Series are the ordered associations of a book.
-type Author struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type SeriesRef struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Sequence *string `json:"sequence"`
-}
-
-// Book is a books row with its ordered authors and series. AudioFiles,
-// Chapters and Ebook are scanner-owned JSON passed through to clients; the
-// accessors below read the few keys the model needs.
-type Book struct {
-	ID            string
-	Title         *string
-	Subtitle      *string
-	PublishedYear *string
-	PublishedDate *string
-	Publisher     *string
-	Description   *string
-	ISBN          *string
-	ASIN          *string
-	Language      *string
-	Explicit      bool
-	Abridged      bool
-	CoverPath     *string
-	Duration      *float64
-	UpdatedAt     *int64
-	Narrators     []string
-	Genres        []string
-	Tags          []string
-	AudioFiles    []File
-	Chapters      []map[string]any
-	Ebook         File // nil when the book has no ebook file
-
-	Authors []Author
-	Series  []SeriesRef
-}
 
 // Podcast is a podcasts row. Episodes is nil unless the loader requested them;
 // NumEpisodes is the stored column.

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
@@ -257,19 +258,19 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		if err != nil {
 			return nil, err
 		}
-		books := make([]items.Full, 0, len(loaded))
+		bookResults := make([]items.Full, 0, len(loaded))
 		for _, it := range loaded {
 			item := it.Full()
-			if media, ok := item.Media.(libitem.BookFull); ok && item.MediaType == "book" {
-				media.Metadata.Authors, media.Metadata.Series = []libitem.Author{}, []libitem.SeriesRef{}
+			if media, ok := item.Media.(books.BookFull); ok && item.MediaType == "book" {
+				media.Metadata.Authors, media.Metadata.Series = []books.Author{}, []books.SeriesRef{}
 				item.Media = media
 			}
-			books = append(books, item)
+			bookResults = append(bookResults, item)
 		}
-		if len(books) == 0 {
+		if len(bookResults) == 0 {
 			continue
 		}
-		out = append(out, seriesSearchHit{m, books})
+		out = append(out, seriesSearchHit{m, bookResults})
 	}
 	return out, nil
 }

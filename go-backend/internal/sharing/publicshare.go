@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
 )
@@ -161,7 +161,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 		BookID: share.MediaItemID, Device: device,
 		ID: sid, ShareID: share.ID, Slug: slug, ItemID: item.ID, LibraryID: item.LibraryID, Title: deref(book.Title),
 		Author: book.AuthorName(), CoverPath: deref(book.CoverPath), Duration: deref64(book.Duration), Current: start, Start: start,
-		Updated: now, Tracks: tracks, Metadata: item.Full().Media.(libitem.BookFull).Metadata, Chapters: book.Chapters,
+		Updated: now, Tracks: tracks, Metadata: item.Full().Media.(books.BookFull).Metadata, Chapters: book.Chapters,
 	}
 	var librarySettings []byte
 	_ = h.db.QueryRowContext(ctx, `SELECT settings FROM libraries WHERE id=?`, item.LibraryID).Scan(&librarySettings)

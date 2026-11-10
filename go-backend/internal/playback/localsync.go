@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
@@ -121,7 +122,7 @@ func (h *Handler) localSessionID(id string) (string, error) {
 // item's, as the persisted legacy subset.
 func overlayMetadata(base any, client json.RawMessage) any {
 	switch m := base.(type) {
-	case libitem.BookMetadataFull:
+	case books.BookMetadataFull:
 		_ = unmarshalLoose(client, &m)
 		return m
 	case libitem.PodcastMetadata:

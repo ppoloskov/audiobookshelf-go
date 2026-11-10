@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
@@ -170,7 +171,7 @@ func progressBooks(where string, reading bool) func(*shelfEnv) (shelfQuery, erro
 		q.build = func(items []shelfItem) ([]any, error) {
 			var picked []shelfItem
 			for _, item := range items {
-				media, _ := item.min.Media.(libitem.BookMinified)
+				media, _ := item.min.Media.(books.BookMinified)
 				hasEbook := len(media.EbookFormat) > 0 && string(media.EbookFormat) != "null"
 				if (!reading && media.NumTracks > 0) || (reading && media.NumTracks <= 0 && hasEbook) {
 					picked = append(picked, item)

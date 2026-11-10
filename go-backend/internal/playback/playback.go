@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
@@ -60,7 +61,7 @@ type session struct {
 	MediaID       string           `json:"-"` // the book or podcast row id
 	EpisodeID     string           `json:"-"`
 	MediaType     string           `json:"mediaType"`
-	MediaMetadata any              `json:"mediaMetadata"` // libitem.BookMetadataFull or PodcastMetadata
+	MediaMetadata any              `json:"mediaMetadata"` // books.BookMetadataFull or PodcastMetadata
 	Chapters      []map[string]any `json:"chapters"`
 	DisplayTitle  string           `json:"displayTitle"`
 	DisplayAuthor string           `json:"displayAuthor"`
@@ -136,7 +137,7 @@ type itemData struct {
 	Title, Author string
 	CoverPath     *string
 	Duration      float64
-	Metadata      any // libitem.BookMetadataFull or PodcastMetadata
+	Metadata      any // books.BookMetadataFull or PodcastMetadata
 	Chapters      []map[string]any
 	Files         []audioFile
 }
@@ -281,7 +282,7 @@ func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData
 	out := &itemData{Item: it, Files: []audioFile{}, Chapters: []map[string]any{}}
 	media := it.Full().Media
 	if b := it.Book; b != nil {
-		out.Title, out.Author, out.CoverPath, out.Chapters, out.Metadata = deref(b.Title), b.AuthorName(), b.CoverPath, b.Chapters, media.(libitem.BookFull).Metadata
+		out.Title, out.Author, out.CoverPath, out.Chapters, out.Metadata = deref(b.Title), b.AuthorName(), b.CoverPath, b.Chapters, media.(books.BookFull).Metadata
 		if b.Duration != nil {
 			out.Duration = *b.Duration
 		}

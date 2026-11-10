@@ -105,6 +105,8 @@ linters:
             - "**/internal/libitem/**/*.go"
             - "**/internal/items/*.go"
             - "**/internal/items/**/*.go"
+            - "**/internal/books/*.go"
+            - "**/internal/books/**/*.go"
             - "**/internal/users/*.go"
             - "**/internal/users/**/*.go"
             - "**/internal/progressdto/*.go"

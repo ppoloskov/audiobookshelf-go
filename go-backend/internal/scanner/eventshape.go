@@ -5,8 +5,8 @@ import (
 	"context"
 	"slices"
 
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 )
 
 // audioMetaTagKeys are the AudioMetaTags own properties
@@ -33,7 +33,7 @@ func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...
 		return items.Expanded{}, err
 	}
 	item := it.Expanded(serversettings.Load(ctx, s.db).SortingPrefixes())
-	if media, ok := item.Media.(libitem.BookExpanded); ok && len(scannedPaths) > 0 {
+	if media, ok := item.Media.(books.BookExpanded); ok && len(scannedPaths) > 0 {
 		instanceShape(media.AudioFiles, scannedPaths)
 		instanceShape(media.Tracks, scannedPaths)
 	}

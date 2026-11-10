@@ -2,9 +2,9 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -114,17 +114,17 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib 
 }
 
 func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User, hideSingleBookSeries bool, seriesID, sortBy string, desc bool, page, limit int, ignorePrefix bool) ([]any, int, error) {
-	books, found, err := h.subseriesBooks(ctx, seriesID)
+	seriesBooks, found, err := h.subseriesBooks(ctx, seriesID)
 	if err != nil {
 		return nil, 0, err
 	}
 	if !found {
 		return []any{}, 0, nil
 	}
-	total := len(books)
-	accessible := make([]*subseriesBook, 0, len(books))
+	total := len(seriesBooks)
+	accessible := make([]*subseriesBook, 0, len(seriesBooks))
 	perms := access.For(ctx, user)
-	for _, b := range books {
+	for _, b := range seriesBooks {
 		if perms.Item(b.access) {
 			accessible = append(accessible, b)
 		}
@@ -164,7 +164,7 @@ func (h *Handler) collapseSubseriesResults(ctx context.Context, user store.User,
 	for i, li := range items {
 		filtered := li.seriesByID(seriesID)
 		item := rendered[i]
-		editBookMetadata(&item, func(metadata *libitem.BookMetadataMinified) {
+		editBookMetadata(&item, func(metadata *books.BookMetadataMinified) {
 			metadata.Series = &bookSeries{ID: filtered.id, Name: filtered.name, Sequence: filtered.sequence}
 		})
 		if c := li.collapsed; c != nil {

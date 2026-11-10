@@ -1,9 +1,9 @@
 package catalog
 
 import (
+	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
 	"encoding/json"
@@ -21,8 +21,8 @@ import (
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
-func editBookMetadata(item *items.Minified, edit func(metadata *libitem.BookMetadataMinified)) {
-	if media, ok := item.Media.(libitem.BookMinified); ok {
+func editBookMetadata(item *items.Minified, edit func(metadata *books.BookMetadataMinified)) {
+	if media, ok := item.Media.(books.BookMinified); ok {
 		edit(&media.Metadata)
 		item.Media = media
 	}
@@ -177,7 +177,7 @@ func (e *shelfEnv) continueSeries() (shelfQuery, error) {
 	q.build = func(items []shelfItem) ([]any, error) {
 		for i := range items {
 			c := chosenBooks[i]
-			editBookMetadata(&items[i].min, func(metadata *libitem.BookMetadataMinified) {
+			editBookMetadata(&items[i].min, func(metadata *books.BookMetadataMinified) {
 				// book.series = [] before toOldJSONMinified, then metadata.series
 				// is replaced with the continued series.
 				metadata.SeriesName = ""
@@ -309,7 +309,7 @@ func (e *shelfEnv) recentSeries() (shelfQuery, error) {
 		for i := range entries {
 			entries[i].Books = make([]any, 0, members[i])
 			for _, item := range items[:members[i]] {
-				editBookMetadata(&item.min, func(metadata *libitem.BookMetadataMinified) {
+				editBookMetadata(&item.min, func(metadata *books.BookMetadataMinified) {
 					metadata.AuthorName, metadata.AuthorNameLF, metadata.SeriesName = "", "", ""
 				})
 				entries[i].Books = append(entries[i].Books, item.min)
