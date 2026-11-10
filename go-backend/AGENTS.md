@@ -164,6 +164,12 @@ correctness/security guard or call an unimplemented policy machine-enforced.
 
 ## Code rules
 
+- The [podcasts simplification review](docs/PODCASTS-SIMPLIFICATION-REVIEW.md)
+  records PC01's implementation, caller contracts and verification. Retain the
+  public facade and shared `podcasts/read` interfaces. Creation/OPML,
+  scheduling, episode mutation and downloaded-episode registration have named
+  file owners; preserve the characterized exact-key PATCH and coercion quirks.
+
 - The owner's 2026-11-10 package/object-boundary request is recorded in
   [the boundary proposal](docs/PACKAGE-BOUNDARIES.md). Treat its layout as
   proposed, not current implementation. Inventory actual consumers before

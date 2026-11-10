@@ -1,19 +1,27 @@
 package podcasts
 
 import (
+	"bufio"
 	"bytes"
 	"cmp"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
+	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"golang.org/x/net/html/charset"
 	"io"
+	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"audiobookshelf-compat/internal/textclean"
-
 	"github.com/mmcdole/gofeed"
-	ext "github.com/mmcdole/gofeed/extensions"
-	"golang.org/x/net/html/charset"
+	"github.com/mmcdole/gofeed/extensions"
 )
 
 // Feed is a parsed RSS feed in the API shape of POST /api/podcasts/feed.
@@ -285,4 +293,73 @@ func parseOPML(raw string) []opmlFeed {
 		return []opmlFeed{}
 	}
 	return out
+}
+
+func (h *Handler) getFeed(ctx context.Context, rawURL string) (*Feed, error) {
+	feedURL := validFeedURL(rawURL)
+	if feedURL == "" {
+		return nil, errors.New("invalid feed URL")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/rss+xml, application/xhtml+xml, application/xml, */*;q=0.8")
+	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	agent := "audiobookshelf (+https://audiobookshelf.org; like iTMS)"
+	if strings.HasPrefix(feedURL, "https://www.cbc.ca") {
+		agent += " - CBC"
+	}
+	req.Header.Set("User-Agent", agent)
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("feed returned %s", resp.Status)
+	}
+	// Setting Accept-Encoding by hand turns off net/http's transparent gzip
+	// handling, so decode here like axios does (feeds served gzip-compressed
+	// otherwise reach the XML parser as binary).
+	body, err := decodedBody(resp)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+	limit := int64(32 << 20)
+	raw, err := io.ReadAll(io.LimitReader(body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > limit {
+		return nil, errors.New("podcast feed is too large")
+	}
+	return parseFeed(raw, feedURL)
+}
+
+func validFeedURL(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u == nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	return u.String()
+}
+
+// decodedBody unwraps a gzip or deflate Content-Encoding.
+func decodedBody(resp *http.Response) (io.ReadCloser, error) {
+	switch strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding"))) {
+	case "gzip", "x-gzip":
+		return gzip.NewReader(resp.Body)
+	case "deflate":
+		// RFC 9110 deflate is zlib-wrapped; some servers send raw deflate.
+		br := bufio.NewReader(resp.Body)
+		if head, err := br.Peek(2); err == nil && head[0]&0x0f == 8 && (uint16(head[0])<<8|uint16(head[1]))%31 == 0 {
+			return zlib.NewReader(br)
+		}
+		return flate.NewReader(br), nil
+	}
+	return io.NopCloser(resp.Body), nil
 }

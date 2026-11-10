@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -419,5 +421,52 @@ func TestSuccessfulCheckResetsFailedCheckCount(t *testing.T) {
 	expect("onRSSFeedDisabled", 2)
 	if err := r.db.QueryRow(`SELECT autoDownloadEpisodes FROM podcasts`).Scan(&auto); err != nil || auto {
 		t.Fatalf("auto-download still on after %d failures: %v %v", 2, auto, err)
+	}
+}
+
+func TestDownloadFailuresLeaveNoMediaOrRows(t *testing.T) {
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe unavailable")
+	}
+	for _, tc := range []struct {
+		name      string
+		body      []byte
+		failWrite bool
+	}{
+		{"invalid media", []byte("not audio"), false},
+		{"registration failure", testToneWAV(.25), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			useLocalFeeds(t)
+			r := newNotifyRig(t)
+			defer r.h.Close()
+			if tc.failWrite {
+				if _, err := r.db.Exec(`CREATE TRIGGER fail_episode BEFORE UPDATE ON libraryItems BEGIN SELECT RAISE(ABORT, 'fixture'); END`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(tc.body) }))
+			defer srv.Close()
+			item, err := r.h.loadItem(context.Background(), "item")
+			if err != nil {
+				t.Fatal(err)
+			}
+			d := &downloadTask{id: "d", item: item, url: srv.URL + "/episode.wav", filename: "episode.wav", ctx: context.Background()}
+			r.h.runDownload(d)
+			if !d.failed || !d.finished {
+				t.Fatalf("task state: %+v", d)
+			}
+			if _, err := os.Stat(filepath.Join(r.root, "episode.wav")); !os.IsNotExist(err) {
+				t.Fatalf("media remains: %v", err)
+			}
+			var count int
+			var files string
+			if err := r.db.QueryRow(`SELECT (SELECT COUNT(*) FROM podcastEpisodes), libraryFiles FROM libraryItems WHERE id='item'`).Scan(&count, &files); err != nil {
+				t.Fatal(err)
+			}
+			if count != 2 || files != "[]" {
+				t.Fatalf("partial state: rows=%d files=%s", count, files)
+			}
+		})
 	}
 }

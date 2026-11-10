@@ -33,6 +33,7 @@ for findings, proposed owners and migration proof. It is not implemented.
 | Clean-source validation and native FFmpeg/WebP setup | [TESTING.md](TESTING.md) |
 | Library migration and single-executable feasibility (analysis only) | [FFMPEG-LIBRARY-FEASIBILITY.md](docs/FFMPEG-LIBRARY-FEASIBILITY.md) |
 | Earlier pruning review (PR01–PR07 implemented) | [PRUNING-REVIEW.md](PRUNING-REVIEW.md) |
+| Podcasts simplification, file ownership, retained interfaces and checks | [PODCASTS-SIMPLIFICATION-REVIEW.md](docs/PODCASTS-SIMPLIFICATION-REVIEW.md) |
 | Reviewed large deletion candidates and first-wave decisions | [DELETION-FEASIBILITY.md](DELETION-FEASIBILITY.md) |
 | Lissen conditional JSON and pending framing evidence | [MC05-S9B-EVIDENCE.md](MC05-S9B-EVIDENCE.md) |
 | TS-specific test assertions versus retained client/data contracts | [TEST-COMPATIBILITY-REVIEW.md](TEST-COMPATIBILITY-REVIEW.md) |

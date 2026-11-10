@@ -1,5 +1,34 @@
 # Roadmap
 
+### PC01 · Podcasts simplification and ownership (2026-11-10)
+
+- [x] DONE — implemented by the requested Terra worker; architect contract and
+  simplicity reviews accepted. Public interfaces and shared read models are
+  unchanged. Isolated full build/vet/suite/lint, dependency/source checks,
+  ratchet/dbnest, SQLC freshness, both Linux builds and TS rollback passed.
+  Focused races: 34 top-level tests, 65 including subtests, zero skips.
+  Net reduction: 10 production lines, 27 complexity points, one function over
+  15 and nine dynamic maps, with every other ratchet metric unchanged.
+  [Implementation evidence and baseline skips](docs/PODCASTS-SIMPLIFICATION-REVIEW.md#pc01-implementation-and-acceptance--2026-11-10).
+- Original authorization: owner requested implementation with a Terra worker.
+  Assessment and retained contracts are in
+  [the review](docs/PODCASTS-SIMPLIFICATION-REVIEW.md). Keep public interfaces
+  and shared read models. Implementation sequence:
+  characterize PATCH/matching/error gaps, use typed matching and simpler update
+  construction, remove duplicate probing/completion work, then separate file
+  responsibilities. No new dependencies/features/removals or net savings are
+  claimed before measurement. Both podcast packages passed the focused race
+  baseline (29 top-level tests; zero skips). PC01 owns only internal/podcasts
+  implementation/tests and its documentation; preserve unrelated PB04 work.
+- Pre-dispatch metric budget: no growth in any ratchet metric; net production
+  LOC/complexity reduction required, excluding relocation credit. Benefit:
+  concrete typed matching/update flow, fewer duplicate operations and clearer
+  ownership without new packages/dependencies. Delete replaced map/accessor,
+  SQL construction and probe/completion duplication; retain the existing public
+  map-returning feed wrapper. No new adapter or deferred exit task is planned.
+  Architect acceptance included focused race/contract tests, full build/vet/
+  suite/lint, dependency checks, ratchet/dbnest and persistence rollback proof.
+
 ### PB01 · Package and object ownership review (2026-11-10)
 
 - [ ] IN PROGRESS — owner requested better package division and object

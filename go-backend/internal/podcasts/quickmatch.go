@@ -1,13 +1,14 @@
 package podcasts
 
 import (
-	"audiobookshelf-compat/internal/dbtime"
 	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"audiobookshelf-compat/internal/dbtime"
 )
 
 // QuickMatchEpisodes updates unmatched episodes from the item's RSS feed
@@ -17,7 +18,7 @@ func (h *Handler) QuickMatchEpisodes(ctx context.Context, itemID string, overrid
 	if err := h.db.QueryRowContext(ctx, `SELECT li.mediaId,p.feedURL FROM libraryItems li JOIN podcasts p ON p.id=li.mediaId WHERE li.id=? AND li.mediaType='podcast'`, itemID).Scan(&mediaID, &feedURL); err != nil {
 		return 0, err
 	}
-	feed, err := h.FetchFeedEpisodes(ctx, feedURL)
+	feed, err := h.getFeed(ctx, feedURL)
 	if err != nil {
 		return 0, err
 	}
@@ -26,13 +27,14 @@ func (h *Handler) QuickMatchEpisodes(ctx context.Context, itemID string, overrid
 		return 0, err
 	}
 	type episode struct {
-		id     string
-		values [11]sql.NullString
+		id                                                                       string
+		title, subtitle, description, enclosureURL, enclosureSize, enclosureType sql.NullString
+		episode, episodeType, season, pubDate, publishedAt                       sql.NullString
 	}
 	var unmatched []episode
 	for rows.Next() {
 		var ep episode
-		if err := rows.Scan(&ep.id, &ep.values[0], &ep.values[1], &ep.values[2], &ep.values[3], &ep.values[4], &ep.values[5], &ep.values[6], &ep.values[7], &ep.values[8], &ep.values[9], &ep.values[10]); err != nil {
+		if err := rows.Scan(&ep.id, &ep.title, &ep.subtitle, &ep.description, &ep.enclosureURL, &ep.enclosureSize, &ep.enclosureType, &ep.episode, &ep.episodeType, &ep.season, &ep.pubDate, &ep.publishedAt); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -50,46 +52,42 @@ func (h *Handler) QuickMatchEpisodes(ctx context.Context, itemID string, overrid
 		if err := ctx.Err(); err != nil {
 			return updated, err
 		}
-		match := bestFeedEpisode(local.values[0].String, feed)
+		match := bestFeedEpisode(local.title.String, feed.Episodes)
 		if match == nil {
 			continue
 		}
-		fields := map[string]any{}
+		var size any = string(match.Enclosure.Length)
+		if n, err := strconv.ParseInt(string(match.Enclosure.Length), 10, 64); err == nil {
+			size = n
+		}
+		kind := match.EpisodeType
+		if kind == "" {
+			kind = "full"
+		}
+		var published any
+		if match.PublishedAt != nil && *match.PublishedAt != 0 {
+			published = dbtime.Format(time.UnixMilli(*match.PublishedAt))
+		}
 		values := []struct {
 			column string
-			index  int
+			old    sql.NullString
 			value  any
 		}{
-			{"title", 0, match["title"]}, {"subtitle", 1, match["subtitle"]}, {"description", 2, match["description"]},
-			{"enclosureURL", 3, nestedString(match, "enclosure", "url")}, {"enclosureSize", 4, nestedValue(match, "enclosure", "length")}, {"enclosureType", 5, nestedString(match, "enclosure", "type")},
-			{"episode", 6, match["episode"]}, {"episodeType", 7, match["episodeType"]}, {"season", 8, match["season"]}, {"pubDate", 9, match["pubDate"]}, {"publishedAt", 10, match["publishedAt"]},
+			{"title", local.title, match.Title}, {"subtitle", local.subtitle, match.Subtitle}, {"description", local.description, match.Description},
+			{"enclosureURL", local.enclosureURL, match.Enclosure.URL}, {"enclosureSize", local.enclosureSize, size}, {"enclosureType", local.enclosureType, match.Enclosure.Type},
+			{"episode", local.episode, match.Episode}, {"episodeType", local.episodeType, kind}, {"season", local.season, match.Season}, {"pubDate", local.pubDate, match.PubDate}, {"publishedAt", local.publishedAt, published},
 		}
+		var set []string
+		var args []any
 		for _, field := range values {
-			value := field.value
-			if field.column == "episodeType" && (value == nil || value == "") {
-				value = "full"
-			}
-			if value == nil || value == "" || value == float64(0) {
+			if field.value == nil || field.value == "" || (field.old.Valid && !overrideDetails) {
 				continue
 			}
-			if local.values[field.index].Valid && !overrideDetails {
-				continue
-			}
-			fields[field.column] = value
+			set = append(set, field.column+"=?")
+			args = append(args, field.value)
 		}
-		if len(fields) == 0 {
+		if len(set) == 0 {
 			continue
-		}
-		if published, ok := fields["publishedAt"]; ok {
-			fields["publishedAt"] = dbDateTime(published)
-		}
-		set := []string{}
-		args := []any{}
-		for _, field := range values {
-			if value, ok := fields[field.column]; ok {
-				set = append(set, field.column+"=?")
-				args = append(args, value)
-			}
 		}
 		set = append(set, "updatedAt=?")
 		args = append(args, dbtime.Now(), local.id)
@@ -101,16 +99,17 @@ func (h *Handler) QuickMatchEpisodes(ctx context.Context, itemID string, overrid
 	return updated, nil
 }
 
-func bestFeedEpisode(title string, episodes []map[string]any) map[string]any {
+func bestFeedEpisode(title string, episodes []Episode) *Episode {
 	needle := strings.ToLower(strings.TrimSpace(title))
 	if needle == "" {
 		return nil
 	}
-	var best map[string]any
+	var best *Episode
 	bestScore := 0.0
-	for _, episode := range episodes {
-		candidate := strings.ToLower(strings.TrimSpace(asString(episode["title"])))
-		subtitle := strings.ToLower(strings.TrimSpace(asString(episode["subtitle"])))
+	for i := range episodes {
+		episode := &episodes[i]
+		candidate := strings.ToLower(strings.TrimSpace(episode.Title))
+		subtitle := strings.ToLower(strings.TrimSpace(episode.Subtitle))
 		titleScore, subtitleScore := similarity(needle, candidate), similarity(needle, subtitle)
 		score := titleScore*.7 + subtitleScore*.3
 		if titleScore > score {
@@ -127,41 +126,4 @@ func bestFeedEpisode(title string, episodes []map[string]any) map[string]any {
 		return nil
 	}
 	return best
-}
-
-func asString(value any) string { s, _ := value.(string); return s }
-func nestedString(values map[string]any, key, sub string) any {
-	nested, _ := values[key].(map[string]any)
-	if nested == nil {
-		return nil
-	}
-	return nested[sub]
-}
-func nestedValue(values map[string]any, key, sub string) any {
-	nested, _ := values[key].(map[string]any)
-	if nested == nil {
-		return nil
-	}
-	value := nested[sub]
-	if str, ok := value.(string); ok {
-		if n, err := strconv.ParseInt(str, 10, 64); err == nil {
-			return n
-		}
-	}
-	return value
-}
-func dbDateTime(value any) any {
-	switch v := value.(type) {
-	case float64:
-		if v == 0 {
-			return nil
-		}
-		return dbtime.Format(time.UnixMilli(int64(v)))
-	case int64:
-		if v == 0 {
-			return nil
-		}
-		return dbtime.Format(time.UnixMilli(v))
-	}
-	return value
 }

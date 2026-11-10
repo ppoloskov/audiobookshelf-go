@@ -394,3 +394,111 @@ func serveAdmin(h *Handler, w http.ResponseWriter, r *http.Request) bool {
 	mux.ServeHTTP(w, r.WithContext(store.ContextWithUser(r.Context(), store.User{Type: "admin"})))
 	return true
 }
+
+func TestEpisodePatchPresenceAndChapters(t *testing.T) {
+	rig := newNotifyRig(t)
+	defer rig.h.Close()
+	for _, tc := range []struct {
+		body, title, chapters string
+		events                int
+	}{
+		{`{}`, "One", `[]`, 0},
+		{`{"title":null,"subtitle":3,"chapters":[{"title":"bad","start":0}]}`, "One", `[]`, 0},
+		{`{"Title":"wrong case","enclosure":42}`, "One", `[]`, 0},
+		{`{"title":"","chapters":[{"title":"part","start":1,"custom":"kept"}]}`, "", `[{"custom":"kept","start":1,"title":"part"}]`, 1},
+	} {
+		w := httptest.NewRecorder()
+		serveAdmin(rig.h, w, httptest.NewRequest("PATCH", "/api/podcasts/item/episode/e1", strings.NewReader(tc.body)))
+		if w.Code != 200 {
+			t.Fatalf("%s: status %d: %s", tc.body, w.Code, w.Body)
+		}
+		var title, chapters string
+		if err := rig.db.QueryRow(`SELECT title,chapters FROM podcastEpisodes WHERE id='e1'`).Scan(&title, &chapters); err != nil {
+			t.Fatal(err)
+		}
+		if title != tc.title || chapters != tc.chapters {
+			t.Fatalf("%s: title=%q chapters=%s", tc.body, title, chapters)
+		}
+		rig.mu.Lock()
+		events := len(rig.events)
+		rig.mu.Unlock()
+		if events != tc.events {
+			t.Fatalf("%s: events=%d want %d", tc.body, events, tc.events)
+		}
+	}
+}
+
+func TestCreatePodcastDirectoryOwnershipAndRollback(t *testing.T) {
+	for _, tc := range []struct {
+		name, failTable string
+		existing        bool
+	}{
+		{"new podcast insert failure", "podcasts", false},
+		{"existing directory podcast failure", "podcasts", true},
+		{"new item insert failure", "libraryItems", false},
+		{"existing directory item failure", "libraryItems", true},
+		{"new directory success", "", false},
+		{"existing directory success", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rig := newNotifyRig(t)
+			defer rig.h.Close()
+			if _, err := rig.db.Exec(`CREATE TABLE libraryFolders(id TEXT PRIMARY KEY,path TEXT,libraryId TEXT); INSERT INTO libraryFolders VALUES('folder',?,'lib')`, rig.root); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(rig.root, "new-podcast")
+			if tc.existing {
+				if err := os.Mkdir(path, 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.failTable != "" {
+				if _, err := rig.db.Exec(`CREATE TRIGGER fail_insert BEFORE INSERT ON ` + tc.failTable + ` BEGIN SELECT RAISE(ABORT,'fixture'); END`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			body := map[string]any{"libraryId": "lib", "folderId": "folder", "path": path, "media": map[string]any{"metadata": map[string]any{"title": "Created"}}}
+			_, status, _, err := rig.h.createPodcastFromBody(context.Background(), body)
+			if (err != nil) != (tc.failTable != "") {
+				t.Fatalf("status %d err %v", status, err)
+			}
+			_, statErr := os.Stat(path)
+			wantDir := tc.existing || tc.failTable == ""
+			if (statErr == nil) != wantDir {
+				t.Fatalf("directory exists=%v, want %v: %v", statErr == nil, wantDir, statErr)
+			}
+			var podcasts, items int
+			if err := rig.db.QueryRow(`SELECT (SELECT COUNT(*) FROM podcasts), (SELECT COUNT(*) FROM libraryItems)`).Scan(&podcasts, &items); err != nil {
+				t.Fatal(err)
+			}
+			want := 1
+			if tc.failTable == "" {
+				want++
+			}
+			if podcasts != want || items != want {
+				t.Fatalf("rows podcasts=%d items=%d want=%d", podcasts, items, want)
+			}
+		})
+	}
+}
+
+func TestCreatePodcastMetadataCoercion(t *testing.T) {
+	rig := newNotifyRig(t)
+	defer rig.h.Close()
+	if _, err := rig.db.Exec(`CREATE TABLE libraryFolders(id TEXT PRIMARY KEY,path TEXT,libraryId TEXT); INSERT INTO libraryFolders VALUES('folder',?,'lib')`, rig.root); err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{"libraryId": "lib", "folderId": "folder", "path": filepath.Join(rig.root, "created"), "media": map[string]any{"metadata": map[string]any{"title": "Created", "author": float64(12.5), "releaseDate": "", "feedUrl": nil, "description": "<script>bad</script>"}}}
+	_, status, _, err := rig.h.createPodcastFromBody(context.Background(), body)
+	if err != nil {
+		t.Fatalf("status %d: %v", status, err)
+	}
+	var author string
+	var date, feed, description sql.NullString
+	if err := rig.db.QueryRow(`SELECT author,releaseDate,feedURL,description FROM podcasts WHERE title='Created'`).Scan(&author, &date, &feed, &description); err != nil {
+		t.Fatal(err)
+	}
+	if author != "12.5" || date.Valid || feed.Valid || !description.Valid || description.String != "" {
+		t.Fatalf("metadata: %q %#v %#v %#v", author, date, feed, description)
+	}
+}

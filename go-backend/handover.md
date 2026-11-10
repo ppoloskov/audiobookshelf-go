@@ -1,5 +1,30 @@
 # Go backend handover
 
+## Podcasts simplification PC01 (2026-11-10)
+
+Implemented with the requested Terra worker and reviewed by the architect.
+[The review/addendum](docs/PODCASTS-SIMPLIFICATION-REVIEW.md) records contracts,
+actual file ownership, characterizations and checks. Typed quick matching,
+direct update construction, shared completion/queue snapshots, single probing
+and deferred creation cleanup replace redundant code. Creation/OPML,
+scheduling, episode mutation and registration have focused files; podcasts.go
+falls from 1,032 to 356 lines. All public interfaces and podcasts/read source
+are unchanged. Net packet: -10 production LOC / -27 complexity / -1 function
+over 15 / -9 dynamic maps, with no other metric growth.
+
+Important quirks: PATCH matches exact key case and ignores some wrong types;
+OPML's current genre conversion remains; search and quick-match differ;
+existing directories and committed item directories survive creation failures.
+New tests protect these semantics and file/DB rollback. Focused races pass
+34 top-level tests (65 including subtests), zero skips. Isolated full build,
+vet, suite, lint, ratchet/dbnest, SQLC freshness, dependency/source/contract
+checks, both Linux builds and TS rollback pass. One unrelated HLS test skips
+on its hardcoded /usr/bin/ffmpeg macOS check; optional Monstrobook inventory
+remains skipped. Validation snapshot is HEAD bf72cb3c plus only PC01, excluding
+concurrent PB04/userapi changes; do not attribute combined workspace metrics
+to podcasts. Local acceptance is complete; isolate PC01 for publication without
+staging unrelated work. No live deployment is authorized by this packet.
+
 ## Package/object boundary request (2026-11-10)
 
 The owner requested more cohesive packages and clearer object ownership.
