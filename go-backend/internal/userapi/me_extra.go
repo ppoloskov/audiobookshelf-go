@@ -16,6 +16,7 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
@@ -204,7 +205,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 	// A database without an email-settings row starts from the defaults TS
 	// EmailSettings (objects/settings/EmailSettings.js) and emailapi's load use,
 	// and the write below creates the row, as TS's updateSetting does.
-	settings, err := settingsdoc.Load(r.Context(), h.db, settingsdoc.EmailKey, settingsdoc.EmailDefaults())
+	settings, err := settingsdoc.Load(r.Context(), h.db, emailsettings.Key, emailsettings.Defaults())
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -216,7 +217,7 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 			continue
 		}
 		users, _ := d["users"].([]any)
-		if !settingsdoc.DeviceAllowed(d, user) || len(users) != 1 {
+		if !emailsettings.DeviceAllowed(d, user) || len(users) != 1 {
 			kept = append(kept, d)
 		}
 	}
@@ -231,10 +232,10 @@ func (h *Handler) updateEReaderDevices(w http.ResponseWriter, r *http.Request, u
 		names[name] = true
 	}
 	settings["ereaderDevices"] = combined
-	if err := settingsdoc.Save(r.Context(), h.db, settingsdoc.EmailKey, settings); err != nil {
+	if err := settingsdoc.Save(r.Context(), h.db, emailsettings.Key, settings); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	visible := settingsdoc.VisibleTo(settings, user)
+	visible := emailsettings.VisibleTo(settings, user)
 	h.emit.ToUser(user.ID, "ereader-devices-updated", map[string]any{"ereaderDevices": visible})
 	return httputil.JSON(w, r, map[string]any{"ereaderDevices": visible})
 }

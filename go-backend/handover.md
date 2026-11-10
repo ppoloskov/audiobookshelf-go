@@ -5,14 +5,25 @@
 The owner requested more cohesive packages and clearer object ownership.
 [The source-backed proposal](docs/PACKAGE-BOUNDARIES.md) records findings,
 owners, alternatives, migration hazards and required proof (ROADMAP PB01).
-This packet changes documentation only. A bounded read-only worker confirmed
+The first bounded ownership packet is ACCEPTED (2026-11-10): email
+defaults and e-reader device policy moved from `settingsdoc` to
+`internal/emailsettings`; `emailapi`, `identity` and `userapi`
+consume that owner, while `settingsdoc` retains only generic `Load`/`Save` row
+mechanics. Architect rerun verified build, vet, the full suite with the
+documented FFmpeg prefix, lint, dependency fixtures and `make ratchet` at +0
+on every metric; the identity nil→defaults loading change is unobservable.
+Catalog decomposition and unrelated settings behavior were not changed.
+Next packets, in order: (1) convert the email-settings document to a struct
+with json tags per the new agents.md rule 1 — device entries stay
+`map[string]any` for unknown-key round-trip parity — which also removes the
+unchecked `device["email"].(string)` assertion in emailapi sendEbook; (2)
+after explicit handover, the catalog books/podcasts/common-item read
+dependency graph, migrating existing libitem models without a second
+implementation. Earlier read-only review confirmed
 progressdto, playlistview, settingsdoc and store ownership problems; libitem
 and itemwrite already consolidate useful shared behavior and must not be
-duplicated during extraction. The blanket feature import ban needs an
-explicit acyclic replacement as domains migrate. Existing unmerged index
-entries and unrelated source WIP were preserved; no runtime checks, commit
-or push were performed for this proposal. Next: review the proposed owners,
-then establish a coherent source baseline and dispatch a bounded migration.
+duplicated during extraction. The blanket feature import ban was not weakened:
+`emailsettings` is classified as a foundation package.
 
 Updated 2026-11-10. Canonical checkout: `/Users/paul/projects/audiobookshelf-go`, **master only**, fork
 `https://github.com/ppoloskov/audiobookshelf-go`. No development branches or implementation worktrees. The

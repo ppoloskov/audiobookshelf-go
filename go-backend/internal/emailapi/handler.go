@@ -3,6 +3,7 @@ package emailapi
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
@@ -51,10 +52,10 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 func (h *Handler) load(ctx context.Context) (map[string]any, error) {
-	return settingsdoc.Load(ctx, h.db, settingsdoc.EmailKey, settingsdoc.EmailDefaults())
+	return settingsdoc.Load(ctx, h.db, emailsettings.Key, emailsettings.Defaults())
 }
 func (h *Handler) save(ctx context.Context, m map[string]any) error {
-	return settingsdoc.Save(ctx, h.db, settingsdoc.EmailKey, m)
+	return settingsdoc.Save(ctx, h.db, emailsettings.Key, m)
 }
 func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) error {
 	m, e := h.load(r.Context())
@@ -84,7 +85,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request, patch bool) e
 			}
 			if k == "ereaderDevices" {
 				if list, ok := v.([]any); ok {
-					v = settingsdoc.CleanDevices(list)
+					v = emailsettings.CleanDevices(list)
 				} else {
 					continue
 				}
@@ -120,7 +121,7 @@ func (h *Handler) ereaderDevices(w http.ResponseWriter, r *http.Request) error {
 	for i, device := range p.Devices {
 		provided[i] = device
 	}
-	clean := settingsdoc.CleanDevices(provided)
+	clean := emailsettings.CleanDevices(provided)
 	changed := !reflect.DeepEqual(m["ereaderDevices"], clean)
 	m["ereaderDevices"] = clean
 	if changed {
@@ -169,7 +170,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	if device == nil {
 		return httputil.Status(404, "Ereader device not found")
 	}
-	if !settingsdoc.DeviceAllowed(device, u) {
+	if !emailsettings.DeviceAllowed(device, u) {
 		return httputil.Status(403, "")
 	}
 	var folder, mediaID, mediaType string

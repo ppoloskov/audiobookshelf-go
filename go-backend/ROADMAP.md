@@ -2,12 +2,23 @@
 
 ### PB01 · Package and object ownership review (2026-11-10)
 
-- [ ] PROPOSED — owner requested better package division and object
+- [ ] IN REVIEW — owner requested better package division and object
   boundaries. [Source-backed review](docs/PACKAGE-BOUNDARIES.md) records
   catalog scope, misleading helper ownership, dependency-rule pressure,
-  proposed owners and migration sequence. No runtime refactor performed.
-  Reconcile inherited conflicts before implementation; scope exact caller
-  moves, metric budget and regression checks before worker dispatch.
+  proposed owners and migration sequence. First runtime packet ACCEPTED
+  2026-11-10: email defaults and e-reader device policy moved from
+  `settingsdoc` to `internal/emailsettings`; `emailapi`, `identity` and
+  `userapi` consume it, and generic settings-row `Load`/`Save` remain in
+  `settingsdoc`. Catalog decomposition and unrelated settings behavior were
+  not changed. Architect rerun verified: build, vet, full suite with the
+  documented FFmpeg prefix, lint (0 issues), 20 dependency fixtures,
+  `make ratchet` +0 on every metric (no baseline edit; the 38,119 baseline
+  belongs to 74734477), and that the identity nil→defaults change is
+  unobservable (Load substitutes only for missing/null rows; VisibleTo is
+  empty either way). Follow-ups recorded in handover: email-settings
+  document to struct with json tags (new agents.md rule 1; also fixes the
+  unchecked `device["email"].(string)` in emailapi sendEbook), then catalog
+  decomposition after explicit handover.
 - Documentation validation only: source/test/lint inspection and targeted
   whitespace/link checks. Existing implementation cards retain their state.
 

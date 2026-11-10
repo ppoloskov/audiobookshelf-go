@@ -5,6 +5,7 @@ package identity
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/emailsettings"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/settingsdoc"
@@ -590,11 +591,11 @@ func (h *Handler) loginPayload(ctx context.Context, user store.User) (map[string
 	if message, ok := serverSettings["authLoginCustomMessage"].(string); ok {
 		serverSettings["authLoginCustomMessage"] = textclean.Sanitize(message)
 	}
-	emailSettings, err := settingsdoc.Load(ctx, h.db, settingsdoc.EmailKey, nil)
+	emailSettings, err := settingsdoc.Load(ctx, h.db, emailsettings.Key, emailsettings.Defaults())
 	if err != nil {
 		return nil, err
 	}
-	devices := settingsdoc.VisibleTo(emailSettings, user)
+	devices := emailsettings.VisibleTo(emailSettings, user)
 	return map[string]any{"user": userDTO, "userDefaultLibraryId": defaultLibrary, "serverSettings": serverSettings, "ereaderDevices": devices, "Source": h.cfg.Source}, nil
 }
 

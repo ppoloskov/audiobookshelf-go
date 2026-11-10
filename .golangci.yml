@@ -97,6 +97,8 @@ linters:
             - "**/internal/serversettings/**/*.go"
             - "**/internal/settingsdoc/*.go"
             - "**/internal/settingsdoc/**/*.go"
+            - "**/internal/emailsettings/*.go"
+            - "**/internal/emailsettings/**/*.go"
             - "**/internal/access/*.go"
             - "**/internal/access/**/*.go"
             - "**/internal/libitem/*.go"
