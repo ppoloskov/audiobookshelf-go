@@ -8,6 +8,9 @@ fast Go.
   TS v2.37.2 server can still open it) and the client protocols (HTTP,
   Socket.IO, auth) that the web client, the mobile apps and documented-API
   clients use. Everything between them is replaceable.
+- Owner clarification (2026-11-11): internal subsystems may be reimplemented
+  or consolidated with libraries. Preserve data/client contracts, not TS-like
+  mechanisms or upstream package structure.
 - Upstream `advplyr/audiobookshelf` v2.37.2 (`edb1f7efc92ecacdef51aafb4d9d5054ce10604f`,
   source in `server/`) is a reference for meaning, never modified, and not a
   byte-level oracle or a structure template.

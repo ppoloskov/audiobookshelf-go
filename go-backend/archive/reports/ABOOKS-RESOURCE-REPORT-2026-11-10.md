@@ -1,3 +1,5 @@
+> Archived 2026-11-11: completed or superseded report retained as evidence. Current requirements and status are in [ROADMAP.md](../ROADMAP.md) and [ARCHITECTURE.md](../ARCHITECTURE.md).
+
 # Audiobookshelf (`abooks`) resource consumption report
 
 Date: 2026-11-10

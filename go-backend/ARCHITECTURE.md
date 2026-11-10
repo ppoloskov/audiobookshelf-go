@@ -21,6 +21,15 @@ The upstream TypeScript source (`server/`, pinned v2.37.2,
 `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`) is a **reference** for what the
 contracts mean. It is not a template for structure and not a byte-level oracle.
 
+Owner clarification, 2026-11-11: **complete internal reimplementation freedom**.
+Only persisted-data/rollback and client contracts constrain the product design.
+Modules, algorithms, helper layers and upstream quirks do not deserve retention
+merely because the current implementation imitates TS. A smaller end-to-end
+library-backed design may replace several current modules. Justify retained
+adapters with concrete data/client obligations; measure the complete replacement
+rather than treating today's internal responsibilities as fixed. Historical
+implementation-retention decisions do not exclude alternatives from review.
+
 ## Principles
 
 | Was | Now |
@@ -101,9 +110,10 @@ report the shortfall rather than inventing savings or cutting features.
   types, including `null` where a client checks for it.
 - Socket.IO v4 on the legacy and `/audiobookshelf` Engine.IO paths: event
   names, payload fields, and which users receive each event.
-- Retain the current in-repo Engine.IO/Socket.IO framing. The owner has
-  cancelled the library-replacement initiative; this does not prohibit
-  ordinary transport fixes or contract tests that preserve the protocol.
+- Engine.IO/Socket.IO framing is replaceable under the owner's 2026-11-11
+  clarification. Preserve required protocol behavior and prove real-client
+  interoperation; historical cancellation of a replacement initiative is not
+  a permanent architectural prohibition.
 - `ROUTER_BASE_PATH` behavior, `/healthcheck`, `/ping`, `/status`, the served
   web client and the public share/feed/HLS URLs.
 - Proof: contract tests (request/response field and type checks per route a

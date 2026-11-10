@@ -1,5 +1,11 @@
 # Roadmap
 
+Owner design clarification (2026-11-11): internal subsystems and module
+boundaries are freely replaceable; only persisted-data/rollback and client
+contracts are fixed product requirements. Retention based solely on TS/upstream
+imitation is not a valid constraint. Apply this to future dispatches and library
+evaluations; this note does not start or accept an implementation packet.
+
 ### UA01 · User API simplification and file ownership (2026-11-10)
 
 - [ ] LOCALLY VERIFIED, PENDING INTEGRATION — owner requested Terra implementation after the package

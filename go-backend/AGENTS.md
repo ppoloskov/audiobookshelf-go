@@ -13,6 +13,13 @@ clients, books and progress, using simple, clear, fast Go.
   compatibility, rollback to TS v2.37.2, and protocols real clients require.
 - Internal structure, SQL, DTO construction and framing may change when those
   boundaries are preserved. HTTP caching/range semantics are observable.
+- Owner clarification (2026-11-11): there is complete freedom to reimplement
+  internal subsystems, consolidate modules and adopt smaller library-backed
+  designs. Retain behavior only for a persisted-data or client contract, not
+  because it mimics TS, Sequelize, Express or upstream structure. Existing
+  implementation choices and historical retention decisions are not permanent
+  architectural constraints. Evaluate end-to-end replacements and their actual
+  adapters; do not assume the current internal mechanisms must survive.
 - `server/` is read-only behavioral reference at
   `edb1f7efc92ecacdef51aafb4d9d5054ce10604f`; never copy its architecture by default.
 - Never run TS and Go on the same writable database or metadata tree.
@@ -25,12 +32,12 @@ clients, books and progress, using simple, clear, fast Go.
   when the configured provider is permitted to receive the assigned material.
   Inspect `opencode2 models` and `opencode2 run --help`; do not guess CLI flags
   or a model name. Built-in cheap workers are the fallback.
-- E01 source audit is complete; no thousand-line wave is established. The
-  owner retains current custom Engine.IO/Socket.IO framing and cancelled the
-  library-replacement initiative. Next is the separately scoped E03 cleanup;
-  ordinary transport fixes and contract tests remain allowed. Cheap workers
-  own bounded work; architect reviews alternatives, counts and contracts.
-  No feature footprint/relocation credit.
+- E01 source audit is complete; no thousand-line wave is established.
+  Historical cancellation of the Socket.IO replacement initiative does not
+  prohibit reassessment under the 2026-11-11 internal-reimplementation
+  clarification. The client protocol is fixed; the framing implementation is
+  replaceable. Cheap workers own bounded work; architect reviews alternatives,
+  counts and contracts. No feature footprint/relocation credit.
 - **Preserve functionality.** The owner clarified that backup/restore and
   manual conversion/embedding remain supported, including their web UI flows.
   D02's feature-removal proposal was withdrawn; its uncommitted implementation

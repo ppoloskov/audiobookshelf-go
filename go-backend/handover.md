@@ -1,5 +1,91 @@
 # Go backend handover
 
+## Owner clarification — internal freedom, 2026-11-11
+
+The owner grants complete freedom to reimplement internal subsystems. Fixed
+product boundaries are persisted-data/rollback compatibility and client
+contracts. Do not retain modules, JS emulation or upstream mechanisms merely
+because they exist today. Historical retention decisions, including custom
+transport framing, do not permanently exclude library alternatives. Review
+whole-workflow replacement cost and prove any retained compatibility adapter
+against an actual data/client obligation. The earlier library audit was too
+conservative where it treated internal mechanisms as immutable; its exclusions
+need reassessment under this rule. This clarification starts no runtime packet.
+
+## Revised library replacement recommendations — 2026-11-11
+
+The completed re-audit covers all 57 internal Go package directories at
+`accbd563`. It supersedes the earlier helper-only shortlist: evaluate complete
+subsystem replacements and count the adapters that actually remain. Internal
+APIs, record layers, SQL, framing, process/queue models and TS emulation are
+replaceable; persisted-data/rollback and client contracts govern acceptance.
+
+Recommended prototype order (separate from the active PB04 execution queue):
+
+1. **Socket.IO/Engine.IO replacement:** evaluate
+   [zishang520 Socket.IO v3](https://github.com/zishang520/socket.io/releases/tag/v3.0.6),
+   initially v3.0.6. Delete candidates are `realtime/eio.go` (239 physical
+   lines), `sio.go` (228), and transport-specific hub/mount plumbing. Use
+   library sockets/acks/rooms directly. Preserve post-connect `auth`,
+   `auth_failed`/`init` ordering, persisted lastSeen, action ACLs and per-user
+   payload filtering. The release reports early-CONNECT race fixes; rerun the
+   historical 200 sequential and 10×20 concurrent immediate-auth tests on both
+   paths before claiming resolution. Also verify reconnect, limits, shutdown
+   and restore. Historical cancellation is no longer an exclusion.
+2. **Canonical persistence:** prototype
+   [Bob records and optional setters](https://bob.stephenafamo.com/docs/models/table/)
+   across author/series read-update operations, then a batched book read.
+   [Bun](https://bun.uptrace.dev/guide/) and existing sqlc are comparison
+   alternatives, not additional overlapping persistence layers. Target
+   `sqlupdate`, catalog row/update emulation, duplicate store/entity records,
+   scanners/loaders and settings-row glue. Preserve stored formats, safe API
+   projections, null/zero/presence, observable no-op behavior, query ordering
+   and outer transaction ownership. Do not serialize credential-bearing rows.
+3. **Typed HTTP edge:** evaluate
+   [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) or
+   [Huma](https://huma.rocks/features/request-validation/) on one read, one
+   nullable PATCH and representative auth/error responses. Replace repeated
+   binding/decoding/response types rather than wrap old handlers. Current
+   `docs/openapi.json` has only 31 paths/91 schemas; verify the selected
+   contract first. Generator/framework default errors and validation order
+   must not silently replace client contracts.
+
+Other worthwhile candidates:
+
+- **One media-job engine:** [afmpeg](https://afmpeg.phpboyscout.uk/) could
+  consolidate mediatools, audiotools processing, playback transcode and
+  scanner/podcast probe plumbing. Rough candidate envelope is 500 physical
+  lines, not net savings. Prove full probe output, required codecs, long-audio
+  throughput/memory, native platform coverage and HLS seek/reset first.
+- **Mail:** [go-mail](https://github.com/wneessen/go-mail) replaces SMTP/TLS,
+  MIME/base64 and attachment staging; 111 gross transport/encoding lines are
+  identified, plus the opportunity to stream attachments. Retain settings,
+  e-reader access and endpoint results; notifications already uses Apprise.
+- **Sanitization:** [bluemonday](https://github.com/microcosm-cc/bluemonday)
+  can replace the 236-line textclean algorithm with configured policy.
+  Preserve safe rendered/stored content; avoid recreating token/formatting
+  quirks merely for TS resemblance.
+- **Archive service:** compare
+  [mholt/archives](https://github.com/mholt/archives) with one shared
+  `archive/zip` implementation across backup and public/private downloads.
+  About 190 gross helper lines are identified. Preserve exported backup
+  layout, snapshot/restore safety and download behavior; count codec/dependency
+  and manifest-adapter costs.
+- **Logging:** reconsider a `slog` record/sink pipeline with a rotating writer
+  such as [Timberjack](https://github.com/DeRuina/timberjack), plus a thin
+  client-history/socket adapter. The current 724-line logger is replaceable.
+  Establish persisted log/history obligations before changing file layout;
+  console formatting and existing classes are not intrinsically contracts.
+
+All figures are gross physical source footprints, not measured net deletion;
+the opportunities overlap and must not be summed. No library was installed,
+prototype implemented, runtime test/benchmark run or adoption approved by the
+audit. Before dispatch, name the exact deletion/replacement scope and budget;
+measure total authored Go, SQL, configuration, codecs and adapters separately
+from generated output. Require client/data, race, performance and rollback
+proof appropriate to the change. These recommendations do not auto-start a
+packet or replace PB04c2's gate/progress-store sequence.
+
 ## Current architect decision — 2026-11-11, cf3990d0
 
 [PB04c2 gate review and dispatch constraints](docs/PB04C2-ARCHITECTURE.md):
