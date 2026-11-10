@@ -14,7 +14,6 @@ import (
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -108,15 +107,62 @@ func (p Permissions) ListLibrary(id string) bool {
 	return len(p.Libraries) == 0 || slices.Contains(p.Libraries, id)
 }
 
+// Access is what every permission check reads of an item.
+type Access struct {
+	LibraryID string
+	Explicit  bool
+	Tags      []string
+}
+
+// LoadAccess reads only the permission inputs of one item (library, media
+// explicit flag and tags) in a single query. It returns sql.ErrNoRows when the
+// item or its media row is missing.
+func LoadAccess(ctx context.Context, db *sql.DB, id string) (Access, error) {
+	var a Access
+	var explicit sql.NullInt64
+	var tags []byte
+	var mediaID sql.NullString
+	err := db.QueryRowContext(ctx, `SELECT li.libraryId, COALESCE(b.id,p.id), COALESCE(b.explicit,p.explicit), COALESCE(b.tags,p.tags)
+FROM libraryItems li
+LEFT JOIN books b ON li.mediaType='book' AND b.id=li.mediaId
+LEFT JOIN podcasts p ON li.mediaType='podcast' AND p.id=li.mediaId
+WHERE li.id=?`, id).Scan(&a.LibraryID, &mediaID, &explicit, &tags)
+	if err != nil {
+		return Access{}, err
+	}
+	if !mediaID.Valid {
+		return Access{}, sql.ErrNoRows
+	}
+	a.Explicit, a.Tags = explicit.Int64 != 0, store.DecodeJSONSlice[string](tags)
+	return a, nil
+}
+
 // Item is User.checkCanAccessLibraryItem: library, explicit and tag rules.
-func (p Permissions) Item(a libitem.Access) bool {
+func (p Permissions) Item(a Access) bool {
 	return p.Library(a.LibraryID) && p.Content(a)
+}
+
+// Content is Item without the library rule (Access.LibraryID is ignored).
+// Explicit content needs an active user (User.canAccessExplicitContent).
+// MediaClause must select exactly the media Content allows
+// (TestMediaClauseMatchesContent).
+func (p Permissions) Content(a Access) bool {
+	if a.Explicit && !(p.Explicit && p.Active) {
+		return false
+	}
+	if p.AllTags {
+		return true
+	}
+	if len(a.Tags) == 0 {
+		return p.TagsExcluded
+	}
+	return slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(p.Tags, t) }) != p.TagsExcluded
 }
 
 // ItemAccess loads the library item and answers whether it exists and whether
 // the user may read it (User.checkCanAccessLibraryItem).
 func ItemAccess(ctx context.Context, db *sql.DB, user store.User, itemID string) (exists, allowed bool, err error) {
-	a, err := libitem.LoadAccess(ctx, db, itemID)
+	a, err := LoadAccess(ctx, db, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, false, nil
 	}
@@ -130,23 +176,6 @@ func ItemAccess(ctx context.Context, db *sql.DB, user store.User, itemID string)
 func CanReadItem(ctx context.Context, db *sql.DB, user store.User, itemID string) (bool, error) {
 	_, allowed, err := ItemAccess(ctx, db, user, itemID)
 	return allowed, err
-}
-
-// Content is Item without the library rule (Access.LibraryID is ignored).
-// Explicit content needs an active user (User.canAccessExplicitContent).
-// MediaClause must select exactly the media Content allows
-// (TestMediaClauseMatchesContent).
-func (p Permissions) Content(a libitem.Access) bool {
-	if a.Explicit && !(p.Explicit && p.Active) {
-		return false
-	}
-	if p.AllTags {
-		return true
-	}
-	if len(a.Tags) == 0 {
-		return p.TagsExcluded
-	}
-	return slices.ContainsFunc(a.Tags, func(t string) bool { return slices.Contains(p.Tags, t) }) != p.TagsExcluded
 }
 
 // MediaClause is the AND clause hiding explicit media and media whose tags the

@@ -7,7 +7,6 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/jsonvalue"
-	"audiobookshelf-compat/internal/libitem"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -185,7 +184,7 @@ func (h *Handler) sendEbook(w http.ResponseWriter, r *http.Request) error {
 	e = h.db.QueryRowContext(r.Context(), `SELECT explicit,tags,ebookFile FROM books WHERE id=?`, mediaID).Scan(&explicit, &tagsRaw, &ebookRaw)
 	var tags []string
 	_ = json.Unmarshal(tagsRaw, &tags)
-	if e != nil || !perms.Content(libitem.Access{Explicit: explicit, Tags: tags}) {
+	if e != nil || !perms.Content(access.Access{Explicit: explicit, Tags: tags}) {
 		return httputil.Status(403, "")
 	}
 	var ebook struct {

@@ -37,6 +37,26 @@
 - Documentation validation only: source/test/lint inspection and targeted
   whitespace/link checks. Existing implementation cards retain their state.
 
+### PB02 · Catalog read graph — item permission inputs (2026-11-10)
+
+- [ ] IN PROGRESS — first bounded slice of the catalog read graph ACCEPTED
+  2026-11-10. `Access`,
+  its permission-only `LoadAccess` query and `ItemAccess`/`CanReadItem` now
+  live in `internal/access`; `libitem.Item`/`Full`/`Expanded`/`Minified`
+  expose `access.Access`. Catalog, emailapi, realtime and tests consume the
+  new owner. This removes the `access` → `libitem` dependency; `libitem`
+  now depends on `access`. Books/podcasts/common item loading is unchanged.
+  No route, JSON, permission, persistence or event behaviour changed.
+  Architect rerun verified: gofmt, build, vet, the full suite with the
+  documented FFmpeg prefix, targeted `-race` on access/libitem/catalog/
+  emailapi/realtime, golangci-lint v2.15.0 (0 issues), 20 dependency
+  fixtures, `make ratchet` +0 on every metric and dbnest.
+- Zero metric growth: 38,234 handwritten LOC / 8,544 complexity / 114
+  functions over 15 / 451 `map[string]any` / 196 `[]any`; no baseline edit.
+- Next slice after explicit handover: move the common item model/loader into
+  `internal/items`, then establish books/podcasts read owners without a
+  second `libitem` implementation.
+
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);
 older detail in [the pre-takeover roadmap](archive/reviews/2026-11-04-roadmap-before-takeover.md).

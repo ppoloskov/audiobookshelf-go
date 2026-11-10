@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 
 	_ "modernc.org/sqlite"
@@ -68,7 +67,7 @@ func TestMediaClauseMatchesContent(t *testing.T) {
 			selected[i.(float64)] = true
 		}
 		for ii, it := range m.Items {
-			allowed := p.Content(libitem.Access{Explicit: it.Explicit, Tags: it.Tags})
+			allowed := p.Content(Access{Explicit: it.Explicit, Tags: it.Tags})
 			if selected[float64(ii)] != allowed {
 				t.Errorf("user %d item %d: SQL selects %v, Content allows %v", ui, ii, selected[float64(ii)], allowed)
 			}
@@ -84,7 +83,7 @@ func TestMalformedPermissionsGrantNothing(t *testing.T) {
 		`[]`,
 	} {
 		p := Of(store.User{Type: "user", IsActive: true, Permissions: json.RawMessage(doc)})
-		if p.Library("lib1") || p.Update() || p.Content(libitem.Access{Tags: []string{"a"}}) {
+		if p.Library("lib1") || p.Update() || p.Content(Access{Tags: []string{"a"}}) {
 			t.Errorf("%s: malformed permissions granted access: %+v", doc, p)
 		}
 		if clause, _ := p.MediaClause("b"); !strings.Contains(clause, "AND 0") {
@@ -95,7 +94,7 @@ func TestMalformedPermissionsGrantNothing(t *testing.T) {
 
 func TestExplicitNeedsActiveUser(t *testing.T) {
 	doc := json.RawMessage(`{"accessAllLibraries": true, "accessAllTags": true, "accessExplicitContent": true}`)
-	explicit := libitem.Access{LibraryID: "lib1", Explicit: true}
+	explicit := Access{LibraryID: "lib1", Explicit: true}
 	if !Of(store.User{IsActive: true, Permissions: doc}).Item(explicit) {
 		t.Fatal("active user with accessExplicitContent must see explicit items")
 	}
@@ -106,7 +105,7 @@ func TestExplicitNeedsActiveUser(t *testing.T) {
 
 func TestEmptyAllowListHidesEverything(t *testing.T) {
 	p := Of(store.User{IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries": true, "accessAllTags": false, "itemTagsSelected": [], "selectedTagsNotAccessible": false}`)})
-	if p.Content(libitem.Access{Tags: []string{"a"}}) || p.Content(libitem.Access{}) {
+	if p.Content(Access{Tags: []string{"a"}}) || p.Content(Access{}) {
 		t.Fatal("empty allow list must deny every item")
 	}
 	if clause, _ := p.MediaClause("b"); !strings.Contains(clause, "AND 0") {
@@ -188,7 +187,7 @@ func TestTagRule(t *testing.T) {
 		{"deny list, item has other tags only", `{"itemTagsSelected":["x"],"selectedTagsNotAccessible":true}`, []string{"y"}, true},
 		{"empty deny list admits everything", `{"itemTagsSelected":[],"selectedTagsNotAccessible":true}`, []string{"y"}, true},
 	} {
-		if got := perms("user", true, tc.doc).Content(libitem.Access{Tags: tc.itemTag}); got != tc.want {
+		if got := perms("user", true, tc.doc).Content(Access{Tags: tc.itemTag}); got != tc.want {
 			t.Errorf("%s: Content = %v, want %v", tc.name, got, tc.want)
 		}
 	}
@@ -256,23 +255,23 @@ func TestItemNeedsLibraryExplicitAndTagRules(t *testing.T) {
 	const doc = `{"accessAllLibraries":false,"librariesAccessible":["lib1"],"accessAllTags":false,"itemTagsSelected":["ok"],"accessExplicitContent":false}`
 	for _, tc := range []struct {
 		name string
-		item libitem.Access
+		item Access
 		want bool
 	}{
-		{"listed library, allowed tag", libitem.Access{LibraryID: "lib1", Tags: []string{"ok"}}, true},
-		{"other library", libitem.Access{LibraryID: "lib2", Tags: []string{"ok"}}, false},
-		{"disallowed tag", libitem.Access{LibraryID: "lib1", Tags: []string{"no"}}, false},
-		{"explicit item without permission", libitem.Access{LibraryID: "lib1", Explicit: true, Tags: []string{"ok"}}, false},
+		{"listed library, allowed tag", Access{LibraryID: "lib1", Tags: []string{"ok"}}, true},
+		{"other library", Access{LibraryID: "lib2", Tags: []string{"ok"}}, false},
+		{"disallowed tag", Access{LibraryID: "lib1", Tags: []string{"no"}}, false},
+		{"explicit item without permission", Access{LibraryID: "lib1", Explicit: true, Tags: []string{"ok"}}, false},
 	} {
 		if got := perms("user", true, doc).Item(tc.item); got != tc.want {
 			t.Errorf("%s: Item = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 	open := `{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`
-	if !perms("user", true, open).Item(libitem.Access{LibraryID: "any", Explicit: true}) {
+	if !perms("user", true, open).Item(Access{LibraryID: "any", Explicit: true}) {
 		t.Error("an unrestricted active user reads explicit items")
 	}
-	if perms("guest", false, open).Item(libitem.Access{LibraryID: "any", Explicit: true}) {
+	if perms("guest", false, open).Item(Access{LibraryID: "any", Explicit: true}) {
 		t.Error("a deactivated user reads no explicit item even with every flag set")
 	}
 }

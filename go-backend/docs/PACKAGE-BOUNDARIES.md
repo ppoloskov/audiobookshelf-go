@@ -63,6 +63,12 @@ device entries remain maps so unknown device fields round-trip, while unknown
 top-level fields are not persisted because upstream `EmailSettings.toJSON`
 does not emit them.
 
+First catalog read-graph slice: the permission projection of an item
+(`Access`, `LoadAccess`, `ItemAccess`, `CanReadItem`) now belongs to
+`internal/access`; `libitem` envelopes expose `access.Access`. This removes the
+old `access` → `libitem` edge. The common item model/loader and the
+books/podcasts ownership moves remain for later packets.
+
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess
 execution/probe formats. Keep backup, scanner, sharing, providers, audiotools

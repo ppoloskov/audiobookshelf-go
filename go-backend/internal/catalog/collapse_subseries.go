@@ -33,7 +33,7 @@ type subseriesSeries struct {
 // subseriesBook is one library item of the filtered series: the Book model
 // with its libraryItem, as libraryHelpers.handleCollapseSubseries loads it.
 type subseriesBook struct {
-	access                   libitem.Access
+	access                   access.Access
 	itemID, libraryID        string
 	title, titleIgnorePrefix string
 	size                     sql.NullInt64

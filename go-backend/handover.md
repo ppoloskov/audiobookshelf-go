@@ -41,11 +41,12 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Base:** local `master` contains the accepted first email-settings packet at `9d2ac6a7`, plus the accepted typed email-settings packet in this commit.
+- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, plus the accepted first catalog-read-graph slice in this commit.
 - **Local acceptance:** the current worktree passes `go build ./...`, `go vet ./...`, `go test ./... -count=1` with the documented FFmpeg prefix, targeted `-race` tests, golangci-lint v2.15.0, dependency-boundary fixtures and `make ratchet`.
-- **Metrics:** 38,234 handwritten LOC / 8,544 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. The revised typed-packet growth updated only those measured baseline fields.
+- **Metrics:** 38,234 handwritten LOC / 8,544 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. The catalog packet has zero metric growth and required no baseline edit.
+- **Catalog read graph (PB02):** first slice ACCEPTED (2026-11-10). Item permission inputs now belong to `internal/access`: `Access`, `LoadAccess`, `ItemAccess` and `CanReadItem` moved there from `libitem`; `libitem` item envelopes expose `access.Access`, and catalog/emailapi/realtime consume it. `access` no longer imports `libitem`, so the dependency now points `libitem` → `access`. The common item loader and book/podcast models remain in `libitem` for the next slice.
 - **QM01:** empty converted match lists preserve existing links; duplicate series updates run sequentially; missing sequence preserves the current position; absent, null, empty and numeric text stay distinct. The actual QuickMatch adapter stores raw zero as `"0"`; PATCH and scanner adapters retain their respective null/absence rules. Existing Go characterization preserves event ordering.
-- **Git state:** the accepted first packet is committed at `9d2ac6a7`; the accepted typed email-settings packet, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
+- **Git state:** the accepted email-settings packets are committed through `7754ed0a` and pushed. The accepted PB02 catalog-read-graph slice and its documentation update are committed together and pushed to the fork's master. No deployment is claimed.
 
 ## Step 3, behavioural test-quality pass (done)
 

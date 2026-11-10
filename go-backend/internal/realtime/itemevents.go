@@ -6,7 +6,7 @@ import (
 )
 
 // accessor is implemented by the typed item payloads (libitem.Expanded, ...).
-type accessor interface{ Access() libitem.Access }
+type accessor interface{ Access() access.Access }
 
 func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
 	out := make([]T, 0, len(values))

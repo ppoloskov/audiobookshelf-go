@@ -7,6 +7,8 @@ package libitem
 
 import (
 	"database/sql"
+
+	"audiobookshelf-compat/internal/access"
 )
 
 // Item is a library item row with its media. Exactly one of Book and Podcast
@@ -150,17 +152,10 @@ type Options struct {
 	EpisodeIDs []string
 }
 
-// Access is what every permission check reads of an item.
-type Access struct {
-	LibraryID string
-	Explicit  bool
-	Tags      []string
-}
-
 // Access exposes the permission inputs: the item's library and the media's
 // explicit flag and tags (a podcast's explicit flag is its metadata.explicit).
-func (it Item) Access() Access {
-	a := Access{LibraryID: it.LibraryID}
+func (it Item) Access() access.Access {
+	a := access.Access{LibraryID: it.LibraryID}
 	switch {
 	case it.Book != nil:
 		a.Explicit, a.Tags = it.Book.Explicit, it.Book.Tags
@@ -172,8 +167,8 @@ func (it Item) Access() Access {
 
 // Access of a serialized item: the envelope's library and its media's explicit
 // flag and tags, so event filters need not re-load the row.
-func (h Head) access(media any) Access {
-	a := Access{LibraryID: h.LibraryID}
+func (h Head) access(media any) access.Access {
+	a := access.Access{LibraryID: h.LibraryID}
 	switch m := media.(type) {
 	case BookFull:
 		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
@@ -207,9 +202,9 @@ func (f Full) MediaID() string     { return mediaID(f.Media) }
 func (e Expanded) MediaID() string { return mediaID(e.Media) }
 func (m Minified) MediaID() string { return mediaID(m.Media) }
 
-func (f Full) Access() Access     { return f.Head.access(f.Media) }
-func (e Expanded) Access() Access { return e.Head.access(e.Media) }
-func (m Minified) Access() Access { return m.Head.access(m.Media) }
+func (f Full) Access() access.Access     { return f.Head.access(f.Media) }
+func (e Expanded) Access() access.Access { return e.Head.access(e.Media) }
+func (m Minified) Access() access.Access { return m.Head.access(m.Media) }
 
 func nullStr(s sql.NullString) *string {
 	if !s.Valid {
