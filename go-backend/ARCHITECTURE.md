@@ -119,6 +119,13 @@ caches, goroutines, and anything a client cannot observe.
 
 ## Package layout (target)
 
+PB04c2's [gate decision](docs/PB04C2-ARCHITECTURE.md) assigns item deletion
+mechanics to the existing itemwrite mutation owner. Library retains its whole
+deletion transaction; row deletion takes that transaction and effects run only
+after commit. Root items cannot own playlist-emitting deletion completion
+because playlistview already imports items. Match-all may call a typed
+per-item matching operation after closing its selection rows.
+
 Organize by domain, not by upstream controller. A domain owns its HTTP
 handlers, its queries and its types.
 

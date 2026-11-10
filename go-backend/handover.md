@@ -1,5 +1,25 @@
 # Go backend handover
 
+## Current architect decision — 2026-11-11, cf3990d0
+
+[PB04c2 gate review and dispatch constraints](docs/PB04C2-ARCHITECTURE.md):
+deletion moves first to existing itemwrite; library keeps its whole-library
+transaction and receives typed deletion changes for post-commit effects.
+Do not reuse the c1 transactionless callback inside that transaction. Root
+items would cycle through playlistview. A narrow per-item quick-match seam is
+accepted; match-all selection/task orchestration belongs to library.
+
+Before extraction, PB04c1-R repairs a reproduced inherited defect:
+removal-only folder PATCH removes items but returns before deleting the
+folder row or refreshing/emitting. Its write test was a no-op callback, despite
+the earlier recording-callback claim. Review ran five affected package suites
+(all pass) and a temporary overlay counterexample (fails as expected).
+No runtime implementation, baseline edit, commit or push in this review.
+R budget +5 LOC/+2 complexity; deletion prerequisite D budget +120/+25;
+all other metric growth zero. C2 remains gated with budget unset until its
+post-D dispatch. One packet per invocation/review; progress/store records
+follow c2. Historical acceptance summaries below are not a fresh full audit.
+
 ## User API simplification — UA01 (2026-11-10)
 
 Terra implemented clearer concern files inside `internal/userapi`, retaining
@@ -83,9 +103,9 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, PB02a–d, PB03a at `bf72cb3c`, the intermediate `371e9abb` simplification, PB04a/UA01 through `a90d1dd5`, PB04b1 at `c244f6a5`, PB04b2a at `dcf1b94a`, PB04b2b at `88e71f91`, and PB04b3 at `2b422604`, plus the accepted PB04c1 slice in this commit.
+- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, PB02a–d, PB03a at `bf72cb3c`, the intermediate `371e9abb` simplification, PB04a/UA01 through `a90d1dd5`, PB04b1 at `c244f6a5`, PB04b2a at `dcf1b94a`, PB04b2b at `88e71f91`, PB04b3 at `2b422604`, and PB04c1 at `cf3990d0`, plus the accepted PB04c1-R repair and the ratified PB04c2 gate decision in this commit.
 - **Local acceptance:** the current worktree passes `go build ./...`, `go vet ./...`, `go test ./... -count=1` with the documented FFmpeg prefix, targeted `-race` tests, golangci-lint v2.15.0, dependency-boundary fixtures and `make ratchet`.
-- **Metrics:** 38,725 handwritten LOC / 8,555 complexity / 111 functions over 15 / 436 `map[string]any` / 194 `[]any`. PB04c1 has an in-review delta of +51 LOC / +9 complexity with every other ratchet metric unchanged, within the pre-recorded +120/+25 budget.
+- **Metrics:** 38,725 handwritten LOC / 8,556 complexity / 111 functions over 15 / 436 `map[string]any` / 194 `[]any`. PB04c1-R landed at +0 LOC / +1 complexity with every other ratchet metric unchanged, within the pre-recorded +5/+2 ceiling.
 - **Catalog read graph (PB02) — DONE:** PB02a moved item permission inputs into `internal/access`. PB02b moved common item identity, the batched loader and common envelopes into `internal/items`. PB02c moved book identity, projections and `LoadMany` into `internal/books`. PB02d is ACCEPTED at `a8e1b111`: podcast models/projections/episode loading moved into `internal/podcasts/read`, shared file models into `internal/mediafiles`, and `libitem` is deleted. `items` composes `books` + `podcastread` + `mediafiles`; feature `podcasts` consumes the read subpackage and keeps writes. The graph is acyclic and shared chunked queries live in `store.QueryIn`. Architect rulings: `mediafiles` approved as the shared representation leaf (not `store`); `podcasts/read` approved as a foundation subpackage with fixtures both ways; the items row-decode and explicit-podcast `Access()` assertions were restored at acceptance. Each media owner now has direct tests at its own boundary.
 - **People (PB03a) — ACCEPTED (2026-11-10):** author/series records, views, detail, update/rename, merge/delete and metadata matching moved from catalog into `internal/people` (1,149 production lines; the standalone package clears the fold-into-books measurement). Catalog keeps library-scoped author/series list routes and author image routes for the next slice; itemwrite remains the relation-cleanup/orphan owner. The dependency is `catalog` → `people`, and `people` does not import catalog. Author images use catalog callbacks supplied at composition; people writes metadata through the scanner callback. Architect rulings: +141 LOC / +26 complexity ratified (composition surface, shared `DecodeObjectFields`, removed `AuthorFinder` dependency); the image-callback seam has a named exit task in PB04; the nil-skip `WriteMetadata` tolerance must become a recording callback in the test rig; pre-dispatch budget recording is required for later growth packets.
 - **PB04a — ACCEPTED (2026-11-11):** the people remainder (library-scoped author/series lists, author image routes/helpers, author/series test rig with a recording `WriteMetadata` callback) and the first `internal/library` slice (`InLibrary` request scope, `Scope`, `MediaTable`) landed. Both PB03a contract conditions are closed; the image-callback exit is complete (`PurgeImageCache`/`SaveAuthorImage` deleted from `Deps`). Shared file/stream serving moved to `httputil`, image resize to `mediatools`; the temporary `SeriesMatchesFilter` callback exits in PB04b. Owner ruling on series: series is not people — it is library-scoped (no image/matching/merge upstream, `libraryId` FK), its list routes are LibraryController operations upstream, and `books` cannot own the routes (`items → books` would cycle). Series routes moved people → library in PB04b1; `people` is authors-only.
@@ -95,9 +115,10 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 - **PB04b2a — ACCEPTED (2026-11-11):** library list/detail/view, stats, filterdata and narrator/podcast-title reads moved to `internal/library`; catalog keeps narrator updates and every library/admin write. `View`/`FolderView` are public for catalog write responses, while `ReadView` and `StatsValue` hold the read implementation. Library tests now own the view/stats/filterdata coverage; catalog mutation and invalidation tests mount the library handler where they assert write side effects. Route registrations moved exactly; the same `filterdata.Cache` instance is shared by both handlers so write invalidation still clears reads. The 16-line catalog alias file has a named exit task: it dissolves when library writes/admin move. Actual +52 LOC / +5 complexity, within the pre-recorded +100/+20 budget. No route, JSON, permission, persistence or event behavior changed.
 - **PB04b2b — ACCEPTED (2026-11-11):** the item-list route, filter/sort/count/page rendering, collapse-series/subseries helpers and the item rssFeed/mediaItemShare include seam moved to `internal/library`; `books.SeriesRef` replaced `people.BookSeries` (identical json tags). Catalog keeps shelves/search, item detail, cover/file routes and mutations, plus library writes/admin. The admin-only share gate and feed/expiry/null behavior were verified verbatim; actual +3 LOC / +2 complexity. Recorded notes: the missing b2b pre-budget was self-disclosed and ratified this once (every packet records its budget before dispatch from now on), and the catalog-side item-list fixtures move to library once catalog's read surface is empty.
 - **PB04b3 — ACCEPTED (2026-11-11):** library search, personalized shelves, shelf/search DTOs and the library-scoped author list moved to `internal/library`; the author list came from people so the old people → library edge inverted to library → people (verified acyclic; the allow-fixture flipped to match). People is now author entities/CRUD/images/matching only. Catalog production holds only library writes/admin, item detail/cover/file routes and item mutations. Actual +3 LOC / +2 complexity, all other metrics unchanged. This was the third self-disclosed missing pre-dispatch budget; from the writes/admin packet onward a missing pre-recorded budget returns the packet regardless of actual growth.
-- **PB04c1 — IN REVIEW (2026-11-11):** library create/update/reorder, narrator update, OPML and remove-metadata moved to `internal/library`; the catalog `libraryView` alias file is deleted and catalog delete uses `library.ReadView`. Update folder removal uses the explicit `RemoveFolderItems` callback until item deletion moves. Catalog retains delete/issues, download and match-all for PB04c2. No route, JSON, permission, persistence or event behavior changed.
-- **PB04c1 — ACCEPTED (2026-11-11):** library create, update, reorder, narrator update, OPML and remove-metadata moved to `internal/library`; the catalog `libraryView` alias file is deleted (exit task completed). The `RemoveFolderItems` composition callback (catalog implements, library calls on folder removal) fails loudly when unwired and has a recording callback in the library write tests; its exit task is item-deletion ownership. Catalog production now retains only library delete/issues, download, match-all (PB04c2, gated on the item-deletion/quick-match dependency), item detail/cover/file routes and item mutations. The c-split and +120/+25 budget were recorded before moving; actual +51/+9. Note: the packet report arrived truncated; the review was performed from the card and diff.
-- **Git state:** accepted work is committed through `2b422604` and pushed. The accepted PB04c1 slice, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
+- **PB04c1 — ACCEPTED (2026-11-11):** library create, update, reorder, narrator update, OPML and remove-metadata moved to `internal/library`; the catalog `libraryView` alias file is deleted (exit task completed). The `RemoveFolderItems` composition callback (catalog implements, library calls on folder removal) fails loudly when unwired; its test callback is a no-op, with removal coverage to be repaired under PB04c1-R. Its exit task is item-deletion ownership. Catalog production now retains only library delete/issues, download, match-all (PB04c2, gated on the item-deletion/quick-match dependency), item detail/cover/file routes and item mutations. The c-split and +120/+25 budget were recorded before moving; actual +51/+9. Note: the packet report arrived truncated; the review was performed from the card and diff.
+- **PB04c1-R — IN REVIEW (2026-11-11):** removal-only folder PATCH now counts removed folders as a real update, so the folder row is deleted in the library transaction and watcher refresh plus `library_updated` follow commit. Tests cover removal, retained folder, callback arguments, callback error, missing wiring and repeat idempotence. The `RemoveFolderItems` bridge remains until PB04c2-D. No route, JSON, permission, persistence or event behavior changed.
+- **PB04c1-R — ACCEPTED (2026-11-11):** the removal-only folder PATCH repair. The one-line `hasUpdates` fix (removed folders now count as a real update) restores the inherited upstream behavior — folder row deleted inside the library transaction, one watcher refresh, one `library_updated`, updated library returned — with five tests covering removal, retained folders, callback arguments, callback error, missing wiring and idempotence. Verified against LibraryController.js:475-511 and the pre-move `catalog/library_writes.go:355` lineage. The PB04c2 gate decision ([PB04C2-ARCHITECTURE.md](docs/PB04C2-ARCHITECTURE.md)) is ratified: deletion mechanics to `itemwrite` with caller-owned transactions and post-commit effects, the `QuickMatchItem` typed seam, download ownership inventoried at dispatch. PB04c2-D is authorized under its recorded +120/+25 ceiling; stop for review after that one ownership change.
+- **Git state:** accepted work is committed through `cf3990d0` and pushed. The accepted PB04c1-R repair, its baseline update, the ratified PB04c2 gate decision and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
 
 ## Step 3, behavioural test-quality pass (done)
 
@@ -143,11 +164,15 @@ downloads, restore).
 
 ## Next, in order
 
-1. Review PB04c1 in the shared worktree; do not stage unrelated changes.
-2. After acceptance, resolve the item-deletion/quick-match dependency and
-   dispatch PB04c2: library delete/issues, download and match-all.
-3. Then move the progress/store records per the boundary sequence.
-4. Publication and remote-CI verification remain the existing N3 gate; live
+1. Review PB04c1-R in the shared worktree; do not stage unrelated changes.
+2. After acceptance, dispatch PB04c2-D: move deletion rows/effects into
+   existing itemwrite and dissolve `RemoveFolderItems`, with caller-owned
+   whole-library transactions and post-commit effects.
+2. Dispatch/review PB04c2-D, deletion ownership in existing itemwrite.
+3. Only then dispatch PB04c2 with exact download/matching seams and its own
+   pre-recorded budget: library delete/issues, download and match-all.
+4. Then move the progress/store records per the boundary sequence.
+5. Publication and remote-CI verification remain the existing N3 gate; live
    deployment stays separately authorized.
 
 ## Working rules learned this session

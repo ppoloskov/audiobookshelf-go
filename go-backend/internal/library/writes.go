@@ -346,7 +346,7 @@ func (h *Handler) updateLibrary(w http.ResponseWriter, r *http.Request) error {
 			return e
 		}
 	}
-	hasUpdates := len(fields) > 0 || settingsChanged || len(newFolders) > 0
+	hasUpdates := len(fields) > 0 || settingsChanged || len(newFolders) > 0 || len(removedFolders) > 0
 	if !hasUpdates {
 		result, e := ReadView(r.Context(), h.db, id)
 		if e != nil {

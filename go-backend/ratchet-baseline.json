@@ -3,7 +3,7 @@
   "Set* injector methods": 1,
   "[]any": 194,
   "catalog.New call sites": 1,
-  "cyclomatic complexity total": 8555,
+  "cyclomatic complexity total": 8556,
   "freePort helper definitions": 1,
   "functions with complexity > 15": 111,
   "hand-rolled Handle bool routers": 1,

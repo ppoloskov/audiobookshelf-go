@@ -386,14 +386,15 @@
      seam is accepted. Catalog keeps those routes until then.
   c1 budget: **+120 LOC / +25 complexity**, zero growth in functions over 15,
   maps, `[]any` and injector metrics. c2 budget is set at dispatch.
-- [ ] IN PROGRESS — PB04c1 ACCEPTED 2026-11-11: `internal/library` owns library
+- [x] DONE — PB04c1 accepted at `cf3990d0` (2026-11-11): `internal/library` owns library
   create, update, reorder, narrator update, OPML and remove-metadata. The
   catalog `libraryView`/`libraryFolderView` alias file is deleted (its exit
   task completed); catalog delete uses `library.ReadView` directly. Update's
   folder-removal branch calls the composition `RemoveFolderItems` callback
   implemented by catalog (`library_delete.go`), with the exit task when item
   deletion moves; an unwired callback fails loudly with a 500 instead of
-  silently skipping, and the library write tests supply a recording callback.
+  silently skipping. Review correction: the library write test supplies a
+  no-op callback and never exercises removal; PB04c1-R below closes that gap.
   Catalog retains delete/issues, download and match-all as PB04c2. Actual
   delta: **+51 LOC / +9 complexity**, with functions over 15, maps, `[]any`
   and injectors unchanged — within the pre-recorded +120/+25 budget. Architect
@@ -401,9 +402,49 @@
   prefix (51 packages), `-race` on library/catalog/server/items/scanner,
   golangci-lint v2.15.0 (0 issues), 32 dependency fixtures, `make ratchet`
   +0 and dbnest. The c-split and budget were recorded before moving, as the
-  standing rule requires. Next after acceptance: PB04c2 after the
-  item-deletion/quick-match dependency is resolved, with its budget set at
-  dispatch.
+  standing rule requires. The accepted extraction preserved an inherited
+  removal-only update defect; it is not evidence that that behavior is correct.
+- [ ] IN PROGRESS — PB04c1-R ACCEPTED 2026-11-11: removal-only folder PATCH now
+  counts removed folders as a real update, so it deletes the folder row inside
+  the library transaction, refreshes watchers and emits `library_updated`
+  after commit. Tests cover removal, kept-folder retention, callback
+  arguments, callback error, missing wiring and repeat idempotence. Actual
+  delta: **+0 LOC / +1 complexity**, with every other ratchet metric
+  unchanged — within the pre-recorded +5/+2 ceiling. The production fix is
+  one line (`removedFolders` joins `hasUpdates`); everything else it restores
+  already existed downstream in c1. Architect rerun verified: gofmt, build,
+  vet, the full suite with the documented FFmpeg prefix (51 packages),
+  `-race` on library/catalog/server, golangci-lint v2.15.0 (0 issues), 32
+  dependency fixtures, `make ratchet` +0, dbnest and `git diff --check`;
+  the fix was cross-checked against upstream
+  (LibraryController.js:475-511: folder removal sets hasFolderUpdates,
+  destroys the folder row, refreshes and emits once). The `RemoveFolderItems`
+  bridge remains until PB04c2-D. The c1 review correction in this card is
+  accurate: the gate review found both the inherited defect the PB04c1
+  architect review missed and the no-op callback mislabeled as recording
+  coverage; both are now closed.
+- [ ] PB04c2-D — deletion ownership prerequisite, after R acceptance:
+  move deletion rows/results/effects to existing itemwrite, dissolve catalog's
+  RemoveFolderItems bridge. Caller-owned transaction for whole-library
+  deletion; explicit post-commit phases preserve each caller's sweep/event
+  order. Budget **+120 LOC / +25 complexity**, zero growth in other metrics.
+  No implementation dispatched in this review; stop for review after this
+  one ownership change. See the decision for file scope and rollback proof.
+- [ ] PB04c2 — **GATED**, not merely queued. Architect selects deletion-owner
+  first, not another independently committing deletion callback. A typed
+  per-item quick-match operation seam is accepted in principle; library owns
+  selection/task orchestration. Resolve download selector/access ownership
+  with exact callers at dispatch. No active c2 budget: set it against the
+  accepted post-D source when dispatching; prerequisites do not auto-start c2.
+  After c2 acceptance, close the sequence with progress/store records.
+  Architect ratification 2026-11-11: the
+  [gate decision](docs/PB04C2-ARCHITECTURE.md) is accepted as the c2 gate
+  finding — deletion mechanics to `itemwrite` with caller-owned transactions
+  and post-commit effects (no independently committing deletion inside a
+  library transaction), the `QuickMatchItem` typed seam, and the download
+  ownership inventory at dispatch. PB04c2-D is authorized to dispatch under
+  its recorded +120/+25 ceiling with the exact write scope in the decision;
+  stop for review after that one ownership change.
 
 ### UA01 · User API simplification (2026-11-10)
 

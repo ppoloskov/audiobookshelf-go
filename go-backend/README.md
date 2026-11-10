@@ -19,9 +19,11 @@ fast Go.
 
 ## Where things live
 
-Package/object ownership is under review following the 2026-11-10 owner
-request. See the source-backed [boundary proposal](docs/PACKAGE-BOUNDARIES.md)
-for findings, proposed owners and migration proof. It is not implemented.
+Package/object ownership is partially implemented through PB04c1. See the
+[boundary proposal](docs/PACKAGE-BOUNDARIES.md) and the current
+[PB04c2 gate decision](docs/PB04C2-ARCHITECTURE.md): repair removal-only folder
+updates, move deletion to itemwrite, then review the remaining library packet.
+PB04c2 implementation has not started; progress/store records follow it.
 
 | Concern | File |
 |---------|------|

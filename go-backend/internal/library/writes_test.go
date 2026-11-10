@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -16,10 +17,12 @@ import (
 )
 
 type writeRig struct {
-	t       *testing.T
-	db      *sql.DB
-	mux     *http.ServeMux
-	changed int
+	t                 *testing.T
+	db                *sql.DB
+	mux               *http.ServeMux
+	changed           int
+	events            []string
+	removeFolderItems func(context.Context, string, string) error
 }
 
 func newWriteRig(t *testing.T) *writeRig {
@@ -35,11 +38,14 @@ func newWriteRig(t *testing.T) *writeRig {
 	}
 	rig := &writeRig{t: t, db: db}
 	rig.mux = http.NewServeMux()
-	New(db, nil, Deps{
+	New(db, func(_, event string, _ any) { rig.events = append(rig.events, event) }, Deps{
 		Filters:        filterdata.NewCache(),
 		LibraryChanged: func(string) { rig.changed++ },
-		RemoveFolderItems: func(_ context.Context, _, _ string) error {
-			return nil
+		RemoveFolderItems: func(ctx context.Context, libraryID, folderID string) error {
+			if rig.removeFolderItems == nil {
+				return nil
+			}
+			return rig.removeFolderItems(ctx, libraryID, folderID)
 		},
 	}).Routes(rig.mux)
 	return rig
@@ -91,5 +97,176 @@ func TestLibraryCreateAndUpdateRefreshWatcherAfterCommit(t *testing.T) {
 	}
 	if name != "Renamed" || folderCount != 2 || store.DecodeJSONObject(settingsRaw)["disableWatcher"] != true {
 		t.Fatalf("name=%s folders=%d settings=%s", name, folderCount, settingsRaw)
+	}
+}
+
+func (r *writeRig) seedFolderItem(t *testing.T) {
+	t.Helper()
+	const now = "2024-01-01 00:00:00.000 +00:00"
+	for _, q := range []string{
+		`INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,settings,extraData,createdAt,updatedAt) VALUES('l1','Shelf',0,'database','book','google','{}','{}','` + now + `','` + now + `')`,
+		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('f1','/books','l1','` + now + `','` + now + `')`,
+		`INSERT INTO books(id,title,explicit,abridged,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES('b1','Book',0,0,1,'[]','[]','null','[]','[]','[]','` + now + `','` + now + `')`,
+		`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,size,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId,libraryFolderId) VALUES('i1','ino1','/books/Book','Book','b1','book',0,0,0,'[]','{}',1,'Book','Book','','','` + now + `','` + now + `','l1','f1')`,
+	} {
+		if _, err := r.db.Exec(q); err != nil {
+			t.Fatalf("%v\n%s", err, q)
+		}
+	}
+}
+
+func eventCount(events []string, name string) int {
+	n := 0
+	for _, event := range events {
+		if event == name {
+			n++
+		}
+	}
+	return n
+}
+
+func TestLibraryUpdateFolderRemovalOnlyDeletesAndRefreshes(t *testing.T) {
+	rig := newWriteRig(t)
+	rig.seedFolderItem(t)
+	removals := 0
+	rig.removeFolderItems = func(_ context.Context, libraryID, folderID string) error {
+		removals++
+		if libraryID != "l1" || folderID != "f1" {
+			t.Fatalf("remove folder args = %q %q", libraryID, folderID)
+		}
+		_, err := rig.db.Exec(`DELETE FROM libraryItems WHERE libraryFolderId=?`, folderID)
+		return err
+	}
+	w := rig.do(http.MethodPatch, "/api/libraries/l1", `{"folders":[]}`, seriesRootUser())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if removals != 1 || rig.changed != 1 || eventCount(rig.events, "library_updated") != 1 {
+		t.Fatalf("removals=%d changed=%d events=%v", removals, rig.changed, rig.events)
+	}
+	var folders, items int
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId='l1'`).Scan(&folders); err != nil {
+		t.Fatal(err)
+	}
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryId='l1'`).Scan(&items); err != nil {
+		t.Fatal(err)
+	}
+	if folders != 0 || items != 0 {
+		t.Fatalf("folders=%d items=%d", folders, items)
+	}
+}
+
+func TestLibraryUpdateFolderRemovalErrorKeepsFolderAndSkipsRefresh(t *testing.T) {
+	rig := newWriteRig(t)
+	rig.seedFolderItem(t)
+	rig.removeFolderItems = func(context.Context, string, string) error { return errors.New("remove failed") }
+	w := rig.do(http.MethodPatch, "/api/libraries/l1", `{"folders":[]}`, seriesRootUser())
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if rig.changed != 0 || eventCount(rig.events, "library_updated") != 0 {
+		t.Fatalf("changed=%d events=%v", rig.changed, rig.events)
+	}
+	var folders, items int
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId='l1'`).Scan(&folders); err != nil {
+		t.Fatal(err)
+	}
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryId='l1'`).Scan(&items); err != nil {
+		t.Fatal(err)
+	}
+	if folders != 1 || items != 1 {
+		t.Fatalf("folders=%d items=%d", folders, items)
+	}
+}
+
+func TestLibraryUpdateFolderRemovalRepeatIsIdempotent(t *testing.T) {
+	rig := newWriteRig(t)
+	rig.seedFolderItem(t)
+	removals := 0
+	rig.removeFolderItems = func(_ context.Context, _, folderID string) error {
+		removals++
+		_, err := rig.db.Exec(`DELETE FROM libraryItems WHERE libraryFolderId=?`, folderID)
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		w := rig.do(http.MethodPatch, "/api/libraries/l1", `{"folders":[]}`, seriesRootUser())
+		if w.Code != http.StatusOK {
+			t.Fatalf("pass %d status=%d body=%s", i, w.Code, w.Body.String())
+		}
+	}
+	if removals != 1 || rig.changed != 1 || eventCount(rig.events, "library_updated") != 1 {
+		t.Fatalf("removals=%d changed=%d events=%v", removals, rig.changed, rig.events)
+	}
+}
+
+func (r *writeRig) seedSecondFolderItem(t *testing.T) {
+	t.Helper()
+	const now = "2024-01-01 00:00:00.000 +00:00"
+	for _, q := range []string{
+		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('f2','/books-2','l1','` + now + `','` + now + `')`,
+		`INSERT INTO books(id,title,explicit,abridged,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES('b2','Second',0,0,1,'[]','[]','null','[]','[]','[]','` + now + `','` + now + `')`,
+		`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,size,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId,libraryFolderId) VALUES('i2','ino2','/books-2/Second','Second','b2','book',0,0,0,'[]','{}',1,'Second','Second','','','` + now + `','` + now + `','l1','f2')`,
+	} {
+		if _, err := r.db.Exec(q); err != nil {
+			t.Fatalf("%v\n%s", err, q)
+		}
+	}
+}
+
+func TestLibraryUpdateFolderRemovalRetainsKeptFolder(t *testing.T) {
+	rig := newWriteRig(t)
+	rig.seedFolderItem(t)
+	rig.seedSecondFolderItem(t)
+	rig.removeFolderItems = func(_ context.Context, _, folderID string) error {
+		_, err := rig.db.Exec(`DELETE FROM libraryItems WHERE libraryFolderId=?`, folderID)
+		return err
+	}
+	w := rig.do(http.MethodPatch, "/api/libraries/l1", `{"folders":[{"id":"f2"}]}`, seriesRootUser())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var folders, keptItems, removedItems int
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId='l1'`).Scan(&folders); err != nil {
+		t.Fatal(err)
+	}
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryFolderId='f2'`).Scan(&keptItems); err != nil {
+		t.Fatal(err)
+	}
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryFolderId='f1'`).Scan(&removedItems); err != nil {
+		t.Fatal(err)
+	}
+	if folders != 1 || keptItems != 1 || removedItems != 0 || rig.changed != 1 || eventCount(rig.events, "library_updated") != 1 {
+		t.Fatalf("folders=%d kept=%d removed=%d changed=%d events=%v", folders, keptItems, removedItems, rig.changed, rig.events)
+	}
+}
+
+func TestLibraryUpdateFolderRemovalRequiresWiring(t *testing.T) {
+	rig := newWriteRig(t)
+	rig.seedFolderItem(t)
+	emit := func(_, event string, _ any) { rig.events = append(rig.events, event) }
+	mux := http.NewServeMux()
+	New(rig.db, emit, Deps{
+		Filters:        filterdata.NewCache(),
+		LibraryChanged: func(string) { rig.changed++ },
+	}).Routes(mux)
+	req := httptest.NewRequest(http.MethodPatch, "/api/libraries/l1", strings.NewReader(`{"folders":[]}`))
+	req = req.WithContext(store.ContextWithUser(req.Context(), seriesRootUser()))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if rig.changed != 0 || eventCount(rig.events, "library_updated") != 0 {
+		t.Fatalf("changed=%d events=%v", rig.changed, rig.events)
+	}
+	var folders, items int
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryFolders WHERE libraryId='l1'`).Scan(&folders); err != nil {
+		t.Fatal(err)
+	}
+	if err := rig.db.QueryRow(`SELECT COUNT(*) FROM libraryItems WHERE libraryId='l1'`).Scan(&items); err != nil {
+		t.Fatal(err)
+	}
+	if folders != 1 || items != 1 {
+		t.Fatalf("folders=%d items=%d", folders, items)
 	}
 }

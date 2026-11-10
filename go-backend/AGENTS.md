@@ -164,6 +164,13 @@ correctness/security guard or call an unimplemented policy machine-enforced.
 
 ## Code rules
 
+- PB04c2 is architecturally gated by the
+  [2026-11-11 decision](docs/PB04C2-ARCHITECTURE.md). First review the
+  removal-only folder PATCH repair (PB04c1-R), then deletion ownership in
+  itemwrite (PB04c2-D). Never call independently committing item deletion
+  inside the library transaction. Dispatch one packet at a time with its
+  recorded budget; c2 needs a fresh dispatch/budget after those reviews.
+
 - UA01's [userapi ownership and validation record](docs/USERAPI-SIMPLIFICATION.md)
   describes the concern files behind its unchanged public facade. Preserve
   ordered PATCH validation, legacy listening null/date semantics, unknown
