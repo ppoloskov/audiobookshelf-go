@@ -1,6 +1,6 @@
 // Package library owns library identity, request scoping, the filter/sort
-// compiler and library-scoped series browsing. Item browsing and discovery
-// move here in the next slices; writes/admin remain in catalog.
+// compiler, library metadata reads and series browsing. Item browsing and
+// discovery move here in the next slices; writes/admin remain in catalog.
 package library
 
 import (
@@ -10,24 +10,37 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/serversettings"
 )
 
+// Deps are the collaborators owned outside the library read domain.
+type Deps struct {
+	Filters *filterdata.Cache
+}
+
 // Handler serves library-scoped reads over db.
 type Handler struct {
-	db   *sql.DB
-	emit events.Emitter
+	db      *sql.DB
+	emit    events.Emitter
+	filters *filterdata.Cache
 }
 
 // New builds the library handler.
-func New(db *sql.DB, emit events.Emitter) *Handler {
-	return &Handler{db: db, emit: emit}
+func New(db *sql.DB, emit events.Emitter, deps Deps) *Handler {
+	return &Handler{db: db, emit: emit, filters: deps.Filters}
 }
 
 // Routes registers the library-owned reads.
 func (h *Handler) Routes(mux *http.ServeMux) {
+	mux.Handle("GET /api/libraries", httputil.Handler(h.libraries))
+	mux.Handle("GET /api/libraries/{id}", InLibrary(h.db, h.library))
+	mux.Handle("GET /api/libraries/{id}/stats", InLibrary(h.db, h.libraryStats))
+	mux.Handle("GET /api/libraries/{id}/filterdata", InLibrary(h.db, h.libraryFilterData))
+	mux.Handle("GET /api/libraries/{id}/narrators", InLibrary(h.db, h.narrators))
+	mux.Handle("GET /api/libraries/{id}/podcast-titles", InLibrary(h.db, h.podcastTitles))
 	mux.Handle("GET /api/series/{id}", httputil.Handler(h.seriesFindOne))
 	mux.Handle("PATCH /api/series/{id}", httputil.Handler(h.seriesUpdate))
 	mux.Handle("GET /api/libraries/{id}/series", InLibrary(h.db, h.series))
@@ -49,6 +62,23 @@ func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]items.Mini
 		out[i] = item.Minified(prefixes)
 	}
 	return out, nil
+}
+
+func (h *Handler) queryStrings(ctx context.Context, query string, args ...any) ([]string, error) {
+	rows, err := h.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]string, 0)
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		out = append(out, value)
+	}
+	return out, rows.Err()
 }
 
 func pageOf[T any](list []T, page, limit int) []T {

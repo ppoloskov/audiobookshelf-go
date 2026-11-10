@@ -305,6 +305,33 @@
   acceptable alternative and is not worth churn). No route, JSON,
   permission, persistence or event behavior changed. Next after acceptance:
   PB04b2 browse/library reads, then PB04b3 search/shelves.
+- PB04b2 split before moving (2026-11-11): item browsing is coupled to the
+  collapse-series/subseries queries and the item `rssFeed`/`mediaItemShare`
+  include seam, while library metadata reads stand alone. It splits into
+  **b2a** (libraries/library detail, stats, filterdata, narrator and podcast
+  title reads, plus public library view types for catalog write responses) and
+  **b2b** (item-list browsing with collapse helpers and item includes). Writes
+  and admin remain in catalog. b2a budget: **+100 LOC / +20 complexity**, zero
+  growth in functions over 15, maps, `[]any` and injector metrics.
+- [ ] IN PROGRESS — PB04b2a ACCEPTED 2026-11-11: `internal/library` owns `GET
+  /api/libraries`, library detail/view, stats, filterdata and the narrator and
+  podcast-title read routes; the public `View`/`FolderView` shapes serve
+  catalog write responses through two type aliases and one `ReadView`
+  delegation. Catalog keeps narrator PATCH/DELETE and all library/admin
+  writes. Read tests moved to `internal/library`; catalog's
+  mutation/invalidation tests mount the library handler where they verify
+  write side effects. Actual delta: **+52 LOC / +5 complexity**, with
+  functions over 15, maps, `[]any` and injectors unchanged — within the
+  pre-recorded +100/+20 budget. Architect rerun verified: gofmt, build,
+  vet, the full suite with the documented FFmpeg prefix (51 packages),
+  `-race` on library/catalog/server/people, golangci-lint v2.15.0
+  (0 issues), 32 dependency fixtures, `make ratchet` +0 and dbnest.
+  Route registrations moved exactly; the runtime passes the same
+  `filterdata.Cache` instance to both handlers, so catalog write
+  invalidation still clears library reads. Exit task recorded: the
+  catalog alias file (`library_view.go`, 16 lines) dissolves when library
+  writes/admin move. Next after acceptance: PB04b2b item-list browsing,
+  then PB04b3 search/shelves.
 
 ### UA01 · User API simplification (2026-11-10)
 

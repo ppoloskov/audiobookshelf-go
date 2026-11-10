@@ -12,6 +12,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 )
@@ -48,13 +49,15 @@ func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
 		rig.touched = append(rig.touched, itemID)
 		return nil
 	}
-	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, Deps{Filters: filterdata.NewCache()})
+	filters := filterdata.NewCache()
+	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, Deps{Filters: filters})
 	rig.h.deps.ItemChanged = writeMetadata
 	rig.mux = http.NewServeMux()
 	rig.h.Routes(rig.mux)
 	people.New(db, config.Config{MetadataPath: rig.meta}, emit, people.Deps{
-		Filters: filterdata.NewCache(), Authors: finder, WriteMetadata: writeMetadata,
+		Filters: filters, Authors: finder, WriteMetadata: writeMetadata,
 	}).Routes(rig.mux)
+	library.New(db, emit, library.Deps{Filters: filters}).Routes(rig.mux)
 	for _, query := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,
 		`INSERT INTO books VALUES ('b2','Second',NULL,NULL,'2025',NULL,NULL,NULL,NULL,NULL,'en',0,0,NULL,5,'[]','[]','null','[]','[]','[]','2024-01-02T00:00:00Z','2024-01-02T00:00:00Z')`,

@@ -11,6 +11,7 @@ import (
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -43,8 +44,10 @@ func newSeriesRig(t *testing.T) *seriesRig {
 		`INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,settings,extraData,createdAt,updatedAt) VALUES('l1','Shelf',0,'database','book','google','{}','{}','` + now + `','` + now + `')`,
 		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('f1','/media/books','l1','` + now + `','` + now + `')`,
 		`INSERT INTO series(id,name,nameIgnorePrefix,description,libraryId,createdAt,updatedAt) VALUES('s1','First Series','First Series',NULL,'l1','` + now + `','` + now + `')`,
+		`INSERT INTO authors(id,name,lastFirst,libraryId,createdAt,updatedAt) VALUES('a1','Ada Author','Author, Ada','l1','` + now + `','` + now + `')`,
 		`INSERT INTO books(id,title,titleIgnorePrefix,description,explicit,abridged,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,createdAt,updatedAt) VALUES('b1','The Book','Book, The','<p>A story</p>',0,0,12.5,'["Reader"]','[{"x":1}]','null','[{"title":"Chapter 1"}]','["tag"]','["fiction"]','` + now + `','` + now + `'),('b2','Second','Second',NULL,0,0,8,'[]','[]','null','[]','[]','[]','` + now + `','` + now + `')`,
 		`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,libraryFiles,extraData,size,title,titleIgnorePrefix,authorNamesFirstLast,authorNamesLastFirst,createdAt,updatedAt,libraryId,libraryFolderId) VALUES('i1','ino1','/media/books/The Book','b1','b1','book',0,0,0,'[]','{}',100,'The Book','Book, The','','','` + now + `','` + now + `','l1','f1'),('i2','ino2','/media/books/Second','b2','b2','book',0,0,0,'[]','{}',80,'Second','Second','','','` + now + `','` + now + `','l1','f1')`,
+		`INSERT INTO bookAuthors(id,bookId,authorId,createdAt) VALUES('ba1','b1','a1','` + now + `')`,
 		`INSERT INTO bookSeries(id,sequence,bookId,seriesId,createdAt) VALUES('bs1','1','b1','s1','` + now + `'),('bs2','2','b2','s1','` + now + `')`,
 	} {
 		if _, err := db.Exec(q); err != nil {
@@ -58,7 +61,7 @@ func newSeriesRig(t *testing.T) *seriesRig {
 		rig.events = append(rig.events, recordedEvent{event, payload})
 	})
 	rig.mux = http.NewServeMux()
-	New(db, emit).Routes(rig.mux)
+	New(db, emit, Deps{Filters: filterdata.NewCache()}).Routes(rig.mux)
 	return rig
 }
 

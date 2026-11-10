@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/html"
@@ -555,37 +556,6 @@ func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
 	requireOpaqueETag(t, w.Header().Get("ETag"))
 }
 
-func TestLibraryResponseIncludesNullLastScanVersion(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	user := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true}`)}
-	get := func() map[string]any {
-		w := httptest.NewRecorder()
-		if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/libraries/l1", nil), user) || w.Code != http.StatusOK {
-			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-		}
-		var fields map[string]any
-		if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil {
-			t.Fatal(err)
-		}
-		return fields
-	}
-	fields := get()
-	if value, ok := fields["lastScanVersion"]; !ok || value != nil {
-		t.Fatalf("lastScanVersion should be present as null: %v", fields)
-	}
-	if value, ok := fields["lastScan"]; !ok || value != nil {
-		t.Fatalf("lastScan must remain present as null: %v", fields)
-	}
-	if _, err := db.Exec(`UPDATE libraries SET lastScanVersion='2.37.2' WHERE id='l1'`); err != nil {
-		t.Fatal(err)
-	}
-	if got := get()["lastScanVersion"]; got != "2.37.2" {
-		t.Fatalf("lastScanVersion=%v", got)
-	}
-}
-
 // Several items whose rows share one connection (the pool is one connection)
 // must all come back: the list may not hold its rows open while loading the
 // nested media.
@@ -846,30 +816,6 @@ func TestCatalogPermissionsMatchRouteSemantics(t *testing.T) {
 	}
 }
 
-func TestLibraryStatsUseActualBookQueries(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	if _, err := h.libraryStatsValue(t.Context(), "l1", "book"); err != nil {
-		t.Fatalf("stats implementation: %v", err)
-	}
-	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/stats", nil), u) {
-		t.Fatal("route did not match")
-	}
-	if w.Code != 200 {
-		t.Fatalf("stats status=%d body=%s", w.Code, w.Body.String())
-	}
-	var stats map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &stats); err != nil {
-		t.Fatal(err)
-	}
-	if stats["totalItems"] != float64(1) || stats["totalAuthors"] != float64(1) || stats["totalGenres"] != float64(1) {
-		t.Fatalf("stats=%#v", stats)
-	}
-}
-
 func TestBookProgressFiltersAndSortUseCurrentUser(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
@@ -891,24 +837,6 @@ func TestBookProgressFiltersAndSortUseCurrentUser(t *testing.T) {
 	}
 	if body["total"] != float64(1) {
 		t.Fatalf("progress filter leaked other user's row or missed match: %s", w.Body.String())
-	}
-}
-
-func TestLibraryFilterDataRoute(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/libraries/l1/filterdata", nil), u) || w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	var got map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got["bookCount"] != float64(1) || got["numIssues"] != float64(0) {
-		t.Fatalf("filterdata=%s", w.Body.String())
 	}
 }
 
@@ -1393,6 +1321,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 		mux := http.NewServeMux()
 		h.Routes(mux)
 		people.New(h.db, config.Config{}, nil, people.Deps{Filters: h.filters}).Routes(mux)
+		library.New(h.db, nil, library.Deps{Filters: h.filters}).Routes(mux)
 		m, _ = testMuxes.LoadOrStore(h, mux)
 	}
 	mux := m.(*http.ServeMux)

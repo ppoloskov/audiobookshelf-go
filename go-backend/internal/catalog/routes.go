@@ -24,21 +24,15 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/libraries/{id}/download", library.InLibrary(h.db, h.libraryDownload))
 
 	// server/routers/ApiRouter.js:60-91 (LibraryController), Express GET covers HEAD.
-	mux.Handle("GET /api/libraries", httputil.Handler(h.libraries))
 	mux.Handle("POST /api/libraries", httputil.Handler(h.createLibrary))
 	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
-	mux.Handle("GET /api/libraries/{id}", library.InLibrary(h.db, h.library))
 	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
 	mux.Handle("GET /api/libraries/{id}/items", library.InLibrary(h.db, h.libraryItems))
 	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
-	mux.Handle("GET /api/libraries/{id}/stats", library.InLibrary(h.db, h.libraryStats))
-	mux.Handle("GET /api/libraries/{id}/filterdata", library.InLibrary(h.db, h.libraryFilterData))
 	mux.Handle("GET /api/libraries/{id}/personalized", library.InLibrary(h.db, h.personalized))
-	mux.Handle("GET /api/libraries/{id}/narrators", library.InLibrary(h.db, h.narrators))
 	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
 	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
-	mux.Handle("GET /api/libraries/{id}/podcast-titles", library.InLibrary(h.db, h.podcastTitles))
 	mux.Handle("GET /api/libraries/{id}/search", library.InLibrary(h.db, h.search))
 
 	// server/routers/ApiRouter.js:92-130 (LibraryItemController).

@@ -12,6 +12,7 @@ import (
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -64,14 +65,16 @@ func newCascadeRig(t *testing.T) *cascadeRig {
 		}
 		r.exec(q, args...)
 	}
+	filters := filterdata.NewCache()
 	h := New(db, config.Config{MetadataPath: t.TempDir()}, func(audience, event string, payload any) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.events = append(r.events, recordedEvent{event, payload})
 		r.to[event] = append(r.to[event], audience)
-	}, Deps{Filters: filterdata.NewCache()})
+	}, Deps{Filters: filters})
 	r.mux = http.NewServeMux()
 	h.Routes(r.mux)
+	library.New(db, nil, library.Deps{Filters: filters}).Routes(r.mux)
 	return r
 }
 

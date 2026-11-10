@@ -145,7 +145,7 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 		Authors:       rt.providers,
 		WriteMetadata: rt.scanner.WriteMetadata,
 	}).Routes(rt.routes)
-	library.New(db, emit).Routes(rt.routes)
+	library.New(db, emit, library.Deps{Filters: filters}).Routes(rt.routes)
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}

@@ -1,10 +1,9 @@
-package catalog
+package library
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
 	"context"
@@ -15,7 +14,7 @@ import (
 	"strings"
 )
 
-func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	data, err := h.filters.Get(r.Context(), h.db, lib.ID, lib.MediaType)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -31,30 +30,30 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
 		return httputil.Internal("database read failed", err)
 	}
 	perms := access.For(r.Context(), user)
-	out := make([]libraryView, 0, len(ids))
+	out := make([]View, 0, len(ids))
 	for _, id := range ids {
 		if !perms.ListLibrary(id) {
 			continue
 		}
-		lib, err := h.libraryView(r.Context(), id)
+		lib, err := ReadView(r.Context(), h.db, id)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
 		if includeStats {
-			if lib.Stats, err = h.libraryStatsValue(r.Context(), id, *cmp.Or(lib.MediaType, new(string))); err != nil {
+			if lib.Stats, err = StatsValue(r.Context(), h.db, id, *cmp.Or(lib.MediaType, new(string))); err != nil {
 				return httputil.Internal("database read failed", err)
 			}
 		}
 		out = append(out, lib)
 	}
 	return httputil.JSON(w, r, struct {
-		Libraries []libraryView `json:"libraries"`
+		Libraries []View `json:"libraries"`
 	}{out})
 }
 
-func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib Scope) error {
 	user, id := lib.User, lib.ID
-	payload, err := h.libraryView(r.Context(), id)
+	payload, err := ReadView(r.Context(), h.db, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Library not found")
 	}
@@ -75,33 +74,34 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib library.Sc
 	return httputil.JSON(w, r, payload)
 }
 
-func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
-	stats, err := h.libraryStatsValue(r.Context(), lib.ID, lib.MediaType)
+func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib Scope) error {
+	stats, err := StatsValue(r.Context(), h.db, lib.ID, lib.MediaType)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	return httputil.JSON(w, r, stats)
 }
 
-func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (map[string]any, error) {
+// StatsValue returns the aggregate stats payload for a library media type.
+func StatsValue(ctx context.Context, db *sql.DB, id, mediaType string) (map[string]any, error) {
 	var size, audioCount, total int64
 	var duration float64
 	if mediaType == "book" {
-		err := h.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(li.size),0),COALESCE(SUM(b.duration),0),COALESCE(SUM(json_array_length(b.audioFiles)),0),COUNT(*) FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=?`, id).Scan(&size, &duration, &audioCount, &total)
+		err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(li.size),0),COALESCE(SUM(b.duration),0),COALESCE(SUM(json_array_length(b.audioFiles)),0),COUNT(*) FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=?`, id).Scan(&size, &duration, &audioCount, &total)
 		if err != nil {
 			return nil, err
 		}
-		genres, err := h.genreCounts(ctx, id, "books")
+		genres, err := genreCounts(ctx, db, id, "books")
 		if err != nil {
 			return nil, err
 		}
 		var authorTotal int64
-		if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM authors WHERE libraryId=?`, id).Scan(&authorTotal); err != nil {
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM authors WHERE libraryId=?`, id).Scan(&authorTotal); err != nil {
 			return nil, err
 		}
 		// authorFilters.getAuthorsWithCount (server/utils/queries/authorFilters.js:27):
 		// inner join from bookAuthors, grouped by authorId, so ties keep group order.
-		authorRows, err := h.db.QueryContext(ctx, `SELECT ba.authorId,a.name,COUNT(ba.authorId) AS count FROM bookAuthors ba INNER JOIN authors a ON a.id=ba.authorId AND a.libraryId=? GROUP BY ba.authorId, a.id ORDER BY count DESC LIMIT 10`, id)
+		authorRows, err := db.QueryContext(ctx, `SELECT ba.authorId,a.name,COUNT(ba.authorId) AS count FROM bookAuthors ba INNER JOIN authors a ON a.id=ba.authorId AND a.libraryId=? GROUP BY ba.authorId, a.id ORDER BY count DESC LIMIT 10`, id)
 		if err != nil {
 			return nil, err
 		}
@@ -122,11 +122,11 @@ func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (
 		if err := authorRows.Close(); err != nil {
 			return nil, err
 		}
-		longest, err := h.longestItems(ctx, id, "books", "m.duration")
+		longest, err := longestItems(ctx, db, id, "books", "m.duration")
 		if err != nil {
 			return nil, err
 		}
-		largest, err := h.largestItems(ctx, id, "books")
+		largest, err := largestItems(ctx, db, id, "books")
 		if err != nil {
 			return nil, err
 		}
@@ -136,23 +136,23 @@ func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (
 		// libraryItemsPodcastFilters.getPodcastLibraryStats (server/utils/queries/
 		// libraryItemsPodcastFilters.js:566-580): the size is summed over the
 		// library items alone, not over their joined episodes.
-		err := h.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(json_extract(pe.audioFile,'$.duration')),0),COUNT(pe.id),COUNT(DISTINCT li.id) FROM libraryItems li, podcasts p LEFT OUTER JOIN podcastEpisodes pe ON pe.podcastId=p.id WHERE p.id=li.mediaId AND li.libraryId=?`, id).Scan(&duration, &audioCount, &total)
+		err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(json_extract(pe.audioFile,'$.duration')),0),COUNT(pe.id),COUNT(DISTINCT li.id) FROM libraryItems li, podcasts p LEFT OUTER JOIN podcastEpisodes pe ON pe.podcastId=p.id WHERE p.id=li.mediaId AND li.libraryId=?`, id).Scan(&duration, &audioCount, &total)
 		if err != nil {
 			return nil, err
 		}
-		err = h.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(li.size),0) FROM libraryItems li WHERE li.mediaType='podcast' AND li.libraryId=?`, id).Scan(&size)
+		err = db.QueryRowContext(ctx, `SELECT COALESCE(SUM(li.size),0) FROM libraryItems li WHERE li.mediaType='podcast' AND li.libraryId=?`, id).Scan(&size)
 		if err != nil {
 			return nil, err
 		}
-		genres, err := h.genreCounts(ctx, id, "podcasts")
+		genres, err := genreCounts(ctx, db, id, "podcasts")
 		if err != nil {
 			return nil, err
 		}
-		longest, err := h.longestItems(ctx, id, "podcasts", "(SELECT SUM(json_extract(pe.audioFile,'$.duration')) FROM podcastEpisodes pe WHERE pe.podcastId=m.id)")
+		longest, err := longestItems(ctx, db, id, "podcasts", "(SELECT SUM(json_extract(pe.audioFile,'$.duration')) FROM podcastEpisodes pe WHERE pe.podcastId=m.id)")
 		if err != nil {
 			return nil, err
 		}
-		largest, err := h.largestItems(ctx, id, "podcasts")
+		largest, err := largestItems(ctx, db, id, "podcasts")
 		if err != nil {
 			return nil, err
 		}
@@ -161,11 +161,11 @@ func (h *Handler) libraryStatsValue(ctx context.Context, id, mediaType string) (
 	return nil, fmt.Errorf("unsupported library media type %q", mediaType)
 }
 
-func (h *Handler) genreCounts(ctx context.Context, id, table string) ([]map[string]any, error) {
+func genreCounts(ctx context.Context, db *sql.DB, id, table string) ([]map[string]any, error) {
 	if table != "books" && table != "podcasts" {
 		return nil, fmt.Errorf("invalid media table")
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT j.value,COUNT(*) AS n FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id, json_each(m.genres) j WHERE li.libraryId=? AND json_valid(m.genres) GROUP BY j.value ORDER BY n DESC`, id)
+	rows, err := db.QueryContext(ctx, `SELECT j.value,COUNT(*) AS n FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id, json_each(m.genres) j WHERE li.libraryId=? AND json_valid(m.genres) GROUP BY j.value ORDER BY n DESC`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -182,11 +182,11 @@ func (h *Handler) genreCounts(ctx context.Context, id, table string) ([]map[stri
 	return out, rows.Err()
 }
 
-func (h *Handler) longestItems(ctx context.Context, id, table, expression string) ([]map[string]any, error) {
+func longestItems(ctx context.Context, db *sql.DB, id, table, expression string) ([]map[string]any, error) {
 	if table != "books" && table != "podcasts" {
 		return nil, fmt.Errorf("invalid media table")
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,m.title,`+expression+` AS duration FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id WHERE li.libraryId=? ORDER BY duration DESC LIMIT 10`, id)
+	rows, err := db.QueryContext(ctx, `SELECT li.id,m.title,`+expression+` AS duration FROM `+table+` m JOIN libraryItems li ON li.mediaId=m.id WHERE li.libraryId=? ORDER BY duration DESC LIMIT 10`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +204,11 @@ func (h *Handler) longestItems(ctx context.Context, id, table, expression string
 	return out, rows.Err()
 }
 
-func (h *Handler) largestItems(ctx context.Context, id, table string) ([]map[string]any, error) {
+func largestItems(ctx context.Context, db *sql.DB, id, table string) ([]map[string]any, error) {
 	if table != "books" && table != "podcasts" {
 		return nil, fmt.Errorf("invalid media table")
 	}
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,m.title,li.size FROM libraryItems li JOIN `+table+` m ON m.id=li.mediaId WHERE li.libraryId=? ORDER BY li.size DESC LIMIT 10`, id)
+	rows, err := db.QueryContext(ctx, `SELECT li.id,m.title,li.size FROM libraryItems li JOIN `+table+` m ON m.id=li.mediaId WHERE li.libraryId=? ORDER BY li.size DESC LIMIT 10`, id)
 	if err != nil {
 		return nil, err
 	}

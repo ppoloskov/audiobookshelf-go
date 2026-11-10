@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -32,6 +33,7 @@ func matchRig(t *testing.T, finder *fakeBooks) *authorRig {
 	rig.h.deps.Books = finder
 	rig.mux = http.NewServeMux()
 	rig.h.Routes(rig.mux)
+	library.New(rig.db, nil, library.Deps{Filters: rig.h.filters}).Routes(rig.mux)
 	return rig
 }
 
