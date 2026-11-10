@@ -248,12 +248,15 @@
   `make ratchet` +0 and dbnest. Both PB03a contract conditions are closed
   (rig move with a recording `WriteMetadata` callback; image-callback exit
   completed — `PurgeImageCache`/`SaveAuthorImage` deleted from `Deps`).
-- Actual PB04a delta (ratified against the post-`371e9abb` baseline): +130
-  handwritten LOC, −2 complexity, −2 functions over 15, −6 `map[string]any`,
-  −1 `[]any`. The worker's report (+96 LOC / +15 complexity, others
-  unchanged) was computed from a stale pre-`371e9abb` baseline; the baseline
-  file itself carries the correct measured values. Report-accuracy note:
-  future packets must state the prior baseline hash they diff against.
+- Actual deltas (reconciled, 2026-11-11): PB04a alone is +130 handwritten
+  LOC combined-baseline edit = +96 LOC / +15 complexity / all other metrics
+  unchanged for PB04a, plus the concurrently integrated UA01 userapi
+  simplification (+34 LOC / −17 complexity / −2 functions over 15 /
+  −6 `map[string]any` / −1 `[]any`). The PB04 worker's reported numbers
+  (+96 / +15, others unchanged) were correct in isolation; the baseline
+  file correctly carries the combined total. An earlier architect note
+  attributing the gap to stale-prior arithmetic was wrong and is
+  retracted.
 - Owner ruling (2026-11-11): series is not people. Upstream `Series` has no
   person-like operations (no image/matching/merge) and is library-scoped
   (`libraryId` FK, `UNIQUE(name, libraryId)`); the series list routes are
@@ -265,6 +268,26 @@
   ends as authors-only. Owner may veto before PB04b dispatch.
 - Next: PB04b library browsing/search plus the series move per the ruling,
   keeping library writes/admin in catalog until a later packet.
+
+### UA01 · User API simplification (2026-11-10)
+
+- [x] DONE — accepted by integration 2026-11-11 in `c7b7d1d9` (the PB04a
+  acceptance commit). UA01 was implemented locally by the owner-requested
+  Terra worker against `bf72cb3c`, validated in an isolated clean source
+  per its [record](docs/USERAPI-SIMPLIFICATION.md), and ratified by the
+  architect after the fact: full suite, lint, ratchet, dbnest, fixtures and
+  a rerun `-race` on userapi/users all pass on the combined tree. Its own
+  isolated delta (+34 LOC / −17 complexity / −2 over-15 / −6 maps /
+  −1 `[]any`) is included in the `c7b7d1d9` baseline update. The file split
+  (`me_extra.go` → topical files, `userapi.go` facade retained) and the
+  six listed simplifications are behavior-preserving per the documented
+  counterexample review; no route, JSON, schema, token or event change.
+- Process record: two packets landed in one commit because the shared
+  checkout gained UA01 mid-review of PB04a. Integration mistakes are
+  recorded, not rewritten. Going forward the architect stages explicit
+  paths only (no `git add -A` on the shared checkout), and workers must
+  publish or quarantine their tree changes before another packet's review
+  begins.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);
