@@ -60,14 +60,10 @@ func (h *Handler) authorMatch(w http.ResponseWriter, r *http.Request) error {
 	}
 	// Only updates the image if there was none before or the ASIN was updated.
 	if data.Image != nil && *data.Image != "" && (!a.ImagePath.Valid || a.ImagePath.String == "" || hasUpdates) {
-		if h.deps.PurgeImageCache != nil {
-			h.deps.PurgeImageCache(a.ID)
-		}
-		if h.deps.SaveAuthorImage != nil {
-			if imagePath, message := h.deps.SaveAuthorImage(ctx, a.ID, *data.Image); message == "" {
-				update.Change("imagePath", store.NullStringPtr(a.ImagePath), &imagePath)
-				hasUpdates = true
-			}
+		h.purgeImageCache(a.ID)
+		if imagePath, message := h.saveAuthorImage(ctx, a.ID, *data.Image); message == "" {
+			update.Change("imagePath", store.NullStringPtr(a.ImagePath), &imagePath)
+			hasUpdates = true
 		}
 	}
 	if data.Description != "" && (!a.Description.Valid || a.Description.String != data.Description) {

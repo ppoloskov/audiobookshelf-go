@@ -1,11 +1,10 @@
-package catalog
+package people
 
 import (
 	"encoding/json"
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -37,9 +36,9 @@ func TestSeriesFindOneProgressAndFeed(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	var body struct {
-		people.SeriesView
-		Progress *people.SeriesProgress `json:"progress"`
-		RSSFeed  json.RawMessage        `json:"rssFeed"`
+		SeriesView
+		Progress *SeriesProgress `json:"progress"`
+		RSSFeed  json.RawMessage `json:"rssFeed"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.ID != "s1" || body.NameIgnorePrefix == nil || *body.NameIgnorePrefix != "First Series" {
@@ -112,7 +111,7 @@ func TestSeriesUpdate(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
-	var got people.SeriesView
+	var got SeriesView
 	decodeAuthorBody(t, w, &got)
 	if got.Name == nil || *got.Name != "The Renamed" || got.NameIgnorePrefix == nil || *got.NameIgnorePrefix != "Renamed, The" || got.Description == nil || *got.Description != "About" || got.UpdatedAt <= got.AddedAt {
 		t.Fatalf("series %+v", got)
@@ -125,11 +124,11 @@ func TestSeriesUpdate(t *testing.T) {
 	if len(events) != 1 || events[0].event != "series_updated" {
 		t.Fatalf("events %+v", events)
 	}
-	if payload, ok := events[0].payload.(people.SeriesView); !ok || payload.ID != "s1" {
+	if payload, ok := events[0].payload.(SeriesView); !ok || payload.ID != "s1" {
 		t.Fatalf("payload %+v", events[0].payload)
 	}
 	// The same values again: answered, saved nothing, announced nothing.
-	var again people.SeriesView
+	var again SeriesView
 	decodeAuthorBody(t, rig.do("PATCH", "/api/series/s1", `{"name":"The Renamed","description":"About"}`, rootUser()), &again)
 	if again.UpdatedAt != got.UpdatedAt || len(rig.takeEvents()) != 0 {
 		t.Fatalf("no-op changed state: %+v", again)

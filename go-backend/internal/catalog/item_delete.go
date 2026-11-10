@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
@@ -49,7 +50,7 @@ type itemLinks struct{ authors, series []string }
 // removal. It checks no permission: every route authorizes before calling. The
 // caller drops the linked authors and series left empty.
 func (h *Handler) removeLibraryItem(ctx context.Context, item itemScope, hard bool, linked *itemLinks) error {
-	if mediaTableOf(item.mediaType) == "" {
+	if library.MediaTableOf(item.mediaType) == "" {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
 	deleteKind := "Soft"

@@ -1,5 +1,22 @@
 # Go backend handover
 
+## User API simplification — UA01 (2026-11-10)
+
+Terra implemented clearer concern files inside `internal/userapi`, retaining
+the public facade and all callers. The mixed `me_extra.go` is removed. Actual
+collapses remove rounded intermediate maps, redundant primary-key bookkeeping,
+nested stats-map assertions and repeated PATCH validation; series visibility
+uses standard slice operations. Characterization tests preserve ordered
+validation, legacy stats, duplicate progress rows and repeated series actions.
+The architect accepted the ownership tradeoff: +34 production LOC, −17
+complexity, −2 high-complexity functions, −6 dynamic maps and −1 `[]any`.
+Full build/vet/tests (real FFmpeg and Socket.IO), lint and ratchet/dbnest pass
+in an isolated HEAD-plus-UA01 source snapshot; focused race tests pass too.
+See [the implementation/review record](docs/USERAPI-SIMPLIFICATION.md) for exact
+snapshot boundaries, gotchas and checks. Shared master still has unrelated
+in-flight edits whose metric reconciliation is separate. No commit/push or
+deployment was performed for UA01; combined publication gates remain pending.
+
 ## Podcasts simplification PC01 (2026-11-10)
 
 Implemented with the requested Terra worker and reviewed by the architect.
@@ -66,13 +83,14 @@ is archived at [archive/reviews/2026-11-09-handover-before-wave-g.md](archive/re
 
 ## Current state
 
-- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, PB02a at `7c2a1c0e`, PB02b at `013b0caf`, PB02c at `62131466` and PB02d at `a8e1b111`, plus the accepted PB03a slice in this commit. The catalog read graph is complete.
+- **Base:** local `master` contains the accepted email-settings packets through `7754ed0a`, PB02a–d, PB03a at `bf72cb3c` and the intermediate `371e9abb` simplification, plus the accepted PB04a slice in this commit. The catalog read graph and people entity surface are complete.
 - **Local acceptance:** the current worktree passes `go build ./...`, `go vet ./...`, `go test ./... -count=1` with the documented FFmpeg prefix, targeted `-race` tests, golangci-lint v2.15.0, dependency-boundary fixtures and `make ratchet`.
-- **Metrics:** 38,443 handwritten LOC / 8,568 complexity / 114 functions over 15 / 451 `map[string]any` / 196 `[]any`. PB03a has an accepted +141 LOC / +26 complexity budget with every other metric unchanged.
+- **Metrics:** 38,563 handwritten LOC / 8,539 complexity / 111 functions over 15 / 436 `map[string]any` / 195 `[]any`. Actual PB04a delta vs the post-`371e9abb` baseline: +130 LOC, −2 complexity, −2 functions over 15, −6 `map[string]any`, −1 `[]any`; the worker's report understated LOC and used a stale prior baseline (see ROADMAP report-accuracy note).
 - **Catalog read graph (PB02) — DONE:** PB02a moved item permission inputs into `internal/access`. PB02b moved common item identity, the batched loader and common envelopes into `internal/items`. PB02c moved book identity, projections and `LoadMany` into `internal/books`. PB02d is ACCEPTED at `a8e1b111`: podcast models/projections/episode loading moved into `internal/podcasts/read`, shared file models into `internal/mediafiles`, and `libitem` is deleted. `items` composes `books` + `podcastread` + `mediafiles`; feature `podcasts` consumes the read subpackage and keeps writes. The graph is acyclic and shared chunked queries live in `store.QueryIn`. Architect rulings: `mediafiles` approved as the shared representation leaf (not `store`); `podcasts/read` approved as a foundation subpackage with fixtures both ways; the items row-decode and explicit-podcast `Access()` assertions were restored at acceptance. Each media owner now has direct tests at its own boundary.
 - **People (PB03a) — ACCEPTED (2026-11-10):** author/series records, views, detail, update/rename, merge/delete and metadata matching moved from catalog into `internal/people` (1,149 production lines; the standalone package clears the fold-into-books measurement). Catalog keeps library-scoped author/series list routes and author image routes for the next slice; itemwrite remains the relation-cleanup/orphan owner. The dependency is `catalog` → `people`, and `people` does not import catalog. Author images use catalog callbacks supplied at composition; people writes metadata through the scanner callback. Architect rulings: +141 LOC / +26 complexity ratified (composition surface, shared `DecodeObjectFields`, removed `AuthorFinder` dependency); the image-callback seam has a named exit task in PB04; the nil-skip `WriteMetadata` tolerance must become a recording callback in the test rig; pre-dispatch budget recording is required for later growth packets.
+- **PB04a — ACCEPTED (2026-11-11):** the people remainder (library-scoped author/series lists, author image routes/helpers, author/series test rig with a recording `WriteMetadata` callback) and the first `internal/library` slice (`InLibrary` request scope, `Scope`, `MediaTable`) landed. Both PB03a contract conditions are closed; the image-callback exit is complete (`PurgeImageCache`/`SaveAuthorImage` deleted from `Deps`). Shared file/stream serving moved to `httputil`, image resize to `mediatools`; the temporary `SeriesMatchesFilter` callback exits in PB04b. Owner ruling on series: series is not people — it is library-scoped (no image/matching/merge upstream, `libraryId` FK), its list routes are LibraryController operations upstream, and `books` cannot own the routes (`items → books` would cycle). Series routes move people → library in PB04b; `people` ends as authors-only.
 - **QM01:** empty converted match lists preserve existing links; duplicate series updates run sequentially; missing sequence preserves the current position; absent, null, empty and numeric text stay distinct. The actual QuickMatch adapter stores raw zero as `"0"`; PATCH and scanner adapters retain their respective null/absence rules. Existing Go characterization preserves event ordering.
-- **Git state:** accepted work is committed through `a8e1b111` and pushed. The accepted PB03a slice, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
+- **Git state:** accepted work is committed through `bf72cb3c` and `371e9abb` and pushed. The accepted PB04a slice, its baseline update and this documentation update are committed together and pushed to the fork's master. No deployment is claimed.
 
 ## Step 3, behavioural test-quality pass (done)
 

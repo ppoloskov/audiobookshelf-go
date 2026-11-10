@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
@@ -1527,6 +1528,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	if !ok {
 		mux := http.NewServeMux()
 		h.Routes(mux)
+		people.New(h.db, config.Config{}, nil, people.Deps{Filters: h.filters, SeriesMatchesFilter: h.SeriesMatchesFilter}).Routes(mux)
 		m, _ = testMuxes.LoadOrStore(h, mux)
 	}
 	mux := m.(*http.ServeMux)

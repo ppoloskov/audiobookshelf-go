@@ -1,4 +1,4 @@
-package catalog
+package people
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/people"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -52,9 +52,9 @@ func (f *fakeFinder) FindAuthorByName(_ context.Context, name, region string) *w
 
 var adminPermissions = json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true,"update":true,"delete":true,"upload":true}`)
 
-func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
+func newAuthorRig(t *testing.T, finder AuthorFinder) *authorRig {
 	t.Helper()
-	db := catalogFixture(t)
+	db := peopleFixture(t)
 	t.Cleanup(func() { db.Close() })
 	rig := &authorRig{t: t, db: db, meta: t.TempDir()}
 	emit := func(_, event string, payload any) {
@@ -66,14 +66,11 @@ func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
 		rig.touched = append(rig.touched, itemID)
 		return nil
 	}
-	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, testDeps())
-	rig.h.deps.ItemChanged = writeMetadata
+	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, Deps{
+		Filters: filterdata.NewCache(), Authors: finder, WriteMetadata: writeMetadata,
+	})
 	rig.mux = http.NewServeMux()
 	rig.h.Routes(rig.mux)
-	people.New(db, emit, people.Deps{
-		Filters: rig.h.deps.Filters, Authors: finder, WriteMetadata: writeMetadata,
-		PurgeImageCache: rig.h.PurgeAuthorImageCache, SaveAuthorImage: rig.h.SaveAuthorImage,
-	}).Routes(rig.mux)
 	for _, q := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,
 		`INSERT INTO books VALUES ('b2','Second',NULL,NULL,'2025',NULL,NULL,NULL,NULL,NULL,'en',0,0,NULL,5,'[]','[]','null','[]','[]','[]','2024-01-02T00:00:00Z','2024-01-02T00:00:00Z')`,
@@ -258,9 +255,9 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	rig := newAuthorRig(t, nil)
 	body := `{"description":"Bio","asin":"B000000001"}`
 	var first struct {
-		Author  people.AuthorView `json:"author"`
-		Updated *bool             `json:"updated"`
-		Merged  *bool             `json:"merged"`
+		Author  AuthorView `json:"author"`
+		Updated *bool      `json:"updated"`
+		Merged  *bool      `json:"merged"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", body, rootUser()), &first)
 	if first.Updated == nil || !*first.Updated || first.Merged != nil {
@@ -273,7 +270,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	if len(events) != 1 || events[0].event != "author_updated" {
 		t.Fatalf("events %+v", events)
 	}
-	expanded, ok := events[0].payload.(people.AuthorWithBooks)
+	expanded, ok := events[0].payload.(AuthorWithBooks)
 	if !ok || expanded.NumBooks != 1 {
 		t.Fatalf("payload %+v", events[0].payload)
 	}
@@ -289,7 +286,7 @@ func TestAuthorUpdateDescriptionAndNoChange(t *testing.T) {
 	}
 	// null clears a nullable field.
 	var cleared struct {
-		Author people.AuthorView `json:"author"`
+		Author AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, rig.do("PATCH", "/api/authors/a1", `{"asin":null}`, rootUser()), &cleared)
 	if cleared.Author.ASIN != nil {
@@ -330,9 +327,9 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	var body struct {
-		Author people.AuthorView `json:"author"`
-		Merged *bool             `json:"merged"`
-		Update *bool             `json:"updated"`
+		Author AuthorView `json:"author"`
+		Merged *bool      `json:"merged"`
+		Update *bool      `json:"updated"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Merged == nil || !*body.Merged || body.Update != nil || body.Author.ID != "a2" {
@@ -354,10 +351,10 @@ func TestAuthorRenameToExistingNameMerges(t *testing.T) {
 	if strings.Join(names, ",") != "items_updated,author_removed,author_updated" {
 		t.Fatalf("events %v", names)
 	}
-	if removed, ok := events[1].payload.(people.AuthorView); !ok || removed.ID != "a1" {
+	if removed, ok := events[1].payload.(AuthorView); !ok || removed.ID != "a1" {
 		t.Fatalf("author_removed %+v", events[1].payload)
 	}
-	if updated, ok := events[2].payload.(people.AuthorWithBooks); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
+	if updated, ok := events[2].payload.(AuthorWithBooks); !ok || updated.ID != "a2" || updated.NumBooks != 2 {
 		t.Fatalf("author_updated %+v", events[2].payload)
 	}
 	if len(rig.touched) != 1 || rig.touched[0] != "i1" {
@@ -485,7 +482,7 @@ func TestAuthorImageUploadAndDelete(t *testing.T) {
 	}
 	want := filepath.Join(rig.meta, "authors", "a1.png")
 	var body struct {
-		Author people.AuthorView `json:"author"`
+		Author AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	if body.Author.ImagePath == nil || *body.Author.ImagePath != want {
@@ -612,8 +609,8 @@ func TestAuthorMatch(t *testing.T) {
 		t.Fatalf("calls %q", got)
 	}
 	var body struct {
-		Updated bool              `json:"updated"`
-		Author  people.AuthorView `json:"author"`
+		Updated bool       `json:"updated"`
+		Author  AuthorView `json:"author"`
 	}
 	decodeAuthorBody(t, w, &body)
 	want := filepath.Join(rig.meta, "authors", "a1.png")
@@ -640,3 +637,42 @@ func TestAuthorMatch(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func peopleFixture(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(peopleSchema); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{
+		`INSERT INTO libraries VALUES ('l1','Shelf',1,'books','book','google',NULL,NULL,'{}','{}','2024-01-01T00:00:00Z','2024-01-02T00:00:00Z')`,
+		`INSERT INTO libraries VALUES ('l2','Podcast Shelf',2,'podcast','podcast','podcastIndex',NULL,NULL,'{}','{}','2024-01-01T00:00:00Z','2024-01-02T00:00:00Z')`,
+		`INSERT INTO libraryFolders VALUES ('f1','/media/books','l1','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z')`,
+		`INSERT INTO authors VALUES ('a1','Ada Author','Author, Ada',NULL,NULL,NULL,'l1','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z')`,
+		`INSERT INTO series VALUES ('s1','First Series','First Series',NULL,'l1','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z')`,
+		`INSERT INTO bookAuthors VALUES ('ba1','b1','a1','2024-01-01T00:00:00Z')`,
+		`INSERT INTO bookSeries VALUES ('bs1','1','b1','s1','2024-01-01T00:00:00Z')`,
+		`INSERT INTO books VALUES ('b1','The Book',NULL,NULL,'2024',NULL,NULL,'<p>A story</p>',NULL,NULL,'en',0,0,'/metadata/covers/b1.jpg',12.5,'["Reader"]','[{"ino":"audio-1","metadata":{"filename":"01.mp3","ext":".mp3","path":"/media/books/01.mp3","relPath":"01.mp3","size":100,"mtimeMs":1704067200000,"ctimeMs":1704067200000,"birthtimeMs":1704067200000},"duration":12.5,"mimeType":"audio/mpeg","exclude":false}]','null','[{"id":0,"start":0,"end":12.5,"title":"Chapter 1"}]','["tag"]','["fiction"]','2024-01-01T00:00:00Z','2024-01-02T00:00:00Z')`,
+		`INSERT INTO libraryItems VALUES ('i1','ino-1','/media/books/The Book','The Book','b1','book',0,0,0,'2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z',100,NULL,NULL,'[]','{}','The Book','Book, The','Ada Author','Author, Ada','l1','f1','2024-01-01T00:00:00Z','2024-01-02T00:00:00Z')`,
+	} {
+		if _, err := db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return db
+}
+
+const peopleSchema = `
+CREATE TABLE libraries (id TEXT PRIMARY KEY,name TEXT,displayOrder INTEGER,icon TEXT,mediaType TEXT,provider TEXT,lastScan DATETIME,lastScanVersion TEXT,settings JSON,extraData JSON,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE libraryFolders (id TEXT PRIMARY KEY,path TEXT,libraryId TEXT,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE books (id TEXT PRIMARY KEY,title TEXT,titleIgnorePrefix TEXT,subtitle TEXT,publishedYear TEXT,publishedDate TEXT,publisher TEXT,description TEXT,isbn TEXT,asin TEXT,language TEXT,explicit BOOLEAN,abridged BOOLEAN,coverPath TEXT,duration FLOAT,narrators JSON,audioFiles JSON,ebookFile JSON,chapters JSON,tags JSON,genres JSON,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE libraryItems (id TEXT PRIMARY KEY,ino TEXT,path TEXT,relPath TEXT,mediaId TEXT,mediaType TEXT,isFile BOOLEAN,isMissing BOOLEAN,isInvalid BOOLEAN,mtime DATETIME,ctime DATETIME,birthtime DATETIME,size BIGINT,lastScan DATETIME,lastScanVersion TEXT,libraryFiles JSON,extraData JSON,title TEXT,titleIgnorePrefix TEXT,authorNamesFirstLast TEXT,authorNamesLastFirst TEXT,libraryId TEXT,libraryFolderId TEXT,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE authors (id TEXT PRIMARY KEY,name TEXT,lastFirst TEXT,asin TEXT,description TEXT,imagePath TEXT,libraryId TEXT,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE series (id TEXT PRIMARY KEY,name TEXT,nameIgnorePrefix TEXT,description TEXT,libraryId TEXT,createdAt DATETIME,updatedAt DATETIME);
+CREATE TABLE bookAuthors (id TEXT PRIMARY KEY,bookId TEXT,authorId TEXT,createdAt DATETIME);
+CREATE TABLE bookSeries (id TEXT PRIMARY KEY,sequence TEXT,bookId TEXT,seriesId TEXT,createdAt DATETIME);
+`

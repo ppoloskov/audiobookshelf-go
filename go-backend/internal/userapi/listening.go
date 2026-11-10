@@ -1,7 +1,6 @@
 package userapi
 
 import (
-	"audiobookshelf-compat/internal/jsonvalue"
 	"database/sql"
 	"errors"
 	"math"
@@ -9,8 +8,10 @@ import (
 	"strconv"
 	"time"
 
+	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
 )
@@ -57,10 +58,9 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	stats := map[string]any{"totalTime": float64(0), "items": map[string]any{}, "days": map[string]any{}, "dayOfWeek": map[string]any{}, "today": float64(0), "recentSessions": []any{}}
-	items := stats["items"].(map[string]any)
-	days := stats["days"].(map[string]any)
-	dayOfWeek := stats["dayOfWeek"].(map[string]any)
+	var total, today float64
+	items := map[string]any{}
+	days, dayOfWeek := map[string]float64{}, map[string]float64{}
 	recent := make([]any, 0, min(len(sessions), 10))
 	for index, session := range sessions {
 		if index < 10 {
@@ -81,14 +81,14 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 		if v, ok := listened.(float64); ok {
 			seconds = v
 		}
-		stats["totalTime"] = stats["totalTime"].(float64) + seconds
+		total += seconds
 		if day, _ := legacy["dayOfWeek"].(string); day != "" {
-			dayOfWeek[day] = jsonvalue.Float(dayOfWeek[day]) + seconds
+			dayOfWeek[day] += seconds
 		}
 		if date, _ := legacy["date"].(string); date != "" && seconds > 0 {
-			days[date] = jsonvalue.Float(days[date]) + seconds
+			days[date] += seconds
 			if date == time.Now().Format("2006-01-02") {
-				stats["today"] = stats["today"].(float64) + seconds
+				today += seconds
 			}
 		}
 		itemID := "null"
@@ -107,8 +107,7 @@ func (h *Handler) writeListeningStats(w http.ResponseWriter, r *http.Request, us
 			items[itemID] = map[string]any{"id": id, "timeListening": listened, "mediaMetadata": legacy["mediaMetadata"]}
 		}
 	}
-	stats["recentSessions"] = recent
-	return httputil.JSON(w, r, stats)
+	return httputil.JSON(w, r, map[string]any{"totalTime": total, "items": items, "days": days, "dayOfWeek": dayOfWeek, "today": today, "recentSessions": recent})
 }
 
 func (h *Handler) listeningSessions(r *http.Request, userID, mediaID string) ([]store.PlaybackSessionRow, error) {
@@ -140,4 +139,65 @@ func queryInt(r *http.Request, key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func (h *Handler) userListening(w http.ResponseWriter, r *http.Request, current store.User) error {
+	id, kind := r.PathValue("id"), r.PathValue("kind")
+	if kind != "listening-sessions" && kind != "listening-stats" {
+		return httputil.Status(404, "")
+	}
+	if !access.AdminUser(current) && current.ID != id {
+		return httputil.Status(403, "")
+	}
+	if _, err := h.targetUser(r.Context(), id); err != nil {
+		return err
+	}
+	if kind == "listening-stats" {
+		return h.writeListeningStats(w, r, id)
+	}
+	return h.writeListeningSessions(w, r, id, "", true)
+}
+
+func (h *Handler) ownListeningSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
+	return h.writeListeningSessions(w, r, user.ID, "", false)
+}
+
+func (h *Handler) ownListeningStats(w http.ResponseWriter, r *http.Request, user store.User) error {
+	return h.writeListeningStats(w, r, user.ID)
+}
+
+func (h *Handler) getItemListeningSessions(w http.ResponseWriter, r *http.Request, user store.User) error {
+	itemID, episodeID := r.PathValue("id"), r.PathValue("episodeId")
+	exists, allowed, err := access.ItemAccess(r.Context(), h.db, user, itemID)
+	if err != nil {
+		return httputil.Internal("database read failed", err)
+	}
+	if !exists {
+		return httputil.Status(404, "")
+	}
+	var mediaID, mediaType string
+	if err := h.db.QueryRowContext(r.Context(), `SELECT mediaId,mediaType FROM libraryItems WHERE id=?`, itemID).Scan(&mediaID, &mediaType); err != nil {
+		return httputil.Status(404, "")
+	}
+	// MeController.getItemListeningSessions (MeController.js:185): the episode
+	// is looked up by its id alone, a podcast without one is a 404 before the
+	// access check, and an existing episode id replaces the media item id.
+	episodeFound := false
+	if episodeID != "" {
+		var exists int
+		if err := h.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM podcastEpisodes WHERE id=?`, episodeID).Scan(&exists); err != nil {
+			return httputil.Internal("database read failed", err)
+		}
+		episodeFound = exists > 0
+	}
+	if mediaType == "podcast" && !episodeFound {
+		return httputil.Status(404, "")
+	}
+	if !allowed {
+		return httputil.Status(403, "")
+	}
+	if episodeFound {
+		mediaID = episodeID
+	}
+	return h.writeListeningSessions(w, r, user.ID, mediaID, false)
 }

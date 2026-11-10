@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -88,12 +89,12 @@ func collapseSubseriesFilter(r *http.Request) (seriesID string, ok bool) {
 // series is looked up by id in any library; its books are filtered by the
 // user's access and, when they belong to other series too, collapsed behind
 // the first book of each of those series.
-func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib libraryScope, seriesID string, ignorePrefix bool) error {
-	page, limit := lib.page, lib.limit
+func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib library.Scope, seriesID string, ignorePrefix bool) error {
+	page, limit := lib.Page, lib.Limit
 	query := r.URL.Query()
 	payload := collapsedSubseriesPage{
 		Results: []any{}, Limit: limit, Page: page,
-		SortDesc: query.Get("desc") == "1", FilterBy: query.Get("filter"), MediaType: lib.mediaType,
+		SortDesc: query.Get("desc") == "1", FilterBy: query.Get("filter"), MediaType: lib.MediaType,
 		Minified: query.Get("minified") == "1", CollapseSeries: true, Include: normalizedInclude(r),
 		Offset: page * limit,
 	}
@@ -106,7 +107,7 @@ func (h *Handler) collapseSubseries(w http.ResponseWriter, r *http.Request, lib 
 			payload.SortBy = &sortBy
 		}
 	}
-	results, total, err := h.collapseSubseriesResults(r.Context(), lib.user, lib.settings.HideSingleBookSeries, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
+	results, total, err := h.collapseSubseriesResults(r.Context(), lib.User, lib.Settings.HideSingleBookSeries, seriesID, sortBy, payload.SortDesc, page, limit, ignorePrefix)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

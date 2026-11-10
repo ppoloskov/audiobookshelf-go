@@ -6,6 +6,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/itemwrite"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/mediafiles"
 	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
@@ -40,14 +41,10 @@ func scanItemScope(row rowScanner) (itemScope, error) {
 
 // mediaTable is the table of the item's media; other types are refused.
 func (s itemScope) mediaTable() (string, error) {
-	if table := mediaTableOf(s.mediaType); table != "" {
+	if table := library.MediaTableOf(s.mediaType); table != "" {
 		return table, nil
 	}
 	return "", httputil.Status(http.StatusBadRequest, "")
-}
-
-func mediaTableOf(mediaType string) string {
-	return map[string]string{"book": "books", "podcast": "podcasts"}[mediaType]
 }
 
 // loadItem reads the item row: 404 when there is none.

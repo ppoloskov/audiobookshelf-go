@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"database/sql"
@@ -14,8 +15,8 @@ import (
 	"sort"
 )
 
-func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	libraryID := lib.id
+func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	libraryID := lib.ID
 	rows, err := h.db.QueryContext(r.Context(), `SELECT b.narrators FROM books b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=? AND json_array_length(COALESCE(b.narrators,'[]'))>0`, libraryID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
@@ -52,13 +53,13 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, lib libraryS
 	return httputil.JSON(w, r, map[string]any{"narrators": result})
 }
 
-func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
+func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
 	remove := r.Method == http.MethodDelete
-	libraryID, encodedID := lib.id, r.PathValue("narratorId")
+	libraryID, encodedID := lib.ID, r.PathValue("narratorId")
 	// Narrator renames and removals patch the filter data upstream
 	// (LibraryController.js:1170,1214); reloading it keeps the same content.
 	defer h.filters.Invalidate(libraryID)
-	if !access.For(r.Context(), lib.user).Update() {
+	if !access.For(r.Context(), lib.User).Update() {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	decoded, err := url.QueryUnescape(encodedID)
@@ -149,9 +150,9 @@ func (h *Handler) updateNarrator(w http.ResponseWriter, r *http.Request, lib lib
 	return httputil.JSON(w, r, map[string]any{"updated": len(books)})
 }
 
-func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	libraryID := lib.id
-	if !access.AdminUser(lib.user) {
+func (h *Handler) podcastTitles(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	libraryID := lib.ID
+	if !access.AdminUser(lib.User) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	rows, err := h.db.QueryContext(r.Context(), `SELECT p.title,p.itunesId,li.id,li.libraryId FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=?`, libraryID)

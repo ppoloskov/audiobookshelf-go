@@ -128,3 +128,9 @@ func FFmpegAvailable() bool {
 	_, err := exec.LookPath(binary("FFMPEG_PATH", "ffmpeg"))
 	return err == nil
 }
+
+// ResizeImage is ffmpegHelpers.resizeImage: scale to width/height, with -1
+// preserving the aspect ratio; the output extension selects the muxer.
+func ResizeImage(ctx context.Context, input, output string, width, height int) error {
+	return Run(ctx, "-y", "-i", input, "-vf", fmt.Sprintf("scale=%d:%d", width, height), output)
+}

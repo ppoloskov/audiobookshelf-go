@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
 	"context"
@@ -14,8 +15,8 @@ import (
 	"strings"
 )
 
-func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	data, err := h.filters.Get(r.Context(), h.db, lib.id, lib.mediaType)
+func (h *Handler) libraryFilterData(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	data, err := h.filters.Get(r.Context(), h.db, lib.ID, lib.MediaType)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -51,8 +52,8 @@ func (h *Handler) libraries(w http.ResponseWriter, r *http.Request) error {
 	}{out})
 }
 
-func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, id := lib.user, lib.id
+func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, id := lib.User, lib.ID
 	payload, err := h.libraryView(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "Library not found")
@@ -61,7 +62,7 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib librarySco
 		return httputil.Internal("database read failed", err)
 	}
 	if strings.Contains(","+r.URL.Query().Get("include")+",", ",filterdata,") {
-		filterdata, err := h.filters.Get(r.Context(), h.db, id, lib.mediaType)
+		filterdata, err := h.filters.Get(r.Context(), h.db, id, lib.MediaType)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
@@ -74,8 +75,8 @@ func (h *Handler) library(w http.ResponseWriter, r *http.Request, lib librarySco
 	return httputil.JSON(w, r, payload)
 }
 
-func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	stats, err := h.libraryStatsValue(r.Context(), lib.id, lib.mediaType)
+func (h *Handler) libraryStats(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	stats, err := h.libraryStatsValue(r.Context(), lib.ID, lib.MediaType)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}

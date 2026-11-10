@@ -1,28 +1,28 @@
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/people"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
 	"sort"
 	"strings"
 )
 
-func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, ctx := lib.user, r.Context()
-	rows, err := h.db.QueryContext(ctx, `SELECT `+people.AuthorColumns+` FROM authors WHERE libraryId=?`, lib.id)
+func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, ctx := lib.User, r.Context()
+	rows, err := h.db.QueryContext(ctx, `SELECT `+AuthorColumns+` FROM authors WHERE libraryId=?`, lib.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	type listed struct {
-		people.AuthorRecord
+		AuthorRecord
 		numBooks int64
 	}
 	var data []listed
 	for rows.Next() {
-		a, err := people.ScanAuthor(rows)
+		a, err := ScanAuthor(rows)
 		if err != nil {
 			rows.Close()
 			return httputil.Internal("database read failed", err)
@@ -68,21 +68,21 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib librarySco
 		return less != desc
 	})
 	// isPaginated: `req.query.limit && !isNaN(req.query.page)` (LibraryController.js:1022).
-	limit, page, paginated := lib.limit, lib.page, lib.limit != 0 && lib.hasPage
+	limit, page, paginated := lib.Limit, lib.Page, lib.Limit != 0 && lib.HasPage
 	if paginated {
 		filtered = pageOf(filtered, page, limit)
 	}
-	authors := make([]people.AuthorListEntry, 0, len(filtered))
+	authors := make([]AuthorListEntry, 0, len(filtered))
 	for _, a := range filtered {
 		view, err := a.ToOldJSON()
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		authors = append(authors, people.AuthorListEntry{AuthorWithBooks: people.AuthorWithBooks{AuthorView: view, NumBooks: int(a.numBooks)}, LastFirst: store.NullStringPtr(a.LastFirst)})
+		authors = append(authors, AuthorListEntry{AuthorWithBooks: AuthorWithBooks{AuthorView: view, NumBooks: int(a.numBooks)}, LastFirst: store.NullStringPtr(a.LastFirst)})
 	}
 	if !paginated {
 		return httputil.JSON(w, r, struct {
-			Authors []people.AuthorListEntry `json:"authors"`
+			Authors []AuthorListEntry `json:"authors"`
 		}{authors})
 	}
 	payload := map[string]any{"results": authors, "total": len(data), "limit": limit, "page": page, "sortDesc": desc, "minified": r.URL.Query().Get("minified") == "1"}
@@ -97,3 +97,5 @@ func (h *Handler) authors(w http.ResponseWriter, r *http.Request, lib librarySco
 	}
 	return httputil.JSON(w, r, payload)
 }
+
+func stringValue(value any) string { text, _ := value.(string); return text }

@@ -7,6 +7,7 @@ import (
 	"archive/zip"
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/logging"
 	"database/sql"
 	"encoding/json"
@@ -65,10 +66,10 @@ func generateOPML(podcasts []opmlPodcast) string {
 
 // libraryOPML is LibraryController.getOPMLFile (LibraryController.js:1306-1327):
 // the library's podcasts the user may see, as application/xml.
-func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request, library libraryScope) error {
-	user := library.user
+func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request, library library.Scope) error {
+	user := library.User
 	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
-	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.id}, permissionArgs...)...)
+	rows, err := h.db.QueryContext(r.Context(), `SELECT b.title,b.feedURL,b.description,b.language FROM podcasts b JOIN libraryItems li ON li.mediaId=b.id WHERE li.libraryId=?`+permissionSQL+` ORDER BY li.rowid`, append([]any{library.ID}, permissionArgs...)...)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -95,8 +96,8 @@ func (h *Handler) libraryOPML(w http.ResponseWriter, r *http.Request, library li
 // libraryRemoveMetadata is LibraryController.removeAllMetadataFiles
 // (LibraryController.js:1333-1375): admins delete the metadata.json (or, with
 // ext=abs, metadata.abs) file of every item whose library files list one.
-func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request, library libraryScope) error {
-	user := library.user
+func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request, library library.Scope) error {
+	user := library.User
 	if !adminUser(user) {
 		logging.Errorf(`[LibraryController] Non-admin user "%s" attempted to remove all metadata files`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
@@ -106,7 +107,7 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request, 
 		ext = "abs"
 	}
 	filename := "metadata." + ext
-	rows, err := h.db.QueryContext(r.Context(), `SELECT libraryFiles FROM libraryItems WHERE libraryId=? AND (SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = ?) >= 1 ORDER BY rowid`, library.id, filename)
+	rows, err := h.db.QueryContext(r.Context(), `SELECT libraryFiles FROM libraryItems WHERE libraryId=? AND (SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = ?) >= 1 ORDER BY rowid`, library.ID, filename)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
@@ -166,8 +167,8 @@ func (h *Handler) libraryRemoveMetadata(w http.ResponseWriter, r *http.Request, 
 // (LibraryController.js:1422-1465): the items named by ?ids (comma separated)
 // of this library as one zip, each item under its folder name (a single-file
 // item as that file), stored without compression.
-func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, library libraryScope) error {
-	user := library.user
+func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, library library.Scope) error {
+	user := library.User
 	if !access.For(r.Context(), user).Download() {
 		logging.Warnf(`User "%s" attempted to download without permission`, user.Username)
 		return httputil.Status(http.StatusForbidden, "")
@@ -184,7 +185,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, librar
 	}
 	var items []itemScope
 	for _, item := range found {
-		if item.libraryID == library.id {
+		if item.libraryID == library.ID {
 			items = append(items, item)
 		}
 	}
@@ -196,7 +197,7 @@ func (h *Handler) libraryDownload(w http.ResponseWriter, r *http.Request, librar
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	if len(items) < len(itemIDs) {
-		logging.Warnf(`[LibraryController] User "%s" requested %d items but only %d are in library "%s"`, user.Username, len(itemIDs), len(items), library.id)
+		logging.Warnf(`[LibraryController] User "%s" requested %d items but only %d are in library "%s"`, user.Username, len(itemIDs), len(items), library.ID)
 	}
 	logging.Infof(`[LibraryController] User "%s" requested download for items "%s"`, user.Username, strings.Join(itemIDs, ","))
 	filename := fmt.Sprintf("LibraryItems-%d.zip", time.Now().UnixMilli())

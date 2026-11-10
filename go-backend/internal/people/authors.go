@@ -563,8 +563,8 @@ func (h *Handler) authorDelete(w http.ResponseWriter, r *http.Request) error {
 	}
 	ctx := r.Context()
 	logging.Infof(`[AuthorController] Removing author "%s"`, a.Name.String)
-	if a.ImagePath.Valid && a.ImagePath.String != "" && h.deps.PurgeImageCache != nil {
-		h.deps.PurgeImageCache(a.ID)
+	if a.ImagePath.Valid && a.ImagePath.String != "" {
+		h.purgeImageCache(a.ID)
 	}
 	itemIDs, err := h.authorBookItems(ctx, a.ID)
 	if err != nil {

@@ -45,6 +45,12 @@ func (h *Handler) feedMinified(ctx context.Context, entityType, entityID string)
 	return feeds.FromSummary(feed), true, nil
 }
 
+// SeriesMatchesFilter exposes the series filter predicate to the people domain
+// until the filter/sort compiler moves into internal/library.
+func (h *Handler) SeriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {
+	return h.seriesMatchesFilter(ctx, seriesID, raw, user)
+}
+
 func (h *Handler) seriesMatchesFilter(ctx context.Context, seriesID, raw string, user store.User) (bool, error) {
 	if raw == "" {
 		return true, nil

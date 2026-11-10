@@ -164,6 +164,11 @@ correctness/security guard or call an unimplemented policy machine-enforced.
 
 ## Code rules
 
+- UA01's [userapi ownership and validation record](docs/USERAPI-SIMPLIFICATION.md)
+  describes the concern files behind its unchanged public facade. Preserve
+  ordered PATCH validation, legacy listening null/date semantics, unknown
+  persisted properties, repeated-action no-op behavior and emit/reload order.
+
 - The [podcasts simplification review](docs/PODCASTS-SIMPLIFICATION-REVIEW.md)
   records PC01's implementation, caller contracts and verification. Retain the
   public facade and shared `podcasts/read` interfaces. Creation/OPML,

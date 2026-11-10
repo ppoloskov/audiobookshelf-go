@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
@@ -39,7 +40,7 @@ type shelfEnv struct {
 	r         *http.Request
 	user      store.User
 	libraryID string
-	settings  librarySettings
+	settings  library.Settings
 	limit     int
 	podcast   bool
 	perm      string // the user's media permission clause, with its arguments
@@ -69,10 +70,10 @@ var podcastShelves = []shelfDef{
 	{"listen-again", "Listen Again", "LabelListenAgain", "episode", episodeShelf(true, `mp.isFinished=1`)},
 }
 
-func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, libraryID, mediaType := lib.user, lib.id, lib.mediaType
-	limit := cmp.Or(lib.limit, 10) // `req.query.limit || 10` (LibraryController.js:891)
-	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, settings: lib.settings, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
+func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
+	limit := cmp.Or(lib.Limit, 10) // `req.query.limit || 10` (LibraryController.js:891)
+	e := &shelfEnv{h: h, r: r, user: user, libraryID: libraryID, settings: lib.Settings, limit: limit, podcast: mediaType == "podcast", memo: map[string]shelfQuery{}, episodes: []string{}}
 	defs := bookShelves
 	switch mediaType {
 	case "book":

@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
@@ -16,14 +17,14 @@ import (
 	"strings"
 )
 
-func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, libraryID, mediaType := lib.user, lib.id, lib.mediaType
+func (h *Handler) search(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
 		return httputil.Status(http.StatusBadRequest, `Invalid request. Query param "q" must be a string`)
 	}
-	limit := cmp.Or(lib.limit, 12) // `req.query.limit || 12` (LibraryController.js:964)
-	table, err := lib.mediaTable()
+	limit := cmp.Or(lib.Limit, 12) // `req.query.limit || 12` (LibraryController.js:964)
+	table, err := lib.MediaTable()
 	if err != nil {
 		return err
 	}

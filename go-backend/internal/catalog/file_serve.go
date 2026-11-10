@@ -133,7 +133,7 @@ func (h *Handler) cover(w http.ResponseWriter, r *http.Request) error {
 		if !(h.pathAllowed(r.Context(), target, scope.libraryID) || h.cfg.MetadataPath != "" && withinAny(target, []string{h.cfg.MetadataPath})) {
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		return h.coverRaw(w, r, target)
+		return httputil.RawFile(w, r, target)
 	}
 	return h.handleCoverCache(w, r, itemID)
 }

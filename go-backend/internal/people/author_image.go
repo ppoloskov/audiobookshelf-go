@@ -1,4 +1,4 @@
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/access"
@@ -6,7 +6,7 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/people"
+	"audiobookshelf-compat/internal/mediatools"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -114,7 +114,7 @@ func axiosMessage(err error) string {
 // authorUploadImage is AuthorController.uploadImage (AuthorController.js:267-304).
 func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) error {
 	user := store.RequestUser(r)
-	a, err := people.AuthorRequest(r.Context(), h.db, r, user)
+	a, err := AuthorRequest(r.Context(), h.db, r, user)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	ctx := r.Context()
-	body := jsonBodyObject(r)
+	body := httputil.DecodeObjectFields(r)
 	rawURL, present := body["url"]
 	var imageURL string
 	var isString bool
@@ -155,22 +155,22 @@ func (h *Handler) authorUploadImage(w http.ResponseWriter, r *http.Request) erro
 	if a.ImagePath.Valid && a.ImagePath.String != "" {
 		h.purgeImageCache(a.ID)
 	}
-	update := &people.AuthorColumnUpdate{}
+	update := &AuthorColumnUpdate{}
 	update.Force("imagePath", &imagePath) // changed('imagePath', true): bump updatedAt
 	if err := update.Save(ctx, h.db, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	expanded, err := people.AuthorExpanded(ctx, h.db, a.ID)
+	expanded, err := AuthorExpanded(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("author_updated", expanded)
-	return httputil.JSON(w, r, people.AuthorImageResult{Author: expanded.AuthorView})
+	return httputil.JSON(w, r, AuthorImageResult{Author: expanded.AuthorView})
 }
 
 // authorDeleteImage is AuthorController.deleteImage (AuthorController.js:313-329).
 func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) error {
-	a, err := people.AuthorRequest(r.Context(), h.db, r, store.RequestUser(r))
+	a, err := AuthorRequest(r.Context(), h.db, r, store.RequestUser(r))
 	if err != nil {
 		return err
 	}
@@ -187,17 +187,17 @@ func (h *Handler) authorDeleteImage(w http.ResponseWriter, r *http.Request) erro
 	} else if err := os.Remove(a.ImagePath.String); err != nil {
 		return httputil.Internal("internal error", err)
 	}
-	update := &people.AuthorColumnUpdate{}
+	update := &AuthorColumnUpdate{}
 	update.Change("imagePath", store.NullStringPtr(a.ImagePath), nil)
 	if err := update.Save(ctx, h.db, a.ID); err != nil {
 		return httputil.Internal("database write failed", err)
 	}
-	expanded, err := people.AuthorExpanded(ctx, h.db, a.ID)
+	expanded, err := AuthorExpanded(ctx, h.db, a.ID)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	h.emit.ToAll("author_updated", expanded)
-	return httputil.JSON(w, r, people.AuthorImageResult{Author: expanded.AuthorView})
+	return httputil.JSON(w, r, AuthorImageResult{Author: expanded.AuthorView})
 }
 
 // authorImage is AuthorController.getImage (AuthorController.js:391-419) over
@@ -207,7 +207,7 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	authorID := r.PathValue("id")
 	query := r.URL.Query()
 	if query.Get("raw") != "" {
-		a, err := people.LoadAuthor(r.Context(), h.db, authorID)
+		a, err := LoadAuthor(r.Context(), h.db, authorID)
 		if errors.Is(err, sql.ErrNoRows) {
 			logging.Warnf(`[AuthorController] Author "%s" not found`, authorID)
 			return httputil.Status(http.StatusNotFound, "")
@@ -223,19 +223,19 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 			logging.Warnf(`[AuthorController] Author "%s" has invalid imagePath: %s`, a.Name.String, a.ImagePath.String)
 			return httputil.Status(http.StatusNotFound, "")
 		}
-		h.coverRaw(w, r, a.ImagePath.String)
+		httputil.RawFile(w, r, a.ImagePath.String)
 		return nil
 	}
 	format := query.Get("format")
 	if format == "" {
-		if reqSupportsWebp(r.Header.Get("Accept")) {
+		if httputil.SupportsWebP(r.Header.Get("Accept")) {
 			format = "webp"
 		} else {
 			format = "jpeg"
 		}
 	}
-	widthValue := clampCoverDimension(query.Get("width"), 4096)
-	heightValue := clampCoverDimension(query.Get("height"), 4096)
+	widthValue := httputil.ClampDimension(query.Get("width"), 4096)
+	heightValue := httputil.ClampDimension(query.Get("height"), 4096)
 	if format != "webp" && format != "jpeg" && format != "png" || !ids.Valid(authorID) {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
@@ -253,10 +253,10 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	}
 	cachePath := filepath.Join(h.imageCachePath(), cacheName+"."+format)
 	if _, err := os.Stat(cachePath); err == nil {
-		streamCoverCache(w, r, cachePath)
+		httputil.StreamCache(w, r, cachePath)
 		return nil
 	}
-	a, err := people.LoadAuthor(r.Context(), h.db, authorID)
+	a, err := LoadAuthor(r.Context(), h.db, authorID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return httputil.Internal("database read failed", err)
 	}
@@ -269,9 +269,9 @@ func (h *Handler) authorImage(w http.ResponseWriter, r *http.Request) error {
 	if err := os.MkdirAll(h.imageCachePath(), 0o755); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	if err := resizeImage(r.Context(), a.ImagePath.String, cachePath, width, height); err != nil {
+	if err := mediatools.ResizeImage(r.Context(), a.ImagePath.String, cachePath, width, height); err != nil {
 		return &httputil.Error{Status: 500, Cause: err}
 	}
-	streamCoverCache(w, r, cachePath)
+	httputil.StreamCache(w, r, cachePath)
 	return nil
 }

@@ -181,10 +181,11 @@ composes `books` + `podcastread` + `mediafiles`, and `store.QueryIn` owns shared
 chunked-query mechanics. Do not move every wire type, add a generic repository,
 or invent a universal DTO. The `items` coordinator may consume `books`/
 `podcasts` data; those domains must never import `items`, `catalog`, `library`,
-`lists`, `playback` or `server`. Author/series entity detail, CRUD, merge/delete
-and matching live in `internal/people`; library-scoped author/series lists and
-author images remain catalog until their extraction. Keep the graph acyclic and
-preserve the existing item loader's query counts.
+`lists`, `playback` or `server`. Author/series entity detail, CRUD, merge/delete,
+matching, library-scoped author/series lists and author images live in
+`internal/people`. The first `internal/library` slice owns `/api/libraries/:id`
+request scope and media-table selection; browsing/search/shelves follow. Keep
+the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing
 lenient column semantics; it is not HTTP request validation.

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -417,3 +418,228 @@ func TestUserAdministrationAndAPIKeyReadCreate(t *testing.T) {
 func msPtr(v int64) *int64 { return &v }
 
 var _ = context.Background
+
+// Two progress records for one item remain two results; deduplication is by
+// progress row, whose ID is unique, rather than by library item.
+func TestItemsInProgressRetainsDistinctRowsForSameItem(t *testing.T) {
+	db, user := userFixture(t)
+	defer db.Close()
+	for _, query := range []string{
+		`INSERT INTO libraryItems(id,mediaId,mediaType,libraryId,extraData,libraryFiles) VALUES ('li1','book1','book','lib1','{}','[]')`,
+		`INSERT INTO books(id,title,explicit,tags,genres,narrators,audioFiles,chapters) VALUES ('book1','Book',0,'[]','[]','[]','[]','[]')`,
+		`INSERT INTO mediaProgresses(id,userId,mediaItemId,mediaItemType,currentTime,isFinished,extraData,updatedAt) VALUES ('p1','u1','book1','book',1,0,'{"libraryItemId":"li1"}','2024-01-01 00:00:00')`,
+		`INSERT INTO mediaProgresses(id,userId,mediaItemId,mediaItemType,currentTime,isFinished,extraData,updatedAt) VALUES ('p2','u1','book1','book',2,0,'{"libraryItemId":"li1"}','2024-01-02 00:00:00')`,
+	} {
+		if _, err := db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := newUserAPIForTest(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/me/items-in-progress", nil), user) || w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var body struct {
+		LibraryItems []struct {
+			ID string `json:"id"`
+		} `json:"libraryItems"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.LibraryItems) != 2 || body.LibraryItems[0].ID != "li1" || body.LibraryItems[1].ID != "li1" {
+		t.Fatalf("items=%+v", body.LibraryItems)
+	}
+}
+
+func TestYearStatsRankingRoundsBeforeOrdering(t *testing.T) {
+	got := topEntries(map[string]float64{"Zoe": 1.49, "Ada": 1.4, "Bea": 1.5, "": 9}, "name", 3)
+	want := []any{map[string]any{"name": "Bea", "time": 2}, map[string]any{"name": "Ada", "time": 1}, map[string]any{"name": "Zoe", "time": 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ranking=%#v, want %#v", got, want)
+	}
+	if got := topOne(map[string]float64{}, "name"); got != nil {
+		t.Fatalf("empty top=%#v", got)
+	}
+	if got := topMonth(map[int]float64{1: 0.4, 2: 0.6}); !reflect.DeepEqual(got, map[string]any{"month": 2, "time": 1}) {
+		t.Fatalf("month=%#v", got)
+	}
+}
+
+func TestListeningStatsLegacyZeroAndPrefix(t *testing.T) {
+	db, user := userFixture(t)
+	defer db.Close()
+	for _, q := range []string{
+		`CREATE TABLE devices (id TEXT PRIMARY KEY, deviceId TEXT, clientName TEXT, clientVersion TEXT, ipAddress TEXT, deviceName TEXT, deviceVersion TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME, userId TEXT)`,
+		`CREATE TABLE playbackSessions (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, displayTitle TEXT, displayAuthor TEXT, duration REAL, playMethod REAL, mediaPlayer TEXT, startTime REAL, currentTime REAL, serverVersion TEXT, coverPath TEXT, timeListening REAL, mediaMetadata TEXT, date TEXT, dayOfWeek TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME, userId TEXT, deviceId TEXT, libraryId TEXT)`,
+		`INSERT INTO playbackSessions(id,userId,timeListening,mediaMetadata,date,dayOfWeek,extraData,createdAt,updatedAt) VALUES ('one','u1',0,'{"title":"First"}','2024-01-01','Monday','{"libraryItemId":"li_old"}','2024-01-01','2024-01-03')`,
+		`INSERT INTO playbackSessions(id,userId,timeListening,mediaMetadata,date,dayOfWeek,extraData,createdAt,updatedAt) VALUES ('two','u1',3,'{"title":"Second"}','2024-01-01','Monday','{"libraryItemId":"li_old"}','2024-01-01','2024-01-02')`,
+		`INSERT INTO playbackSessions(id,userId,timeListening,mediaMetadata,date,dayOfWeek,extraData,createdAt,updatedAt) VALUES ('three','u1',-2,'null','2024-01-02','Tuesday','{"libraryItemId":"item1"}','2024-01-01','2024-01-01')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := newUserAPIForTest(db, config.Config{}, nil)
+	w := httptest.NewRecorder()
+	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/me/listening-stats", nil), user) || w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]any{
+		"totalTime": float64(1), "today": float64(0),
+		"days":      map[string]any{"2024-01-01": float64(3)},
+		"dayOfWeek": map[string]any{"Monday": float64(3), "Tuesday": float64(-2)},
+		"items":     map[string]any{"null": map[string]any{"id": nil, "timeListening": float64(3), "mediaMetadata": map[string]any{"title": "First"}}, "item1": map[string]any{"id": "item1", "timeListening": float64(-2), "mediaMetadata": nil}},
+	} {
+		if !reflect.DeepEqual(body[key], want) {
+			t.Errorf("%s=%#v, want %#v", key, body[key], want)
+		}
+	}
+}
+
+func TestSeriesVisibilityTransitions(t *testing.T) {
+	db, user := userFixture(t)
+	defer db.Close()
+	if _, err := db.Exec(`INSERT INTO series(id) VALUES ('s1')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE users SET extraData='{"unknown":{"keep":true},"seriesHideFromContinueListening":["other"]}' WHERE id='u1'`); err != nil {
+		t.Fatal(err)
+	}
+	events := 0
+	h := newUserAPIForTest(db, config.Config{}, func(audience, event string, payload any) {
+		if audience != user.ID || event != "user_updated" {
+			t.Errorf("event=%q/%q", audience, event)
+		}
+		events++
+	})
+	steps := []struct {
+		action string
+		want   []any
+		events int
+	}{
+		{"remove-from-continue-listening", []any{"other", "s1"}, 1},
+		{"remove-from-continue-listening", []any{"other", "s1"}, 1},
+		{"readd-to-continue-listening", []any{"other"}, 2},
+		{"readd-to-continue-listening", []any{"other"}, 2},
+	}
+	const sentinel = "2001-01-01 00:00:00"
+	for i, step := range steps {
+		if i%2 == 1 {
+			if _, err := db.Exec(`UPDATE users SET updatedAt=? WHERE id='u1'`, sentinel); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var extra string
+		if err := db.QueryRow(`SELECT extraData FROM users WHERE id='u1'`).Scan(&extra); err != nil {
+			t.Fatal(err)
+		}
+		user.ExtraData = json.RawMessage(extra)
+		w := httptest.NewRecorder()
+		path := "/api/me/series/s1/" + step.action
+		if !h.Handle(w, httptest.NewRequest(http.MethodGet, path, nil), user) || w.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", path, w.Code, w.Body.String())
+		}
+		var sentinelPreserved bool
+		if err := db.QueryRow(`SELECT extraData, updatedAt = ? FROM users WHERE id='u1'`, sentinel).Scan(&extra, &sentinelPreserved); err != nil {
+			t.Fatal(err)
+		}
+		var stored map[string]any
+		if err := json.Unmarshal([]byte(extra), &stored); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(stored["seriesHideFromContinueListening"], step.want) || !reflect.DeepEqual(stored["unknown"], map[string]any{"keep": true}) || events != step.events {
+			t.Fatalf("step %d stored=%#v events=%d", i, stored, events)
+		}
+		if i%2 == 1 && !sentinelPreserved {
+			t.Fatal("repeat changed updatedAt")
+		}
+	}
+	// Readd removes every duplicate; hiding an already present series retains them.
+	user.ExtraData = json.RawMessage(`{"unknown":7,"seriesHideFromContinueListening":["s1","other","s1"]}`)
+	if _, err := db.Exec(`UPDATE users SET extraData=? WHERE id='u1'`, string(user.ExtraData)); err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range []struct {
+		action string
+		want   []any
+		events int
+	}{{"remove-from-continue-listening", []any{"s1", "other", "s1"}, 2}, {"readd-to-continue-listening", []any{"other"}, 3}} {
+		if step.action == "remove-from-continue-listening" {
+			if _, err := db.Exec(`UPDATE users SET updatedAt=? WHERE id='u1'`, sentinel); err != nil {
+				t.Fatal(err)
+			}
+		}
+		w := httptest.NewRecorder()
+		h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/me/series/s1/"+step.action, nil), user)
+		if w.Code != http.StatusOK {
+			t.Fatal(w.Body.String())
+		}
+		var extra string
+		if err := db.QueryRow(`SELECT extraData FROM users WHERE id='u1'`).Scan(&extra); err != nil {
+			t.Fatal(err)
+		}
+		user.ExtraData = json.RawMessage(extra)
+		var stored map[string]any
+		if err := json.Unmarshal(user.ExtraData, &stored); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(stored["seriesHideFromContinueListening"], step.want) || stored["unknown"] != float64(7) || events != step.events {
+			t.Fatalf("stored=%#v events=%d", stored, events)
+		}
+		if step.action == "remove-from-continue-listening" {
+			var preserved bool
+			if err := db.QueryRow(`SELECT updatedAt = ? FROM users WHERE id='u1'`, sentinel).Scan(&preserved); err != nil {
+				t.Fatal(err)
+			}
+			if !preserved {
+				t.Fatal("repeat with duplicates changed updatedAt")
+			}
+		}
+	}
+}
+
+func TestUpdateUserValidationOrderAndNulls(t *testing.T) {
+	cases := []struct {
+		name, body, want string
+		status           int
+	}{
+		{"email first", `{"email":1,"username":1,"type":1,"permissions":1}`, "Invalid email", 400},
+		{"username second", `{"email":null,"username":false,"type":1}`, "Invalid username", 400},
+		{"type third", `{"email":"","username":null,"type":[]}`, "Invalid account type", 400},
+		{"permissions after strings", `{"email":null,"username":"","type":null,"permissions":[]}`, "Invalid permissions", 400},
+		{"nulls ignored", `{"email":null,"username":null,"type":null,"permissions":null}`, "", 200},
+		{"empty ignored", `{"email":"","username":"","type":""}`, "", 200},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, user := userFixture(t)
+			defer db.Close()
+			user.Type = "admin"
+			h := newUserAPIForTest(db, config.Config{}, nil)
+			w := httptest.NewRecorder()
+			h.Handle(w, httptest.NewRequest(http.MethodPatch, "/api/users/u1", strings.NewReader(tc.body)), user)
+			if w.Code != tc.status || (tc.want != "" && !strings.Contains(w.Body.String(), tc.want)) {
+				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+			}
+		})
+	}
+	t.Run("admin cannot patch root before body validation", func(t *testing.T) {
+		db, user := userFixture(t)
+		defer db.Close()
+		user.Type = "admin"
+		if _, err := db.Exec(`UPDATE users SET type='root' WHERE id='u1'`); err != nil {
+			t.Fatal(err)
+		}
+		h := newUserAPIForTest(db, config.Config{}, nil)
+		w := httptest.NewRecorder()
+		h.Handle(w, httptest.NewRequest(http.MethodPatch, "/api/users/u1", strings.NewReader(`{"email":1}`)), user)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+		}
+	})
+}

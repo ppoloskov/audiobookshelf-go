@@ -77,11 +77,12 @@ composes `books` + `podcastread` + `mediafiles`; feature `podcasts` keeps its
 HTTP/write paths and consumes the read package. `store.QueryIn` owns the
 shared chunked-query mechanics.
 
-People first slice: author/series entity records/views, detail, update/rename,
-merge/delete and metadata matching now live in `internal/people`. Catalog keeps
-the library-scoped author/series list routes and author image routes for the
-next slice; itemwrite keeps relation cleanup and orphan sweeps. The dependency
-is `catalog` → `people`, with no people → catalog edge.
+People slice: author/series entity records/views, detail, update/rename,
+merge/delete, metadata matching, library-scoped author/series lists and author
+image routes now live in `internal/people`. The first `internal/library` slice
+owns request scope/`InLibrary` and media-table selection. `itemwrite` keeps
+relation cleanup and orphan sweeps. Dependencies remain acyclic:
+`catalog` → `people`/`library`; `people` → `library`; neither imports catalog.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess

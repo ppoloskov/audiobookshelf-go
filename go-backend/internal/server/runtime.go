@@ -139,12 +139,11 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes)
-	people.New(db, emit, people.Deps{
-		Filters:         filters,
-		Authors:         rt.providers,
-		WriteMetadata:   rt.scanner.WriteMetadata,
-		PurgeImageCache: rt.catalog.PurgeAuthorImageCache,
-		SaveAuthorImage: rt.catalog.SaveAuthorImage,
+	people.New(db, cfg, emit, people.Deps{
+		Filters:             filters,
+		Authors:             rt.providers,
+		WriteMetadata:       rt.scanner.WriteMetadata,
+		SeriesMatchesFilter: rt.catalog.SeriesMatchesFilter,
 	}).Routes(rt.routes)
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)

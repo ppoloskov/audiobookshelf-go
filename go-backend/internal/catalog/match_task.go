@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/logging"
 	"context"
 	"database/sql"
@@ -14,9 +15,9 @@ import (
 
 // startMatchTask announces the 'library-match-all' task of
 // Scanner.matchLibraryItems (Scanner.js:489-497).
-func (h *Handler) startMatchTask(library libraryScope) events.Task {
-	t := events.NewTask(ids.Must(), "library-match-all", taskData{LibraryID: library.id}).
-		Titled(fmt.Sprintf("Matching books in %q", library.name), "MessageTaskMatchingBooksInLibrary", []string{library.name})
+func (h *Handler) startMatchTask(library library.Scope) events.Task {
+	t := events.NewTask(ids.Must(), "library-match-all", taskData{LibraryID: library.ID}).
+		Titled(fmt.Sprintf("Matching books in %q", library.Name), "MessageTaskMatchingBooksInLibrary", []string{library.Name})
 	t.ShowSuccess = true
 	h.emit.TaskStarted(t)
 	return t
@@ -57,24 +58,24 @@ func matchResultsText(updated int, elapsedMs int64) string {
 // libraryMatchAll is LibraryController.matchAll (LibraryController.js:1245-1254)
 // over Scanner.matchLibraryItems (Scanner.js:472-548) and
 // matchLibraryItemsChunk (:435-469).
-func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request, library libraryScope) error {
-	if !adminUser(library.user) {
-		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, library.user.Username)
+func (h *Handler) libraryMatchAll(w http.ResponseWriter, r *http.Request, library library.Scope) error {
+	if !adminUser(library.User) {
+		logging.Errorf(`[LibraryController] Non-root user "%s" attempted to match library items`, library.User.Username)
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	go h.matchLibraryItems(context.Background(), library)
 	return httputil.OK(w, r)
 }
 
-func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
-	if library.mediaType == "podcast" {
+func (h *Handler) matchLibraryItems(ctx context.Context, library library.Scope) {
+	if library.MediaType == "podcast" {
 		logging.Errorf("[Scanner] matchLibraryItems: Match all not supported for podcasts yet")
 		return
 	}
-	settings := library.settings
+	settings := library.Settings
 	task := h.startMatchTask(library)
-	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, ids.Must(), library.name)
-	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.title,b.asin,b.isbn FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? ORDER BY li.createdAt`, library.id)
+	logging.Infof(`[Scanner] matchLibraryItems: Starting library match scan %s for %s`, ids.Must(), library.Name)
+	rows, err := h.db.QueryContext(ctx, `SELECT li.id,b.title,b.asin,b.isbn FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? ORDER BY li.createdAt`, library.ID)
 	if err != nil {
 		logging.Errorf("[Scanner] matchLibraryItems: %v", err)
 		return
@@ -103,7 +104,7 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
 			continue
 		}
 		logging.Debugf(`[Scanner] matchLibraryItems: Quick matching "%s" (%d of %d)`, t.title, i+1, len(targets))
-		result, err := h.quickMatchLibraryItem(ctx, t.id, quickMatchOptions{provider: library.provider})
+		result, err := h.quickMatchLibraryItem(ctx, t.id, quickMatchOptions{provider: library.Provider})
 		if err != nil {
 			logging.Errorf("[Scanner] matchLibraryItems: %v", err)
 			continue
@@ -114,5 +115,5 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library libraryScope) {
 			updated++
 		}
 	}
-	h.finishMatchTask(task, library.id, len(targets), updated)
+	h.finishMatchTask(task, library.ID, len(targets), updated)
 }

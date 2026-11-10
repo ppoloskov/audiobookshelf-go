@@ -1,5 +1,37 @@
 # Roadmap
 
+### UA01 · User API simplification and file ownership (2026-11-10)
+
+- [ ] LOCALLY VERIFIED, PENDING INTEGRATION — owner requested Terra implementation after the package
+  review. Preserve `New`, `Handler.Routes`, `Credentials`, `Deps`, all HTTP
+  routes/auth/status/JSON semantics, persisted formats and event recipients.
+  Scope is `internal/userapi` only; no new package, dependency, schema or
+  cross-domain move. Architect owns documentation and final acceptance.
+- Test first: characterize changed account/PATCH, statistics and repeated
+  update/event paths before replacing their implementations. Split the mixed
+  `userapi.go`/`me_extra.go` by concern and collapse demonstrated duplicate work,
+  map assertions and redundant branches. Do not count file moves as savings.
+- Initial reduction budget returned for architect review: the clear concern
+  split costs imports/headers (+49 total LOC in the first candidate) despite
+  deleting intermediate rounding maps and redundant bookkeeping. Folding files
+  back into miscellaneous buckets was rejected. Revised bound for acceptance:
+  at most +60 production LOC for ownership, with reduced total complexity and
+  dynamic maps, no growth in functions over 15, `[]any` or injectors. Further
+  test-backed collapse of series-state bookkeeping and repeated PATCH type
+  validation is required. No adapters/new packages/dependencies/schema changes.
+- Checks: focused baseline/characterization, userapi and direct foundations,
+  targeted race, full build/vet/tests with documented FFmpeg, lint and ratchet.
+  Baselines remain architect-owned. Full CI/rollback is required before any
+  publication; unrelated dirty work remains untouched.
+- Result: concern files replace `me_extra.go`; shared payload construction,
+  typed stats accumulators, direct rank rounding, slice-based series state and
+  ordered PATCH validation remove redundant mechanisms. Architect contract
+  and simplicity reviews accepted +34 LOC / −17 complexity / −2 functions over
+  15 / −6 maps / −1 `[]any`, within the revised ownership budget. Full isolated
+  build/vet/test, real Socket.IO and FFmpeg, lint, focused races, ratchet/dbnest
+  and formatting pass. [Evidence and limitations](docs/USERAPI-SIMPLIFICATION.md).
+  Commit/push and combined CI/rollback remain pending; mark DONE in that commit.
+
 ### PC01 · Podcasts simplification and ownership (2026-11-10)
 
 - [x] DONE — implemented by the requested Terra worker; architect contract and
@@ -180,6 +212,59 @@
   (b) the people rig supplies a recording `WriteMetadata` callback
   instead of relying on its nil-skip, so a runtime wiring omission
   cannot silently skip metadata writes.
+
+### PB04 · Library browsing/search/shelves + people remainder (2026-11-10)
+
+- [ ] PROPOSED SPLIT — source inventory shows the requested surface is too
+  coupled for one bounded ownership move: people lists/images still depend on
+  catalog library-scope and cover helpers, while browsing/filter/search/shelves
+  share `query.go`, item loaders, collapsed-series and shelf projection code.
+  Proposed coherent packets, in order:
+  1. **PB04a — people remainder.** Move `/api/libraries/:id/authors` and
+     `/series` list handlers, series filter helpers, and author image routes
+     into `internal/people`; move the author/series test rig and tests to
+     people; replace the people `WriteMetadata` nil-skip with a recording test
+     callback. No library browse/search code moves.
+  2. **PB04b — library scope and browsing.** Move library scope/`OpenLibrary`
+     middleware, library read/detail/filterdata/stats, item-list browsing and
+     the filter/sort SQL compiler into `internal/library`, preserving query
+     counts and endpoint shapes.
+  3. **PB04c — shelves and search.** Move personalized shelves, collapsed
+     series/subseries and library search into `internal/library`; keep library
+     writes/admin (create/update/delete/reorder, OPML, download, match-all)
+     in catalog for a later packet rather than turning `library` into a
+     dumping ground.
+- [ ] IN PROGRESS — PB04a ACCEPTED 2026-11-11: library-scoped author/series list
+  handlers, series filter seam, author image routes, author image helpers and
+  the author/series test rig moved into `internal/people`; the recording
+  `WriteMetadata` callback is now supplied by the people test rig. Shared
+  image file/stream helpers moved to `httputil`/`mediatools`. The first
+  `internal/library` slice (request scope/`InLibrary`, `MediaTable`) is in
+  place for the browsing packet. Catalog routes for the moved endpoints are
+  removed. No route, JSON, permission, persistence or event behavior changed.
+  Architect rerun verified: gofmt, build, vet, the full suite with the
+  documented FFmpeg prefix (50 packages), `-race` across the nine affected
+  packages, golangci-lint v2.15.0 (0 issues), 28 dependency fixtures,
+  `make ratchet` +0 and dbnest. Both PB03a contract conditions are closed
+  (rig move with a recording `WriteMetadata` callback; image-callback exit
+  completed — `PurgeImageCache`/`SaveAuthorImage` deleted from `Deps`).
+- Actual PB04a delta (ratified against the post-`371e9abb` baseline): +130
+  handwritten LOC, −2 complexity, −2 functions over 15, −6 `map[string]any`,
+  −1 `[]any`. The worker's report (+96 LOC / +15 complexity, others
+  unchanged) was computed from a stale pre-`371e9abb` baseline; the baseline
+  file itself carries the correct measured values. Report-accuracy note:
+  future packets must state the prior baseline hash they diff against.
+- Owner ruling (2026-11-11): series is not people. Upstream `Series` has no
+  person-like operations (no image/matching/merge) and is library-scoped
+  (`libraryId` FK, `UNIQUE(name, libraryId)`); the series list routes are
+  LibraryController operations upstream. Series routes move people → library
+  in PB04b (the `SeriesMatchesFilter` exit completes there with the
+  filter/sort compiler); series data stays in `books` (`SeriesRef`,
+  sequence, seriesName). Books cannot own the routes: the series view
+  composes `items.Minified` and `items` → `books` would cycle. `people`
+  ends as authors-only. Owner may veto before PB04b dispatch.
+- Next: PB04b library browsing/search plus the series move per the ruling,
+  keeping library writes/admin in catalog until a later packet.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);

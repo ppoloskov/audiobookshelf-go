@@ -37,45 +37,20 @@ func (h *Handler) coverCachePath() string {
 // "<size hex>-<mtimeMs hex>" — observed as W/"78-1a1875cf4bd" for a 120-byte
 // file in the recorded differential run.
 func expressFileETag(size int64, modTime int64) string {
-	return fmt.Sprintf("W/\"%x-%x\"", size, modTime)
+	return httputil.ExpressFileETag(size, modTime)
 }
 
 // reqSupportsWebp mirrors server/utils/index.js:144-147, including the bare
 // */* accept that undici/fetch-style clients send.
-func reqSupportsWebp(accept string) bool {
-	return accept == "*/*" || strings.Contains(accept, "image/webp")
-}
+func reqSupportsWebp(accept string) bool { return httputil.SupportsWebP(accept) }
 
-func clampCoverDimension(raw string, max int) *int {
-	parsed, err := strconv.Atoi(strings.TrimSpace(raw))
-	if err != nil || parsed <= 0 {
-		return nil
-	}
-	if parsed > max {
-		parsed = max
-	}
-	return &parsed
-}
+func clampCoverDimension(raw string, max int) *int { return httputil.ClampDimension(raw, max) }
 
 // coverRaw mirrors the raw branch of LibraryItemController.getCover
 // (LibraryItemController.js:858-884): sendFile semantics with the express
 // send defaults — Cache-Control public,max-age=0, weak ETag, Last-Modified.
 func (h *Handler) coverRaw(w http.ResponseWriter, r *http.Request, coverPath string) error {
-	info, err := os.Stat(coverPath)
-	if err != nil {
-		return httputil.Status(http.StatusNotFound, "")
-	}
-	// node_modules/send/index.js:862: the Cache-Control default is only
-	// applied when the handler has not already set one (the ts branch of
-	// getCover sets 'private, max-age=86400').
-	if w.Header().Get("Cache-Control") == "" {
-		w.Header().Set("Cache-Control", "public, max-age=0")
-	}
-	if info.Mode().IsRegular() {
-		w.Header().Set("ETag", expressFileETag(info.Size(), info.ModTime().UnixMilli()))
-	}
-	http.ServeFile(w, r, coverPath)
-	return nil
+	return httputil.RawFile(w, r, coverPath)
 }
 
 // handleCoverCache mirrors CacheManager.handleCoverCache (CacheManager.js:43-102):
@@ -141,25 +116,13 @@ func (h *Handler) handleCoverCache(w http.ResponseWriter, r *http.Request, itemI
 // or height that is absent is -1 so ffmpeg preserves the aspect ratio, and the
 // output filename selects the muxer exactly as upstream does.
 func resizeImage(ctx context.Context, input, output string, width, height int) error {
-	return mediatools.Run(ctx, "-y", "-i", input, "-vf", fmt.Sprintf("scale=%d:%d", width, height), output)
+	return mediatools.ResizeImage(ctx, input, output, width, height)
 }
 
 // streamCoverCache mirrors the cache-hit/done path: a bare chunked stream
 // without Content-Length (node stream pipe semantics).
 func streamCoverCache(w http.ResponseWriter, r *http.Request, cachePath string) error {
-	file, err := os.Open(cachePath)
-	if err != nil {
-		return httputil.Internal("", err)
-	}
-	defer file.Close()
-	w.WriteHeader(http.StatusOK)
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-	if r.Method != http.MethodHead {
-		_, _ = io.Copy(w, file)
-	}
-	return nil
+	return httputil.StreamCache(w, r, cachePath)
 }
 
 var supportedImageTypes = map[string]bool{"jpeg": true, "jpg": true, "png": true, "webp": true}

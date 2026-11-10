@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"net/http"
 )
 
@@ -10,43 +11,35 @@ import (
 // the user to its context before dispatching (store.ContextWithUser); the
 // public image read gets none.
 func (h *Handler) Routes(mux *http.ServeMux) {
-	// server/routers/ApiRouter.js:217-223; author entity routes live in people.
-	mux.Handle("GET /api/authors/{id}/image", httputil.Handler(h.authorImage))
-	mux.Handle("POST /api/authors/{id}/image", httputil.Handler(h.authorUploadImage))
-	mux.Handle("DELETE /api/authors/{id}/image", httputil.Handler(h.authorDeleteImage))
-
 	// server/routers/ApiRouter.js:102-103.
 	mux.Handle("POST /api/items/batch/delete", httputil.Handler(h.batchDelete))
 	mux.Handle("POST /api/items/batch/update", httputil.Handler(h.batchUpdate))
 
 	// server/routers/ApiRouter.js:90,105,116.
-	mux.Handle("GET /api/libraries/{id}/matchall", h.inLibrary(h.libraryMatchAll))
+	mux.Handle("GET /api/libraries/{id}/matchall", library.InLibrary(h.db, h.libraryMatchAll))
 	mux.Handle("POST /api/items/batch/quickmatch", httputil.Handler(h.batchQuickMatch))
 	mux.Handle("POST /api/items/{id}/match", httputil.Handler(h.itemMatch))
-	mux.Handle("GET /api/libraries/{id}/opml", h.inLibrary(h.libraryOPML))
-	mux.Handle("POST /api/libraries/{id}/remove-metadata", h.inLibrary(h.libraryRemoveMetadata))
-	mux.Handle("GET /api/libraries/{id}/download", h.inLibrary(h.libraryDownload))
+	mux.Handle("GET /api/libraries/{id}/opml", library.InLibrary(h.db, h.libraryOPML))
+	mux.Handle("POST /api/libraries/{id}/remove-metadata", library.InLibrary(h.db, h.libraryRemoveMetadata))
+	mux.Handle("GET /api/libraries/{id}/download", library.InLibrary(h.db, h.libraryDownload))
 
 	// server/routers/ApiRouter.js:60-91 (LibraryController), Express GET covers HEAD.
 	mux.Handle("GET /api/libraries", httputil.Handler(h.libraries))
 	mux.Handle("POST /api/libraries", httputil.Handler(h.createLibrary))
 	mux.Handle("POST /api/libraries/order", httputil.Handler(h.reorderLibraries))
-	mux.Handle("GET /api/libraries/{id}", h.inLibrary(h.library))
+	mux.Handle("GET /api/libraries/{id}", library.InLibrary(h.db, h.library))
 	mux.Handle("PATCH /api/libraries/{id}", httputil.Handler(h.updateLibrary))
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
-	mux.Handle("GET /api/libraries/{id}/items", h.inLibrary(h.libraryItems))
-	mux.Handle("DELETE /api/libraries/{id}/issues", h.inLibrary(h.removeLibraryItemsWithIssues))
-	mux.Handle("GET /api/libraries/{id}/stats", h.inLibrary(h.libraryStats))
-	mux.Handle("GET /api/libraries/{id}/filterdata", h.inLibrary(h.libraryFilterData))
-	mux.Handle("GET /api/libraries/{id}/personalized", h.inLibrary(h.personalized))
-	mux.Handle("GET /api/libraries/{id}/authors", h.inLibrary(h.authors))
-	mux.Handle("GET /api/libraries/{id}/narrators", h.inLibrary(h.narrators))
-	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", h.inLibrary(h.updateNarrator))
-	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", h.inLibrary(h.updateNarrator))
-	mux.Handle("GET /api/libraries/{id}/podcast-titles", h.inLibrary(h.podcastTitles))
-	mux.Handle("GET /api/libraries/{id}/series", h.inLibrary(h.series))
-	mux.Handle("GET /api/libraries/{id}/series/{seriesId}", h.inLibrary(h.seriesByID))
-	mux.Handle("GET /api/libraries/{id}/search", h.inLibrary(h.search))
+	mux.Handle("GET /api/libraries/{id}/items", library.InLibrary(h.db, h.libraryItems))
+	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
+	mux.Handle("GET /api/libraries/{id}/stats", library.InLibrary(h.db, h.libraryStats))
+	mux.Handle("GET /api/libraries/{id}/filterdata", library.InLibrary(h.db, h.libraryFilterData))
+	mux.Handle("GET /api/libraries/{id}/personalized", library.InLibrary(h.db, h.personalized))
+	mux.Handle("GET /api/libraries/{id}/narrators", library.InLibrary(h.db, h.narrators))
+	mux.Handle("PATCH /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
+	mux.Handle("DELETE /api/libraries/{id}/narrators/{narratorId}", library.InLibrary(h.db, h.updateNarrator))
+	mux.Handle("GET /api/libraries/{id}/podcast-titles", library.InLibrary(h.db, h.podcastTitles))
+	mux.Handle("GET /api/libraries/{id}/search", library.InLibrary(h.db, h.search))
 
 	// server/routers/ApiRouter.js:92-130 (LibraryItemController).
 	mux.Handle("GET /api/items/{id}", httputil.Handler(h.item))

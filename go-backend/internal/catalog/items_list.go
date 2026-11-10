@@ -4,14 +4,15 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
 )
 
-func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, libraryID, mediaType := lib.user, lib.id, lib.mediaType
-	page, limit := lib.page, lib.limit
+func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, libraryID, mediaType := lib.User, lib.ID, lib.MediaType
+	page, limit := lib.Page, lib.Limit
 	var err error
 	collapse := r.URL.Query().Get("collapseseries") == "1"
 	include := normalizedInclude(r)
@@ -21,7 +22,7 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 		return h.collapseSubseries(w, r, lib, seriesID, ignorePrefix)
 	}
 	filterValue := r.URL.Query().Get("filter")
-	mediaTable, err := lib.mediaTable()
+	mediaTable, err := lib.MediaTable()
 	if err != nil {
 		return err
 	}

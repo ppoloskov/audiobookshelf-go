@@ -73,6 +73,7 @@ try {
     'internal/podcasts/podcasts.go': 'package podcasts\n',
   });
   rejects('foundation-people-feature', 'internal/people/fixture.go', 'audiobookshelf-compat/internal/catalog');
+  rejects('foundation-library-feature', 'internal/library/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('feature-server', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/server');
   rejects('production-httptest', 'internal/scanner/fixture.go', 'net/http/httptest');
   // The rules must permit intended dependencies, not merely reject everything.
@@ -92,6 +93,9 @@ try {
   });
   allows('catalog-people', 'internal/catalog/fixture.go', 'audiobookshelf-compat/internal/people', {
     'internal/people/people.go': 'package people\ntype Handler struct{}\n',
+  });
+  allows('people-library', 'internal/people/fixture.go', 'audiobookshelf-compat/internal/library', {
+    'internal/library/library.go': 'package library\ntype Scope struct{}\n',
   });
   allows('feature-leaf', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/httputil', {
     'internal/httputil/leaf.go': 'package httputil\ntype Helper struct{}\n',

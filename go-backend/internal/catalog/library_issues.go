@@ -2,15 +2,16 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/library"
 	"net/http"
 )
 
 // removeLibraryItemsWithIssues is DELETE /api/libraries/:id/issues: it removes
 // every item flagged missing or invalid, then the authors and series those
 // items leave empty (LibraryController.js:650-722).
-func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	libraryID := lib.id
-	if !adminUser(lib.user) {
+func (h *Handler) removeLibraryItemsWithIssues(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	libraryID := lib.ID
+	if !adminUser(lib.User) {
 		return httputil.Status(http.StatusForbidden, "")
 	}
 	items, err := h.libraryItemsWhere(r.Context(), `libraryId=? AND (isMissing=1 OR isInvalid=1)`, libraryID)

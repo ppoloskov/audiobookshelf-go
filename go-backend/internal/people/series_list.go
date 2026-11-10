@@ -1,11 +1,11 @@
-package catalog
+package people
 
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/people"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -16,12 +16,12 @@ import (
 	"sort"
 )
 
-func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	user, libraryID := lib.user, lib.id
+func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	user, libraryID := lib.User, lib.ID
 	// A podcast library has no series rows, so the shared query below yields
 	// the empty list upstream returns (seriesFilters.getFilteredSeries).
 	filter := r.URL.Query().Get("filter")
-	hideSingle := lib.settings.HideSingleBookSeries
+	hideSingle := lib.Settings.HideSingleBookSeries
 	permissionSQL, permissionArgs := access.For(r.Context(), user).MediaClause("b")
 	hasPermissionFilter := permissionSQL != ""
 	rows, err := h.db.QueryContext(r.Context(), `SELECT s.id,s.name,s.nameIgnorePrefix,s.description,s.createdAt,s.updatedAt,s.libraryId,(SELECT COUNT(*) FROM bookSeries bs WHERE bs.seriesId=s.id) AS bookCount,(SELECT COALESCE(SUM(b.duration),0) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS duration,(SELECT MAX(b.createdAt) FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id) AS recent FROM series s WHERE s.libraryId=?`, libraryID)
@@ -114,18 +114,18 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScop
 		return less
 	})
 	total := len(all)
-	page, limit := lib.page, lib.limit
+	page, limit := lib.Page, lib.Limit
 	if limit > 0 {
 		all = pageOf(all, page, limit)
 	}
-	results := make([]people.SeriesListEntry, 0, len(all))
+	results := make([]SeriesListEntry, 0, len(all))
 	prefixes := h.sortingPrefixes(r.Context())
 	for _, s := range all {
-		view, err := people.NewSeriesView(people.SeriesRecord{ID: s.id, LibraryID: s.libraryID, Name: s.name, Description: s.description, CreatedAt: s.created, UpdatedAt: s.updated}, prefixes)
+		view, err := NewSeriesView(SeriesRecord{ID: s.id, LibraryID: s.libraryID, Name: s.name, Description: s.description, CreatedAt: s.created, UpdatedAt: s.updated}, prefixes)
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		entry := people.SeriesListEntry{SeriesView: view}
+		entry := SeriesListEntry{SeriesView: view}
 		if sortBy == "totalDuration" {
 			entry.TotalDuration = s.duration
 		}
@@ -183,22 +183,22 @@ func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.U
 	return h.minifiedItems(ctx, ids)
 }
 
-func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib libraryScope) error {
-	s, err := people.LoadSeries(r.Context(), h.db, r.PathValue("seriesId"))
-	if errors.Is(err, sql.ErrNoRows) || s.LibraryID != lib.id {
+func (h *Handler) seriesByID(w http.ResponseWriter, r *http.Request, lib library.Scope) error {
+	s, err := LoadSeries(r.Context(), h.db, r.PathValue("seriesId"))
+	if errors.Is(err, sql.ErrNoRows) || s.LibraryID != lib.ID {
 		return httputil.Status(http.StatusNotFound, "")
 	}
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	items, err := people.SeriesItemsFor(r.Context(), h.db, lib.user, s)
+	items, err := SeriesItemsFor(r.Context(), h.db, lib.User, s)
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	if len(items) == 0 {
 		return httputil.Status(http.StatusNotFound, "")
 	}
-	detail, err := people.SeriesDetailFor(r.Context(), h.db, lib.user, s, items, includeHas(r, "progress"), includeHas(r, "rssfeed"), h.sortingPrefixes(r.Context()))
+	detail, err := SeriesDetailFor(r.Context(), h.db, lib.User, s, items, includeHas(r, "progress"), includeHas(r, "rssfeed"), h.sortingPrefixes(r.Context()))
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
