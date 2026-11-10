@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -105,11 +106,11 @@ func (h *Handler) recentEpisodes(ctx context.Context, user store.User, libraryID
 	for i, x := range refs {
 		itemIDs[i] = x.itemID
 	}
-	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{Episodes: true})
+	loaded, err := items.Load(ctx, h.db, itemIDs, items.Options{Episodes: true})
 	if err != nil {
 		return nil, fmt.Errorf("podcasts: load items: %w", err)
 	}
-	items := make(map[string]libitem.Item, len(loaded))
+	items := make(map[string]items.Item, len(loaded))
 	for _, it := range loaded {
 		items[it.ID] = it
 	}

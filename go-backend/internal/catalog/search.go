@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
@@ -136,7 +137,7 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 	out := make([]itemMatch, 0, len(refs))
 	for i, x := range refs {
 		item := expanded[i]
-		item.RecentEpisode = libitem.JSONNull
+		item.RecentEpisode = items.JSONNull
 		if media, ok := item.Media.(libitem.PodcastMedia); ok {
 			episodes, _ := media.Episodes.([]libitem.EpisodeExpanded)
 			for _, ep := range episodes {
@@ -152,7 +153,7 @@ func (h *Handler) searchEpisodes(ctx context.Context, libraryID, pattern, permis
 }
 
 type libraryItemHit struct {
-	LibraryItem libitem.Expanded `json:"libraryItem"`
+	LibraryItem items.Expanded `json:"libraryItem"`
 }
 
 // withoutEpisodes empties a podcast media value's episodes, count and size, as
@@ -256,7 +257,7 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 		if err != nil {
 			return nil, err
 		}
-		books := make([]libitem.Full, 0, len(loaded))
+		books := make([]items.Full, 0, len(loaded))
 		for _, it := range loaded {
 			item := it.Full()
 			if media, ok := item.Media.(libitem.BookFull); ok && item.MediaType == "book" {
@@ -274,6 +275,6 @@ func (h *Handler) searchSeries(ctx context.Context, libraryID, query string, lim
 }
 
 type seriesSearchHit struct {
-	Series seriesView     `json:"series"`
-	Books  []libitem.Full `json:"books"`
+	Series seriesView   `json:"series"`
+	Books  []items.Full `json:"books"`
 }

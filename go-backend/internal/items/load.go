@@ -1,4 +1,4 @@
-package libitem
+package items
 
 import (
 	"audiobookshelf-compat/internal/jsonvalue"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -139,22 +140,22 @@ func scanItem(rows *sql.Rows) (Item, error) {
 		}
 	}
 	it.OldLibraryItemID, _ = store.DecodeJSONObject(extra)["oldLibraryItemId"].(string)
-	it.LibraryFiles = store.DecodeJSONSlice[File](libraryFiles)
+	it.LibraryFiles = store.DecodeJSONSlice[libitem.File](libraryFiles)
 	for _, file := range it.LibraryFiles {
-		if file.metadata() != nil {
+		if file.Metadata() != nil {
 			file["fileType"] = file.Kind()
 		}
 	}
 	return it, nil
 }
 
-func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book, error) {
-	books := make(map[string]*Book, len(ids))
+func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*libitem.Book, error) {
+	books := make(map[string]*libitem.Book, len(ids))
 	if len(ids) == 0 {
 		return books, nil
 	}
 	err := queryIn(ctx, db, `SELECT id,title,subtitle,publishedYear,publishedDate,publisher,description,isbn,asin,language,explicit,abridged,coverPath,duration,narrators,audioFiles,ebookFile,chapters,tags,genres,updatedAt FROM books WHERE id IN `, ``, ids, func(rows *sql.Rows) error {
-		var b Book
+		var b libitem.Book
 		var id, title, subtitle, year, date, publisher, description, isbn, asin, language, cover sql.NullString
 		var explicit, abridged sql.NullInt64
 		var duration, updated any
@@ -173,11 +174,11 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 			b.Duration = &n
 		}
 		b.Narrators, b.Genres, b.Tags = store.DecodeJSONSlice[string](narrators), store.DecodeJSONSlice[string](genres), store.DecodeJSONSlice[string](tags)
-		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[File](audio), store.DecodeJSONSlice[map[string]any](chapters)
-		if b.Ebook = File(store.DecodeJSONObject(ebook)); len(b.Ebook) == 0 {
+		b.AudioFiles, b.Chapters = store.DecodeJSONSlice[libitem.File](audio), store.DecodeJSONSlice[map[string]any](chapters)
+		if b.Ebook = libitem.File(store.DecodeJSONObject(ebook)); len(b.Ebook) == 0 {
 			b.Ebook = nil
 		}
-		b.Authors, b.Series = []Author{}, []SeriesRef{}
+		b.Authors, b.Series = []libitem.Author{}, []libitem.SeriesRef{}
 		books[b.ID] = &b
 		return nil
 	})
@@ -186,7 +187,7 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 	}
 	err = queryIn(ctx, db, `SELECT ba.bookId,a.id,a.name FROM authors a JOIN bookAuthors ba ON ba.authorId=a.id WHERE ba.bookId IN `, ` ORDER BY ba.bookId,ba.createdAt ASC,ba.rowid`, ids, func(rows *sql.Rows) error {
 		var bookID string
-		var a Author
+		var a libitem.Author
 		var name sql.NullString
 		if err := rows.Scan(&bookID, &a.ID, &name); err != nil {
 			return err
@@ -202,7 +203,7 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 	}
 	err = queryIn(ctx, db, `SELECT bs.bookId,s.id,s.name,bs.sequence FROM series s JOIN bookSeries bs ON bs.seriesId=s.id WHERE bs.bookId IN `, ` ORDER BY bs.bookId,bs.createdAt ASC,bs.rowid`, ids, func(rows *sql.Rows) error {
 		var bookID string
-		var s SeriesRef
+		var s libitem.SeriesRef
 		var name, sequence sql.NullString
 		if err := rows.Scan(&bookID, &s.ID, &name, &sequence); err != nil {
 			return err
@@ -216,13 +217,13 @@ func loadBooks(ctx context.Context, db *sql.DB, ids []string) (map[string]*Book,
 	return books, err
 }
 
-func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (map[string]*Podcast, error) {
-	podcasts := make(map[string]*Podcast, len(ids))
+func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (map[string]*libitem.Podcast, error) {
+	podcasts := make(map[string]*libitem.Podcast, len(ids))
 	if len(ids) == 0 {
 		return podcasts, nil
 	}
 	err := queryIn(ctx, db, `SELECT id,title,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,numEpisodes FROM podcasts WHERE id IN `, ``, ids, func(rows *sql.Rows) error {
-		var p Podcast
+		var p libitem.Podcast
 		var id, title, author, release, feed, image, description, itunesPage, itunesID, itunesArtist, language, ptype, schedule, cover sql.NullString
 		var explicit, autoDownload sql.NullInt64
 		var lastCheck any
@@ -238,13 +239,13 @@ func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (m
 		if check != nil && *check == 0 {
 			check = nil
 		}
-		p = Podcast{ID: id.String, Title: nullStr(title), Author: nullStr(author), Description: nullStr(description), ReleaseDate: nullStr(release),
+		p = libitem.Podcast{ID: id.String, Title: nullStr(title), Author: nullStr(author), Description: nullStr(description), ReleaseDate: nullStr(release),
 			FeedURL: nullStr(feed), ImageURL: nullStr(image), ITunesPageURL: nullStr(itunesPage), ITunesID: nullStr(itunesID), ITunesArtistID: nullStr(itunesArtist),
 			Language: nullStr(language), Type: nullStr(ptype), Explicit: explicit.Int64 != 0, AutoDownloadEpisodes: autoDownload.Int64 != 0, AutoDownloadSchedule: nullStr(schedule),
 			LastEpisodeCheck: check, MaxEpisodesToKeep: maxKeep.Int64, MaxNewEpisodesToDownload: maxNew.Int64, CoverPath: nullStr(cover),
 			Tags: store.DecodeJSONSlice[string](tags), Genres: store.DecodeJSONSlice[string](genres), NumEpisodes: numEpisodes.Int64}
 		if opt.Episodes {
-			p.Episodes = []Episode{}
+			p.Episodes = []libitem.Episode{}
 		}
 		podcasts[p.ID] = &p
 		return nil
@@ -257,7 +258,7 @@ func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (m
 		column, keys = "id", opt.EpisodeIDs
 	}
 	err = queryIn(ctx, db, `SELECT podcastId,id,"index",season,episode,episodeType,title,subtitle,description,pubDate,enclosureURL,enclosureSize,enclosureType,publishedAt,audioFile,chapters,extraData,createdAt,updatedAt FROM podcastEpisodes WHERE `+column+` IN `, ` ORDER BY podcastId,createdAt ASC,rowid`, keys, func(rows *sql.Rows) error {
-		var e Episode
+		var e libitem.Episode
 		var index, enclosureSize sql.NullInt64
 		var season, episode, episodeType, title, subtitle, description, pubDate, enclosureURL, enclosureType sql.NullString
 		var published, created, updated any
@@ -286,7 +287,7 @@ func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (m
 		e.GUID, _ = extras["guid"].(string)
 		e.Season, e.Episode, e.EpisodeType, e.Title, e.Subtitle, e.Description, e.PubDate = nullStr(season), nullStr(episode), nullStr(episodeType), nullStr(title), nullStr(subtitle), nullStr(description), nullStr(pubDate)
 		if enclosureURL.Valid && enclosureURL.String != "" {
-			e.Enclosure = &Enclosure{URL: enclosureURL.String, Type: nullStr(enclosureType)}
+			e.Enclosure = &libitem.Enclosure{URL: enclosureURL.String, Type: nullStr(enclosureType)}
 			if enclosureSize.Valid {
 				length := strconv.FormatInt(enclosureSize.Int64, 10)
 				e.Enclosure.Length = &length
@@ -299,4 +300,11 @@ func loadPodcasts(ctx context.Context, db *sql.DB, ids []string, opt Options) (m
 		return nil
 	})
 	return podcasts, err
+}
+
+func nullStr(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	return &s.String
 }

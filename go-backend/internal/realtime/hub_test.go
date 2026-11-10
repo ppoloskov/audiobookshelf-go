@@ -19,6 +19,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/websocket"
@@ -104,7 +105,7 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
 	backend.dispatch = func(_ context.Context, action Action) error {
 		if action.Event == "cancel_scan" {
-			hub.Emit("*", "probe_item", libitem.Expanded{Head: libitem.Head{LibraryID: "lib-1"},
+			hub.Emit("*", "probe_item", items.Expanded{Head: items.Head{LibraryID: "lib-1"},
 				Media: libitem.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
 			if action.Ack != nil {
 				action.Ack("scan_cancelled")
@@ -328,8 +329,8 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 	for _, ws := range conns {
 		collect(t, ws, "", m)
 	}
-	book := func(lib string, explicit bool, tags ...string) libitem.Expanded {
-		return libitem.Expanded{Head: libitem.Head{ID: "li-" + lib, LibraryID: lib},
+	book := func(lib string, explicit bool, tags ...string) items.Expanded {
+		return items.Expanded{Head: items.Head{ID: "li-" + lib, LibraryID: lib},
 			Media: libitem.BookExpanded{ID: "book-1", Tags: tags, Metadata: libitem.BookMetadataExpanded{BookMetadataFull: libitem.BookMetadataFull{Explicit: explicit}}}}
 	}
 	collection := map[string]any{"id": "c1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
@@ -342,11 +343,11 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		{"other library", book("lib-2", false, "mystery"), -1, 1, 1},
 		{"tag not selected", book("lib-1", false, "romance"), -1, -1, 1},
 		{"explicit without permission", book("lib-1", true, "mystery"), -1, -1, 1},
-		{"podcast with accessible tag", libitem.Minified{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
+		{"podcast with accessible tag", items.Minified{Head: items.Head{LibraryID: "lib-1"}, Media: libitem.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
 		{"untyped item map", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, -1, -1, -1},
 		{"global message", map[string]any{"message": "global"}, 1, 1, 1},
 		{"collection in library", collection, 1, -1, 1},
-		{"typed item list", []libitem.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
+		{"typed item list", []items.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
 		{"untyped item list", []any{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
 	}
 	count := func(e event) int {
@@ -392,7 +393,7 @@ func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testin
 	alice, aliceID := connect(t, srv.url)
 	login(t, alice, "tok-alice")
 	next(t, admin) // user_online
-	item := libitem.Expanded{Head: libitem.Head{LibraryID: "lib-1"}, Media: libitem.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
+	item := items.Expanded{Head: items.Head{LibraryID: "lib-1"}, Media: libitem.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
 
 	srv.hub.Emit("*", "probe", item)
 	m := mark(srv)

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/textsort"
 	"context"
@@ -20,7 +21,7 @@ import (
 
 func sixtyDaysAgo() string { return dbtime.Format(time.Now().Add(-60 * 24 * time.Hour)) }
 
-func editBookMetadata(item *libitem.Minified, edit func(metadata *libitem.BookMetadataMinified)) {
+func editBookMetadata(item *items.Minified, edit func(metadata *libitem.BookMetadataMinified)) {
 	if media, ok := item.Media.(libitem.BookMinified); ok {
 		edit(&media.Metadata)
 		item.Media = media

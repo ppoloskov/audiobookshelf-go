@@ -1,4 +1,4 @@
-package libitem
+package items
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"audiobookshelf-compat/internal/libitem"
 	"modernc.org/sqlite"
 )
 
@@ -74,7 +75,7 @@ func addBook(t *testing.T, db *sql.DB, n int, title string) string {
 	return id
 }
 
-func TestLibitemBookWithoutAuthorsOrSeries(t *testing.T) {
+func TestItemsBookWithoutAuthorsOrSeries(t *testing.T) {
 	db, _ := testDB(t)
 	id := addBook(t, db, 1, "The Hobbit")
 	it, err := LoadOne(context.Background(), db, id, Options{})
@@ -98,10 +99,10 @@ func TestLibitemBookWithoutAuthorsOrSeries(t *testing.T) {
 	if md["authorName"] != "" || md["seriesName"] != "" || md["titleIgnorePrefix"] != "Hobbit, The" || got.Media.Size != 150 {
 		t.Fatalf("minified metadata %v size %d", md, got.Media.Size)
 	}
-	if full := it.Full().Media.(BookFull); full.Metadata.Authors == nil || full.Metadata.Series == nil || full.EbookFile != nil {
+	if full := it.Full().Media.(libitem.BookFull); full.Metadata.Authors == nil || full.Metadata.Series == nil || full.EbookFile != nil {
 		t.Fatalf("authors/series must be empty arrays and ebook null: %+v", full)
 	}
-	tracks := it.Expanded(nil).Media.(BookExpanded).Tracks
+	tracks := it.Expanded(nil).Media.(libitem.BookExpanded).Tracks
 	if len(tracks) != 1 || tracks[0]["contentUrl"] != "/api/items/li-b1/file/a1" || tracks[0]["title"] != "a.mp3" {
 		t.Fatalf("tracks = %v", tracks)
 	}
@@ -113,7 +114,7 @@ func TestLibitemBookWithoutAuthorsOrSeries(t *testing.T) {
 	}
 }
 
-func TestLibitemPodcastWithoutEpisodes(t *testing.T) {
+func TestItemsPodcastWithoutEpisodes(t *testing.T) {
 	db, _ := testDB(t)
 	exec(t, db, `INSERT INTO podcasts (id,title,explicit,autoDownloadEpisodes,tags,genres,numEpisodes,createdAt,updatedAt) VALUES ('p1','A Show',1,0,'[]','[]',7,?,?)`, now, now)
 	exec(t, db, `INSERT INTO libraryItems (id,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,size,libraryFiles,createdAt,updatedAt,libraryId) VALUES ('li-p1','/p','p','p1','podcast',0,0,0,99,'[]',?,?,'lib')`, now, now)
@@ -128,18 +129,18 @@ func TestLibitemPodcastWithoutEpisodes(t *testing.T) {
 	if a := it.Access(); !a.Explicit {
 		t.Fatal("podcast explicit flag missing from Access")
 	}
-	list := it.ListRow([]string{"a"}).Media.(PodcastMedia)
+	list := it.ListRow([]string{"a"}).Media.(libitem.PodcastMedia)
 	if *list.NumEpisodes != 7 || *list.Size != 99 || *list.Metadata.TitleIgnorePrefix != "Show, A" {
 		t.Fatalf("list row %+v", list)
 	}
-	if min := it.Minified(nil).Media.(PodcastMedia); *min.NumEpisodes != 0 || *min.Size != 0 {
+	if min := it.Minified(nil).Media.(libitem.PodcastMedia); *min.NumEpisodes != 0 || *min.Size != 0 {
 		t.Fatalf("minified counts %d %d", *min.NumEpisodes, *min.Size)
 	}
 	it, err = LoadOne(ctx, db, "li-p1", Options{Episodes: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := it.Expanded(nil).Media.(PodcastMedia)
+	exp := it.Expanded(nil).Media.(libitem.PodcastMedia)
 	raw, _ := json.Marshal(exp)
 	var got map[string]any
 	_ = json.Unmarshal(raw, &got)
@@ -148,7 +149,7 @@ func TestLibitemPodcastWithoutEpisodes(t *testing.T) {
 	}
 }
 
-func TestLibitemMissingRowsAndOrder(t *testing.T) {
+func TestItemsMissingRowsAndOrder(t *testing.T) {
 	db, _ := testDB(t)
 	a, b := addBook(t, db, 1, "A"), addBook(t, db, 2, "B")
 	exec(t, db, `INSERT INTO libraryItems (id,path,relPath,mediaId,mediaType,libraryFiles,createdAt,updatedAt,libraryId) VALUES ('li-orphan','/o','o','nope','book','[]',?,?,'lib')`, now, now)
@@ -174,7 +175,7 @@ func TestLibitemMissingRowsAndOrder(t *testing.T) {
 	}
 }
 
-func TestLibitemAuthorsAndSeriesOrder(t *testing.T) {
+func TestItemsAuthorsAndSeriesOrder(t *testing.T) {
 	db, _ := testDB(t)
 	id := addBook(t, db, 1, "B")
 	exec(t, db, `INSERT INTO authors (id,name,createdAt,updatedAt) VALUES ('a1','Jane Doe',?,?),('a2','John Roe',?,?)`, now, now, now, now)
@@ -185,13 +186,13 @@ func TestLibitemAuthorsAndSeriesOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	md := it.Minified(nil).Media.(BookMinified).Metadata
+	md := it.Minified(nil).Media.(libitem.BookMinified).Metadata
 	if md.AuthorName != "Jane Doe, John Roe" || md.AuthorNameLF != "Doe, Jane, Roe, John" || md.SeriesName != "Saga #2" {
 		t.Fatalf("metadata %+v", md)
 	}
 }
 
-func TestLibitemLoadQueryCountIsConstant(t *testing.T) {
+func TestItemsLoadQueryCountIsConstant(t *testing.T) {
 	db, count := testDB(t)
 	var ids []string
 	for i := 0; i < 120; i++ {

@@ -9,6 +9,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/nameparse"
@@ -191,7 +192,7 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
-		items := make([]json.RawMessage, 0, len(ids))
+		rawItems := make([]json.RawMessage, 0, len(ids))
 		if slices.Contains(include, "series") {
 			groups, err := h.authorSeriesGroups(r.Context(), ids)
 			if err != nil {
@@ -199,7 +200,7 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 			}
 			detail.Series = &groups
 		}
-		loaded, err := libitem.Load(r.Context(), h.db, ids, libitem.Options{})
+		loaded, err := items.Load(r.Context(), h.db, ids, items.Options{})
 		if err != nil {
 			return httputil.Internal("database read failed", err)
 		}
@@ -209,9 +210,9 @@ func (h *Handler) authorFindOne(w http.ResponseWriter, r *http.Request) error {
 			if err != nil {
 				return httputil.Internal("internal error", err)
 			}
-			items = append(items, raw)
+			rawItems = append(rawItems, raw)
 		}
-		detail.LibraryItems = &items
+		detail.LibraryItems = &rawItems
 	}
 	return httputil.JSON(w, r, detail)
 }
@@ -259,7 +260,7 @@ func (h *Handler) authorSeriesGroups(ctx context.Context, itemIDs []string) ([]a
 			return nil, err
 		}
 	}
-	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	loaded, err := items.Load(ctx, h.db, itemIDs, items.Options{})
 	if err != nil {
 		return nil, err
 	}

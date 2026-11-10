@@ -4,7 +4,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"context"
 	"database/sql"
@@ -35,7 +35,7 @@ func requestItemIncludes(r *http.Request, user store.User) itemIncludes {
 // when present. Feeds belong to library items (Feed.js:416-421: entityType
 // 'libraryItem', entityId the library item id); shares to the book's media id
 // and only for books.
-func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, head libitem.Head, mediaID string, extras *libitem.Extras) error {
+func (h *Handler) attachItemIncludes(ctx context.Context, inc itemIncludes, head items.Head, mediaID string, extras *items.Extras) error {
 	if inc.rssFeed {
 		feed, ok, err := h.feedMinified(ctx, "libraryItem", head.ID)
 		if err != nil {

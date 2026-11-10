@@ -103,6 +103,8 @@ linters:
             - "**/internal/access/**/*.go"
             - "**/internal/libitem/*.go"
             - "**/internal/libitem/**/*.go"
+            - "**/internal/items/*.go"
+            - "**/internal/items/**/*.go"
             - "**/internal/users/*.go"
             - "**/internal/users/**/*.go"
             - "**/internal/progressdto/*.go"

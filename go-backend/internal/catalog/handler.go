@@ -6,7 +6,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/wire"
 	"context"
@@ -61,23 +61,23 @@ func New(db *sql.DB, cfg config.Config, emit events.Emitter, deps Deps) *Handler
 	return &Handler{db: db, cfg: cfg, emit: emit, filters: deps.Filters, deps: deps}
 }
 
-func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]libitem.Item, error) {
-	return libitem.Load(ctx, h.db, ids, libitem.Options{Episodes: episodes})
+func (h *Handler) loadItems(ctx context.Context, ids []string, episodes bool) ([]items.Item, error) {
+	return items.Load(ctx, h.db, ids, items.Options{Episodes: episodes})
 }
 
 // minifiedItems renders ids in the shelf shape in id order; a missing id is
 // sql.ErrNoRows.
-func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]libitem.Minified, error) {
-	items, err := h.loadItems(ctx, ids, false)
+func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]items.Minified, error) {
+	loaded, err := h.loadItems(ctx, ids, false)
 	if err != nil {
 		return nil, err
 	}
-	if len(items) != len(ids) {
+	if len(loaded) != len(ids) {
 		return nil, sql.ErrNoRows
 	}
 	prefixes := h.sortingPrefixes(ctx)
-	out := make([]libitem.Minified, len(items))
-	for i, it := range items {
+	out := make([]items.Minified, len(loaded))
+	for i, it := range loaded {
 		out[i] = it.Minified(prefixes)
 	}
 	return out, nil
@@ -85,14 +85,14 @@ func (h *Handler) minifiedItems(ctx context.Context, ids []string) ([]libitem.Mi
 
 // expandedItems renders ids in the expanded shape in id order; missing ids are
 // skipped.
-func (h *Handler) expandedItems(ctx context.Context, ids []string) ([]libitem.Expanded, error) {
-	items, err := h.loadItems(ctx, ids, true)
+func (h *Handler) expandedItems(ctx context.Context, ids []string) ([]items.Expanded, error) {
+	loaded, err := h.loadItems(ctx, ids, true)
 	if err != nil {
 		return nil, err
 	}
 	prefixes := h.sortingPrefixes(ctx)
-	out := make([]libitem.Expanded, len(items))
-	for i, it := range items {
+	out := make([]items.Expanded, len(loaded))
+	for i, it := range loaded {
 		out[i] = it.Expanded(prefixes)
 	}
 	return out, nil

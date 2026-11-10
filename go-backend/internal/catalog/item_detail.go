@@ -3,7 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/progressdto"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/wire"
@@ -35,7 +35,7 @@ func (h *Handler) numEpisodesIncomplete(ctx context.Context, userID, podcastID s
 func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 	user, itemID := store.RequestUser(r), r.PathValue("id")
 	expanded := r.URL.Query().Get("expanded") == "1"
-	it, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{Episodes: true})
+	it, err := items.LoadOne(r.Context(), h.db, itemID, items.Options{Episodes: true})
 	if errors.Is(err, sql.ErrNoRows) {
 		return httputil.Status(http.StatusNotFound, "")
 	}
@@ -58,7 +58,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) error {
 // expandedItemIncludes applies the include= entities of upstream
 // LibraryItemController.findOne (server/controllers/LibraryItemController.js:71-96).
 // Upstream splits include on "," without trimming or lowercasing.
-func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head libitem.Head, mediaID string, extras *libitem.Extras) error {
+func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head items.Head, mediaID string, extras *items.Extras) error {
 	includes := strings.Split(r.URL.Query().Get("include"), ",")
 	has := func(v string) bool { return slices.Contains(includes, v) }
 	itemID := head.ID
@@ -68,7 +68,7 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 			return err
 		}
 		if progress == nil {
-			extras.UserMediaProgress = libitem.JSONNull
+			extras.UserMediaProgress = items.JSONNull
 		} else {
 			extras.UserMediaProgress = progress
 		}
@@ -81,7 +81,7 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 		if ok {
 			extras.RSSFeed = feed
 		} else {
-			extras.RSSFeed = libitem.JSONNull
+			extras.RSSFeed = items.JSONNull
 		}
 	}
 	if head.MediaType == "podcast" && has("downloads") && h.deps.Downloads != nil {
@@ -99,7 +99,7 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 			return err
 		}
 		if share == nil {
-			extras.MediaItemShare = libitem.JSONNull
+			extras.MediaItemShare = items.JSONNull
 		} else {
 			extras.MediaItemShare = share
 		}
@@ -108,19 +108,19 @@ func (h *Handler) expandedItemIncludes(r *http.Request, user store.User, head li
 }
 
 // fullItem is the upstream legacy full item. Callers enforce permissions.
-func (h *Handler) fullItem(ctx context.Context, itemID string) (libitem.Full, error) {
-	it, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{Episodes: true})
+func (h *Handler) fullItem(ctx context.Context, itemID string) (items.Full, error) {
+	it, err := items.LoadOne(ctx, h.db, itemID, items.Options{Episodes: true})
 	return it.Full(), err
 }
 
 // expandedItem is the expanded item. Callers enforce permissions.
-func (h *Handler) expandedItem(ctx context.Context, itemID string) (libitem.Expanded, error) {
+func (h *Handler) expandedItem(ctx context.Context, itemID string) (items.Expanded, error) {
 	out, err := h.expandedItems(ctx, []string{itemID})
 	if err == nil && len(out) == 0 {
 		err = sql.ErrNoRows
 	}
 	if err != nil {
-		return libitem.Expanded{}, err
+		return items.Expanded{}, err
 	}
 	return out[0], nil
 }

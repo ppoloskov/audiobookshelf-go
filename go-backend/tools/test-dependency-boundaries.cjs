@@ -67,6 +67,7 @@ try {
   rejects('leaf-wire', 'internal/logging/fixture.go', 'audiobookshelf-compat/internal/wire');
   rejects('foundation-feature', 'internal/store/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('foundation-emailsettings-feature', 'internal/emailsettings/fixture.go', 'audiobookshelf-compat/internal/catalog');
+  rejects('foundation-items-feature', 'internal/items/fixture.go', 'audiobookshelf-compat/internal/catalog');
   rejects('feature-server', 'internal/scanner/fixture.go', 'audiobookshelf-compat/internal/server');
   rejects('production-httptest', 'internal/scanner/fixture.go', 'net/http/httptest');
   // The rules must permit intended dependencies, not merely reject everything.

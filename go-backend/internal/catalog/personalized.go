@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"cmp"
@@ -12,7 +13,7 @@ import (
 
 // A shelf is a definition: its identity and one query. personalized runs the
 // queries of a library's shelves, loads every item they name with a single
-// libitem.Load, and renders the shelves in definition order. A shelf without
+// items.Load, and renders the shelves in definition order. A shelf without
 // entities is omitted, as in the reference controller
 // (LibraryItem.getPersonalizedShelves, server/models/LibraryItem.js:384-491).
 type shelfDef struct {
@@ -27,8 +28,8 @@ type shelfQuery struct {
 }
 
 type shelfItem struct {
-	min libitem.Minified
-	src libitem.Item
+	min items.Minified
+	src items.Item
 }
 
 // shelfEnv is the request every shelf query shares.
@@ -111,7 +112,7 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, lib libra
 }
 
 func (e *shelfEnv) load(ids []string) ([]shelfItem, error) {
-	loaded, err := libitem.Load(e.r.Context(), e.h.db, ids, libitem.Options{Episodes: e.podcast, EpisodeIDs: e.episodes})
+	loaded, err := items.Load(e.r.Context(), e.h.db, ids, items.Options{Episodes: e.podcast, EpisodeIDs: e.episodes})
 	if err != nil {
 		return nil, err
 	}
@@ -237,10 +238,10 @@ func episodeShelf(progress bool, where string) func(*shelfEnv) (shelfQuery, erro
 func (e *shelfEnv) recentPodcasts() (shelfQuery, error) {
 	q, err := e.itemQuery(`SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.libraryID, sixtyDaysAgo())
 	attach := q.build
-	q.build = func(items []shelfItem) ([]any, error) {
-		out, err := attach(items)
+	q.build = func(entries []shelfItem) ([]any, error) {
+		out, err := attach(entries)
 		for i := range out {
-			item := out[i].(libitem.Minified)
+			item := out[i].(items.Minified)
 			media, _ := item.Media.(libitem.PodcastMedia)
 			if item.Size != nil && *item.Size != 0 && (media.Size == nil || *media.Size == 0) {
 				size := *item.Size

@@ -14,6 +14,7 @@ import (
 
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -119,7 +120,7 @@ func (h *Handler) publicShare(w http.ResponseWriter, r *http.Request) error {
 	if err := h.db.QueryRowContext(ctx, `SELECT id FROM libraryItems WHERE mediaId=? LIMIT 1`, share.MediaItemID).Scan(&itemID); err != nil {
 		return httputil.Status(404, "Media item not found")
 	}
-	item, err := libitem.LoadOne(ctx, h.db, itemID, libitem.Options{})
+	item, err := items.LoadOne(ctx, h.db, itemID, items.Options{})
 	if err != nil || item.Book == nil {
 		return httputil.Status(404, "Media item not found")
 	}

@@ -3,7 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/feeds"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
 	"encoding/json"
@@ -62,7 +62,7 @@ func newSeriesView(s seriesRecord, prefixes []string) (seriesView, error) {
 // with its visible books, the total duration when sorted by it, and its feed.
 type seriesListEntry struct {
 	seriesView
-	TotalDuration float64            `json:"totalDuration,omitempty"`
-	Books         []libitem.Minified `json:"books"`
-	RSSFeed       *feeds.Minified    `json:"rssFeed,omitempty"`
+	TotalDuration float64          `json:"totalDuration,omitempty"`
+	Books         []items.Minified `json:"books"`
+	RSSFeed       *feeds.Minified  `json:"rssFeed,omitempty"`
 }

@@ -5,6 +5,7 @@ import (
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
@@ -119,7 +120,7 @@ func (h *Handler) metadataObject(w http.ResponseWriter, r *http.Request) error {
 	if scope.missing || scope.mediaType != "book" || audioCount == 0 {
 		return httputil.Status(http.StatusBadRequest, "")
 	}
-	item, err := libitem.LoadOne(r.Context(), h.db, itemID, libitem.Options{})
+	item, err := items.LoadOne(r.Context(), h.db, itemID, items.Options{})
 	if err != nil || item.Book == nil {
 		return httputil.Internal("database read failed", errors.Join(err, fmt.Errorf("item %s is not a book", itemID)))
 	}

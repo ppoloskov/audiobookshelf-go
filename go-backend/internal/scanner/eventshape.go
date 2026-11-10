@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 )
 
@@ -26,10 +27,10 @@ var audioMetaTagKeys = []string{
 // metaTags key (null when unset), the scan-only metadata.wasModified flag and
 // no mimeType getter (Book.js:629,683; BookScanner.js:100-103). Later reads
 // come from the database and have the plain shape.
-func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...string) (libitem.Expanded, error) {
-	it, err := libitem.LoadOne(ctx, s.db, itemID, libitem.Options{Episodes: true})
+func (s *Scanner) itemEvent(ctx context.Context, itemID string, scannedPaths ...string) (items.Expanded, error) {
+	it, err := items.LoadOne(ctx, s.db, itemID, items.Options{Episodes: true})
 	if err != nil {
-		return libitem.Expanded{}, err
+		return items.Expanded{}, err
 	}
 	item := it.Expanded(serversettings.Load(ctx, s.db).SortingPrefixes())
 	if media, ok := item.Media.(libitem.BookExpanded); ok && len(scannedPaths) > 0 {

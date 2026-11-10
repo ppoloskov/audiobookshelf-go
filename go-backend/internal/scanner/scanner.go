@@ -31,7 +31,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/logging"
 	"github.com/fsnotify/fsnotify"
 	"github.com/robfig/cron/v3"
@@ -212,9 +212,9 @@ func (s *Scanner) finishScanTask(task events.Task, result Result, err error) {
 
 // markMissing flags a stored item whose files are gone and returns it as the
 // clients receive it (LibraryScanner.js:195, 590: isMissing, then save).
-func (s *Scanner) markMissing(ctx context.Context, itemID string) (libitem.Expanded, error) {
+func (s *Scanner) markMissing(ctx context.Context, itemID string) (items.Expanded, error) {
 	if _, err := s.db.ExecContext(ctx, `UPDATE libraryItems SET isMissing=1,updatedAt=? WHERE id=?`, dbtime.Now(), itemID); err != nil {
-		return libitem.Expanded{}, err
+		return items.Expanded{}, err
 	}
 	return s.itemEvent(ctx, itemID)
 }
@@ -694,7 +694,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 	}
 	matcher := newGroupMatcher(ordered)
 	tally := &scanTally{}
-	var updatedItems []libitem.Expanded
+	var updatedItems []items.Expanded
 	var newlyMissing []string
 	emitUpdated := func() {
 		if len(updatedItems) > 0 {
@@ -752,7 +752,7 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		}
 	}
 
-	var addedItems []libitem.Expanded
+	var addedItems []items.Expanded
 	for _, g := range matcher.unclaimed() {
 		if ctx.Err() != nil {
 			break

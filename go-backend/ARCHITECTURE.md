@@ -171,15 +171,14 @@ Library browsing/filtering/shelves belong to `library`, lists to `lists`, and
 playback/progress to `progress`. Media domains supply data, not user-specific
 shelf/list/playback orchestration.
 
-Book reads/projections now live in `internal/books`: plain
-`Load(ctx, db, bookID)` and bounded `LoadMany(ctx, db, ids)` plus
-`Book.Full/Minified/Expanded`, returning existing
-`wire.Book*` response types. No stateless Reader/extra DB wrapper is needed. Do
-not move every wire type, add a generic repository, or invent a universal DTO.
-The `items` coordinator may consume `books` data; `books` must never import
-`items`, `catalog`, `library`, `lists`, `playback` or `server`. A temporary
-podcast adapter is supplied at composition time while podcast reads still
-live in catalog; it must not create an `items -> catalog` dependency.
+Common item identity, the batched loader and the common response envelopes now
+live in `internal/items`. Book and podcast media models/projections still live
+in `internal/libitem` until their extraction packets: `items` composes them
+through exported `Book.Full/Minified/Expanded` and `Podcast.Media`. Do not move
+every wire type, add a generic repository, or invent a universal DTO. The
+`items` coordinator may consume `books`/`podcasts` data; those domains must
+never import `items`, `catalog`, `library`, `lists`, `playback` or `server`.
+Keep the graph acyclic and preserve the existing item loader's query counts.
 
 Persisted JSON container normalization is shared in `store` for the existing
 lenient column semantics; it is not HTTP request validation.

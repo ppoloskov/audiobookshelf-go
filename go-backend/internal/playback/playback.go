@@ -32,6 +32,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/progressdto"
@@ -76,8 +77,8 @@ type session struct {
 	StartedAt     int64            `json:"startedAt"`
 	UpdatedAt     int64            `json:"updatedAt"`
 
-	Item   libitem.Expanded `json:"-"`
-	Files  []audioFile      `json:"-"`
+	Item   items.Expanded `json:"-"`
+	Files  []audioFile    `json:"-"`
 	stream *transcode
 }
 
@@ -131,7 +132,7 @@ func (s *session) client() sessionJSON {
 }
 
 type itemData struct {
-	libitem.Item
+	items.Item
 	Title, Author string
 	CoverPath     *string
 	Duration      float64
@@ -270,7 +271,7 @@ func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) loadItem(ctx context.Context, id, episodeID string) (*itemData, error) {
-	it, err := libitem.LoadOne(ctx, h.db, id, libitem.Options{Episodes: true})
+	it, err := items.LoadOne(ctx, h.db, id, items.Options{Episodes: true})
 	if err != nil {
 		return nil, err
 	}

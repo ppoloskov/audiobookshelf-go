@@ -3,6 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -231,7 +232,7 @@ func (h *Handler) subseriesBooks(ctx context.Context, seriesID string) ([]*subse
 		return nil, false, err
 	}
 	rows.Close()
-	loaded, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	loaded, err := items.Load(ctx, h.db, itemIDs, items.Options{})
 	if err != nil {
 		return nil, false, err
 	}

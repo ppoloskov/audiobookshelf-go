@@ -33,6 +33,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playlistview"
@@ -79,10 +80,10 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/podcasts", adminOnly(h.createPodcast))
 	mux.Handle("POST /api/podcasts/opml/parse", adminOnly(h.parseOPML))
 	mux.Handle("POST /api/podcasts/opml/create", adminOnly(h.createFromOPML))
-	mux.Handle("GET /api/podcasts/{id}/downloads", h.onItem(func(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+	mux.Handle("GET /api/podcasts/{id}/downloads", h.onItem(func(w http.ResponseWriter, r *http.Request, item items.Item) error {
 		return httputil.JSON(w, r, EpisodeDownloads{Downloads: h.downloadsFor(item.ID)})
 	}))
-	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+	mux.Handle("GET /api/podcasts/{id}/clear-queue", h.onItem(func(w http.ResponseWriter, r *http.Request, item items.Item) error {
 		h.clearQueue(item.ID)
 		return httputil.OK(w, r)
 	}))
@@ -90,7 +91,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/podcasts/{id}/search-episode", h.onItem(h.searchEpisode))
 	mux.Handle("POST /api/podcasts/{id}/match-episodes", h.onItem(h.matchEpisodes))
 	mux.Handle("GET /api/podcasts/{id}/checknew", h.onItem(h.checkNew))
-	mux.Handle("GET /api/podcasts/{id}/episode/{episodeId}", h.onItem(func(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+	mux.Handle("GET /api/podcasts/{id}/episode/{episodeId}", h.onItem(func(w http.ResponseWriter, r *http.Request, item items.Item) error {
 		ep, ok := episodeOf(item, r.PathValue("episodeId"))
 		if !ok {
 			return httputil.Status(404, "")
@@ -104,7 +105,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 // onItem is PodcastController.middleware (server/controllers/PodcastController.js:
 // 503-530): unknown item 404, non-podcast item 500, no library access 403,
 // then the update/delete permission by HTTP method.
-func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, libitem.Item) error) httputil.Handler {
+func (h *Handler) onItem(fn func(http.ResponseWriter, *http.Request, items.Item) error) httputil.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, id := store.RequestUser(r), r.PathValue("id")
 		item, err := h.loadItem(r.Context(), id)
@@ -155,7 +156,7 @@ func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
 	return httputil.JSON(w, r, map[string]any{"feeds": parseOPML(body.OPMLText)})
 }
 
-func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	if !access.AdminUser(store.RequestUser(r)) {
 		return httputil.Status(403, "")
 	}
@@ -169,7 +170,7 @@ func (h *Handler) downloadEpisodes(w http.ResponseWriter, r *http.Request, item 
 	return httputil.OK(w, r)
 }
 
-func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	if str(item.Podcast.FeedURL) == "" {
 		return httputil.Status(400, "Podcast does not have an RSS feed URL")
 	}
@@ -185,7 +186,7 @@ func (h *Handler) searchEpisode(w http.ResponseWriter, r *http.Request, item lib
 	return httputil.JSON(w, r, map[string]any{"episodes": matchEpisodes(feed.Episodes, title)})
 }
 
-func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	updated, err := h.QuickMatchEpisodes(r.Context(), item.ID, r.URL.Query().Get("override") == "1")
 	if err != nil {
 		return httputil.Internal("Podcast episode matching failed", err)
@@ -198,7 +199,7 @@ func (h *Handler) matchEpisodes(w http.ResponseWriter, r *http.Request, item lib
 	return httputil.JSON(w, r, map[string]any{"numEpisodesUpdated": updated})
 }
 
-func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) updateEpisode(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	episodeID := r.PathValue("episodeId")
 	ep, ok := episodeOf(item, episodeID)
 	if !ok {
@@ -320,7 +321,7 @@ func episodeStringField(e libitem.Episode, key string) *string {
 	}
 }
 
-func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	episodeID := r.PathValue("episodeId")
 	ep, ok := episodeOf(item, episodeID)
 	if !ok {
@@ -342,7 +343,7 @@ func (h *Handler) removeEpisode(w http.ResponseWriter, r *http.Request, item lib
 	return httputil.JSON(w, r, updated.Full())
 }
 
-func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.Item) error {
+func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item items.Item) error {
 	if !access.AdminUser(store.RequestUser(r)) {
 		return httputil.Status(403, "")
 	}
@@ -376,7 +377,7 @@ func (h *Handler) checkNew(w http.ResponseWriter, r *http.Request, item libitem.
 	return httputil.JSON(w, r, map[string]any{"episodes": found})
 }
 
-func episodeOf(it libitem.Item, id string) (libitem.Episode, bool) {
+func episodeOf(it items.Item, id string) (libitem.Episode, bool) {
 	for _, ep := range it.Podcast.Episodes {
 		if ep.ID == id {
 			return ep, true
@@ -386,7 +387,7 @@ func episodeOf(it libitem.Item, id string) (libitem.Episode, bool) {
 }
 
 // knownEpisodes keys an item's episodes by guid and enclosure URL.
-func knownEpisodes(it libitem.Item) map[string]bool {
+func knownEpisodes(it items.Item) map[string]bool {
 	known := map[string]bool{}
 	for _, ep := range it.Podcast.Episodes {
 		if ep.GUID != "" {
@@ -400,21 +401,21 @@ func knownEpisodes(it libitem.Item) map[string]bool {
 }
 
 // loadItem loads a podcast item with its episodes; any other item is not found.
-func (h *Handler) loadItem(ctx context.Context, id string) (libitem.Item, error) {
-	it, err := libitem.LoadOne(ctx, h.db, id, libitem.Options{Episodes: true})
+func (h *Handler) loadItem(ctx context.Context, id string) (items.Item, error) {
+	it, err := items.LoadOne(ctx, h.db, id, items.Options{Episodes: true})
 	if err == nil && it.Podcast == nil {
 		err = sql.ErrNoRows
 	}
 	return it, err
 }
 
-func (h *Handler) expanded(ctx context.Context, it libitem.Item) libitem.Expanded {
+func (h *Handler) expanded(ctx context.Context, it items.Item) items.Expanded {
 	return it.Expanded(serversettings.Load(ctx, h.db).SortingPrefixes())
 }
 
 // deleteEpisode removes an episode row with its playlist entries and progress,
 // drops its audio file from the item's libraryFiles and recounts numEpisodes.
-func (h *Handler) deleteEpisode(ctx context.Context, item libitem.Item, episodeID, ino string) error {
+func (h *Handler) deleteEpisode(ctx context.Context, item items.Item, episodeID, ino string) error {
 	files := []libitem.File{}
 	for _, f := range h.rawLibraryFiles(ctx, item.ID) {
 		if f.Ino() != ino {
@@ -547,52 +548,52 @@ func (h *Handler) createPodcast(w http.ResponseWriter, r *http.Request) error {
 // createPodcastFromBody performs podcast creation without coupling the operation
 // to an HTTP request or response. The returned status and message preserve the
 // create endpoint's existing validation and failure distinctions.
-func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any) (libitem.Item, int, string, error) {
+func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any) (items.Item, int, string, error) {
 	media, _ := body["media"].(map[string]any)
 	meta, _ := media["metadata"].(map[string]any)
 	if meta == nil {
-		return libitem.Item{}, 400, `Invalid request body. "media" and "media.metadata" are required`, errors.New("missing podcast metadata")
+		return items.Item{}, 400, `Invalid request body. "media" and "media.metadata" are required`, errors.New("missing podcast metadata")
 	}
 	libID, _ := body["libraryId"].(string)
 	folderID, _ := body["folderId"].(string)
 	rawPath, _ := body["path"].(string)
 	if strings.TrimSpace(rawPath) == "" {
-		return libitem.Item{}, 400, `Invalid request body. "path" must be a non-empty string`, errors.New("empty podcast path")
+		return items.Item{}, 400, `Invalid request body. "path" must be a non-empty string`, errors.New("empty podcast path")
 	}
 	var folderPath, folderLibrary string
 	var libraryType string
 	err := h.db.QueryRowContext(ctx, `SELECT f.path,f.libraryId,l.mediaType FROM libraryFolders f JOIN libraries l ON l.id=f.libraryId WHERE f.id=?`, folderID).Scan(&folderPath, &folderLibrary, &libraryType)
 	if errors.Is(err, sql.ErrNoRows) {
-		return libitem.Item{}, 404, "Folder not found", err
+		return items.Item{}, 404, "Folder not found", err
 	}
 	if err != nil {
-		return libitem.Item{}, 500, "database read failed", err
+		return items.Item{}, 500, "database read failed", err
 	}
 	if folderLibrary != libID || libraryType != "podcast" {
-		return libitem.Item{}, 404, "Folder not found", sql.ErrNoRows
+		return items.Item{}, 404, "Folder not found", sql.ErrNoRows
 	}
 	root, err := filepath.Abs(filepath.Clean(folderPath))
 	if err != nil {
-		return libitem.Item{}, 400, "Invalid podcast path", err
+		return items.Item{}, 400, "Invalid podcast path", err
 	}
 	path, err := filepath.Abs(filepath.Clean(rawPath))
 	if err != nil {
-		return libitem.Item{}, 400, "Invalid podcast path", err
+		return items.Item{}, 400, "Invalid podcast path", err
 	}
 	rel, err := filepath.Rel(root, path)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		return libitem.Item{}, 400, "Podcast path must be inside the selected library folder", errors.New("podcast path outside library folder")
+		return items.Item{}, 400, "Podcast path must be inside the selected library folder", errors.New("podcast path outside library folder")
 	}
 	var existing int
 	if err = h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraryItems WHERE path=?`, filepath.ToSlash(path)).Scan(&existing); err != nil {
-		return libitem.Item{}, 500, "database read failed", err
+		return items.Item{}, 500, "database read failed", err
 	}
 	if existing > 0 {
-		return libitem.Item{}, 400, "Podcast already exists", errPodcastExists
+		return items.Item{}, 400, "Podcast already exists", errPodcastExists
 	}
 	schedule, _ := body["autoDownloadSchedule"].(string)
 	if schedule != "" && !cronspec.Valid(schedule) {
-		return libitem.Item{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
+		return items.Item{}, 400, "Invalid auto download schedule cron expression", errors.New("invalid auto download schedule")
 	}
 	settings := serversettings.Load(ctx, h.db)
 	if schedule == "" {
@@ -604,18 +605,18 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	createdPath := false
 	if _, e := os.Stat(path); os.IsNotExist(e) {
 		if e = os.MkdirAll(path, 0755); e != nil {
-			return libitem.Item{}, 400, "Invalid podcast path", e
+			return items.Item{}, 400, "Invalid podcast path", e
 		}
 		createdPath = true
 	} else if e != nil {
-		return libitem.Item{}, 400, "Invalid podcast path", e
+		return items.Item{}, 400, "Invalid podcast path", e
 	}
 	st, err := os.Stat(path)
 	if err != nil || !st.IsDir() {
 		if createdPath {
 			_ = os.Remove(path)
 		}
-		return libitem.Item{}, 400, "Invalid podcast path", errors.New("podcast path is not a directory")
+		return items.Item{}, 400, "Invalid podcast path", errors.New("podcast path is not a directory")
 	}
 	now := time.Now().UTC()
 	timestamp := dbtime.Format(now)
@@ -628,7 +629,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 		if createdPath {
 			_ = os.Remove(path)
 		}
-		return libitem.Item{}, 500, "Failed to create podcast", err
+		return items.Item{}, 500, "Failed to create podcast", err
 	}
 	ino := strconv.FormatUint(uint64(st.ModTime().UnixNano()), 10)
 	if raw := st.Sys(); raw != nil {
@@ -662,7 +663,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 		if createdPath {
 			_ = os.Remove(path)
 		}
-		return libitem.Item{}, 500, "Failed to create podcast", err
+		return items.Item{}, 500, "Failed to create podcast", err
 	}
 	rollback := func() {
 		_ = tx.Rollback()
@@ -673,7 +674,7 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	_, err = tx.ExecContext(ctx, `INSERT INTO podcasts (id,title,titleIgnorePrefix,author,releaseDate,feedURL,imageURL,description,itunesPageURL,itunesId,itunesArtistId,language,podcastType,explicit,autoDownloadEpisodes,autoDownloadSchedule,lastEpisodeCheck,maxEpisodesToKeep,maxNewEpisodesToDownload,coverPath,tags,genres,numEpisodes,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?)`, mediaID, store.NullIfEmpty(title), store.NullIfEmpty(sortTitle), vals["author"], vals["releaseDate"], vals["feedURL"], vals["imageURL"], vals["description"], vals["itunesPageURL"], vals["itunesId"], vals["itunesArtistId"], vals["language"], vals["podcastType"], explicit, auto, schedule, timestamp, 0, 3, nil, string(tagJSON), string(genreJSON), 0, timestamp, timestamp)
 	if err != nil {
 		rollback()
-		return libitem.Item{}, 500, "Failed to create podcast", err
+		return items.Item{}, 500, "Failed to create podcast", err
 	}
 	libRel := filepath.ToSlash(rel)
 	if libRel == "." {
@@ -682,15 +683,15 @@ func (h *Handler) createPodcastFromBody(ctx context.Context, body map[string]any
 	_, err = tx.ExecContext(ctx, `INSERT INTO libraryItems (id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,mtime,ctime,birthtime,size,libraryFiles,extraData,title,titleIgnorePrefix,libraryId,libraryFolderId,createdAt,updatedAt) VALUES (?,?,?,?,?,'podcast',0,0,0,?,?,?,0,'[]','{}',?,?,?,?,?,?)`, id, ino, filepath.ToSlash(path), libRel, mediaID, timestamp, timestamp, timestamp, store.NullIfEmpty(title), store.NullIfEmpty(sortTitle), libID, folderID, timestamp, timestamp)
 	if err != nil {
 		rollback()
-		return libitem.Item{}, 500, "Failed to create podcast", err
+		return items.Item{}, 500, "Failed to create podcast", err
 	}
 	if err = tx.Commit(); err != nil {
 		rollback()
-		return libitem.Item{}, 500, "Failed to create podcast", err
+		return items.Item{}, 500, "Failed to create podcast", err
 	}
 	item, err := h.loadItem(ctx, id)
 	if err != nil {
-		return libitem.Item{}, 500, "database read failed", err
+		return items.Item{}, 500, "database read failed", err
 	}
 	h.emit.ToAdmins("item_added", h.expanded(ctx, item))
 	return item, 200, "", nil
@@ -918,7 +919,7 @@ func (h *Handler) runScheduled(itemID string) {
 	}
 }
 
-func filterNew(all []Episode, item libitem.Item, after int64, limit int) []Episode {
+func filterNew(all []Episode, item items.Item, after int64, limit int) []Episode {
 	known := knownEpisodes(item)
 	found := []Episode{}
 	for _, ep := range all {

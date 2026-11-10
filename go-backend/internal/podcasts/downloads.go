@@ -22,6 +22,7 @@ import (
 
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/store"
@@ -30,7 +31,7 @@ import (
 
 type downloadTask struct {
 	id                               string
-	item                             libitem.Item
+	item                             items.Item
 	episode                          Episode
 	url, filename                    string
 	auto                             bool
@@ -61,7 +62,7 @@ func (d *downloadTask) clientJSON() wire.EpisodeDownload {
 	return out
 }
 
-func (h *Handler) enqueue(item libitem.Item, episodes []Episode, auto bool) error {
+func (h *Handler) enqueue(item items.Item, episodes []Episode, auto bool) error {
 	var added []*downloadTask
 	for _, episode := range episodes {
 		if episode.Enclosure.URL == "" {
@@ -420,7 +421,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 	if episode, ok := episodeOf(updated, episodeID); ok {
 		h.emit.ToAll("episode_added", struct {
 			libitem.EpisodeExpanded
-			LibraryItem libitem.Expanded `json:"libraryItem"`
+			LibraryItem items.Expanded `json:"libraryItem"`
 		}{episode.Expanded(d.item.ID), expanded})
 		if d.auto { // PodcastManager.js:257: notifications only for auto downloaded episodes
 			h.notifyEpisodeDownloaded(updated, episode)
@@ -431,7 +432,7 @@ func (h *Handler) registerEpisode(d *downloadTask, path string) error {
 
 // notifyEpisodeDownloaded fires onPodcastEpisodeDownloaded
 // (NotificationManager.js:21-46); delivery is not awaited, as upstream.
-func (h *Handler) notifyEpisodeDownloaded(item libitem.Item, ep libitem.Episode) {
+func (h *Handler) notifyEpisodeDownloaded(item items.Item, ep libitem.Episode) {
 	p := item.Podcast
 	libraryName := "Unknown"
 	_ = h.db.QueryRow(`SELECT name FROM libraries WHERE id=?`, item.LibraryID).Scan(&libraryName)
@@ -445,7 +446,7 @@ func (h *Handler) notifyEpisodeDownloaded(item libitem.Item, ep libitem.Episode)
 
 // notifyFeedFailure fires onRSSFeedDisabled or onRSSFeedFailed
 // (NotificationManager.js:81-121, PodcastManager.js:346-351).
-func (h *Handler) notifyFeedFailure(event string, item libitem.Item, numFailed int) {
+func (h *Handler) notifyFeedFailure(event string, item items.Item, numFailed int) {
 	title := str(item.Podcast.Title)
 	if title == "" {
 		title = "Unknown Title"
@@ -464,7 +465,7 @@ func (h *Handler) notifyAsync(event string, data map[string]any) {
 	}()
 }
 
-func (h *Handler) trimOldestEpisode(ctx context.Context, item libitem.Item, justAdded string) error {
+func (h *Handler) trimOldestEpisode(ctx context.Context, item items.Item, justAdded string) error {
 	var published int
 	if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=? AND publishedAt IS NOT NULL`, item.MediaID).Scan(&published); err != nil {
 		return err

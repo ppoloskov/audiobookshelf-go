@@ -65,9 +65,11 @@ does not emit them.
 
 First catalog read-graph slice: the permission projection of an item
 (`Access`, `LoadAccess`, `ItemAccess`, `CanReadItem`) now belongs to
-`internal/access`; `libitem` envelopes expose `access.Access`. This removes the
-old `access` → `libitem` edge. The common item model/loader and the
-books/podcasts ownership moves remain for later packets.
+`internal/access`, removing the old `access` → `libitem` edge. The second
+slice moves common item identity, the batched loader and common response
+envelopes into `internal/items`; `libitem` retains book/podcast media models
+and exported media projections. The books/podcasts ownership moves remain for
+later packets.
 
 Keep config for process input; keep store for opening/validating/closing the
 database, sqlc for generated storage queries, and mediatools for subprocess

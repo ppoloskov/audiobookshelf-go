@@ -8,13 +8,13 @@ import (
 
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
 // Collection loads the collection response map and its library ID. canView is
 // evaluated in collection order for each member item; the visible members are
-// loaded with one libitem.Load.
+// loaded with one items.Load.
 func Collection(ctx context.Context, db *sql.DB, id string, canView func(context.Context, string) (bool, error)) (map[string]any, string, error) {
 	queries := sqlc.New(db)
 	collection, err := queries.GetCollection(ctx, id)
@@ -35,7 +35,7 @@ func Collection(ctx context.Context, db *sql.DB, id string, canView func(context
 			visible = append(visible, itemID)
 		}
 	}
-	loaded, err := libitem.Load(ctx, db, visible, libitem.Options{})
+	loaded, err := items.Load(ctx, db, visible, items.Options{})
 	if err != nil {
 		return nil, "", err
 	}

@@ -15,6 +15,7 @@ import (
 	"audiobookshelf-compat/internal/jsonvalue"
 
 	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/playlistview"
 	"audiobookshelf-compat/internal/store"
@@ -580,7 +581,7 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 		return httputil.Internal("Failed to create playlist", err)
 	}
 	for i, raw := range books {
-		book, _ := raw.(libitem.Expanded).Media.(libitem.BookExpanded)
+		book, _ := raw.(items.Expanded).Media.(libitem.BookExpanded)
 		mediaID := book.ID
 		if mediaID == "" {
 			continue
@@ -609,12 +610,12 @@ func (h *Handler) createPlaylistFromCollection(w http.ResponseWriter, r *http.Re
 // with the library item it loaded WITH episodes (PlaylistController.js:321-328),
 // unlike a reloaded playlist whose podcasts have none.
 func (h *Handler) withEpisodeTotals(ctx context.Context, e playlistview.Entry) any {
-	minified, ok := e.LibraryItem.(libitem.Minified)
+	minified, ok := e.LibraryItem.(items.Minified)
 	podcast, isPodcast := minified.Media.(libitem.PodcastMedia)
 	if !ok || !isPodcast {
 		return e.LibraryItem
 	}
-	full, err := libitem.LoadOne(ctx, h.db, e.LibraryItemID, libitem.Options{Episodes: true})
+	full, err := items.LoadOne(ctx, h.db, e.LibraryItemID, items.Options{Episodes: true})
 	if err != nil {
 		return e.LibraryItem
 	}

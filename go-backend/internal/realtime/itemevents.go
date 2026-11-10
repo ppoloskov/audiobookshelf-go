@@ -2,10 +2,10 @@ package realtime
 
 import (
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 )
 
-// accessor is implemented by the typed item payloads (libitem.Expanded, ...).
+// accessor is implemented by the typed item payloads (items.Expanded, ...).
 type accessor interface{ Access() access.Access }
 
 func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
@@ -18,7 +18,7 @@ func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
 	return out, len(out) > 0
 }
 
-// payloadAccessible filters one payload. Typed item payloads (libitem.Full,
+// payloadAccessible filters one payload. Typed item payloads (items.Full,
 // Expanded, Minified) apply the library, explicit and tag rules. Any other
 // payload that carries a libraryId (collections, item_removed) is limited to
 // the library check; global payloads are unrestricted. A map that looks like an
@@ -43,11 +43,11 @@ func payloadAccessible(g *access.Permissions, payload any) bool {
 
 func payloadForUser(g *access.Permissions, payload any) (any, bool) {
 	switch values := payload.(type) {
-	case []libitem.Expanded:
+	case []items.Expanded:
 		return filter(g, values)
-	case []libitem.Minified:
+	case []items.Minified:
 		return filter(g, values)
-	case []libitem.Full:
+	case []items.Full:
 		return filter(g, values)
 	case []any:
 		filtered := make([]any, 0, len(values))

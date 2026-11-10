@@ -4,7 +4,7 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textsort"
@@ -150,7 +150,7 @@ func (h *Handler) series(w http.ResponseWriter, r *http.Request, lib libraryScop
 	return httputil.JSON(w, r, payload)
 }
 
-func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]libitem.Minified, error) {
+func (h *Handler) seriesBooks(ctx context.Context, seriesID string, user store.User) ([]items.Minified, error) {
 	permission, args := access.For(ctx, user).MediaClause("b")
 	queryArgs := append([]any{seriesID}, args...)
 	rows, err := h.db.QueryContext(ctx, `SELECT li.id,bs.sequence FROM bookSeries bs JOIN books b ON b.id=bs.bookId JOIN libraryItems li ON li.mediaId=b.id WHERE bs.seriesId=?`+permission, queryArgs...)

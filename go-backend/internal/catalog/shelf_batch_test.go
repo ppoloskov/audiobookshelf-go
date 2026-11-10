@@ -15,7 +15,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/dbtime"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -127,7 +127,7 @@ func TestBookShelfContentsIndependentOfSize(t *testing.T) {
 	}
 }
 
-// libitem.Load batches ids into IN-lists below SQLite's variable limit; the
+// items.Load batches ids into IN-lists below SQLite's variable limit; the
 // batch must return every requested row (duplicates repeat, unknown ids drop)
 // however many ids it gets.
 func TestItemBatchLoadsAnyNumberOfItems(t *testing.T) {
@@ -146,12 +146,12 @@ func TestItemBatchLoadsAnyNumberOfItems(t *testing.T) {
 		{name: "missing", ids: []string{"missing"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := libitem.Load(context.Background(), db, test.ids, libitem.Options{})
+			got, err := items.Load(context.Background(), db, test.ids, items.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
 			if len(got) != test.wantRows {
-				t.Fatalf("libitem.Load returned %d rows, want %d", len(got), test.wantRows)
+				t.Fatalf("items.Load returned %d rows, want %d", len(got), test.wantRows)
 			}
 			if len(got) > 0 && got[0].ID != test.ids[0] {
 				t.Fatalf("first row is %s, want the first requested id %s", got[0].ID, test.ids[0])
@@ -170,7 +170,7 @@ func itemIDsForShelf(count int) []string {
 
 // shelfItems is a shelf's two steps: the ids a query selects, then one batched
 // load of them.
-func shelfItems(h *Handler, r *http.Request, query string, args []any) ([]libitem.Minified, error) {
+func shelfItems(h *Handler, r *http.Request, query string, args []any) ([]items.Minified, error) {
 	ids, err := h.queryStrings(r.Context(), query, args...)
 	if err != nil {
 		return nil, err

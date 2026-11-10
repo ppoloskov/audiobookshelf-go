@@ -21,6 +21,7 @@ import (
 	"audiobookshelf-compat/internal/jsonvalue"
 	"audiobookshelf-compat/internal/libitem"
 
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -140,17 +141,17 @@ func (h *Handler) getItemsInProgress(w http.ResponseWriter, r *http.Request, use
 		entries = append(entries, progress{itemID: itemID, typ: row.Mediaitemtype.String, mediaID: row.Mediaitemid.String, updated: row.Updatedat})
 		itemIDs = append(itemIDs, itemID)
 	}
-	loaded, err := libitem.Load(r.Context(), h.db, itemIDs, libitem.Options{Episodes: true})
+	loaded, err := items.Load(r.Context(), h.db, itemIDs, items.Options{Episodes: true})
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	byID := make(map[string]libitem.Item, len(loaded))
+	byID := make(map[string]items.Item, len(loaded))
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}
 	prefixes := serversettings.Load(r.Context(), h.db).SortingPrefixes()
 	perms := access.For(r.Context(), user)
-	result := make([]libitem.Minified, 0)
+	result := make([]items.Minified, 0)
 	for _, p := range entries {
 		it, ok := byID[p.itemID]
 		if !ok || !perms.Item(it.Access()) {

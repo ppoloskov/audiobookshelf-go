@@ -9,137 +9,6 @@ import (
 	"audiobookshelf-compat/internal/textsort"
 )
 
-// JSONNull sets a decorator to an explicit JSON null (the zero value omits it).
-var JSONNull = json.RawMessage("null")
-
-// Head is the library-item envelope every shape shares.
-type Head struct {
-	ID               string  `json:"id"`
-	Ino              *string `json:"ino"`
-	OldLibraryItemID *string `json:"oldLibraryItemId"`
-	LibraryID        string  `json:"libraryId"`
-	FolderID         *string `json:"folderId"`
-	Path             string  `json:"path"`
-	RelPath          string  `json:"relPath"`
-	IsFile           bool    `json:"isFile"`
-	MTimeMS          *int64  `json:"mtimeMs,omitempty"`
-	CTimeMS          *int64  `json:"ctimeMs,omitempty"`
-	BirthtimeMS      *int64  `json:"birthtimeMs,omitempty"`
-	AddedAt          *int64  `json:"addedAt"`
-	UpdatedAt        *int64  `json:"updatedAt"`
-	IsMissing        bool    `json:"isMissing"`
-	IsInvalid        bool    `json:"isInvalid"`
-	MediaType        string  `json:"mediaType"`
-}
-
-// Extras are the keys callers add per request. Zero values are omitted; set
-// JSONNull where the client expects an explicit null (userMediaProgress,
-// rssFeed and mediaItemShare on an expanded item).
-type Extras struct {
-	UserMediaProgress      any   `json:"userMediaProgress,omitempty"`
-	RSSFeed                any   `json:"rssFeed,omitempty"`
-	MediaItemShare         any   `json:"mediaItemShare,omitempty"`
-	EpisodeDownloadsQueued any   `json:"episodeDownloadsQueued,omitempty"`
-	EpisodesDownloading    any   `json:"episodesDownloading,omitempty"`
-	RecentEpisode          any   `json:"recentEpisode,omitempty"`
-	CollapsedSeries        any   `json:"collapsedSeries,omitempty"`
-	NumEpisodesIncomplete  int64 `json:"numEpisodesIncomplete,omitempty"`
-	ProgressLastUpdate     int64 `json:"progressLastUpdate,omitempty"`
-}
-
-// Full is GET /api/items/:id without expanded (LibraryItem.toOldJSON).
-type Full struct {
-	Head
-	LastScan     *int64  `json:"lastScan,omitempty"`
-	ScanVersion  *string `json:"scanVersion"`
-	LibraryFiles []File  `json:"libraryFiles"`
-	Media        any     `json:"media"` // BookFull or PodcastMedia
-	Extras
-}
-
-// Expanded is toOldJSONExpanded: item detail, socket events, playlists.
-type Expanded struct {
-	Head
-	LastScan     *int64  `json:"lastScan"`
-	ScanVersion  *string `json:"scanVersion"`
-	LibraryFiles []File  `json:"libraryFiles"`
-	NumFiles     int     `json:"numFiles"`
-	Size         *int64  `json:"size,omitempty"`
-	Media        any     `json:"media"` // BookExpanded or PodcastMedia
-	Extras
-}
-
-// Minified is toOldJSONMinified: shelves, collections and list rows.
-type Minified struct {
-	Head
-	NumFiles int    `json:"numFiles"`
-	Size     *int64 `json:"size,omitempty"`
-	Media    any    `json:"media"` // BookMinified or PodcastMedia
-	Extras
-}
-
-func (it Item) head() Head {
-	var old *string
-	if it.OldLibraryItemID != "" {
-		old = &it.OldLibraryItemID
-	}
-	return Head{ID: it.ID, Ino: it.Ino, OldLibraryItemID: old, LibraryID: it.LibraryID, FolderID: it.FolderID, Path: it.Path, RelPath: it.RelPath,
-		IsFile: it.IsFile, MTimeMS: it.MTimeMS, CTimeMS: it.CTimeMS, BirthtimeMS: it.BirthtimeMS, AddedAt: it.AddedAt, UpdatedAt: it.UpdatedAt,
-		IsMissing: it.IsMissing, IsInvalid: it.IsInvalid, MediaType: it.MediaType}
-}
-
-// Full serializes the item for GET /api/items/:id.
-func (it Item) Full() Full {
-	f := Full{Head: it.head(), LastScan: it.LastScan, ScanVersion: it.ScanVersion, LibraryFiles: it.LibraryFiles}
-	if it.Book != nil {
-		f.Media = it.Book.full(it.ID)
-	} else if it.Podcast != nil {
-		f.Media = it.Podcast.media(it, nil, true, false)
-	}
-	return f
-}
-
-// Expanded serializes the item with expanded media. A podcast's episodes must
-// have been loaded (Options.Episodes) for numEpisodes, size and episodes to
-// reflect them.
-func (it Item) Expanded(prefixes []string) Expanded {
-	e := Expanded{Head: it.head(), LastScan: it.LastScan, ScanVersion: it.ScanVersion, LibraryFiles: it.LibraryFiles, NumFiles: len(it.LibraryFiles), Size: it.Size}
-	if it.Book != nil {
-		e.Media = it.Book.expanded(it.ID, prefixes)
-	} else if it.Podcast != nil {
-		e.Media = it.Podcast.media(it, prefixes, false, true)
-	}
-	return e
-}
-
-// Minified serializes the shelf and collection shape.
-func (it Item) Minified(prefixes []string) Minified {
-	m := Minified{Head: it.head(), NumFiles: len(it.LibraryFiles), Size: it.Size}
-	if it.Book != nil {
-		m.Media = it.Book.minified(prefixes)
-	} else if it.Podcast != nil {
-		m.Media = it.Podcast.media(it, prefixes, false, false)
-	}
-	return m
-}
-
-// ListRow is the library items page row: Minified, except that a podcast
-// reports numEpisodes from its column and the item's size
-// (LibraryItem.getByFilterAndSort, server/models/LibraryItem.js:310-312).
-func (it Item) ListRow(prefixes []string) Minified {
-	m := it.Minified(prefixes)
-	if p, ok := m.Media.(PodcastMedia); ok {
-		n := it.Podcast.NumEpisodes
-		size := int64(0)
-		if it.Size != nil {
-			size = *it.Size
-		}
-		p.NumEpisodes, p.Size = &n, &size
-		m.Media = p
-	}
-	return m
-}
-
 // ---- books ----
 
 type BookMetadataFull struct {
@@ -274,12 +143,14 @@ func (b *Book) seriesName() string {
 	return strings.Join(names, ", ")
 }
 
-func (b *Book) full(itemID string) BookFull {
+// Full is the full book media projection (Book.toOldJSON).
+func (b *Book) Full(itemID string) BookFull {
 	return BookFull{ID: b.ID, LibraryItemID: itemID, Metadata: b.metadataFull(), CoverPath: b.CoverPath, Tags: b.Tags,
 		AudioFiles: b.AudioFiles, Chapters: b.Chapters, EbookFile: b.Ebook}
 }
 
-func (b *Book) minified(prefixes []string) BookMinified {
+// Minified is the shelf/list book media projection (Book.toOldJSONMinified).
+func (b *Book) Minified(prefixes []string) BookMinified {
 	var format json.RawMessage
 	if v, ok := b.Ebook["ebookFormat"]; ok {
 		format, _ = json.Marshal(v)
@@ -301,8 +172,9 @@ func (b *Book) minified(prefixes []string) BookMinified {
 			Language: b.Language, Explicit: b.Explicit, Abridged: b.Abridged}}
 }
 
-func (b *Book) expanded(itemID string, prefixes []string) BookExpanded {
-	min, full := b.minified(prefixes), b.full(itemID)
+// Expanded is the expanded book media projection (Book.toOldJSONExpanded).
+func (b *Book) Expanded(itemID string, prefixes []string) BookExpanded {
+	min, full := b.Minified(prefixes), b.Full(itemID)
 	var plain *string
 	if b.Description != nil && *b.Description != "" {
 		v := textclean.Strip(*b.Description)
@@ -327,7 +199,7 @@ func (b *Book) tracks(itemID string) []map[string]any {
 		for k, v := range file {
 			track[k] = v
 		}
-		track["title"] = file.metadata()["filename"]
+		track["title"] = file.Metadata()["filename"]
 		track["startOffset"] = offset
 		track["contentUrl"] = file.ContentURL(itemID)
 		offset += num(file["duration"])
@@ -415,7 +287,7 @@ func (e Episode) JSON(itemID string) EpisodeJSON {
 }
 
 func (e Episode) Expanded(itemID string) EpisodeExpanded {
-	meta := e.AudioFile.metadata()
+	meta := e.AudioFile.Metadata()
 	track := make(map[string]any, len(e.AudioFile)+4)
 	for k, v := range e.AudioFile {
 		track[k] = v
@@ -431,12 +303,12 @@ func emptyNil(s string) *string {
 	return &s
 }
 
-// media builds the podcast media value. full is Podcast.toOldJSON (episodes,
+// Media builds the podcast media value. full is Podcast.toOldJSON (episodes,
 // no counts); otherwise the minified keys are used, with expanded adding the
 // loaded episodes, their count and total size (Podcast.toOldJSONExpanded).
 // A minified podcast reports numEpisodes and size 0, as upstream loads it
 // without episodes.
-func (p *Podcast) media(it Item, prefixes []string, full, expanded bool) PodcastMedia {
+func (p *Podcast) Media(itemID string, prefixes []string, full, expanded bool) PodcastMedia {
 	m := PodcastMedia{ID: p.ID, CoverPath: p.CoverPath, Tags: p.Tags, AutoDownloadEpisodes: p.AutoDownloadEpisodes, AutoDownloadSchedule: p.AutoDownloadSchedule,
 		LastEpisodeCheck: p.LastEpisodeCheck, MaxEpisodesToKeep: p.MaxEpisodesToKeep, MaxNewEpisodesToDownload: p.MaxNewEpisodesToDownload,
 		Metadata: PodcastMetadata{Title: p.Title, Author: p.Author, Description: p.Description, ReleaseDate: p.ReleaseDate, Genres: p.Genres, FeedURL: p.FeedURL,
@@ -455,11 +327,11 @@ func (p *Podcast) media(it Item, prefixes []string, full, expanded bool) Podcast
 	if !full && !expanded {
 		return m
 	}
-	m.LibraryItemID = it.ID
+	m.LibraryItemID = itemID
 	if full {
 		eps := make([]EpisodeJSON, len(p.Episodes))
 		for i, e := range p.Episodes {
-			eps[i] = e.JSON(it.ID)
+			eps[i] = e.JSON(itemID)
 		}
 		m.Episodes = eps
 		return m
@@ -467,7 +339,7 @@ func (p *Podcast) media(it Item, prefixes []string, full, expanded bool) Podcast
 	eps := make([]EpisodeExpanded, len(p.Episodes))
 	var size int64
 	for i, e := range p.Episodes {
-		eps[i] = e.Expanded(it.ID)
+		eps[i] = e.Expanded(itemID)
 		size += e.AudioFile.Size()
 	}
 	n := int64(len(eps))

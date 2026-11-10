@@ -1,46 +1,7 @@
-// Package libitem is the one typed model of a library item: a batched loader
-// over the libraryItems, books, podcasts, author, series and episode tables,
-// and the serializers for every item JSON shape the API serves. Callers set
-// per-request decorators (progress, feeds, shares, ...) on the envelope
-// structs instead of editing maps.
+// Package libitem owns the typed book and podcast media models plus their
+// stored-row and API projections. Common library-item identity and loading
+// live in internal/items.
 package libitem
-
-import (
-	"database/sql"
-
-	"audiobookshelf-compat/internal/access"
-)
-
-// Item is a library item row with its media. Exactly one of Book and Podcast
-// is non-nil.
-type Item struct {
-	ID               string
-	MediaID          string
-	Ino              *string
-	LibraryID        string
-	FolderID         *string
-	Path             string
-	RelPath          string
-	IsFile           bool
-	MTimeMS          *int64
-	CTimeMS          *int64
-	BirthtimeMS      *int64
-	AddedAt          *int64
-	UpdatedAt        *int64
-	LastScan         *int64
-	ScanVersion      *string
-	IsMissing        bool
-	IsInvalid        bool
-	MediaType        string
-	Size             *int64
-	OldLibraryItemID string
-	// LibraryFiles is passed through opaquely; each entry's fileType is derived
-	// from metadata.ext at load time.
-	LibraryFiles []File
-
-	Book    *Book
-	Podcast *Podcast
-}
 
 // Author and Series are the ordered associations of a book.
 type Author struct {
@@ -84,7 +45,7 @@ type Book struct {
 	Series  []SeriesRef
 }
 
-// Podcast is a podcasts row. Episodes is nil unless Options.Episodes was set;
+// Podcast is a podcasts row. Episodes is nil unless the loader requested them;
 // NumEpisodes is the stored column.
 type Podcast struct {
 	ID                       string
@@ -140,75 +101,4 @@ type Enclosure struct {
 	URL    string  `json:"url"`
 	Type   *string `json:"type"`
 	Length *string `json:"length"`
-}
-
-// Options selects the optional associations Load reads.
-type Options struct {
-	// Episodes loads Podcast.Episodes (createdAt ascending). List pages must
-	// leave it unset.
-	Episodes bool
-	// EpisodeIDs, when set with Episodes, limits the episodes loaded to these
-	// ids (a shelf needs only the episodes it shows).
-	EpisodeIDs []string
-}
-
-// Access exposes the permission inputs: the item's library and the media's
-// explicit flag and tags (a podcast's explicit flag is its metadata.explicit).
-func (it Item) Access() access.Access {
-	a := access.Access{LibraryID: it.LibraryID}
-	switch {
-	case it.Book != nil:
-		a.Explicit, a.Tags = it.Book.Explicit, it.Book.Tags
-	case it.Podcast != nil:
-		a.Explicit, a.Tags = it.Podcast.Explicit, it.Podcast.Tags
-	}
-	return a
-}
-
-// Access of a serialized item: the envelope's library and its media's explicit
-// flag and tags, so event filters need not re-load the row.
-func (h Head) access(media any) access.Access {
-	a := access.Access{LibraryID: h.LibraryID}
-	switch m := media.(type) {
-	case BookFull:
-		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case BookMinified:
-		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case BookExpanded:
-		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	case PodcastMedia:
-		a.Explicit, a.Tags = m.Metadata.Explicit, m.Tags
-	}
-	return a
-}
-
-// mediaID is the id of a serialized media value ("" for an unknown one).
-func mediaID(media any) string {
-	switch m := media.(type) {
-	case BookFull:
-		return m.ID
-	case BookMinified:
-		return m.ID
-	case BookExpanded:
-		return m.ID
-	case PodcastMedia:
-		return m.ID
-	}
-	return ""
-}
-
-// MediaID is the id of the item's book or podcast.
-func (f Full) MediaID() string     { return mediaID(f.Media) }
-func (e Expanded) MediaID() string { return mediaID(e.Media) }
-func (m Minified) MediaID() string { return mediaID(m.Media) }
-
-func (f Full) Access() access.Access     { return f.Head.access(f.Media) }
-func (e Expanded) Access() access.Access { return e.Head.access(e.Media) }
-func (m Minified) Access() access.Access { return m.Head.access(m.Media) }
-
-func nullStr(s sql.NullString) *string {
-	if !s.Valid {
-		return nil
-	}
-	return &s.String
 }

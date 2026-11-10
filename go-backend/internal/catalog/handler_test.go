@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
@@ -1537,10 +1537,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	return true
 }
 
-func (h *Handler) minifiedItem(ctx context.Context, itemID string) (libitem.Minified, error) {
+func (h *Handler) minifiedItem(ctx context.Context, itemID string) (items.Minified, error) {
 	out, err := h.minifiedItems(ctx, []string{itemID})
 	if err != nil {
-		return libitem.Minified{}, err
+		return items.Minified{}, err
 	}
 	return out[0], nil
 }

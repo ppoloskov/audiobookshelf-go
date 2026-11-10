@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/dbtime"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 )
 
@@ -195,7 +196,7 @@ func bookEpisodes(b bookData, pubStart time.Time, offset int) []feedEpisodeSourc
 }
 
 // bookFromItem is the feed's view of a loaded book item.
-func bookFromItem(it libitem.Item) bookData {
+func bookFromItem(it items.Item) bookData {
 	b := it.Book
 	bd := bookData{ID: b.ID, Title: deref(b.Title), Description: nullable(b.Description), CoverPath: nullable(b.CoverPath), Language: nullable(b.Language),
 		Explicit: b.Explicit, UpdatedAt: msTime(b.UpdatedAt), ItemID: it.ID, LibraryID: it.LibraryID, ItemCreated: msTime(it.AddedAt), ItemUpdated: msTime(it.UpdatedAt)}
@@ -231,7 +232,7 @@ func msTime(ms *int64) time.Time {
 // loadItemSource reads a library item the way LibraryItem.getExpandedById and
 // Feed.getFeedObjForLibraryItem do.
 func (h *Handler) loadItemSource(ctx context.Context, id string) (*feedSource, error) {
-	it, err := libitem.LoadOne(ctx, h.db, id, libitem.Options{Episodes: true})
+	it, err := items.LoadOne(ctx, h.db, id, items.Options{Episodes: true})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errFeedEntityMissing
 	}
@@ -322,7 +323,7 @@ func (h *Handler) loadCollectionEntity(ctx context.Context, id string) (aggregat
 // loadBooks loads the book items in one batch and returns them in the order of
 // itemIDs.
 func (h *Handler) loadBooks(ctx context.Context, itemIDs []string) ([]bookData, error) {
-	items, err := libitem.Load(ctx, h.db, itemIDs, libitem.Options{})
+	items, err := items.Load(ctx, h.db, itemIDs, items.Options{})
 	if err != nil {
 		return nil, err
 	}

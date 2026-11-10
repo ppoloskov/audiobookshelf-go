@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 )
 
@@ -67,7 +68,7 @@ func TestFilterNewSelectsUnseenEpisodesAfterCutoff(t *testing.T) {
 		{Title: "new b", PublishedAt: publishedAt(500), Enclosure: enclosureOf("u6")},
 		{Title: "new c", GUID: ptr("g7"), PublishedAt: publishedAt(600), Enclosure: enclosureOf("u7")},
 	}
-	item := libitem.Item{Podcast: &libitem.Podcast{Episodes: []libitem.Episode{
+	item := items.Item{Podcast: &libitem.Podcast{Episodes: []libitem.Episode{
 		{GUID: "known"}, {Enclosure: &libitem.Enclosure{URL: "known-url"}},
 	}}}
 	titles := func(limit int, after int64) string {

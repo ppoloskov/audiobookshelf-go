@@ -12,6 +12,7 @@ import (
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/dbtime"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/libitem"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/serversettings"
@@ -39,7 +40,7 @@ JOIN libraryItems li ON (pmi.mediaItemType='podcastEpisode' AND li.mediaId=pe.po
 WHERE pmi.playlistId=? ORDER BY pmi."order" ASC`
 
 // Load loads the playlist response map and its library ID. Its items are
-// loaded with one libitem.Load.
+// loaded with one items.Load.
 func Load(ctx context.Context, db *sql.DB, id string) (map[string]any, string, error) {
 	playlist, err := sqlc.New(db).GetPlaylist(ctx, id)
 	if err != nil {
@@ -67,11 +68,11 @@ func Load(ctx context.Context, db *sql.DB, id string) (map[string]any, string, e
 	if err = errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, "", err
 	}
-	loaded, err := libitem.Load(ctx, db, itemIDs, libitem.Options{Episodes: true})
+	loaded, err := items.Load(ctx, db, itemIDs, items.Options{Episodes: true})
 	if err != nil {
 		return nil, "", err
 	}
-	byID := make(map[string]libitem.Item, len(loaded))
+	byID := make(map[string]items.Item, len(loaded))
 	for _, it := range loaded {
 		byID[it.ID] = it
 	}

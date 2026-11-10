@@ -37,25 +37,32 @@
 - Documentation validation only: source/test/lint inspection and targeted
   whitespace/link checks. Existing implementation cards retain their state.
 
-### PB02 · Catalog read graph — item permission inputs (2026-11-10)
+### PB02 · Catalog read graph (2026-11-10)
 
-- [ ] IN PROGRESS — first bounded slice of the catalog read graph ACCEPTED
-  2026-11-10. `Access`,
+- [ ] IN PROGRESS — first bounded slice ACCEPTED at `7c2a1c0e`: `Access`,
   its permission-only `LoadAccess` query and `ItemAccess`/`CanReadItem` now
-  live in `internal/access`; `libitem.Item`/`Full`/`Expanded`/`Minified`
-  expose `access.Access`. Catalog, emailapi, realtime and tests consume the
-  new owner. This removes the `access` → `libitem` dependency; `libitem`
-  now depends on `access`. Books/podcasts/common item loading is unchanged.
-  No route, JSON, permission, persistence or event behaviour changed.
+  live in `internal/access`; `libitem` item envelopes expose
+  `access.Access`. This removed the `access` → `libitem` dependency;
+  `libitem` now depends on `access`.
+- [ ] IN PROGRESS — second bounded slice ACCEPTED 2026-11-10: common
+  library-item identity, the
+  batched loader and the common response envelopes (`Item`, `Options`,
+  `Load`/`LoadOne`, `Head`, `Full`, `Expanded`, `Minified`, `Extras`,
+  `JSONNull`, `ListRow`) moved from `libitem` into `internal/items`.
+  `libitem` now owns book/podcast media models and exported media
+  projections (`Book.Full/Minified/Expanded`, `Podcast.Media`), which
+  `items` composes without a second loader or model. No route, JSON,
+  permission, persistence, query-count or event behaviour changed.
   Architect rerun verified: gofmt, build, vet, the full suite with the
-  documented FFmpeg prefix, targeted `-race` on access/libitem/catalog/
-  emailapi/realtime, golangci-lint v2.15.0 (0 issues), 20 dependency
-  fixtures, `make ratchet` +0 on every metric and dbnest.
-- Zero metric growth: 38,234 handwritten LOC / 8,544 complexity / 114
-  functions over 15 / 451 `map[string]any` / 196 `[]any`; no baseline edit.
-- Next slice after explicit handover: move the common item model/loader into
-  `internal/items`, then establish books/podcasts read owners without a
-  second `libitem` implementation.
+  documented FFmpeg prefix, `-race` across all eleven affected packages,
+  golangci-lint v2.15.0 (0 issues), 21 dependency fixtures,
+  `make ratchet` +0 (LOC baseline 38,258) and dbnest.
+- Accepted growth for PB02b: +24 handwritten LOC with complexity,
+  high-complexity functions, maps and `[]any` unchanged; only the LOC
+  baseline field was updated.
+- Next slice after explicit handover: extract book media ownership into
+  `internal/books`, then podcast media ownership, without changing the
+  existing `items` read composition or stored-row semantics.
 
 Updated 2026-11-09. Open work only. Finished and obsolete cards are listed in
 [archive/reviews/2026-11-09-roadmap-pruned.md](archive/reviews/2026-11-09-roadmap-pruned.md);

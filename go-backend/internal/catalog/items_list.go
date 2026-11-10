@@ -3,7 +3,7 @@ package catalog
 import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/libitem"
+	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/serversettings"
 	"audiobookshelf-compat/internal/store"
 	"net/http"
@@ -71,12 +71,12 @@ func (h *Handler) libraryItems(w http.ResponseWriter, r *http.Request, lib libra
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
-	pageItems, err := libitem.Load(r.Context(), h.db, pageIDs, libitem.Options{})
+	pageItems, err := items.Load(r.Context(), h.db, pageIDs, items.Options{})
 	if err != nil {
 		return httputil.Internal("database read failed", err)
 	}
 	prefixes := settings.SortingPrefixes()
-	results := make([]libitem.Minified, 0, len(pageItems))
+	results := make([]items.Minified, 0, len(pageItems))
 	for _, it := range pageItems {
 		item := it.ListRow(prefixes)
 		if err := h.attachItemIncludes(r.Context(), requestItemIncludes(r, user), item.Head, it.MediaID, &item.Extras); err != nil {
