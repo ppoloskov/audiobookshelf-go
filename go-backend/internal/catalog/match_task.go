@@ -4,6 +4,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/ids"
+	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/logging"
 	"context"
@@ -104,7 +105,7 @@ func (h *Handler) matchLibraryItems(ctx context.Context, library library.Scope) 
 			continue
 		}
 		logging.Debugf(`[Scanner] matchLibraryItems: Quick matching "%s" (%d of %d)`, t.title, i+1, len(targets))
-		result, err := h.quickMatchLibraryItem(ctx, t.id, quickMatchOptions{provider: library.Provider})
+		result, err := h.deps.QuickMatch(ctx, t.id, item.MatchOptions{Provider: library.Provider})
 		if err != nil {
 			logging.Errorf("[Scanner] matchLibraryItems: %v", err)
 			continue

@@ -42,7 +42,17 @@ Updated 2026-11-11.
   items; book episode pubDate in local time labelled GMT). Custom metadata
   providers go through the SSRF guard.
 
+- Wave 3b (`auth` flows, `item` writes, `playback`, `podcast`): no fake
+  session cookie or Express emulation; OIDC claims are strict and the OIDC
+  user step is one transaction; local-sync timestamps are numbers or numeric
+  strings; episode `publishedAt` is always the DATETIME format; raw-deflate
+  feeds are not decoded; quick match updates `titleIgnorePrefix`; a batch
+  update with a bad entry applies nothing. JSON null clears a metadata text
+  field (the web client sends null for an emptied field).
+
 ## Size, measured
+
+Production lines: 39,740 before the rewrite, 43804 now.
 
 Typed rewrites of dense old code come out about the same size (Wave 3 so
 far: 6,205 old lines, 6,034 new). Expect real reductions only where the old

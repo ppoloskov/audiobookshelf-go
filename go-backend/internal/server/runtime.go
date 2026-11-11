@@ -29,7 +29,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
-	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/list"
@@ -39,7 +39,7 @@ import (
 	"audiobookshelf-compat/internal/notify"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/playback"
-	"audiobookshelf-compat/internal/podcasts"
+	"audiobookshelf-compat/internal/podcast"
 	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/scanner"
 	"audiobookshelf-compat/internal/settings"
@@ -55,7 +55,8 @@ type Runtime struct {
 	db            *sql.DB
 	data          *db.DB          // the new data layer; rewritten packages use it
 	settings      *settings.Store // typed settings for rewritten packages
-	identity      *identity.Handler
+	auth          *auth.Service
+	authRoutes    *http.ServeMux // the public authentication routes
 	realtime      *realtime.Hub
 	catalog       *catalog.Handler
 	playback      *playback.Handler
@@ -67,7 +68,7 @@ type Runtime struct {
 	emailapi      *mail.Handler
 	notifications *notify.Handler
 	share         *share.Handler
-	podcasts      *podcasts.Handler
+	podcasts      *podcast.Handler
 	metadata      *metadata.Handler
 	routes        *http.ServeMux
 }
@@ -102,12 +103,17 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		}
 	})
 	filters := filterdata.NewCache()
-	if rt.identity, err = identity.New(sqlDB, cfg, emit); err != nil {
+	if rt.auth, err = auth.New(rt.data, rt.settings, emit, cfg); err != nil {
 		return rt, err
 	}
+	// Transitional: auth may have stored a new token secret; the old
+	// serversettings cache must not save a stale document over it.
+	serversettings.Invalidate(sqlDB)
+	rt.authRoutes = http.NewServeMux()
+	rt.auth.Routes(rt.authRoutes)
 	rt.metadata = metadata.New(rt.data, emit)
 	rt.notifications = notify.New(rt.settings, emit)
-	rt.podcasts = podcasts.New(sqlDB, cfg, emit, rt.notifications.TriggerEvent)
+	rt.podcasts = podcast.New(rt.data, rt.settings, cfg, emit, rt.notifications.TriggerEvent)
 	if rt.scanner, err = scanner.New(sqlDB, cfg, emit, filters); err != nil {
 		return rt, err
 	}
@@ -116,17 +122,31 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
 		}
 	}
-	rt.catalog = catalog.New(sqlDB, cfg, emit, catalog.Deps{
-		Filters:                filters,
-		Downloads:              rt.podcasts,
-		ItemChanged:            rt.scanner.WriteMetadata,
-		LibraryChanged:         libraryChanged,
-		Books:                  rt.metadata.Legacy(),
-		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
-		PodcastScheduleChanged: rt.podcasts.Reschedule,
+	itemMetadataDir := ""
+	if cfg.MetadataPath != "" {
+		itemMetadataDir = cfg.Dirs().Items
+	}
+	itemHandler := item.New(rt.data, rt.settings, emit, item.Deps{
+		Filters:         filters,
+		Downloads:       rt.podcasts,
+		Books:           rt.metadata.Legacy(),
+		WriteMetadata:   rt.scanner.WriteMetadata,
+		ScheduleChanged: rt.podcasts.Reschedule,
+		PodcastEpisodes: rt.podcasts.QuickMatchEpisodes,
+		SaveCover: func(ctx context.Context, itemID, itemPath string, withItem bool, imageURL string) (string, error) {
+			return rt.catalog.SaveCoverFromURL(ctx, itemID, itemPath, withItem, imageURL)
+		},
+		CoverCacheDir:   cfg.Dirs().CoverCache,
+		ItemMetadataDir: itemMetadataDir,
 	})
-	rt.playback = playback.New(sqlDB, cfg, emit)
-	if rt.userapi, err = userapi.New(sqlDB, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
+	rt.catalog = catalog.New(sqlDB, cfg, emit, catalog.Deps{
+		Filters:        filters,
+		ItemChanged:    rt.scanner.WriteMetadata,
+		LibraryChanged: libraryChanged,
+		QuickMatch:     itemHandler.QuickMatch,
+	})
+	rt.playback = playback.New(rt.data, rt.settings, cfg, emit)
+	if rt.userapi, err = userapi.New(sqlDB, rt.auth.OldCredentials(), emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
 		return rt, err
 	}
 	stored, err := serversettings.Get(context.Background(), sqlDB)
@@ -144,7 +164,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 			}
 			return rt.scanner.Refresh(ctx)
 		},
-		ItemChanged:   rt.catalog.ItemChanged,
+		ItemChanged:   itemHandler.ItemChanged,
 		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
 	rt.emailapi = mail.New(rt.data, rt.settings, emit)
@@ -155,16 +175,13 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
+	itemHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes)
 	people.New(sqlDB, cfg, emit, people.Deps{
 		Filters:       filters,
 		Authors:       rt.metadata.Legacy(),
 		WriteMetadata: rt.scanner.WriteMetadata,
 	}).Routes(rt.routes)
-	itemMetadataDir := ""
-	if cfg.MetadataPath != "" {
-		itemMetadataDir = cfg.Dirs().Items
-	}
 	itemDeleter := itemwrite.Deleter{Env: itemwrite.Env{DB: sqlDB, Filters: filters, Emit: emit}, CoverCacheDir: cfg.Dirs().CoverCache, ItemMetadataDir: itemMetadataDir}
 	library.New(sqlDB, emit, library.Deps{
 		Filters:        filters,
@@ -186,7 +203,29 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 func (rt *Runtime) DB() *sql.DB { return rt.db }
 
 func (rt *Runtime) Authenticate(r *http.Request) (store.User, error) {
-	return rt.identity.Authenticate(r)
+	principal, err := rt.auth.Authenticate(r)
+	return legacyUser(principal), err
+}
+
+// TEMPORARY: the old packages take store.User; delete with them.
+func legacyUser(p *auth.Principal) store.User {
+	if p == nil {
+		return store.User{}
+	}
+	raw := func(v any) json.RawMessage { b, _ := json.Marshal(v); return b } // plain structs cannot fail to marshal
+	millis := func(t db.Time) *int64 {
+		if t.IsZero() {
+			return nil
+		}
+		ms := t.Millis()
+		return &ms
+	}
+	u := p.User
+	return store.User{
+		ID: u.ID, Username: db.Val(u.Username), Email: u.Email, Password: db.Val(u.Pash), Type: db.Val(u.Type), Token: db.Val(u.Token),
+		IsActive: bool(u.IsActive), IsLocked: bool(u.IsLocked), LastSeen: millis(u.LastSeen), Permissions: raw(u.Permissions.V),
+		Bookmarks: raw(u.Bookmarks.V), ExtraData: raw(u.ExtraData.V), CreatedAt: millis(u.CreatedAt), UpdatedAt: millis(u.UpdatedAt),
+	}
 }
 
 func (rt *Runtime) Session(userID string) any { return rt.playback.SessionOf(userID) }
@@ -280,13 +319,14 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		rt.status(w, r)
 		return
 	}
-	if rt.identity.Handle(w, withPath(r, path)) {
+	if _, pattern := rt.authRoutes.Handler(withPath(r, path)); pattern != "" {
+		rt.authRoutes.ServeHTTP(w, withPath(r, path))
 		return
 	}
 	if !strings.HasPrefix(path, "/api/") && path != "/api" {
 		// Non-API patterns on the mux are public capability URLs (feeds,
 		// shares, HLS, session tracks), as in TS: they run with no user.
-		if rt.serveRoute(w, withPath(r, path), store.User{}) {
+		if rt.serveRoute(w, withPath(r, path), nil) {
 			return
 		}
 		rt.serveClient(w, r, path)
@@ -294,29 +334,26 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// The upstream intentionally leaves item covers and author images public.
 	publicRead := isGet(r) && (isPublicCover(path) || isPublicAuthorImage(path))
-	var user store.User
-	if !publicRead {
-		var err error
-		user, err = rt.identity.Authenticate(r)
-		if err != nil {
-			writePlain(w, 401, "Unauthorized")
-			return
+	serve := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !rt.serveRoute(w, r, auth.User(r.Context())) {
+			// Express answers an unknown route 404; clients branch on it (Absorb
+			// falls back to older endpoints on 404).
+			httputil.Fail(w, r, httputil.Status(http.StatusNotFound, ""))
 		}
-	}
-	if rt.serveRoute(w, withPath(r, path), user) {
+	})
+	if publicRead {
+		serve.ServeHTTP(w, withPath(r, path))
 		return
 	}
-	// Express answers an unknown route 404; clients branch on it (Absorb
-	// falls back to older endpoints on 404).
-	httputil.Fail(w, r, httputil.Status(http.StatusNotFound, ""))
+	rt.auth.Middleware(serve).ServeHTTP(w, withPath(r, path))
 }
 
 // serveRoute dispatches a request to a handler registered on the route mux and
-// reports whether one matched. The user was authenticated already (the zero
-// user for the public image and cover reads) and travels in the context. A
-// path that is not in canonical form is not matched, because the mux would
-// answer it with a redirect.
-func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store.User) bool {
+// reports whether one matched. The principal was authenticated already (nil for
+// the public image and cover reads) and travels in the context. A path that is
+// not in canonical form is not matched, because the mux would answer it with a
+// redirect.
+func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, principal *auth.Principal) bool {
 	if r.URL.Path != pathpkg.Clean(r.URL.Path) {
 		canonical, ok := routeAlias(r.URL.Path)
 		if !ok {
@@ -327,17 +364,10 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store
 	if _, pattern := rt.routes.Handler(r); pattern == "" {
 		return false
 	}
+	user := legacyUser(principal)
 	ctx := store.ContextWithUser(r.Context(), user)
-	if user.ID != "" {
-		ctx = access.WithRequest(ctx, user)
-		// Transitional: rewritten packages read the typed principal. The
-		// extra read goes when authentication moves to internal/auth (K3).
-		var row db.User
-		if err := rt.data.Get(ctx, &row, `SELECT * FROM users WHERE id = ?`, user.ID); err != nil {
-			httputil.Fail(w, r, httputil.Internal("database read failed", err))
-			return true
-		}
-		ctx = auth.WithUser(ctx, auth.NewPrincipal(row))
+	if principal != nil {
+		ctx = auth.WithUser(access.WithRequest(ctx, user), principal)
 	}
 	rt.routes.ServeHTTP(w, r.WithContext(ctx))
 	return true

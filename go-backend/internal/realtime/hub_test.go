@@ -17,9 +17,10 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/identity"
+	absdb "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/podcasts/read"
 	"audiobookshelf-compat/internal/store"
@@ -98,11 +99,18 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	}
 	db, _ := testDB(t)
 	secret := "realtime-integration-secret"
-	authHandler, err := identity.New(db, config.Config{JWTSecret: secret}, nil)
+	authHandler, err := auth.New(absdb.New(db), nil, nil, config.Config{JWTSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := &fakeBackend{db: db, auth: authHandler.Authenticate}
+	backend := &fakeBackend{db: db, auth: func(r *http.Request) (store.User, error) {
+		p, err := authHandler.Authenticate(r)
+		if err != nil {
+			return store.User{}, err
+		}
+		permissions, _ := json.Marshal(p.Permissions.V)
+		return store.User{ID: p.ID, Username: absdb.Val(p.Username), Type: absdb.Val(p.Type), IsActive: bool(p.IsActive), Permissions: permissions}, nil
+	}}
 	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
 	backend.dispatch = func(_ context.Context, action Action) error {
 		if action.Event == "cancel_scan" {

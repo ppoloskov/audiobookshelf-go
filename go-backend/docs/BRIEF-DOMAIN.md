@@ -48,7 +48,11 @@ Repo: /Users/paul/projects/audiobookshelf-go/go-backend (module
 - Rows: `SELECT *` into db row structs, or a small local struct with db tags
   for joins. No `rows.Scan`, no `sql.Null*`, no `map[string]any`.
 - Requests: decode into typed structs with `httpx.Decode`. A PATCH body is a
-  struct of pointer fields: nil = absent. Accept a number-or-string only where
+  struct of pointer fields: nil = absent. Careful: encoding/json decodes JSON
+  null into a nil pointer too. Where the old code let null CLEAR a value (the
+  web client sends null when a text field is emptied), use a non-pointer
+  field type with UnmarshalJSON that records null, and test null, absent and
+  "" through the route. Accept a number-or-string only where
   your survey says a real client sends strings.
 - Responses: typed structs. Reuse `item` views; never rebuild an item, book or
   podcast projection.

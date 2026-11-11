@@ -14,8 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/identity"
+	absdb "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -36,11 +37,11 @@ func (h *userAPIForTest) Handle(w http.ResponseWriter, r *http.Request, user sto
 }
 
 func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, any)) *userAPIForTest {
-	ident, err := identity.New(db, config.Config{JWTSecret: "userapi-test-secret"}, nil)
+	ident, err := auth.New(absdb.New(db), nil, nil, config.Config{JWTSecret: "userapi-test-secret"})
 	if err != nil {
 		panic(err)
 	}
-	h, err := New(db, ident, emit, Deps{})
+	h, err := New(db, ident.OldCredentials(), emit, Deps{})
 	if err != nil {
 		panic(err)
 	}

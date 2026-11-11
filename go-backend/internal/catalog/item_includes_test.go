@@ -117,22 +117,6 @@ func TestIncludeRSSFeedAndShareOnItemsAndShelves(t *testing.T) {
 	if !found {
 		t.Fatalf("no recently-added shelf in %s", get(admin, "/api/libraries/lib1/personalized?minified=1"))
 	}
-
-	// GET /api/items/:id?expanded=1&include=share: null without a share.
-	var item map[string]json.RawMessage
-	if err := json.Unmarshal(get(admin, "/api/items/liB?expanded=1&include=share"), &item); err != nil || len(item["mediaItemShare"]) < 3 {
-		t.Errorf("item with share: %v %s", err, item["mediaItemShare"])
-	}
-	if err := json.Unmarshal(get(admin, "/api/items/liD?expanded=1&include=share"), &item); err != nil || string(item["mediaItemShare"]) != "null" {
-		t.Errorf("item without share: %v %s", err, item["mediaItemShare"])
-	}
-	var memberItem map[string]json.RawMessage
-	if err := json.Unmarshal(get(member, "/api/items/liB?expanded=1&include=share"), &memberItem); err != nil {
-		t.Fatal(err)
-	}
-	if _, present := memberItem["mediaItemShare"]; present {
-		t.Errorf("non-admin item carries mediaItemShare")
-	}
 }
 
 // catalogSubseriesFixture mirrors the library collapse fixture for the

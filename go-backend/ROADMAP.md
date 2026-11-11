@@ -35,7 +35,7 @@ Mark a task `[x]` in the commit that completes it.
   `books`, `podcasts/read`, `mediafiles`.
 - [x] **K2 `settings`**: typed server, email and notification documents with
   atomic `Update`. Replaces `serversettings`, `emailsettings`, `settingsdoc`.
-- [ ] **K3 `auth` flows**: login, refresh, logout, init, API keys, OIDC on
+- [x] **K3 `auth` flows**: login, refresh, logout, init, API keys, OIDC on
   `x/oauth2`, the authentication middleware. Replaces `identity`, `auth`
   (old), `access`, `users`.
 - [x] **K4 `logging`**: slog handler with console, daily files, ring buffer and
@@ -45,7 +45,7 @@ Mark a task `[x]` in the commit that completes it.
 
 - [x] **D1 `metadata`**: one typed result per search kind behind a small
   provider interface. Replaces `providers`, `wire` match types.
-- [ ] **D2 `item` writes**: media PATCH, batch, relations, deletion, covers,
+- [ ] **D2 `item` writes** (D2a done: detail, media PATCH, batch, relations, deletion, quick match; D2b open: covers, files, catalog's library routes): media PATCH, batch, relations, deletion, covers,
   files, quick match, `metadata.json` writer. Replaces `catalog`,
   `itemwrite`, `sqlupdate`.
 - [ ] **D3 `library`**: libraries, browse, shelves, search, series, authors,
@@ -53,12 +53,12 @@ Mark a task `[x]` in the commit that completes it.
   `filterdata`.
 - [x] **D4 `list`**: collections and playlists. Replaces `lists`,
   `playlistview`.
-- [ ] **D5 `playback`**: sessions, progress, bookmarks, listening stats, HLS,
+- [x] **D5 `playback`**: sessions, progress, bookmarks, listening stats, HLS,
   devices. Replaces `playback` (old), `progressdto`, `deviceinfo`, the
   progress half of `userapi`.
 - [x] **D6 `share`**: shares and RSS feeds out with `encoding/xml`. Replaces
   `sharing`, `feeds`.
-- [ ] **D7 `podcast`**: feed, creation, downloads, schedule, episodes.
+- [x] **D7 `podcast`**: feed, creation, downloads, schedule, episodes.
   Replaces `podcasts`.
 - [ ] **D8 `scan`**: walk, match, plan, apply; watcher; sidecar readers.
   Replaces `scanner`.

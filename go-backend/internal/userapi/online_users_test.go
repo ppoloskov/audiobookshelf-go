@@ -6,8 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/identity"
+	absdb "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -34,13 +35,13 @@ func TestOnlineUsersEncodesTypedOpenSessions(t *testing.T) {
 
 	db, user := userFixture(t)
 	defer db.Close()
-	ident, err := identity.New(db, config.Config{JWTSecret: "online-users-test-secret"}, nil)
+	ident, err := auth.New(absdb.New(db), nil, nil, config.Config{JWTSecret: "online-users-test-secret"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	mux := http.NewServeMux()
-	h, err := New(db, ident, nil, Deps{OpenSessions: func() any {
+	h, err := New(db, ident.OldCredentials(), nil, Deps{OpenSessions: func() any {
 		return []session{
 			{ID: "session-one", CurrentTime: 12.5, MediaMetadata: &metadata{Title: "First"}, Chapters: []chapter{{Start: 1.25, Title: "Opening"}}},
 			{ID: "session-two", CurrentTime: 0, MediaMetadata: nil, Chapters: []chapter{}},
@@ -97,12 +98,12 @@ func TestOnlineUsersEncodesTypedOpenSessions(t *testing.T) {
 func TestOnlineUsersEmptyOpenSessionsRemainsArray(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
-	ident, err := identity.New(db, config.Config{JWTSecret: "online-users-test-secret"}, nil)
+	ident, err := auth.New(absdb.New(db), nil, nil, config.Config{JWTSecret: "online-users-test-secret"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	h, err := New(db, ident, nil, Deps{OpenSessions: func() any { return []struct{}{} }})
+	h, err := New(db, ident.OldCredentials(), nil, Deps{OpenSessions: func() any { return []struct{}{} }})
 	if err != nil {
 		t.Fatal(err)
 	}

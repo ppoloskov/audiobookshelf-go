@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/identity"
+	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/websocket"
@@ -307,7 +309,12 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 }
 
 func insertTestRoot(database *store.Store, cfg config.Config, username, password string) error {
-	if _, err := identity.New(database.DB(), cfg, nil); err != nil {
+	data := db.New(database.DB())
+	st, err := settings.NewStore(context.Background(), data, os.Getenv, "")
+	if err != nil {
+		return err
+	}
+	if _, err := auth.New(data, st, nil, cfg); err != nil {
 		return err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)

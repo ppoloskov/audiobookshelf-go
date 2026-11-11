@@ -445,96 +445,6 @@ func TestHandleLibraryItemsAndItemDetail(t *testing.T) {
 	if metadata["authorName"] != "Ada Author" || metadata["seriesName"] != "First Series #1" {
 		t.Fatalf("metadata=%#v", metadata)
 	}
-
-	detail := httptest.NewRecorder()
-	if !h.Handle(detail, httptest.NewRequest("GET", "/api/items/i1", nil), u) {
-		t.Fatal("item route did not match")
-	}
-	if detail.Code != 200 {
-		t.Fatalf("detail status=%d body=%s", detail.Code, detail.Body.String())
-	}
-	var item map[string]any
-	if err := json.Unmarshal(detail.Body.Bytes(), &item); err != nil {
-		t.Fatal(err)
-	}
-	fullMedia := item["media"].(map[string]any)
-	fullMetadata := fullMedia["metadata"].(map[string]any)
-	if fullMetadata["title"] != "The Book" {
-		t.Fatalf("full metadata=%#v", fullMetadata)
-	}
-	if item["mediaType"] != "book" || item["libraryId"] != "l1" {
-		t.Fatalf("item=%#v", item)
-	}
-	expanded := httptest.NewRecorder()
-	if !h.Handle(expanded, httptest.NewRequest("GET", "/api/items/i1?expanded=1", nil), u) || expanded.Code != http.StatusOK {
-		t.Fatalf("expanded status=%d body=%s", expanded.Code, expanded.Body.String())
-	}
-	var expandedItem map[string]any
-	if err := json.Unmarshal(expanded.Body.Bytes(), &expandedItem); err != nil {
-		t.Fatal(err)
-	}
-	for _, key := range []string{"lastScan", "libraryFiles", "scanVersion"} {
-		if _, ok := expandedItem[key]; !ok {
-			t.Errorf("expanded item missing %q: %s", key, expanded.Body.String())
-		}
-	}
-	expandedMedia := expandedItem["media"].(map[string]any)
-	for _, key := range []string{"chapters", "audioFiles", "ebookFile", "tracks"} {
-		if _, ok := expandedMedia[key]; !ok {
-			t.Errorf("expanded media missing %q: %s", key, expanded.Body.String())
-		}
-	}
-	if expandedMedia["numAudioFiles"] != float64(1) {
-		t.Error("expanded media does not retain minified counters")
-	}
-}
-
-func TestItemDetailEnforcesExplicitAndTagPermissions(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	if _, err := db.Exec(`UPDATE books SET explicit=1,tags='["tag-x"]' WHERE id='b1'`); err != nil {
-		t.Fatal(err)
-	}
-	user := store.User{ID: "reader", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":false,"accessExplicitContent":false,"itemTagsSelected":["tag-a"]}`)}
-	for _, tc := range []struct {
-		name        string
-		permissions string
-		want        int
-	}{
-		{name: "explicit denied despite matching tag", permissions: `{"accessAllLibraries":true,"accessAllTags":false,"accessExplicitContent":false,"itemTagsSelected":["tag-x"]}`, want: http.StatusForbidden},
-		{name: "non-overlapping tag denied", permissions: `{"accessAllLibraries":true,"accessAllTags":false,"accessExplicitContent":true,"itemTagsSelected":["tag-a"]}`, want: http.StatusForbidden},
-		{name: "matching tag and explicit allowed", permissions: `{"accessAllLibraries":true,"accessAllTags":false,"accessExplicitContent":true,"itemTagsSelected":["tag-x"]}`, want: http.StatusOK},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			user.Permissions = json.RawMessage(tc.permissions)
-			w := httptest.NewRecorder()
-			if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/items/i1", nil), user) {
-				t.Fatal("item route did not match")
-			}
-			if w.Code != tc.want {
-				t.Fatalf("status=%d want=%d body=%s", w.Code, tc.want, w.Body.String())
-			}
-		})
-	}
-}
-
-func TestMissingItemUsesSendStatusNotFound(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	for _, id := range []string{"missing", "00000000-0000-0000-0000-000000000000"} {
-		w := httptest.NewRecorder()
-		if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/items/"+id, nil), u) {
-			t.Fatalf("item %q route did not match", id)
-		}
-		const body = "Not Found"
-		if w.Code != http.StatusNotFound || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
-			t.Fatalf("item %q status=%d headers=%v body=%q", id, w.Code, w.Header(), w.Body.String())
-		}
-		requireOpaqueETag(t, w.Header().Get("ETag"))
-	}
 }
 
 func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
@@ -609,18 +519,6 @@ func TestBatchGetAndChapterMutationRespectCatalogPermissions(t *testing.T) {
 	defer db.Close()
 	h := New(db, config.Config{}, nil, testDeps())
 	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"update":true}`)}
-	batch := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/items/batch/get", strings.NewReader(`{"libraryItemIds":["i1"]}`))
-	if !h.Handle(batch, req, u) || batch.Code != http.StatusOK {
-		t.Fatalf("batch route status=%d body=%s", batch.Code, batch.Body.String())
-	}
-	var response map[string]any
-	if err := json.Unmarshal(batch.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response["libraryItems"].([]any)) != 1 {
-		t.Fatalf("batch result=%s", batch.Body.String())
-	}
 	chapters := httptest.NewRecorder()
 	chapterReq := httptest.NewRequest("POST", "/api/items/i1/chapters", strings.NewReader(`{"chapters":[{"title":"Opening","start":0,"end":12.5}]}`))
 	if !h.Handle(chapters, chapterReq, u) || chapters.Code != http.StatusOK || !strings.Contains(chapters.Body.String(), `"updated":true`) {
@@ -863,67 +761,6 @@ func TestPersonalizedBookShelvesUsePerUserProgress(t *testing.T) {
 	}
 	if len(shelves) != 2 || shelves[0]["id"] != "continue-listening" || shelves[1]["id"] != "recently-added" {
 		t.Fatalf("shelves=%s", w.Body.String())
-	}
-}
-
-func TestUpdateMediaPersistsPresentFieldsAndLeavesAbsentFieldsUntouched(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"update":true,"accessExplicitContent":true,"accessAllTags":true}`)}
-	body := `{"metadata":{"title":"Changed Book","subtitle":null,"publishedYear":2030,"description":"<script>bad()</script><p>Safe</p>","authors":[{"name":"Ada Author"},{"name":"New Author"}],"series":[{"name":"First Series","sequence":"2"},{"name":"Another Series","sequence":"1"}]},"tags":["new","tag"]}`
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("PATCH", "/api/items/i1/media", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	if !h.Handle(w, req, u) || w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	var title string
-	var subtitle, publishedDate, year, safeDescription sql.NullString
-	var tagJSON string
-	if err := db.QueryRow(`SELECT title,subtitle,publishedDate,publishedYear,description,tags FROM books WHERE id='b1'`).Scan(&title, &subtitle, &publishedDate, &year, &safeDescription, &tagJSON); err != nil {
-		t.Fatal(err)
-	}
-	if title != "Changed Book" || subtitle.Valid || publishedDate.Valid || year.String != "2030" || !safeDescription.Valid || strings.Contains(safeDescription.String, "<script>") {
-		t.Fatalf("stored fields title=%q subtitle=%#v date=%#v year=%#v description=%#v", title, subtitle, publishedDate, year, safeDescription)
-	}
-	if tagJSON != `["new","tag"]` {
-		t.Fatalf("tags=%s", tagJSON)
-	}
-	var authorCount, seriesCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM bookAuthors WHERE bookId='b1'`).Scan(&authorCount); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.QueryRow(`SELECT COUNT(*) FROM bookSeries WHERE bookId='b1'`).Scan(&seriesCount); err != nil {
-		t.Fatal(err)
-	}
-	if authorCount != 2 || seriesCount != 2 {
-		t.Fatalf("relations authors=%d series=%d", authorCount, seriesCount)
-	}
-	for _, tc := range []struct {
-		name, body string
-		want       sql.NullString
-	}{
-		{"missing sequence", `{"metadata":{"series":[{"name":"Another Series"}]}}`, sql.NullString{}},
-		{"non-string sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":0}]}}`, sql.NullString{}},
-		{"empty sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":""}]}}`, sql.NullString{String: "", Valid: true}},
-		{"string sequence", `{"metadata":{"series":[{"name":"Another Series","sequence":"7"}]}}`, sql.NullString{String: "7", Valid: true}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest("PATCH", "/api/items/i1/media", strings.NewReader(tc.body))
-			req.Header.Set("Content-Type", "application/json")
-			if !h.Handle(w, req, u) || w.Code != http.StatusOK {
-				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-			}
-			var got sql.NullString
-			if err := db.QueryRow(`SELECT bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId='b1' AND s.name='Another Series'`).Scan(&got); err != nil {
-				t.Fatal(err)
-			}
-			if got != tc.want {
-				t.Fatalf("sequence=%+v, want %+v", got, tc.want)
-			}
-		})
 	}
 }
 
@@ -1227,27 +1064,6 @@ func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
 	_, _ = db.Exec(`INSERT INTO mediaProgresses VALUES ('mp-ep','u1','e1',0,10,0,'2024-01-03T00:00:00Z','2024-01-03T00:00:00Z',NULL)`)
 	h := New(db, config.Config{}, nil, testDeps())
 	user := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/ip?expanded=1", nil), user) {
-		t.Fatal("route did not match")
-	}
-	if w.Code != 200 {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	var item map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &item); err != nil {
-		t.Fatal(err)
-	}
-	media := item["media"].(map[string]any)
-	episodes := media["episodes"].([]any)
-	if len(episodes) != 1 {
-		t.Fatalf("media=%s", w.Body.String())
-	}
-	ep := episodes[0].(map[string]any)
-	track := ep["audioTrack"].(map[string]any)
-	if ep["guid"] != "guid-e1" || track["contentUrl"] != "/api/items/ip/file/ep-audio" || track["index"] != float64(1) {
-		t.Fatalf("episode=%#v", ep)
-	}
 	personalized := httptest.NewRecorder()
 	if !h.Handle(personalized, httptest.NewRequest("GET", "/api/libraries/lp/personalized", nil), user) || personalized.Code != http.StatusOK {
 		t.Fatalf("personalized status=%d body=%s", personalized.Code, personalized.Body.String())
