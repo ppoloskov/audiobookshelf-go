@@ -13,6 +13,11 @@ type accessor interface{ Access() access.Access }
 // itemAccessor is implemented by the typed item views of the new item package.
 type itemAccessor interface{ Access() item.Access }
 
+// libraryScoped is implemented by typed payloads that belong to one library
+// (collections): they are limited to users who can access it, like a map with
+// a libraryId.
+type libraryScoped interface{ EventLibraryID() string }
+
 func itemAllowed(g *access.Permissions, a item.Access) bool {
 	return g.Item(access.Access{LibraryID: a.LibraryID, Explicit: a.Explicit, Tags: a.Tags})
 }
@@ -48,6 +53,9 @@ func payloadAccessible(g *access.Permissions, payload any) bool {
 	}
 	if a, ok := payload.(itemAccessor); ok {
 		return itemAllowed(g, a.Access())
+	}
+	if a, ok := payload.(libraryScoped); ok {
+		return g.Library(a.EventLibraryID())
 	}
 	metadata, ok := payload.(map[string]any)
 	if !ok {
@@ -104,6 +112,9 @@ func hasAccessMetadata(raw any) bool {
 		return true
 	}
 	if _, ok := raw.(itemAccessor); ok {
+		return true
+	}
+	if _, ok := raw.(libraryScoped); ok {
 		return true
 	}
 	item, ok := raw.(map[string]any)

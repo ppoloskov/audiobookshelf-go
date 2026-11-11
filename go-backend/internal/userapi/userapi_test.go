@@ -16,7 +16,6 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/identity"
-	"audiobookshelf-compat/internal/lists"
 	"audiobookshelf-compat/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -46,33 +45,8 @@ func newUserAPIForTest(db *sql.DB, cfg config.Config, emit func(string, string, 
 		panic(err)
 	}
 	routes := http.NewServeMux()
-	listHandler := lists.New(db, func(userID, event string, payload any) {
-		if h.emit != nil {
-			h.emit(userID, event, payload)
-		}
-	})
-	listHandler.Routes(routes)
 	h.Routes(routes)
 	return &userAPIForTest{Handler: h, routes: routes}
-}
-
-func TestPlaylistRejectsWrongAddShapes(t *testing.T) {
-	for _, path := range []string{"/api/playlists/list/add", "/api/playlists/list/batch/item"} {
-		t.Run(path, func(t *testing.T) {
-			db, user := userFixture(t)
-			defer db.Close()
-			h := newUserAPIForTest(db, config.Config{}, nil)
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"items":[]}`))
-			r.Header.Set("Content-Type", "application/json")
-			if !h.Handle(w, r, user) {
-				w.WriteHeader(http.StatusNotFound) // the runtime's unknown-route answer
-			}
-			if w.Code != http.StatusNotFound {
-				t.Fatalf("POST %s status=%d body=%s, want 404 (unknown route)", path, w.Code, w.Body.String())
-			}
-		})
-	}
 }
 
 func userFixture(t *testing.T) (*sql.DB, store.User) {
@@ -116,75 +90,6 @@ func userFixture(t *testing.T) (*sql.DB, store.User) {
 	return db, user
 }
 
-func TestPlaylistCreateListAndOwnerRestriction(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`INSERT INTO libraries(id) VALUES ('lib1')`); err != nil {
-		t.Fatal(err)
-	}
-	h := newUserAPIForTest(db, config.Config{}, nil)
-	create := httptest.NewRequest(http.MethodPost, "/api/playlists", strings.NewReader(`{"name":"<b>Queue</b>","libraryId":"lib1"}`))
-	w := httptest.NewRecorder()
-	if !h.Handle(w, create, user) || w.Code != http.StatusOK {
-		t.Fatalf("POST /api/playlists status=%d body=%s", w.Code, w.Body.String())
-	}
-	var playlist map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &playlist); err != nil {
-		t.Fatal(err)
-	}
-	if playlist["name"] != "Queue" || playlist["userId"] != user.ID || len(playlist["items"].([]any)) != 0 {
-		t.Fatalf("unexpected playlist: %#v", playlist)
-	}
-	list := httptest.NewRequest(http.MethodGet, "/api/playlists", nil)
-	w = httptest.NewRecorder()
-	if !h.Handle(w, list, user) || w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"playlists":[{`) {
-		t.Fatalf("GET /api/playlists status=%d body=%s", w.Code, w.Body.String())
-	}
-	other := user
-	other.ID = "another-user"
-	get := httptest.NewRequest(http.MethodGet, "/api/playlists/"+playlist["id"].(string), nil)
-	w = httptest.NewRecorder()
-	if !h.Handle(w, get, other) || w.Code != http.StatusForbidden {
-		t.Fatalf("cross-owner playlist status=%d body=%s", w.Code, w.Body.String())
-	}
-}
-
-func TestPlaylistBatchAddMissingLibraryItemUsesLegacyError(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	_, _ = db.Exec(`INSERT INTO libraries(id) VALUES ('lib1')`)
-	_, _ = db.Exec(`INSERT INTO playlists(id,name,libraryId,userId,createdAt,updatedAt) VALUES ('p1','Queue','lib1','u1',1,1)`)
-	h := newUserAPIForTest(db, config.Config{}, nil)
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/playlists/p1/batch/add", strings.NewReader(`{"items":[{"libraryItemId":"missing"}]}`))
-	r.Header.Set("Content-Type", "application/json")
-	if !h.Handle(w, r, user) || w.Code != http.StatusBadRequest || w.Body.String() != "Invalid request body items" || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != expressUserETag([]byte("Invalid request body items")) {
-		t.Fatalf("batch add missing item = %d %q", w.Code, w.Body.String())
-	}
-}
-
-func TestCollectionMissingUsesExpressSend(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt DATETIME, updatedAt DATETIME)`); err != nil {
-		t.Fatal(err)
-	}
-	h := newUserAPIForTest(db, config.Config{}, nil)
-	for _, path := range []string{"/api/collections/missing", "/api/playlists/missing"} {
-		w := httptest.NewRecorder()
-		if !h.Handle(w, httptest.NewRequest(http.MethodGet, path, nil), user) {
-			t.Fatalf("%s route did not match", path)
-		}
-		want := "Collection not found"
-		if strings.Contains(path, "playlists") {
-			want = "Playlist not found"
-		}
-		if w.Code != http.StatusNotFound || w.Body.String() != want || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != expressUserETag([]byte(want)) {
-			t.Fatalf("%s status=%d headers=%v body=%q", path, w.Code, w.Header(), w.Body.String())
-		}
-	}
-}
-
 func TestDeleteMissingSessionUsesSendStatusNotFound(t *testing.T) {
 	db, user := userFixture(t)
 	defer db.Close()
@@ -207,21 +112,6 @@ func TestDeleteMalformedSessionIDMatchesUpstreamValidation(t *testing.T) {
 		t.Fatal("route did not match")
 	}
 	if w.Code != http.StatusBadRequest || w.Body.String() != "Bad Request" || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
-		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
-	}
-}
-
-func TestEmptyCollectionNameUsesExpressSend(t *testing.T) {
-	db, user := userFixture(t)
-	defer db.Close()
-	user.Permissions = json.RawMessage(`{"update":true,"accessAllLibraries":true}`)
-	h := newUserAPIForTest(db, config.Config{}, nil)
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest(http.MethodPost, "/api/collections", strings.NewReader(`{"name":"","libraryId":"lib1","books":["li1"]}`)), user) {
-		t.Fatal("route did not match")
-	}
-	const body = "Invalid collection data"
-	if w.Code != http.StatusBadRequest || w.Body.String() != body || w.Header().Get("Content-Type") != "text/html; charset=utf-8" || w.Header().Get("ETag") != expressUserETag([]byte(body)) {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
 }

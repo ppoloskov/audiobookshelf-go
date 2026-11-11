@@ -58,7 +58,15 @@ Repo: /Users/paul/projects/audiobookshelf-go/go-backend (module
 - Upstream-parity code kept only for a persisted value or a real client, with
   a one-line comment naming which.
 - Files by concern (handlers, queries, domain logic). Doc comment on every
-  exported identifier. Aim for well under half the old line count.
+  exported identifier.
+- **Size.** The new package's non-test lines must not exceed the old
+  packages you delete; smaller is the aim. Do not add features, validations
+  or mechanisms the old Go code lacked, even if upstream has them. Never
+  change client-visible behaviour to save lines. If you cannot stay within
+  the old size, stop and report which requirement prevents it.
+- **Parity on the final code.** The parity test must pass on the version you
+  hand in. If you restructure after it passed, run it again before deleting
+  the old package.
 
 ## Proof
 

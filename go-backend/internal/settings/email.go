@@ -25,12 +25,12 @@ type Email struct {
 
 // EreaderDevice is one e-reader a user may send ebooks to. AvailabilityOption
 // is adminOrUp, userOrUp, guestOrUp or specificUsers; empty means adminOrUp.
-// Users (user ids) matter only for specificUsers.
+// Users (user ids) matter only for specificUsers; it is never nil after reading or saving.
 type EreaderDevice struct {
 	Name               string   `json:"name"`
 	Email              string   `json:"email"`
 	AvailabilityOption string   `json:"availabilityOption,omitzero"`
-	Users              []string `json:"users,omitzero"`
+	Users              []string `json:"users"`
 }
 
 // Port is an SMTP port. Reading a stored row accepts a number or a numeric
@@ -68,6 +68,11 @@ func (e *Email) normalize() {
 	e.ID = EmailKey
 	if e.EreaderDevices == nil {
 		e.EreaderDevices = []EreaderDevice{}
+	}
+	for i := range e.EreaderDevices {
+		if e.EreaderDevices[i].Users == nil {
+			e.EreaderDevices[i].Users = []string{} // clients expect the key even when empty
+		}
 	}
 }
 

@@ -36,6 +36,19 @@ Updated 2026-11-11.
 - The admin wrapper also requires an active user; a non-boolean stored
   permission flag grants nothing.
 
+- Wave 3 so far (`list`, `share`, `metadata`, `notify`, `mail`): wrong JSON
+  types in a request body are a 400; error bodies are plain text; 5xx bodies
+  are fixed text. `share` fixes two old bugs (empty 200 for unknown feed
+  items; book episode pubDate in local time labelled GMT). Custom metadata
+  providers go through the SSRF guard.
+
+## Size, measured
+
+Typed rewrites of dense old code come out about the same size (Wave 3 so
+far: 6,205 old lines, 6,034 new). Expect real reductions only where the old
+code duplicates or emulates JavaScript, and from deleting the old shared
+packages and sqlc at the end.
+
 ## Known gaps to close
 
 - Upstream's CORS middleware has no Go equivalent (ROADMAP C1).

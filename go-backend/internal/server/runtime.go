@@ -26,24 +26,24 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/emailapi"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/identity"
 	"audiobookshelf-compat/internal/itemwrite"
 	"audiobookshelf-compat/internal/library"
-	"audiobookshelf-compat/internal/lists"
+	"audiobookshelf-compat/internal/list"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/notifications"
+	"audiobookshelf-compat/internal/mail"
+	"audiobookshelf-compat/internal/metadata"
+	"audiobookshelf-compat/internal/notify"
 	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/podcasts"
-	"audiobookshelf-compat/internal/providers"
 	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/scanner"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/sharing"
+	"audiobookshelf-compat/internal/share"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/userapi"
@@ -64,11 +64,11 @@ type Runtime struct {
 	scanner       *scanner.Scanner
 	audiotools    *audiotools.Handler
 	backup        *backup.Handler
-	emailapi      *emailapi.Handler
-	notifications *notifications.Handler
-	sharing       *sharing.Handler
+	emailapi      *mail.Handler
+	notifications *notify.Handler
+	share         *share.Handler
 	podcasts      *podcasts.Handler
-	providers     *providers.Handler
+	metadata      *metadata.Handler
 	routes        *http.ServeMux
 }
 
@@ -105,10 +105,8 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	if rt.identity, err = identity.New(sqlDB, cfg, emit); err != nil {
 		return rt, err
 	}
-	if rt.providers, err = providers.New(sqlDB, emit); err != nil {
-		return rt, err
-	}
-	rt.notifications = notifications.New(sqlDB, emit)
+	rt.metadata = metadata.New(rt.data, emit)
+	rt.notifications = notify.New(rt.settings, emit)
 	rt.podcasts = podcasts.New(sqlDB, cfg, emit, rt.notifications.TriggerEvent)
 	if rt.scanner, err = scanner.New(sqlDB, cfg, emit, filters); err != nil {
 		return rt, err
@@ -123,7 +121,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		Downloads:              rt.podcasts,
 		ItemChanged:            rt.scanner.WriteMetadata,
 		LibraryChanged:         libraryChanged,
-		Books:                  rt.providers,
+		Books:                  rt.metadata.Legacy(),
 		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
 		PodcastScheduleChanged: rt.podcasts.Reschedule,
 	})
@@ -149,10 +147,10 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		ItemChanged:   rt.catalog.ItemChanged,
 		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
-	rt.emailapi = emailapi.New(sqlDB, emit)
-	rt.sharing = sharing.New(sqlDB, cfg, emit)
+	rt.emailapi = mail.New(rt.data, rt.settings, emit)
+	rt.share = share.New(rt.data, emit, cfg.RouterBasePath)
 	rt.audiotools = audiotools.New(sqlDB, cfg, emit)
-	listHandler := lists.New(sqlDB, emit)
+	listHandler := list.New(rt.data, rt.settings, emit)
 
 	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
@@ -160,7 +158,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	rt.catalog.Routes(rt.routes)
 	people.New(sqlDB, cfg, emit, people.Deps{
 		Filters:       filters,
-		Authors:       rt.providers,
+		Authors:       rt.metadata.Legacy(),
 		WriteMetadata: rt.scanner.WriteMetadata,
 	}).Routes(rt.routes)
 	itemMetadataDir := ""
@@ -173,7 +171,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		LibraryChanged: libraryChanged,
 		ItemDeleter:    itemDeleter,
 	}).Routes(rt.routes)
-	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
+	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.metadata, rt.share, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}
 	logging.Default().SetSocketSink(func(socketID string, entry logging.Entry) {
@@ -216,10 +214,10 @@ func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
 		author, _ := payload["author"].(string)
 		provider, _ := payload["provider"].(string)
 		podcast, _ := payload["podcast"].(bool)
-		rt.providers.StartCoverSearch(providers.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
+		rt.metadata.StartCoverSearch(metadata.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
 	case "cancel_cover_search":
 		requestID, _ := action.Payload.(string)
-		rt.providers.CancelCoverSearch(requestID, action.Reply)
+		rt.metadata.CancelCoverSearch(requestID, action.Reply)
 	}
 	return nil
 }

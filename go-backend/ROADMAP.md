@@ -43,7 +43,7 @@ Mark a task `[x]` in the commit that completes it.
 
 ## Wave 3: domains (parallel, on the keystones)
 
-- [ ] **D1 `metadata`**: one typed result per search kind behind a small
+- [x] **D1 `metadata`**: one typed result per search kind behind a small
   provider interface. Replaces `providers`, `wire` match types.
 - [ ] **D2 `item` writes**: media PATCH, batch, relations, deletion, covers,
   files, quick match, `metadata.json` writer. Replaces `catalog`,
@@ -51,12 +51,12 @@ Mark a task `[x]` in the commit that completes it.
 - [ ] **D3 `library`**: libraries, browse, shelves, search, series, authors,
   narrators, stats, filter data. Replaces `library` (old), `people`,
   `filterdata`.
-- [ ] **D4 `list`**: collections and playlists. Replaces `lists`,
+- [x] **D4 `list`**: collections and playlists. Replaces `lists`,
   `playlistview`.
 - [ ] **D5 `playback`**: sessions, progress, bookmarks, listening stats, HLS,
   devices. Replaces `playback` (old), `progressdto`, `deviceinfo`, the
   progress half of `userapi`.
-- [ ] **D6 `share`**: shares and RSS feeds out with `encoding/xml`. Replaces
+- [x] **D6 `share`**: shares and RSS feeds out with `encoding/xml`. Replaces
   `sharing`, `feeds`.
 - [ ] **D7 `podcast`**: feed, creation, downloads, schedule, episodes.
   Replaces `podcasts`.
@@ -64,7 +64,7 @@ Mark a task `[x]` in the commit that completes it.
   Replaces `scanner`.
 - [ ] **D9 `user`**: account, users admin, API-key routes. Replaces the rest
   of `userapi`.
-- [ ] **D10 `admin`, `notify`, `backup`, `tools`**: replaces `adminops`,
+- [ ] **D10 `admin`, `notify`, `mail`, `backup`, `tools`** (`notify` and `mail` done): replaces `adminops`,
   `emailapi`, `notifications`, `backup` (old), `audiotools`.
 
 ## Wave 4: close

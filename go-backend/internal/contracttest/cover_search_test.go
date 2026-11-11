@@ -123,6 +123,7 @@ func createCustomProvider(t *testing.T, in *Install, token, url string) string {
 // TestCoverSearchSocket: a search_covers request gets a cover_search_result
 // with the provider's covers, then cover_search_complete.
 func TestCoverSearchSocket(t *testing.T) {
+	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1") // the custom provider fixture is on loopback
 	in := Boot(t)
 	token := in.Login(t, in.Users["root"].Username, in.Users["root"].Password)
 	source := startJourneyImageSource(t)
@@ -145,6 +146,7 @@ func TestCoverSearchSocket(t *testing.T) {
 // TestCoverSearchCancel: a cancelled search answers cover_search_cancelled and
 // sends nothing more, not even cover_search_complete.
 func TestCoverSearchCancel(t *testing.T) {
+	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1") // the custom provider fixture is on loopback
 	in := Boot(t)
 	token := in.Login(t, in.Users["root"].Username, in.Users["root"].Password)
 	// The provider never answers until the test ends, so the search is still

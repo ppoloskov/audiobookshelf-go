@@ -49,11 +49,11 @@ func TestListsRouteBaseline(t *testing.T) {
 		status                    int
 		media, responseBody       string
 	}{
-		{http.MethodPost, "/api/collections/" + collection + "/batch/add", root, `{"books":["missing-item"]}`, 400, "text/html", "Invalid request body. No valid books"},
-		{http.MethodPost, "/api/collections/" + collection + "/batch/add/", root, `{"books":["missing-item"]}`, 400, "text/html", "Invalid request body. No valid books"},
+		{http.MethodPost, "/api/collections/" + collection + "/batch/add", root, `{"books":["missing-item"]}`, 400, "text/plain", "Invalid request body. No valid books"},
+		{http.MethodPost, "/api/collections/" + collection + "/batch/add/", root, `{"books":["missing-item"]}`, 400, "text/plain", "Invalid request body. No valid books"},
 		{http.MethodPost, "/api/collections/" + collection + "/batch/add//", root, `{"books":["missing-item"]}`, 404, "text/plain", "Not Found"},
-		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add", listener, `{"items":[]}`, 400, "text/html", "Invalid request body items"},
-		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add/", listener, `{"items":[]}`, 400, "text/html", "Invalid request body items"},
+		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add", listener, `{"items":[]}`, 400, "text/plain", "Invalid request body items"},
+		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add/", listener, `{"items":[]}`, 400, "text/plain", "Invalid request body items"},
 		{http.MethodPost, "/api/playlists/" + playlist + "/batch/add//", listener, `{"items":[]}`, 404, "text/plain", "Not Found"},
 		{http.MethodHead, "/api/collections", root, "", 404, "text/plain", ""},
 		{http.MethodOptions, "/api/collections", root, "", 404, "text/plain", "Not Found"},
