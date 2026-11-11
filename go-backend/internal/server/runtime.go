@@ -20,9 +20,11 @@ import (
 	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/adminops"
 	"audiobookshelf-compat/internal/audiotools"
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/backup"
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/emailapi"
 	"audiobookshelf-compat/internal/events"
@@ -40,6 +42,7 @@ import (
 	"audiobookshelf-compat/internal/providers"
 	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/scanner"
+	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/sharing"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
@@ -50,6 +53,8 @@ import (
 type Runtime struct {
 	cfg           config.Config
 	db            *sql.DB
+	data          *db.DB          // the new data layer; rewritten packages use it
+	settings      *settings.Store // typed settings for rewritten packages
 	identity      *identity.Handler
 	realtime      *realtime.Hub
 	catalog       *catalog.Handler
@@ -71,30 +76,41 @@ func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method
 
 // newRuntime builds the handlers over db. The hub belongs to the manager and
 // survives a restore.
-func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
+func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
 	// A restored database may carry a different logLevel.
-	if settings, err := serversettings.Get(context.Background(), db); err == nil {
+	if settings, err := serversettings.Get(context.Background(), sqlDB); err == nil {
 		ApplyLoggingSettings(settings.Doc())
 	}
 	hub := m.hub
 	emit := events.Emitter(hub.Emit)
-	rt = &Runtime{cfg: cfg, db: db, realtime: hub}
+	rt = &Runtime{cfg: cfg, db: sqlDB, realtime: hub}
 	defer func() {
 		if err != nil {
 			rt.Close()
 			rt = nil
 		}
 	}()
+	rt.data = db.New(sqlDB)
+	if rt.settings, err = settings.NewStore(context.Background(), rt.data, os.Getenv, cfg.Dirs().Backups); err != nil {
+		return rt, err
+	}
+	// Transitional: old packages still save server settings through
+	// serversettings; keep the typed cache current until they are gone.
+	serversettings.SetOnSave(func(*sql.DB) {
+		if err := rt.settings.Reload(context.Background()); err != nil {
+			logging.Errorf("[Server] reload settings: %v", err)
+		}
+	})
 	filters := filterdata.NewCache()
-	if rt.identity, err = identity.New(db, cfg, emit); err != nil {
+	if rt.identity, err = identity.New(sqlDB, cfg, emit); err != nil {
 		return rt, err
 	}
-	if rt.providers, err = providers.New(db, emit); err != nil {
+	if rt.providers, err = providers.New(sqlDB, emit); err != nil {
 		return rt, err
 	}
-	rt.notifications = notifications.New(db, emit)
-	rt.podcasts = podcasts.New(db, cfg, emit, rt.notifications.TriggerEvent)
-	if rt.scanner, err = scanner.New(db, cfg, emit, filters); err != nil {
+	rt.notifications = notifications.New(sqlDB, emit)
+	rt.podcasts = podcasts.New(sqlDB, cfg, emit, rt.notifications.TriggerEvent)
+	if rt.scanner, err = scanner.New(sqlDB, cfg, emit, filters); err != nil {
 		return rt, err
 	}
 	libraryChanged := func(string) {
@@ -102,7 +118,7 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
 		}
 	}
-	rt.catalog = catalog.New(db, cfg, emit, catalog.Deps{
+	rt.catalog = catalog.New(sqlDB, cfg, emit, catalog.Deps{
 		Filters:                filters,
 		Downloads:              rt.podcasts,
 		ItemChanged:            rt.scanner.WriteMetadata,
@@ -111,18 +127,18 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 		PodcastEpisodes:        rt.podcasts.QuickMatchEpisodes,
 		PodcastScheduleChanged: rt.podcasts.Reschedule,
 	})
-	rt.playback = playback.New(db, cfg, emit)
-	if rt.userapi, err = userapi.New(db, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
+	rt.playback = playback.New(sqlDB, cfg, emit)
+	if rt.userapi, err = userapi.New(sqlDB, rt.identity, emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
 		return rt, err
 	}
-	stored, err := serversettings.Get(context.Background(), db)
+	stored, err := serversettings.Get(context.Background(), sqlDB)
 	if err != nil {
 		return rt, err
 	}
 	if rt.backup, err = backup.New(cfg, backupOptions(stored.Doc(), m), emit, rt.notifications.TriggerEvent); err != nil {
 		return rt, err
 	}
-	rt.adminops = adminops.New(db, cfg, emit, adminops.Deps{
+	rt.adminops = adminops.New(sqlDB, cfg, emit, adminops.Deps{
 		AfterWrite: func() { filters.Invalidate("") },
 		SettingsChanged: func(ctx context.Context, settings map[string]any) error {
 			if err := rt.backup.UpdateOptions(ctx, backupOptions(settings, m)); err != nil {
@@ -133,16 +149,16 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 		ItemChanged:   rt.catalog.ItemChanged,
 		WatcherUpdate: rt.scanner.UpdateWatchedPath,
 	})
-	rt.emailapi = emailapi.New(db, emit)
-	rt.sharing = sharing.New(db, cfg, emit)
-	rt.audiotools = audiotools.New(db, cfg, emit)
-	listHandler := lists.New(db, emit)
+	rt.emailapi = emailapi.New(sqlDB, emit)
+	rt.sharing = sharing.New(sqlDB, cfg, emit)
+	rt.audiotools = audiotools.New(sqlDB, cfg, emit)
+	listHandler := lists.New(sqlDB, emit)
 
 	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes)
-	people.New(db, cfg, emit, people.Deps{
+	people.New(sqlDB, cfg, emit, people.Deps{
 		Filters:       filters,
 		Authors:       rt.providers,
 		WriteMetadata: rt.scanner.WriteMetadata,
@@ -151,8 +167,8 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	if cfg.MetadataPath != "" {
 		itemMetadataDir = cfg.Dirs().Items
 	}
-	itemDeleter := itemwrite.Deleter{Env: itemwrite.Env{DB: db, Filters: filters, Emit: emit}, CoverCacheDir: cfg.Dirs().CoverCache, ItemMetadataDir: itemMetadataDir}
-	library.New(db, emit, library.Deps{
+	itemDeleter := itemwrite.Deleter{Env: itemwrite.Env{DB: sqlDB, Filters: filters, Emit: emit}, CoverCacheDir: cfg.Dirs().CoverCache, ItemMetadataDir: itemMetadataDir}
+	library.New(sqlDB, emit, library.Deps{
 		Filters:        filters,
 		LibraryChanged: libraryChanged,
 		ItemDeleter:    itemDeleter,
@@ -316,6 +332,14 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, user store
 	ctx := store.ContextWithUser(r.Context(), user)
 	if user.ID != "" {
 		ctx = access.WithRequest(ctx, user)
+		// Transitional: rewritten packages read the typed principal. The
+		// extra read goes when authentication moves to internal/auth (K3).
+		var row db.User
+		if err := rt.data.Get(ctx, &row, `SELECT * FROM users WHERE id = ?`, user.ID); err != nil {
+			httputil.Fail(w, r, httputil.Internal("database read failed", err))
+			return true
+		}
+		ctx = auth.WithUser(ctx, auth.NewPrincipal(row))
 	}
 	rt.routes.ServeHTTP(w, r.WithContext(ctx))
 	return true
