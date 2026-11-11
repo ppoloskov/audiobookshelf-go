@@ -35,7 +35,7 @@ func TestGuardPanicsAnswersLikeExpressFinalhandlerAndLogsStack(t *testing.T) {
 		t.Fatalf("finalhandler headers missing: %v", w.Header())
 	}
 	found := false
-	for _, e := range logging.Default().Recent() {
+	for _, e := range logging.Default().Entries() {
 		if e.LevelName == "ERROR" && strings.Contains(e.Message, "[HTTP] GET /api/items/abc: panic: boom") && strings.Contains(e.Message, "goroutine") {
 			found = true
 			if strings.Contains(e.Message, "secret") {
@@ -86,10 +86,10 @@ func TestGuardPanicsPassesThroughNormalResponses(t *testing.T) {
 func TestAccessLineIsDebugOnly(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
-	t.Cleanup(func() { l.ChangeLevel(before) })
+	t.Cleanup(func() { l.SetLevel(before) })
 	count := func() int {
 		n := 0
-		for _, e := range l.Recent() {
+		for _, e := range l.Entries() {
 			if strings.Contains(e.Message, "/access-line-probe") {
 				if e.Level != int(logging.LevelDebug) {
 					t.Fatalf("access line logged at level %d (%s), want DEBUG", e.Level, e.LevelName)
@@ -105,12 +105,12 @@ func TestAccessLineIsDebugOnly(t *testing.T) {
 	// The default logger's ring buffer outlives the test (go test -count=N runs
 	// it again in the same process), so count lines added by this run only.
 	seen := count()
-	l.ChangeLevel(logging.LevelInfo)
+	l.SetLevel(logging.LevelInfo)
 	serve()
 	if count()-seen != 0 {
 		t.Fatal("access line logged at INFO")
 	}
-	l.ChangeLevel(logging.LevelDebug)
+	l.SetLevel(logging.LevelDebug)
 	serve()
 	if got := count() - seen; got != 1 {
 		t.Fatalf("access lines at DEBUG = %d, want 1", got)
@@ -120,10 +120,10 @@ func TestAccessLineIsDebugOnly(t *testing.T) {
 func TestLivenessProbesAreTraceOnly(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
-	t.Cleanup(func() { l.ChangeLevel(before) })
+	t.Cleanup(func() { l.SetLevel(before) })
 	count := func(path string) int {
 		n := 0
-		for _, e := range l.Recent() {
+		for _, e := range l.Entries() {
 			if strings.Contains(e.Message, " "+path+" ") {
 				if want := int(logging.LevelDebug); path == "/other/request" && e.Level != want {
 					t.Fatalf("%s logged at level %s, want DEBUG", path, e.LevelName)
@@ -144,7 +144,7 @@ func TestLivenessProbesAreTraceOnly(t *testing.T) {
 	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping", "/other/request"} {
 		seen[path] = count(path)
 	}
-	l.ChangeLevel(logging.LevelDebug)
+	l.SetLevel(logging.LevelDebug)
 	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
 		serve(path)
 		if count(path)-seen[path] != 0 {
@@ -155,7 +155,7 @@ func TestLivenessProbesAreTraceOnly(t *testing.T) {
 	if got := count("/other/request") - seen["/other/request"]; got != 1 {
 		t.Fatalf("other requests stay at DEBUG: %d", got)
 	}
-	l.ChangeLevel(logging.LevelTrace)
+	l.SetLevel(logging.LevelTrace)
 	for _, path := range []string{"/healthcheck", "/ping", "/audiobookshelf/ping"} {
 		serve(path)
 		if count(path)-seen[path] != 1 {

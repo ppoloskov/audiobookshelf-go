@@ -10,7 +10,7 @@ import (
 
 func loggedMessages(prefix string) []string {
 	var out []string
-	for _, e := range logging.Default().Recent() {
+	for _, e := range logging.Default().Entries() {
 		if strings.HasPrefix(e.Message, prefix) {
 			out = append(out, e.LevelName+" "+e.Message)
 		}

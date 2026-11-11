@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	schemaassets "audiobookshelf-compat/contracts/parity"
 	"audiobookshelf-compat/internal/dbtime"
@@ -171,6 +172,13 @@ func icuZoneName(zone string) string {
 	return zone
 }
 
+var onSave atomic.Pointer[func(*sql.DB)]
+
+// SetOnSave registers fn to be called after every successful Save, so the
+// typed internal/settings Store can Reload while old code still writes the row.
+// Transitional: it goes with this package.
+func SetOnSave(fn func(*sql.DB)) { onSave.Store(&fn) }
+
 func Save(ctx context.Context, db *sql.DB, doc map[string]any) error {
 	b, err := json.Marshal(doc)
 	if err != nil {
@@ -183,6 +191,9 @@ func Save(ctx context.Context, db *sql.DB, doc map[string]any) error {
 	Invalidate(db)
 	if n, _ := res.RowsAffected(); n != 1 {
 		return errors.New("serversettings: server-settings row missing")
+	}
+	if fn := onSave.Load(); fn != nil {
+		(*fn)(db)
 	}
 	return nil
 }

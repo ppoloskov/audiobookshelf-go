@@ -19,8 +19,10 @@ import (
 func TestApplyLoggingSettings(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
-	t.Cleanup(func() { l.ChangeLevel(before); l.ApplySettings(0) })
-	ApplyLoggingSettings(map[string]any{"logLevel": float64(3)})
+	t.Cleanup(func() { l.SetLevel(before) })
+	if keep := ApplyLoggingSettings(map[string]any{"logLevel": float64(3), "loggerDailyLogsToKeep": float64(9)}); keep != 9 {
+		t.Fatalf("keep = %d, want 9", keep)
+	}
 	if l.Level() != logging.LevelWarn {
 		t.Fatalf("level = %v, want WARN", l.Level())
 	}

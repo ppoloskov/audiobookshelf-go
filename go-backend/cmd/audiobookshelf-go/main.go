@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -38,8 +37,8 @@ func fatal(format string, args ...any) {
 var buildCommit = "dev"
 
 func main() {
-	log.SetFlags(0)
-	log.SetOutput(logging.Default().Writer(logging.LevelInfo, "log"))
+	// The stdlib log package (INFO) and new code log through the handler.
+	slog.SetDefault(slog.New(logging.Default()))
 
 	cfg, err := config.LoadArgs(os.Args[1:])
 	if err != nil {
@@ -61,15 +60,15 @@ func main() {
 	logging.Infof("[Database] Db connection was successful (%s)", dbPath)
 	// Upstream applies logLevel when ServerSettings loads, then initializes
 	// the LogManager (server/Server.js:186).
+	dailyLogsToKeep := 0
 	if settings, settingsErr := serversettings.Get(context.Background(), db.DB()); settingsErr == nil {
-		server.ApplyLoggingSettings(settings.Doc())
+		dailyLogsToKeep = server.ApplyLoggingSettings(settings.Doc())
 	} else {
 		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
 	}
-	if err := logging.Default().OpenFiles(cfg.Dirs().Logs); err != nil {
+	if err := logging.Default().OpenFiles(cfg.Dirs().Logs, dailyLogsToKeep); err != nil {
 		logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
 	}
-	slog.SetDefault(slog.New(logging.SlogHandler())) // new code logs through log/slog
 	manager, err := server.NewManager(db, cfg)
 	if err != nil {
 		fatal("[Server] cannot start: %v", err)
@@ -77,7 +76,7 @@ func main() {
 	defer manager.Close()
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
 	srv := &http.Server{Addr: addr, Handler: manager, ReadHeaderTimeout: 10 * time.Second,
-		ErrorLog: log.New(logging.Default().Writer(logging.LevelError, "http"), "", 0)}
+		ErrorLog: slog.NewLogLogger(logging.Default(), slog.LevelError)}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

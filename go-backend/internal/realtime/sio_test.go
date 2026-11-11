@@ -51,18 +51,18 @@ func testServer(t *testing.T) *sioServer {
 		return nil
 	}
 	srv.hub = newTestHub(config.Config{RouterBasePath: "/abs"}, srv.backend)
-	logging.Default().BindSockets(func(_ string, e logging.LogEntry) {
+	logging.Default().SetSocketSink(func(_ string, e logging.Entry) {
 		if m := reasonRe.FindStringSubmatch(e.Message); m != nil {
 			srv.reasons <- logged{m[1], m[2]}
 		}
 	})
-	logging.Default().AddSocketListener("sio-test", logging.LevelInfo)
+	logging.Default().AddListener("sio-test", logging.LevelInfo)
 	server := httptest.NewServer(srv.hub)
 	t.Cleanup(func() {
 		server.Close()
 		srv.hub.Close()
-		logging.Default().RemoveSocketListener("sio-test")
-		logging.Default().BindSockets(nil)
+		logging.Default().RemoveListener("sio-test")
+		logging.Default().SetSocketSink(nil)
 	})
 	srv.url = "ws" + strings.TrimPrefix(server.URL, "http") + "/socket.io/?EIO=4&transport=websocket"
 	return srv

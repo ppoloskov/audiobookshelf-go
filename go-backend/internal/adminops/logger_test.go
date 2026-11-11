@@ -53,7 +53,7 @@ func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 	if w.Code != 500 || w.Body.String() != "database error" {
 		t.Fatalf("status %d body %q", w.Code, w.Body.String())
 	}
-	for _, e := range logging.Default().Recent() {
+	for _, e := range logging.Default().Entries() {
 		if e.LevelName == "ERROR" && strings.HasPrefix(e.Message, "[HTTP] PATCH /api/settings: database error: ") && strings.Contains(e.Message, "no such table: settings") {
 			return
 		}
@@ -64,7 +64,7 @@ func TestServerErrorLogsCauseAndKeepsResponse(t *testing.T) {
 func TestSettingsPatchLogLevelChangesLogger(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
-	t.Cleanup(func() { l.ChangeLevel(before) })
+	t.Cleanup(func() { l.SetLevel(before) })
 	h := New(adminopsDB(t), config.Config{}, nil, Deps{})
 	w := httptest.NewRecorder()
 	serve(h, w, httptest.NewRequest(http.MethodPatch, "/api/settings", strings.NewReader(`{"logLevel":4}`)), store.User{Type: "admin"})

@@ -33,12 +33,12 @@ Mark a task `[x]` in the commit that completes it.
 - [x] **K1 `item` read model**: one loader for items, books, podcasts and
   episodes; minified/full/expanded views as typed structs. Replaces `items`,
   `books`, `podcasts/read`, `mediafiles`.
-- [ ] **K2 `settings`**: typed server, email and notification documents with
+- [x] **K2 `settings`**: typed server, email and notification documents with
   atomic `Update`. Replaces `serversettings`, `emailsettings`, `settingsdoc`.
 - [ ] **K3 `auth` flows**: login, refresh, logout, init, API keys, OIDC on
   `x/oauth2`, the authentication middleware. Replaces `identity`, `auth`
   (old), `access`, `users`.
-- [ ] **K4 `logging`**: slog handler with console, daily files, ring buffer and
+- [x] **K4 `logging`**: slog handler with console, daily files, ring buffer and
   socket listeners. Replaces `logging`.
 
 ## Wave 3: domains (parallel, on the keystones)

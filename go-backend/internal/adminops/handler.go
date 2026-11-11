@@ -161,7 +161,7 @@ func (h *Handler) patchSettings(w http.ResponseWriter, r *http.Request) error {
 		if allowed[k] && !equalJSON(m[k], v) {
 			if level, isNumber := v.(float64); k == "logLevel" && isNumber {
 				// ServerSettings.update (ServerSettings.js:371)
-				logging.Default().ChangeLevel(logging.Level(int(level)))
+				logging.Default().SetLevel(logging.Level(int(level)))
 			}
 			m[k] = v
 			changed = true
@@ -342,7 +342,9 @@ func (h *Handler) validateCron(w http.ResponseWriter, r *http.Request) error {
 	return httputil.OK(w, r)
 }
 func (h *Handler) loggerData(w http.ResponseWriter, r *http.Request) error {
-	return httputil.JSON(w, r, logging.Default().LoggerData())
+	return httputil.JSON(w, r, struct {
+		CurrentDailyLogs []logging.Entry `json:"currentDailyLogs"`
+	}{logging.Default().Entries()})
 }
 
 func (h *Handler) purgeCache(w http.ResponseWriter, r *http.Request, itemsOnly bool) error {

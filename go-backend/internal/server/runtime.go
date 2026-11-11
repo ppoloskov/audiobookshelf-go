@@ -160,7 +160,7 @@ func newRuntime(db *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err err
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.providers, rt.sharing, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}
-	logging.Default().BindSockets(func(socketID string, entry logging.LogEntry) {
+	logging.Default().SetSocketSink(func(socketID string, entry logging.Entry) {
 		hub.EmitSocket(socketID, "log", entry)
 	})
 	if err = rt.scanner.Start(context.Background()); err != nil {
@@ -190,9 +190,9 @@ func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
 		if !ok {
 			return fmt.Errorf("invalid log listener level")
 		}
-		logging.Default().AddSocketListener(action.SocketID, logging.Level(level))
+		logging.Default().AddListener(action.SocketID, logging.Level(level))
 	case "remove_log_listener", "disconnect":
-		logging.Default().RemoveSocketListener(action.SocketID)
+		logging.Default().RemoveListener(action.SocketID)
 	case "search_covers":
 		payload, _ := action.Payload.(map[string]any)
 		requestID, _ := payload["requestId"].(string)
