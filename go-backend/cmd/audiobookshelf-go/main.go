@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -68,6 +69,7 @@ func main() {
 	if err := logging.Default().OpenFiles(cfg.Dirs().Logs); err != nil {
 		logging.Errorf("[LogManager] daily log files are unavailable: %v", err)
 	}
+	slog.SetDefault(slog.New(logging.SlogHandler())) // new code logs through log/slog
 	manager, err := server.NewManager(db, cfg)
 	if err != nil {
 		fatal("[Server] cannot start: %v", err)

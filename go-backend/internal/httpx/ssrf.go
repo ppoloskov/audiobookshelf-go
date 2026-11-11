@@ -1,0 +1,125 @@
+package httpx
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/netip"
+	"os"
+	"strings"
+	"time"
+)
+
+// filterPolicy is the SSRF exemption TS applies to every axios request
+// (server/Server.js, DisableSsrfRequestFilter): the filter is off entirely, or
+// the host is named in SSRF_REQUEST_FILTER_WHITELIST. The environment is read
+// once per client, never per request.
+type filterPolicy struct {
+	off       bool
+	proxy     bool // EXP_PROXY_SUPPORT: only 301 and 302 are followed
+	whitelist []string
+}
+
+func policyFromEnv() filterPolicy {
+	p := filterPolicy{proxy: os.Getenv("EXP_PROXY_SUPPORT") == "1"}
+	p.off = p.proxy || os.Getenv("DISABLE_SSRF_REQUEST_FILTER") == "1"
+	for _, host := range strings.Split(os.Getenv("SSRF_REQUEST_FILTER_WHITELIST"), ",") {
+		if host = strings.TrimSpace(host); host != "" {
+			p.whitelist = append(p.whitelist, host)
+		}
+	}
+	return p
+}
+
+func (p filterPolicy) exempt(host string) bool {
+	if p.off {
+		return true
+	}
+	for _, allowed := range p.whitelist {
+		if allowed == host {
+			return true
+		}
+	}
+	return false
+}
+
+var blockedPrefixes = func() []netip.Prefix {
+	var out []netip.Prefix
+	for _, raw := range []string{
+		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "192.88.99.0/24",
+		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
+		"2001:db8::/32", "2001:2::/48", "2001:3::/32", "2001:4:112::/48", "2001:10::/28",
+		"2001:20::/28", "64:ff9b::/96", "::ffff:0:0/96", "2002::/16", "2001::/32",
+	} {
+		out = append(out, netip.MustParsePrefix(raw))
+	}
+	return out
+}()
+
+// publicAddress is the one rule for what an outbound request may reach: global
+// unicast, not private, loopback, link-local or in a reserved range.
+func publicAddress(ip netip.Addr) bool {
+	if !ip.IsValid() || ip.Zone() != "" || ip.Is4In6() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+		return false
+	}
+	for _, prefix := range blockedPrefixes {
+		if prefix.Contains(ip) {
+			return false
+		}
+	}
+	return true
+}
+
+// NewSafeClient returns the outbound HTTP client for user-supplied URLs; it
+// reads the SSRF environment once, so build one per owner, not per request. The
+// public-address rule runs when each connection is dialed, so it covers the
+// first request and every redirect target (a redirect to a new host dials
+// again and is judged on its own host). It follows at most 5 redirects, like
+// axios. With EXP_PROXY_SUPPORT=1 TS sets axios maxRedirects to 0 and re-issues
+// only 301 and 302 responses itself (server/Server.js:89-104), so any other
+// redirect status is the final, failing response. There is no overall timeout:
+// callers bound a request with its context.
+func NewSafeClient() *http.Client {
+	policy := policyFromEnv()
+	dialer := &net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second}
+	transport := &http.Transport{
+		ResponseHeaderTimeout: 30 * time.Second,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(address)
+			if err != nil {
+				return nil, err
+			}
+			if policy.exempt(host) {
+				return dialer.DialContext(ctx, network, address)
+			}
+			ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+			if err != nil {
+				return nil, err
+			}
+			lastErr := errors.New("host resolved to no addresses")
+			for _, ip := range ips {
+				if !publicAddress(ip) {
+					lastErr = fmt.Errorf("call to %s is blocked", ip)
+					continue
+				}
+				conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+				if dialErr == nil {
+					return conn, nil
+				}
+				lastErr = dialErr
+			}
+			return nil, lastErr
+		},
+	}
+	return &http.Client{Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if code := req.Response.StatusCode; policy.proxy && code != http.StatusMovedPermanently && code != http.StatusFound {
+			return http.ErrUseLastResponse
+		}
+		if len(via) > 5 {
+			return errors.New("stopped after 5 redirects")
+		}
+		return nil
+	}}
+}
