@@ -13,9 +13,13 @@ AGENTS, ROADMAP and handover current with each accepted packet.
 
 # Go engineering rules
 
-This is a compat layer: HTTP behaviour must match upstream Audiobookshelf. When
-you change code, preserve routes, status codes, messages and JSON shapes unless
-told otherwise. If you must change behaviour, say so explicitly in the PR.
+Two contracts are fixed: the SQLite database stays compatible with upstream
+v2.37.2, and existing clients keep working (routes, the JSON fields and types
+they read, the statuses they branch on, Socket.IO events). Everything else is
+ours to design; see go-backend/ARCHITECTURE.md for the quirk policy. Where a
+rule below mentions matching upstream or JavaScript behaviour, it applies only
+when one of the two contracts needs it. State every behaviour change in your
+report.
 
 ## 1. Types over maps
 - Never model a document as `map[string]any` plus string-key loops. Use a struct
