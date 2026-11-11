@@ -27,6 +27,15 @@ Updated 2026-11-11.
   packages coexist.
 - The in-repo Socket.IO transport stays (websocket only, about 470 lines).
 
+## Accepted behaviour changes
+
+- `item` views emit every key of the typed audio/library/ebook file
+  documents; a stored file that lacked a key now shows it with its zero value.
+- A JSON column that does not decode into its Go type reads as empty and is
+  logged; it is written back unchanged until code assigns a new value.
+- The admin wrapper also requires an active user; a non-boolean stored
+  permission flag grants nothing.
+
 ## Known gaps to close
 
 - Upstream's CORS middleware has no Go equivalent (ROADMAP C1).

@@ -155,6 +155,24 @@ func TestJSONScan(t *testing.T) {
 	}
 }
 
+// TestJSONKeepsUndecodableText: a cell Go cannot decode is written back as
+// stored until V is assigned, so a rewrite never destroys it.
+func TestJSONKeepsUndecodableText(t *testing.T) {
+	for _, stored := range []string{"[not json", `[{"exclude":1}]`, `{"a":1}`} {
+		var j db.JSON[[]string]
+		if err := j.Scan(stored); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := j.Value(); err != nil || got != stored {
+			t.Fatalf("Value() of unread %q = %#v, %v; want it unchanged", stored, got, err)
+		}
+		j.V = []string{"new"}
+		if got, _ := j.Value(); got != `["new"]` {
+			t.Fatalf("Value() after assignment = %#v", got)
+		}
+	}
+}
+
 type doc struct {
 	N int    `json:"n"`
 	S string `json:"s,omitempty"`

@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
@@ -118,14 +119,20 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 // JSON is a JSON-typed TEXT column holding a document of type T.
 //
 // Scan reads NULL, empty text and malformed JSON as the zero T without error:
-// one corrupt cell must not fail a whole listing.
+// one corrupt cell must not fail a whole listing. Text that does not decode
+// into T (corrupt, or a shape this server does not model) is kept and written
+// back unchanged as long as V is still the zero T, so rewriting the row never
+// destroys data Go could not read; assigning V replaces it.
 //
 // Value writes compact JSON as a string, never []byte, because the driver binds
 // []byte as a BLOB and that would corrupt a TEXT column. A nil slice, nil map,
 // nil pointer, nil interface or empty json.RawMessage is written as NULL, so a
 // column that was NULL reads and writes back as NULL when T is one of those
 // types; any other T (a struct, a number) is always written as JSON text.
-type JSON[T any] struct{ V T }
+type JSON[T any] struct {
+	V       T
+	invalid string // stored text that did not decode into T
+}
 
 // Scan implements sql.Scanner for NULL, string and []byte sources.
 func (j *JSON[T]) Scan(src any) error {
@@ -140,17 +147,24 @@ func (j *JSON[T]) Scan(src any) error {
 		return fmt.Errorf("db.JSON: cannot scan %T", src)
 	}
 	var value T
+	j.invalid = ""
 	text = bytes.TrimSpace(text)
 	if len(text) > 0 && json.Unmarshal(text, &value) != nil {
 		var zero T
 		value = zero // malformed or mistyped JSON reads as the zero value
+		j.invalid = string(text)
+		slog.Warn("db: JSON column does not decode; kept as stored", "type", reflect.TypeFor[T]().String(), "text", truncate(j.invalid, 120))
 	}
 	j.V = value
 	return nil
 }
 
-// Value implements driver.Valuer; see JSON for the NULL rule.
+// Value implements driver.Valuer; see JSON for the NULL rule and for text
+// that did not decode.
 func (j JSON[T]) Value() (driver.Value, error) {
+	if j.invalid != "" && reflect.ValueOf(&j.V).Elem().IsZero() {
+		return j.invalid, nil
+	}
 	switch v := any(j.V).(type) {
 	case nil:
 		return nil, nil
@@ -182,6 +196,13 @@ func (j JSON[T]) MarshalJSON() ([]byte, error) { return json.Marshal(j.V) }
 
 // UnmarshalJSON delegates to V.
 func (j *JSON[T]) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, &j.V) }
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
 
 // Bool is a TINYINT(1) column. NULL reads as false and false writes as 0, so a
 // Go rewrite turns a NULL flag into 0, which upstream reads as the same falsy

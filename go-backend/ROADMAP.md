@@ -30,7 +30,7 @@ Mark a task `[x]` in the commit that completes it.
 
 ## Wave 2: keystones (parallel)
 
-- [ ] **K1 `item` read model**: one loader for items, books, podcasts and
+- [x] **K1 `item` read model**: one loader for items, books, podcasts and
   episodes; minified/full/expanded views as typed structs. Replaces `items`,
   `books`, `podcasts/read`, `mediafiles`.
 - [ ] **K2 `settings`**: typed server, email and notification documents with
