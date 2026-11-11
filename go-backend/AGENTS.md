@@ -22,12 +22,19 @@ rules are in the root [agents.md](../agents.md).
    fix it.
 3. New code imports the foundation (`db`, `httpx`, `auth`, `settings`,
    `events`, `log/slog`) and never the old shared packages listed under
-   "Transition" in ARCHITECTURE.md, unless the brief allows one by name.
+   "Transition" in ARCHITECTURE.md, unless the brief allows one by name. The
+   small leaf packages (`textsort`, `textclean`, `nameparse`, `textdist`,
+   `filekind`, `mediatools`, `config`, `events`, `version`, `cronspec`) are
+   fine: they are merged into `text` and `media` at the end.
 4. Follow the quirk policy: keep a behaviour only for a persisted value or a
    real client. When unsure, look at `../client` and
    `contracts/mobile-client-audit.md`, then choose the simple behaviour and
    list it in your report.
-5. Port the old package's HTTP-level tests to the new package. Drop a test
+5. While the old package still exists, prove the new one against it: a
+   temporary `*_parity_test.go` runs the same well-formed request (or loader
+   call) through old and new code on `dbtest.Fixture` and compares JSON by
+   value, and for writes the resulting rows. It is deleted with the old
+   package. Also port the old package's HTTP-level tests to the new package. Drop a test
    that only pins JavaScript emulation or an unexported helper, and list
    every dropped test with the reason.
 6. Compare JSON by value, never by bytes.

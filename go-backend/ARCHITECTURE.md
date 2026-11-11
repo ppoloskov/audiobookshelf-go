@@ -96,7 +96,7 @@ db         open/validate/bootstrap, DB handle, column types, row and document st
 media      ffprobe/ffmpeg, file kinds, image resize
 httpx      Handler, JSON in/out, errors, ETag, file serving, SSRF-safe client
 text       sort keys and collation, name parsing, HTML sanitising, edit distance
-log        slog handler: console, daily files, ring buffer, socket listeners
+logging    slog handler: console, daily files, ring buffer, socket listeners
 config     flags and environment, directory layout
 ```
 
@@ -127,8 +127,11 @@ d.Tx(ctx, func(ctx context.Context) error { ... })  // calls with this ctx join 
 - `db.JSON[T]` reads NULL and malformed text as the zero `T`, and writes TEXT,
   never a BLOB.
 - Large `IN` lists are chunked by the caller with `slices.Chunk(ids, 500)`.
-- Never write `libraryItems.title`, `titleIgnorePrefix` or `authorNames*`:
-  triggers copy them from books and authors.
+- `libraryItems.title`, `titleIgnorePrefix` and `authorNames*` are set when
+  the item is inserted; afterwards triggers copy them from books and authors
+  and `Update` refuses to write them.
+- Tests get a database from `dbtest.New(t)` (empty pinned schema) or
+  `dbtest.Fixture(t)` (a copy of the upstream-created fixture install).
 
 ### httpx
 
