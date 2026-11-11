@@ -2,16 +2,35 @@ package realtime
 
 import (
 	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/items"
 )
 
-// accessor is implemented by the typed item payloads (items.Expanded, ...).
+// accessor is implemented by the typed item payloads of the old items package
+// (items.Expanded, ...).
 type accessor interface{ Access() access.Access }
+
+// itemAccessor is implemented by the typed item views of the new item package.
+type itemAccessor interface{ Access() item.Access }
+
+func itemAllowed(g *access.Permissions, a item.Access) bool {
+	return g.Item(access.Access{LibraryID: a.LibraryID, Explicit: a.Explicit, Tags: a.Tags})
+}
 
 func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
 	out := make([]T, 0, len(values))
 	for _, v := range values {
 		if g.Item(v.Access()) {
+			out = append(out, v)
+		}
+	}
+	return out, len(out) > 0
+}
+
+func filterItems[T itemAccessor](g *access.Permissions, values []T) (any, bool) {
+	out := make([]T, 0, len(values))
+	for _, v := range values {
+		if itemAllowed(g, v.Access()) {
 			out = append(out, v)
 		}
 	}
@@ -26,6 +45,9 @@ func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
 func payloadAccessible(g *access.Permissions, payload any) bool {
 	if a, ok := payload.(accessor); ok {
 		return g.Item(a.Access())
+	}
+	if a, ok := payload.(itemAccessor); ok {
+		return itemAllowed(g, a.Access())
 	}
 	metadata, ok := payload.(map[string]any)
 	if !ok {
@@ -49,6 +71,12 @@ func payloadForUser(g *access.Permissions, payload any) (any, bool) {
 		return filter(g, values)
 	case []items.Full:
 		return filter(g, values)
+	case []item.Expanded:
+		return filterItems(g, values)
+	case []item.Minified:
+		return filterItems(g, values)
+	case []item.Full:
+		return filterItems(g, values)
 	case []any:
 		filtered := make([]any, 0, len(values))
 		restricted := false
@@ -73,6 +101,9 @@ func payloadForUser(g *access.Permissions, payload any) (any, bool) {
 // typed item or a map with a libraryId.
 func hasAccessMetadata(raw any) bool {
 	if _, ok := raw.(accessor); ok {
+		return true
+	}
+	if _, ok := raw.(itemAccessor); ok {
 		return true
 	}
 	item, ok := raw.(map[string]any)
