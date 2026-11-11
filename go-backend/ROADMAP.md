@@ -17,15 +17,15 @@ Mark a task `[x]` in the commit that completes it.
 
 ## Wave 1: foundation
 
-- [ ] **F1 `db`**: `DB` handle over sqlx with context transactions, `Time`,
+- [x] **F1 `db`**: `DB` handle over sqlx with context transactions, `Time`,
   `JSON[T]`, `Bool`, a row struct for all 26 tables, a struct for every
   JSON-column document, `Insert`/`Update`. Tests: every struct against the
   pinned schema; every JSON cell of the fixture database round-trips by value.
-- [ ] **F2 `httpx`**: `Handler`, `Error`, `JSON`, `Decode[T]`, query helpers,
+- [x] **F2 `httpx`**: `Handler`, `Error`, `JSON`, `Decode[T]`, query helpers,
   file serving, the SSRF-safe client.
-- [ ] **F3 `auth` core**: `Principal` from a `db.User`, typed permissions and
+- [x] **F3 `auth` core**: `Principal` from a `db.User`, typed permissions and
   their decisions, `MediaClause`, context accessors, `Admin` wrapper.
-- [ ] **F4 slog bridge**: `log/slog` default handler feeding the existing log
+- [x] **F4 slog bridge**: `log/slog` default handler feeding the existing log
   pipeline, so new code logs with slog from day one.
 
 ## Wave 2: keystones (parallel)
@@ -38,7 +38,7 @@ Mark a task `[x]` in the commit that completes it.
 - [ ] **K3 `auth` flows**: login, refresh, logout, init, API keys, OIDC on
   `x/oauth2`, the authentication middleware. Replaces `identity`, `auth`
   (old), `access`, `users`.
-- [ ] **K4 `log`**: slog handler with console, daily files, ring buffer and
+- [ ] **K4 `logging`**: slog handler with console, daily files, ring buffer and
   socket listeners. Replaces `logging`.
 
 ## Wave 3: domains (parallel, on the keystones)
