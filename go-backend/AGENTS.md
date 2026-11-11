@@ -9,7 +9,8 @@ rules are in the root [agents.md](../agents.md).
 
 - The architect (an expensive model) designs, writes task briefs, reviews
   diffs and commits.
-- Workers (cheap models) execute one brief each. A worker does not commit,
+- Workers run on Sonnet or a cheaper model at medium effort and execute one
+  brief each. A worker does not commit,
   push, add dependencies or change files outside its write set.
 
 ## Rules for a worker
