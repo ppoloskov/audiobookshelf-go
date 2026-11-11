@@ -1,211 +1,161 @@
-<br />
-<div align="center">
-   <img alt="Audiobookshelf Banner" src="https://github.com/advplyr/audiobookshelf/raw/master/images/banner.svg" width="600">
+# Audiobookshelf Go
 
-  <p align="center">
-    <br />
-    <a href="https://audiobookshelf.org/docs">Documentation</a>
-    ·
-    <a href="https://audiobookshelf.org/support">Support</a>
-    ·
-    <a href="https://audiobooks.dev/">Demo</a>
-  </p>
-</div>
+**Audiobookshelf, powered by a Go server.** A drop-in server replacement for [Audiobookshelf](https://github.com/advplyr/audiobookshelf) **v2.37.2**, retaining the familiar web interface and existing library data.
 
-## ⚠️ Frontend pull requests are not being reviewed or merged for the existing Vue frontend. The frontend is currently being rewritten and migrated to React and should be available soon.
+[![Container](https://img.shields.io/badge/GHCR-audiobookshelf--go-blue)](https://github.com/ppoloskov/audiobookshelf-go/pkgs/container/audiobookshelf-go)
 
-# About
+> **Independent, experimental rewrite.** Not affiliated with or endorsed by the upstream Audiobookshelf project. This project targets v2.37.2 compatibility; mobile-client and edge-case verification is still in progress. Back up your installation before switching.
 
-## Go backend rewrite
+## Why this exists
 
-This checkout also contains an experimental Go rewrite of the server, targeting
-drop-in replacement of pinned v2.37.2. See [go-backend/README.md](go-backend/README.md);
-agents start at [agents.md](agents.md). Simplification preserves implemented
-functionality, including server backups/restore and manual audio conversion and
-embedding. The proposed D02 feature cuts were withdrawn before publication. The current
-[roadmap](go-backend/ROADMAP.md) proposes compatibility-first work; the
-[handover](go-backend/handover.md) records actual checks and open risks.
-Architecture/planning/review belong to the architect; bounded execution goes
-to cheap capable workers. Preserve database/rollback and real client semantics;
-byte parity and a numerical line-reduction target are not product gates.
-The [test/oracle/corpus implementation](go-backend/TEST-COMPATIBILITY-IMPLEMENTATION.md)
-separates representation diagnostics from client/data gates, with assertion-level
-traceability and explicit validation/skips. Production behavior is unchanged.
-All development is on `master`; reviewed ready commits are pushed to this fork.
+[Audiobookshelf](https://github.com/advplyr/audiobookshelf) has always been my favourite self-hosted app. I've consistently voted for it in the [selfh.st](https://selfh.st/) surveys. It is an excellent piece of software, and I'm grateful to its maintainers and contributors for building something I genuinely enjoy using.
 
-Audiobookshelf is a self-hosted audiobook and podcast server.
+I've never been particularly enthusiastic about TypeScript, the complexity and potential dependency headaches of the npm ecosystem, or the resource overhead that can accompany a Node.js server. That's a personal preference, not a criticism of the people who built Audiobookshelf or a claim that Go is automatically faster.
 
-### Features
+This rewrite is an experiment: **how far can we simplify and optimize the Audiobookshelf server without sacrificing what makes the original great?** Can it use less memory, start faster, do less work per request, and ship in a smaller, simpler runtime? Those are questions to measure, not improvements to assume.
 
-- Fully **open-source**, including the [android & iOS app](https://github.com/advplyr/audiobookshelf-app) _(in beta)_
-- Stream all audio formats on the fly
-- Search and add podcasts to download episodes w/ auto-download
-- Multi-user support w/ custom permissions
-- Keeps progress per user and syncs across devices
-- Auto-detects library updates, no need to re-scan
-- Upload books and podcasts w/ bulk upload drag and drop folders
-- Backup your metadata + automated daily backups
-- Progressive Web App (PWA)
-- Chromecast support on the web app and android app
-- Fetch metadata and cover art from several sources
-- Chapter editor and chapter lookup (using [Audnexus API](https://audnex.us/))
-- Merge your audio files into a single m4b
-- Embed metadata and cover image into your audio files
-- Basic ebook support and ereader
-  - Epub, pdf, cbr, cbz
-  - Send ebook to device (i.e. Kindle)
-- Open RSS feeds for podcasts and audiobooks
+All credit for Audiobookshelf's product, interface, and original functionality belongs to the upstream project and its contributors.
 
-Is there a feature you are looking for? [Suggest it](https://github.com/advplyr/audiobookshelf/issues/new/choose)
+## An AI-assisted engineering experiment
 
-Join us on [Discord](https://discord.gg/HQgCbd6E75)
+**This project is heavily AI-assisted.** AI coding agents contribute substantial work: exploring upstream behavior, implementing and refactoring Go code, writing tests, and investigating regressions. I set the direction and compatibility requirements, make architecture and scope decisions, and review the results. It is also an experiment in how far agent-assisted development can go on a real application with years of accumulated behavior.
 
-### Demo
+AI-generated code is not treated as correct merely because it compiles or looks plausible. The project is built around a reference implementation, explicit compatibility contracts, reproducible tests, and rollback checks. These provide evidence, not a guarantee that every bug has been found.
 
-Check out the web client demo: https://audiobooks.dev/ (thanks for hosting [@Vito0912](https://github.com/Vito0912)!)
+### The upstream server is the oracle
 
-Username/password: `demo`/`demo` (user account)
+Audiobookshelf **v2.37.2**, pinned to upstream commit [`edb1f7e`](https://github.com/advplyr/audiobookshelf/commit/edb1f7efc92ecacdef51aafb4d9d5054ce10604f), is the behavioral reference. When an API response, database value, or lifecycle transition is unclear, we inspect the original source and, where useful, run the original TypeScript server against disposable fixtures to find out what actually happens.
 
-### Android App (beta)
+The oracle defines the **meaning of externally observable behavior**, not how the Go code must be structured. We do not aim for byte-for-byte copies of incidental JSON formatting, internal abstractions, or unconsumed error wording. We do preserve the semantics that clients and stored data depend on.
 
-Try it out on the [Google Play Store](https://play.google.com/store/apps/details?id=com.audiobookshelf.app)
+### Tests protect the contract
 
-### iOS App (beta)
+The test strategy uses several complementary layers:
 
-**Beta is currently full. Apple has a hard limit of 10k beta testers. Updates will be posted in Discord.**
+- **Go tests** exercise API behavior, authentication, data operations, playback and progress, scanning and deletion, podcasts, real-time events, and other functional and lifecycle cases.
+- **Persistence tests** protect the SQLite schema and the meaning of stored values; the Go server must read existing v2.37.2 data without an implicit migration.
+- **Rollback integration tests** start the pinned TypeScript server on state written by Go, checking that progress, bookmarks, and sessions remain readable. These are required to publish an image.
+- **Differential and browser tests** run comparable journeys against the original and rewritten servers, including the unchanged web client. They provide useful diagnostic evidence, but the legacy differential suite is advisory rather than a release gate.
+- **CI checks** build, vet, test, enforce selected architectural constraints, and cross-compile for arm64 before publishing multi-platform images.
 
-Using Test Flight: https://testflight.apple.com/join/wiic7QIW **_(beta is full)_**
+Coverage is still incomplete, particularly for real mobile devices and some edge cases. Passing CI means the defined checks passed; it does not mean every Audiobookshelf behavior has been proven equivalent.
 
-<br />
+### Architecture: preserve the edges, simplify the middle
 
-<img alt="Library Screenshot" src="https://github.com/advplyr/audiobookshelf/raw/master/images/DemoLibrary.png" />
+Two boundaries are deliberately fixed:
 
-<br />
+1. **Stored data:** the v2.37.2 SQLite schema, value formats, and `/config` and `/metadata` layouts must remain compatible, including the ability to roll back to upstream.
+2. **Client behavior:** HTTP APIs, authentication, Socket.IO events, streaming and range semantics, and the fields and state transitions clients actually use must keep working.
 
-# Organizing your media
+Inside those boundaries, the implementation is free to be idiomatic Go rather than a translation of TypeScript or Express. The goals are fewer moving parts, clear ownership of behavior, well-supported libraries where they remove complexity, a `CGO_ENABLED=0` server, no Node.js at runtime, and measurable performance improvements. We preserve features—including backup/restore and audio tooling—rather than cutting functionality to produce attractive code-size numbers.
 
-#### Directory structure and folder names are important to Audiobookshelf!
+See the [architecture](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ARCHITECTURE.md), [test approach](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/TEST-COMPATIBILITY-IMPLEMENTATION.md), and [roadmap](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ROADMAP.md) for the detailed contracts, evidence, and outstanding work.
 
-See [library docs](https://audiobookshelf.org/docs/category/libraries) for supported directory structures, folder naming conventions, and audio file metadata usage.
+## What changes?
 
-<br />
+- **Go instead of Node.js** for the server; the shipped runtime doesn't require Node.
+- **Existing interface:** bundles the unmodified Audiobookshelf v2.37.2 web client.
+- **Existing data:** preserves the v2.37.2 SQLite schema, `/config`, `/metadata`, libraries, user data, and playback-progress formats.
+- **Existing protocols:** implements the HTTP API, authentication and Socket.IO behavior used by clients.
+- **Container-friendly:** Alpine runtime with FFmpeg, ffprobe, timezone data and an HTTP health check.
+- **Multi-platform:** Linux `amd64` and `arm64` images.
 
-# Installation
+This is a backend rewrite, **not** a separate application with a new database or frontend. Compatibility is an ongoing engineering goal, not a claim that every third-party mobile client is fully validated.
 
-See [install docs](https://audiobookshelf.org/docs/category/installation)
+## Quick start with Docker Compose
 
-<br />
+Create `compose.yaml`:
 
-# Reverse Proxy Set Up
-
-#### Important! Audiobookshelf requires a websocket connection.
-
-#### Note: Using a subfolder is supported with no additional changes but the path must be `/audiobookshelf` (this is not changeable). See [discussion](https://github.com/advplyr/audiobookshelf/discussions/3535)
-
-See [reverse proxy docs](https://audiobookshelf.org/docs/category/reverse-proxy)
-
-<br />
-
-# Contributing
-
-See [contributing docs](https://audiobookshelf.org/docs/contributing/general/)
-
-### Localization
-
-Thank you to [Weblate](https://hosted.weblate.org/engage/audiobookshelf/) for hosting our localization infrastructure pro-bono. If you want to see Audiobookshelf in your language, please help us localize. Additional information on helping with the translations [here](https://www.audiobookshelf.org/faq#how-do-i-help-with-translations). <a href="https://hosted.weblate.org/engage/audiobookshelf/"> <img src="https://hosted.weblate.org/widget/audiobookshelf/abs-web-client/multi-auto.svg" alt="Translation status" /> </a>
-
-<br />
-
-# Run from source
-
-This application is built using [NodeJs](https://nodejs.org/).
-
-### Dev Container Setup
-
-The easiest way to begin developing this project is to use a dev container. An introduction to dev containers in VSCode can be found [here](https://code.visualstudio.com/docs/devcontainers/containers).
-
-Required Software:
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [VSCode](https://code.visualstudio.com/download)
-
-_Note, it is possible to use other container software than Docker and IDEs other than VSCode. However, this setup is more complicated and not covered here._
-
-<div>
-<details>
-<summary>Install the required software on Windows with <a href=(https://docs.microsoft.com/en-us/windows/package-manager/winget/#production-recommended)>winget</a></summary>
-
-<p>
-Note: This requires a PowerShell prompt with winget installed.  You should be able to copy and paste the code block to install.  If you use an elevated PowerShell prompt, UAC will not pop up during the installs.
-
-```PowerShell
-winget install -e --id Docker.DockerDesktop; `
-winget install -e --id Microsoft.VisualStudioCode
+```yaml
+services:
+  audiobookshelf:
+    image: ghcr.io/ppoloskov/audiobookshelf-go:latest
+    ports:
+      - "13378:80"
+    volumes:
+      - ./config:/config
+      - ./metadata:/metadata
+      - ./audiobooks:/audiobooks
+      - ./podcasts:/podcasts
+    restart: unless-stopped
 ```
 
-</p>
-</details>
-</div>
+Start it:
 
-<div>
-<details>
-<summary>Install the required software on MacOS with <a href=(https://snapcraft.io/)>homebrew</a></summary>
-
-<p>
-
-```sh
-brew install --cask docker visual-studio-code
+```bash
+docker compose up -d
 ```
 
-</p>
-</details>
-</div>
+Open **http://localhost:13378** or `http://<your-server>:13378`.
 
-<div style="padding-bottom: 1em">
-<details>
-<summary>Install the required software on Linux with <a href=(https://brew.sh/)>snap</a></summary>
+For reproducible deployments, prefer a published version or `sha-...` tag over `latest`. The container publishes Linux `amd64` and `arm64` variants.
 
-<p>
+## Switching from an existing Audiobookshelf installation
 
-```sh
-sudo snap install docker; \
-sudo snap install code --classic
+The intended migration is to **replace the container image while keeping the same ports and volume mounts**.
+
+1. Make sure the original installation has been started successfully on **upstream Audiobookshelf v2.37.2**. The Go server does **not** automatically migrate an older or newer SQLite database schema.
+2. Stop the original container. Do **not** run the TypeScript and Go servers against the same writable `/config` or `/metadata` trees.
+3. Back up **both `/config` and `/metadata`**. If backing up a live SQLite database, use SQLite's backup API or stop the server before copying so WAL data is not missed.
+4. Change only the image in your existing Compose file to `ghcr.io/ppoloskov/audiobookshelf-go:latest` (or a pinned tag), and start it.
+5. Check `/healthcheck`, sign in, verify libraries and progress, and test the clients you depend on before retiring your backup.
+
+An incompatible existing database migration level causes the Go server to refuse startup rather than silently change the database.
+
+### Rollback
+
+Stop the Go container and restore the upstream v2.37.2 image, keeping the same mounts. Automated CI includes a rollback test verifying that the upstream server can reopen Go-written state. Restore your backup if you need to discard changes made after the switch.
+
+## Configuration
+
+The image uses the same core runtime paths and port as the original Docker deployment:
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `80` | HTTP listener port inside the container |
+| `CONFIG_PATH` | `/config` | Database and configuration directory |
+| `METADATA_PATH` | `/metadata` | Covers, cache, logs, backups and related metadata |
+| `SOURCE` | `docker` | Deployment source identifier |
+| `ABS_GO_CLIENT_PATH` | `/app/client/dist` | Bundled web client location |
+| `ROUTER_BASE_PATH` | `/audiobookshelf` | Optional base-path routing, as in upstream |
+
+The image includes a health check at `GET /healthcheck`. Logs are written to the console and to the upstream-compatible log directory under `/metadata/logs`.
+
+If you're using a reverse proxy, preserve WebSocket forwarding for client realtime connections.
+
+## Build from source
+
+To build the published-style image from this repository's current source layout:
+
+```bash
+git clone https://github.com/ppoloskov/audiobookshelf-go.git
+cd audiobookshelf-go
+docker build -f Dockerfile.go -t audiobookshelf-go:local .
 ```
 
-</p>
-</details>
-</div>
+To build the Go server without Docker (Go version from `go-backend/go.mod` and FFmpeg/ffprobe are required):
 
-After installing these packages, you can now install the [Remote Development](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) extension for VSCode. After installing this extension open the command pallet (`ctrl+shift+p` or `cmd+shift+p`) and select the command `>Dev Containers: Rebuild and Reopen in Container`. This will cause the development environment container to be built and launched.
-
-You are now ready to start development!
-
-### Manual Environment Setup
-
-If you don't want to use the dev container, you can still develop this project. First, you will need to install [NodeJs](https://nodejs.org/) (version 24) and [FFmpeg](https://ffmpeg.org/).
-
-Next you will need to create a `dev.js` file in the project's root directory. This contains configuration information and paths unique to your development environment. You can find an example of this file in `.devcontainer/dev.js`.
-
-You are now ready to build the client:
-
-```sh
-npm ci
-cd client
-npm ci
-npm run generate
-cd ..
+```bash
+cd go-backend
+CGO_ENABLED=0 go build -o audiobookshelf-go ./cmd/audiobookshelf-go
 ```
 
-### Development Commands
+A standalone Go binary must be pointed at a generated web-client `dist` directory using `ABS_GO_CLIENT_PATH` if the default client lookup is unavailable.
 
-After setting up your development environment, either using the dev container or using your own custom environment, the following commands will help you run the server and client.
+## Status and limitations
 
-To run the server, you can use the command `npm run dev`. This will compile the server and use the client that was built when you ran `npm run generate` in the client directory or when you started the dev container. Server changes are compiled and restarted automatically. If you make changes to the client, you will need to run the command `(cd client; npm run generate)` and then restart the server. By default the client runs at `localhost:3333`, though the port can be configured in `dev.js`.
+The project preserves the v2.37.2 persistence contract and supports rollback to that version. Automated verification includes Go tests, static checks, and an upstream database rollback check. Differential testing against the TypeScript server is advisory rather than a publication gate.
 
-You can also build a version of the client that supports live reloading. To do this, start the server, then run the command `(cd client; npm run dev)`. This will run a separate instance of the client at `localhost:3000` that will be automatically updated as you make changes to the client.
+**Not all clients and behaviors are fully certified.** Remaining work includes mobile-client and Socket.IO acceptance, some lifecycle edge cases, and compatibility audits. Before using this as your primary audiobook server, check the [current roadmap](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ROADMAP.md) and test your own critical flows.
 
-If you are using VSCode, this project includes a couple of pre-defined targets to speed up this process. First, if you build the project (`ctrl+shift+b` or `cmd+shift+b`) it will automatically generate the client. Next, there are debug commands for running the server and client. You can view these targets using the debug panel (bring it up with (`ctrl+shift+d` or `cmd+shift+d`):
+## Project links
 
-- `Debug server`—Run the server.
-- `Debug client (nuxt)`—Run the client with live reload.
-- `Debug server and client (nuxt)`—Runs both the preceding two debug targets.
+- [Source repository](https://github.com/ppoloskov/audiobookshelf-go)
+- [Container on GitHub Packages](https://github.com/ppoloskov/audiobookshelf-go/pkgs/container/audiobookshelf-go)
+- [Technical architecture](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ARCHITECTURE.md)
+- [Roadmap and known gaps](https://github.com/ppoloskov/audiobookshelf-go/blob/master/go-backend/ROADMAP.md)
+- [Original Audiobookshelf project](https://github.com/advplyr/audiobookshelf)
+
+## License
+
+GPL-3.0, consistent with the upstream Audiobookshelf project. See the repository's [LICENSE](https://github.com/ppoloskov/audiobookshelf-go/blob/master/LICENSE).
