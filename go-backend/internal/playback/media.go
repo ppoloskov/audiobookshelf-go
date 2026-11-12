@@ -8,14 +8,14 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/media"
 	"audiobookshelf-compat/internal/version"
 )
 
-// media is what a session needs of a library item, or of one episode of a
+// sessionMedia is what a session needs of a library item, or of one episode of a
 // podcast item.
-type media struct {
+type sessionMedia struct {
 	item      item.Item
 	title     string
 	author    string
@@ -28,7 +28,7 @@ type media struct {
 
 // loadMedia reads the item and, for episodeID, that episode. It returns
 // sql.ErrNoRows for a missing, invalid or unplayable target.
-func (h *Handler) loadMedia(ctx context.Context, itemID, episodeID string) (*media, error) {
+func (h *Handler) loadMedia(ctx context.Context, itemID, episodeID string) (*sessionMedia, error) {
 	it, err := item.Get(ctx, h.db, itemID, item.Options{Episodes: true})
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (h *Handler) loadMedia(ctx context.Context, itemID, episodeID string) (*med
 	if it.IsMissing || it.IsInvalid {
 		return nil, sql.ErrNoRows
 	}
-	m := &media{item: *it, chapters: []db.Chapter{}}
+	m := &sessionMedia{item: *it, chapters: []db.Chapter{}}
 	if b := it.Book; b != nil {
 		m.title, m.author, m.coverPath, m.duration = db.Val(b.Title), b.AuthorName(), b.CoverPath, db.Val(b.Duration)
 		m.chapters, m.metadata = b.Chapters.V, b.Full(it.ID).Metadata
@@ -70,14 +70,14 @@ func (h *Handler) loadMedia(ctx context.Context, itemID, episodeID string) (*med
 // least zero.
 func playable(file db.AudioFile) db.AudioFile {
 	ext := strings.TrimPrefix(strings.ToLower(file.Metadata.Ext), ".")
-	file.MimeType = filekind.AudioMime("." + cmp.Or(ext, file.Format))
+	file.MimeType = media.AudioMime("." + cmp.Or(ext, file.Format))
 	file.Duration = db.Ptr(max(db.Val(file.Duration), 0))
 	return file
 }
 
 // newSession is an open session of userID on the media with the fields every
 // start path shares; callers set the rest.
-func (m *media) newSession(id, userID, episodeID string) *session {
+func (m *sessionMedia) newSession(id, userID, episodeID string) *session {
 	s := &session{mediaID: m.item.MediaRowID(), files: m.files, Session: Session{
 		ID: id, UserID: userID, LibraryID: db.Val(m.item.LibraryID), LibraryItemID: m.item.ID, MediaType: db.Val(m.item.MediaType),
 		MediaMetadata: m.metadata, Chapters: m.chapters, DisplayTitle: m.title, DisplayAuthor: m.author, CoverPath: m.coverPath,

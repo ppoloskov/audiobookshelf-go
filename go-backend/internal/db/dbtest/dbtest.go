@@ -3,10 +3,15 @@
 package dbtest
 
 import (
+	"context"
+	"database/sql"
+	"database/sql/driver"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
@@ -21,10 +26,48 @@ func New(t testing.TB) *db.DB {
 		t.Fatalf("dbtest: create database file: %v", err)
 	}
 	d := open(t, path)
-	if _, err := d.SQL().Exec(db.Schema); err != nil {
+	applySchema(t, d)
+	return d
+}
+
+func applySchema(t testing.TB, d *db.DB) {
+	t.Helper()
+	if _, err := d.Exec(context.Background(), db.Schema); err != nil {
 		t.Fatalf("dbtest: apply pinned schema: %v", err)
 	}
-	return d
+}
+
+// Counting is New with a counter of the queries that return rows (the
+// QueryContext calls of the driver), for tests that pin how many reads an
+// operation makes.
+func Counting(t testing.TB) (*db.DB, *atomic.Int64) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "absdatabase.sqlite")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("dbtest: create database file: %v", err)
+	}
+	count := &atomic.Int64{}
+	d, err := db.ConnectWrapped(path, func(conn driver.Conn) driver.Conn { return countingConn{Conn: conn, count: count} })
+	if err != nil {
+		t.Fatalf("dbtest: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := d.Close(); err != nil {
+			t.Errorf("dbtest: close: %v", err)
+		}
+	})
+	applySchema(t, d)
+	return d, count
+}
+
+type countingConn struct {
+	driver.Conn
+	count *atomic.Int64
+}
+
+func (c countingConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	c.count.Add(1)
+	return c.Conn.(driver.QueryerContext).QueryContext(ctx, query, args)
 }
 
 // Fixture returns a copy of the database that the upstream v2.37.2 server
@@ -59,6 +102,23 @@ func open(t testing.TB, path string) *db.DB {
 		}
 	})
 	return d
+}
+
+// OpenRaw opens a second, independent database/sql handle on the database file
+// at path, for tests that read rows of unknown shape (every column of every
+// table) or run statements beside the server. It is not the handle production
+// code uses and it does not follow a file the server replaces. It is closed
+// when the test ends.
+func OpenRaw(t testing.TB, path string) *sql.DB {
+	t.Helper()
+	u := url.URL{Scheme: "file", Path: path, RawQuery: url.Values{"mode": {"rw"}, "_pragma": {"busy_timeout(5000)"}}.Encode()}
+	raw, err := sql.Open("sqlite", u.String())
+	if err != nil {
+		t.Fatalf("dbtest: open raw handle: %v", err)
+	}
+	raw.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = raw.Close() })
+	return raw
 }
 
 func copyFile(dst, src string) error {

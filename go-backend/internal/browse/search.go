@@ -10,6 +10,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/library"
 )
 
 // itemHit and episodeHit are the library items of a search response.
@@ -52,26 +53,26 @@ type podcastSearch struct {
 
 // search is GET /api/libraries/{id}/search (libraryItemsBookFilters.search,
 // libraryItemsPodcastFilters.search).
-func (h *Handler) search(w http.ResponseWriter, r *http.Request, s scope) error {
+func (h *Handler) search(w http.ResponseWriter, r *http.Request, s library.Scope) error {
 	ctx := r.Context()
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
 		return httpx.BadRequest(`Invalid request. Query param "q" must be a string`)
 	}
-	limit := cmp.Or(s.limit, 12) // `req.query.limit || 12` (LibraryController.js:964)
-	table, err := s.mediaTable()
+	limit := cmp.Or(s.Limit, 12) // `req.query.limit || 12` (LibraryController.js:964)
+	table, err := s.MediaTable()
 	if err != nil {
 		return err
 	}
 	pattern := "%" + query + "%"
-	perm, permArgs := s.user.MediaClause("b")
+	perm, permArgs := s.User.MediaClause("b")
 	match := `lower(b.title) LIKE lower(?) OR lower(b.subtitle) LIKE lower(?) OR lower(b.asin) LIKE lower(?) OR lower(b.isbn) LIKE lower(?)`
-	if s.podcast() {
+	if s.Podcast() {
 		match = `lower(b.title) LIKE lower(?) OR lower(b.author) LIKE lower(?) OR lower(b.itunesId) LIKE lower(?) OR lower(b.itunesArtistId) LIKE lower(?)`
 	}
 	var ids []string
 	err = h.db.Select(ctx, &ids, `SELECT li.id FROM libraryItems li JOIN `+table+` b ON b.id=li.mediaId WHERE li.libraryId=? AND (`+match+`)`+perm+` LIMIT ?`,
-		append(append([]any{s.lib.ID, pattern, pattern, pattern, pattern}, permArgs...), limit)...)
+		append(append([]any{s.Library.ID, pattern, pattern, pattern, pattern}, permArgs...), limit)...)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -86,15 +87,15 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, s scope) error 
 	for i, it := range loaded {
 		hits[i] = itemHit{it.Expanded(prefixes)}
 	}
-	tags, err := h.valueCounts(ctx, s.lib.ID, table, "tags", pattern, limit)
+	tags, err := h.valueCounts(ctx, s.Library.ID, table, "tags", pattern, limit)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	genres, err := h.valueCounts(ctx, s.lib.ID, table, "genres", pattern, limit)
+	genres, err := h.valueCounts(ctx, s.Library.ID, table, "genres", pattern, limit)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	if s.podcast() {
+	if s.Podcast() {
 		episodes, err := h.searchEpisodes(ctx, s, pattern, perm, permArgs, limit, prefixes)
 		if err != nil {
 			return httpx.Internal("database read failed", err)
@@ -102,14 +103,14 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request, s scope) error 
 		return httpx.JSON(w, r, podcastSearch{hits, tags, genres, episodes})
 	}
 	out := bookSearch{Book: hits, Tags: tags, Genres: genres, Narrators: []narratorCount{}}
-	counts, err := h.valueCounts(ctx, s.lib.ID, table, "narrators", pattern, limit)
+	counts, err := h.valueCounts(ctx, s.Library.ID, table, "narrators", pattern, limit)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	for _, c := range counts {
 		out.Narrators = append(out.Narrators, narratorCount{c.Name, c.NumItems})
 	}
-	if out.Authors, err = h.searchAuthors(ctx, s.lib.ID, pattern, limit); err != nil {
+	if out.Authors, err = h.searchAuthors(ctx, s.Library.ID, pattern, limit); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	if out.Series, err = h.searchSeries(ctx, s, pattern, limit, prefixes); err != nil {
@@ -148,9 +149,9 @@ func (h *Handler) searchAuthors(ctx context.Context, libraryID, pattern string, 
 // searchSeries finds series by name; each carries its visible books as full
 // items with authors and series emptied. Series without visible books are
 // dropped after the limit.
-func (h *Handler) searchSeries(ctx context.Context, s scope, pattern string, limit int, prefixes []string) ([]seriesHit, error) {
+func (h *Handler) searchSeries(ctx context.Context, s library.Scope, pattern string, limit int, prefixes []string) ([]seriesHit, error) {
 	var found []db.Series
-	if err := h.db.Select(ctx, &found, `SELECT * FROM series WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, s.lib.ID, pattern, limit); err != nil {
+	if err := h.db.Select(ctx, &found, `SELECT * FROM series WHERE libraryId=? AND lower(name) LIKE lower(?) LIMIT ?`, s.Library.ID, pattern, limit); err != nil {
 		return nil, err
 	}
 	out := []seriesHit{}
@@ -161,7 +162,7 @@ func (h *Handler) searchSeries(ctx context.Context, s scope, pattern string, lim
 	for i, series := range found {
 		ids[i] = series.ID
 	}
-	linked, err := h.seriesBooks(ctx, s.user, orderLinked, ids)
+	linked, err := h.seriesBooks(ctx, s.User, orderLinked, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -197,14 +198,14 @@ func (h *Handler) searchSeries(ctx context.Context, s scope, pattern string, lim
 
 // searchEpisodes finds episodes by title: each hit is its podcast (without
 // episodes) with the expanded episode as recentEpisode.
-func (h *Handler) searchEpisodes(ctx context.Context, s scope, pattern, perm string, permArgs []any, limit int, prefixes []string) ([]itemHit, error) {
+func (h *Handler) searchEpisodes(ctx context.Context, s library.Scope, pattern, perm string, permArgs []any, limit int, prefixes []string) ([]itemHit, error) {
 	var found []struct {
 		ItemID    string `db:"itemId"`
 		EpisodeID string `db:"episodeId"`
 	}
 	err := h.db.Select(ctx, &found, `SELECT li.id AS itemId, e.id AS episodeId FROM podcastEpisodes e JOIN podcasts b ON b.id=e.podcastId
 		JOIN libraryItems li ON li.mediaId=b.id AND li.mediaType='podcast' WHERE li.libraryId=? AND lower(e.title) LIKE lower(?)`+perm+` ORDER BY e.rowid LIMIT ?`,
-		append(append([]any{s.lib.ID, pattern}, permArgs...), limit)...)
+		append(append([]any{s.Library.ID, pattern}, permArgs...), limit)...)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/library"
 )
 
 // shelf is one home-page shelf of GET /api/libraries/{id}/personalized
@@ -40,7 +41,7 @@ type seriesShelfEntry struct {
 type shelfEnv struct {
 	h        *Handler
 	ctx      context.Context
-	s        scope
+	s        library.Scope
 	limit    int
 	perm     string // the user's permission clause on the media alias, with its arguments
 	permArgs []any
@@ -78,18 +79,18 @@ func podcastShelves() []shelfDef {
 }
 
 // personalized is GET /api/libraries/{id}/personalized.
-func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, s scope) error {
-	e := &shelfEnv{h: h, ctx: r.Context(), s: s, limit: cmp.Or(s.limit, 10), // `req.query.limit || 10` (LibraryController.js:891)
+func (h *Handler) personalized(w http.ResponseWriter, r *http.Request, s library.Scope) error {
+	e := &shelfEnv{h: h, ctx: r.Context(), s: s, limit: cmp.Or(s.Limit, 10), // `req.query.limit || 10` (LibraryController.js:891)
 		since: db.FromMillis(time.Now().Add(-recentWindow).UnixMilli()), prefixes: h.settings.Server().SortingPrefixes,
-		extras: extrasOf(includes(r), isAdmin(s.user))}
+		extras: extrasOf(includes(r), isAdmin(s.User))}
 	var defs []shelfDef
-	switch db.Val(s.lib.MediaType) {
+	switch db.Val(s.Library.MediaType) {
 	case "book":
 		defs = bookShelves()
-		e.perm, e.permArgs = s.user.MediaClause("b")
+		e.perm, e.permArgs = s.User.MediaClause("b")
 	case "podcast":
 		defs = podcastShelves()
-		e.perm, e.permArgs = s.user.MediaClause("p")
+		e.perm, e.permArgs = s.User.MediaClause("p")
 	default:
 		return httpx.Error(http.StatusNotFound, "Library not found")
 	}
@@ -132,7 +133,7 @@ func (e *shelfEnv) items(ids []string, want itemExtras) ([]item.Item, []item.Min
 		return nil, nil, err
 	}
 	rows := minify(loaded, e.prefixes)
-	return loaded, rows, e.h.attach(e.ctx, e.s.user.ID, want, loaded, rows)
+	return loaded, rows, e.h.attach(e.ctx, e.s.User.ID, want, loaded, rows)
 }
 
 // itemShelf is a shelf of the items query selects.
@@ -151,7 +152,7 @@ func (e *shelfEnv) itemShelf(want itemExtras, query string, args ...any) (any, i
 func progressShelf(where string, reading bool) func(*shelfEnv) (any, int, int, error) {
 	return func(e *shelfEnv) (any, int, int, error) {
 		ids, total, err := e.pick(`SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id
-			WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND (`+where+`)`+e.perm+` ORDER BY mp.updatedAt DESC`, e.s.lib.ID, e.s.user.ID)
+			WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND (`+where+`)`+e.perm+` ORDER BY mp.updatedAt DESC`, e.s.Library.ID, e.s.User.ID)
 		if err != nil {
 			return nil, 0, 0, err
 		}
@@ -171,7 +172,7 @@ func progressShelf(where string, reading bool) func(*shelfEnv) (any, int, int, e
 }
 
 func (e *shelfEnv) recentlyAdded() (any, int, int, error) {
-	return e.itemShelf(e.extras, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.s.lib.ID, e.since)
+	return e.itemShelf(e.extras, `SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType='book' AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.s.Library.ID, e.since)
 }
 
 // maxFinishedSequence is the highest sequence the user finished in outer, a
@@ -184,12 +185,12 @@ func maxFinishedSequence(outer string) string {
 // of each series the user has finished a book of and not started another, the
 // next unfinished book. Only feeds are attached, never shares.
 func (e *shelfEnv) continueSeries() (any, int, int, error) {
-	user, later := e.s.user, db.Val(e.s.lib.Settings.V.OnlyShowLaterBooksInContinueSeries)
+	user, later := e.s.User, db.Val(e.s.Library.Settings.V.OnlyShowLaterBooksInContinueSeries)
 	var hidden []string
 	if extra := user.ExtraData.V; extra != nil {
 		hidden = extra.SeriesHideFromContinueListening
 	}
-	where, args := ` FROM series s WHERE s.libraryId = ?`, []any{e.s.lib.ID}
+	where, args := ` FROM series s WHERE s.libraryId = ?`, []any{e.s.Library.ID}
 	if len(hidden) > 0 {
 		where, args = where+` AND s.id NOT IN (?)`, append(args, hidden)
 	}
@@ -257,8 +258,8 @@ func (e *shelfEnv) continueSeries() (any, int, int, error) {
 // recentSeries is getSeriesMostRecentlyAdded (libraryFilters.js:207-317);
 // upstream asks for 5.
 func (e *shelfEnv) recentSeries() (any, int, int, error) {
-	where, args := ` FROM series s WHERE s.libraryId = ? AND s.createdAt >= ?`, []any{e.s.lib.ID, e.since}
-	if db.Val(e.s.lib.Settings.V.HideSingleBookSeries) {
+	where, args := ` FROM series s WHERE s.libraryId = ? AND s.createdAt >= ?`, []any{e.s.Library.ID, e.since}
+	if db.Val(e.s.Library.Settings.V.HideSingleBookSeries) {
 		where += ` AND ` + seriesBookCount + ` > 1`
 	}
 	if e.perm != "" {
@@ -279,7 +280,7 @@ func (e *shelfEnv) recentSeries() (any, int, int, error) {
 	for i, row := range rows {
 		ids[i] = row.ID
 	}
-	linked, err := e.h.seriesBooks(e.ctx, e.s.user, orderLinked, ids)
+	linked, err := e.h.seriesBooks(e.ctx, e.s.User, orderLinked, ids)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -321,14 +322,14 @@ func (e *shelfEnv) recentSeries() (any, int, int, error) {
 // not-started series. Only feeds are attached.
 func (e *shelfEnv) discover() (any, int, int, error) {
 	var seriesIDs []string
-	err := e.h.db.Select(e.ctx, &seriesIDs, `SELECT s.id FROM series s WHERE s.libraryId = ? AND (SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = s.id AND mp.userId = ? AND (mp.isFinished = 1 OR mp.currentTime > 0)) = 0 ORDER BY RANDOM() LIMIT ?`, e.s.lib.ID, e.s.user.ID, e.limit)
+	err := e.h.db.Select(e.ctx, &seriesIDs, `SELECT s.id FROM series s WHERE s.libraryId = ? AND (SELECT count(*) FROM bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = bs.bookId WHERE bs.seriesId = s.id AND mp.userId = ? AND (mp.isFinished = 1 OR mp.currentTime > 0)) = 0 ORDER BY RANDOM() LIMIT ?`, e.s.Library.ID, e.s.User.ID, e.limit)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 	var firstBooks []string
 	if len(seriesIDs) > 0 {
 		var books []seriesBook
-		books, err = e.h.seriesBooks(e.ctx, e.s.user, orderSequence, seriesIDs)
+		books, err = e.h.seriesBooks(e.ctx, e.s.User, orderSequence, seriesIDs)
 		if err != nil {
 			return nil, 0, 0, err
 		}
@@ -341,7 +342,7 @@ func (e *shelfEnv) discover() (any, int, int, error) {
 		}
 	}
 	seriesClause := `(SELECT COUNT(*) FROM bookSeries bs WHERE bs.bookId = b.id) = 0`
-	args := []any{e.s.lib.ID, e.s.user.ID}
+	args := []any{e.s.Library.ID, e.s.User.ID}
 	if len(firstBooks) > 0 {
 		seriesClause, args = `(`+seriesClause+` OR b.id IN (?))`, append(args, firstBooks)
 	}
@@ -365,7 +366,7 @@ func (e *shelfEnv) discover() (any, int, int, error) {
 func (e *shelfEnv) newestAuthors() (any, int, int, error) {
 	books := `(SELECT count(DISTINCT b.id) FROM bookAuthors ba JOIN books b ON b.id = ba.bookId WHERE ba.authorId = a.id` + e.perm + `)`
 	where := ` FROM authors a WHERE a.libraryId = ? AND a.createdAt >= ? AND ` + books + ` > 0`
-	whereArgs := append([]any{e.s.lib.ID, e.since}, e.permArgs...)
+	whereArgs := append([]any{e.s.Library.ID, e.since}, e.permArgs...)
 	var total int
 	if err := e.h.db.Get(e.ctx, &total, `SELECT count(*)`+where, whereArgs...); err != nil {
 		return nil, 0, 0, err
@@ -398,10 +399,10 @@ func episodeShelf(progress bool, where string) func(*shelfEnv) (any, int, int, e
 	return func(e *shelfEnv) (any, int, int, error) {
 		from, order, args := ` FROM podcastEpisodes ep JOIN podcasts p ON p.id=ep.podcastId JOIN libraryItems li ON li.mediaId=p.id`, "ep.createdAt", []any{}
 		if progress {
-			from, order, args = from+` JOIN mediaProgresses mp ON mp.mediaItemId=ep.id AND mp.userId=?`, "mp.updatedAt", append(args, e.s.user.ID)
+			from, order, args = from+` JOIN mediaProgresses mp ON mp.mediaItemId=ep.id AND mp.userId=?`, "mp.updatedAt", append(args, e.s.User.ID)
 		}
 		from += ` WHERE li.libraryId=? AND li.mediaType='podcast' AND (` + where + `)` + e.perm
-		args = append(args, e.s.lib.ID)
+		args = append(args, e.s.Library.ID)
 		if !progress {
 			args = append(args, e.since)
 		}
@@ -440,7 +441,7 @@ func episodeShelf(progress bool, where string) func(*shelfEnv) (any, int, int, e
 // recentPodcasts is getLibraryItemsMostRecentlyAdded's podcast branch
 // (libraryFilters.js:113-128). The row carries the item's size.
 func (e *shelfEnv) recentPodcasts() (any, int, int, error) {
-	ids, total, err := e.pick(`SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.s.lib.ID, e.since)
+	ids, total, err := e.pick(`SELECT li.id FROM podcasts p JOIN libraryItems li ON li.mediaId=p.id WHERE li.libraryId=? AND li.createdAt>=?`+e.perm+` ORDER BY li.createdAt DESC`, e.s.Library.ID, e.since)
 	if err != nil {
 		return nil, 0, 0, err
 	}

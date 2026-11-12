@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/media"
 )
 
 // newLibraryFile is the libraryFiles entry of a file found on disk.
@@ -19,7 +19,7 @@ func newLibraryFile(f fileEntry) db.LibraryFile {
 		Ino: inode(f.info),
 		Metadata: db.FileMetadata{Filename: filepath.Base(f.path), Ext: ext, Path: f.path, RelPath: f.rel, Size: f.info.Size(),
 			MtimeMs: float64(mtime.UnixMilli()), CtimeMs: float64(ctime.UnixMilli()), BirthtimeMs: float64(birthtime.UnixMilli())},
-		AddedAt: mtime.UnixMilli(), UpdatedAt: mtime.UnixMilli(), FileType: filekind.Of(ext),
+		AddedAt: mtime.UnixMilli(), UpdatedAt: mtime.UnixMilli(), FileType: media.KindOf(ext),
 	}
 }
 
@@ -91,7 +91,7 @@ func diffFiles(stored []db.LibraryFile, found []fileEntry, nowMs int64) fileDiff
 			continue
 		}
 		entry.AddedAt, entry.UpdatedAt = nowMs, nowMs
-		if entry.FileType == filekind.Ebook {
+		if entry.FileType == media.KindEbook {
 			entry.IsSupplementary = new(true)
 		}
 		diff.added = append(diff.added, entry)
@@ -109,7 +109,7 @@ func coverPath(current string, diff fileDiff) (string, bool) {
 	cover := current
 	if cover != "" {
 		for _, f := range diff.removed {
-			if f.Metadata.Path == cover && f.FileType == filekind.Image {
+			if f.Metadata.Path == cover && f.FileType == media.KindImage {
 				if _, err := os.Stat(cover); err != nil {
 					cover = ""
 				}
@@ -117,14 +117,14 @@ func coverPath(current string, diff fileDiff) (string, bool) {
 		}
 	}
 	for _, f := range diff.files {
-		if cover != "" && diff.oldPath[f.Metadata.Path] == cover && f.Metadata.Path != cover && f.FileType == filekind.Image {
+		if cover != "" && diff.oldPath[f.Metadata.Path] == cover && f.Metadata.Path != cover && f.FileType == media.KindImage {
 			cover = f.Metadata.Path
 		}
 	}
 	if cover == "" {
 		first := ""
 		for _, f := range diff.files {
-			if f.FileType != filekind.Image || f.Metadata.Path == "" {
+			if f.FileType != media.KindImage || f.Metadata.Path == "" {
 				continue
 			}
 			if coverName.MatchString(filepath.ToSlash(f.Metadata.Path)) {

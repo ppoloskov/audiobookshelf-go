@@ -16,18 +16,17 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/mediatools"
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/media"
+	"audiobookshelf-compat/internal/text"
 )
 
 // audioOf maps an ffprobe report of the downloaded file to the audioFile
 // document of an episode. It fails when the file has no audio stream.
-func audioOf(path string, st os.FileInfo, probe mediatools.Info, now db.Time) (db.AudioFile, error) {
-	i := slices.IndexFunc(probe.Streams, func(s mediatools.Stream) bool { return s.Type == "audio" })
+func audioOf(path string, st os.FileInfo, probe media.Info, now db.Time) (db.AudioFile, error) {
+	i := slices.IndexFunc(probe.Streams, func(s media.Stream) bool { return s.Type == "audio" })
 	if i < 0 {
 		return db.AudioFile{}, errors.New("Invalid media file: no audio stream found")
 	}
@@ -41,14 +40,14 @@ func audioOf(path string, st os.FileInfo, probe mediatools.Info, now db.Time) (d
 	return db.AudioFile{Index: 1, Ino: inode(st), AddedAt: now.Millis(), UpdatedAt: now.Millis(),
 		Metadata: db.FileMetadata{Filename: base, Ext: ext, Path: filepath.ToSlash(path), RelPath: base, Size: st.Size(), MtimeMs: ms, CtimeMs: ms, BirthtimeMs: ms},
 		Format:   cmp.Or(probe.Format.LongName, probe.Format.Name), Duration: &duration, BitRate: &bitRate, Codec: &stream.Codec, TimeBase: &stream.TimeBase,
-		Channels: db.Ptr(int64(stream.Channels)), ChannelLayout: &stream.ChannelLayout, Chapters: []db.Chapter{}, MimeType: filekind.AudioMime(ext)}, nil
+		Channels: db.Ptr(int64(stream.Channels)), ChannelLayout: &stream.ChannelLayout, Chapters: []db.Chapter{}, MimeType: media.AudioMime(ext)}, nil
 }
 
 // register adds the downloaded file at path to the podcast as an episode, then
 // trims old episodes (auto downloads only) and announces the change.
 func (h *Handler) register(d *download, path string) error {
 	ctx := h.ctx
-	probe, err := mediatools.Probe(ctx, path)
+	probe, err := media.Probe(ctx, path)
 	if err != nil {
 		return fmt.Errorf("ffprobe audio file: %w", err)
 	}
@@ -303,7 +302,7 @@ func (p episodePatch) apply(row *db.PodcastEpisode) {
 		if v == nil || *v == "" {
 			return v
 		}
-		return db.Ptr(textclean.Sanitize(*v))
+		return db.Ptr(text.Sanitize(*v))
 	}
 	set(&row.Title, p.Title)
 	set(&row.Subtitle, clean(p.Subtitle))

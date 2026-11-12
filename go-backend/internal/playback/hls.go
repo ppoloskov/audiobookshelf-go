@@ -19,7 +19,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 // segmentSeconds is the HLS segment length (Stream.js hls_time).
@@ -132,7 +132,7 @@ func (t *stream) start() {
 	t.cancel, t.done, t.complete, t.resetting = cancel, done, false, false
 	go func() {
 		defer close(done)
-		err := mediatools.Run(ctx, args...)
+		err := media.Run(ctx, args...)
 		t.mu.Lock()
 		t.complete = true
 		t.mu.Unlock()

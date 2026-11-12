@@ -4,7 +4,7 @@
 // download, match-all and the cleanup of metadata files and items with issues.
 // Item browsing (items, shelves, search, series) lives elsewhere; it uses Scope
 // and InLibrary to open a library.
-package libraries
+package library
 
 import (
 	"context"

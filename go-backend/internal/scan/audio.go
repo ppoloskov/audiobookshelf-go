@@ -11,18 +11,17 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 // probeAudio is the audio entry of one file (AudioFile.js toJSON), or nil when
 // the file has no audio stream. The entry takes the file's inode and metadata.
 func probeAudio(ctx context.Context, file db.LibraryFile) (*db.AudioFile, error) {
-	res, err := mediatools.Probe(ctx, file.Metadata.Path)
+	res, err := media.Probe(ctx, file.Metadata.Path)
 	if err != nil {
 		return nil, err
 	}
-	var audio *mediatools.Stream
+	var audio *media.Stream
 	var embedded *string
 	hasDefault := false
 	for i := range res.Streams {
@@ -45,7 +44,7 @@ func probeAudio(ctx context.Context, file db.LibraryFile) (*db.AudioFile, error)
 	}
 	now := time.Now().UnixMilli()
 	out := &db.AudioFile{Index: 1, Ino: file.Ino, Metadata: file.Metadata, AddedAt: now, UpdatedAt: now, Format: format, Duration: &duration,
-		Codec: &audio.Codec, TimeBase: &audio.TimeBase, EmbeddedCoverArt: embedded, MimeType: filekind.AudioMime(file.Metadata.Ext), Chapters: []db.Chapter{}}
+		Codec: &audio.Codec, TimeBase: &audio.TimeBase, EmbeddedCoverArt: embedded, MimeType: media.AudioMime(file.Metadata.Ext), Chapters: []db.Chapter{}}
 	if rate, _ := strconv.ParseInt(audio.BitRate, 10, 64); rate > 0 {
 		out.BitRate = &rate
 	} else if rate, _ := strconv.ParseInt(res.Format.BitRate, 10, 64); rate > 0 {

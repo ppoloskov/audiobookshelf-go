@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict'
 
-// Generates go-backend/internal/textsort/testdata/collation.json from Node's
-// own Intl, the behavior oracle for internal/textsort. For every ordered pair
+// Generates go-backend/internal/text/testdata/collation.json from Node's
+// own Intl, the behavior oracle for internal/text. For every ordered pair
 // of sample strings it records the sign of
 //   a.localeCompare(b)                                   (Playlist.js name sort)
 //   Intl.Collator(undefined, {numeric, base}).compare    (libraryHelpers naturalSort)

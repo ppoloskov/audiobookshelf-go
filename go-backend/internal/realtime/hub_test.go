@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -23,24 +23,22 @@ import (
 	absdb "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/item"
 	"golang.org/x/net/websocket"
-
-	_ "modernc.org/sqlite"
 )
 
-func testDB(t *testing.T) (*sql.DB, string) {
+func testDB(t *testing.T) *absdb.DB {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "realtime.sqlite")
-	db, err := sql.Open("sqlite", path)
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := absdb.Connect(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen DATETIME, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME)`); err != nil {
-		db.Close()
+	if _, err := db.Exec(context.Background(), `CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen DATETIME, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt DATETIME, updatedAt DATETIME)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES ('user-1', 'alice', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('admin-1', 'root', '', '', 'admin', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('limited-1', 'bob', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-2"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00')`); err != nil {
-		db.Close()
+	if _, err := db.Exec(context.Background(), `INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt) VALUES ('user-1', 'alice', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('admin-1', 'root', '', '', 'admin', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00'), ('limited-1', 'bob', '', '', 'user', '', 1, 0, '1970-01-01 00:00:00.000 +00:00', '{"librariesAccessible":["lib-2"],"itemTagsSelected":["mystery"]}', '[]', '{}', '2020-01-01 00:00:00.000 +00:00', '1970-01-01 00:00:00.000 +00:00')`); err != nil {
 		t.Fatal(err)
 	}
 	for _, statement := range []string{
@@ -50,18 +48,17 @@ func testDB(t *testing.T) (*sql.DB, string) {
 		`CREATE TABLE sessions (id TEXT, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt DATETIME, createdAt DATETIME, updatedAt DATETIME, userId TEXT, lastRefreshToken TEXT, lastRefreshTokenExpiresAt DATETIME)`,
 		`CREATE TABLE apiKeys (id TEXT, isActive INTEGER, expiresAt DATETIME, lastUsedAt DATETIME, userId TEXT, updatedAt DATETIME)`,
 	} {
-		if _, err := db.Exec(statement); err != nil {
-			db.Close()
+		if _, err := db.Exec(context.Background(), statement); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	return db, path
+	return db
 }
 
 // fakeBackend is a Backend with replaceable behaviour; unset parts do nothing.
 type fakeBackend struct {
-	sql     *sql.DB
+	d       *absdb.DB
 	auth    func(*http.Request) (*auth.Principal, error)
 	session func(string) any
 
@@ -76,7 +73,7 @@ func (f *fakeBackend) Authenticate(r *http.Request) (*auth.Principal, error) {
 	}
 	return f.auth(r)
 }
-func (f *fakeBackend) DB() *absdb.DB { return absdb.New(f.sql) }
+func (f *fakeBackend) DB() *absdb.DB { return f.d }
 func (f *fakeBackend) Session(id string) any {
 	if f.session == nil {
 		return nil
@@ -120,13 +117,13 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	if err := exec.Command("node", "-e", "require('socket.io-client')").Run(); err != nil {
 		t.Skip("socket.io-client@4 is not installed; set NODE_PATH to a directory containing it")
 	}
-	db, _ := testDB(t)
+	db := testDB(t)
 	secret := "realtime-integration-secret"
-	authHandler, err := auth.New(absdb.New(db), nil, nil, config.Config{JWTSecret: secret})
+	authHandler, err := auth.New(db, nil, nil, config.Config{JWTSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := &fakeBackend{sql: db, auth: authHandler.Authenticate}
+	backend := &fakeBackend{d: db, auth: authHandler.Authenticate}
 	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
 	backend.cancelScan = func(string) { hub.Emit("*", "probe_item", probeItem("lib-1", false, "mystery")) }
 	defer hub.Close()
@@ -202,10 +199,14 @@ async function connect(path, token, opts, id, username) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Socket.IO client probe failed: %v (ctx error: %v)\n%s", err, ctx.Err(), output)
 	}
-	var lastSeen, updatedAt string
-	if err := db.QueryRow(`SELECT lastSeen, updatedAt FROM users WHERE id='user-1'`).Scan(&lastSeen, &updatedAt); err != nil {
+	var stamps struct {
+		LastSeen  string `db:"lastSeen"`
+		UpdatedAt string `db:"updatedAt"`
+	}
+	if err := db.Get(context.Background(), &stamps, `SELECT lastSeen, updatedAt FROM users WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
+	lastSeen, updatedAt := stamps.LastSeen, stamps.UpdatedAt
 	if _, err := time.Parse("2006-01-02 15:04:05.000 -07:00", lastSeen); err != nil {
 		t.Fatalf("Socket.IO auth wrote a non-Sequelize lastSeen value %q: %v", lastSeen, err)
 	}
@@ -321,7 +322,7 @@ func TestSocketAuthentication(t *testing.T) {
 		t.Fatalf("admin got %s, want user_online", e.name)
 	}
 	var lastSeen string
-	if err := srv.backend.sql.QueryRow(`SELECT lastSeen FROM users WHERE id='user-1'`).Scan(&lastSeen); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
+	if err := srv.backend.d.Get(context.Background(), &lastSeen, `SELECT lastSeen FROM users WHERE id='user-1'`); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
 		t.Fatalf("lastSeen = %q err=%v", lastSeen, err)
 	}
 	if got := collect(t, alice, "user_online", mark(srv)); len(got) != 0 {
@@ -384,7 +385,7 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		}
 	}
 	// A collection needs only library access, not tag permissions.
-	srv.backend.sql.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
+	srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +414,7 @@ func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testin
 	}
 	collect(t, admin, "", m)
 
-	if _, err := srv.backend.sql.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
@@ -426,7 +427,7 @@ func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testin
 	}
 	collect(t, admin, "", m)
 
-	if _, err := srv.backend.sql.Exec(`DELETE FROM users WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.d.Exec(context.Background(), `DELETE FROM users WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {

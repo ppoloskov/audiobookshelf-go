@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,7 +15,7 @@ import (
 
 	"audiobookshelf-compat/internal/version"
 
-	_ "modernc.org/sqlite" // the database/sql driver
+	sqlite "modernc.org/sqlite" // the database/sql driver
 )
 
 // ErrSchema marks a database file this server refuses to run on: another
@@ -47,7 +48,16 @@ var tableRows = []struct {
 // checks that foreign keys are on. It does not validate the content; Open
 // does. No journal-mode pragma is set: the file stays in rollback-journal mode
 // so upstream can reopen it.
-func Connect(path string) (*DB, error) {
+func Connect(path string) (*DB, error) { return connect(path, nil) }
+
+// ConnectWrapped is Connect with every driver connection passed through wrap,
+// so a test can count or fail queries. It is for tests only; production code
+// uses Connect or Open.
+func ConnectWrapped(path string, wrap func(driver.Conn) driver.Conn) (*DB, error) {
+	return connect(path, wrap)
+}
+
+func connect(path string, wrap func(driver.Conn) driver.Conn) (*DB, error) {
 	if path == "" {
 		return nil, errors.New("db: database path is empty")
 	}
@@ -64,9 +74,14 @@ func Connect(path string) (*DB, error) {
 	q.Add("_pragma", "busy_timeout(5000)")
 	q.Add("_pragma", "foreign_keys(1)")
 	u.RawQuery = q.Encode()
-	sqlDB, err := sql.Open("sqlite", u.String())
-	if err != nil {
-		return nil, fmt.Errorf("db: open database: %w", err)
+	var sqlDB *sql.DB
+	if wrap == nil {
+		var err error
+		if sqlDB, err = sql.Open("sqlite", u.String()); err != nil {
+			return nil, fmt.Errorf("db: open database: %w", err)
+		}
+	} else {
+		sqlDB = sql.OpenDB(wrappedConnector{dsn: u.String(), wrap: wrap})
 	}
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
@@ -82,8 +97,24 @@ func Connect(path string) (*DB, error) {
 		}
 		return nil, errors.New("db: SQLite foreign_keys is not enabled")
 	}
-	return New(sqlDB), nil
+	return newDB(sqlDB), nil
 }
+
+// wrappedConnector opens SQLite connections and passes each through wrap.
+type wrappedConnector struct {
+	dsn  string
+	wrap func(driver.Conn) driver.Conn
+}
+
+func (c wrappedConnector) Connect(context.Context) (driver.Conn, error) {
+	conn, err := (&sqlite.Driver{}).Open(c.dsn)
+	if err != nil {
+		return nil, err
+	}
+	return c.wrap(conn), nil
+}
+
+func (c wrappedConnector) Driver() driver.Driver { return &sqlite.Driver{} }
 
 // Open opens an existing database and checks that it is usable: the migration
 // state is the pinned release and every column of every row struct exists

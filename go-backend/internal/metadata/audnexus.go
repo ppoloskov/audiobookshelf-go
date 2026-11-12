@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"audiobookshelf-compat/internal/textdist"
+	"audiobookshelf-compat/internal/text"
 )
 
 // audnexus reads books, authors and chapters from the Audnexus API.
@@ -198,7 +198,7 @@ func (a audnexus) authorByName(ctx context.Context, name, region string) *Author
 	}
 	best, bestDistance := -1, 0
 	for i, candidate := range candidates {
-		if distance := textdist.LevenshteinFold(candidate.Name, name); best < 0 || distance < bestDistance {
+		if distance := text.LevenshteinFold(candidate.Name, name); best < 0 || distance < bestDistance {
 			best, bestDistance = i, distance
 		}
 	}

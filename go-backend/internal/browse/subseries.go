@@ -12,7 +12,8 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/library"
+	"audiobookshelf-compat/internal/text"
 )
 
 // The page of a series filter with collapseseries=1 is upstream's "temporary
@@ -82,7 +83,7 @@ type collapsedSubseries struct {
 	SeriesSequenceList string   `json:"seriesSequenceList"`
 }
 
-func (h *Handler) subseriesPage(w http.ResponseWriter, r *http.Request, s scope, seriesID string, ignorePrefix bool, prefixes []string) error {
+func (h *Handler) subseriesPage(w http.ResponseWriter, r *http.Request, s library.Scope, seriesID string, ignorePrefix bool, prefixes []string) error {
 	ctx, q := r.Context(), r.URL.Query()
 	out := newItemsPage(q, s, true, includes(r))
 	sortBy := q.Get("sort")
@@ -104,19 +105,19 @@ func (h *Handler) subseriesPage(w http.ResponseWriter, r *http.Request, s scope,
 	}
 	var books []*subBook
 	for _, it := range loaded {
-		if a := it.Access(); s.user.CanAccessItem(a.LibraryID, a.Explicit, a.Tags) {
+		if a := it.Access(); s.User.CanAccessItem(a.LibraryID, a.Explicit, a.Tags) {
 			books = append(books, &subBook{it: it})
 		}
 	}
-	entries := collapseBooks(books, seriesID, db.Val(s.lib.Settings.V.HideSingleBookSeries), prefixes)
+	entries := collapseBooks(books, seriesID, db.Val(s.Library.Settings.V.HideSingleBookSeries), prefixes)
 	// A single collapsed entry is shown uncollapsed.
 	if len(entries) != 1 || entries[0].collapsed == nil {
 		books = entries
 	}
 	out.Total = len(books)
 	sortSubBooks(books, seriesID, sortBy, q.Get("desc") == "1", ignorePrefix)
-	if s.limit > 0 {
-		books = page(books, s.page, s.limit)
+	if s.Limit > 0 {
+		books = page(books, s.Page, s.Limit)
 	}
 	out.Results = make([]item.Minified, len(books))
 	for i, b := range books {
@@ -174,7 +175,7 @@ func seriesOfBooks(books []*subBook, filterSeries string, hideSingle bool, prefi
 		for _, ref := range b.it.Book.Series {
 			c := byID[ref.ID]
 			if c == nil {
-				c = &subSeries{id: ref.ID, name: ref.Name, nameIgnorePrefix: textsort.PrefixAtEnd(ref.Name, prefixes),
+				c = &subSeries{id: ref.ID, name: ref.Name, nameIgnorePrefix: text.PrefixAtEnd(ref.Name, prefixes),
 					sequence: map[string]*string{}, filterSequence: map[string]*string{}}
 				byID[ref.ID] = c
 				order = append(order, c)
@@ -189,7 +190,7 @@ func seriesOfBooks(books []*subBook, filterSeries string, hideSingle bool, prefi
 	}
 	for _, c := range order {
 		sort.SliceStable(c.books, func(i, j int) bool {
-			return textsort.NaturalBaseCompare(nullable(c.sequence[c.books[i].it.ID]), nullable(c.sequence[c.books[j].it.ID])) < 0
+			return text.NaturalBaseCompare(nullable(c.sequence[c.books[i].it.ID]), nullable(c.sequence[c.books[j].it.ID])) < 0
 		})
 	}
 	return order
@@ -269,7 +270,7 @@ func sortSubBooks(books []*subBook, seriesID, sortBy string, desc, ignorePrefix 
 	}
 	sort.SliceStable(books, func(i, j int) bool {
 		for _, k := range keys {
-			if c := textsort.NaturalBaseCompare(k.value(books[i]), k.value(books[j])); c != 0 {
+			if c := text.NaturalBaseCompare(k.value(books[i]), k.value(books[j])); c != 0 {
 				return c*k.dir < 0
 			}
 		}
@@ -289,7 +290,7 @@ func (c *subSeries) sequenceList() string {
 			sequences = append(sequences, *s)
 		}
 	}
-	sort.SliceStable(sequences, func(i, j int) bool { return textsort.NaturalBaseCompare(sequences[i], sequences[j]) < 0 })
+	sort.SliceStable(sequences, func(i, j int) bool { return text.NaturalBaseCompare(sequences[i], sequences[j]) < 0 })
 	type span struct {
 		start, end       string
 		startNum, endNum float64

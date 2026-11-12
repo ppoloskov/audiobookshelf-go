@@ -14,8 +14,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // errUnchanged ends an update whose patch changed nothing: nothing is written
@@ -135,7 +134,7 @@ func (h *Handler) sortingPrefixes(w http.ResponseWriter, r *http.Request) error 
 				return err
 			}
 			for _, row := range titles {
-				want := textsort.TitleIgnorePrefix(db.Val(row.Title), prefixes)
+				want := text.TitleIgnorePrefix(db.Val(row.Title), prefixes)
 				if want == db.Val(row.Ignore) {
 					continue
 				}
@@ -185,7 +184,7 @@ func applyAuth(s *settings.Server, body patchBody) error {
 		return err
 	}
 	if _, ok := body["authLoginCustomMessage"]; ok {
-		s.LoginCustomMessage = settings.NullString(textclean.Sanitize(string(s.LoginCustomMessage)))
+		s.LoginCustomMessage = settings.NullString(text.Sanitize(string(s.LoginCustomMessage)))
 	}
 	if raw, ok := body["authOpenIDSubfolderForRedirectURLs"]; ok { // "" stays "" here; null unsets
 		var subfolder *string

@@ -23,6 +23,7 @@ import (
 
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/db/dbtest"
 	"audiobookshelf-compat/internal/server"
 )
 
@@ -118,7 +119,7 @@ func boot(t testing.TB, seeded bool) *Install {
 			{from: meta.SeedRoots.Metadata, to: filepath.Join(dir, "metadata")},
 			{from: meta.SeedRoots.Config, to: filepath.Join(dir, "config")},
 		}
-		if err := rewriteSeedPaths(context.Background(), st.SQL(), pairs); err != nil {
+		if err := rewriteSeedPaths(context.Background(), dbtest.OpenRaw(t, db.FilePath(cfg.ConfigPath)), pairs); err != nil {
 			t.Fatalf("contracttest: rewrite seed paths: %v", err)
 		}
 	}
@@ -141,15 +142,10 @@ func boot(t testing.TB, seeded bool) *Install {
 	t.Cleanup(func() { _ = httpServer.Close() })
 	// Runs first (LIFO), while the server still runs: TS stores every text and
 	// JSON column as TEXT, so a BLOB anywhere is a Go write bug. It opens the
-	// file afresh: a backup apply reopens the database, which closes st.
+	// file afresh through a second handle: a backup apply reopens the database,
+	// which closes st.
 	t.Cleanup(func() {
-		check, err := db.Open(db.FilePath(cfg.ConfigPath))
-		if err != nil {
-			t.Errorf("contracttest: open database for the blob check: %v", err)
-			return
-		}
-		defer func() { _ = check.Close() }()
-		assertNoBlobText(t, check.SQL())
+		assertNoBlobText(t, dbtest.OpenRaw(t, db.FilePath(cfg.ConfigPath)))
 	})
 
 	return &Install{
@@ -157,7 +153,7 @@ func boot(t testing.TB, seeded bool) *Install {
 		IDs:     ids,
 		Users:   meta.Users,
 		Dir:     dir,
-		DB:      st.SQL(),
+		DB:      dbtest.OpenRaw(t, db.FilePath(cfg.ConfigPath)),
 		client:  &http.Client{Timeout: requestLimit},
 	}
 }

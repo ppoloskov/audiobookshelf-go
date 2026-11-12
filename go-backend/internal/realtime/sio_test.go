@@ -39,9 +39,9 @@ var reasonRe = regexp.MustCompile(`[Ss]ocket (\S+) disconnect.*\(Reason: (.*)\)`
 
 func testServer(t *testing.T) *sioServer {
 	t.Helper()
-	db, _ := testDB(t)
+	db := testDB(t)
 	srv := &sioServer{disconnects: make(chan string, 64), actions: make(chan string, 64), reasons: make(chan logged, 64)}
-	srv.backend = &fakeBackend{sql: db, actions: srv.actions, auth: func(r *http.Request) (*auth.Principal, error) {
+	srv.backend = &fakeBackend{d: db, actions: srv.actions, auth: func(r *http.Request) (*auth.Principal, error) {
 		return userForToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 	}}
 	srv.backend.removeLogListener = func(id string) { srv.disconnects <- id }
@@ -359,7 +359,7 @@ func TestServerDisconnectSendsPacketThenCloses(t *testing.T) {
 	srv := testServer(t)
 	ws, id := connect(t, srv.url)
 	login(t, ws, "tok-alice")
-	if _, err := srv.backend.sql.Exec(`UPDATE users SET isActive=0 WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.d.Exec(context.Background(), `UPDATE users SET isActive=0 WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {

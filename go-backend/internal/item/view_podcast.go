@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // PodcastMetadataFull is the metadata of the full podcast view.
@@ -140,7 +140,7 @@ func (p *Podcast) metadata() PodcastMetadataFull {
 
 func (p *Podcast) metadataMinified(prefixes []string) PodcastMetadataMinified {
 	// Unlike a book, a podcast without a title still gets a prefix value ("").
-	return PodcastMetadataMinified{PodcastMetadataFull: p.metadata(), TitleIgnorePrefix: db.Ptr(textsort.PrefixAtEnd(db.Val(p.Title), prefixes))}
+	return PodcastMetadataMinified{PodcastMetadataFull: p.metadata(), TitleIgnorePrefix: db.Ptr(text.PrefixAtEnd(db.Val(p.Title), prefixes))}
 }
 
 // Full is the full media view (Podcast.toOldJSON) with the loaded episodes.

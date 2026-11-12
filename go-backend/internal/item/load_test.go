@@ -3,19 +3,14 @@ package item
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
-	"sync/atomic"
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/dbtest"
-
-	"modernc.org/sqlite"
 )
 
 const stamp = "2024-01-02 03:04:05.000 +00:00"
@@ -223,38 +218,8 @@ func TestPodcastEpisodesLoadAndProject(t *testing.T) {
 	}
 }
 
-// countingConnector counts the queries that return rows.
-type countingConnector struct {
-	path  string
-	count *atomic.Int64
-}
-
-func (c countingConnector) Connect(context.Context) (driver.Conn, error) {
-	conn, err := (&sqlite.Driver{}).Open(c.path)
-	if err != nil {
-		return nil, err
-	}
-	return countingConn{Conn: conn, count: c.count}, nil
-}
-func (c countingConnector) Driver() driver.Driver { return &sqlite.Driver{} }
-
-type countingConn struct {
-	driver.Conn
-	count *atomic.Int64
-}
-
-func (c countingConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	c.count.Add(1)
-	return c.Conn.(driver.QueryerContext).QueryContext(ctx, query, args)
-}
-
 func TestLoadQueryCountIsConstant(t *testing.T) {
-	count := &atomic.Int64{}
-	sqlDB := sql.OpenDB(countingConnector{path: filepath.Join(t.TempDir(), "db.sqlite"), count: count})
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	d := db.New(sqlDB)
-	exec(t, d, db.Schema)
+	d, count := dbtest.Counting(t)
 	var all []string
 	for i := range 120 {
 		all = append(all, addBook(t, d, i, "T"))

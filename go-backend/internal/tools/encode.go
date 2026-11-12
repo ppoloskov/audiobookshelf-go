@@ -14,7 +14,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 // encode starts the merge of the audiobook into one m4b file
@@ -84,7 +84,7 @@ func (h *Handler) merge(j *job, b book, query url.Values) error {
 	args = append(args, "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1")
 	args = append(args, cover...)
 	args = append(args, "-acodec", cmp.Or(query.Get("codec"), "aac"), "-ac", cmp.Or(query.Get("channels"), "2"), "-b:a", cmp.Or(query.Get("bitrate"), "128k"), "-f", "mp4", temp)
-	if err := mediatools.Run(j.ctx, args...); err != nil {
+	if err := media.Run(j.ctx, args...); err != nil {
 		_ = os.Remove(temp)
 		return fmt.Errorf("ffmpeg m4b encode: %w", err)
 	}

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"audiobookshelf-compat/internal/textdist"
+	"audiobookshelf-compat/internal/text"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -95,7 +95,7 @@ func filterByDistance(books []BookResult, title, author string) []BookResult {
 	var kept []scored
 	for _, b := range books {
 		cleanedTitle := cleanTitleForCompares(b.Title)
-		titleDistance := textdist.LevenshteinFold(cleanedTitle, title)
+		titleDistance := text.LevenshteinFold(cleanedTitle, title)
 		totalPossible := len([]rune(b.Title))
 		authorDistance, includesAuthor := 0, false
 		if author != "" {
@@ -104,7 +104,7 @@ func filterByDistance(books []BookResult, title, author string) []BookResult {
 			} else {
 				totalPossible += len([]rune(b.Author))
 				cleanedAuthor := cleanAuthorForCompares(b.Author)
-				authorDistance = int(math.Min(float64(textdist.LevenshteinFold(cleanedAuthor, searchAuthor)), float64(textdist.LevenshteinFold(b.Author, author))))
+				authorDistance = int(math.Min(float64(text.LevenshteinFold(cleanedAuthor, searchAuthor)), float64(text.LevenshteinFold(b.Author, author))))
 				includesAuthor = len(searchAuthor) > 4 && strings.Contains(cleanedAuthor, searchAuthor) || len(author) > 4 && strings.Contains(b.Author, author)
 			}
 		}

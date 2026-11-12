@@ -85,7 +85,7 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 		t.Fatalf("restored author metadata=%q", body)
 	}
 	var raw []byte
-	if err := manager.current.Load().data.SQL().QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
+	if err := manager.current.Load().data.Get(context.Background(), &raw, `SELECT value FROM settings WHERE key='server-settings'`); err != nil {
 		t.Fatal(err)
 	}
 	var settings map[string]any
@@ -206,7 +206,7 @@ func snapshotWithVersion(t *testing.T, cfg config.Config, username, password, ve
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.SQL().Exec(`UPDATE migrationsMeta SET value=? WHERE key IN ('version','maxVersion')`, ver); err != nil {
+	if _, err := database.Exec(context.Background(), `UPDATE migrationsMeta SET value=? WHERE key IN ('version','maxVersion')`, ver); err != nil {
 		t.Fatal(err)
 	}
 	if err := database.Close(); err != nil {
@@ -285,8 +285,12 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 		_ = database.Close()
 		t.Fatal(err)
 	}
-	var busy, logFrames, checkpointed int
-	if err := database.SQL().QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logFrames, &checkpointed); err != nil {
+	var checkpoint struct {
+		Busy         int `db:"busy"`
+		Log          int `db:"log"`
+		Checkpointed int `db:"checkpointed"`
+	}
+	if err := database.Get(context.Background(), &checkpoint, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		_ = database.Close()
 		t.Fatal(err)
 	}
@@ -314,7 +318,7 @@ func insertTestRoot(database *db.DB, cfg config.Config, username, password strin
 	}
 	now := time.Now().UTC()
 	permissions := `{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true,"download":true,"update":true,"delete":true,"upload":true,"createEreader":true,"librariesAccessible":[],"itemTagsSelected":[]}`
-	_, err = database.SQL().Exec(`INSERT INTO users(id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES('root-test',?,NULL,?,'root','legacy-token',1,0,NULL,?,'[]','{}',?,?)`, username, string(hash), permissions, now, now)
+	_, err = database.Exec(context.Background(), `INSERT INTO users(id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES('root-test',?,NULL,?,'root','legacy-token',1,0,NULL,?,'[]','{}',?,?)`, username, string(hash), permissions, now, now)
 	return err
 }
 

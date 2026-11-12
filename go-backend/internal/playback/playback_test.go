@@ -17,7 +17,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/dbtest"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 	"audiobookshelf-compat/internal/settings"
 )
 
@@ -634,7 +634,7 @@ func TestHistoryListingSortsFiltersAndDeletes(t *testing.T) {
 
 func (e *env) startTranscoded(t *testing.T) (id, dir string) {
 	t.Helper()
-	if !mediatools.FFmpegAvailable() {
+	if !media.FFmpegAvailable() {
 		t.Fatal("fake ffmpeg unavailable")
 	}
 	w := e.expect(t, 200, listenerID, "POST", "/api/items/"+sagaItem+"/play", `{"forceTranscode":true}`)

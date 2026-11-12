@@ -18,7 +18,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 const (
@@ -144,7 +144,7 @@ func (h *Handler) resizedCover(w http.ResponseWriter, r *http.Request, itemID, s
 	if height == 0 {
 		height = -1 // ffmpeg keeps the aspect ratio
 	}
-	if err := mediatools.ResizeImage(r.Context(), source, cache, width, height); err != nil {
+	if err := media.ResizeImage(r.Context(), source, cache, width, height); err != nil {
 		return httpx.Internal("", err)
 	}
 	return httpx.ServeFile(w, r, cache)

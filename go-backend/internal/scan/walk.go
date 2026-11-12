@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/media"
 )
 
 // fileEntry is one file found on disk. rel is slash-separated and relative to
@@ -275,10 +275,10 @@ func (l library) wantFile(rel string) bool {
 
 // keeps reports whether a scan keeps files of this extension: an item's media
 // files and the companions that describe it.
-func (l library) keeps(ext string) bool { return l.mediaExt(ext) || filekind.IsCompanion(ext) }
+func (l library) keeps(ext string) bool { return l.mediaExt(ext) || media.IsCompanion(ext) }
 
 // mediaExt reports whether a file of this extension is an item's media file
 // (audio, plus ebooks in a book library that is not audiobooks-only).
 func (l library) mediaExt(ext string) bool {
-	return filekind.IsAudio(ext) || (l.mediaType == "book" && !l.audiobooksOnly && filekind.IsEbook(ext))
+	return media.IsAudio(ext) || (l.mediaType == "book" && !l.audiobooksOnly && media.IsEbook(ext))
 }

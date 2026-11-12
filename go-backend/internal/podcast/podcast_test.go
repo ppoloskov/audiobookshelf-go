@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/dbtest"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/settings"
 )
@@ -44,22 +46,23 @@ type note struct {
 // rig is a Handler over a copy of the fixture install whose podcast folder is a
 // temporary directory.
 type rig struct {
-	h      *Handler
-	d      *db.DB
-	root   string
-	events chan event
-	notes  chan note
+	h       *Handler
+	filters *filterdata.Cache
+	d       *db.DB
+	root    string
+	events  chan event
+	notes   chan note
 }
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1")
-	r := &rig{d: dbtest.Fixture(t), root: t.TempDir(), events: make(chan event, 256), notes: make(chan note, 16)}
+	r := &rig{d: dbtest.Fixture(t), filters: filterdata.NewCache(), root: t.TempDir(), events: make(chan event, 256), notes: make(chan note, 16)}
 	for _, q := range []string{
 		"UPDATE libraryItems SET path='" + r.root + "' WHERE mediaType='podcast'",
 		"UPDATE libraryFolders SET path='" + r.root + "' WHERE id='" + testFolder + "'",
 	} {
-		if _, err := r.d.SQL().Exec(q); err != nil {
+		if _, err := r.d.Exec(context.Background(), q); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -67,7 +70,7 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.h = New(r.d, st, config.Config{MaxFailedEpisodeChecks: 2}, func(_, name string, payload any) {
+	r.h = New(r.d, st, r.filters, config.Config{MaxFailedEpisodeChecks: 2}, func(_, name string, payload any) {
 		select {
 		case r.events <- event{name, payload}:
 		default:
@@ -108,7 +111,7 @@ func (r *rig) serve(t *testing.T, username, method, path, body string) *httptest
 
 func (r *rig) sql(t *testing.T, query string, args ...any) {
 	t.Helper()
-	if _, err := r.d.SQL().Exec(query, args...); err != nil {
+	if _, err := r.d.Exec(context.Background(), query, args...); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -116,7 +119,7 @@ func (r *rig) sql(t *testing.T, query string, args ...any) {
 func (r *rig) count(t *testing.T, query string) int {
 	t.Helper()
 	var n int
-	if err := r.d.SQL().QueryRow(query).Scan(&n); err != nil {
+	if err := r.d.Get(context.Background(), &n, query); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -404,7 +407,7 @@ func TestScheduledRunDownloadsNewEpisodesAndNotifies(t *testing.T) {
 	r.wantNoteEvent(t, "onPodcastEpisodeDownloaded")
 	r.idle(t)
 	var guid string
-	if err := r.d.SQL().QueryRow(`SELECT json_extract(extraData,'$.guid') FROM podcastEpisodes WHERE title='Fresh'`).Scan(&guid); err != nil || guid != "g1" {
+	if err := r.d.Get(context.Background(), &guid, `SELECT json_extract(extraData,'$.guid') FROM podcastEpisodes WHERE title='Fresh'`); err != nil || guid != "g1" {
 		t.Fatalf("guid = %q, %v", guid, err)
 	}
 	r.h.runScheduled(testItem) // nothing new now
@@ -431,7 +434,7 @@ func TestEpisodePatchAndDelete(t *testing.T) {
 	path := "/api/podcasts/" + testItem + "/episode/" + testEpisode
 	title := func() string {
 		var s string
-		if err := r.d.SQL().QueryRow(`SELECT COALESCE(title,'<null>') FROM podcastEpisodes WHERE id=?`, testEpisode).Scan(&s); err != nil {
+		if err := r.d.Get(context.Background(), &s, `SELECT COALESCE(title,'<null>') FROM podcastEpisodes WHERE id=?`, testEpisode); err != nil {
 			t.Fatal(err)
 		}
 		return s
@@ -478,7 +481,7 @@ func TestEpisodePatchAndDelete(t *testing.T) {
 	}
 	var files []db.LibraryFile
 	var raw db.JSON[[]db.LibraryFile]
-	if err := r.d.SQL().QueryRow(`SELECT libraryFiles FROM libraryItems WHERE id=?`, testItem).Scan(&raw); err != nil {
+	if err := r.d.Get(context.Background(), &raw, `SELECT libraryFiles FROM libraryItems WHERE id=?`, testItem); err != nil {
 		t.Fatal(err)
 	}
 	files = raw.V
@@ -504,7 +507,7 @@ func TestCreatePodcast(t *testing.T) {
 		t.Errorf("folder not made: %v", err)
 	}
 	var id string
-	if err := r.d.SQL().QueryRow(`SELECT itunesId FROM podcasts WHERE title='The New Show'`).Scan(&id); err != nil || id != "12345" {
+	if err := r.d.Get(context.Background(), &id, `SELECT itunesId FROM podcasts WHERE title='The New Show'`); err != nil || id != "12345" {
 		t.Errorf("itunesId = %q, %v", id, err)
 	}
 	if len(r.h.cron.Entries()) != 1 {
@@ -580,10 +583,16 @@ func TestQuickMatchFillsUnmatchedEpisodes(t *testing.T) {
 	if err != nil || n != 1 {
 		t.Fatalf("matched %d, %v", n, err)
 	}
-	var url, season, subtitle, published string
-	if err := r.d.SQL().QueryRow(`SELECT enclosureURL,season,COALESCE(subtitle,''),publishedAt FROM podcastEpisodes WHERE id=?`, testEpisode).Scan(&url, &season, &subtitle, &published); err != nil {
+	var row struct {
+		URL       string `db:"enclosureURL"`
+		Season    string `db:"season"`
+		Subtitle  string `db:"subtitle"`
+		Published string `db:"publishedAt"`
+	}
+	if err := r.d.Get(context.Background(), &row, `SELECT enclosureURL,season,COALESCE(subtitle,'') AS subtitle,publishedAt FROM podcastEpisodes WHERE id=?`, testEpisode); err != nil {
 		t.Fatal(err)
 	}
+	url, season, subtitle := row.URL, row.Season, row.Subtitle
 	if !strings.HasSuffix(url, "/a.wav") || season != "1" || subtitle != "sub Pilot Episode" {
 		t.Errorf("row = %q %q %q", url, season, subtitle)
 	}
@@ -677,5 +686,26 @@ func TestParseFeedShapesAndSanitizes(t *testing.T) {
 		if _, err := parseFeed([]byte(doc), "u"); err == nil {
 			t.Errorf("accepted %s", doc)
 		}
+	}
+}
+
+func TestCreateInvalidatesFilterData(t *testing.T) {
+	r := newRig(t)
+	genres := func() []string {
+		data, err := r.filters.Get(context.Background(), r.d, testLib, "podcast")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data.Genres
+	}
+	if slices.Contains(genres(), "Zymurgy") { // also fills the cache
+		t.Fatal("genre present before the podcast exists")
+	}
+	body := `{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + r.root + `/Brew","tags":["fermenting"],"media":{"metadata":{"title":"Brew","genres":["Zymurgy"]}}}`
+	if w := r.serve(t, "trial-root", "POST", "/api/podcasts", body); w.Code != 200 {
+		t.Fatalf("create = %d %s", w.Code, w.Body)
+	}
+	if !slices.Contains(genres(), "Zymurgy") {
+		t.Error("the filter menu does not show the new podcast's genre")
 	}
 }

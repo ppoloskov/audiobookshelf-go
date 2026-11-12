@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/library"
 )
 
 // collapsedSeriesView is libraryItem.collapsedSeries on a collapsed page
@@ -54,11 +55,11 @@ type seriesBookRow struct {
 // missing-authors filters apply to the series' books without it
 // (libraryItemsBookFilters.js:562-570). Rows come in sequence order, books
 // without a sequence last.
-func (h *Handler) collapseSeries(ctx context.Context, s scope, filter, filterClause string, filterArgs []any, permClause string, permArgs []any) (collapsedSeries, error) {
+func (h *Handler) collapseSeries(ctx context.Context, s library.Scope, filter, filterClause string, filterArgs []any, permClause string, permArgs []any) (collapsedSeries, error) {
 	group, raw, _ := strings.Cut(filter, ".")
-	where, args := filterClause+permClause, append(append([]any{s.lib.ID}, filterArgs...), permArgs...)
+	where, args := filterClause+permClause, append(append([]any{s.Library.ID}, filterArgs...), permArgs...)
 	if value := decodeValue(raw); group == "progress" || (group == "missing" && value == "authors") {
-		where, args = filterClause, append([]any{s.lib.ID}, filterArgs...)
+		where, args = filterClause, append([]any{s.Library.ID}, filterArgs...)
 	}
 	var rows []seriesBookRow
 	err := h.db.Select(ctx, &rows, `SELECT s.id AS seriesId, s.name AS name, s.nameIgnorePrefix AS nameIgnorePrefix,

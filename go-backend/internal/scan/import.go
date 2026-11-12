@@ -14,8 +14,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/nameparse"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 	"audiobookshelf-compat/internal/version"
 )
 
@@ -311,7 +310,7 @@ func (s *Scanner) saveBook(ctx context.Context, p *plan) (item.ScanLinks, error)
 		*b = db.Book{ID: p.mediaID, CreatedAt: p.now}
 	}
 	keep(&b.Title, p.title)
-	b.TitleIgnorePrefix = db.Ptr(textsort.TitleIgnorePrefix(p.title, p.lib.prefixes))
+	b.TitleIgnorePrefix = db.Ptr(text.TitleIgnorePrefix(p.title, p.lib.prefixes))
 	keep(&b.Subtitle, md.Subtitle)
 	keep(&b.PublishedYear, md.PublishedYear)
 	keep(&b.PublishedDate, md.PublishedDate)
@@ -414,8 +413,8 @@ func (s *Scanner) saveItem(ctx context.Context, p *plan) error {
 		row := db.LibraryItem{ID: p.itemID, Ino: &p.ino, Path: &c.path, RelPath: &p.rel, MediaID: &p.mediaID, MediaType: &lib.mediaType, IsFile: db.Bool(c.isFile),
 			Mtime: p.mtime, Ctime: p.ctime, Birthtime: p.birthtime, Size: &p.size, LastScan: p.now, LastScanVersion: db.Ptr(version.Server),
 			LibraryFiles: db.JSON[[]db.LibraryFile]{V: p.diff.files}, ExtraData: db.JSON[*db.LibraryItemExtra]{V: &db.LibraryItemExtra{}},
-			Title: &p.title, TitleIgnorePrefix: db.Ptr(textsort.TitleIgnorePrefix(p.title, lib.prefixes)),
-			AuthorNamesFirstLast: &p.author, AuthorNamesLastFirst: db.Ptr(nameparse.ToLastFirst(p.author)),
+			Title: &p.title, TitleIgnorePrefix: db.Ptr(text.TitleIgnorePrefix(p.title, lib.prefixes)),
+			AuthorNamesFirstLast: &p.author, AuthorNamesLastFirst: db.Ptr(text.ToLastFirst(p.author)),
 			CreatedAt: p.now, UpdatedAt: p.now, LibraryID: &lib.id, LibraryFolderID: &c.folder.ID}
 		return s.db.Insert(ctx, "libraryItems", &row)
 	}

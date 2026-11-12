@@ -21,8 +21,7 @@ import (
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // createRequest is the body of POST /api/podcasts. Tags, autoDownloadEpisodes
@@ -156,10 +155,10 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 	now := db.Now()
 	itemID, mediaID := ids.Must(), ids.Must()
 	title := ptrIfSet(meta.Title)
-	titleSort := ptrIfSet(textsort.TitleIgnorePrefix(meta.Title, server.SortingPrefixes))
+	titleSort := ptrIfSet(text.TitleIgnorePrefix(meta.Title, server.SortingPrefixes))
 	var description *string
 	if meta.Description != "" {
-		description = db.Ptr(textclean.Sanitize(meta.Description))
+		description = db.Ptr(text.Sanitize(meta.Description))
 	}
 	podcast := db.Podcast{ID: mediaID, Title: title, TitleIgnorePrefix: titleSort, Author: ptrIfSet(meta.Author), ReleaseDate: ptrIfSet(meta.ReleaseDate),
 		FeedURL: ptrIfSet(meta.FeedURL), ImageURL: ptrIfSet(meta.ImageURL), Description: description, ItunesPageURL: ptrIfSet(meta.ItunesPageURL),
@@ -185,6 +184,7 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 		return nil, httpx.Internal("Failed to create podcast", err)
 	}
 	madeDir = false // a committed item keeps its folder
+	h.filters.Invalidate(req.LibraryID)
 	it, err := h.load(ctx, itemID)
 	if err != nil {
 		return nil, httpx.Internal("database read failed", err)

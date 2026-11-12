@@ -7,7 +7,7 @@ import (
 	"slices"
 
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/text"
 	"audiobookshelf-compat/internal/version"
 )
 
@@ -114,7 +114,7 @@ func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) error {
 		IsInit:        roots > 0,
 		Language:      server.Language,
 		AuthMethods:   server.ActiveAuthMethods,
-		AuthFormData:  authFormData{LoginCustomMessage: textclean.Sanitize(string(server.LoginCustomMessage))},
+		AuthFormData:  authFormData{LoginCustomMessage: text.Sanitize(string(server.LoginCustomMessage))},
 	}
 	if response.Language == "" {
 		response.Language = "en-us"

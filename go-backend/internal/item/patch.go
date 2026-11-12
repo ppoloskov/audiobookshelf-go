@@ -6,8 +6,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // BookPatch is the media payload of PATCH /api/items/{id}/media for a book.
@@ -156,7 +155,7 @@ func sanitized(s *string) *string {
 	if s == nil {
 		return nil
 	}
-	return db.Ptr(textclean.Sanitize(*s))
+	return db.Ptr(text.Sanitize(*s))
 }
 
 // apply writes the patch onto row and returns the changed columns. A new title
@@ -179,7 +178,7 @@ func (p *BookPatch) apply(row *db.Book, prefixes []string) columns {
 	}
 	c.list("tags", &row.Tags, p.Tags)
 	if slices.Contains(c, "title") {
-		row.TitleIgnorePrefix = db.Ptr(textsort.TitleIgnorePrefix(db.Val(row.Title), prefixes))
+		row.TitleIgnorePrefix = db.Ptr(text.TitleIgnorePrefix(db.Val(row.Title), prefixes))
 		c = append(c, "titleIgnorePrefix")
 	}
 	if p.coverPath != nil {
@@ -221,7 +220,7 @@ func (p *PodcastPatch) apply(row *db.Podcast, prefixes []string) columns {
 		}
 	}
 	if slices.Contains(c, "title") {
-		row.TitleIgnorePrefix = db.Ptr(textsort.TitleIgnorePrefix(db.Val(row.Title), prefixes))
+		row.TitleIgnorePrefix = db.Ptr(text.TitleIgnorePrefix(db.Val(row.Title), prefixes))
 		c = append(c, "titleIgnorePrefix")
 	}
 	if p.coverPath != nil {

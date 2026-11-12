@@ -53,10 +53,10 @@ func newEnv(t *testing.T) *env {
 	if err := os.WriteFile(e.ebook, []byte(strings.Repeat("epub data ", 1000)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.d.SQL().QueryRow(`SELECT li.id FROM libraryItems li JOIN books b ON b.id = li.mediaId WHERE b.ebookFile IS NOT NULL AND b.ebookFile != 'null'`).Scan(&e.itemID); err != nil {
+	if err := e.d.Get(context.Background(), &e.itemID, `SELECT li.id FROM libraryItems li JOIN books b ON b.id = li.mediaId WHERE b.ebookFile IS NOT NULL AND b.ebookFile != 'null'`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.d.SQL().Exec(`UPDATE books SET ebookFile = json_set(ebookFile, '$.metadata.path', ?, '$.metadata.filename', 'Ünïcode book.epub')`, e.ebook); err != nil {
+	if _, err := e.d.Exec(context.Background(), `UPDATE books SET ebookFile = json_set(ebookFile, '$.metadata.path', ?, '$.metadata.filename', 'Ünïcode book.epub')`, e.ebook); err != nil {
 		t.Fatal(err)
 	}
 	return e
@@ -254,7 +254,7 @@ func TestSendEbook(t *testing.T) {
 		t.Errorf("empty body: %d", w.Code)
 	}
 	var podcastID string
-	_ = e.d.SQL().QueryRow(`SELECT id FROM libraryItems WHERE mediaType='podcast'`).Scan(&podcastID)
+	_ = e.d.Get(context.Background(), &podcastID, `SELECT id FROM libraryItems WHERE mediaType='podcast'`)
 	if w := send(rootID, podcastID, "admin only"); w.Code != 404 || w.Body.String() != "Ebook file not found" {
 		t.Errorf("podcast: %d %q", w.Code, w.Body)
 	}

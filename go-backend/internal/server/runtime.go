@@ -18,7 +18,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/libraries"
+	"audiobookshelf-compat/internal/library"
 	"audiobookshelf-compat/internal/list"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/mail"
@@ -78,7 +78,7 @@ func (rt *Runtime) build(getenv func(string) string, restore backup.Restore) (er
 	rt.metadata = metadata.New(rt.data, emit)
 	notifier := notify.New(rt.settings, emit)
 	lists := list.New(rt.data, rt.settings, emit)
-	podcasts := podcast.New(rt.data, rt.settings, cfg, emit, notifier.TriggerEvent, lists.AnnouncePlaylists)
+	podcasts := podcast.New(rt.data, rt.settings, filters, cfg, emit, notifier.TriggerEvent, lists.AnnouncePlaylists)
 	rt.own(podcasts.Close)
 	rt.scanner = scan.New(rt.data, rt.settings, emit, filters, cfg, lists.AnnouncePlaylists)
 	rt.own(rt.scanner.Close)
@@ -102,7 +102,7 @@ func (rt *Runtime) build(getenv func(string) string, restore backup.Restore) (er
 		CoverCacheDir:     cfg.Dirs().CoverCache,
 		ItemMetadataDir:   itemMetadataDir,
 	})
-	libs := libraries.New(rt.data, rt.settings, emit, libraries.Deps{
+	libs := library.New(rt.data, rt.settings, emit, library.Deps{
 		Filters:        filters,
 		LibraryChanged: func(string) { refreshWatchers() },
 		QuickMatch:     items.QuickMatch,
@@ -144,7 +144,7 @@ func (rt *Runtime) build(getenv func(string) string, restore backup.Restore) (er
 	// Order matters: backup is last so its patterns do not shadow the others.
 	routes := http.NewServeMux()
 	for _, domain := range []interface{ Routes(*http.ServeMux) }{
-		lists, items, libs, authors, browse.New(rt.data, rt.settings, emit), adm, toolbox, rt.metadata,
+		lists, items, libs, authors, browse.New(rt.data, rt.settings, emit, filters), adm, toolbox, rt.metadata,
 		share.New(rt.data, emit, cfg.RouterBasePath), users, rt.playback, notifier,
 		mail.New(rt.data, rt.settings, emit), rt.scanner, podcasts, backups,
 	} {

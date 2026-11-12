@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/media"
 )
 
 // gmtLayout is an RSS date (Date.toGMTString).
@@ -83,7 +83,7 @@ func marshalRSS(f db.Feed, episodes []db.FeedEpisode, host string, now time.Time
 
 func rssItem(e db.FeedEpisode, host string) el {
 	url := host + db.Val(e.EnclosureURL)
-	mime := orDefault(db.Val(e.EnclosureType), filekind.KnownAudioMime(filepath.Ext(url)))
+	mime := orDefault(db.Val(e.EnclosureType), media.KnownAudioMime(filepath.Ext(url)))
 	description, author := db.Val(e.Description), db.Val(e.Author)
 	guid := text("guid", url)
 	guid.Attrs = []xml.Attr{{Name: xml.Name{Local: "isPermaLink"}, Value: "false"}}

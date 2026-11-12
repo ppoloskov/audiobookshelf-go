@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/filterdata"
 )
 
 type seriesResults struct {
@@ -230,5 +231,25 @@ func TestSeriesBooksUseTheMinifiedBookShape(t *testing.T) {
 	}
 	if _, ok := metadata["descriptionPlain"]; ok {
 		t.Error("minified metadata has descriptionPlain")
+	}
+}
+
+func TestSeriesRenameInvalidatesFilterData(t *testing.T) {
+	r, root := newRig(t), users()["root"]
+	hasSeries := func(name string) bool {
+		data, err := r.filters.Get(t.Context(), r.d, "l1", "book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.ContainsFunc(data.Series, func(n filterdata.Named) bool { return n.Name == name })
+	}
+	if !hasSeries("Alpha Saga") || hasSeries("Renamed Saga") { // also fills the cache
+		t.Fatal("unexpected series menu before the rename")
+	}
+	if code := r.status(root, "PATCH", "/api/series/s1", `{"name":"Renamed Saga"}`); code != 200 {
+		t.Fatalf("PATCH: %d", code)
+	}
+	if !hasSeries("Renamed Saga") || hasSeries("Alpha Saga") {
+		t.Error("the filter menu still shows the old series name")
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/media"
 )
 
 // chunkSize bounds the length of an IN list (SQLite limits bound variables).
@@ -110,7 +110,7 @@ func normalizeItem(row *db.LibraryItem) {
 	}
 	for i := range row.LibraryFiles.V {
 		file := &row.LibraryFiles.V[i]
-		file.FileType = filekind.Of("." + strings.TrimPrefix(file.Metadata.Ext, "."))
+		file.FileType = media.KindOf("." + strings.TrimPrefix(file.Metadata.Ext, "."))
 	}
 }
 

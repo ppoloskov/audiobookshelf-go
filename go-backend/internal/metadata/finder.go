@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"audiobookshelf-compat/internal/textdist"
+	"audiobookshelf-compat/internal/text"
 )
 
 // Search distances: how far (Levenshtein) an Open Library result may be from
@@ -160,7 +160,7 @@ func (h *Handler) validateAuthor(ctx context.Context, name string) string {
 			return name
 		case strings.Contains(name, clean):
 			return clean
-		case textdist.LevenshteinFold(clean, name) <= validateAuthorMaxDist:
+		case text.LevenshteinFold(clean, name) <= validateAuthorMaxDist:
 			return clean
 		}
 	}

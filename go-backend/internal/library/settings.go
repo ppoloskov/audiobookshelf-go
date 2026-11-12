@@ -1,4 +1,4 @@
-package libraries
+package library
 
 import (
 	"bytes"

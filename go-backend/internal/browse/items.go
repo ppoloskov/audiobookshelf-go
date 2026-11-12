@@ -8,6 +8,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/library"
 )
 
 // itemsPage is GET /api/libraries/{id}/items (LibraryController.getLibraryItems).
@@ -28,10 +29,10 @@ type itemsPage struct {
 }
 
 // newItemsPage fills the echo of the request.
-func newItemsPage(q url.Values, s scope, collapse bool, include []string) itemsPage {
-	p := itemsPage{Results: []item.Minified{}, Limit: s.limit, Page: s.page, SortDesc: q.Get("desc") == "1",
-		FilterBy: q.Get("filter"), MediaType: db.Val(s.lib.MediaType), Minified: q.Get("minified") == "1",
-		CollapseSeries: collapse, Include: strings.Join(include, ","), Offset: s.page * s.limit}
+func newItemsPage(q url.Values, s library.Scope, collapse bool, include []string) itemsPage {
+	p := itemsPage{Results: []item.Minified{}, Limit: s.Limit, Page: s.Page, SortDesc: q.Get("desc") == "1",
+		FilterBy: q.Get("filter"), MediaType: db.Val(s.Library.MediaType), Minified: q.Get("minified") == "1",
+		CollapseSeries: collapse, Include: strings.Join(include, ","), Offset: s.Page * s.Limit}
 	if sortBy := q.Get("sort"); sortBy != "" {
 		p.SortBy = &sortBy
 	}
@@ -39,7 +40,7 @@ func newItemsPage(q url.Values, s scope, collapse bool, include []string) itemsP
 }
 
 // items serves the filtered, sorted and paged item list.
-func (h *Handler) items(w http.ResponseWriter, r *http.Request, s scope) error {
+func (h *Handler) items(w http.ResponseWriter, r *http.Request, s library.Scope) error {
 	ctx, q := r.Context(), r.URL.Query()
 	collapse := q.Get("collapseseries") == "1"
 	include := includes(r)
@@ -47,22 +48,22 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s scope) error {
 	if seriesID, ok := subseriesFilter(q); ok {
 		return h.subseriesPage(w, r, s, seriesID, server.SortingIgnorePrefix, server.SortingPrefixes)
 	}
-	table, err := s.mediaTable()
+	table, err := s.MediaTable()
 	if err != nil {
 		return err
 	}
-	filter, mediaType := q.Get("filter"), db.Val(s.lib.MediaType)
-	order, orderArgs, err := orderSQL(q.Get("sort"), filter, q.Get("desc") == "1", server.SortingIgnorePrefix, s.podcast(), s.user)
+	filter, mediaType := q.Get("filter"), db.Val(s.Library.MediaType)
+	order, orderArgs, err := orderSQL(q.Get("sort"), filter, q.Get("desc") == "1", server.SortingIgnorePrefix, s.Podcast(), s.User)
 	if err != nil {
 		return err
 	}
-	filterClause, filterArgs, err := filterSQL(filter, s.podcast(), s.user)
+	filterClause, filterArgs, err := filterSQL(filter, s.Podcast(), s.User)
 	if err != nil {
 		return err
 	}
-	permClause, permArgs := s.user.MediaClause("b")
+	permClause, permArgs := s.User.MediaClause("b")
 	var collapsed collapsedSeries
-	if collapse && !s.podcast() {
+	if collapse && !s.Podcast() {
 		if collapsed, err = h.collapseSeries(ctx, s, filter, filterClause, filterArgs, permClause, permArgs); err != nil {
 			return httpx.Internal("database read failed", err)
 		}
@@ -75,15 +76,15 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s scope) error {
 		}
 	}
 	from := ` FROM libraryItems li JOIN ` + table + ` b ON b.id=li.mediaId WHERE li.libraryId=? AND li.mediaType=?` + filterClause + permClause
-	args := append([]any{s.lib.ID, mediaType}, filterArgs...)
+	args := append([]any{s.Library.ID, mediaType}, filterArgs...)
 	args = append(args, permArgs...)
 	out := newItemsPage(q, s, collapse, include)
 	if err := h.db.Get(ctx, &out.Total, `SELECT COUNT(*)`+from, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	query, args := `SELECT li.id`+from+order, append(args, orderArgs...)
-	if s.limit > 0 {
-		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.limit, s.page*s.limit)
+	if s.Limit > 0 {
+		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.Limit, s.Page*s.Limit)
 	}
 	var ids []string
 	if err := h.db.Select(ctx, &ids, query, args...); err != nil {
@@ -100,7 +101,7 @@ func (h *Handler) items(w http.ResponseWriter, r *http.Request, s scope) error {
 			rows[i].CollapsedSeries = series
 		}
 	}
-	if err := h.attach(ctx, s.user.ID, extrasOf(include, isAdmin(s.user)), loaded, rows); err != nil {
+	if err := h.attach(ctx, s.User.ID, extrasOf(include, isAdmin(s.User)), loaded, rows); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	out.Results = rows

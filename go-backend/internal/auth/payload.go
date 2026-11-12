@@ -6,7 +6,7 @@ import (
 
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/text"
 )
 
 // authPayload is what login, refresh, authorize and the OpenID mobile callback
@@ -161,7 +161,7 @@ func (s *Service) payloadFor(ctx context.Context, user db.User) (authPayload[use
 			break
 		}
 	}
-	payload.ServerSettings.LoginCustomMessage = settings.NullString(textclean.Sanitize(string(payload.ServerSettings.LoginCustomMessage)))
+	payload.ServerSettings.LoginCustomMessage = settings.NullString(text.Sanitize(string(payload.ServerSettings.LoginCustomMessage)))
 	return payload, nil
 }
 

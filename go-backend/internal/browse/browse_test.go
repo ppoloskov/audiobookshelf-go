@@ -2,28 +2,23 @@ package browse
 
 import (
 	"context"
-	"database/sql"
-	"database/sql/driver"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/dbtest"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/settings"
-
-	"modernc.org/sqlite"
 )
 
 type sentEvent struct {
@@ -33,17 +28,18 @@ type sentEvent struct {
 
 // rig is a Handler over the seeded database.
 type rig struct {
-	t      *testing.T
-	d      *db.DB
-	mux    *http.ServeMux
-	store  *settings.Store
-	mu     sync.Mutex
-	events []sentEvent
+	t       *testing.T
+	d       *db.DB
+	mux     *http.ServeMux
+	store   *settings.Store
+	filters *filterdata.Cache
+	mu      sync.Mutex
+	events  []sentEvent
 }
 
 func newRigOn(t *testing.T, d *db.DB) *rig {
 	t.Helper()
-	r := &rig{t: t, d: d, mux: http.NewServeMux()}
+	r := &rig{t: t, d: d, filters: filterdata.NewCache(), mux: http.NewServeMux()}
 	var err error
 	if r.store, err = settings.NewStore(context.Background(), d, func(string) string { return "" }, t.TempDir()); err != nil {
 		t.Fatal(err)
@@ -53,7 +49,7 @@ func newRigOn(t *testing.T, d *db.DB) *rig {
 		defer r.mu.Unlock()
 		r.events = append(r.events, sentEvent{name, payload})
 	})
-	New(d, r.store, emit).Routes(r.mux)
+	New(d, r.store, emit, r.filters).Routes(r.mux)
 	return r
 }
 
@@ -455,49 +451,10 @@ func mustJSON(t *testing.T, v any) []byte {
 	return raw
 }
 
-// countedConnector counts the queries that return rows.
-type countedConnector struct {
-	path  string
-	count *atomic.Int64
-}
-
-func (c countedConnector) Connect(context.Context) (driver.Conn, error) {
-	conn, err := (&sqlite.Driver{}).Open(c.path)
-	if err != nil {
-		return nil, err
-	}
-	return countedConn{conn.(queryConn), c.count}, nil
-}
-
-func (c countedConnector) Driver() driver.Driver { return &sqlite.Driver{} }
-
-type queryConn interface {
-	driver.Conn
-	driver.QueryerContext
-}
-
-type countedConn struct {
-	queryConn
-	count *atomic.Int64
-}
-
-func (c countedConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	c.count.Add(1)
-	return c.queryConn.QueryContext(ctx, query, args)
-}
-
 // The item page and the series list load their rows in batches: the number
 // of reads must not grow with the page size.
 func TestPagesReadAConstantNumberOfQueries(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "absdatabase.sqlite")
-	var count atomic.Int64
-	sqlDB := sql.OpenDB(countedConnector{path, &count})
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	if _, err := sqlDB.Exec(db.Schema); err != nil {
-		t.Fatal(err)
-	}
-	d := db.New(sqlDB)
+	d, count := dbtest.Counting(t)
 	seed(t, d)
 	r, root := newRigOn(t, d), users()["root"]
 	for _, target := range []string{"/api/libraries/l3/items", "/api/libraries/l3/series", "/api/libraries/l3/personalized", "/api/libraries/l3/search?q=g"} {

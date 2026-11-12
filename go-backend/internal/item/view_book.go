@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/nameparse"
-	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // BookMetadataFull is the metadata of the full and expanded book views.
@@ -148,7 +146,7 @@ func (b *Book) authorNames(lastFirst bool) string {
 	for i, author := range b.Authors {
 		names[i] = author.Name
 		if lastFirst {
-			names[i] = nameparse.ToLastFirst(author.Name)
+			names[i] = text.ToLastFirst(author.Name)
 		}
 	}
 	return strings.Join(names, ", ")
@@ -175,7 +173,7 @@ func (b *Book) titleIgnorePrefix(prefixes []string) *string {
 	if b.Title == nil {
 		return nil
 	}
-	return db.Ptr(textsort.PrefixAtEnd(*b.Title, prefixes))
+	return db.Ptr(text.PrefixAtEnd(*b.Title, prefixes))
 }
 
 // counts is the one place the derived numbers are computed: tracks are the
@@ -214,7 +212,7 @@ func (b *Book) Minified(prefixes []string) BookMinified {
 func (b *Book) Expanded(itemID string, prefixes []string) BookExpanded {
 	var plain *string
 	if b.Description != nil && *b.Description != "" {
-		plain = db.Ptr(textclean.Strip(*b.Description))
+		plain = db.Ptr(text.Strip(*b.Description))
 	}
 	return BookExpanded{ID: b.ID, CoverPath: b.CoverPath, Tags: b.Tags.V, BookCounts: b.counts(), LibraryItemID: itemID,
 		AudioFiles: b.AudioFiles.V, Chapters: b.Chapters.V, EbookFile: b.EbookFile.V, Tracks: b.tracks(itemID),

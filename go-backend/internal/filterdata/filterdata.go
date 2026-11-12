@@ -19,7 +19,9 @@ import (
 )
 
 // TTL is how long a document is served without an Invalidate. It is a backstop
-// for writers that do not invalidate (series rename, podcast creation).
+// for the writers that still do not invalidate: POST /api/items/{id}/scan
+// (scan.RescanItem), the ebook status route and the library file delete route
+// of internal/item, which can change isMissing and so numIssues.
 const TTL = 30 * time.Minute
 
 // Named is an author or series menu entry.

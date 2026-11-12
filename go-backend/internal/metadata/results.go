@@ -3,7 +3,7 @@ package metadata
 import (
 	"encoding/json"
 
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/text"
 )
 
 // Series is one series a book belongs to.
@@ -51,8 +51,8 @@ type BookResult struct {
 // DescriptionPlain; the web client renders the former with v-html.
 func (b *BookResult) sanitize() {
 	if b.Description != "" {
-		clean := textclean.Sanitize(b.Description)
-		b.Description, b.DescriptionPlain = clean, textclean.Strip(clean)
+		clean := text.Sanitize(b.Description)
+		b.Description, b.DescriptionPlain = clean, text.Strip(clean)
 	}
 }
 

@@ -1,4 +1,4 @@
-package libraries
+package library
 
 import (
 	"cmp"
@@ -14,7 +14,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // narratorID is the id clients use for a narrator: the URL-escaped base64 of
@@ -47,7 +47,7 @@ func (h *Handler) narrators(w http.ResponseWriter, r *http.Request, scope Scope)
 	for _, name := range slices.Sorted(maps.Keys(counts)) {
 		list = append(list, narrator{narratorID(name), name, counts[name]})
 	}
-	slices.SortStableFunc(list, func(a, b narrator) int { return textsort.NaturalBaseCompare(a.Name, b.Name) })
+	slices.SortStableFunc(list, func(a, b narrator) int { return text.NaturalBaseCompare(a.Name, b.Name) })
 	return httpx.JSON(w, r, struct {
 		Narrators []narrator `json:"narrators"`
 	}{list})

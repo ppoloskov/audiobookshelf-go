@@ -10,7 +10,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	idgen "audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/nameparse"
+	"audiobookshelf-compat/internal/text"
 )
 
 // optional is a text key of a request body: Set when the key was present with
@@ -43,7 +43,7 @@ func lastFirst(name *string) *string {
 	if db.Val(name) == "" {
 		return nil
 	}
-	return db.Ptr(nameparse.ToLastFirst(*name))
+	return db.Ptr(text.ToLastFirst(*name))
 }
 
 // update is AuthorController.update (js:96-224). A name another author of the

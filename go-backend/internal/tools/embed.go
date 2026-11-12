@@ -14,7 +14,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 type queueUpdate struct {
@@ -138,7 +138,7 @@ func (h *Handler) runEmbed(j *job) error {
 			args = append(args, "-map", "2:v?", "-disposition:v", "attached_pic")
 		}
 		args = append(args, "-c", "copy", "-f", muxer(f.path), out)
-		if err = mediatools.Run(j.ctx, args...); err != nil {
+		if err = media.Run(j.ctx, args...); err != nil {
 			_ = os.Remove(out)
 			return fmt.Errorf("ffmpeg metadata embed track %d: %w", i, err)
 		}

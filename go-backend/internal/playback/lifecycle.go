@@ -18,7 +18,7 @@ import (
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 // Play methods (PlaybackSession.js): 0 direct play, 2 transcode; local sessions
@@ -96,7 +96,7 @@ func (h *Handler) start(w http.ResponseWriter, r *http.Request, user *auth.Princ
 	s.touch(time.Now())
 	s.StartedAt = s.UpdatedAt
 	if s.PlayMethod == playTranscode {
-		if !mediatools.FFmpegAvailable() {
+		if !media.FFmpegAvailable() {
 			return httpx.JSONStatus(w, r, http.StatusNotImplemented, map[string]string{"error": "FFmpeg is required for transcoded playback"})
 		}
 		if s.stream, err = h.startStream(s.ID, m.files, s.Duration, s.StartTime); err != nil {

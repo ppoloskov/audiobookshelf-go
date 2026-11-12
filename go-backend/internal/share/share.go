@@ -12,8 +12,8 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/events"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httpx"
+	"audiobookshelf-compat/internal/media"
 )
 
 // Handler owns the routes of this package and the in-memory share playback
@@ -75,7 +75,7 @@ func hostPrefix(r *http.Request, base string) string {
 // it an attachment. Audio takes the MIME type of its extension
 // (ShareController.js:209); anything else is left to http.ServeContent.
 func serveMedia(w http.ResponseWriter, r *http.Request, path, filename string) error {
-	if mimeType := filekind.KnownAudioMime(filepath.Ext(path)); mimeType != "" {
+	if mimeType := media.KnownAudioMime(filepath.Ext(path)); mimeType != "" {
 		w.Header().Set("Content-Type", mimeType)
 	}
 	return httpx.Download(w, r, path, filename)

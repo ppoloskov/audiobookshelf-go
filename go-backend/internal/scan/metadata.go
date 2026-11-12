@@ -9,8 +9,8 @@ import (
 	"slices"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/item"
+	"audiobookshelf-compat/internal/media"
 )
 
 // podcastJSON is the podcast metadata.json document. Its key spellings are
@@ -105,7 +105,7 @@ func (s *Scanner) recordSidecar(ctx context.Context, itemID, path string) error 
 		return err
 	}
 	entry := newLibraryFile(fileEntry{path: path, rel: "metadata.json", info: info})
-	entry.FileType = filekind.Metadata
+	entry.FileType = media.KindMetadata
 	if i := slices.IndexFunc(row.LibraryFiles.V, func(f db.LibraryFile) bool { return f.Metadata.Path == path }); i >= 0 {
 		row.LibraryFiles.V[i] = entry
 	} else {

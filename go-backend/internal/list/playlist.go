@@ -14,7 +14,7 @@ import (
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // playlistView is a playlist with its items expanded.
@@ -229,7 +229,7 @@ func (h *Handler) userPlaylists(ctx context.Context, user *auth.Principal, libra
 			views = append(views, view)
 		}
 	}
-	slices.SortStableFunc(views, func(a, b playlistView) int { return textsort.LocaleCompare(a.Name, b.Name) })
+	slices.SortStableFunc(views, func(a, b playlistView) int { return text.LocaleCompare(a.Name, b.Name) })
 	return views, nil
 }
 

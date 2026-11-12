@@ -12,9 +12,8 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/mediatools"
+	"audiobookshelf-compat/internal/media"
 )
 
 // editableAudio is the number of audio files a book plays: those not excluded.
@@ -180,7 +179,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 		if err != nil {
 			return err
 		}
-		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == ino && fileKind(f.Metadata) == filekind.Ebook })
+		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == ino && fileKind(f.Metadata) == media.KindEbook })
 		if i < 0 {
 			return errNotEbook
 		}
@@ -196,7 +195,7 @@ func (h *Handler) updateEbookStatus(w http.ResponseWriter, r *http.Request, user
 				EbookFormat: strings.ToLower(strings.TrimPrefix(files[i].Metadata.Ext, "."))}
 		}
 		for j := range files {
-			if fileKind(files[j].Metadata) == filekind.Ebook {
+			if fileKind(files[j].Metadata) == media.KindEbook {
 				files[j].IsSupplementary = db.Ptr(book.EbookFile.V == nil || files[j].Ino != ino)
 			}
 		}
@@ -319,7 +318,7 @@ func (h *Handler) ffprobe(w http.ResponseWriter, r *http.Request, user *auth.Pri
 	if i < 0 || files[i].Metadata.Path == "" || !h.inLibrary(ctx, files[i].Metadata.Path, ref.LibraryID) {
 		return httpx.NotFound()
 	}
-	report, err := mediatools.ProbeRaw(ctx, files[i].Metadata.Path)
+	report, err := media.ProbeRaw(ctx, files[i].Metadata.Path)
 	if err != nil {
 		slog.Error("ffprobe", "path", files[i].Metadata.Path, "error", err)
 		return httpx.Internal("ffprobe failed", err)

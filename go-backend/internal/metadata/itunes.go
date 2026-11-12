@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/text"
 )
 
 // itunes searches the iTunes catalog for audiobooks and podcasts.
@@ -139,7 +139,7 @@ func (p itunes) searchPodcasts(ctx context.Context, term, country string) ([]Pod
 		}
 		out[i] = PodcastResult{
 			ID: item.CollectionID, ArtistID: item.ArtistID, Title: nonEmpty(item.CollectionName), ArtistName: nonEmpty(item.ArtistName),
-			Description: textclean.Sanitize(item.Description), DescriptionPlain: textclean.Strip(item.Description),
+			Description: text.Sanitize(item.Description), DescriptionPlain: text.Strip(item.Description),
 			ReleaseDate: nonEmpty(item.ReleaseDate), Genres: genres, Cover: nonEmpty(item.cover()), TrackCount: item.TrackCount,
 			FeedURL: nonEmpty(item.FeedURL), PageURL: nonEmpty(item.ViewURL), Explicit: item.Explicitness == "explicit",
 		}

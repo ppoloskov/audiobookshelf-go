@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -27,7 +28,7 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 		`INSERT INTO libraries(id,name,mediaType,createdAt,updatedAt) VALUES('lib-runtime','Runtime','podcast',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
 		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('folder-runtime','/tmp','lib-runtime',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
 	} {
-		if _, err := db.SQL().Exec(stmt); err != nil {
+		if _, err := db.Exec(context.Background(), stmt); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -36,16 +37,16 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 		_, _ = w.Write([]byte(`<?xml version="1.0"?><rss version="2.0"><channel><title>Runtime fixture</title><item><title>The Story</title><enclosure url="https://example.test/story.mp3" length="1234" type="audio/mpeg"/><pubDate>Wed, 01 Jan 2025 00:00:00 GMT</pubDate></item></channel></rss>`))
 	}))
 	defer feed.Close()
-	_, err = db.SQL().Exec(`INSERT INTO podcasts(id,title,titleIgnorePrefix,feedURL,tags,genres,createdAt,updatedAt) VALUES('podcast-runtime','Runtime','Runtime',?,'[]','[]',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, feed.URL)
+	_, err = db.Exec(context.Background(), `INSERT INTO podcasts(id,title,titleIgnorePrefix,feedURL,tags,genres,createdAt,updatedAt) VALUES('podcast-runtime','Runtime','Runtime',?,'[]','[]',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, feed.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.SQL().Exec(`INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,mtime,ctime,birthtime,size,libraryFiles,extraData,libraryId,libraryFolderId,createdAt,updatedAt) VALUES('item-runtime','1',?,'','podcast-runtime','podcast',0,0,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0,'[]','{}','lib-runtime','folder-runtime',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, t.TempDir())
+	_, err = db.Exec(context.Background(), `INSERT INTO libraryItems(id,ino,path,relPath,mediaId,mediaType,isFile,isMissing,isInvalid,mtime,ctime,birthtime,size,libraryFiles,extraData,libraryId,libraryFolderId,createdAt,updatedAt) VALUES('item-runtime','1',?,'','podcast-runtime','podcast',0,0,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0,'[]','{}','lib-runtime','folder-runtime',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	stamp := "2025-01-01T00:00:00Z"
-	_, err = db.SQL().Exec(`INSERT INTO podcastEpisodes(id,podcastId,"index",title,audioFile,chapters,extraData,createdAt,updatedAt) VALUES('episode-runtime','podcast-runtime',1,'The Story','{}','[]','{}',?,?)`, stamp, stamp)
+	_, err = db.Exec(context.Background(), `INSERT INTO podcastEpisodes(id,podcastId,"index",title,audioFile,chapters,extraData,createdAt,updatedAt) VALUES('episode-runtime','podcast-runtime',1,'The Story','{}','[]','{}',?,?)`, stamp, stamp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +65,7 @@ func TestRuntimeMatchEpisodesFetchesFeedAndMatches(t *testing.T) {
 		t.Fatalf("match-episodes status=%d body=%s", w.Code, w.Body.String())
 	}
 	var enclosure string
-	if err := db.SQL().QueryRow(`SELECT enclosureURL FROM podcastEpisodes WHERE id='episode-runtime'`).Scan(&enclosure); err != nil {
+	if err := db.Get(context.Background(), &enclosure, `SELECT enclosureURL FROM podcastEpisodes WHERE id='episode-runtime'`); err != nil {
 		t.Fatal(err)
 	}
 	if enclosure != "https://example.test/story.mp3" {

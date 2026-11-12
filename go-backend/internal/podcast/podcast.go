@@ -18,6 +18,7 @@ import (
 	"audiobookshelf-compat/internal/cronspec"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/settings"
@@ -32,6 +33,7 @@ type NotifyFunc func(ctx context.Context, event string, data map[string]any) err
 type Handler struct {
 	db       *db.DB
 	settings *settings.Store
+	filters  *filterdata.Cache
 	emit     events.Emitter
 	notify   NotifyFunc
 	// announcePlaylists tells playlist owners about a deleted episode; may be nil.
@@ -53,9 +55,9 @@ type Handler struct {
 	failed  map[string]int          // item id -> consecutive failed feed checks
 }
 
-// New returns a Handler (announcePlaylists is item.Deps.AnnouncePlaylists) and schedules every podcast with auto-download on.
-func New(d *db.DB, st *settings.Store, cfg config.Config, emit events.Emitter, notify NotifyFunc, announcePlaylists func(context.Context, []item.PlaylistChange)) *Handler {
-	h := &Handler{db: d, settings: st, emit: emit, notify: notify, announcePlaylists: announcePlaylists, client: httpx.NewSafeClient(), maxFailedChecks: cfg.MaxFailedEpisodeChecks,
+// New returns a Handler (announcePlaylists is item.Deps.AnnouncePlaylists; filters is the filter menu cache a created podcast invalidates) and schedules every podcast with auto-download on.
+func New(d *db.DB, st *settings.Store, filters *filterdata.Cache, cfg config.Config, emit events.Emitter, notify NotifyFunc, announcePlaylists func(context.Context, []item.PlaylistChange)) *Handler {
+	h := &Handler{db: d, settings: st, filters: filters, emit: emit, notify: notify, announcePlaylists: announcePlaylists, client: httpx.NewSafeClient(), maxFailedChecks: cfg.MaxFailedEpisodeChecks,
 		cron: cronspec.New(), entries: map[string]cron.EntryID{}, failed: map[string]int{}}
 	h.ctx, h.stop = context.WithCancel(context.Background())
 	var ids []string

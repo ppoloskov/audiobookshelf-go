@@ -1,4 +1,4 @@
-package libraries
+package library
 
 import (
 	"database/sql"
@@ -91,3 +91,6 @@ func Open(d *db.DB, r *http.Request) (Scope, error) {
 	}
 	return scope, nil
 }
+
+// Podcast reports whether the library holds podcasts.
+func (s Scope) Podcast() bool { return db.Val(s.MediaType) == "podcast" }

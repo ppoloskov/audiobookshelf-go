@@ -11,7 +11,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // detail is the body of GET /api/authors/{id}: the author, with include=items
@@ -131,7 +131,7 @@ func (h *Handler) seriesGroups(ctx context.Context, items []item.Item) ([]series
 			order[j] = j
 		}
 		seq := sequences[g.ID]
-		slices.SortStableFunc(order, func(x, y int) int { return textsort.NaturalBaseCompare(seq[x], seq[y]) })
+		slices.SortStableFunc(order, func(x, y int) int { return text.NaturalBaseCompare(seq[x], seq[y]) })
 		sorted := make([]item.Minified, len(order))
 		for j, k := range order {
 			sorted[j] = g.Items[k]

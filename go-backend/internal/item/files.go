@@ -17,8 +17,8 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httpx"
+	"audiobookshelf-compat/internal/media"
 )
 
 // readable loads the item (404) and checks the user's library access (403).
@@ -51,7 +51,7 @@ func (h *Handler) libraryFiles(ctx context.Context, itemID string) ([]db.Library
 }
 
 // fileKind is LibraryFile.fileType, judged by the extension.
-func fileKind(f db.FileMetadata) string { return filekind.Of("." + strings.TrimPrefix(f.Ext, ".")) }
+func fileKind(f db.FileMetadata) string { return media.KindOf("." + strings.TrimPrefix(f.Ext, ".")) }
 
 // inLibrary reports whether target, with symlinks resolved, lies inside one of
 // the library's folders. Files are served and removed only from there.
@@ -81,7 +81,7 @@ func (h *Handler) libraryFile(ctx context.Context, ref itemRef, ino string) (db.
 // audioType sets the Content-Type of a known audio extension; other files get
 // the type net/http derives from the name.
 func audioType(w http.ResponseWriter, path string) {
-	if kind := filekind.KnownAudioMime(filepath.Ext(path)); kind != "" {
+	if kind := media.KnownAudioMime(filepath.Ext(path)); kind != "" {
 		w.Header().Set("Content-Type", kind)
 	}
 }
@@ -134,7 +134,7 @@ func (h *Handler) serveEbook(w http.ResponseWriter, r *http.Request, user *auth.
 		if err != nil {
 			return err
 		}
-		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == fileID && fileKind(f.Metadata) == filekind.Ebook })
+		i := slices.IndexFunc(files, func(f db.LibraryFile) bool { return f.Ino == fileID && fileKind(f.Metadata) == media.KindEbook })
 		if i < 0 {
 			return httpx.BadRequest("Invalid ebook file id")
 		}

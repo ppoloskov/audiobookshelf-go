@@ -14,7 +14,8 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/library"
+	"audiobookshelf-compat/internal/text"
 )
 
 // seriesView is Series.toOldJSON (server/models/Series.js:168-178). The
@@ -33,7 +34,7 @@ type seriesView struct {
 func newSeriesView(s db.Series, prefixes []string) seriesView {
 	v := seriesView{ID: s.ID, Name: s.Name, Description: s.Description, AddedAt: s.CreatedAt.Millis(), UpdatedAt: s.UpdatedAt.Millis(), LibraryID: db.Val(s.LibraryID)}
 	if s.Name != nil {
-		v.NameIgnorePrefix = db.Ptr(textsort.PrefixAtEnd(*s.Name, prefixes))
+		v.NameIgnorePrefix = db.Ptr(text.PrefixAtEnd(*s.Name, prefixes))
 	}
 	return v
 }
@@ -69,7 +70,7 @@ func (h *Handler) seriesBooks(ctx context.Context, user *auth.Principal, order s
 // (natural order, none last), keeping the row order of ties.
 func bookIDsBySequence(rows []seriesBook) map[string][]string {
 	sort.SliceStable(rows, func(i, j int) bool {
-		return textsort.SequenceLess(db.Val(rows[i].Sequence), db.Val(rows[j].Sequence))
+		return text.SequenceLess(db.Val(rows[i].Sequence), db.Val(rows[j].Sequence))
 	})
 	groups := map[string][]string{}
 	for _, row := range rows {
@@ -131,17 +132,17 @@ func seriesFilter(filter string, user *auth.Principal) (has string, hasArgs []an
 }
 
 // seriesList is GET /api/libraries/{id}/series.
-func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s scope) error {
+func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s library.Scope) error {
 	ctx, q := r.Context(), r.URL.Query()
 	sortBy, desc, filter := q.Get("sort"), q.Get("desc") == "1", q.Get("filter")
 	server := h.settings.Server()
-	has, hasArgs, none, noneArgs, err := seriesFilter(filter, s.user)
+	has, hasArgs, none, noneArgs, err := seriesFilter(filter, s.User)
 	if err != nil {
 		return err
 	}
-	perm, permArgs := s.user.MediaClause("b")
-	where, args := ` FROM series s WHERE s.libraryId=?`, []any{s.lib.ID}
-	if db.Val(s.lib.Settings.V.HideSingleBookSeries) {
+	perm, permArgs := s.User.MediaClause("b")
+	where, args := ` FROM series s WHERE s.libraryId=?`, []any{s.Library.ID}
+	if db.Val(s.Library.Settings.V.HideSingleBookSeries) {
 		where += ` AND ` + seriesBookCount + `>1`
 	}
 	const books = `(SELECT 1 FROM bookSeries bs JOIN books b ON b.id=bs.bookId WHERE bs.seriesId=s.id`
@@ -168,14 +169,14 @@ func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s scope) er
 	if sortBy == "totalDuration" {
 		duration = seriesDuration
 	}
-	out := seriesPage{Results: []seriesListEntry{}, Limit: s.limit, Page: s.page, SortBy: sortBy, SortDesc: desc, FilterBy: filter,
+	out := seriesPage{Results: []seriesListEntry{}, Limit: s.Limit, Page: s.Page, SortBy: sortBy, SortDesc: desc, FilterBy: filter,
 		Minified: q.Get("minified") == "1", Include: strings.Join(includes(r), ",")}
 	if err := h.db.Get(ctx, &out.Total, `SELECT COUNT(*)`+where, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
 	query := `SELECT s.*, ` + duration + ` AS totalDuration` + where + order
-	if s.limit > 0 {
-		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.limit, s.page*s.limit)
+	if s.Limit > 0 {
+		query, args = query+` LIMIT ? OFFSET ?`, append(args, s.Limit, s.Page*s.Limit)
 	}
 	var rows []struct {
 		db.Series
@@ -184,7 +185,7 @@ func (h *Handler) seriesList(w http.ResponseWriter, r *http.Request, s scope) er
 	if err := h.db.Select(ctx, &rows, query, args...); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
-	entries, err := h.listEntries(ctx, s.user, slices.Contains(includes(r), "rssfeed"), server.SortingPrefixes, rows)
+	entries, err := h.listEntries(ctx, s.User, slices.Contains(includes(r), "rssfeed"), server.SortingPrefixes, rows)
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -323,15 +324,15 @@ func (h *Handler) seriesGet(w http.ResponseWriter, r *http.Request, user *auth.P
 
 // seriesInLibrary is GET /api/libraries/{id}/series/{seriesId}: a series of
 // another library is a 404.
-func (h *Handler) seriesInLibrary(w http.ResponseWriter, r *http.Request, s scope) error {
-	series, books, err := h.accessibleSeries(r.Context(), s.user, r.PathValue("seriesId"))
+func (h *Handler) seriesInLibrary(w http.ResponseWriter, r *http.Request, s library.Scope) error {
+	series, books, err := h.accessibleSeries(r.Context(), s.User, r.PathValue("seriesId"))
 	if err != nil {
 		return err
 	}
-	if db.Val(series.LibraryID) != s.lib.ID {
+	if db.Val(series.LibraryID) != s.Library.ID {
 		return httpx.NotFound()
 	}
-	return h.respondDetail(w, r, s.user, series, books)
+	return h.respondDetail(w, r, s.User, series, books)
 }
 
 func (h *Handler) respondDetail(w http.ResponseWriter, r *http.Request, user *auth.Principal, series db.Series, books []seriesBook) error {
@@ -390,6 +391,7 @@ func (h *Handler) seriesPatch(w http.ResponseWriter, r *http.Request, user *auth
 	}
 	view := newSeriesView(series, h.settings.Server().SortingPrefixes)
 	if len(changed) > 0 {
+		h.filters.Invalidate(db.Val(series.LibraryID)) // the series menu of the library's filter data
 		h.emit.ToAll("series_updated", view)
 	}
 	return httpx.JSON(w, r, view)

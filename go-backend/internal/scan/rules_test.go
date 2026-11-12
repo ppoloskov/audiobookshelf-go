@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filekind"
+	"audiobookshelf-compat/internal/media"
 )
 
 func i64(n int64) *int64 { return &n }
@@ -485,7 +485,7 @@ func TestWalkFilesIgnoreRules(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files, err := walkFiles(context.Background(), root, func(rel string) bool { return filekind.IsAudio(filepath.Ext(rel)) })
+	files, err := walkFiles(context.Background(), root, func(rel string) bool { return media.IsAudio(filepath.Ext(rel)) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -517,7 +517,7 @@ func TestDiffFiles(t *testing.T) {
 		t.Fatalf("first = %+v", first)
 	}
 	for _, f := range first.added {
-		if f.AddedAt != 100 || f.UpdatedAt != 100 || f.FileType != filekind.Audio || f.IsSupplementary != nil {
+		if f.AddedAt != 100 || f.UpdatedAt != 100 || f.FileType != media.KindAudio || f.IsSupplementary != nil {
 			t.Fatalf("added entry = %+v", f)
 		}
 	}
@@ -534,10 +534,10 @@ func TestDiffFiles(t *testing.T) {
 		if len(d.added) != 2 || len(d.files) != 4 {
 			t.Fatalf("diff = %+v", d)
 		}
-		if d.added[0].FileType != filekind.Ebook || d.added[0].IsSupplementary == nil || !*d.added[0].IsSupplementary {
+		if d.added[0].FileType != media.KindEbook || d.added[0].IsSupplementary == nil || !*d.added[0].IsSupplementary {
 			t.Fatalf("ebook = %+v", d.added[0])
 		}
-		if d.added[1].FileType != filekind.Image || d.added[1].IsSupplementary != nil || d.added[1].AddedAt != 200 {
+		if d.added[1].FileType != media.KindImage || d.added[1].IsSupplementary != nil || d.added[1].AddedAt != 200 {
 			t.Fatalf("image = %+v", d.added[1])
 		}
 		if d.files[0].Metadata.Filename != "a.mp3" || d.files[2].Metadata.Filename != "c.epub" {

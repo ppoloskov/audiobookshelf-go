@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/textdist"
+	"audiobookshelf-compat/internal/text"
 )
 
 // matchThreshold is the title similarity a feed episode needs to be taken for a
@@ -107,5 +107,5 @@ func similarity(a, b string) float64 {
 	if a == "" || b == "" {
 		return 0
 	}
-	return 1 - float64(textdist.Levenshtein(a, b))/float64(max(len([]rune(a)), len([]rune(b))))
+	return 1 - float64(text.Levenshtein(a, b))/float64(max(len([]rune(a)), len([]rune(b))))
 }

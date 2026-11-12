@@ -17,7 +17,7 @@ import (
 	ext "github.com/mmcdole/gofeed/extensions"
 	"golang.org/x/net/html/charset"
 
-	"audiobookshelf-compat/internal/textclean"
+	"audiobookshelf-compat/internal/text"
 )
 
 // maxFeedBytes bounds a feed document.
@@ -155,7 +155,7 @@ func parseFeed(raw []byte, feedURL string) (*feed, error) {
 	description := strings.TrimSpace(parsed.Description)
 	out := &feed{Metadata: feedMetadata{Title: parsed.Title, Language: parsed.Language, Explicit: itunes.Explicit, Author: itunes.Author,
 		PubDate: parsed.Published, Link: parsed.Link, Image: image, Categories: categories(itunes), FeedURL: cmp.Or(itunes.NewFeedURL, feedURL, parsed.FeedLink),
-		Description: textclean.Sanitize(description), DescriptionPlain: textclean.Strip(description), Type: itunes.Type}}
+		Description: text.Sanitize(description), DescriptionPlain: text.Strip(description), Type: itunes.Type}}
 	for _, it := range parsed.Items {
 		if episode, ok := parseEpisode(it); ok {
 			out.Episodes = append(out.Episodes, episode)
@@ -193,7 +193,7 @@ func parseEpisode(it *gofeed.Item) (feedEpisode, bool) {
 		return feedEpisode{}, false
 	}
 	desc := cmp.Or(strings.TrimSpace(it.Content), strings.TrimSpace(it.Description))
-	ep := feedEpisode{Title: it.Title, Subtitle: itunes.Subtitle, Description: textclean.Sanitize(desc), DescriptionPlain: textclean.Strip(desc), PubDate: it.Published,
+	ep := feedEpisode{Title: it.Title, Subtitle: itunes.Subtitle, Description: text.Sanitize(desc), DescriptionPlain: text.Strip(desc), PubDate: it.Published,
 		EpisodeType: itunes.EpisodeType, Season: itunes.Season, Episode: itunes.Episode, Author: itunes.Author, Duration: itunes.Duration, Explicit: itunes.Explicit,
 		Chapters: []chapter{}, Enclosure: enc}
 	if it.GUID != "" {

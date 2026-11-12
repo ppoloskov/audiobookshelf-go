@@ -11,8 +11,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	idgen "audiobookshelf-compat/internal/ids"
-	"audiobookshelf-compat/internal/nameparse"
-	"audiobookshelf-compat/internal/textsort"
+	"audiobookshelf-compat/internal/text"
 )
 
 // source says who edits a book, which decides the events its links announce.
@@ -187,7 +186,7 @@ func (h *Handler) linkAuthors(ctx context.Context, c *changes, libraryID, bookID
 		have[key] = true
 		now := clk.now()
 		id, created, err := h.parent(ctx, "authors", libraryID, name, func(id string) any {
-			return db.Author{ID: id, Name: &name, LastFirst: db.Ptr(nameparse.ToLastFirst(name)), LibraryID: &libraryID, CreatedAt: now, UpdatedAt: now}
+			return db.Author{ID: id, Name: &name, LastFirst: db.Ptr(text.ToLastFirst(name)), LibraryID: &libraryID, CreatedAt: now, UpdatedAt: now}
 		})
 		if err != nil {
 			return false, err
@@ -256,7 +255,7 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 		now := clk.now()
 		name := w.Name
 		id, created, err := h.parent(ctx, "series", libraryID, name, func(id string) any {
-			return db.Series{ID: id, Name: &name, NameIgnorePrefix: db.Ptr(textsort.TitleIgnorePrefix(name, prefixes)), LibraryID: &libraryID, CreatedAt: now, UpdatedAt: now}
+			return db.Series{ID: id, Name: &name, NameIgnorePrefix: db.Ptr(text.TitleIgnorePrefix(name, prefixes)), LibraryID: &libraryID, CreatedAt: now, UpdatedAt: now}
 		})
 		if err != nil {
 			return false, err
@@ -268,7 +267,7 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 		changed = true
 		if created && src == fromMatch {
 			ms := now.UnixMilli()
-			c.events = append(c.events, event{"series_added", seriesCreated{ID: id, Name: name, NameIgnorePrefix: textsort.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})
+			c.events = append(c.events, event{"series_added", seriesCreated{ID: id, Name: name, NameIgnorePrefix: text.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})
 		}
 	}
 	return changed, nil
