@@ -1,104 +1,78 @@
 # Go backend handover
 
-Updated 2026-11-11.
+Updated 2026-11-12.
 
-## State
+## Where things stand
 
-- The owner asked for a greenfield rewrite of everything between the two
-  contracts (SQLite compatibility, client protocol). The design is in
-  [ARCHITECTURE.md](ARCHITECTURE.md), the plan in [ROADMAP.md](ROADMAP.md).
-- Baseline before the rewrite: commit `7051b3e5`, 39,740 production lines in
-  57 packages, all 52 test packages green.
-- Seven area surveys are in [docs/survey/](docs/survey/). They list routes,
-  tables, coupling, client dependence and the hazards each rewrite must keep.
-- The previous process documents (roadmap, handover, decision logs) are in
-  [archive/2026-11-11-pre-rewrite/](archive/2026-11-11-pre-rewrite/). They are
-  history, not instructions.
-
-## Decisions taken
-
-- Data access is `sqlx` struct scanning over typed row structs; sqlc and
-  hand-written scans go away. A spike against the fixture database confirmed
-  `SELECT *` into structs with custom DATETIME and JSON column types, `IN`
-  expansion and named updates on `modernc.org/sqlite`.
-- Transactions travel in the context (`db.Tx`).
-- The ratchet, dbnest and the depguard layering are suspended for the rewrite
-  and removed at the end (ROADMAP C4). Line counts rise while old and new
-  packages coexist.
-- The in-repo Socket.IO transport stays (websocket only, about 470 lines).
-
-## Accepted behaviour changes
-
-- `item` views emit every key of the typed audio/library/ebook file
-  documents; a stored file that lacked a key now shows it with its zero value.
-- A JSON column that does not decode into its Go type reads as empty and is
-  logged; it is written back unchanged until code assigns a new value.
-- The admin wrapper also requires an active user; a non-boolean stored
-  permission flag grants nothing.
-
-- Wave 3 so far (`list`, `share`, `metadata`, `notify`, `mail`): wrong JSON
-  types in a request body are a 400; error bodies are plain text; 5xx bodies
-  are fixed text. `share` fixes two old bugs (empty 200 for unknown feed
-  items; book episode pubDate in local time labelled GMT). Custom metadata
-  providers go through the SSRF guard.
-
-- Wave 3b (`auth` flows, `item` writes, `playback`, `podcast`): no fake
-  session cookie or Express emulation; OIDC claims are strict and the OIDC
-  user step is one transaction; local-sync timestamps are numbers or numeric
-  strings; episode `publishedAt` is always the DATETIME format; raw-deflate
-  feeds are not decoded; quick match updates `titleIgnorePrefix`; a batch
-  update with a bad entry applies nothing. JSON null clears a metadata text
-  field (the web client sends null for an emptied field).
-
-- Wave 3c (`author`, item covers/files, `user`, `admin`, `backup`, `tools`):
-  file delete changes the database before the disk; cover uploads are capped
-  at 64 MiB and uploads/backups at 20 GiB; raw covers are served only from
-  library folders and the item metadata folder; a mistyped settings PATCH
-  value is a 400; an invalid backup cron no longer stops the server.
-
-- Wave 3d (`libraries`, `browse`, `scan`): series filters "finished" and
-  "not-started" were inverted and are fixed; sorting by track count works;
-  the scanner reads the string form of `series` in metadata.json (it dropped
-  the series before); the watcher follows a moved file like a full scan; a
-  bad library cron is logged and skipped; one deletion implementation
-  (`item`) serves item, library, issues and folder removal.
-
-- Cleanup pass 1: realtime filters on the typed principal and typed views
-  only; online-user events carry a small struct (no token or permissions);
-  a revoked socket receives nothing; playlist announcements after deletion
-  go through one func implemented by `list`; cover and author image
-  downloads are capped at 10 MiB; series routes check library access.
-
-- Cleanup pass 3: the composition root is a middleware chain (recover,
-  security headers, CORS, base path, clean path) over one mux; CORS is
-  ported from upstream; the SPA fallback serves index.html for any
-  extension-less GET; panics and unknown paths answer plain text; the "//"
-  aliases are gone; filter menus are computed on demand and invalidated
-  after writes (podcast libraries now report their real issue count).
-
-## Follow-ups
-
-- Invalidate the filter cache on series rename and podcast creation (the 30-minute TTL covers them today).
-- Remove `(*db.DB).SQL()`; only tests use it.
-
-- `podcast` create ignores `autoDownloadEpisodes` nested under `media`, as
-  the old code did; the web client sends it there.
+- The greenfield rewrite between the two contracts (SQLite compatibility,
+  client protocol) is complete in code. Packages, APIs and the request
+  pipeline are in [ARCHITECTURE.md](ARCHITECTURE.md). The wave list, all done,
+  is in [ROADMAP.md](ROADMAP.md).
+- Behaviour differences from the pre-rewrite Go build (baseline `7051b3e5`) are
+  in [docs/CHANGES.md](docs/CHANGES.md).
+- The tree is `cmd/audiobookshelf-go` plus 32 packages under `internal/` and
+  `db/dbtest`. No old shared package, sqlc or ratchet/depguard tooling remains.
+- Development is on `master`. Live deployment is separately authorised.
 
 ## Size, measured
 
-Production lines: 39,740 hand-written plus 3,243 generated before the rewrite; 35,863 hand-written and none generated after cleanup pass 3.
+- Before the rewrite: 39,740 hand-written production lines plus 3,243
+  generated, in 57 packages; 52 test packages green.
+- After cleanup pass 3: 35,863 hand-written, none generated.
+- Counted on 2026-11-12 (`internal/` and `cmd/`, without contracttest and
+  dbtest): 34,918 production lines, 24,053 test lines.
 
-Typed rewrites of dense old code come out about the same size (Wave 3 so
-far: 6,205 old lines, 6,034 new). Expect real reductions only where the old
-code duplicates or emulates JavaScript, and from deleting the old shared
-packages and sqlc at the end.
+## Verified
 
-## Known gaps to close
+- `go build ./...` and `go vet ./...` are clean (run 2026-11-12).
+- On 2026-11-12 `go test ./...` passed in every package except
+  `internal/contracttest`: its cover and author-image journeys
+  (`TestJourney/item.*.cover`, `podcast.cover`, `author.image.*`) returned 500.
+  This host's ffmpeg has no libwebp; use the prefix in [TESTING.md](TESTING.md).
+  I did not rerun with it.
+- The rollback check (`replacement-trial.cjs --rollback-only`, see
+  ARCHITECTURE "Testing") is required before every push. This update did not
+  run it; the last result is whatever the latest push recorded. Run it again
+  before claiming rollback.
 
-- Upstream's CORS middleware has no Go equivalent (ROADMAP C1).
-- The scanner uses `cron.New()` rather than the 5-field parser, and one bad
-  library cron fails server start (fix in D8).
+## Open follow-ups
 
-## Next
+- Podcast create ignores `autoDownloadEpisodes` nested under `media`
+  (`internal/podcast/create.go`, `createRequest`); the web client sends it
+  there. The old code did the same.
+- `internal/logging` still has the printf helpers (`Infof`, `Errorf`, `Fatalf`,
+  ...). Its doc comment says "Transitional ... delete when unused". They are
+  used by `cmd/audiobookshelf-go`, `internal/server` and
+  `internal/server/middleware.go`; move those to `slog` and delete them.
+- `internal/library` has the package doc "Package libraries ..."; rename to
+  match the package name.
+- `internal/text` and `internal/media` have 12 stray `*-E` files (sed backups, tracked in git);
+  delete them.
+- `Makefile` target `test-ts-diagnostics` names packages that no longer exist
+  (`httputil`, `catalog`, `textclean`); `docs/survey` and `contracts/README.md`
+  still describe the old code.
+- Open decisions, default no: run `ANALYZE` at boot (upstream does); port
+  upstream's boot-time `cleanDatabase`.
+- Not proven: device acceptance of the mobile apps; mobile evidence is in
+  `contracts/mobile-client-audit.md` and `contracts/mobile-compat-gaps.md`.
 
-Wave 1 of the roadmap.
+No `TODO`, `FIXME` or `TEMPORARY` markers remain in `internal/` or `cmd/`
+(`grep -rn "TODO\|TEMPORARY\|FIXME" internal cmd`).
+
+## Closed since the earlier handover
+
+- CORS middleware exists (`internal/server/middleware.go`).
+- The scanner uses `cronspec.New()`; a bad library cron is logged and skipped.
+- Filter cache is invalidated on series rename and podcast creation.
+- `(*db.DB).SQL()` is gone.
+
+## How to continue
+
+1. Read [AGENTS.md](AGENTS.md), then ARCHITECTURE "Conventions".
+2. Change code on `master` with a test beside it. Keep a behaviour only for a
+   persisted value or a real client; record any change in `docs/CHANGES.md`.
+3. Run `make check` (root), with the FFmpeg prefix from TESTING.md, and `-race`
+   for locks and goroutines.
+4. Before a push: the rollback check and both Linux cross-builds
+   (`GOOS=linux GOARCH=amd64|arm64 CGO_ENABLED=0 go build ./cmd/audiobookshelf-go`).
+5. Keep README, AGENTS, ROADMAP and this file current.

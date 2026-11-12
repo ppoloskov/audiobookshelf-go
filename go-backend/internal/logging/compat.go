@@ -1,4 +1,4 @@
-// Transitional printf helpers for packages not yet rewritten; delete when unused.
+// Printf-style helpers over the slog handler, for startup and shutdown lines that keep upstream wording. New code logs with log/slog.
 package logging
 
 import (

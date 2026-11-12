@@ -54,7 +54,7 @@ func newIDP(t *testing.T) *idp {
 			fmt.Fprintf(w, `{"access_token":"provider-access","token_type":"Bearer","id_token":%q}`, p.idToken())
 		case "/userinfo":
 			if r.Header.Get("Authorization") != "Bearer provider-access" {
-				http.Error(w, "no", 401)
+				http.Error(w, "no", http.StatusUnauthorized)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")

@@ -1,52 +1,53 @@
 # Agent guide: Go backend
 
-Read [ARCHITECTURE.md](ARCHITECTURE.md) first. It defines the two contracts,
-the design rules and the target packages. [ROADMAP.md](ROADMAP.md) is the task
-list; [handover.md](handover.md) is the current state. The Go engineering
-rules are in the root [agents.md](../agents.md).
+Read [ARCHITECTURE.md](ARCHITECTURE.md) first: the two contracts, the design
+rules, the packages, the foundation APIs and the conventions. Then
+[handover.md](handover.md) (current state and open follow-ups) and
+[ROADMAP.md](ROADMAP.md) (what is next). The Go engineering rules and review
+checklist are in the root [agents.md](../agents.md).
 
 ## Roles
 
 - The architect (an expensive model) designs, writes task briefs, reviews
   diffs and commits.
 - Workers run on Sonnet or a cheaper model at medium effort and execute one
-  brief each. A worker does not commit,
-  push, add dependencies or change files outside its write set.
+  brief each. A worker does not commit, push, add dependencies or change files
+  outside its write set.
 
 ## Rules for a worker
 
-1. Write only inside the directories your brief names. Other packages are
-   being rewritten by other workers at the same time, in the same checkout.
-2. Build and test only your own packages
+1. Write only inside the files your brief names. Other workers may be editing
+   other packages in the same checkout.
+2. Build and test your own packages
    (`go build ./internal/x/... && go test ./internal/x/...`). A failure
-   elsewhere may be another worker's half-finished edit; report it, do not
-   fix it.
-3. New code imports the foundation (`db`, `httpx`, `auth`, `settings`,
-   `events`, `log/slog`) and never the old shared packages listed under
-   "Transition" in ARCHITECTURE.md, unless the brief allows one by name. The
-   small leaf packages (`textsort`, `textclean`, `nameparse`, `textdist`,
-   `filekind`, `mediatools`, `config`, `events`, `version`, `cronspec`) are
-   fine: they are merged into `text` and `media` at the end.
+   elsewhere may be another worker's half-finished edit; report it, do not fix
+   it.
+3. Respect the import order in ARCHITECTURE "Packages": import only packages
+   below yours. For a call upward, add a func field to the package's `Deps`
+   and let `internal/server` fill it.
 4. Follow the quirk policy: keep a behaviour only for a persisted value or a
    real client. When unsure, look at `../client` and
    `contracts/mobile-client-audit.md`, then choose the simple behaviour and
-   list it in your report.
-5. While the old package still exists, prove the new one against it: a
-   temporary `*_parity_test.go` runs the same well-formed request (or loader
-   call) through old and new code on `dbtest.Fixture` and compares JSON by
-   value, and for writes the resulting rows. It is deleted with the old
-   package. Also port the old package's HTTP-level tests to the new package. Drop a test
-   that only pins JavaScript emulation or an unexported helper, and list
-   every dropped test with the reason.
-6. Compare JSON by value, never by bytes.
-7. Use `db.Tx` for every read-modify-write. Inside it, pass the `ctx` the
-   function received.
+   list it in your report. Add it to [docs/CHANGES.md](docs/CHANGES.md) if a
+   client can see it.
+5. Test through the package's routes on `dbtest.New` or `dbtest.Fixture`.
+   Assert decoded values, rows and events; compare JSON by value
+   (`dbtest.EqualJSON`), never by bytes. Add a journey in
+   `internal/contracttest` for a new client-visible flow.
+6. Use `db.Tx` for every read-modify-write and pass the `ctx` it gives you.
+   Emit events after the transaction returns.
+7. A PATCH body is a struct of pointer fields; use a null-recording type where
+   a real client sends `null` to clear a value (ARCHITECTURE "Conventions").
+8. Log with `log/slog`. Do not add calls to the `internal/logging` printf
+   helpers.
+9. New client-visible routes, fields or events need evidence of a client that
+   uses them.
 
 ## Report format
 
 End with: files written; what was verified (commands and results); behaviour
-differences from the old code, one line each; tests dropped and why; open
-questions. Never report a check you did not run.
+differences, one line each; tests dropped or changed and why; open questions.
+Never report a check you did not run.
 
 ## Checks before a commit (architect)
 
@@ -56,5 +57,7 @@ gofmt -l . && go vet ./... && go test ./... -count=1      # FFmpeg prefix: TESTI
 CGO_ENABLED=1 go test -race ./internal/<changed>/...
 ```
 
-Before a push: the rollback check (TESTING.md) and both Linux cross-builds.
+`make check` at the repository root runs the first line. Before a push: the
+rollback check (ARCHITECTURE "Testing") and both Linux cross-builds
+(`GOOS=linux GOARCH=amd64|arm64 CGO_ENABLED=0 go build ./cmd/audiobookshelf-go`).
 Development is on `master` only. Deployment is separately authorised.

@@ -181,7 +181,7 @@ func newEpisodeServer(t *testing.T) *episodeServer {
 			}
 		}
 		if strings.Contains(r.URL.Path, "bad") {
-			http.Error(w, "fixture failure", 503)
+			http.Error(w, "fixture failure", http.StatusServiceUnavailable)
 			return
 		}
 		_, _ = w.Write(tone)
@@ -370,7 +370,7 @@ func TestFailedFeedChecksDisableAutoDownload(t *testing.T) {
 		ok := healthy
 		mu.Unlock()
 		if !ok {
-			http.Error(w, "down", 503)
+			http.Error(w, "down", http.StatusServiceUnavailable)
 			return
 		}
 		_, _ = w.Write([]byte(feedXML(feedItem("Old", "old", "Mon, 02 Jan 2006 15:04:05 GMT", "/old.wav"))))

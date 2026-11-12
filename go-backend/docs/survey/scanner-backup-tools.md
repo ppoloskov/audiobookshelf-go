@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 **Sizes (production, non-test lines):** scanner 3,708 (11 files), audiotools 576, backup 729, mediatools 136, filekind 67, cronspec 20. Total about 5,240. Tests: scanner 3,749, audiotools 466, backup 777, cronspec 29. Go is 1.27 per go.mod, so `os.CopyFS` and `zip.Writer.AddFS` exist.
 
 ## 1. RESPONSIBILITIES

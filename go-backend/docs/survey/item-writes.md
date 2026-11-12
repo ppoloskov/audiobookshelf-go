@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 Scope sizes: non-test lines are catalog 3574, itemwrite 654, people 1101, sqlupdate 70, nameparse 324, wire 141, jsonvalue 109 (about 5970). Test lines are about 6150, of which catalog is 4895.
 
 ## 1. RESPONSIBILITIES

@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 Scope: non-test code is about 4,380 lines: podcasts 2,155, providers 1,962, textclean 236, textdist 31. Tests are about 2,900 lines.
 
 ## 1. RESPONSIBILITIES

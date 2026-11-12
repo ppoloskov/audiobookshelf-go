@@ -2,15 +2,11 @@
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status test-ts-diagnostics check
+.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status check
 
 # gofmt must print nothing; then vet and test.
 check:
 	cd go-backend && test -z "$$(gofmt -l .)" && go vet ./... && go test ./...
-
-# Historical serializer/framework fingerprints, deliberately outside default Go tests.
-test-ts-diagnostics:
-	cd go-backend && go test -tags tsdiagnostic ./internal/httputil ./internal/logging ./internal/catalog ./internal/server ./internal/textclean -run '^(TestTSRepresentation|TestExpressETagMatchesExpress)' -count=1
 
 parity:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/suite-runner.cjs core

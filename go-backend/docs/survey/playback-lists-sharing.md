@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 Production Go in scope is about 6,100 lines (playback 1,541, progressdto 620, lists 1,485, sharing 1,960, deviceinfo 54, store files 419). Tests are about 2,650 lines. No files were modified.
 
 **1. RESPONSIBILITIES**

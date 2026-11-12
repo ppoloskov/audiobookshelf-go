@@ -38,16 +38,6 @@ func (r *rig) cascade() {
 	}
 }
 
-func (r *rig) audiences(event string) []string {
-	var out []string
-	for _, e := range r.takeEvents() {
-		if e.name == event {
-			out = append(out, e.audience)
-		}
-	}
-	return out
-}
-
 // Deleting an item removes what hangs off it - progress of every user, playlist
 // entries (and playlists left empty), collection entries, its feed and shares,
 // the authors and series it leaves empty - and nothing that belongs to the

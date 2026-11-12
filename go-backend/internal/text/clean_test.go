@@ -260,8 +260,7 @@ func safeHTMLMeaning(rendered string) (htmlMeaning, error) {
 		return nil, fmt.Errorf("parse HTML fragment: %w", err)
 	}
 	var meaning htmlMeaning
-	var visit func(*html.Node) error
-	visit = func(node *html.Node) error {
+	visit := func(node *html.Node) error {
 		if node.Type == html.TextNode {
 			if len(meaning) > 0 && strings.HasPrefix(meaning[len(meaning)-1], "text:") {
 				meaning[len(meaning)-1] += node.Data

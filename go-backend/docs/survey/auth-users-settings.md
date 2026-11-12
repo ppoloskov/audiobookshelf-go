@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 Scope: 11 packages, 6,421 non-test lines (+160 generated icu_zones_gen.go) and 5,519 test lines. Counts below are approximate.
 
 ## 1. RESPONSIBILITIES

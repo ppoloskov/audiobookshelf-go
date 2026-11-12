@@ -1,4 +1,4 @@
-// Package libraries serves the library management routes (LibraryController.js,
+// Package library serves the library management routes (LibraryController.js,
 // v2.37.2): the library list, create, update, order and delete, a library's
 // stats, filter data, authors, narrators, podcast titles, OPML export, zip
 // download, match-all and the cleanup of metadata files and items with issues.

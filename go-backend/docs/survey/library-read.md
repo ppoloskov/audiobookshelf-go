@@ -1,3 +1,5 @@
+> Pre-rewrite survey (2026-11-11). Describes the OLD code; kept for its HAZARDS sections.
+
 All sizes are non-test lines at the current checkout; nothing was modified.
 
 **1. RESPONSIBILITIES**

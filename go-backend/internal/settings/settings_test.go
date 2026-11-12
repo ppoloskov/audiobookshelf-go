@@ -18,8 +18,6 @@ import (
 
 const backups = "/data/backups"
 
-func noEnv(string) string { return "" }
-
 func newStore(t *testing.T, d *db.DB, env map[string]string) *settings.Store {
 	t.Helper()
 	store, err := settings.NewStore(context.Background(), d, func(k string) string { return env[k] }, backups)

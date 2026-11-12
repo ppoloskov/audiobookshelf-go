@@ -193,15 +193,3 @@ func mustWrite(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
-
-func toJSON(v any) any {
-	raw, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	var out any
-	if err := json.Unmarshal(raw, &out); err != nil {
-		panic(err)
-	}
-	return out
-}

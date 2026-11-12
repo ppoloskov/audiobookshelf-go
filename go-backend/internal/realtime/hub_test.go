@@ -385,7 +385,9 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		}
 	}
 	// A collection needs only library access, not tag permissions.
-	srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
+	if _, err := srv.backend.d.Exec(context.Background(), `UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`); err != nil {
+		t.Fatal(err)
+	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
 		t.Fatal(err)
 	}

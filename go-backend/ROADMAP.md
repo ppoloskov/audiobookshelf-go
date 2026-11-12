@@ -1,19 +1,13 @@
 # Roadmap: the rewrite
 
-Goal: the target in [ARCHITECTURE.md](ARCHITECTURE.md). About 24 packages and
-roughly half of today's 39,700 production lines, with typed rows, typed
-requests and responses, and no JavaScript emulation.
+The greenfield rewrite is done. The result is described in
+[ARCHITECTURE.md](ARCHITECTURE.md); the current state and open items are in
+[handover.md](handover.md). Below, the waves as they were planned, with the old
+package each task replaced. Old names are history: none of them exists in
+`internal/` any more.
 
-Method: strangler on `master`. Each task builds a new package on the
-foundation, ports the HTTP-level tests, switches the routes over in the
-composition root and deletes the old package. `internal/contracttest` stays
-green at every commit.
-
-Per-area facts (routes, tables, hazards, client dependence) are in
-[docs/survey/](docs/survey/). Every brief points its worker at the matching
-file; the HAZARDS section there is the list of behaviours that must survive.
-
-Mark a task `[x]` in the commit that completes it.
+Per-area facts of the old code (routes, tables, hazards) are in
+[docs/survey/](docs/survey/).
 
 ## Wave 1: foundation
 
@@ -54,7 +48,7 @@ Mark a task `[x]` in the commit that completes it.
 - [x] **D4 `list`**: collections and playlists. Replaces `lists`,
   `playlistview`.
 - [x] **D5 `playback`**: sessions, progress, bookmarks, listening stats, HLS,
-  devices. Replaces `playback` (old), `progressdto`, `deviceinfo`, the
+  devices. Replaces `playback` (old), `progressdto`, the
   progress half of `userapi`.
 - [x] **D6 `share`**: shares and RSS feeds out with `encoding/xml`. Replaces
   `sharing`, `feeds`.
@@ -72,13 +66,25 @@ Mark a task `[x]` in the commit that completes it.
 - [x] **C1 `app`** (kept the package name `server`): composition root and middleware chain; delete the
   hand-rolled dispatch, Express error pages and route aliases. Add the CORS
   middleware upstream has and Go lacks (mobile ebook and cover loads).
-- [x] **C2 `realtime`**: fold `events` in; typed socket actions.
-- [ ] **C3** delete the old shared packages and sqlc; merge the leaves into
+- [x] **C2 `realtime`**: typed socket actions (`realtime.Actions`). `events` stayed a
+  separate leaf package: domains import it, not `realtime`.
+- [x] **C3** delete the old shared packages and sqlc; merge the leaves into
   `text` and `media`; remove `db.DB.SQL()`.
 - [x] **C4** tooling: drop the ratchet, dbnest and depguard layers; CI runs
   build, vet, tests, lint, cross-build and rollback.
-- [ ] **C5** README and docs reflect the result; rollback and journey checks
+- [x] **C5** README and docs reflect the result; rollback and journey checks
   pass; push.
+
+## Next
+
+Open follow-ups (details in [handover.md](handover.md)):
+
+- Podcast create ignores `autoDownloadEpisodes` nested under `media`.
+- Replace the `logging` printf helpers with `slog` and delete them.
+- Fix the `internal/library` package doc ("Package libraries").
+- Delete the 12 stray `*-E` files in `internal/text` and `internal/media`.
+- Fix the stale `test-ts-diagnostics` Makefile target.
+- Device acceptance of the mobile apps.
 
 ## Open decisions
 

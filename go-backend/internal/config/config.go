@@ -165,10 +165,7 @@ func normalizeBasePath(value string) string {
 	if !strings.HasPrefix(value, "/") {
 		value = "/" + value
 	}
-	if strings.HasSuffix(value, "/") {
-		value = strings.TrimSuffix(value, "/")
-	}
-	return value
+	return strings.TrimSuffix(value, "/")
 }
 
 // Dirs are the folders under MetadataPath. Their names are the TS server's

@@ -23,11 +23,9 @@ const (
 // failure message from it.
 var ErrExpired = errors.New("token expired")
 
-// errInvalidToken wraps every other token failure; errWrongType is a valid
-// token of the wrong kind (an access token presented for refresh).
+// errInvalidToken wraps every token failure.
 var (
 	errInvalidToken = errors.New("invalid token")
-	errWrongType    = errors.New("wrong token type")
 )
 
 // Claims is the payload of every credential the server signs, in the layout
