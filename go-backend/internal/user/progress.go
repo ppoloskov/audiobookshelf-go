@@ -146,7 +146,7 @@ func (h *Handler) itemsInProgress(w http.ResponseWriter, r *http.Request, me *au
 		limit = 25
 	}
 	var rows []db.MediaProgress
-	if err := h.db.Select(ctx, &rows, `SELECT * FROM mediaProgresses WHERE userId = ? AND isFinished = 0 AND (currentTime > 0 OR ebookProgress > 0) ORDER BY updatedAt DESC`, me.ID); err != nil {
+	if err := h.db.Select(ctx, &rows, `SELECT * FROM mediaProgresses WHERE userId = ? AND isFinished = 0 AND (currentTime > 0 OR ebookProgress > 0) ORDER BY updatedAt DESC, rowid`, me.ID); err != nil {
 		return err
 	}
 	itemOf := func(row db.MediaProgress) string { // "" when the row names no item

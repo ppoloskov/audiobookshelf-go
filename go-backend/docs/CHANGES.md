@@ -51,6 +51,14 @@ rewrite (`git log 7051b3e5..HEAD`).
 
 - Local-sync timestamps are numbers or numeric strings; other types read as 0.
 
+## Sessions
+
+- Listening-session JSON (`/api/me/listening-sessions`, listening stats, item
+  sessions) carries every key of the typed session: `audioTracks` is `[]`,
+  `stream`, `lastSave`, `shareSessionId`, `mediaItemShareId` and
+  `coverAspectRatio` are `null`/`0` where upstream omits them, and the admin
+  lists add `user` (`id`, `username`). No client reads these keys as absent.
+
 ## Podcasts
 
 - Episode `publishedAt` is always written in the DATETIME format.
@@ -64,7 +72,12 @@ rewrite (`git log 7051b3e5..HEAD`).
 
 ## Shares and feeds
 
-- None beyond the two fixes under Bugs fixed.
+- A created share always carries `isDownloadable` (upstream omits it when the
+  request did not set it).
+- Feed XML is written by `encoding/xml`: empty elements are an open and close
+  tag pair (`<atom:link ...></atom:link>`) and a newline follows the XML
+  declaration. Same elements, attributes and values.
+- Otherwise the two fixes under Bugs fixed.
 
 ## Admin, settings, backup
 

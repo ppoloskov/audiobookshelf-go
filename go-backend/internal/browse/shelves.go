@@ -152,7 +152,7 @@ func (e *shelfEnv) itemShelf(want itemExtras, query string, args ...any) (any, i
 func progressShelf(where string, reading bool) func(*shelfEnv) (any, int, int, error) {
 	return func(e *shelfEnv) (any, int, int, error) {
 		ids, total, err := e.pick(`SELECT li.id FROM libraryItems li JOIN books b ON b.id=li.mediaId JOIN mediaProgresses mp ON mp.mediaItemId=b.id
-			WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND (`+where+`)`+e.perm+` ORDER BY mp.updatedAt DESC`, e.s.Library.ID, e.s.User.ID)
+			WHERE li.libraryId=? AND li.mediaType='book' AND mp.userId=? AND (`+where+`)`+e.perm+` ORDER BY mp.updatedAt DESC, mp.rowid`, e.s.Library.ID, e.s.User.ID)
 		if err != nil {
 			return nil, 0, 0, err
 		}
