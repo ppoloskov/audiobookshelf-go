@@ -174,7 +174,7 @@ func TestSeriesList(t *testing.T) {
 		t.Errorf("page %+v", got)
 	}
 	// Books in sequence order: s2 is b4 #1, b5 #2.5, b3 #3.
-	var l seriesResults = list("root", "filter=genres."+b64("fiction"))
+	l := list("root", "filter=genres."+b64("fiction"))
 	if !slices.Equal(l.ids(), []string{"s1", "s2"}) || len(l.Results[1].Books) != 3 || l.Results[1].Books[0].ID != "i4" || l.Results[1].Books[2].ID != "i3" {
 		t.Errorf("genres %+v", l)
 	}
