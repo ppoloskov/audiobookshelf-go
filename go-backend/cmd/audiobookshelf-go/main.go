@@ -14,13 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
 	data "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/server"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/version"
 )
 
@@ -50,11 +48,8 @@ func main() {
 	logging.Infof("[Server] Go Version: %s", runtime.Version())
 	logging.Infof("[Server] Platform: %s", runtime.GOOS)
 	logging.Infof("[Server] Arch: %s", runtime.GOARCH)
-	if err := bootstrap.Ensure(cfg); err != nil {
-		fatal("[Server] bootstrap error: %v", err)
-	}
-	dbPath := store.DatabasePath(cfg.ConfigPath)
-	db, err := store.Open(dbPath)
+	dbPath := data.FilePath(cfg.ConfigPath)
+	db, err := server.OpenDatabase(cfg)
 	if err != nil {
 		fatal("[Database] Failed to connect to db %q: %v", dbPath, err)
 	}
@@ -62,7 +57,7 @@ func main() {
 	// Upstream applies logLevel when ServerSettings loads, then initializes
 	// the LogManager (server/Server.js:186).
 	dailyLogsToKeep := 0
-	if stored, settingsErr := settings.NewStore(context.Background(), data.New(db.DB()), os.Getenv, cfg.Dirs().Backups); settingsErr == nil {
+	if stored, settingsErr := settings.NewStore(context.Background(), db, os.Getenv, cfg.Dirs().Backups); settingsErr == nil {
 		dailyLogsToKeep = server.ApplyLoggingSettings(stored.Server())
 	} else {
 		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)

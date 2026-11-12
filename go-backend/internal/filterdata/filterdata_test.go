@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	schemaassets "audiobookshelf-compat/contracts/parity"
+	absdb "audiobookshelf-compat/internal/db"
 )
 
 const stamp = "2024-01-02 03:04:05.000 +00:00"
@@ -23,7 +23,7 @@ func openDB(t *testing.T) *sql.DB {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
-	exec(t, db, schemaassets.SchemaSQL)
+	exec(t, db, absdb.Schema)
 	exec(t, db, `INSERT INTO libraries(id,name,displayOrder,icon,mediaType,provider,settings,extraData,createdAt,updatedAt) VALUES('l1','Books',0,'books','book','google','{}','{}',?,?),('l2','Casts',1,'podcast','podcast','itunes','{}','{}',?,?)`, stamp, stamp, stamp, stamp)
 	return db
 }

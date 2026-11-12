@@ -3,15 +3,15 @@
 package server
 
 import (
-	"audiobookshelf-compat/internal/serversettings"
 	"context"
-	"database/sql"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"audiobookshelf-compat/internal/admin"
@@ -21,10 +21,9 @@ import (
 	"audiobookshelf-compat/internal/browse"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/db/sqlc"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
-	"audiobookshelf-compat/internal/httputil"
+	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/libraries"
 	"audiobookshelf-compat/internal/list"
@@ -46,7 +45,6 @@ import (
 
 type Runtime struct {
 	cfg           config.Config
-	db            *sql.DB
 	data          *db.DB          // the new data layer; rewritten packages use it
 	settings      *settings.Store // typed settings for rewritten packages
 	auth          *auth.Service
@@ -71,35 +69,24 @@ func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method
 
 // newRuntime builds the handlers over db. The hub belongs to the manager and
 // survives a restore.
-func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
+func newRuntime(data *db.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
 	hub := m.hub
 	emit := events.Emitter(hub.Emit)
-	rt = &Runtime{cfg: cfg, db: sqlDB, realtime: hub}
+	rt = &Runtime{cfg: cfg, data: data, realtime: hub}
 	defer func() {
 		if err != nil {
 			rt.Close()
 			rt = nil
 		}
 	}()
-	rt.data = db.New(sqlDB)
 	if rt.settings, err = settings.NewStore(context.Background(), rt.data, os.Getenv, cfg.Dirs().Backups); err != nil {
 		return rt, err
 	}
 	ApplyLoggingSettings(rt.settings.Server()) // a restored database may carry a different logLevel
-	// Transitional: old packages still save server settings through
-	// serversettings; keep the typed cache current until they are gone.
-	serversettings.SetOnSave(func(*sql.DB) {
-		if err := rt.settings.Reload(context.Background()); err != nil {
-			logging.Errorf("[Server] reload settings: %v", err)
-		}
-	})
 	filters := filterdata.NewCache()
 	if rt.auth, err = auth.New(rt.data, rt.settings, emit, cfg); err != nil {
 		return rt, err
 	}
-	// Transitional: auth may have stored a new token secret; the old
-	// serversettings cache must not save a stale document over it.
-	serversettings.Invalidate(sqlDB)
 	rt.authRoutes = http.NewServeMux()
 	rt.auth.Routes(rt.authRoutes)
 	rt.metadata = metadata.New(rt.data, emit)
@@ -138,10 +125,9 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	if rt.backup, err = backup.New(rt.settings, cfg, os.Getenv, emit, rt.notifications.TriggerEvent, m.restore); err != nil {
 		return rt, err
 	}
-	// Settings changes reach the old serversettings cache and the running
-	// server (log level, watchers and schedules); backup follows them itself.
+	// Settings changes reach the running server (log level, watchers and
+	// schedules); backup follows them itself.
 	rt.settings.OnChange(func(server settings.Server) {
-		serversettings.Invalidate(sqlDB)
 		logging.Default().SetLevel(logging.Level(server.LogLevel))
 		if err := rt.scanner.Refresh(context.Background()); err != nil {
 			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
@@ -261,11 +247,11 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if path == "" {
 		path = "/"
 	}
-	if !rt.settingsAllowIframe() {
+	if !rt.settings.Server().AllowIframe {
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
 	}
 	if isGet(r) && path == "/ping" {
-		httputil.WriteJSON(w, r, 200, map[string]any{"success": true})
+		_ = httpx.JSON(w, r, map[string]any{"success": true}) // only a dead client can fail
 		return
 	}
 	if isGet(r) && path == "/healthcheck" {
@@ -278,7 +264,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isGet(r) && path == "/status" {
-		rt.status(w, r)
+		httpx.Handler(rt.status).ServeHTTP(w, r)
 		return
 	}
 	if _, pattern := rt.authRoutes.Handler(withPath(r, path)); pattern != "" {
@@ -300,7 +286,7 @@ func (rt *Runtime) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if !rt.serveRoute(w, r, auth.User(r.Context())) {
 			// Express answers an unknown route 404; clients branch on it (Absorb
 			// falls back to older endpoints on 404).
-			httputil.Fail(w, r, httputil.Status(http.StatusNotFound, ""))
+			_ = httpx.Status(w, http.StatusNotFound)
 		}
 	})
 	if publicRead {
@@ -360,52 +346,37 @@ func withPath(r *http.Request, path string) *http.Request {
 	return clone
 }
 
-func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) {
-	stored, err := serversettings.Get(r.Context(), rt.db)
-	if err != nil {
-		http.Error(w, "database not ready", 503)
-		return
+// status answers GET /status: what a client needs before it logs in.
+func (rt *Runtime) status(w http.ResponseWriter, r *http.Request) error {
+	var roots int
+	if err := rt.data.Get(r.Context(), &roots, "SELECT COUNT(*) FROM users WHERE type = 'root'"); err != nil {
+		slog.Error("status: count root users", "error", err)
+		return httpx.Error(http.StatusServiceUnavailable, "database not ready")
 	}
-	roots, err := sqlc.New(rt.db).CountRootUsers(r.Context())
-	if err != nil {
-		http.Error(w, "database not ready", 503)
-		return
+	server := rt.settings.Server()
+	methods := server.ActiveAuthMethods
+	if len(methods) == 0 {
+		methods = []string{"local"}
 	}
-	settings := stored.Doc()
-	methods, ok := settings["authActiveAuthMethods"].([]any)
-	if !ok {
-		methods = []any{"local"}
-	}
-	language := settings["language"]
-	if language == nil || language == "" {
+	language := server.Language
+	if language == "" {
 		language = "en-us"
 	}
-	message, _ := settings["authLoginCustomMessage"].(string)
-	form := map[string]any{"authLoginCustomMessage": textclean.Sanitize(message)}
-	for _, m := range methods {
-		if m == "openid" {
-			button := settings["authOpenIDButtonText"]
-			if button == nil || button == "" {
-				button = "Login with OpenId"
-			}
-			form["authOpenIDButtonText"] = button
-			form["authOpenIDAutoLaunch"] = settings["authOpenIDAutoLaunch"] == true
-			break
+	form := map[string]any{"authLoginCustomMessage": textclean.Sanitize(string(server.LoginCustomMessage))}
+	if slices.Contains(methods, "openid") {
+		button := server.OpenIDButtonText
+		if button == "" {
+			button = "Login with OpenId"
 		}
+		form["authOpenIDButtonText"] = button
+		form["authOpenIDAutoLaunch"] = server.OpenIDAutoLaunch
 	}
 	payload := map[string]any{"app": "audiobookshelf", "serverVersion": version.Server, "isInit": roots > 0, "language": language, "authMethods": methods, "authFormData": form}
 	if roots == 0 {
 		payload["ConfigPath"] = rt.cfg.ConfigPath
 		payload["MetadataPath"] = rt.cfg.MetadataPath
 	}
-	httputil.WriteJSON(w, r, 200, payload)
-}
-func (rt *Runtime) settingsAllowIframe() bool {
-	settings, err := serversettings.Get(context.Background(), rt.db)
-	if err != nil {
-		return false
-	}
-	return settings.AllowIframe()
+	return httpx.JSON(w, r, payload)
 }
 
 func isPublicCover(path string) bool {

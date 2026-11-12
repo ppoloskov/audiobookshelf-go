@@ -9,11 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/websocket"
 )
 
@@ -38,10 +36,7 @@ func TestApplyLoggingSettings(t *testing.T) {
 // registered a level receives "log" events with the upstream LogObject shape.
 func TestSetLogListenerDeliversLogEvents(t *testing.T) {
 	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), JWTSecret: "test-secret"}
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
-	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	db, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,10 +99,7 @@ func TestSetLogListenerDeliversLogEvents(t *testing.T) {
 
 func TestLoggerDataEndpointThroughRuntime(t *testing.T) {
 	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), JWTSecret: "test-secret"}
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
-	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	db, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

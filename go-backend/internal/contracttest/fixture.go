@@ -21,10 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/server"
-	"audiobookshelf-compat/internal/store"
 )
 
 const (
@@ -71,7 +70,7 @@ type fixtureMeta struct {
 
 // Boot copies the fixture into t.TempDir(), rewrites the absolute seed paths
 // stored in the database, and serves it with the production open sequence
-// (bootstrap.Ensure, store.Open, server.NewManager). Everything is
+// (server.OpenDatabase, server.NewManager). Everything is
 // closed by t.Cleanup.
 func Boot(t testing.TB) *Install {
 	t.Helper()
@@ -107,10 +106,7 @@ func boot(t testing.TB, seeded bool) *Install {
 		RouterBasePath: routerBase,
 		Source:         "docker",
 	}
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatalf("contracttest: bootstrap: %v", err)
-	}
-	st, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	st, err := server.OpenDatabase(cfg)
 	if err != nil {
 		t.Fatalf("contracttest: open database: %v", err)
 	}
@@ -122,7 +118,7 @@ func boot(t testing.TB, seeded bool) *Install {
 			{from: meta.SeedRoots.Metadata, to: filepath.Join(dir, "metadata")},
 			{from: meta.SeedRoots.Config, to: filepath.Join(dir, "config")},
 		}
-		if err := rewriteSeedPaths(context.Background(), st.DB(), pairs); err != nil {
+		if err := rewriteSeedPaths(context.Background(), st.SQL(), pairs); err != nil {
 			t.Fatalf("contracttest: rewrite seed paths: %v", err)
 		}
 	}
@@ -145,15 +141,15 @@ func boot(t testing.TB, seeded bool) *Install {
 	t.Cleanup(func() { _ = httpServer.Close() })
 	// Runs first (LIFO), while the server still runs: TS stores every text and
 	// JSON column as TEXT, so a BLOB anywhere is a Go write bug. It opens the
-	// file afresh: a backup apply reopens the database, which closes st.DB().
+	// file afresh: a backup apply reopens the database, which closes st.
 	t.Cleanup(func() {
-		check, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+		check, err := db.Open(db.FilePath(cfg.ConfigPath))
 		if err != nil {
 			t.Errorf("contracttest: open database for the blob check: %v", err)
 			return
 		}
 		defer func() { _ = check.Close() }()
-		assertNoBlobText(t, check.DB())
+		assertNoBlobText(t, check.SQL())
 	})
 
 	return &Install{
@@ -161,7 +157,7 @@ func boot(t testing.TB, seeded bool) *Install {
 		IDs:     ids,
 		Users:   meta.Users,
 		Dir:     dir,
-		DB:      st.DB(),
+		DB:      st.SQL(),
 		client:  &http.Client{Timeout: requestLimit},
 	}
 }

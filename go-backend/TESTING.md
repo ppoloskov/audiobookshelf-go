@@ -3,33 +3,12 @@
 Use the Go version declared by go.mod. On this host validation used installed
 Go 1.27.0 with GOTOOLCHAIN=local, without changing the suggested 1.27.3 toolchain.
 
-## Pinned SQLC generator
+## Shipping source
 
-SQLC v1.31.1 is installed at `/Users/paul/go/bin/sqlc` on this host but is not
-on the login-shell `PATH`. Verify the pinned version directly, then invoke the
-root target with the absolute executable path:
-
-```sh
-/Users/paul/go/bin/sqlc version
-make sqlc SQLC=/Users/paul/go/bin/sqlc
-```
-
-This avoids relying on network access or assuming `command -v sqlc` reflects
-the available pinned generator. After generation, review both tracked and
-untracked output under `go-backend/internal/db/sqlc/`.
-
-## Shipping source and inherited work
-
-The canonical development checkout is master. Inherited untracked
-internal/identity/routes.go currently references absent httputil.NotFound;
-including it can break builds and also contaminates source metrics. Preserve
-it without staging, fixing or deleting it as part of unrelated work.
-
-For acceptance use a clean `git archive HEAD` plus exactly the approved
-working changes/new files, or the committed clean source. Record the base SHA
-and overlay list. This is a validation snapshot, never a development branch.
-Do not report a dirty-workspace failure as a shipping regression or a snapshot
-pass as proof that inherited work compiles.
+The canonical development checkout is master. For acceptance use the committed
+clean source, or a clean `git archive HEAD` plus exactly the approved working
+changes. Record the base SHA and overlay list. Do not report a dirty-workspace
+failure as a shipping regression.
 
 ## Native FFmpeg with WebP
 

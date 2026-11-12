@@ -194,45 +194,45 @@ func dump(t *testing.T, d *db.DB) snapshot {
 		if err := d.Select(ctx, &columns, "SELECT name, type FROM pragma_table_info(?) ORDER BY cid", table.name); err != nil {
 			t.Fatal(err)
 		}
-		var exprs []string
+		var cells []string
 		for _, column := range columns {
 			if column.Type == "JSON" {
-				exprs = append(exprs, fmt.Sprintf("typeof(`%[1]s`), CAST(`%[1]s` AS TEXT)", column.Name))
+				cells = append(cells, fmt.Sprintf("typeof(`%[1]s`), CAST(`%[1]s` AS TEXT)", column.Name))
 			} else {
-				exprs = append(exprs, fmt.Sprintf("typeof(`%[1]s`), quote(`%[1]s`)", column.Name))
+				cells = append(cells, fmt.Sprintf("typeof(`%[1]s`), quote(`%[1]s`)", column.Name))
 			}
 		}
-		rows, err := d.SQL().QueryContext(ctx, "SELECT "+strings.Join(exprs, ", ")+" FROM `"+table.name+"` ORDER BY rowid")
-		if err != nil {
+		// One JSON array per row; a NULL cell is JSON null.
+		var rowsJSON string
+		query := "SELECT COALESCE(json_group_array(json(r)), '[]') FROM (SELECT json_array(" + strings.Join(cells, ", ") + ") AS r FROM `" + table.name + "` ORDER BY rowid)"
+		if err := d.Get(ctx, &rowsJSON, query); err != nil {
 			t.Fatalf("dump %s: %v", table.name, err)
 		}
-		for rows.Next() {
-			cells := make([]sql.NullString, 2*len(columns))
-			dest := make([]any, len(cells))
-			for i := range cells {
-				dest[i] = &cells[i]
-			}
-			if err := rows.Scan(dest...); err != nil {
-				t.Fatal(err)
-			}
+		var rows [][]*string
+		if err := json.Unmarshal([]byte(rowsJSON), &rows); err != nil {
+			t.Fatal(err)
+		}
+		for _, cells := range rows {
 			row := make([]string, len(columns))
 			for i, column := range columns {
-				value := cells[2*i+1].String
-				if column.Type == "JSON" && cells[2*i+1].Valid {
+				var kind, value string
+				if cells[2*i] != nil {
+					kind = *cells[2*i]
+				}
+				if cells[2*i+1] != nil {
+					value = *cells[2*i+1]
+				}
+				if column.Type == "JSON" && cells[2*i+1] != nil {
 					var doc any
 					if err := json.Unmarshal([]byte(value), &doc); err == nil {
 						canonical, _ := json.Marshal(doc) // sorted keys
 						value = string(canonical)
 					}
 				}
-				row[i] = cells[2*i].String + " " + value
+				row[i] = kind + " " + value
 			}
 			out[table.name] = append(out[table.name], row)
 		}
-		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		rows.Close()
 	}
 	return out
 }

@@ -11,9 +11,7 @@ import (
 
 	"golang.org/x/net/websocket"
 
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
 )
 
 // socketStage names where a connect+auth cycle stopped. stageOK means the
@@ -100,10 +98,7 @@ func (t socketTally) String() string {
 // sequentially and under concurrency.
 func TestSocketConnectAuthLoop(t *testing.T) {
 	cfg := config.Config{ConfigPath: filepath.Join(t.TempDir(), "config"), MetadataPath: filepath.Join(t.TempDir(), "metadata"), JWTSecret: "test-secret", RouterBasePath: "/audiobookshelf"}
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
-	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	db, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

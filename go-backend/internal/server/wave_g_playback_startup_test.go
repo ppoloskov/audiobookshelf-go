@@ -5,9 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
 )
 
 // Playback stream cleanup belongs to process startup, matching Server.init
@@ -21,9 +19,6 @@ func TestManagerStartupRemovesOrphanPlaybackStreams(t *testing.T) {
 		MetadataPath: filepath.Join(root, "metadata"),
 		JWTSecret:    "startup-cleanup-test-secret",
 	}
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
 	streams := cfg.Dirs().Streams
 	orphan := filepath.Join(streams, "550e8400-e29b-41d4-a716-446655440000")
 	unrelated := filepath.Join(streams, "not-a-session")
@@ -35,7 +30,7 @@ func TestManagerStartupRemovesOrphanPlaybackStreams(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	db, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	db, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

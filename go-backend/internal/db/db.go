@@ -16,7 +16,7 @@ import (
 )
 
 // Schema is the pinned upstream v2.37.2 schema (tables, indexes and triggers),
-// the text of schema.sql. Tests execute it to create a fresh database.
+// the text of schema.sql. Create executes it to make a fresh database.
 //
 //go:embed schema.sql
 var Schema string
@@ -34,8 +34,9 @@ type DB struct {
 	cols sync.Map // reflect.Type -> []column, the memoized writable columns of a row struct
 }
 
-// New wraps an already-open handle. The driver is modernc.org/sqlite, opened by
-// internal/store for now.
+// New wraps an already-open handle that follows the Connect settings (one
+// connection, foreign keys on). Production code uses Open; New is for tests
+// that build the handle themselves.
 func New(sqlDB *sql.DB) *DB {
 	x := sqlx.NewDb(sqlDB, "sqlite")
 	// Columns are camelCase db tags used exactly; an untagged field keeps its name.
@@ -43,9 +44,8 @@ func New(sqlDB *sql.DB) *DB {
 	return &DB{x: x}
 }
 
-// SQL returns the underlying *sql.DB. It is transitional, for packages not yet
-// moved onto DB, and is removed with the last of them. Queries on it ignore
-// transactions started by Tx.
+// SQL returns the underlying *sql.DB, for the filter-data cache, which still
+// takes one, and for tests. Queries on it ignore transactions started by Tx.
 func (d *DB) SQL() *sql.DB { return d.x.DB }
 
 type txKey struct{ db *DB }

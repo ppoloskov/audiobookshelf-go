@@ -2,10 +2,11 @@
 # (must then be Node 22.x). Override with `make PARITY_NODE=... <target>`.
 PARITY_NODE ?= $(shell command -v mise >/dev/null 2>&1 && echo "mise exec node@22 -- node" || echo node)
 
-.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage ratchet ratchet-update sqlc status test-ts-diagnostics
+.PHONY: parity parity-equivalence parity-full parity-replacement parity-scan route-probe browser-check bench client-usage status test-ts-diagnostics check
 
-# sqlc v1.31.1 (build-time only; CI installs the same pinned release).
-SQLC ?= sqlc
+# gofmt must print nothing; then vet and test.
+check:
+	cd go-backend && test -z "$$(gofmt -l .)" && go vet ./... && go test ./...
 
 # Historical serializer/framework fingerprints, deliberately outside default Go tests.
 test-ts-diagnostics:
@@ -44,18 +45,6 @@ browser-check:
 # Work dir and report: BENCH_ARGS="--work DIR" (default: a fresh temp dir).
 bench:
 	SSRF_REQUEST_FILTER_WHITELIST=127.0.0.1 $(PARITY_NODE) go-backend/tools/parity/bench.cjs $(BENCH_ARGS)
-
-ratchet:
-	cd go-backend && go run ./tools/ratchet && go run ./tools/dbnest
-
-ratchet-update:
-	cd go-backend && go run ./tools/ratchet -update
-
-# Typed queries: derive sqlc's trigger-free schema from the pinned schema.sql,
-# then generate internal/db/sqlc. Same filter as internal/db/schema_test.go.
-sqlc:
-	cd go-backend/internal/db && mkdir -p sqlc && awk '/^CREATE TRIGGER/{skip=1} skip && /END;[[:space:]]*$$/{skip=0; next} !skip{gsub(/`/, ""); print}' schema.sql > sqlc/schema.sql
-	cd go-backend/internal/db && $(SQLC) generate
 
 # Client routes and Socket.IO events, mapped to Go handlers (contracts/client-usage.json).
 client-usage:

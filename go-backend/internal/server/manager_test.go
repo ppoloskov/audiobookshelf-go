@@ -12,11 +12,9 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
-	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/store"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/websocket"
 )
@@ -87,7 +85,7 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 		t.Fatalf("restored author metadata=%q", body)
 	}
 	var raw []byte
-	if err := manager.current.Load().db.QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
+	if err := manager.current.Load().data.SQL().QueryRow(`SELECT value FROM settings WHERE key='server-settings'`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	var settings map[string]any
@@ -204,11 +202,11 @@ func waitFrame(t *testing.T, conn *websocket.Conn, prefix string) {
 func snapshotWithVersion(t *testing.T, cfg config.Config, username, password, ver string) string {
 	t.Helper()
 	path := createSnapshot(t, cfg, username, password)
-	database, err := store.OpenUnchecked(path)
+	database, err := db.Connect(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.DB().Exec(`UPDATE migrationsMeta SET value=? WHERE key IN ('version','maxVersion')`, ver); err != nil {
+	if _, err := database.SQL().Exec(`UPDATE migrationsMeta SET value=? WHERE key IN ('version','maxVersion')`, ver); err != nil {
 		t.Fatal(err)
 	}
 	if err := database.Close(); err != nil {
@@ -259,12 +257,9 @@ func TestManagerRestoreRefusesWrongVersionBackup(t *testing.T) {
 	waitFrame(t, socket, `42["ping_after_refusal"`)
 }
 
-func newTestManager(t *testing.T, cfg config.Config, username, password string) (*Manager, *store.Store) {
+func newTestManager(t *testing.T, cfg config.Config, username, password string) (*Manager, *db.DB) {
 	t.Helper()
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
-	database, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	database, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,10 +277,7 @@ func newTestManager(t *testing.T, cfg config.Config, username, password string) 
 
 func createSnapshot(t *testing.T, cfg config.Config, username, password string) string {
 	t.Helper()
-	if err := bootstrap.Ensure(cfg); err != nil {
-		t.Fatal(err)
-	}
-	database, err := store.Open(store.DatabasePath(cfg.ConfigPath))
+	database, err := OpenDatabase(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +286,7 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 		t.Fatal(err)
 	}
 	var busy, logFrames, checkpointed int
-	if err := database.DB().QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logFrames, &checkpointed); err != nil {
+	if err := database.SQL().QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logFrames, &checkpointed); err != nil {
 		_ = database.Close()
 		t.Fatal(err)
 	}
@@ -308,13 +300,12 @@ func createSnapshot(t *testing.T, cfg config.Config, username, password string) 
 	return path
 }
 
-func insertTestRoot(database *store.Store, cfg config.Config, username, password string) error {
-	data := db.New(database.DB())
-	st, err := settings.NewStore(context.Background(), data, os.Getenv, "")
+func insertTestRoot(database *db.DB, cfg config.Config, username, password string) error {
+	st, err := settings.NewStore(context.Background(), database, os.Getenv, "")
 	if err != nil {
 		return err
 	}
-	if _, err := auth.New(data, st, nil, cfg); err != nil {
+	if _, err := auth.New(database, st, nil, cfg); err != nil {
 		return err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
@@ -323,7 +314,7 @@ func insertTestRoot(database *store.Store, cfg config.Config, username, password
 	}
 	now := time.Now().UTC()
 	permissions := `{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true,"download":true,"update":true,"delete":true,"upload":true,"createEreader":true,"librariesAccessible":[],"itemTagsSelected":[]}`
-	_, err = database.DB().Exec(`INSERT INTO users(id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES('root-test',?,NULL,?,'root','legacy-token',1,0,NULL,?,'[]','{}',?,?)`, username, string(hash), permissions, now, now)
+	_, err = database.SQL().Exec(`INSERT INTO users(id,username,email,pash,type,token,isActive,isLocked,lastSeen,permissions,bookmarks,extraData,createdAt,updatedAt) VALUES('root-test',?,NULL,?,'root','legacy-token',1,0,NULL,?,'[]','{}',?,?)`, username, string(hash), permissions, now, now)
 	return err
 }
 

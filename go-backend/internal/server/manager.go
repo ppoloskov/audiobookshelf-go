@@ -1,7 +1,6 @@
 package server
 
 import (
-	"audiobookshelf-compat/internal/serversettings"
 	"context"
 	"errors"
 	"fmt"
@@ -20,7 +19,6 @@ import (
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/realtime"
-	"audiobookshelf-compat/internal/store"
 )
 
 // Manager owns the replaceable runtime graph. It releases its mutex before
@@ -31,7 +29,7 @@ type Manager struct {
 	cfg      config.Config
 	hub      *realtime.Hub // outlives restores so sockets stay connected
 	current  atomic.Pointer[Runtime]
-	database *store.Store
+	database *db.DB
 	closed   bool
 }
 
@@ -63,7 +61,7 @@ type restoredDir struct {
 	existed          bool
 }
 
-func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
+func NewManager(database *db.DB, cfg config.Config) (*Manager, error) {
 	if database == nil {
 		return nil, errors.New("server: database is nil")
 	}
@@ -75,7 +73,7 @@ func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
 		m.hub.Close()
 		return nil, err
 	}
-	rt, err := newRuntime(database.DB(), cfg, m)
+	rt, err := newRuntime(database, cfg, m)
 	if err != nil {
 		m.hub.Close()
 		return nil, err
@@ -108,7 +106,7 @@ func (m *Manager) Close() {
 	}
 	m.hub.Close()
 	if m.database != nil {
-		_ = closeStore(m.database)
+		_ = m.database.Close()
 	}
 }
 
@@ -119,25 +117,25 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 		return errors.New("server is closed")
 	}
 
-	check, err := store.Open(dbTemp)
+	check, err := db.Open(dbTemp)
 	if err != nil {
 		return fmt.Errorf("validate backup database: %w", err)
 	}
-	_ = closeStore(check)
+	_ = check.Close()
 
 	oldRuntime, oldStore := m.current.Load(), m.database
-	dbPath := store.DatabasePath(m.cfg.ConfigPath)
+	dbPath := db.FilePath(m.cfg.ConfigPath)
 	dbOld := dbPath + ".restore-previous"
 	metaTargets := []struct{ target, source string }{
 		{m.cfg.Dirs().Items, stagedItems},
 		{m.cfg.Dirs().Authors, stagedAuthors},
 	}
 	moved := make([]restoredDir, 0, len(metaTargets))
-	var newStore *store.Store
+	var newStore *db.DB
 	var nextRuntime *Runtime
 
 	oldRuntime.Close()
-	if err = closeStore(oldStore); err != nil {
+	if err = oldStore.Close(); err != nil {
 		return fmt.Errorf("close current database: %w", err)
 	}
 	removeSQLiteSidecars(dbPath)
@@ -180,9 +178,9 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 		moved = append(moved, restoredDir{target: pair.target, previous: previous, existed: existed})
 	}
 
-	newStore, err = store.Open(dbPath)
+	newStore, err = db.Open(dbPath)
 	if err == nil {
-		nextRuntime, err = newRuntime(newStore.DB(), m.cfg, m)
+		nextRuntime, err = newRuntime(newStore, m.cfg, m)
 	}
 	if err != nil {
 		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, err)
@@ -199,15 +197,15 @@ func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthor
 }
 
 func (m *Manager) resumeOld(cause error) error {
-	opened, err := store.Open(store.DatabasePath(m.cfg.ConfigPath))
+	opened, err := db.Open(db.FilePath(m.cfg.ConfigPath))
 	if err != nil {
 		m.current.Store(nil)
 		m.database = nil
 		return fmt.Errorf("%v; reopen current database: %w", cause, err)
 	}
-	rt, err := newRuntime(opened.DB(), m.cfg, m)
+	rt, err := newRuntime(opened, m.cfg, m)
 	if err != nil {
-		_ = closeStore(opened)
+		_ = opened.Close()
 		m.current.Store(nil)
 		m.database = nil
 		return fmt.Errorf("%v; rebuild current runtime: %w", cause, err)
@@ -217,12 +215,12 @@ func (m *Manager) resumeOld(cause error) error {
 	return cause
 }
 
-func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *Runtime, db *store.Store, cause error) error {
+func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *Runtime, opened *db.DB, cause error) error {
 	if rt != nil {
 		rt.Close()
 	}
-	if db != nil {
-		_ = closeStore(db)
+	if opened != nil {
+		_ = opened.Close()
 	}
 	_ = os.Remove(dbPath)
 	_ = os.Rename(dbOld, dbPath)
@@ -303,9 +301,4 @@ func copyDirectoryStage(source, target string) (string, error) {
 		return "", err
 	}
 	return stage, nil
-}
-
-func closeStore(s *store.Store) error {
-	serversettings.Forget(s.DB())
-	return s.Close()
 }

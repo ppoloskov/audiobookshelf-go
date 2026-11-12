@@ -1,8 +1,7 @@
 -- PINNED TS SCHEMA. DO NOT EDIT BY HAND.
--- Audiobookshelf v2.37.2 fresh-init DDL, read by sqlc (internal/db/sqlc.yaml).
--- The body below must stay byte-identical to go-backend/contracts/parity/schema.sql;
--- internal/db/schema_test.go fails on drift. Change the contract file, then copy.
--- ---8<--- copied from contracts/parity/schema.sql below ---8<---
+-- Audiobookshelf v2.37.2 fresh-init DDL, exported from a real fresh upstream
+-- initialization (baseline edb1f7efc92ecacdef51aafb4d9d5054ce10604f). This is
+-- the one copy in the Go tree; db.Schema embeds it.
 -- Audiobookshelf upstream fresh-init schema; source-executed, do not hand edit.
 -- Baseline: edb1f7efc92ecacdef51aafb4d9d5054ce10604f
 -- Source SHA-256: {"server/Database.js":"c7a25f2d117862c6f03b0ae8d1d4c4ad35eef95ba61f5874fd9471b64243bc33","server/managers/MigrationManager.js":"212aab0c4be11e67bae8943a49a76fb4088a23546037c5c090cb9f48d8649ccb","server/objects/settings/ServerSettings.js":"7da852d861f6796d8eb7b69e1a6c0d16f191436b61ae213a9e3c517436a1078b","server/objects/settings/EmailSettings.js":"4e993a2ae3aec4222d89ad117e34b6aba54e689e91e3dd7a9adf622202d56be7","server/objects/settings/NotificationSettings.js":"de5cc8663bd781440e2d3de8ac599e812ef9e815d22fe11e6463fb319342ba50"}

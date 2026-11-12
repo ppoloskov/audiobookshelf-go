@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/db"
 )
 
 // A metadata staging failure after the items directory has already been
@@ -58,11 +58,11 @@ func TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts(t *testing.T) 
 			t.Fatalf("stale previous %s tree after rollback: %v", name, err)
 		}
 	}
-	dbPath := store.DatabasePath(cfg.ConfigPath)
+	dbPath := db.FilePath(cfg.ConfigPath)
 	if _, err := os.Stat(dbPath + ".restore-previous"); !os.IsNotExist(err) {
 		t.Fatalf("stale previous database after rollback: %v", err)
 	}
-	check, err := store.Open(dbPath)
+	check, err := db.Open(dbPath)
 	if err != nil {
 		t.Fatalf("reopen restored database: %v", err)
 	}

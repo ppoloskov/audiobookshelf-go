@@ -3,24 +3,24 @@
 package dbtest
 
 import (
-	"database/sql"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
-
-	_ "modernc.org/sqlite"
 )
 
 // New returns an empty database holding the pinned schema (tables, indexes and
 // triggers), in a temporary directory. It is closed when the test ends.
 func New(t testing.TB) *db.DB {
 	t.Helper()
-	d := open(t, filepath.Join(t.TempDir(), "absdatabase.sqlite"))
+	path := filepath.Join(t.TempDir(), "absdatabase.sqlite")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatalf("dbtest: create database file: %v", err)
+	}
+	d := open(t, path)
 	if _, err := d.SQL().Exec(db.Schema); err != nil {
 		t.Fatalf("dbtest: apply pinned schema: %v", err)
 	}
@@ -45,27 +45,20 @@ func Fixture(t testing.TB) *db.DB {
 	return open(t, dst)
 }
 
-// open opens path with the production connection settings (see
-// internal/store): foreign keys on, a 5 s busy timeout, a single connection.
+// open connects to path as production does (db.Connect) and closes the
+// handle when the test ends.
 func open(t testing.TB, path string) *db.DB {
 	t.Helper()
-	u := url.URL{Scheme: "file", Path: path}
-	q := u.Query()
-	q.Add("_pragma", "busy_timeout(5000)")
-	q.Add("_pragma", "foreign_keys(1)")
-	u.RawQuery = q.Encode()
-	sqlDB, err := sql.Open("sqlite", u.String())
+	d, err := db.Connect(path)
 	if err != nil {
-		t.Fatalf("dbtest: open %s: %v", path, err)
+		t.Fatalf("dbtest: %v", err)
 	}
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetMaxIdleConns(1)
 	t.Cleanup(func() {
-		if err := sqlDB.Close(); err != nil {
+		if err := d.Close(); err != nil {
 			t.Errorf("dbtest: close: %v", err)
 		}
 	})
-	return db.New(sqlDB)
+	return d
 }
 
 func copyFile(dst, src string) error {

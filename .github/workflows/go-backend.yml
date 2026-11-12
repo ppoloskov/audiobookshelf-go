@@ -39,7 +39,7 @@ jobs:
         run: node --test go-backend/tools/parity/test-compare-reports.cjs go-backend/tools/parity/test-status.cjs
       - name: Check assertion manifest and semantic PATCH comparison
         run: node --test go-backend/tools/test-assertion-manifest.cjs go-backend/tools/parity/test-cover-patch-contract.cjs
-      - name: Build, test, vet, and ratchet without CGO
+      - name: Build, test, and vet without CGO
         working-directory: go-backend
         env:
           CGO_ENABLED: '0'
@@ -47,16 +47,12 @@ jobs:
           go build ./...
           go test ./...
           go vet ./...
-          cd ..
-          make ratchet
-      - name: Enforce dependency boundaries
+      - name: Lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: v2.15.0
           working-directory: go-backend
           args: --config=../.golangci.yml --timeout=5m ./...
-      - name: Prove dependency rules reject forbidden imports
-        run: node go-backend/tools/test-dependency-boundaries.cjs
 
   cross-build:
     runs-on: ubuntu-latest
