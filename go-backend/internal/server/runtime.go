@@ -20,7 +20,7 @@ import (
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/author"
 	"audiobookshelf-compat/internal/backup"
-	"audiobookshelf-compat/internal/catalog"
+	"audiobookshelf-compat/internal/browse"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/sqlc"
@@ -28,8 +28,7 @@ import (
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httputil"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/itemwrite"
-	"audiobookshelf-compat/internal/library"
+	"audiobookshelf-compat/internal/libraries"
 	"audiobookshelf-compat/internal/list"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/mail"
@@ -38,7 +37,7 @@ import (
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/podcast"
 	"audiobookshelf-compat/internal/realtime"
-	"audiobookshelf-compat/internal/scanner"
+	"audiobookshelf-compat/internal/scan"
 	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/share"
 	"audiobookshelf-compat/internal/store"
@@ -56,11 +55,11 @@ type Runtime struct {
 	auth          *auth.Service
 	authRoutes    *http.ServeMux // the public authentication routes
 	realtime      *realtime.Hub
-	catalog       *catalog.Handler
+	libraries     *libraries.Handler
 	playback      *playback.Handler
 	users         *user.Handler
 	admin         *admin.Handler
-	scanner       *scanner.Scanner
+	scanner       *scan.Scanner
 	tools         *tools.Handler
 	backup        *backup.Handler
 	emailapi      *mail.Handler
@@ -109,9 +108,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	rt.metadata = metadata.New(rt.data, emit)
 	rt.notifications = notify.New(rt.settings, emit)
 	rt.podcasts = podcast.New(rt.data, rt.settings, cfg, emit, rt.notifications.TriggerEvent)
-	if rt.scanner, err = scanner.New(sqlDB, cfg, emit, filters); err != nil {
-		return rt, err
-	}
+	rt.scanner = scan.New(rt.data, rt.settings, emit, filters, cfg)
 	libraryChanged := func(string) {
 		if err := rt.scanner.Refresh(context.Background()); err != nil {
 			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
@@ -131,10 +128,11 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		CoverCacheDir:   cfg.Dirs().CoverCache,
 		ItemMetadataDir: itemMetadataDir,
 	})
-	rt.catalog = catalog.New(sqlDB, cfg, emit, catalog.Deps{
+	rt.libraries = libraries.New(rt.data, rt.settings, emit, libraries.Deps{
 		Filters:        filters,
 		LibraryChanged: libraryChanged,
 		QuickMatch:     itemHandler.QuickMatch,
+		Items:          itemHandler,
 	})
 	rt.playback = playback.New(rt.data, rt.settings, cfg, emit)
 	rt.users = user.New(rt.data, rt.auth, rt.settings, emit, rt.playback, user.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline})
@@ -164,7 +162,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	rt.routes = http.NewServeMux()
 	listHandler.Routes(rt.routes)
 	itemHandler.Routes(rt.routes)
-	rt.catalog.Routes(rt.routes)
+	rt.libraries.Routes(rt.routes)
 	author.New(rt.data, rt.settings, emit, author.Deps{
 		Filters:       filters,
 		Authors:       rt.metadata,
@@ -172,12 +170,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		ImageDir:      cfg.Dirs().Authors,
 		ImageCacheDir: cfg.Dirs().ImageCache,
 	}).Routes(rt.routes)
-	itemDeleter := itemwrite.Deleter{Env: itemwrite.Env{DB: sqlDB, Filters: filters, Emit: emit}, CoverCacheDir: cfg.Dirs().CoverCache, ItemMetadataDir: itemMetadataDir}
-	library.New(sqlDB, emit, library.Deps{
-		Filters:        filters,
-		LibraryChanged: libraryChanged,
-		ItemDeleter:    itemDeleter,
-	}).Routes(rt.routes)
+	browse.New(rt.data, rt.settings, emit).Routes(rt.routes)
 	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.admin, rt.tools, rt.metadata, rt.share, rt.users, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}

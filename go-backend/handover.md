@@ -56,7 +56,19 @@ Updated 2026-11-11.
   library folders and the item metadata folder; a mistyped settings PATCH
   value is a 400; an invalid backup cron no longer stops the server.
 
+- Wave 3d (`libraries`, `browse`, `scan`): series filters "finished" and
+  "not-started" were inverted and are fixed; sorting by track count works;
+  the scanner reads the string form of `series` in metadata.json (it dropped
+  the series before); the watcher follows a moved file like a full scan; a
+  bad library cron is logged and skipped; one deletion implementation
+  (`item`) serves item, library, issues and folder removal.
+
 ## Follow-ups
+
+- `GET /api/series/{id}` checks that the user can see a book of the series
+  but not access to the series' library; add the library check.
+- Port the old scanner's table cases for track/disc ordering, chapter
+  building, OPF/NFO parsing and path-derived metadata as unit tests.
 
 - Bound the author image download from a URL (no size cap today).
 - `podcast` create ignores `autoDownloadEpisodes` nested under `media`, as
@@ -64,7 +76,7 @@ Updated 2026-11-11.
 
 ## Size, measured
 
-Production lines: 39,740 before the rewrite, 42,497 after Wave 3c.
+Production lines: 39,740 before the rewrite, 40,459 after Wave 3d (old shared packages and sqlc still present).
 
 Typed rewrites of dense old code come out about the same size (Wave 3 so
 far: 6,205 old lines, 6,034 new). Expect real reductions only where the old

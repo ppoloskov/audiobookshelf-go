@@ -48,7 +48,7 @@ Mark a task `[x]` in the commit that completes it.
 - [x] **D2 `item` writes**: media PATCH, batch, relations, deletion, covers,
   files, quick match, `metadata.json` writer. Replaces `catalog`,
   `itemwrite`, `sqlupdate`.
-- [ ] **D3 `library`** (`author` done as its own package; library itself open): libraries, browse, shelves, search, series, authors,
+- [x] **D3 `library`** (as `libraries`, `browse` and `author`): libraries, browse, shelves, search, series, authors,
   narrators, stats, filter data. Replaces `library` (old), `people`,
   `filterdata`.
 - [x] **D4 `list`**: collections and playlists. Replaces `lists`,
@@ -60,7 +60,7 @@ Mark a task `[x]` in the commit that completes it.
   `sharing`, `feeds`.
 - [x] **D7 `podcast`**: feed, creation, downloads, schedule, episodes.
   Replaces `podcasts`.
-- [ ] **D8 `scan`**: walk, match, plan, apply; watcher; sidecar readers.
+- [x] **D8 `scan`**: walk, match, plan, apply; watcher; sidecar readers.
   Replaces `scanner`.
 - [x] **D9 `user`**: account, users admin, API-key routes. Replaces the rest
   of `userapi`.

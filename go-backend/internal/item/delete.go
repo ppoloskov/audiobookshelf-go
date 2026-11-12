@@ -1,12 +1,14 @@
 package item
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"audiobookshelf-compat/internal/auth"
@@ -18,8 +20,10 @@ import (
 	"audiobookshelf-compat/internal/store"
 )
 
-// removal is what deleting an item's rows left to do after the commit.
-type removal struct {
+// Removal is what deleting items' rows left to do once the transaction that
+// deleted them committed: Announce it, then Sweep the parents.
+type Removal struct {
+	refs            []itemRef
 	authors, series []string // parents to sweep
 	closedFeeds     []feeds.Minified
 	playlists       []store.PlaylistChange
@@ -53,85 +57,170 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user *auth.Prin
 	return httpx.Status(w, http.StatusOK)
 }
 
-// deleteItem removes the item's rows and then, in upstream's order, announces
-// changed playlists and closed feeds, drops the cover cache and item metadata,
-// runs files (nil keeps the files on disk) and announces item_removed. The
-// caller sweeps the authors and series it returns.
-func (h *Handler) deleteItem(ctx context.Context, ref itemRef, files func(context.Context, itemRef)) (removal, error) {
+// deleteItem removes the item and then, in upstream's order, announces changed
+// playlists and closed feeds, drops the cover cache and item metadata, runs
+// files (nil keeps the files on disk) and announces item_removed. The caller
+// sweeps the authors and series it returns.
+func (h *Handler) deleteItem(ctx context.Context, ref itemRef, files func(context.Context, itemRef)) (Removal, error) {
 	slog.Info("deleting library item", "path", ref.Path, "id", ref.ID)
-	var rem removal
+	var rem Removal
 	err := h.db.Tx(ctx, func(ctx context.Context) error {
 		var err error
-		rem, err = h.deleteRows(ctx, ref)
+		rem, err = h.deleteRows(ctx, []itemRef{ref})
 		return err
 	})
 	if err != nil {
-		return removal{}, err
+		return Removal{}, err
 	}
-	playlistview.Announce(ctx, h.db.SQL(), h.emit, rem.playlists)
-	for _, feed := range rem.closedFeeds {
-		h.emit.ToAll("rss_feed_closed", feed)
-	}
-	purgeCoverCache(h.deps.CoverCacheDir, ref.ID)
-	if h.deps.ItemMetadataDir != "" {
-		if err := os.RemoveAll(filepath.Join(h.deps.ItemMetadataDir, ref.ID)); err != nil {
-			slog.Warn("remove item metadata", "id", ref.ID, "error", err)
-		}
-	}
-	if files != nil {
-		files(ctx, ref)
-	}
-	h.emit.ToAll("item_removed", removed{ref.ID, ref.LibraryID})
+	h.announceRemoval(ctx, rem, files)
 	return rem, nil
 }
 
-// deleteRows removes the item and what hangs off it inside the caller's
+// DeleteRows removes the items and what hangs off them (feeds, progress,
+// playlist entries, shares, author and series links, media rows) inside the
+// caller's transaction: ctx must carry it, so the deletion commits or rolls
+// back with the caller's other writes. Unknown ids are skipped. Nothing is
+// announced; call Announce and Sweep after the commit.
+func (h *Handler) DeleteRows(ctx context.Context, itemIDs []string) (Removal, error) {
+	var refs []itemRef
+	err := forChunks(itemIDs, func(chunk []string) error {
+		var found []itemRef
+		err := h.db.Select(ctx, &found, `SELECT `+itemRefColumns+` FROM libraryItems li WHERE li.id IN (?)`, chunk)
+		refs = append(refs, found...)
+		return err
+	})
+	if err != nil {
+		return Removal{}, err
+	}
+	pos := make(map[string]int, len(itemIDs))
+	for i, id := range itemIDs {
+		pos[id] = i
+	}
+	slices.SortFunc(refs, func(a, b itemRef) int { return cmp.Compare(pos[a.ID], pos[b.ID]) })
+	return h.deleteRows(ctx, refs)
+}
+
+// Add merges the removal of another deletion into r, for one Sweep of several.
+func (r *Removal) Add(o Removal) {
+	r.refs = append(r.refs, o.refs...)
+	r.authors, r.series = append(r.authors, o.authors...), append(r.series, o.series...)
+	r.closedFeeds, r.playlists = append(r.closedFeeds, o.closedFeeds...), append(r.playlists, o.playlists...)
+}
+
+// Announce does what follows the commit of DeleteRows: the changed playlists,
+// then per item its closed feeds, the cover cache and item metadata, and
+// item_removed.
+func (h *Handler) Announce(ctx context.Context, rem Removal) { h.announceRemoval(ctx, rem, nil) }
+
+// Sweep removes the authors and then the series the deleted books left empty.
+func (h *Handler) Sweep(ctx context.Context, rem Removal) {
+	h.sweepAuthors(ctx, rem.authors)
+	h.sweepSeries(ctx, rem.series)
+}
+
+func (h *Handler) announceRemoval(ctx context.Context, rem Removal, files func(context.Context, itemRef)) {
+	playlistview.Announce(ctx, h.db.SQL(), h.emit, rem.playlists)
+	for _, ref := range rem.refs {
+		for _, feed := range rem.closedFeeds {
+			if db.Val(feed.EntityID) == ref.ID {
+				h.emit.ToAll("rss_feed_closed", feed)
+			}
+		}
+		purgeCoverCache(h.deps.CoverCacheDir, ref.ID)
+		if h.deps.ItemMetadataDir != "" {
+			if err := os.RemoveAll(filepath.Join(h.deps.ItemMetadataDir, ref.ID)); err != nil {
+				slog.Warn("remove item metadata", "id", ref.ID, "error", err)
+			}
+		}
+		if files != nil {
+			files(ctx, ref)
+		}
+		h.emit.ToAll("item_removed", removed{ref.ID, ref.LibraryID})
+	}
+}
+
+// forChunks calls fn with ids in groups, as SQLite limits the variables of a statement.
+func forChunks(ids []string, fn func(chunk []string) error) error {
+	for chunk := range slices.Chunk(ids, 500) {
+		if err := fn(chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteRows removes the items and what hangs off them inside the caller's
 // transaction (ApiRouter.handleDeleteLibraryItem, ApiRouter.js:373-407).
-func (h *Handler) deleteRows(ctx context.Context, ref itemRef) (removal, error) {
-	var rem removal
-	var mediaIDs []string
-	var err error
-	switch ref.MediaType {
-	case "book":
-		mediaIDs = []string{ref.MediaID}
-		if err = h.db.Select(ctx, &rem.authors, `SELECT authorId FROM bookAuthors WHERE bookId = ? AND authorId IS NOT NULL`, ref.MediaID); err != nil {
-			return removal{}, err
-		}
-		if err = h.db.Select(ctx, &rem.series, `SELECT seriesId FROM bookSeries WHERE bookId = ? AND seriesId IS NOT NULL`, ref.MediaID); err != nil {
-			return removal{}, err
-		}
-	case "podcast":
-		if err = h.db.Select(ctx, &mediaIDs, `SELECT id FROM podcastEpisodes WHERE podcastId = ?`, ref.MediaID); err != nil {
-			return removal{}, err
+func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, error) {
+	rem := Removal{refs: refs}
+	var itemIDs, bookIDs, podcastIDs []string
+	for _, ref := range refs {
+		itemIDs = append(itemIDs, ref.ID)
+		switch ref.MediaType {
+		case "book":
+			bookIDs = append(bookIDs, ref.MediaID)
+		case "podcast":
+			podcastIDs = append(podcastIDs, ref.MediaID)
 		}
 	}
-	if rem.closedFeeds, err = h.closeFeeds(ctx, ref.ID); err != nil {
-		return removal{}, err
+	mediaIDs := slices.Clone(bookIDs)
+	err := forChunks(bookIDs, func(chunk []string) error {
+		var authors, series []string
+		if err := h.db.Select(ctx, &authors, `SELECT authorId FROM bookAuthors WHERE bookId IN (?) AND authorId IS NOT NULL`, chunk); err != nil {
+			return err
+		}
+		if err := h.db.Select(ctx, &series, `SELECT seriesId FROM bookSeries WHERE bookId IN (?) AND seriesId IS NOT NULL`, chunk); err != nil {
+			return err
+		}
+		rem.authors, rem.series = append(rem.authors, authors...), append(rem.series, series...)
+		return nil
+	})
+	if err != nil {
+		return Removal{}, err
 	}
-	if _, err = h.db.Exec(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, mediaIDs); err != nil {
-		return removal{}, err
+	err = forChunks(podcastIDs, func(chunk []string) error {
+		var episodes []string
+		err := h.db.Select(ctx, &episodes, `SELECT id FROM podcastEpisodes WHERE podcastId IN (?)`, chunk)
+		mediaIDs = append(mediaIDs, episodes...)
+		return err
+	})
+	if err != nil {
+		return Removal{}, err
+	}
+	for _, id := range itemIDs {
+		closed, err := h.closeFeeds(ctx, id)
+		if err != nil {
+			return Removal{}, err
+		}
+		rem.closedFeeds = append(rem.closedFeeds, closed...)
+	}
+	if err = forChunks(mediaIDs, func(chunk []string) error {
+		_, err := h.db.Exec(ctx, `DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, chunk)
+		return err
+	}); err != nil {
+		return Removal{}, err
 	}
 	if rem.playlists, err = h.removeFromPlaylists(ctx, mediaIDs); err != nil {
-		return removal{}, err
+		return Removal{}, err
 	}
 	// The media rows go with their shares; an empty id list matches nothing.
-	statements := []string{
-		`DELETE FROM mediaItemShares WHERE mediaItemId IN (?)`,
-		`DELETE FROM bookAuthors WHERE bookId IN (?)`,
-		`DELETE FROM bookSeries WHERE bookId IN (?)`,
-	}
-	for _, query := range statements {
-		if _, err = h.db.Exec(ctx, query, mediaIDs); err != nil {
-			return removal{}, err
-		}
-	}
-	rows := [][2]string{{`DELETE FROM books WHERE id = ?`, ref.MediaID}}
-	if ref.MediaType == "podcast" {
-		rows = [][2]string{{`DELETE FROM podcastEpisodes WHERE podcastId = ?`, ref.MediaID}, {`DELETE FROM podcasts WHERE id = ?`, ref.MediaID}}
-	}
-	for _, row := range append(rows, [2]string{`DELETE FROM libraryItems WHERE id = ?`, ref.ID}) {
-		if _, err = h.db.Exec(ctx, row[0], row[1]); err != nil {
-			return removal{}, err
+	for _, statement := range []struct {
+		query string
+		ids   []string
+	}{
+		{`DELETE FROM mediaItemShares WHERE mediaItemId IN (?)`, mediaIDs},
+		{`DELETE FROM bookAuthors WHERE bookId IN (?)`, bookIDs},
+		{`DELETE FROM bookSeries WHERE bookId IN (?)`, bookIDs},
+		{`DELETE FROM books WHERE id IN (?)`, bookIDs},
+		{`DELETE FROM podcastEpisodes WHERE podcastId IN (?)`, podcastIDs},
+		{`DELETE FROM podcasts WHERE id IN (?)`, podcastIDs},
+		{`DELETE FROM libraryItems WHERE id IN (?)`, itemIDs},
+	} {
+		if err = forChunks(statement.ids, func(chunk []string) error {
+			_, err := h.db.Exec(ctx, statement.query, chunk)
+			return err
+		}); err != nil {
+			return Removal{}, err
 		}
 	}
 	return rem, nil
@@ -143,14 +232,27 @@ func (h *Handler) deleteRows(ctx context.Context, ref itemRef) (removal, error) 
 // the form playlistview announces (a transitional type until playlists move).
 func (h *Handler) removeFromPlaylists(ctx context.Context, mediaIDs []string) ([]store.PlaylistChange, error) {
 	var playlistIDs []string
-	if err := h.db.Select(ctx, &playlistIDs, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (?) AND playlistId IS NOT NULL`, mediaIDs); err != nil {
+	err := forChunks(mediaIDs, func(chunk []string) error {
+		var found []string
+		if err := h.db.Select(ctx, &found, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (?) AND playlistId IS NOT NULL`, chunk); err != nil {
+			return err
+		}
+		for _, id := range found {
+			if !slices.Contains(playlistIDs, id) {
+				playlistIDs = append(playlistIDs, id)
+			}
+		}
+		if len(found) == 0 {
+			return nil
+		}
+		_, err := h.db.Exec(ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId IN (?)`, chunk)
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 	if len(playlistIDs) == 0 {
 		return nil, nil
-	}
-	if _, err := h.db.Exec(ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId IN (?)`, mediaIDs); err != nil {
-		return nil, err
 	}
 	var changes []store.PlaylistChange
 	for _, id := range playlistIDs {
