@@ -69,16 +69,24 @@ Updated 2026-11-11.
   go through one func implemented by `list`; cover and author image
   downloads are capped at 10 MiB; series routes check library access.
 
+- Cleanup pass 3: the composition root is a middleware chain (recover,
+  security headers, CORS, base path, clean path) over one mux; CORS is
+  ported from upstream; the SPA fallback serves index.html for any
+  extension-less GET; panics and unknown paths answer plain text; the "//"
+  aliases are gone; filter menus are computed on demand and invalidated
+  after writes (podcast libraries now report their real issue count).
+
 ## Follow-ups
 
-- `user.Deps.UsersOnline` takes maps; make it `[]realtime.OnlineUser`.
+- Invalidate the filter cache on series rename and podcast creation (the 30-minute TTL covers them today).
+- Remove `(*db.DB).SQL()`; only tests use it.
 
 - `podcast` create ignores `autoDownloadEpisodes` nested under `media`, as
   the old code did; the web client sends it there.
 
 ## Size, measured
 
-Production lines: 39,740 before the rewrite, 38,648 after cleanup pass 1 (store, access, serversettings, httputil, sqlc and friends still to delete).
+Production lines: 39,740 hand-written plus 3,243 generated before the rewrite; 35,863 hand-written and none generated after cleanup pass 3.
 
 Typed rewrites of dense old code come out about the same size (Wave 3 so
 far: 6,205 old lines, 6,034 new). Expect real reductions only where the old

@@ -14,6 +14,7 @@ import (
 	"audiobookshelf-compat/internal/db/dbtest"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/playback"
+	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/settings"
 )
 
@@ -57,7 +58,7 @@ func newRig(t *testing.T) *rig {
 	}
 	New(d, a, st, emit, playback.New(d, st, cfg, emit), Deps{
 		UserChanged: func(context.Context, string) error { return nil },
-		UsersOnline: func() []map[string]any { return []map[string]any{{"id": "u1"}} },
+		UsersOnline: func() []realtime.OnlineUser { return []realtime.OnlineUser{{ID: "u1"}} },
 	}).Routes(r.mux)
 	return r
 }

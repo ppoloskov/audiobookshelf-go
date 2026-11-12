@@ -1,12 +1,15 @@
 package item
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/filterdata"
 )
 
 // cascade adds two books c1 and c2 (items ci1, ci2) that share one author, with
@@ -52,7 +55,9 @@ func (r *rig) audiences(event string) []string {
 func TestDeleteItemCascadesToEverythingReferencingIt(t *testing.T) {
 	r := newRig(t)
 	r.cascade()
-	r.filters.AddAuthor("l1", "Only One", "a-only")
+	if data, err := r.filters.Get(context.Background(), r.d, "l1", "book"); err != nil || !slices.ContainsFunc(data.Authors, func(a filterdata.Named) bool { return a.ID == "a-only" }) {
+		t.Fatalf("filter data before the delete: %+v, %v", data.Authors, err)
+	}
 	rec := r.do(rootUser, "DELETE", "/api/items/ci1", "")
 	if rec.Code != 200 {
 		t.Fatalf("delete: %d %s", rec.Code, rec.Body)
@@ -75,6 +80,10 @@ func TestDeleteItemCascadesToEverythingReferencingIt(t *testing.T) {
 		if got := r.values(c.query); got != c.want {
 			t.Errorf("%s: %q, want %q", c.what, got, c.want)
 		}
+	}
+	// The filter menus were dropped with the library item and list the remaining authors only.
+	if data, err := r.filters.Get(context.Background(), r.d, "l1", "book"); err != nil || slices.ContainsFunc(data.Authors, func(a filterdata.Named) bool { return a.ID == "a-only" }) {
+		t.Errorf("filter data after the delete: %+v, %v", data.Authors, err)
 	}
 	events := r.takeEvents()
 	var names []string

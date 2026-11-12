@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/nameparse"
@@ -91,15 +90,7 @@ func (s *Scanner) importItem(ctx context.Context, lib library, c *candidate, old
 			slog.Warn("writing metadata.json failed", "item", p.itemID, "error", err)
 		}
 	}
-	if old == nil && lib.mediaType == "book" {
-		md := p.md
-		values := filterdata.BookValues{Narrators: md.Narrators, Genres: md.Genres, Tags: md.Tags, Publishers: []string{md.Publisher}, Languages: []string{md.Language}}
-		if year, err := strconv.Atoi(md.PublishedYear); err == nil && year != 0 {
-			values.PublishedDecades = []string{strconv.Itoa(year / 10 * 10)}
-		}
-		s.filters.AddBook(lib.id, values)
-	}
-	out.links.Announce(s.items, lib.id)
+	out.links.Announce(s.items)
 	return out, nil
 }
 

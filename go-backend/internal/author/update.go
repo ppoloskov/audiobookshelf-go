@@ -148,7 +148,7 @@ func (h *Handler) merge(w http.ResponseWriter, r *http.Request, a db.Author, tar
 		return httpx.Internal("metadata file write failed", err)
 	}
 	h.emit.ToAll("author_removed", viewOf(a, nil))
-	h.deps.Filters.RemoveAuthor(db.Val(a.LibraryID), a.ID)
+	h.deps.Filters.Invalidate(db.Val(a.LibraryID))
 	if err := h.announce(ctx, target); err != nil {
 		return httpx.Internal("database read failed", err)
 	}

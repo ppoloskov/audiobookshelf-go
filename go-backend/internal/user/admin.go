@@ -13,6 +13,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/playback"
+	"audiobookshelf-compat/internal/realtime"
 )
 
 // userRequest is the body of POST /api/users and PATCH /api/users/{id}; see parseUser.
@@ -154,10 +155,14 @@ func (h *Handler) checkUsername(ctx context.Context, name, exceptID string) erro
 }
 
 func (h *Handler) onlineUsers(w http.ResponseWriter, r *http.Request, _ *auth.Principal) error {
+	online := h.deps.UsersOnline()
+	if online == nil {
+		online = []realtime.OnlineUser{} // JSON [] rather than null
+	}
 	return httpx.JSON(w, r, struct {
-		UsersOnline  []map[string]any `json:"usersOnline"`
-		OpenSessions any              `json:"openSessions"` // the playback sessions' own view
-	}{h.deps.UsersOnline(), h.playback.OpenSessions()})
+		UsersOnline  []realtime.OnlineUser `json:"usersOnline"`
+		OpenSessions any                   `json:"openSessions"` // the playback sessions' own view
+	}{online, h.playback.OpenSessions()})
 }
 
 type mediaInfo struct {

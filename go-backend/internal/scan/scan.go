@@ -210,7 +210,7 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string, force bool) (Resul
 	slog.Info("library scan finished", "task", task.ID, "after", time.Since(time.UnixMilli(task.StartedAt)).Round(time.Second), "added", res.Added,
 		"updated", res.Updated, "missing", res.Missing, "canceled", res.Canceled, "error", err)
 	s.finishScanTask(task, res, err)
-	s.filters.ResetIssues(ctx, s.db.SQL(), libraryID)
+	s.filters.Invalidate(libraryID) // once per scan: items are not patched one by one
 	return res, err
 }
 
@@ -233,7 +233,6 @@ func (s *Scanner) scanLibrary(ctx context.Context, libraryID string, force bool)
 		slog.Warn("library has no folders to scan", "library", lib.name)
 		return res, errors.New("scan: library has no folders")
 	}
-	_, _ = s.filters.Get(ctx, s.db.SQL(), libraryID, lib.mediaType) // loads the cache that AddBook patches; a failure only means a lazy load later
 	var cands []*candidate
 	for _, folder := range folders {
 		root, err := filepath.Abs(db.Val(folder.Path))

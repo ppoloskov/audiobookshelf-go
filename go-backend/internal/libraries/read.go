@@ -47,7 +47,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, scope Scope) error
 	if !slices.Contains(strings.Split(r.URL.Query().Get("include"), ","), "filterdata") {
 		return httpx.JSON(w, r, view)
 	}
-	data, err := h.deps.Filters.Get(ctx, h.db.SQL(), scope.ID, db.Val(scope.MediaType))
+	data, err := h.deps.Filters.Get(ctx, h.db, scope.ID, db.Val(scope.MediaType))
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -65,7 +65,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request, scope Scope) error
 
 // filterData is GET /api/libraries/{id}/filterdata.
 func (h *Handler) filterData(w http.ResponseWriter, r *http.Request, scope Scope) error {
-	data, err := h.deps.Filters.Get(r.Context(), h.db.SQL(), scope.ID, db.Val(scope.MediaType))
+	data, err := h.deps.Filters.Get(r.Context(), h.db, scope.ID, db.Val(scope.MediaType))
 	if err != nil {
 		return httpx.Internal("database read failed", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -21,20 +20,83 @@ import (
 	"audiobookshelf-compat/internal/realtime"
 )
 
-// Manager owns the replaceable runtime graph. It releases its mutex before
-// dispatching a request so a restore callback can acquire it and rebuild the
-// database-bound handlers.
+// Manager owns the database, the realtime hub and the current Runtime, and
+// replaces the runtime on a backup restore. While none is installed (during a
+// restore, after Close, or after a restore that could not recover) requests
+// answer 503. The hub outlives restores, so sockets stay connected.
 type Manager struct {
-	mu       sync.Mutex
-	cfg      config.Config
-	hub      *realtime.Hub // outlives restores so sockets stay connected
-	current  atomic.Pointer[Runtime]
-	database *db.DB
-	closed   bool
+	cfg     config.Config
+	getenv  func(string) string
+	hub     *realtime.Hub
+	current atomic.Pointer[Runtime]
+	mu      sync.Mutex // serialises restore and Close
+}
+
+// NewManager builds the runtime over database and starts its background work.
+// The Manager owns database from now on: Close closes it.
+func NewManager(database *db.DB, cfg config.Config) (*Manager, error) {
+	if database == nil {
+		return nil, errors.New("server: database is nil")
+	}
+	m := &Manager{cfg: cfg, getenv: os.Getenv}
+	slog.SetDefault(slog.New(logging.Default())) // logs from log/slog reach the log stream and file
+	m.hub = realtime.New(cfg, m.backend)
+	if err := playback.CleanupOrphanStreams(cfg.Dirs().Streams); err != nil {
+		m.hub.Close()
+		return nil, err
+	}
+	rt, err := m.launch(database)
+	if err != nil {
+		m.hub.Close()
+		return nil, err
+	}
+	m.current.Store(rt)
+	return m, nil
+}
+
+// launch builds a runtime over database and starts it.
+func (m *Manager) launch(database *db.DB) (*Runtime, error) {
+	rt, err := newRuntime(m.cfg, database, m.hub, m.getenv, m.restore)
+	if err != nil {
+		return nil, err
+	}
+	if err := rt.start(context.Background()); err != nil {
+		rt.Close()
+		return nil, err
+	}
+	return rt, nil
+}
+
+// ServeHTTP hands the request to the current runtime.
+func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rt := m.current.Load()
+	if rt == nil {
+		http.Error(w, "server is restarting", http.StatusServiceUnavailable)
+		return
+	}
+	rt.ServeHTTP(w, r)
+}
+
+// Close stops the runtime, then the hub, then closes the database. Stop the
+// HTTP server first.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if rt := m.current.Swap(nil); rt != nil {
+		m.shutdown(rt)
+	}
+	m.hub.Close()
+}
+
+func (m *Manager) shutdown(rt *Runtime) {
+	rt.Close()
+	if err := rt.data.Close(); err != nil {
+		slog.Error("close database", "error", err)
+	}
 }
 
 // backend is the realtime hub's view of the server: the current runtime, or
-// an unavailable stand-in while a restore has left none.
+// an unavailable stand-in while there is none.
 func (m *Manager) backend() realtime.Backend {
 	if rt := m.current.Load(); rt != nil {
 		return rt
@@ -56,249 +118,143 @@ func (unavailable) RemoveLogListener(string)                          {}
 func (unavailable) SearchCovers(realtime.CoverSearch, realtime.Reply) {}
 func (unavailable) CancelCoverSearch(string, realtime.Reply)          {}
 
-type restoredDir struct {
-	target, previous string
-	existed          bool
-}
-
-func NewManager(database *db.DB, cfg config.Config) (*Manager, error) {
-	if database == nil {
-		return nil, errors.New("server: database is nil")
-	}
-	m := &Manager{cfg: cfg, database: database}
-	// Logs from packages that use log/slog reach the log stream and file.
-	slog.SetDefault(slog.New(logging.Default()))
-	m.hub = realtime.New(cfg, m.backend)
-	if err := playback.CleanupOrphanStreams(cfg.Dirs().Streams); err != nil {
-		m.hub.Close()
-		return nil, err
-	}
-	rt, err := newRuntime(database, cfg, m)
-	if err != nil {
-		m.hub.Close()
-		return nil, err
-	}
-	m.current.Store(rt)
-	return m, nil
-}
-
-func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	m.mu.Lock()
-	closed := m.closed
-	m.mu.Unlock()
-	rt := m.current.Load()
-	if closed || rt == nil {
-		http.Error(w, "server is restarting", http.StatusServiceUnavailable)
-		return
-	}
-	rt.ServeHTTP(w, r)
-}
-
-func (m *Manager) Close() {
+// restore replaces the database and the item and author metadata with the
+// uploaded files. Safety sequence: validate the uploaded database; take the
+// runtime out of service (503); close it and the old database; move the old
+// files aside as ".restore-previous" and put the new ones in; reopen and
+// rebuild the runtime over the same hub. Any failure puts the old files back
+// and rebuilds the old runtime. It is the backup domain's upward call.
+func (m *Manager) restore(_ context.Context, dbTemp, stagedItems, stagedAuthors string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.closed {
-		return
-	}
-	m.closed = true
-	if rt := m.current.Load(); rt != nil {
-		rt.Close()
-	}
-	m.hub.Close()
-	if m.database != nil {
-		_ = m.database.Close()
-	}
-}
-
-func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthors string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.closed || m.current.Load() == nil || m.database == nil {
+	old := m.current.Load()
+	if old == nil {
 		return errors.New("server is closed")
 	}
-
 	check, err := db.Open(dbTemp)
 	if err != nil {
 		return fmt.Errorf("validate backup database: %w", err)
 	}
-	_ = check.Close()
+	_ = check.Close() // opened read-only in effect: Open never writes
+	m.current.Store(nil)
+	m.shutdown(old)
 
-	oldRuntime, oldStore := m.current.Load(), m.database
-	dbPath := db.FilePath(m.cfg.ConfigPath)
-	dbOld := dbPath + ".restore-previous"
-	metaTargets := []struct{ target, source string }{
-		{m.cfg.Dirs().Items, stagedItems},
-		{m.cfg.Dirs().Authors, stagedAuthors},
-	}
-	moved := make([]restoredDir, 0, len(metaTargets))
-	var newStore *db.DB
-	var nextRuntime *Runtime
-
-	oldRuntime.Close()
-	if err = oldStore.Close(); err != nil {
-		return fmt.Errorf("close current database: %w", err)
-	}
-	removeSQLiteSidecars(dbPath)
-	_ = os.Remove(dbOld)
-	if err = os.Rename(dbPath, dbOld); err != nil {
-		return m.resumeOld(fmt.Errorf("stage current database: %w", err))
-	}
-	if err = os.Rename(dbTemp, dbPath); err != nil {
-		return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
-	}
-
-	for _, pair := range metaTargets {
-		if err = os.MkdirAll(filepath.Dir(pair.target), 0755); err != nil {
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
-		}
-		stage, stageErr := copyDirectoryStage(pair.source, pair.target)
-		if stageErr != nil {
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, stageErr)
-		}
-		previous := pair.target + ".restore-previous"
-		_ = os.RemoveAll(previous)
-		existed := false
-		if _, statErr := os.Lstat(pair.target); statErr == nil {
-			existed = true
-			if err = os.Rename(pair.target, previous); err != nil {
-				_ = os.RemoveAll(stage)
-				return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
-			}
-		} else if !errors.Is(statErr, fs.ErrNotExist) {
-			_ = os.RemoveAll(stage)
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, statErr)
-		}
-		if err = os.Rename(stage, pair.target); err != nil {
-			if existed {
-				_ = os.Rename(previous, pair.target)
-			}
-			_ = os.RemoveAll(stage)
-			return m.rollbackRestore(dbPath, dbOld, moved, nil, nil, err)
-		}
-		moved = append(moved, restoredDir{target: pair.target, previous: previous, existed: existed})
-	}
-
-	newStore, err = db.Open(dbPath)
+	dbPath, items, authors := db.FilePath(m.cfg.ConfigPath), m.cfg.Dirs().Items, m.cfg.Dirs().Authors
+	undo, err := swapFiles(dbPath, dbTemp, items, stagedItems, authors, stagedAuthors)
+	var next *Runtime
 	if err == nil {
-		nextRuntime, err = newRuntime(newStore, m.cfg, m)
+		next, err = m.reopen(dbPath)
 	}
 	if err != nil {
-		return m.rollbackRestore(dbPath, dbOld, moved, nextRuntime, newStore, err)
+		undo()
+		next, resumeErr := m.reopen(dbPath)
+		if resumeErr != nil {
+			return fmt.Errorf("restore failed: %w; recover current state: %v", err, resumeErr)
+		}
+		m.current.Store(next)
+		return fmt.Errorf("restore failed: %w", err)
 	}
-	m.database = newStore
-	m.current.Store(nextRuntime)
-	// Upstream BackupManager.js sends 200 before emitting backup_applied
-	// (lines 263-266); restore returns to the handler, which emits via this hub.
-	_ = os.Remove(dbOld)
-	for _, entry := range moved {
-		_ = os.RemoveAll(entry.previous)
+	m.current.Store(next)
+	for _, target := range []string{dbPath, items, authors} {
+		_ = os.RemoveAll(target + previousSuffix) // a leftover is replaced by the next restore
 	}
 	return nil
 }
 
-func (m *Manager) resumeOld(cause error) error {
-	opened, err := db.Open(db.FilePath(m.cfg.ConfigPath))
+// reopen opens the database at dbPath and launches a runtime over it.
+func (m *Manager) reopen(dbPath string) (*Runtime, error) {
+	database, err := db.Open(dbPath)
 	if err != nil {
-		m.current.Store(nil)
-		m.database = nil
-		return fmt.Errorf("%v; reopen current database: %w", cause, err)
+		return nil, fmt.Errorf("open database: %w", err)
 	}
-	rt, err := newRuntime(opened, m.cfg, m)
+	rt, err := m.launch(database)
 	if err != nil {
-		_ = opened.Close()
-		m.current.Store(nil)
-		m.database = nil
-		return fmt.Errorf("%v; rebuild current runtime: %w", cause, err)
+		_ = database.Close() // the launch error is the one to report
+		return nil, fmt.Errorf("rebuild runtime: %w", err)
 	}
-	m.database = opened
-	m.current.Store(rt)
-	return cause
+	return rt, nil
 }
 
-func (m *Manager) rollbackRestore(dbPath, dbOld string, dirs []restoredDir, rt *Runtime, opened *db.DB, cause error) error {
-	if rt != nil {
-		rt.Close()
+const previousSuffix = ".restore-previous"
+
+// swapFiles puts the uploaded database and the staged metadata trees in place
+// of the current ones. Each old target stays beside it as target+previousSuffix.
+// The returned undo puts them back, last swap first; it is valid after an error.
+func swapFiles(dbPath, dbTemp, items, stagedItems, authors, stagedAuthors string) (undo func(), err error) {
+	var undos []func()
+	undo = func() {
+		for i := len(undos) - 1; i >= 0; i-- {
+			undos[i]()
+		}
+		removeSQLiteSidecars(dbPath)
 	}
-	if opened != nil {
-		_ = opened.Close()
+	// put renames staged to target after moving an existing target aside.
+	put := func(target, staged string) error {
+		previous := target + previousSuffix
+		if err := os.RemoveAll(previous); err != nil {
+			return err
+		}
+		existed := true
+		if err := os.Rename(target, previous); errors.Is(err, fs.ErrNotExist) {
+			existed = false
+		} else if err != nil {
+			return fmt.Errorf("move %s aside: %w", filepath.Base(target), err)
+		}
+		undos = append(undos, func() {
+			_ = os.RemoveAll(target) // best effort: the rest of the undo still runs
+			if existed {
+				_ = os.Rename(previous, target)
+			}
+		})
+		return os.Rename(staged, target)
 	}
-	_ = os.Remove(dbPath)
-	_ = os.Rename(dbOld, dbPath)
 	removeSQLiteSidecars(dbPath)
-	for i := len(dirs) - 1; i >= 0; i-- {
-		entry := dirs[i]
-		_ = os.RemoveAll(entry.target)
-		if entry.existed {
-			_ = os.Rename(entry.previous, entry.target)
+	if err = put(dbPath, dbTemp); err != nil {
+		return undo, err
+	}
+	for _, tree := range [][2]string{{items, stagedItems}, {authors, stagedAuthors}} {
+		stage, err := stageTree(tree[0], tree[1])
+		if err != nil {
+			return undo, err
+		}
+		if err = put(tree[0], stage); err != nil {
+			_ = os.RemoveAll(stage)
+			return undo, err
 		}
 	}
-	return m.resumeOld(fmt.Errorf("restore failed: %w", cause))
+	return undo, nil
 }
 
 func removeSQLiteSidecars(path string) {
-	_ = os.Remove(path + "-wal")
+	_ = os.Remove(path + "-wal") // leftovers only: the file stays in rollback-journal mode
 	_ = os.Remove(path + "-shm")
 }
 
-func copyDirectoryStage(source, target string) (string, error) {
-	parent := filepath.Dir(target)
-	stage, err := os.MkdirTemp(parent, ".abs-restore-stage-")
-	if err != nil {
+// stageTree copies source (nothing when empty) into a new directory next to
+// target and returns it. An uploaded archive may hold only plain files and
+// directories: os.CopyFS would follow a symlink out of the archive, so the
+// tree is checked first.
+func stageTree(target, source string) (string, error) {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return "", err
 	}
-	if source == "" {
-		return stage, nil
+	stage, err := os.MkdirTemp(filepath.Dir(target), ".abs-restore-stage-")
+	if err != nil || source == "" {
+		return stage, err
 	}
-	err = filepath.WalkDir(source, func(src string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	files := os.DirFS(source)
+	err = fs.WalkDir(files, ".", func(name string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && !entry.Type().IsRegular() {
+			err = fmt.Errorf("metadata archive contains symlink or special file %q", name)
 		}
-		rel, err := filepath.Rel(source, src)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("metadata archive contains symlink %q", rel)
-		}
-		dst := filepath.Join(stage, rel)
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			return os.MkdirAll(dst, info.Mode().Perm())
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("metadata archive contains non-file %q", rel)
-		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-			return err
-		}
-		in, err := os.Open(src)
-		if err != nil {
-			return err
-		}
-		out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
-		if err != nil {
-			_ = in.Close()
-			return err
-		}
-		_, copyErr := io.Copy(out, in)
-		inErr, outErr := in.Close(), out.Close()
-		if copyErr != nil {
-			return copyErr
-		}
-		if inErr != nil {
-			return inErr
-		}
-		return outErr
+		return err
 	})
+	if err == nil {
+		err = os.CopyFS(stage, files)
+	}
 	if err != nil {
 		_ = os.RemoveAll(stage)
-		return "", err
+		return "", fmt.Errorf("stage %s: %w", filepath.Base(target), err)
 	}
 	return stage, nil
 }

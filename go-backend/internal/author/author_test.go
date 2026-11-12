@@ -53,6 +53,7 @@ type rig struct {
 	mu      sync.Mutex
 	events  []event
 	touched []string
+	filters *filterdata.Cache
 }
 
 const (
@@ -63,7 +64,7 @@ const (
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	t.Setenv("SSRF_REQUEST_FILTER_WHITELIST", "127.0.0.1")
-	r := &rig{t: t, d: dbtest.Fixture(t), meta: t.TempDir(), finder: &finder{}, mux: http.NewServeMux()}
+	r := &rig{t: t, d: dbtest.Fixture(t), filters: filterdata.NewCache(), meta: t.TempDir(), finder: &finder{}, mux: http.NewServeMux()}
 	st, err := settings.NewStore(context.Background(), r.d, func(string) string { return "" }, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +75,7 @@ func newRig(t *testing.T) *rig {
 		r.events = append(r.events, event{name, payload})
 	}
 	New(r.d, st, emit, Deps{
-		Filters: filterdata.NewCache(), Authors: r.finder,
+		Filters: r.filters, Authors: r.finder,
 		WriteMetadata: func(_ context.Context, id string) error { r.touched = append(r.touched, id); return nil },
 		ImageDir:      filepath.Join(r.meta, "authors"), ImageCacheDir: filepath.Join(r.meta, "cache", "images"),
 	}).Routes(r.mux)
@@ -515,5 +516,48 @@ func TestList(t *testing.T) {
 	}
 	if got := counts(r.reader()); len(got) != 3 || got["Ada Example"] != 2 {
 		t.Fatalf("user list %v", got)
+	}
+}
+
+// Renaming, merging and deleting an author drop the library's cached filter menus.
+func TestAuthorWritesInvalidateFilterData(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	var libID string
+	if err := r.d.Get(ctx, &libID, `SELECT libraryId FROM authors WHERE id = ?`, ada); err != nil {
+		t.Fatal(err)
+	}
+	menu := func() map[string]string {
+		t.Helper()
+		data, err := r.filters.Get(ctx, r.d, libID, "book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]string{}
+		for _, a := range data.Authors {
+			out[a.ID] = a.Name
+		}
+		return out
+	}
+	if _, ok := menu()[ada]; !ok {
+		t.Fatal("author missing from the menu")
+	}
+	if w := r.do(r.root(), "PATCH", "/api/authors/"+ada, `{"name":"Ada Renamed"}`); w.Code != 200 {
+		t.Fatalf("rename %d %s", w.Code, w.Body)
+	}
+	if got := menu()[ada]; got != "Ada Renamed" {
+		t.Fatalf("menu after rename: %q", got)
+	}
+	if w := r.do(r.root(), "PATCH", "/api/authors/"+ada, `{"name":"`+db.Val(r.author(terry).Name)+`"}`); w.Code != 200 {
+		t.Fatalf("merge %d %s", w.Code, w.Body)
+	}
+	if _, ok := menu()[ada]; ok {
+		t.Fatal("merged author still in the menu")
+	}
+	if w := r.do(r.root(), "DELETE", "/api/authors/"+terry, ""); w.Code != 200 {
+		t.Fatalf("delete %d %s", w.Code, w.Body)
+	}
+	if _, ok := menu()[terry]; ok {
+		t.Fatal("deleted author still in the menu")
 	}
 }

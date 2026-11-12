@@ -32,13 +32,14 @@ type event struct {
 }
 
 type rig struct {
-	t      *testing.T
-	d      *db.DB
-	s      *Scanner
-	root   string
-	meta   string
-	mu     sync.Mutex
-	events []event
+	t       *testing.T
+	d       *db.DB
+	s       *Scanner
+	filters *filterdata.Cache
+	root    string
+	meta    string
+	mu      sync.Mutex
+	events  []event
 }
 
 func (r *rig) emit(audience, name string, payload any) {
@@ -79,7 +80,7 @@ func fakeFFprobe(t *testing.T, script string) {
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	fakeFFprobe(t, fakeProbe)
-	r := &rig{t: t, d: dbtest.New(t), root: t.TempDir(), meta: t.TempDir()}
+	r := &rig{t: t, d: dbtest.New(t), filters: filterdata.NewCache(), root: t.TempDir(), meta: t.TempDir()}
 	for _, q := range []string{
 		`INSERT INTO libraries(id,name,mediaType,settings,createdAt,updatedAt) VALUES('lib-1','Books','book','{}','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`,
 		`INSERT INTO libraryFolders(id,path,libraryId,createdAt,updatedAt) VALUES('folder-1','` + r.root + `','lib-1','2020-01-01 00:00:00.000 +00:00','2020-01-01 00:00:00.000 +00:00')`,
@@ -92,7 +93,7 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.s = New(r.d, st, r.emit, filterdata.NewCache(), config.Config{MetadataPath: r.meta}, nil)
+	r.s = New(r.d, st, r.emit, r.filters, config.Config{MetadataPath: r.meta}, nil)
 	t.Cleanup(r.s.Close)
 	return r
 }
@@ -547,5 +548,43 @@ func TestPairPrefersPathThenFirstFreeInode(t *testing.T) {
 	got := pair(want, found)
 	if fmt.Sprint(got) != "[1 0 -1]" {
 		t.Fatalf("pair = %v", got)
+	}
+}
+
+// A scan leaves the filter menus alone while it runs and drops them once at the
+// end, so the next read sees the new books and the read after it is cached.
+func TestScanInvalidatesFilterDataOnceAtTheEnd(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	get := func() filterdata.Data {
+		t.Helper()
+		data, err := r.filters.Get(ctx, r.d, "lib-1", "book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	if get().BookCount != 0 {
+		t.Fatal("library not empty")
+	}
+	r.write("Ann/One/01.mp3", "aaaa")
+	r.write("Bob/Two/01.mp3", "bbbb")
+	r.scan(false)
+	data := get()
+	if data.BookCount != 2 || len(data.Authors) != 2 {
+		t.Fatalf("after the scan: %+v", data)
+	}
+	if _, err := r.d.Exec(ctx, `UPDATE libraryItems SET isMissing = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if get().NumIssues != 0 {
+		t.Fatal("the menus were recomputed without an invalidation")
+	}
+	if err := os.RemoveAll(filepath.Join(r.root, "Bob")); err != nil {
+		t.Fatal(err)
+	}
+	r.scan(false)
+	if data := get(); data.NumIssues != 1 {
+		t.Fatalf("issues after the second scan: %+v", data)
 	}
 }

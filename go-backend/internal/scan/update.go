@@ -150,7 +150,6 @@ func (s *Scanner) scanFolderUpdates(ctx context.Context, libraryID, folderID str
 	if err != nil {
 		return nil, err
 	}
-	_, _ = s.filters.Get(ctx, s.db.SQL(), libraryID, lib.mediaType) // warms the cache AddBook patches
 	var folder db.LibraryFolder
 	if err := s.db.Get(ctx, &folder, `SELECT * FROM libraryFolders WHERE id = ? AND libraryId = ?`, folderID, libraryID); err != nil {
 		return nil, err

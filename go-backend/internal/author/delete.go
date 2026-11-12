@@ -32,6 +32,6 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user *auth.Prin
 		return httpx.Internal("metadata file write failed", err)
 	}
 	h.emit.ToAll("author_removed", viewOf(a, nil))
-	h.deps.Filters.RemoveAuthor(db.Val(a.LibraryID), a.ID)
+	h.deps.Filters.Invalidate(db.Val(a.LibraryID))
 	return httpx.Status(w, http.StatusOK)
 }

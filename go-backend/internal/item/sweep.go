@@ -58,14 +58,14 @@ type feedRow struct {
 // removed and announced with author_removed.
 func (h *Handler) sweepAuthors(ctx context.Context, ids []string) {
 	guard := `COALESCE(asin,'')='' AND COALESCE(description,'')='' AND COALESCE(imagePath,'')='' AND `
-	h.sweep(ctx, "authors", "bookAuthors", "authorId", guard, ids, "author_removed", h.deps.Filters.RemoveAuthor)
+	h.sweep(ctx, "authors", "bookAuthors", "authorId", guard, ids, "author_removed")
 }
 
 // sweepSeries is ApiRouter.checkRemoveEmptySeries (ApiRouter.js:417-478): an
 // empty series is removed, announced with series_removed and loses its open
 // RSS feeds, each announced with rss_feed_closed.
 func (h *Handler) sweepSeries(ctx context.Context, ids []string) {
-	for _, id := range h.sweep(ctx, "series", "bookSeries", "seriesId", "", ids, "series_removed", h.deps.Filters.RemoveSeries) {
+	for _, id := range h.sweep(ctx, "series", "bookSeries", "seriesId", "", ids, "series_removed") {
 		closed, err := h.closeFeeds(context.WithoutCancel(ctx), id)
 		if err != nil {
 			slog.Error("close feeds of removed series", "series", id, "error", err)
@@ -79,10 +79,10 @@ func (h *Handler) sweepSeries(ctx context.Context, ids []string) {
 // sweep deletes the parents in ids that no junction row references (and that
 // pass guard) in ONE statement, so a book linked by a concurrent request
 // between "is it orphaned?" and the delete keeps its parent. Only rows this
-// statement removed are forgotten and announced. It runs after the edit
+// statement removed are announced and drop their library's filter menus. It runs after the edit
 // committed and ignores the request's cancellation: a client that disconnects
 // must not leave orphans. It returns the removed ids in creation order.
-func (h *Handler) sweep(ctx context.Context, parent, junction, col, guard string, ids []string, event string, forget func(libraryID, id string)) []string {
+func (h *Handler) sweep(ctx context.Context, parent, junction, col, guard string, ids []string, event string) []string {
 	ids = slices.Compact(slices.Sorted(slices.Values(slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == "" }))))
 	if len(ids) == 0 {
 		return nil
@@ -96,7 +96,7 @@ func (h *Handler) sweep(ctx context.Context, parent, junction, col, guard string
 	slices.SortFunc(orphans, func(a, b orphan) int { return cmp.Compare(a.RowID, b.RowID) })
 	out := make([]string, len(orphans))
 	for i, o := range orphans {
-		forget(o.LibraryID, o.ID)
+		h.deps.Filters.Invalidate(o.LibraryID)
 		out[i] = o.ID
 		h.emit.ToAll(event, removed{o.ID, o.LibraryID})
 	}

@@ -303,7 +303,7 @@ func (r *rig) relationSnapshot() string {
 	for _, e := range r.takeEvents() {
 		names = append(names, e.name)
 	}
-	data, err := r.filters.Get(context.Background(), r.d.SQL(), "l1", "book")
+	data, err := r.filters.Get(context.Background(), r.d, "l1", "book")
 	if err != nil {
 		r.t.Fatal(err)
 	}
@@ -358,8 +358,8 @@ func TestRelationsAcrossRoutes(t *testing.T) {
 				if sc.prep != "" {
 					r.exec(sc.prep)
 				}
-				// Load the library's filter data so the mutation patches it in place.
-				if _, err := r.filters.Get(context.Background(), r.d.SQL(), "l1", "book"); err != nil {
+				// Load the library's filter data so the mutation must invalidate it.
+				if _, err := r.filters.Get(context.Background(), r.d, "l1", "book"); err != nil {
 					t.Fatal(err)
 				}
 				var authors []map[string]string

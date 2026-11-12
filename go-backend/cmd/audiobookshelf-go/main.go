@@ -69,13 +69,14 @@ func main() {
 	if err != nil {
 		fatal("[Server] cannot start: %v", err)
 	}
-	defer manager.Close()
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
 	srv := &http.Server{Addr: addr, Handler: manager, ReadHeaderTimeout: 10 * time.Second,
 		ErrorLog: slog.NewLogLogger(logging.Default(), slog.LevelError)}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		<-ctx.Done()
 		logging.Info("SIGINT/SIGTERM received. Shutting down...")
 		logging.Info("=== Stopping Server ===")
@@ -103,7 +104,9 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fatal("[Server] HTTP server: %v", err)
 	}
+	<-shutdownDone // ListenAndServe returns as soon as Shutdown starts
 	logging.Info("[Server] HTTP Server Closed")
+	manager.Close() // runtime domains, then the realtime hub, then the database
 	logging.Info("Server stopped. Exiting.")
 	logging.Default().Close()
 }

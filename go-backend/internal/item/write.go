@@ -127,8 +127,8 @@ func (h *Handler) save(ctx context.Context, table string, row any, cols columns,
 }
 
 // finish is what every media write does once its transaction has committed,
-// in one order: series that lost their last book are removed, the events and
-// filter data of the new links go out, authors that lost their last book are
+// in one order: series that lost their last book are removed, the events of the
+// new links go out and the filter menus are dropped, authors that lost their last book are
 // removed (LibraryItemController.js:233-262), then each updated item is saved
 // and announced and podcast cron entries are refreshed (js:273-280). A batch
 // finishes once for all its items, so a series another item relinks is not swept.
@@ -139,7 +139,8 @@ func (h *Handler) finish(ctx context.Context, outs ...outcome) error {
 	}
 	h.sweepSeries(ctx, unlinked.seriesUnlinked)
 	for _, o := range outs {
-		o.changes.announce(o.ref.LibraryID, h.deps.Filters, h.emit)
+		o.changes.announce(h.emit)
+		h.deps.Filters.Invalidate(o.ref.LibraryID)
 	}
 	h.sweepAuthors(ctx, unlinked.authorsUnlinked)
 	for _, o := range outs {

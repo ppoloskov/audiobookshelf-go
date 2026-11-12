@@ -15,6 +15,7 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/playback"
+	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/settings"
 )
 
@@ -33,7 +34,7 @@ type Handler struct {
 // UsersOnline lists the connected users.
 type Deps struct {
 	UserChanged func(ctx context.Context, userID string) error
-	UsersOnline func() []map[string]any
+	UsersOnline func() []realtime.OnlineUser
 }
 
 // New returns a Handler. playback supplies the progress rules, the stored

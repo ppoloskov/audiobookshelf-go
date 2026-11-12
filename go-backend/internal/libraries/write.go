@@ -170,7 +170,7 @@ func (req updateRequest) apply(lib *db.Library) (columns []string, watcherChange
 // the watcher setting changed.
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 	ctx, id := r.Context(), r.PathValue("id")
-	defer h.deps.Filters.ResetIssues(ctx, h.db.SQL(), id) // LibraryController.js:513
+	defer h.deps.Filters.Invalidate(id) // LibraryController.js:513
 	if _, err := h.view(ctx, id); errors.Is(err, sql.ErrNoRows) {
 		return httpx.Error(http.StatusNotFound, "Library not found")
 	} else if err != nil {
@@ -199,7 +199,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for _, folderID := range removed {
-		if err := h.removeFolderItems(ctx, id, folderID); err != nil {
+		if err := h.removeFolderItems(ctx, folderID); err != nil {
 			return httpx.Internal("database write failed", err)
 		}
 	}

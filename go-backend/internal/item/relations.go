@@ -33,7 +33,6 @@ type event struct {
 type changes struct {
 	events          []event
 	authorsAdded    []filterdata.Named
-	seriesAdded     []filterdata.Named
 	authorsUnlinked []string
 	seriesUnlinked  []string
 }
@@ -41,22 +40,14 @@ type changes struct {
 func (c *changes) merge(o changes) {
 	c.events = append(c.events, o.events...)
 	c.authorsAdded = append(c.authorsAdded, o.authorsAdded...)
-	c.seriesAdded = append(c.seriesAdded, o.seriesAdded...)
 	c.authorsUnlinked = append(c.authorsUnlinked, o.authorsUnlinked...)
 	c.seriesUnlinked = append(c.seriesUnlinked, o.seriesUnlinked...)
 }
 
-// announce patches the filter data and sends the collected events
-// (LibraryItemController.js:240-265).
-func (c *changes) announce(libraryID string, filters *filterdata.Cache, emit events.Emitter) {
-	for _, s := range c.seriesAdded {
-		filters.AddSeries(libraryID, s.Name, s.ID)
-	}
+// announce sends the collected events (LibraryItemController.js:240-265).
+func (c *changes) announce(emit events.Emitter) {
 	for _, e := range c.events {
 		emit.ToAll(e.name, e.payload)
-	}
-	for _, a := range c.authorsAdded {
-		filters.AddAuthor(libraryID, a.Name, a.ID)
 	}
 }
 
@@ -275,7 +266,6 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 		}
 		current[key] = link{ID: id, Name: name, Sequence: w.Sequence}
 		changed = true
-		c.seriesAdded = append(c.seriesAdded, filterdata.Named{ID: id, Name: name})
 		if created && src == fromMatch {
 			ms := now.UnixMilli()
 			c.events = append(c.events, event{"series_added", seriesCreated{ID: id, Name: name, NameIgnorePrefix: textsort.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})

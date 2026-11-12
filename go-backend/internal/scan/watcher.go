@@ -250,7 +250,7 @@ func (s *Scanner) scanBatch(ctx context.Context, b batch) {
 			changed = true
 		}
 		if changed {
-			s.filters.ResetIssues(ctx, s.db.SQL(), libraryID)
+			s.filters.Invalidate(libraryID)
 		}
 	}
 	res.Removed = &removedCount

@@ -60,7 +60,7 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 	if manager.current.Load() == oldRuntime {
 		t.Fatal("restore reused the old runtime graph")
 	}
-	if manager.current.Load().realtime != oldHub {
+	if manager.current.Load().hub != oldHub {
 		t.Fatal("restore replaced the realtime hub")
 	}
 	// SocketAuthority lives in the same process through backup apply; upstream

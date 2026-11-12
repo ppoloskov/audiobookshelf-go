@@ -69,13 +69,13 @@ Mark a task `[x]` in the commit that completes it.
 
 ## Wave 4: close
 
-- [ ] **C1 `app`**: composition root and middleware chain; delete the
+- [x] **C1 `app`** (kept the package name `server`): composition root and middleware chain; delete the
   hand-rolled dispatch, Express error pages and route aliases. Add the CORS
   middleware upstream has and Go lacks (mobile ebook and cover loads).
-- [ ] **C2 `realtime`**: fold `events` in; typed socket actions.
+- [x] **C2 `realtime`**: fold `events` in; typed socket actions.
 - [ ] **C3** delete the old shared packages and sqlc; merge the leaves into
   `text` and `media`; remove `db.DB.SQL()`.
-- [ ] **C4** tooling: drop the ratchet, dbnest and depguard layers; CI runs
+- [x] **C4** tooling: drop the ratchet, dbnest and depguard layers; CI runs
   build, vet, tests, lint, cross-build and rollback.
 - [ ] **C5** README and docs reflect the result; rollback and journey checks
   pass; push.

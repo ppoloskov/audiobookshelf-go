@@ -27,7 +27,7 @@ func (h *Handler) deleteItem(ctx context.Context, itemID string) (item.Removal, 
 
 // removeFolderItems deletes the items of a removed folder one by one, sweeping
 // the authors and series each leaves empty.
-func (h *Handler) removeFolderItems(ctx context.Context, libraryID, folderID string) error {
+func (h *Handler) removeFolderItems(ctx context.Context, folderID string) error {
 	itemIDs, err := selectAll[string](ctx, h.db, `SELECT id FROM libraryItems WHERE libraryFolderId = ?`, folderID)
 	if err != nil {
 		return err
@@ -38,7 +38,6 @@ func (h *Handler) removeFolderItems(ctx context.Context, libraryID, folderID str
 			return err
 		}
 		h.deps.Items.Sweep(ctx, rem)
-		h.deps.Filters.ResetIssues(ctx, h.db.SQL(), libraryID)
 	}
 	return nil
 }
@@ -118,6 +117,6 @@ func (h *Handler) removeIssues(w http.ResponseWriter, r *http.Request, scope Sco
 		all.Add(rem)
 	}
 	h.deps.Items.Sweep(ctx, all)
-	h.deps.Filters.StoreNumIssues(scope.ID, 0) // LibraryController.js:727-730
+	h.deps.Filters.Invalidate(scope.ID) // LibraryController.js:727-730
 	return httpx.Status(w, http.StatusOK)
 }

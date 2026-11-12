@@ -48,7 +48,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user *auth.Prin
 	}
 	h.sweepAuthors(ctx, rem.authors)
 	h.sweepSeries(ctx, rem.series)
-	h.deps.Filters.ResetIssues(ctx, h.db.SQL(), ref.LibraryID) // Database.resetLibraryIssuesFilterData
+	h.deps.Filters.Invalidate(ref.LibraryID) // Database.resetLibraryIssuesFilterData
 	return httpx.Status(w, http.StatusOK)
 }
 

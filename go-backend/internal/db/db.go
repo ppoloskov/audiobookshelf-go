@@ -44,8 +44,10 @@ func New(sqlDB *sql.DB) *DB {
 	return &DB{x: x}
 }
 
-// SQL returns the underlying *sql.DB, for the filter-data cache, which still
-// takes one, and for tests. Queries on it ignore transactions started by Tx.
+// SQL returns the underlying *sql.DB. No production code uses it any more; it
+// remains only for test fixtures that still run raw statements (see the
+// cleanup notes) and goes when they move to Exec, Get and Select. Queries on
+// it ignore transactions started by Tx.
 func (d *DB) SQL() *sql.DB { return d.x.DB }
 
 type txKey struct{ db *DB }

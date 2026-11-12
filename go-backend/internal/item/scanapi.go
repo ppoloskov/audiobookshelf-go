@@ -65,11 +65,12 @@ func (h *Handler) LinkScanned(ctx context.Context, b ScannedBook) (ScanLinks, er
 	return out, nil
 }
 
-// Announce patches the filter data and sends author_added.
-func (l ScanLinks) Announce(h *Handler, libraryID string) {
+// Announce sends author_added. The scanner drops the filter menus once, when
+// the scan ends.
+func (l ScanLinks) Announce(h *Handler) {
 	// A scan reports book counts once at the end and creates series silently.
 	l.c.events = slices.DeleteFunc(l.c.events, func(e event) bool { return e.name != "author_added" })
-	l.c.announce(libraryID, h.deps.Filters, h.emit)
+	l.c.announce(h.emit)
 }
 
 // SweepOrphans removes authors and series that no book uses any more.

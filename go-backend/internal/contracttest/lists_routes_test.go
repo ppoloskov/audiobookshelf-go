@@ -24,14 +24,14 @@ func TestListsRouteBaseline(t *testing.T) {
 		}{
 			{"/api/collections", root, 200, "application/json", ""},
 			{"/api/collections/", root, 200, "application/json", ""},
-			{"/api/collections//", root, 200, "application/json", ""},
+			{"/api/collections//", root, 404, "text/plain", "Not Found"}, // no Express "//" alias
 			{"/api/collections/" + collection, root, 200, "application/json", ""},
 			{"/api/collections/" + collection + "/", root, 200, "application/json", ""},
 			{"/api/collections/" + collection + "//", root, 404, "text/plain", "Not Found"},
 			{"/api/collections/" + collection + "/unknown", root, 404, "text/plain", "Not Found"},
 			{"/api/playlists", root, 200, "application/json", ""},
 			{"/api/playlists/", root, 200, "application/json", ""},
-			{"/api/playlists//", root, 200, "application/json", ""},
+			{"/api/playlists//", root, 404, "text/plain", "Not Found"}, // no Express "//" alias
 			{"/api/playlists/" + playlist, root, 403, "text/plain", "Forbidden"},
 			{"/api/playlists/" + playlist + "/", root, 403, "text/plain", "Forbidden"},
 			{"/api/playlists/" + playlist + "//", root, 404, "text/plain", "Not Found"},

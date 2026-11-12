@@ -105,7 +105,7 @@ func (h *Handler) batchDelete(w http.ResponseWriter, r *http.Request, user *auth
 		h.sweepSeries(ctx, rem.series) // series before authors (js:610-615)
 		h.sweepAuthors(ctx, rem.authors)
 	}
-	h.deps.Filters.ResetIssues(ctx, h.db.SQL(), refs[0].LibraryID)
+	h.deps.Filters.Invalidate(refs[0].LibraryID)
 	return httpx.Status(w, http.StatusOK)
 }
 

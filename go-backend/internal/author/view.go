@@ -69,10 +69,15 @@ func (h *Handler) count(ctx context.Context, authorID string) (int, error) {
 	return n, err
 }
 
-// save writes the changed columns of a and stamps updatedAt.
+// save writes the changed columns of a, stamps updatedAt and drops the filter
+// menus of the author's library (the name is a menu entry).
 func (h *Handler) save(ctx context.Context, a *db.Author, cols ...string) error {
 	a.UpdatedAt = db.Now()
-	return h.db.Update(ctx, "authors", a, append(cols, "updatedAt")...)
+	if err := h.db.Update(ctx, "authors", a, append(cols, "updatedAt")...); err != nil {
+		return err
+	}
+	h.deps.Filters.Invalidate(db.Val(a.LibraryID))
+	return nil
 }
 
 // announce sends author_updated with the author's book count.
