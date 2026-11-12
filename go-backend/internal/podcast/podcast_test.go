@@ -496,10 +496,10 @@ func TestEpisodePatchAndDelete(t *testing.T) {
 func TestCreatePodcast(t *testing.T) {
 	r := newRig(t)
 	body := func(path, extra string) string {
-		return `{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + path + `",` + extra + `"media":{"metadata":{"title":"The New Show","description":"<p>x</p><script>bad</script>","itunesId":12345,"genres":["Arts"]}}}`
+		return `{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + path + `","media":{` + extra + `"metadata":{"title":"The New Show","description":"<p>x</p><script>bad</script>","itunesId":12345,"genres":["Arts"]}}}`
 	}
 	post := func(b string) *httptest.ResponseRecorder { return r.serve(t, "trial-root", "POST", "/api/podcasts", b) }
-	w := post(body(r.root+"/New Show", `"autoDownloadEpisodes":true,"autoDownloadSchedule":"5 4 * * *",`))
+	w := post(body(r.root+"/New Show", `"autoDownloadEpisodes":true,"autoDownloadSchedule":"5 4 * * *","tags":["weekly"],`))
 	if w.Code != 200 || strings.Contains(w.Body.String(), "<script>") {
 		t.Fatalf("create = %d %s", w.Code, w.Body)
 	}
@@ -512,6 +512,21 @@ func TestCreatePodcast(t *testing.T) {
 	}
 	if len(r.h.cron.Entries()) != 1 {
 		t.Errorf("cron entries = %d, want 1", len(r.h.cron.Entries()))
+	}
+	// The web client sends these inside media (NewModal.vue); upstream reads them there.
+	var stored db.Podcast
+	if err := r.d.Get(context.Background(), &stored, `SELECT * FROM podcasts WHERE title='The New Show'`); err != nil {
+		t.Fatal(err)
+	}
+	if !bool(stored.AutoDownloadEpisodes) || db.Val(stored.AutoDownloadSchedule) != "5 4 * * *" || !slices.Equal(stored.Tags.V, []string{"weekly"}) {
+		t.Errorf("stored auto=%v schedule=%q tags=%v", stored.AutoDownloadEpisodes, db.Val(stored.AutoDownloadSchedule), stored.Tags.V)
+	}
+	// The same keys at the top level are not part of the protocol and are ignored.
+	if w := post(`{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + r.root + `/Top Level","autoDownloadEpisodes":true,"media":{"metadata":{"title":"Top Level"}}}`); w.Code != 200 {
+		t.Fatalf("create = %d %s", w.Code, w.Body)
+	}
+	if n := r.count(t, `SELECT autoDownloadEpisodes FROM podcasts WHERE title='Top Level'`); n != 0 {
+		t.Errorf("top-level autoDownloadEpisodes was applied")
 	}
 	for name, tc := range map[string]struct {
 		user, body string
@@ -701,7 +716,7 @@ func TestCreateInvalidatesFilterData(t *testing.T) {
 	if slices.Contains(genres(), "Zymurgy") { // also fills the cache
 		t.Fatal("genre present before the podcast exists")
 	}
-	body := `{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + r.root + `/Brew","tags":["fermenting"],"media":{"metadata":{"title":"Brew","genres":["Zymurgy"]}}}`
+	body := `{"libraryId":"` + testLib + `","folderId":"` + testFolder + `","path":"` + r.root + `/Brew","media":{"tags":["fermenting"],"metadata":{"title":"Brew","genres":["Zymurgy"]}}}`
 	if w := r.serve(t, "trial-root", "POST", "/api/podcasts", body); w.Code != 200 {
 		t.Fatalf("create = %d %s", w.Code, w.Body)
 	}

@@ -24,21 +24,22 @@ import (
 	"audiobookshelf-compat/internal/text"
 )
 
-// createRequest is the body of POST /api/podcasts. Tags, autoDownloadEpisodes
-// and autoDownloadSchedule are read at the top level, as before; the web
-// client's media.autoDownloadEpisodes is ignored.
+// createRequest is the body of POST /api/podcasts.
 type createRequest struct {
-	LibraryID            string     `json:"libraryId"`
-	FolderID             string     `json:"folderId"`
-	Path                 string     `json:"path"`
-	Media                *mediaBody `json:"media"`
-	Tags                 []string   `json:"tags"`
-	AutoDownloadEpisodes bool       `json:"autoDownloadEpisodes"`
-	AutoDownloadSchedule string     `json:"autoDownloadSchedule"`
+	LibraryID string     `json:"libraryId"`
+	FolderID  string     `json:"folderId"`
+	Path      string     `json:"path"`
+	Media     *mediaBody `json:"media"`
 }
 
+// mediaBody is the media object of a create request. Tags and the
+// auto-download settings live here, next to metadata, where upstream reads
+// them and the web client sends them (PodcastController.js:50,108).
 type mediaBody struct {
-	Metadata *podcastMetadata `json:"metadata"`
+	Metadata             *podcastMetadata `json:"metadata"`
+	Tags                 []string         `json:"tags"`
+	AutoDownloadEpisodes bool             `json:"autoDownloadEpisodes"`
+	AutoDownloadSchedule string           `json:"autoDownloadSchedule"`
 }
 
 type podcastMetadata struct {
@@ -129,11 +130,11 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 	if existing > 0 {
 		return nil, errPodcastExists
 	}
-	if req.AutoDownloadSchedule != "" && !cronspec.Valid(req.AutoDownloadSchedule) {
+	if req.Media.AutoDownloadSchedule != "" && !cronspec.Valid(req.Media.AutoDownloadSchedule) {
 		return nil, httpx.BadRequest("Invalid auto download schedule cron expression")
 	}
 	server := h.settings.Server()
-	schedule := cmp.Or(req.AutoDownloadSchedule, server.PodcastEpisodeSchedule, "0 * * * *")
+	schedule := cmp.Or(req.Media.AutoDownloadSchedule, server.PodcastEpisodeSchedule, "0 * * * *")
 
 	madeDir := false
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -163,9 +164,9 @@ func (h *Handler) create(ctx context.Context, req *createRequest) (*item.Item, e
 	podcast := db.Podcast{ID: mediaID, Title: title, TitleIgnorePrefix: titleSort, Author: ptrIfSet(meta.Author), ReleaseDate: ptrIfSet(meta.ReleaseDate),
 		FeedURL: ptrIfSet(meta.FeedURL), ImageURL: ptrIfSet(meta.ImageURL), Description: description, ItunesPageURL: ptrIfSet(meta.ItunesPageURL),
 		ItunesID: ptrIfSet(string(meta.ItunesID)), ItunesArtistID: ptrIfSet(string(meta.ItunesArtistID)), Language: ptrIfSet(meta.Language),
-		PodcastType: ptrIfSet(meta.Type), Explicit: db.Bool(meta.Explicit), AutoDownloadEpisodes: db.Bool(req.AutoDownloadEpisodes),
+		PodcastType: ptrIfSet(meta.Type), Explicit: db.Bool(meta.Explicit), AutoDownloadEpisodes: db.Bool(req.Media.AutoDownloadEpisodes),
 		AutoDownloadSchedule: &schedule, LastEpisodeCheck: now, MaxEpisodesToKeep: db.Ptr[int64](0), MaxNewEpisodesToDownload: db.Ptr[int64](3),
-		Tags: db.JSON[[]string]{V: nonNil(req.Tags)}, Genres: db.JSON[[]string]{V: nonNil(meta.Genres)}, NumEpisodes: db.Ptr[int64](0), CreatedAt: now, UpdatedAt: now}
+		Tags: db.JSON[[]string]{V: nonNil(req.Media.Tags)}, Genres: db.JSON[[]string]{V: nonNil(meta.Genres)}, NumEpisodes: db.Ptr[int64](0), CreatedAt: now, UpdatedAt: now}
 	relPath := filepath.ToSlash(rel)
 	if relPath == "." {
 		relPath = ""
@@ -274,8 +275,7 @@ func (h *Handler) importOPML(req opmlCreateRequest, folderPath string, task even
 		}
 		m := parsed.Metadata
 		create := createRequest{LibraryID: req.LibraryID, FolderID: req.FolderID, Path: filepath.ToSlash(filepath.Join(folderPath, podcastDirName(m.Title))),
-			AutoDownloadEpisodes: req.AutoDownloadEpisodes,
-			Media:                &mediaBody{Metadata: &podcastMetadata{Title: m.Title, Author: m.Author, Description: m.Description, Genres: m.Categories, FeedURL: m.FeedURL, ImageURL: m.Image}}}
+			Media: &mediaBody{AutoDownloadEpisodes: req.AutoDownloadEpisodes, Metadata: &podcastMetadata{Title: m.Title, Author: m.Author, Description: m.Description, Genres: m.Categories, FeedURL: m.FeedURL, ImageURL: m.Image}}}
 		it, err := h.create(h.ctx, &create)
 		if err == nil {
 			added++

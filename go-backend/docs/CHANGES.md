@@ -103,6 +103,10 @@ rewrite (`git log 7051b3e5..HEAD`).
 - Podcast libraries now report their real issue count in the filter menus.
 - An unknown feed item answered an empty 200; it is now a 404.
 - A book episode `pubDate` was in local time but labelled GMT; it is now GMT.
+- Creating a podcast ignored the "auto download episodes" checkbox: tags,
+  `autoDownloadEpisodes` and `autoDownloadSchedule` were read at the top level
+  of the body, but the web client sends them inside `media`, where upstream
+  reads them. They are now read from `media`; the top-level keys are ignored.
 
 ## Removed emulation
 

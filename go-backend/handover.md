@@ -37,9 +37,6 @@ Updated 2026-11-12.
 
 ## Open follow-ups
 
-- Podcast create ignores `autoDownloadEpisodes` nested under `media`
-  (`internal/podcast/create.go`, `createRequest`); the web client sends it
-  there. The old code did the same.
 - `internal/logging` still has the printf helpers (`Infof`, `Errorf`, `Fatalf`,
   ...). Its doc comment says "Transitional ... delete when unused". They are
   used by `cmd/audiobookshelf-go`, `internal/server` and

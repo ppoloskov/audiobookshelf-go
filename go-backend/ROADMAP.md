@@ -79,9 +79,7 @@ Per-area facts of the old code (routes, tables, hazards) are in
 
 Open follow-ups (details in [handover.md](handover.md)):
 
-- Podcast create ignores `autoDownloadEpisodes` nested under `media`.
 - Replace the `logging` printf helpers with `slog` and delete them.
-- Fix the `internal/library` package doc ("Package libraries").
 - Delete the 12 stray `*-E` files in `internal/text` and `internal/media`.
 - Fix the stale `test-ts-diagnostics` Makefile target.
 - Device acceptance of the mobile apps.
