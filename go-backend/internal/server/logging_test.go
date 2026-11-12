@@ -12,6 +12,7 @@ import (
 	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/logging"
+	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/store"
 	"golang.org/x/net/websocket"
 )
@@ -20,20 +21,16 @@ func TestApplyLoggingSettings(t *testing.T) {
 	l := logging.Default()
 	before := l.Level()
 	t.Cleanup(func() { l.SetLevel(before) })
-	if keep := ApplyLoggingSettings(map[string]any{"logLevel": float64(3), "loggerDailyLogsToKeep": float64(9)}); keep != 9 {
+	if keep := ApplyLoggingSettings(settings.Server{ServerPublic: settings.ServerPublic{LogLevel: 3, LoggerDailyLogsToKeep: 9}}); keep != 9 {
 		t.Fatalf("keep = %d, want 9", keep)
 	}
 	if l.Level() != logging.LevelWarn {
 		t.Fatalf("level = %v, want WARN", l.Level())
 	}
 	// A falsy stored level keeps the current one (ServerSettings.js:150).
-	ApplyLoggingSettings(map[string]any{"logLevel": float64(0)})
+	ApplyLoggingSettings(settings.Server{})
 	if l.Level() != logging.LevelWarn {
 		t.Fatalf("level after 0 = %v, want WARN", l.Level())
-	}
-	ApplyLoggingSettings(map[string]any{})
-	if l.Level() != logging.LevelWarn {
-		t.Fatalf("level after absent = %v, want WARN", l.Level())
 	}
 }
 

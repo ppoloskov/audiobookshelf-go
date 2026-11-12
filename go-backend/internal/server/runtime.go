@@ -8,19 +8,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"net/http"
 	"os"
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/adminops"
-	"audiobookshelf-compat/internal/audiotools"
+	"audiobookshelf-compat/internal/admin"
 	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/author"
 	"audiobookshelf-compat/internal/backup"
 	"audiobookshelf-compat/internal/catalog"
 	"audiobookshelf-compat/internal/config"
@@ -37,7 +35,6 @@ import (
 	"audiobookshelf-compat/internal/mail"
 	"audiobookshelf-compat/internal/metadata"
 	"audiobookshelf-compat/internal/notify"
-	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/podcast"
 	"audiobookshelf-compat/internal/realtime"
@@ -46,7 +43,8 @@ import (
 	"audiobookshelf-compat/internal/share"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
-	"audiobookshelf-compat/internal/userapi"
+	"audiobookshelf-compat/internal/tools"
+	"audiobookshelf-compat/internal/user"
 	"audiobookshelf-compat/internal/version"
 )
 
@@ -60,10 +58,10 @@ type Runtime struct {
 	realtime      *realtime.Hub
 	catalog       *catalog.Handler
 	playback      *playback.Handler
-	userapi       *userapi.Handler
-	adminops      *adminops.Handler
+	users         *user.Handler
+	admin         *admin.Handler
 	scanner       *scanner.Scanner
-	audiotools    *audiotools.Handler
+	tools         *tools.Handler
 	backup        *backup.Handler
 	emailapi      *mail.Handler
 	notifications *notify.Handler
@@ -78,10 +76,6 @@ func isGet(r *http.Request) bool { return r.Method == http.MethodGet || r.Method
 // newRuntime builds the handlers over db. The hub belongs to the manager and
 // survives a restore.
 func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err error) {
-	// A restored database may carry a different logLevel.
-	if settings, err := serversettings.Get(context.Background(), sqlDB); err == nil {
-		ApplyLoggingSettings(settings.Doc())
-	}
 	hub := m.hub
 	emit := events.Emitter(hub.Emit)
 	rt = &Runtime{cfg: cfg, db: sqlDB, realtime: hub}
@@ -95,6 +89,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	if rt.settings, err = settings.NewStore(context.Background(), rt.data, os.Getenv, cfg.Dirs().Backups); err != nil {
 		return rt, err
 	}
+	ApplyLoggingSettings(rt.settings.Server()) // a restored database may carry a different logLevel
 	// Transitional: old packages still save server settings through
 	// serversettings; keep the typed cache current until they are gone.
 	serversettings.SetOnSave(func(*sql.DB) {
@@ -133,43 +128,36 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		WriteMetadata:   rt.scanner.WriteMetadata,
 		ScheduleChanged: rt.podcasts.Reschedule,
 		PodcastEpisodes: rt.podcasts.QuickMatchEpisodes,
-		SaveCover: func(ctx context.Context, itemID, itemPath string, withItem bool, imageURL string) (string, error) {
-			return rt.catalog.SaveCoverFromURL(ctx, itemID, itemPath, withItem, imageURL)
-		},
 		CoverCacheDir:   cfg.Dirs().CoverCache,
 		ItemMetadataDir: itemMetadataDir,
 	})
 	rt.catalog = catalog.New(sqlDB, cfg, emit, catalog.Deps{
 		Filters:        filters,
-		ItemChanged:    rt.scanner.WriteMetadata,
 		LibraryChanged: libraryChanged,
 		QuickMatch:     itemHandler.QuickMatch,
 	})
 	rt.playback = playback.New(rt.data, rt.settings, cfg, emit)
-	if rt.userapi, err = userapi.New(sqlDB, rt.auth.OldCredentials(), emit, userapi.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline, OpenSessions: rt.playback.OpenSessions}); err != nil {
+	rt.users = user.New(rt.data, rt.auth, rt.settings, emit, rt.playback, user.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline})
+	if rt.backup, err = backup.New(rt.settings, cfg, os.Getenv, emit, rt.notifications.TriggerEvent, m.restore); err != nil {
 		return rt, err
 	}
-	stored, err := serversettings.Get(context.Background(), sqlDB)
-	if err != nil {
-		return rt, err
-	}
-	if rt.backup, err = backup.New(cfg, backupOptions(stored.Doc(), m), emit, rt.notifications.TriggerEvent); err != nil {
-		return rt, err
-	}
-	rt.adminops = adminops.New(sqlDB, cfg, emit, adminops.Deps{
-		AfterWrite: func() { filters.Invalidate("") },
-		SettingsChanged: func(ctx context.Context, settings map[string]any) error {
-			if err := rt.backup.UpdateOptions(ctx, backupOptions(settings, m)); err != nil {
-				return err
-			}
-			return rt.scanner.Refresh(ctx)
-		},
-		ItemChanged:   itemHandler.ItemChanged,
-		WatcherUpdate: rt.scanner.UpdateWatchedPath,
+	// Settings changes reach the old serversettings cache and the running
+	// server (log level, watchers and schedules); backup follows them itself.
+	rt.settings.OnChange(func(server settings.Server) {
+		serversettings.Invalidate(sqlDB)
+		logging.Default().SetLevel(logging.Level(server.LogLevel))
+		if err := rt.scanner.Refresh(context.Background()); err != nil {
+			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
+		}
+	})
+	rt.admin = admin.New(rt.data, rt.settings, cfg, os.Getenv, admin.Deps{
+		TaxonomyChanged: func() { filters.Invalidate("") },
+		ItemChanged:     itemHandler.ItemChanged,
+		WatcherUpdate:   rt.scanner.UpdateWatchedPath,
 	})
 	rt.emailapi = mail.New(rt.data, rt.settings, emit)
 	rt.share = share.New(rt.data, emit, cfg.RouterBasePath)
-	rt.audiotools = audiotools.New(sqlDB, cfg, emit)
+	rt.tools = tools.New(rt.data, cfg, emit)
 	listHandler := list.New(rt.data, rt.settings, emit)
 
 	// Routes register before backup.Routes so its patterns do not shadow them.
@@ -177,10 +165,12 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	listHandler.Routes(rt.routes)
 	itemHandler.Routes(rt.routes)
 	rt.catalog.Routes(rt.routes)
-	people.New(sqlDB, cfg, emit, people.Deps{
+	author.New(rt.data, rt.settings, emit, author.Deps{
 		Filters:       filters,
-		Authors:       rt.metadata.Legacy(),
+		Authors:       rt.metadata,
 		WriteMetadata: rt.scanner.WriteMetadata,
+		ImageDir:      cfg.Dirs().Authors,
+		ImageCacheDir: cfg.Dirs().ImageCache,
 	}).Routes(rt.routes)
 	itemDeleter := itemwrite.Deleter{Env: itemwrite.Env{DB: sqlDB, Filters: filters, Emit: emit}, CoverCacheDir: cfg.Dirs().CoverCache, ItemMetadataDir: itemMetadataDir}
 	library.New(sqlDB, emit, library.Deps{
@@ -188,7 +178,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		LibraryChanged: libraryChanged,
 		ItemDeleter:    itemDeleter,
 	}).Routes(rt.routes)
-	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.adminops, rt.audiotools, rt.metadata, rt.share, rt.userapi, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
+	for _, f := range []interface{ Routes(*http.ServeMux) }{rt.admin, rt.tools, rt.metadata, rt.share, rt.users, rt.playback, rt.notifications, rt.emailapi, rt.scanner, rt.podcasts, rt.backup} {
 		f.Routes(rt.routes)
 	}
 	logging.Default().SetSocketSink(func(socketID string, entry logging.Entry) {
@@ -271,8 +261,8 @@ func (rt *Runtime) Close() {
 	if rt.scanner != nil {
 		rt.scanner.Close()
 	}
-	if rt.audiotools != nil {
-		rt.audiotools.Close()
+	if rt.tools != nil {
+		rt.tools.Close()
 	}
 	if rt.playback != nil {
 		rt.playback.Close()
@@ -392,17 +382,6 @@ func routeAlias(path string) (string, bool) {
 	return canonical, pathpkg.Clean(canonical) == canonical
 }
 
-// backupOptions is the backup configuration the stored settings and
-// BACKUP_PATH describe; both the first start and every settings change use it.
-func backupOptions(settings map[string]any, manager *Manager) backup.Options {
-	settings = maps.Clone(settings)
-	serversettings.ApplyEnv(settings)
-	backupPath, _ := settings["backupPath"].(string)
-	maxSize, _ := settings["maxBackupSize"].(float64) // 0 is unlimited: BackupManager.js:46
-	return backup.Options{BackupPath: backupPath, BackupPathEnvSet: serversettings.EnvBackupPath() != "", BackupSchedule: stringSetting(settings, "backupSchedule"), BackupsToKeep: intSetting(settings, "backupsToKeep", 0), MaxBackupSizeGB: maxSize, Restore: manager.restore, UpdatePath: manager.updateBackupPath}
-}
-
-func stringSetting(m map[string]any, key string) string { value, _ := m[key].(string); return value }
 func logLevel(value any) (int, bool) {
 	switch v := value.(type) {
 	case int:
@@ -414,23 +393,6 @@ func logLevel(value any) (int, bool) {
 	default:
 		return 0, false
 	}
-}
-func intSetting(m map[string]any, key string, fallback int) int {
-	switch value := m[key].(type) {
-	case float64:
-		if int(value) > 0 {
-			return int(value)
-		}
-	case int:
-		if value > 0 {
-			return value
-		}
-	case json.Number:
-		if n, err := strconv.Atoi(value.String()); err == nil && n > 0 {
-			return n
-		}
-	}
-	return fallback
 }
 func withPath(r *http.Request, path string) *http.Request {
 	clone := r.Clone(r.Context())

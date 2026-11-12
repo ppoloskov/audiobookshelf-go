@@ -11,7 +11,7 @@ import (
 // Match-all is admin-only, answers at once and quick matches every book of the
 // library through Deps.QuickMatch, then finishes its task.
 func TestLibraryMatchAllRunsQuickMatchPerBook(t *testing.T) {
-	rig := newAuthorRig(t, nil)
+	rig := newAuthorRig(t)
 	var matched []string
 	updated := true
 	rig.h.deps.QuickMatch = func(_ context.Context, id string, opts item.MatchOptions) (item.MatchResult, error) {

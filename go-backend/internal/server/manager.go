@@ -104,21 +104,6 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) updateBackupPath(ctx context.Context, path string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.closed || m.database == nil {
-		return errors.New("server is closed")
-	}
-	current, err := serversettings.Get(ctx, m.database.DB())
-	if err != nil {
-		return err
-	}
-	doc := current.Doc()
-	doc["backupPath"] = path
-	return serversettings.Save(ctx, m.database.DB(), doc)
-}
-
 func (m *Manager) restore(ctx context.Context, dbTemp, stagedItems, stagedAuthors string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -50,9 +50,21 @@ Updated 2026-11-11.
   update with a bad entry applies nothing. JSON null clears a metadata text
   field (the web client sends null for an emptied field).
 
+- Wave 3c (`author`, item covers/files, `user`, `admin`, `backup`, `tools`):
+  file delete changes the database before the disk; cover uploads are capped
+  at 64 MiB and uploads/backups at 20 GiB; raw covers are served only from
+  library folders and the item metadata folder; a mistyped settings PATCH
+  value is a 400; an invalid backup cron no longer stops the server.
+
+## Follow-ups
+
+- Bound the author image download from a URL (no size cap today).
+- `podcast` create ignores `autoDownloadEpisodes` nested under `media`, as
+  the old code did; the web client sends it there.
+
 ## Size, measured
 
-Production lines: 39,740 before the rewrite, 43804 now.
+Production lines: 39,740 before the rewrite, 42,497 after Wave 3c.
 
 Typed rewrites of dense old code come out about the same size (Wave 3 so
 far: 6,205 old lines, 6,034 new). Expect real reductions only where the old

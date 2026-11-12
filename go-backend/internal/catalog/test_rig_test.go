@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/library"
-	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
 )
 
@@ -23,7 +21,7 @@ type recordedEvent struct {
 }
 
 // authorRig is the catalog integration fixture; author/series entity tests
-// live in internal/people.
+// live in internal/author.
 type authorRig struct {
 	t       *testing.T
 	db      *sql.DB
@@ -35,7 +33,7 @@ type authorRig struct {
 	touched []string
 }
 
-func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
+func newAuthorRig(t *testing.T) *authorRig {
 	t.Helper()
 	db := catalogFixture(t)
 	t.Cleanup(func() { db.Close() })
@@ -45,18 +43,10 @@ func newAuthorRig(t *testing.T, finder people.AuthorFinder) *authorRig {
 		defer rig.mu.Unlock()
 		rig.events = append(rig.events, recordedEvent{event, payload})
 	}
-	writeMetadata := func(_ context.Context, itemID string) error {
-		rig.touched = append(rig.touched, itemID)
-		return nil
-	}
 	filters := filterdata.NewCache()
 	rig.h = New(db, config.Config{MetadataPath: rig.meta}, emit, Deps{Filters: filters})
-	rig.h.deps.ItemChanged = writeMetadata
 	rig.mux = http.NewServeMux()
 	rig.h.Routes(rig.mux)
-	people.New(db, config.Config{MetadataPath: rig.meta}, emit, people.Deps{
-		Filters: filters, Authors: finder, WriteMetadata: writeMetadata,
-	}).Routes(rig.mux)
 	library.New(db, emit, library.Deps{Filters: filters}).Routes(rig.mux)
 	for _, query := range []string{
 		`INSERT INTO authors VALUES ('a2','Ben Writer','Writer, Ben',NULL,NULL,NULL,'l1','2024-01-03T00:00:00Z','2024-01-03T00:00:00Z')`,

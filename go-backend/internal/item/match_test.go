@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -258,23 +261,31 @@ func TestMatchRelationFailureRollsBackDatabaseAndEvents(t *testing.T) {
 
 func TestMatchSavesCoverAndKeepsGoingWhenItFails(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{Cover: raw("https://example.test/c.jpg")}}
-	var saved []string
-	r.h.deps.SaveCover = func(_ context.Context, id, path string, withItem bool, url string) (string, error) {
-		saved = append(saved, fmt.Sprint(id, "|", path, "|", withItem, "|", url))
-		return "/covers/" + id + ".jpg", nil
-	}
+	downloads := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		downloads++
+		if req.URL.Path == "/bad.jpg" {
+			http.Error(w, "boom", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write([]byte("\xff\xd8\xff\xe0 jpeg bytes"))
+	}))
+	defer server.Close()
+	r.h.client = server.Client() // the real client refuses loopback addresses
+	r.finder.books = []wire.BookMatch{{Cover: raw(server.URL + "/c.jpg")}}
 	r.match("i1", `{}`)
-	if got := r.values(`SELECT coverPath FROM books WHERE id='b1'`); got != "/covers/i1.jpg" || len(saved) != 1 || saved[0] != "i1|/nonexistent/books/The Book|false|https://example.test/c.jpg" {
-		t.Fatalf("cover %q %v", got, saved)
+	want := filepath.Join(r.metaDir, "i1", "cover.jpg")
+	if got := r.values(`SELECT coverPath FROM books WHERE id='b1'`); got != want || downloads != 1 {
+		t.Fatalf("cover %q after %d downloads, want %q", got, downloads, want)
 	}
 	// With a cover and no override the cover is kept; with overrideCover it is replaced.
 	r.match("i1", `{}`)
 	r.match("i1", `{"overrideCover":true}`)
-	if len(saved) != 2 {
-		t.Fatalf("saved %v", saved)
+	if downloads != 2 {
+		t.Fatalf("downloads %d", downloads)
 	}
-	r.h.deps.SaveCover = func(context.Context, string, string, bool, string) (string, error) { return "", fmt.Errorf("boom") }
+	r.finder.books = []wire.BookMatch{{Cover: raw(server.URL + "/bad.jpg")}}
 	r.exec(`UPDATE books SET coverPath=NULL WHERE id='b1'`)
 	if res := r.match("i1", `{}`); res.Updated == nil || *res.Updated {
 		t.Fatalf("a failed cover download must not fail or update: %+v", res)

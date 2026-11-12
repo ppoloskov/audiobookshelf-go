@@ -16,9 +16,10 @@ import (
 
 	"audiobookshelf-compat/internal/bootstrap"
 	"audiobookshelf-compat/internal/config"
+	data "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/server"
-	"audiobookshelf-compat/internal/serversettings"
+	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/version"
 )
@@ -61,8 +62,8 @@ func main() {
 	// Upstream applies logLevel when ServerSettings loads, then initializes
 	// the LogManager (server/Server.js:186).
 	dailyLogsToKeep := 0
-	if settings, settingsErr := serversettings.Get(context.Background(), db.DB()); settingsErr == nil {
-		dailyLogsToKeep = server.ApplyLoggingSettings(settings.Doc())
+	if stored, settingsErr := settings.NewStore(context.Background(), data.New(db.DB()), os.Getenv, cfg.Dirs().Backups); settingsErr == nil {
+		dailyLogsToKeep = server.ApplyLoggingSettings(stored.Server())
 	} else {
 		logging.Errorf("[Database] Failed to load server settings: %v", settingsErr)
 	}

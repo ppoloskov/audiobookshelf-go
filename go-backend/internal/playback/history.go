@@ -114,6 +114,17 @@ func (h *Handler) history(w http.ResponseWriter, r *http.Request, user *auth.Pri
 	return httpx.JSON(w, r, historyPage{Total: total, NumPages: int(math.Ceil(float64(total) / float64(perPage))), Page: page, ItemsPerPage: perPage, Sessions: sessions, UserID: userID})
 }
 
+// HistorySession is a stored session as the history lists it.
+type HistorySession = historySession
+
+// SessionsOf lists stored session rows the way the admin history does.
+func (h *Handler) SessionsOf(ctx context.Context, rows []db.PlaybackSession) ([]HistorySession, error) {
+	return h.historyOf(ctx, rows)
+}
+
+// StoredSession is a stored session row without its device and user.
+func StoredSession(row db.PlaybackSession) HistorySession { return historyOf(row) }
+
 // historyOf builds the listing of rows with one query for their devices and one
 // for their users.
 func (h *Handler) historyOf(ctx context.Context, rows []db.PlaybackSession) ([]historySession, error) {

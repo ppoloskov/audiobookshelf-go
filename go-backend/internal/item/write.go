@@ -165,6 +165,11 @@ func (h *Handler) ItemChanged(ctx context.Context, itemID string) error {
 			return err
 		}
 	}
+	return h.announce(ctx, itemID)
+}
+
+// announce sends item_updated with the expanded item.
+func (h *Handler) announce(ctx context.Context, itemID string) error {
 	if h.emit == nil { // nobody listens: skip building the expanded item
 		return nil
 	}

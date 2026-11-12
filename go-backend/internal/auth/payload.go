@@ -138,9 +138,9 @@ func newUserView(user db.User, progress []db.MediaProgress) userView {
 
 // payloadFor loads everything the login-style answers carry for user.
 func (s *Service) payloadFor(ctx context.Context, user db.User) (authPayload[userView], error) {
-	var progress []db.MediaProgress
-	if err := s.db.Select(ctx, &progress, `SELECT * FROM mediaProgresses WHERE userId = ? ORDER BY mediaItemId, isFinished, currentTime`, user.ID); err != nil {
-		return authPayload[userView]{}, fmt.Errorf("load media progress: %w", err)
+	progress, err := s.progressOf(ctx, user.ID)
+	if err != nil {
+		return authPayload[userView]{}, err
 	}
 	var libraryIDs []string
 	if err := s.db.Select(ctx, &libraryIDs, `SELECT id FROM libraries ORDER BY displayOrder ASC`); err != nil {
@@ -163,4 +163,29 @@ func (s *Service) payloadFor(ctx context.Context, user db.User) (authPayload[use
 	}
 	payload.ServerSettings.LoginCustomMessage = settings.NullString(textclean.Sanitize(string(payload.ServerSettings.LoginCustomMessage)))
 	return payload, nil
+}
+
+// progressOf reads the media progress rows of a user in the order upstream
+// loads them.
+func (s *Service) progressOf(ctx context.Context, userID string) ([]db.MediaProgress, error) {
+	var progress []db.MediaProgress
+	if err := s.db.Select(ctx, &progress, `SELECT * FROM mediaProgresses WHERE userId = ? ORDER BY mediaItemId, isFinished, currentTime`, userID); err != nil {
+		return nil, fmt.Errorf("load media progress: %w", err)
+	}
+	return progress, nil
+}
+
+// UserView is a user as clients receive it (User.toOldJSONForBrowser).
+type UserView = userView
+
+// ViewOf is the view of user with an empty mediaProgress.
+func ViewOf(user db.User) UserView { return newUserView(user, nil) }
+
+// ViewWithProgress is the view of user with its media progress.
+func (s *Service) ViewWithProgress(ctx context.Context, user db.User) (UserView, error) {
+	progress, err := s.progressOf(ctx, user.ID)
+	if err != nil {
+		return UserView{}, err
+	}
+	return newUserView(user, progress), nil
 }

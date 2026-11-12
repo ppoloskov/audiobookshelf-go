@@ -43,10 +43,9 @@ type Deps struct {
 	// PodcastEpisodes quick matches a podcast's episodes against its feed and
 	// returns how many it updated.
 	PodcastEpisodes func(ctx context.Context, itemID string, overrideDetails bool) (int, error)
-	// SaveCover downloads a quick-match cover and returns the stored path.
-	SaveCover func(ctx context.Context, itemID, itemPath string, withItem bool, imageURL string) (string, error)
-	// CoverCacheDir and ItemMetadataDir are cleaned when an item is deleted;
-	// an empty ItemMetadataDir leaves item metadata alone.
+	// CoverCacheDir holds resized covers. ItemMetadataDir holds item metadata
+	// and the covers stored outside the library; both are cleaned when an item
+	// is deleted, and an empty ItemMetadataDir leaves item metadata alone.
 	CoverCacheDir, ItemMetadataDir string
 }
 
@@ -56,11 +55,12 @@ type Handler struct {
 	settings *settings.Store
 	emit     events.Emitter
 	deps     Deps
+	client   *http.Client // fetches cover URLs; refuses private addresses
 }
 
 // New returns a Handler.
 func New(d *db.DB, settings *settings.Store, emit events.Emitter, deps Deps) *Handler {
-	return &Handler{db: d, settings: settings, emit: emit, deps: deps}
+	return &Handler{db: d, settings: settings, emit: emit, deps: deps, client: httpx.NewSafeClient()}
 }
 
 // Routes registers the routes. Every route needs an authenticated user; the
@@ -74,6 +74,24 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/items/batch/delete", h.authed(h.batchDelete))
 	mux.Handle("POST /api/items/batch/update", h.authed(h.batchUpdate))
 	mux.Handle("POST /api/items/batch/quickmatch", h.authed(h.batchQuickMatch))
+
+	// Files, covers and media edits. The cover read is public (the server
+	// passes it no user), as in upstream, so image tags can load it.
+	mux.Handle("GET /api/items/{id}/cover", httpx.Handler(h.cover))
+	mux.Handle("POST /api/items/{id}/cover", h.authed(h.uploadCover))
+	mux.Handle("PATCH /api/items/{id}/cover", h.authed(h.chooseCover))
+	mux.Handle("DELETE /api/items/{id}/cover", h.authed(h.removeCover))
+	mux.Handle("GET /api/items/{id}/download", h.authed(h.downloadItem))
+	mux.Handle("GET /api/items/{id}/file/{ino}", h.authed(h.serveFile))
+	mux.Handle("GET /api/items/{id}/file/{ino}/download", h.authed(h.downloadFile))
+	mux.Handle("DELETE /api/items/{id}/file/{ino}", h.authed(h.deleteFile))
+	mux.Handle("GET /api/items/{id}/ffprobe/{ino}", h.authed(h.ffprobe))
+	mux.Handle("POST /api/items/{id}/chapters", h.authed(h.updateChapters))
+	mux.Handle("PATCH /api/items/{id}/tracks", h.authed(h.updateTracks))
+	mux.Handle("PATCH /api/items/{id}/ebook/{ino}/status", h.authed(h.updateEbookStatus))
+	mux.Handle("GET /api/items/{id}/metadata-object", h.authed(h.metadataObject))
+	mux.Handle("GET /api/items/{id}/ebook", h.authed(h.serveEbook))
+	mux.Handle("GET /api/items/{id}/ebook/{fileId}", h.authed(h.serveEbook))
 }
 
 type userHandler func(w http.ResponseWriter, r *http.Request, user *auth.Principal) error

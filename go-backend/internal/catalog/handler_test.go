@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,9 +19,7 @@ import (
 	"audiobookshelf-compat/internal/config"
 	"audiobookshelf-compat/internal/items"
 	"audiobookshelf-compat/internal/library"
-	"audiobookshelf-compat/internal/people"
 	"audiobookshelf-compat/internal/store"
-	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
 )
 
@@ -447,25 +444,6 @@ func TestHandleLibraryItemsAndItemDetail(t *testing.T) {
 	}
 }
 
-func TestDeniedItemDownloadUsesSendStatusForbidden(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT)`); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest(http.MethodGet, "/api/items/i1/download", nil), u) {
-		t.Fatal("download route did not match")
-	}
-	const body = "Forbidden"
-	if w.Code != http.StatusForbidden || w.Body.String() != body || w.Header().Get("Content-Type") != "text/plain; charset=utf-8" {
-		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
-	}
-	requireOpaqueETag(t, w.Header().Get("ETag"))
-}
-
 // Several items whose rows share one connection (the pool is one connection)
 // must all come back: the list may not hold its rows open while loading the
 // nested media.
@@ -511,141 +489,6 @@ func TestLibraryItemsListReturnsEveryItemWithItsMedia(t *testing.T) {
 	}
 	if response.Total != 3 || len(ids) != 3 || !ids["i1"] || !ids["i2"] || !ids["i3"] {
 		t.Fatalf("total=%d items=%v: %s", response.Total, ids, w.Body.String())
-	}
-}
-
-func TestBatchGetAndChapterMutationRespectCatalogPermissions(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"update":true}`)}
-	chapters := httptest.NewRecorder()
-	chapterReq := httptest.NewRequest("POST", "/api/items/i1/chapters", strings.NewReader(`{"chapters":[{"title":"Opening","start":0,"end":12.5}]}`))
-	if !h.Handle(chapters, chapterReq, u) || chapters.Code != http.StatusOK || !strings.Contains(chapters.Body.String(), `"updated":true`) {
-		t.Fatalf("chapter update status=%d body=%s", chapters.Code, chapters.Body.String())
-	}
-	var stored string
-	if err := db.QueryRow(`SELECT chapters FROM books WHERE id='b1'`).Scan(&stored); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(stored, `"title":"Opening"`) {
-		t.Fatalf("chapters not saved: %s", stored)
-	}
-	denied := httptest.NewRecorder()
-	deniedReq := httptest.NewRequest("POST", "/api/items/i1/chapters", strings.NewReader(`{"chapters":[]}`))
-	if !h.Handle(denied, deniedReq, store.User{ID: "reader", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"update":false}`)}) || denied.Code != http.StatusForbidden {
-		t.Fatalf("chapter permission status=%d body=%s", denied.Code, denied.Body.String())
-	}
-}
-
-func TestFileDownloadChecksDownloadPermission(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"audio-1","metadata":{"filename":"01.mp3","ext":".mp3","path":"/media/books/01.mp3"}}]`); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1/download", nil)
-	if !h.Handle(w, req, u) || w.Code != http.StatusForbidden {
-		t.Fatalf("download permission status=%d body=%s", w.Code, w.Body.String())
-	}
-}
-
-func TestFileDownloadResolvesFileBeforeCheckingDownloadPermission(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":false}`)}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/items/i1/file/absent-ino/download", nil)
-	if !h.Handle(w, req, u) {
-		t.Fatal("file download route did not match")
-	}
-	if w.Code != http.StatusNotFound || w.Body.String() != "Not Found" {
-		t.Fatalf("missing file status=%d body=%q", w.Code, w.Body.String())
-	}
-	if got := w.Header().Get("Content-Type"); got != "text/plain; charset=utf-8" {
-		t.Fatalf("missing file content type=%q", got)
-	}
-}
-
-func TestFileDownloadMissingDiskFileUsesSourceErrorResponse(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"audio-1","metadata":{"filename":"01.m4b","ext":".m4b","path":"/media/books/missing.m4b"}}]`); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"download":true}`)}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1/download", nil)
-	if !h.Handle(w, req, u) {
-		t.Fatal("file download route did not match")
-	}
-	if w.Code != http.StatusNotFound || w.Body.String() != "File not found" {
-		t.Fatalf("missing disk file status=%d body=%q", w.Code, w.Body.String())
-	}
-	if got := w.Header().Get("Content-Type"); got != "text/html; charset=utf-8" { // round 2: Express send() framing, not the pre-selected file type
-		t.Fatalf("missing disk file content type=%q", got)
-	}
-}
-
-func TestMetadataObjectRequiresAdminAndBuildsAudioTags(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	h := New(db, config.Config{}, nil, testDeps())
-	admin := store.User{ID: "a1", Type: "admin", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/i1/metadata-object", nil), admin) || w.Code != http.StatusOK {
-		t.Fatalf("metadata object status=%d body=%s", w.Code, w.Body.String())
-	}
-	var metadata map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &metadata); err != nil {
-		t.Fatal(err)
-	}
-	if metadata["title"] != "The Book" || metadata["artist"] != "Ada Author" || metadata["TRACKTOTAL"] != "1" || metadata["grouping"] != "First Series #1" {
-		t.Fatalf("metadata object=%#v", metadata)
-	}
-	reader := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	w = httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/i1/metadata-object", nil), reader) || w.Code != http.StatusForbidden {
-		t.Fatalf("reader status=%d body=%s", w.Code, w.Body.String())
-	}
-}
-
-func TestTrackAndEbookStatusUpdates(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, `[{"ino":"ebook-1","metadata":{"filename":"companion.epub","ext":".epub","path":"/media/books/companion.epub","format":"epub"},"isSupplementary":true}]`); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"accessAllTags":true,"update":true}`)}
-	tracks := httptest.NewRecorder()
-	trackReq := httptest.NewRequest("PATCH", "/api/items/i1/tracks", strings.NewReader(`{"orderedFileData":[{"ino":"audio-1","exclude":true}]}`))
-	if !h.Handle(tracks, trackReq, u) || tracks.Code != http.StatusOK {
-		t.Fatalf("tracks status=%d body=%s", tracks.Code, tracks.Body.String())
-	}
-	var audioJSON string
-	if err := db.QueryRow(`SELECT audioFiles FROM books WHERE id='b1'`).Scan(&audioJSON); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(audioJSON, `"exclude":true`) || !strings.Contains(audioJSON, `"index":-1`) {
-		t.Fatalf("audioFiles=%s", audioJSON)
-	}
-	ebook := httptest.NewRecorder()
-	ebookReq := httptest.NewRequest("PATCH", "/api/items/i1/ebook/ebook-1/status", nil)
-	if !h.Handle(ebook, ebookReq, u) || ebook.Code != http.StatusOK {
-		t.Fatalf("ebook status=%d body=%s", ebook.Code, ebook.Body.String())
-	}
-	var ebookJSON string
-	if err := db.QueryRow(`SELECT ebookFile FROM books WHERE id='b1'`).Scan(&ebookJSON); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(ebookJSON, `"ino":"ebook-1"`) || !strings.Contains(ebookJSON, `"ebookFormat":"epub"`) {
-		t.Fatalf("ebookFile=%s", ebookJSON)
 	}
 }
 
@@ -764,40 +607,6 @@ func TestPersonalizedBookShelvesUsePerUserProgress(t *testing.T) {
 	}
 }
 
-func TestDeleteLibraryFileRemovesManagedMediaAndMarksEmptyBookMissing(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	root := t.TempDir()
-	target := filepath.Join(root, "only.mp3")
-	if err := os.WriteFile(target, []byte("audio"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	_, _ = db.Exec(`UPDATE libraryFolders SET path=? WHERE id='f1'`, root)
-	files := `[{"ino":"file-x","metadata":{"filename":"only.mp3","ext":".mp3","path":"` + target + `","size":5}}]`
-	_, _ = db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, files)
-	_, _ = db.Exec(`UPDATE books SET audioFiles=? WHERE id='b1'`, `[{"ino":"file-x","metadata":{"filename":"only.mp3","ext":".mp3","path":"`+target+`","size":5}}]`)
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", IsActive: true, Permissions: json.RawMessage(`{"accessAllLibraries":true,"update":true}`)}
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("DELETE", "/api/items/i1/file/file-x", nil), u) || w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	if _, err := os.Stat(target); !os.IsNotExist(err) {
-		t.Fatalf("media still exists, stat err=%v", err)
-	}
-	var missing bool
-	var fileJSON, audioJSON string
-	if err := db.QueryRow(`SELECT isMissing,libraryFiles FROM libraryItems WHERE id='i1'`).Scan(&missing, &fileJSON); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.QueryRow(`SELECT audioFiles FROM books WHERE id='b1'`).Scan(&audioJSON); err != nil {
-		t.Fatal(err)
-	}
-	if !missing || fileJSON != "[]" || audioJSON != "[]" {
-		t.Fatalf("missing=%v libraryFiles=%s audioFiles=%s", missing, fileJSON, audioJSON)
-	}
-}
-
 func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
@@ -836,28 +645,6 @@ func TestLibraryDeleteClearsLibraryRowsAndRefreshesWatcher(t *testing.T) {
 	}
 }
 
-func TestCoverRawServesOriginalAndHonorsTimestampCacheHeader(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	metadata := t.TempDir()
-	cover := filepath.Join(metadata, "cover.png")
-	original := []byte("raw-cover-bytes")
-	if err := os.WriteFile(cover, original, 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`UPDATE books SET coverPath=? WHERE id='b1'`, cover); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{MetadataPath: metadata}, nil, testDeps())
-	w := httptest.NewRecorder()
-	if !h.Handle(w, httptest.NewRequest("GET", "/api/items/i1/cover?raw=1&ts=123", nil), store.User{}) {
-		t.Fatal("cover route did not match")
-	}
-	if w.Code != http.StatusOK || w.Body.String() != string(original) || w.Header().Get("Cache-Control") != "private, max-age=86400" || w.Header().Get("Content-Type") != "image/png" {
-		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
-	}
-}
-
 func TestInvalidLibraryItemsPaginationUsesExpressSend(t *testing.T) {
 	db := catalogFixture(t)
 	defer db.Close()
@@ -872,174 +659,6 @@ func TestInvalidLibraryItemsPaginationUsesExpressSend(t *testing.T) {
 		t.Fatalf("status=%d headers=%v body=%q", w.Code, w.Header(), w.Body.String())
 	}
 	requireOpaqueETag(t, w.Header().Get("ETag"))
-}
-
-func TestMediaFileUsesRangeAndRejectsPathsOutsideLibrary(t *testing.T) {
-	db := catalogFixture(t)
-	defer db.Close()
-	root := t.TempDir()
-	mediaPath := filepath.Join(root, "audio.mp3")
-	if err := os.WriteFile(mediaPath, []byte("0123456789"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`UPDATE libraryFolders SET path=? WHERE id='f1'`, root); err != nil {
-		t.Fatal(err)
-	}
-	files, _ := json.Marshal([]map[string]any{{"ino": "audio-1", "metadata": map[string]any{"filename": "audio.mp3", "ext": ".mp3", "path": mediaPath}}})
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, string(files)); err != nil {
-		t.Fatal(err)
-	}
-	h := New(db, config.Config{}, nil, testDeps())
-	u := store.User{ID: "u1", Permissions: json.RawMessage(`{"accessAllLibraries":true}`)}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/items/i1/file/audio-1", nil)
-	req.Header.Set("Range", "bytes=2-4")
-	if !h.Handle(w, req, u) {
-		t.Fatal("route did not match")
-	}
-	if w.Code != http.StatusPartialContent || w.Body.String() != "234" {
-		t.Fatalf("status=%d body=%q", w.Code, w.Body.String())
-	}
-	info, err := os.Stat(mediaPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	etag := w.Header().Get("ETag")
-	requireOpaqueETag(t, etag)
-	if got := w.Header().Get("Content-Range"); got != "bytes 2-4/10" {
-		t.Fatalf("Content-Range = %q", got)
-	}
-	for _, conditional := range []struct {
-		validator string
-		status    int
-	}{
-		{etag, http.StatusNotModified},
-		{`"different-representation"`, http.StatusOK},
-	} {
-		request := httptest.NewRequest(http.MethodGet, "/api/items/i1/file/audio-1", nil)
-		request.Header.Set("If-None-Match", conditional.validator)
-		response := httptest.NewRecorder()
-		if !h.Handle(response, request, u) || response.Code != conditional.status {
-			t.Fatalf("conditional file response = %d, want %d", response.Code, conditional.status)
-		}
-		if conditional.status == http.StatusNotModified && response.Body.Len() != 0 {
-			t.Fatalf("304 has body %q", response.Body.String())
-		}
-		if conditional.status == http.StatusOK && response.Body.String() != "0123456789" {
-			t.Fatalf("fresh file body = %q", response.Body.String())
-		}
-	}
-
-	invalid := httptest.NewRecorder()
-	invalidRequest := httptest.NewRequest("GET", "/api/items/i1/file/audio-1", nil)
-	invalidRequest.Header.Set("Range", "bytes=999999999-")
-	if !h.Handle(invalid, invalidRequest, u) {
-		t.Fatal("invalid-range route did not match")
-	}
-	if invalid.Code != http.StatusRequestedRangeNotSatisfiable || !strings.Contains(strings.ToLower(rangeErrorText(t, invalid.Body.String())), "range not satisfiable") || strings.Contains(invalid.Body.String(), "0123456789") {
-		t.Fatalf("invalid range = %d %q, want error without media contents", invalid.Code, invalid.Body.String())
-	}
-	for name, want := range map[string]string{
-		"Content-Type":   "text/html; charset=utf-8",
-		"Content-Range":  "bytes */10",
-		"Accept-Ranges":  "bytes",
-		"Content-Length": strconv.Itoa(invalid.Body.Len()),
-		"Last-Modified":  info.ModTime().UTC().Format(http.TimeFormat),
-		"ETag":           etag,
-	} {
-		if got := invalid.Header().Get(name); got != want {
-			t.Errorf("invalid range %s=%q, want %q", name, got, want)
-		}
-	}
-	head := httptest.NewRecorder()
-	headRequest := httptest.NewRequest("HEAD", "/api/items/i1/file/audio-1", nil)
-	headRequest.Header.Set("Range", "bytes=999999999-")
-	if !h.Handle(head, headRequest, u) {
-		t.Fatal("HEAD invalid-range route did not match")
-	}
-	if head.Code != http.StatusRequestedRangeNotSatisfiable || head.Body.Len() != 0 {
-		t.Fatalf("HEAD invalid range = %d with %d body bytes", head.Code, head.Body.Len())
-	}
-	if head.Header().Get("Content-Length") != strconv.Itoa(invalid.Body.Len()) || head.Header().Get("ETag") != etag {
-		t.Fatalf("HEAD invalid range headers content-length=%q ETag=%q", head.Header().Get("Content-Length"), head.Header().Get("ETag"))
-	}
-	const changedMedia = "changed audio contents"
-	if err := os.WriteFile(mediaPath, []byte(changedMedia), 0600); err != nil {
-		t.Fatal(err)
-	}
-	changedRequest := httptest.NewRequest(http.MethodGet, "/api/items/i1/file/audio-1", nil)
-	changedRequest.Header.Set("If-None-Match", etag)
-	changed := httptest.NewRecorder()
-	if !h.Handle(changed, changedRequest, u) || changed.Code != http.StatusOK || changed.Body.String() != changedMedia {
-		t.Fatalf("changed file with old validator = %d %q", changed.Code, changed.Body.String())
-	}
-	newETag := changed.Header().Get("ETag")
-	requireOpaqueETag(t, newETag)
-	if newETag == etag {
-		t.Fatal("changed media reused the old representation's validator")
-	}
-	m4bPath := filepath.Join(root, "audio.m4b")
-	if err := os.WriteFile(m4bPath, []byte("m4b"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	files, _ = json.Marshal([]map[string]any{{"ino": "m4b", "metadata": map[string]any{"filename": "audio.m4b", "ext": ".m4b", "path": m4bPath}}})
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, string(files)); err != nil {
-		t.Fatal(err)
-	}
-	m4b := httptest.NewRecorder()
-	if !h.Handle(m4b, httptest.NewRequest("GET", "/api/items/i1/file/m4b", nil), u) {
-		t.Fatal("route did not match")
-	}
-	if got := m4b.Header().Get("Content-Type"); got != "audio/mp4" {
-		t.Fatalf("m4b Content-Type=%q", got)
-	}
-	outside := filepath.Join(t.TempDir(), "outside.mp3")
-	if err := os.WriteFile(outside, []byte("secret"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	files, _ = json.Marshal([]map[string]any{{"ino": "escape", "metadata": map[string]any{"filename": "outside.mp3", "ext": ".mp3", "path": outside}}})
-	if _, err := db.Exec(`UPDATE libraryItems SET libraryFiles=? WHERE id='i1'`, string(files)); err != nil {
-		t.Fatal(err)
-	}
-	blocked := httptest.NewRecorder()
-	if !h.Handle(blocked, httptest.NewRequest("GET", "/api/items/i1/file/escape", nil), u) {
-		t.Fatal("route did not match")
-	}
-	if blocked.Code != http.StatusNotFound {
-		t.Fatalf("outside path status=%d", blocked.Code)
-	}
-}
-
-func rangeErrorText(t *testing.T, body string) string {
-	t.Helper()
-	doc, err := html.Parse(strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var text strings.Builder
-	var walk func(*html.Node, bool)
-	walk = func(n *html.Node, inBody bool) {
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "script", "iframe", "object", "embed", "style", "link":
-				t.Fatalf("active content in range error: %s", n.Data)
-			}
-			for _, attr := range n.Attr {
-				if strings.HasPrefix(attr.Key, "on") || attr.Key == "style" || attr.Key == "http-equiv" || attr.Key == "href" || attr.Key == "src" || attr.Key == "action" || attr.Key == "formaction" {
-					t.Fatalf("active attribute in range error: %s", attr.Key)
-				}
-			}
-		}
-		inBody = inBody || n.Type == html.ElementNode && n.Data == "body"
-		if inBody && n.Type == html.TextNode {
-			text.WriteString(n.Data)
-		}
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			walk(child, inBody)
-		}
-	}
-	walk(doc, false)
-	return text.String()
 }
 
 func TestPodcastItemDetailSerializesEpisodeAndTrack(t *testing.T) {
@@ -1092,7 +711,6 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request, user store.User
 	if !ok {
 		mux := http.NewServeMux()
 		h.Routes(mux)
-		people.New(h.db, config.Config{}, nil, people.Deps{Filters: h.filters}).Routes(mux)
 		library.New(h.db, nil, library.Deps{Filters: h.filters}).Routes(mux)
 		m, _ = testMuxes.LoadOrStore(h, mux)
 	}

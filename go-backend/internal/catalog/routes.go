@@ -20,21 +20,4 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	// server/routers/ApiRouter.js:60-91 (LibraryController), Express GET covers HEAD.
 	mux.Handle("DELETE /api/libraries/{id}", httputil.Handler(h.deleteLibrary))
 	mux.Handle("DELETE /api/libraries/{id}/issues", library.InLibrary(h.db, h.removeLibraryItemsWithIssues))
-
-	// server/routers/ApiRouter.js:92-130 (LibraryItemController).
-	mux.Handle("GET /api/items/{id}/download", httputil.Handler(h.itemDownload))
-	mux.Handle("GET /api/items/{id}/file/{ino}", httputil.Handler(h.mediaFile))
-	mux.Handle("GET /api/items/{id}/file/{ino}/download", httputil.Handler(h.mediaFile))
-	mux.Handle("DELETE /api/items/{id}/file/{ino}", httputil.Handler(h.deleteLibraryFile))
-	mux.Handle("GET /api/items/{id}/ffprobe/{ino}", httputil.Handler(h.ffprobe))
-	mux.Handle("POST /api/items/{id}/chapters", httputil.Handler(h.updateChapters))
-	mux.Handle("PATCH /api/items/{id}/tracks", httputil.Handler(h.updateTracks))
-	mux.Handle("PATCH /api/items/{id}/ebook/{ino}/status", httputil.Handler(h.updateEbookStatus))
-	mux.Handle("GET /api/items/{id}/metadata-object", httputil.Handler(h.metadataObject))
-	mux.Handle("GET /api/items/{id}/ebook", httputil.Handler(h.ebookFile))
-	mux.Handle("GET /api/items/{id}/ebook/{fileId}", httputil.Handler(h.ebookFile))
-	mux.Handle("GET /api/items/{id}/cover", httputil.Handler(h.cover))
-	mux.Handle("POST /api/items/{id}/cover", httputil.Handler(h.uploadCover))
-	mux.Handle("PATCH /api/items/{id}/cover", httputil.Handler(h.updateCover))
-	mux.Handle("DELETE /api/items/{id}/cover", httputil.Handler(h.removeCover))
 }

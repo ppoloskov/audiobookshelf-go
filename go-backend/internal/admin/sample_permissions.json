@@ -1,0 +1,20 @@
+{
+  "canDownload": false,
+  "canUpload": false,
+  "canDelete": false,
+  "canUpdate": false,
+  "canAccessExplicitContent": false,
+  "canAccessAllLibraries": false,
+  "canAccessAllTags": false,
+  "canCreateEReader": false,
+  "tagsAreDenylist": false,
+  "allowedLibraries": [
+    "5406ba8a-16e1-451d-96d7-4931b0a0d966",
+    "918fd848-7c1d-4a02-818a-847435a879ca"
+  ],
+  "allowedTags": [
+    "ExampleTag",
+    "AnotherTag",
+    "ThirdTag"
+  ]
+}

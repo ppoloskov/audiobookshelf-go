@@ -120,11 +120,11 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 // matchCover downloads the match's cover when the item has none or the cover
 // is overridden. A failure is logged and does not fail the match.
 func (h *Handler) matchCover(ctx context.Context, ref itemRef, withItem bool, cover json.RawMessage, stored *string, override bool) *string {
-	if !matchTruthy(cover) || (db.Val(stored) != "" && !override) || h.deps.SaveCover == nil {
+	if !matchTruthy(cover) || (db.Val(stored) != "" && !override) {
 		return nil
 	}
 	url := matchText(cover)
-	path, err := h.deps.SaveCover(ctx, ref.ID, ref.Path, withItem, url)
+	path, err := h.saveCoverFromURL(ctx, h.coverDir(ref, withItem), ref.ID, url)
 	if err != nil {
 		slog.Warn("match cover failed to use", "cover", url, "error", err)
 		return nil

@@ -4,7 +4,11 @@ import "strings"
 
 // Info is what a User-Agent tells about its client; unrecognised parts are "".
 type Info struct {
-	Browser, BrowserVersion, OSName, OSVersion, DeviceType string
+	Browser        string `json:"browserName,omitempty"`
+	BrowserVersion string `json:"browserVersion,omitempty"`
+	OSName         string `json:"osName,omitempty"`
+	OSVersion      string `json:"osVersion,omitempty"`
+	DeviceType     string `json:"deviceType,omitempty"`
 }
 
 // Parse extracts the browser, operating system and device type shared by

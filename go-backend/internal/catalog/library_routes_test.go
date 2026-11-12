@@ -212,7 +212,7 @@ func TestOPMLSemanticComparison(t *testing.T) {
 
 func newOPMLRouteRig(t *testing.T) *authorRig {
 	t.Helper()
-	rig := newAuthorRig(t, nil)
+	rig := newAuthorRig(t)
 	if _, err := rig.db.Exec(`CREATE TABLE podcasts (id TEXT PRIMARY KEY,title TEXT,feedURL TEXT,description TEXT,itunesPageURL TEXT,language TEXT,explicit BOOLEAN,tags JSON)`); err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestLibraryOPMLRoute(t *testing.T) {
 }
 
 func TestLibraryRemoveMetadata(t *testing.T) {
-	rig := newAuthorRig(t, nil)
+	rig := newAuthorRig(t)
 	dir := t.TempDir()
 	file := filepath.Join(dir, "metadata.json")
 	if err := os.WriteFile(file, []byte("{}"), 0o644); err != nil {
@@ -318,7 +318,7 @@ func zipNames(t *testing.T, body []byte) []string {
 }
 
 func TestLibraryDownload(t *testing.T) {
-	rig := newAuthorRig(t, nil)
+	rig := newAuthorRig(t)
 	root := t.TempDir()
 	dir := filepath.Join(root, "The Book")
 	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); err != nil {

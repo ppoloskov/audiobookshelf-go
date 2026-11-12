@@ -91,6 +91,12 @@ func (s *Service) legacyToken(userID, username string) (string, error) {
 	return sign(s.secret, Claims{RegisteredClaims: jwt.RegisteredClaims{IssuedAt: jwt.NewNumericDate(time.Now())}, UserID: userID, Username: username})
 }
 
+// LegacyToken is legacyToken for the user administration, which re-issues the
+// token of a renamed user.
+func (s *Service) LegacyToken(userID, username string) (string, error) {
+	return s.legacyToken(userID, username)
+}
+
 // apiKeyToken issues the bearer token of an API key; a zero expires never
 // expires.
 func (s *Service) apiKeyToken(keyID, name string, expires time.Time) (string, error) {

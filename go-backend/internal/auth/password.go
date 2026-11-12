@@ -2,10 +2,11 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net/http"
 
 	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/httpx"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,8 +23,8 @@ func HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-// errBadPassword is the text callers show for any failed password check.
-var errBadPassword = errors.New("Invalid password")
+// errBadPassword is the answer to any failed password check.
+var errBadPassword = httpx.Error(http.StatusBadRequest, "Invalid password")
 
 // checkPassword applies the local login rule (LocalAuthStrategy.js): the root
 // user with no stored password logs in with an empty one; every other user
@@ -40,15 +41,16 @@ func checkPassword(user db.User, password string) error {
 }
 
 // ChangePassword sets a new password after checking the current one. Only
-// root may use an empty new password (LocalAuthStrategy.changePassword). The
-// error texts are shown to the user.
+// root may use an empty new password (LocalAuthStrategy.changePassword). A
+// refused change is an httpx 400 whose text is shown to the user; any other
+// error is internal.
 func (s *Service) ChangePassword(ctx context.Context, userID, password, newPassword string) error {
 	user, err := s.userByID(ctx, userID)
 	if err != nil {
 		return err
 	}
 	if db.Val(user.Type) != "root" && newPassword == "" {
-		return errors.New("Invalid new password - Only root can have an empty password")
+		return httpx.Error(http.StatusBadRequest, "Invalid new password - Only root can have an empty password")
 	}
 	if err := checkPassword(user, password); err != nil {
 		return err
@@ -57,7 +59,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID, password, newPassw
 	if newPassword != "" {
 		hash, err := HashPassword(newPassword)
 		if err != nil {
-			return errors.New("Hash failed")
+			return httpx.Internal("Hash failed", err)
 		}
 		user.Pash = &hash
 	}

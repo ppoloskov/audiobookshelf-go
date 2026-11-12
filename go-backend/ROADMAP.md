@@ -45,10 +45,10 @@ Mark a task `[x]` in the commit that completes it.
 
 - [x] **D1 `metadata`**: one typed result per search kind behind a small
   provider interface. Replaces `providers`, `wire` match types.
-- [ ] **D2 `item` writes** (D2a done: detail, media PATCH, batch, relations, deletion, quick match; D2b open: covers, files, catalog's library routes): media PATCH, batch, relations, deletion, covers,
+- [x] **D2 `item` writes**: media PATCH, batch, relations, deletion, covers,
   files, quick match, `metadata.json` writer. Replaces `catalog`,
   `itemwrite`, `sqlupdate`.
-- [ ] **D3 `library`**: libraries, browse, shelves, search, series, authors,
+- [ ] **D3 `library`** (`author` done as its own package; library itself open): libraries, browse, shelves, search, series, authors,
   narrators, stats, filter data. Replaces `library` (old), `people`,
   `filterdata`.
 - [x] **D4 `list`**: collections and playlists. Replaces `lists`,
@@ -62,9 +62,9 @@ Mark a task `[x]` in the commit that completes it.
   Replaces `podcasts`.
 - [ ] **D8 `scan`**: walk, match, plan, apply; watcher; sidecar readers.
   Replaces `scanner`.
-- [ ] **D9 `user`**: account, users admin, API-key routes. Replaces the rest
+- [x] **D9 `user`**: account, users admin, API-key routes. Replaces the rest
   of `userapi`.
-- [ ] **D10 `admin`, `notify`, `mail`, `backup`, `tools`** (`notify` and `mail` done): replaces `adminops`,
+- [x] **D10 `admin`, `notify`, `mail`, `backup`, `tools`**: replaces `adminops`,
   `emailapi`, `notifications`, `backup` (old), `audiotools`.
 
 ## Wave 4: close
