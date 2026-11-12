@@ -432,9 +432,25 @@ func TestTokenSecretIsGeneratedAndStored(t *testing.T) {
 	if err != nil || len(s.secret) == 0 || string(st.Server().TokenSecret) != string(s.secret) {
 		t.Fatalf("secret %q err %v stored %q", s.secret, err, st.Server().TokenSecret)
 	}
+	// A second start reuses the secret and leaves the settings row untouched.
+	type row struct {
+		Value     string `db:"value"`
+		UpdatedAt string `db:"updatedAt"`
+	}
+	var before, after row
+	if err := d.Get(t.Context(), &before, "SELECT value, updatedAt FROM settings WHERE `key` = 'server-settings'"); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, "UPDATE settings SET updatedAt = '2000-01-01 00:00:00.000 +00:00' WHERE `key` = 'server-settings'")
 	again, err := New(d, st, nil, config.Config{})
 	if err != nil || string(again.secret) != string(s.secret) {
 		t.Fatal("the stored secret was not reused")
+	}
+	if err := d.Get(t.Context(), &after, "SELECT value, updatedAt FROM settings WHERE `key` = 'server-settings'"); err != nil {
+		t.Fatal(err)
+	}
+	if after.Value != before.Value || after.UpdatedAt != "2000-01-01 00:00:00.000 +00:00" {
+		t.Fatalf("starting with a stored secret rewrote the settings row")
 	}
 }
 

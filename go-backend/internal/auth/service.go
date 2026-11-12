@@ -52,6 +52,12 @@ func New(d *db.DB, st *settings.Store, emit events.Emitter, cfg config.Config) (
 	if len(s.secret) > 0 {
 		return s, nil
 	}
+	// An existing secret is used as stored: starting the server must not
+	// rewrite the settings row of an installation.
+	if secret := st.Server().TokenSecret; secret != "" {
+		s.secret = []byte(secret)
+		return s, nil
+	}
 	_, err := st.UpdateServer(context.Background(), func(server *settings.Server) error {
 		if server.TokenSecret == "" {
 			raw := make([]byte, 256)
