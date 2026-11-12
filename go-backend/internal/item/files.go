@@ -19,8 +19,6 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/filekind"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/playlistview"
-	"audiobookshelf-compat/internal/store"
 )
 
 // readable loads the item (404) and checks the user's library access (403).
@@ -174,7 +172,7 @@ func (h *Handler) deleteFile(w http.ResponseWriter, r *http.Request, user *auth.
 	if err != nil {
 		return err
 	}
-	var playlists []store.PlaylistChange
+	var playlists []PlaylistChange
 	err = h.db.Tx(ctx, func(ctx context.Context) error {
 		files, err := h.libraryFiles(ctx, ref.ID)
 		if err != nil {
@@ -205,7 +203,7 @@ func (h *Handler) deleteFile(w http.ResponseWriter, r *http.Request, user *auth.
 	if err := os.Remove(removed.Metadata.Path); err != nil {
 		slog.Warn("remove library file", "path", removed.Metadata.Path, "error", err)
 	}
-	playlistview.Announce(ctx, h.db.SQL(), h.emit, playlists)
+	h.announcePlaylists(ctx, playlists)
 	if err := h.announce(ctx, ref.ID); err != nil {
 		return httpx.Internal("database read failed", err)
 	}
@@ -240,12 +238,12 @@ func (h *Handler) dropBookFile(ctx context.Context, ref itemRef, ino string, ite
 
 // dropEpisode removes the podcast episode whose audio file has inode ino, with
 // its progress and playlist entries (sql.ErrNoRows when there is none).
-func (h *Handler) dropEpisode(ctx context.Context, ref itemRef, ino string) ([]store.PlaylistChange, error) {
+func (h *Handler) dropEpisode(ctx context.Context, ref itemRef, ino string) ([]PlaylistChange, error) {
 	var episodeID string
 	if err := h.db.Get(ctx, &episodeID, `SELECT id FROM podcastEpisodes WHERE podcastId = ? AND json_extract(audioFile, '$.ino') = ?`, ref.MediaID, ino); err != nil {
 		return nil, err
 	}
-	changes, err := h.removeFromPlaylists(ctx, []string{episodeID})
+	changes, err := RemoveFromPlaylists(ctx, h.db, []string{episodeID})
 	if err != nil {
 		return nil, err
 	}

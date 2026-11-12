@@ -16,8 +16,8 @@ import (
 	"audiobookshelf-compat/internal/db/dbtest"
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
+	"audiobookshelf-compat/internal/metadata"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/wire"
 )
 
 type sentEvent struct {
@@ -27,17 +27,19 @@ type sentEvent struct {
 
 // fakeBooks is the provider search behind quick match.
 type fakeBooks struct {
-	books    []wire.BookMatch
-	podcasts []wire.PodcastMatch
-	queries  []wire.BookSearch
+	books    []metadata.BookResult
+	podcasts []metadata.PodcastResult
+	queries  []metadata.BookQuery
 }
 
-func (f *fakeBooks) SearchBooks(_ context.Context, q wire.BookSearch) []wire.BookMatch {
+func (f *fakeBooks) SearchBooks(_ context.Context, q metadata.BookQuery) []metadata.BookResult {
 	f.queries = append(f.queries, q)
 	return f.books
 }
 
-func (f *fakeBooks) SearchPodcasts(context.Context, string) []wire.PodcastMatch { return f.podcasts }
+func (f *fakeBooks) SearchPodcasts(context.Context, string) []metadata.PodcastResult {
+	return f.podcasts
+}
 
 // rig serves the item routes over the pinned schema (foreign keys on).
 //
@@ -57,6 +59,7 @@ type rig struct {
 	events    []sentEvent
 	touched   []string
 	scheduled []string
+	announced []PlaylistChange
 }
 
 const ts = "2024-01-01 00:00:00.000 +00:00"
@@ -88,17 +91,19 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.h = New(r.d, store, events.Emitter(func(audience, name string, payload any) {
+	emit := events.Emitter(func(audience, name string, payload any) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.events = append(r.events, sentEvent{audience, name, payload})
-	}), Deps{
-		Filters:         r.filters,
-		Books:           r.finder,
-		WriteMetadata:   func(_ context.Context, id string) error { r.touched = append(r.touched, id); return nil },
-		ScheduleChanged: func(_ context.Context, id string) { r.scheduled = append(r.scheduled, id) },
-		CoverCacheDir:   r.cacheDir,
-		ItemMetadataDir: r.metaDir,
+	})
+	r.h = New(r.d, store, emit, Deps{
+		AnnouncePlaylists: func(_ context.Context, changes []PlaylistChange) { r.announced = append(r.announced, changes...) },
+		Filters:           r.filters,
+		Books:             r.finder,
+		WriteMetadata:     func(_ context.Context, id string) error { r.touched = append(r.touched, id); return nil },
+		ScheduleChanged:   func(_ context.Context, id string) { r.scheduled = append(r.scheduled, id) },
+		CoverCacheDir:     r.cacheDir,
+		ItemMetadataDir:   r.metaDir,
 	})
 	r.mux = http.NewServeMux()
 	r.h.Routes(r.mux)

@@ -63,20 +63,22 @@ Updated 2026-11-11.
   bad library cron is logged and skipped; one deletion implementation
   (`item`) serves item, library, issues and folder removal.
 
+- Cleanup pass 1: realtime filters on the typed principal and typed views
+  only; online-user events carry a small struct (no token or permissions);
+  a revoked socket receives nothing; playlist announcements after deletion
+  go through one func implemented by `list`; cover and author image
+  downloads are capped at 10 MiB; series routes check library access.
+
 ## Follow-ups
 
-- `GET /api/series/{id}` checks that the user can see a book of the series
-  but not access to the series' library; add the library check.
-- Port the old scanner's table cases for track/disc ordering, chapter
-  building, OPF/NFO parsing and path-derived metadata as unit tests.
+- `user.Deps.UsersOnline` takes maps; make it `[]realtime.OnlineUser`.
 
-- Bound the author image download from a URL (no size cap today).
 - `podcast` create ignores `autoDownloadEpisodes` nested under `media`, as
   the old code did; the web client sends it there.
 
 ## Size, measured
 
-Production lines: 39,740 before the rewrite, 40,459 after Wave 3d (old shared packages and sqlc still present).
+Production lines: 39,740 before the rewrite, 38,648 after cleanup pass 1 (store, access, serversettings, httputil, sqlc and friends still to delete).
 
 Typed rewrites of dense old code come out about the same size (Wave 3 so
 far: 6,205 old lines, 6,034 new). Expect real reductions only where the old

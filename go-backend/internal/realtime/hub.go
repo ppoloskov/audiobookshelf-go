@@ -3,53 +3,40 @@
 package realtime
 
 import (
-	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/jsonvalue"
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
-	"audiobookshelf-compat/internal/db/sqlc"
+	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/events"
-	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
-	"audiobookshelf-compat/internal/users"
 )
-
-// Action is a request delegated to another domain package. Replies may be
-// emitted asynchronously for streaming actions such as cover search.
-type Action struct {
-	SocketID string
-	User     store.User
-	Event    string
-	Payload  any
-	Reply    func(event string, payload any)
-	Ack      Ack
-}
 
 // Backend is the running server as the hub needs it: it authenticates the
 // token of a Socket.IO "auth" event (the HTTP bearer check), reaches the
-// database for last-seen writes and permission refreshes, performs domain
-// actions, and describes a user's open playback session. The hub outlives a
+// database for last-seen writes and permission refreshes, describes a user's
+// open playback session, and performs the client actions. The hub outlives a
 // backup restore, so it asks for the current Backend on every use.
 type Backend interface {
-	Authenticate(*http.Request) (store.User, error)
-	DB() *sql.DB
-	Dispatch(context.Context, Action) error
+	Authenticate(*http.Request) (*auth.Principal, error)
+	DB() *db.DB
 	Session(userID string) any
+	Actions
 }
 
 type client struct {
 	socket      *Socket
-	user        *store.User
+	user        *auth.Principal // nil until the socket authenticated
+	revoked     bool            // the user was deleted or deactivated; the socket receives nothing
 	connectedAt time.Time
-	grants      access.Permissions // decoded from user.Permissions when the user is set
 }
 
 // Hub owns one or two Socket.IO servers: the legacy /socket.io path and, when
@@ -136,101 +123,91 @@ func (h *Hub) connected(s *Socket, path string) {
 	h.mu.Lock()
 	h.clients[id] = c
 	h.mu.Unlock()
-	logging.Infof("[SocketAuthority] Socket Connected to %s %s", path, id) // SocketAuthority.js:185
+	slog.Info(fmt.Sprintf("[SocketAuthority] Socket Connected to %s %s", path, id)) // SocketAuthority.js:185
 
 	// Handlers run in order on the connection's reader goroutine, so none may
-	// block for long. Auth does bounded database work; the dispatcher actions
-	// only signal other components.
+	// block for long. Auth does bounded database work; the actions only signal
+	// other components.
 	s.On("auth", func(args []any, _ Ack) { h.handleAuth(s, first(args)) })
-	s.On("cancel_scan", func(args []any, ack Ack) {
-		user, ok := h.requireAdmin(id, "cancel_scan")
-		if !ok {
+	s.On("cancel_scan", func(args []any, _ Ack) {
+		if !h.requireAdmin(id, "cancel_scan") {
 			return
 		}
-		h.dispatchAction(s, user, "cancel_scan", first(args), nil, ack)
+		if libraryID, ok := decode[string](id, "cancel_scan", args); ok && libraryID != "" {
+			h.backend().CancelScan(libraryID)
+		}
 	})
-	s.On("search_covers", func(args []any, ack Ack) { h.handleSearchCovers(s, args, ack) })
-	s.On("cancel_cover_search", func(args []any, ack Ack) { h.handleCancelCoverSearch(s, args, ack) })
-	s.On("set_log_listener", func(args []any, ack Ack) {
-		user, ok := h.requireAdmin(id, "set_log_listener")
-		if !ok {
+	s.On("search_covers", func(args []any, _ Ack) { h.handleSearchCovers(s, args) })
+	s.On("cancel_cover_search", func(args []any, _ Ack) { h.handleCancelCoverSearch(s, args) })
+	s.On("set_log_listener", func(args []any, _ Ack) {
+		if !h.requireAdmin(id, "set_log_listener") {
 			return
 		}
-		level, ok := integer(first(args))
+		level, ok := decode[int](id, "set_log_listener", args)
 		if !ok || level < 0 || level > 6 {
-			logging.Warnf("[SocketAuthority] Invalid set_log_listener level from socket %s", id)
+			slog.Warn(fmt.Sprintf("[SocketAuthority] Invalid set_log_listener level from socket %s", id))
 			return
 		}
-		h.dispatchAction(s, user, "set_log_listener", level, nil, ack)
+		h.backend().SetLogListener(id, level)
 	})
 	s.On("remove_log_listener", func([]any, Ack) {
 		// Upstream allows this event without checking authentication.
-		h.dispatchAction(s, store.User{}, "remove_log_listener", nil, nil, nil)
+		h.backend().RemoveLogListener(id)
 	})
 	s.On("message_all_users", func(args []any, _ Ack) {
-		user, ok := h.userFor(id)
-		if !ok || !access.AdminUser(user) {
-			logging.Error("[SocketAuthority] Non-admin user sent the message_all_users event") // SocketAuthority.js:246
+		if user, ok := h.userFor(id); !ok || !user.IsAdmin() {
+			slog.Error("[SocketAuthority] Non-admin user sent the message_all_users event") // SocketAuthority.js:246
 			return
 		}
-		payload := object(first(args))
-		message := any("")
-		if candidate, exists := payload["message"]; exists && jsonvalue.Truthy(candidate) {
-			message = candidate
+		if body, ok := decode[adminMessage](id, "message_all_users", args); ok {
+			h.Emit(events.AllUsers, "admin_message", body.Message)
 		}
-		h.Emit(events.AllUsers, "admin_message", message)
 	})
 	s.On("ping", func([]any, Ack) { s.Emit("pong") })
 	s.On("disconnect", func(args []any, _ Ack) { h.disconnected(id, first(args)) })
 }
 
+// adminMessage is the payload of message_all_users.
+type adminMessage struct {
+	Message string `json:"message"`
+}
+
 func (h *Hub) disconnected(id string, reason any) {
 	h.mu.RLock()
 	c := h.clients[id]
-	var user store.User
-	online := false
+	var user *auth.Principal
 	var connectedFor time.Duration
-	if c != nil && c.user != nil {
-		user = *c.user
-		online = true
-	}
 	if c != nil {
+		user = c.user
 		connectedFor = time.Since(c.connectedAt)
 	}
 	h.mu.RUnlock()
 	// SocketAuthority.js:216-228
 	switch {
 	case c == nil:
-		logging.Warnf("[SocketAuthority] Socket %s disconnect, no client (Reason: %v)", id, reason)
-	case !online:
-		logging.Infof("[SocketAuthority] Unauth socket %s disconnected (Reason: %v)", id, reason)
+		slog.Warn(fmt.Sprintf("[SocketAuthority] Socket %s disconnect, no client (Reason: %v)", id, reason))
+	case user == nil:
+		slog.Info(fmt.Sprintf("[SocketAuthority] Unauth socket %s disconnected (Reason: %v)", id, reason))
 	default:
-		logging.Infof("[SocketAuthority] Socket %s disconnected from client %q after %dms (Reason: %v)", id, user.Username, connectedFor.Milliseconds(), reason)
+		slog.Info(fmt.Sprintf("[SocketAuthority] Socket %s disconnected from client %q after %dms (Reason: %v)", id, db.Val(user.Username), connectedFor.Milliseconds(), reason))
 	}
-	var offline map[string]any
-	if online {
-		offline = users.OnlineUserDTO(user, h.backend().Session(user.ID))
+	backend := h.backend()
+	var offline OnlineUser
+	if user != nil {
+		offline = onlineUserOf(user, backend.Session(user.ID))
 	}
-	_ = h.backend().Dispatch(context.Background(), Action{SocketID: id, User: user, Event: "remove_log_listener"})
-	if offline != nil {
+	backend.RemoveLogListener(id)
+	if user != nil {
 		h.Emit(events.Admins, "user_offline", offline)
-		_ = h.backend().Dispatch(context.Background(), Action{SocketID: id, User: user, Event: "disconnect"})
 	}
 	h.mu.Lock()
 	delete(h.clients, id)
 	h.mu.Unlock()
 }
 
-func (h *Hub) dispatchAction(s *Socket, user store.User, event string, payload any, reply func(string, any), ack Ack) {
-	action := Action{SocketID: s.ID(), User: user, Event: event, Payload: payload, Reply: reply, Ack: ack}
-	if err := h.backend().Dispatch(context.Background(), action); err != nil && event == "search_covers" {
-		h.emitCoverError(s, object(payload)["requestId"], err.Error())
-	}
-}
-
 // Emit sends one event to a user, administrators/root, or all authenticated
 // users. Broadcasts filter item-shaped payloads against library/tag/explicit
-// permissions when the payload contains enough metadata to make that decision.
+// permissions (see payloadForUser). Sockets of a revoked user receive nothing.
 // Recipients are chosen under the lock; sending only enqueues, outside it.
 func (h *Hub) Emit(userID, event string, payload any) {
 	type delivery struct {
@@ -240,16 +217,16 @@ func (h *Hub) Emit(userID, event string, payload any) {
 	h.mu.RLock()
 	var send []delivery
 	for _, c := range h.clients {
-		if c.user == nil || c.socket == nil {
+		if c.user == nil || c.revoked || c.socket == nil {
 			continue
 		}
 		allowed := false
 		userPayload := payload
 		switch userID {
 		case events.AllUsers:
-			userPayload, allowed = payloadForUser(&c.grants, payload)
+			userPayload, allowed = payloadForUser(c.user, payload)
 		case events.Admins:
-			allowed = access.AdminUser(*c.user)
+			allowed = c.user.IsAdmin()
 		default:
 			allowed = c.user.ID == userID
 		}
@@ -268,33 +245,34 @@ func (h *Hub) Emit(userID, event string, payload any) {
 // at socket auth (UserController.js:347 and :402 only emit to the actor and to
 // admins), so a revoked user keeps receiving events; we fail closed instead:
 // connections take the new permissions, and those of a deleted or deactivated
-// user are disconnected, as socket auth already refuses them.
+// user stop receiving events and are disconnected, as socket auth already
+// refuses them.
 func (h *Hub) Refresh(ctx context.Context, userID string) error {
-	row, err := sqlc.New(h.backend().DB()).GetUserByID(ctx, userID)
-	var user store.User
-	if err == nil {
-		user, err = store.UserFromRow(row)
+	database := h.backend().DB()
+	if database == nil {
+		return errors.New("realtime: database unavailable")
 	}
+	var row db.User
+	err := database.Get(ctx, &row, `SELECT * FROM users WHERE id = ?`, userID)
 	gone := errors.Is(err, sql.ErrNoRows)
 	if err != nil && !gone {
-		return err
+		return fmt.Errorf("refresh user: %w", err)
 	}
+	principal := auth.NewPrincipal(row)
 	var drop []*Socket
 	h.mu.Lock()
 	for _, c := range h.clients {
 		if c.user == nil || c.user.ID != userID {
 			continue
 		}
-		if gone || !user.IsActive {
-			c.grants = access.Permissions{} // denies item events until the disconnect lands
+		if gone || !bool(row.IsActive) {
+			c.revoked = true
 			if c.socket != nil {
 				drop = append(drop, c.socket)
 			}
 			continue
 		}
-		user.LastSeen = c.user.LastSeen
-		copy := user
-		c.user, c.grants = &copy, access.Of(copy)
+		c.user = principal
 	}
 	h.mu.Unlock()
 	for _, s := range drop {
@@ -303,6 +281,8 @@ func (h *Hub) Refresh(ctx context.Context, userID string) error {
 	return nil
 }
 
+// EmitSocket sends one event to one socket, authenticated or not. It reports
+// whether the packet was queued.
 func (h *Hub) EmitSocket(socketID, event string, payload any) bool {
 	h.mu.RLock()
 	client := h.clients[socketID]
@@ -314,38 +294,39 @@ func (h *Hub) EmitSocket(socketID, event string, payload any) bool {
 }
 
 // requireAdmin is SocketAuthority.requireAdminSocket (SocketAuthority.js:88).
-func (h *Hub) requireAdmin(id, eventName string) (store.User, bool) {
-	user, ok := h.userFor(id)
-	if ok && access.AdminUser(user) {
-		return user, true
+func (h *Hub) requireAdmin(id, eventName string) bool {
+	if user, ok := h.userFor(id); ok && user.IsAdmin() {
+		return true
 	}
-	logging.Warnf("[SocketAuthority] Unauthorized %s socket event from socket %s", eventName, id)
-	return user, false
+	slog.Warn(fmt.Sprintf("[SocketAuthority] Unauthorized %s socket event from socket %s", eventName, id))
+	return false
 }
 
-func (h *Hub) userFor(id string) (store.User, bool) {
+// userFor returns the principal a socket authenticated as.
+func (h *Hub) userFor(id string) (*auth.Principal, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	c := h.clients[id]
 	if c == nil || c.user == nil {
-		return store.User{}, false
+		return nil, false
 	}
-	return *c.user, true
+	return c.user, true
 }
 
-// UsersOnline returns the deduplicated connected-user list in the same shape
-// sent to administrators by Socket.IO init and user_online events.
-func (h *Hub) UsersOnline() []map[string]any {
+// UsersOnline returns the deduplicated connected-user list in the shape sent
+// to administrators by Socket.IO init and user_online events, ordered by user
+// id. The playback lookup runs outside the hub's lock.
+func (h *Hub) UsersOnline() []OnlineUser {
 	h.mu.RLock()
 	type userCount struct {
-		user        store.User
+		user        *auth.Principal
 		connections int
 	}
 	online := make(map[string]userCount)
 	for _, c := range h.clients {
 		if c.user != nil {
 			entry := online[c.user.ID]
-			entry.user = *c.user
+			entry.user = c.user
 			entry.connections++
 			online[c.user.ID] = entry
 		}
@@ -356,11 +337,11 @@ func (h *Hub) UsersOnline() []map[string]any {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	result := make([]map[string]any, 0, len(ids))
+	result := make([]OnlineUser, 0, len(ids))
 	for _, id := range ids {
 		entry := online[id]
-		public := users.OnlineUserDTO(entry.user, h.backend().Session(entry.user.ID))
-		public["connections"] = entry.connections
+		public := onlineUserOf(entry.user, h.backend().Session(id))
+		public.Connections = entry.connections
 		result = append(result, public)
 	}
 	return result
@@ -371,27 +352,4 @@ func first(args []any) any {
 		return nil
 	}
 	return args[0]
-}
-
-func object(value any) map[string]any {
-	if result, ok := value.(map[string]any); ok && result != nil {
-		return result
-	}
-	return map[string]any{}
-}
-
-func integer(value any) (int, bool) {
-	switch n := value.(type) {
-	case int:
-		return n, true
-	case int32:
-		return int(n), true
-	case int64:
-		return int(n), true
-	case float64:
-		if n == float64(int(n)) {
-			return int(n), true
-		}
-	}
-	return 0, false
 }

@@ -11,9 +11,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // get is LibraryItemController.findOne: the full item, or with ?expanded=1 the
@@ -54,17 +52,19 @@ func (h *Handler) includes(r *http.Request, user *auth.Principal, out *Expanded)
 		out.UserMediaProgress = orNull(progress, progress != nil)
 	}
 	if has("rssfeed") {
-		feed, ok, err := feeds.LoadMinified(ctx, h.db.SQL(), "", out.ID)
-		if err != nil {
+		// Like RssFeedManager.findFeedForEntityId (:59): the first feed of the entity, of any type.
+		var feed feedRow
+		err := h.db.Get(ctx, &feed, `SELECT `+feedColumns+` FROM feeds WHERE entityId = ? LIMIT 1`, out.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		out.RSSFeed = orNull(feed, ok)
+		out.RSSFeed = orNull(feed.view(), err == nil)
 	}
 	if out.MediaType == "podcast" && has("downloads") && h.deps.Downloads != nil {
 		queued, current := h.deps.Downloads.EpisodeDownloads(out.ID)
 		out.EpisodeDownloadsQueued = queued
 		if current != nil {
-			out.EpisodesDownloading = []wire.EpisodeDownload{*current}
+			out.EpisodesDownloading = []EpisodeDownload{*current}
 		}
 	}
 	// mediaItemShare is ShareManager.findByMediaItemId: null without an open share.
@@ -86,10 +86,33 @@ func orNull(v any, present bool) any {
 	return JSONNull
 }
 
+// MediaProgress is the legacy media progress object
+// (server/models/MediaProgress.js:155 getOldMediaProgress). Key order follows
+// upstream. EpisodeID is set only for podcast episodes; every other nullable
+// scalar marshals as null.
+type MediaProgress struct {
+	ID                        string   `json:"id"`
+	UserID                    string   `json:"userId"`
+	LibraryItemID             *string  `json:"libraryItemId"`
+	EpisodeID                 *string  `json:"episodeId"`
+	MediaItemID               string   `json:"mediaItemId"`
+	MediaItemType             string   `json:"mediaItemType"`
+	Duration                  *float64 `json:"duration"`
+	Progress                  float64  `json:"progress"`
+	CurrentTime               *float64 `json:"currentTime"`
+	IsFinished                bool     `json:"isFinished"`
+	HideFromContinueListening bool     `json:"hideFromContinueListening"`
+	EbookLocation             *string  `json:"ebookLocation"`
+	EbookProgress             *float64 `json:"ebookProgress"`
+	LastUpdate                *int64   `json:"lastUpdate"`
+	StartedAt                 *int64   `json:"startedAt"`
+	FinishedAt                *int64   `json:"finishedAt"`
+}
+
 // progress is User.getOldMediaProgress (User.js:716): the user's first
 // progress (index order) of the library item, restricted to episodeID when
 // given; nil when absent.
-func (h *Handler) progress(ctx context.Context, userID, itemID, episodeID string) (*wire.MediaProgress, error) {
+func (h *Handler) progress(ctx context.Context, userID, itemID, episodeID string) (*MediaProgress, error) {
 	var row db.MediaProgress
 	err := h.db.Get(ctx, &row, `SELECT * FROM mediaProgresses WHERE userId = ? AND json_extract(extraData,'$.libraryItemId') = ? AND (? = '' OR mediaItemId = ?) ORDER BY mediaItemId, isFinished, currentTime LIMIT 1`, userID, itemID, episodeID, episodeID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -98,7 +121,7 @@ func (h *Handler) progress(ctx context.Context, userID, itemID, episodeID string
 	if err != nil {
 		return nil, err
 	}
-	out := wire.MediaProgress{
+	out := MediaProgress{
 		ID: row.ID, UserID: userID, LibraryItemID: &itemID, MediaItemID: db.Val(row.MediaItemID), MediaItemType: db.Val(row.MediaItemType),
 		Duration: row.Duration, CurrentTime: db.Ptr(db.Val(row.CurrentTime)), IsFinished: bool(row.IsFinished),
 		HideFromContinueListening: bool(row.HideFromContinueListening), EbookLocation: row.EbookLocation, EbookProgress: row.EbookProgress,

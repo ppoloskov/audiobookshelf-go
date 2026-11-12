@@ -252,8 +252,9 @@ type seriesDetail struct {
 }
 
 // accessibleSeries is SeriesController.middleware (js:95-119): an unknown
-// series, or one without a book the user may see, is a 404. It returns the
-// visible books in sequence order.
+// series, one in a library the user may not access, or one without a book the
+// user may see, is a 404. It returns the visible books in sequence order. The
+// library check is stricter than upstream, which only looks at the books.
 func (h *Handler) accessibleSeries(ctx context.Context, user *auth.Principal, id string) (db.Series, []seriesBook, error) {
 	var series db.Series
 	switch err := h.db.Get(ctx, &series, `SELECT * FROM series WHERE id = ?`, id); {
@@ -261,6 +262,10 @@ func (h *Handler) accessibleSeries(ctx context.Context, user *auth.Principal, id
 		return series, nil, httpx.NotFound()
 	case err != nil:
 		return series, nil, httpx.Internal("database read failed", err)
+	}
+	if !user.CanAccessLibrary(db.Val(series.LibraryID)) {
+		slog.Warn("user attempted to access a series of a library they cannot access", "user", db.Val(user.Username), "series", id)
+		return series, nil, httpx.NotFound()
 	}
 	books, err := h.seriesBooks(ctx, user, orderSequence, []string{id})
 	if err != nil {

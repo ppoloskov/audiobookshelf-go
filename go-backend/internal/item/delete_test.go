@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"audiobookshelf-compat/internal/feeds"
+	"audiobookshelf-compat/internal/db"
 )
 
 // cascade adds two books c1 and c2 (items ci1, ci2) that share one author, with
@@ -83,8 +83,12 @@ func TestDeleteItemCascadesToEverythingReferencingIt(t *testing.T) {
 		names = append(names, e.name)
 		audience[e.name] += e.audience + ","
 	}
-	if audience["playlist_updated"] != "u1," || audience["playlist_removed"] != "u2," || audience["item_removed"] != "*," {
+	if audience["item_removed"] != "*," || audience["rss_feed_closed"] != "*," {
 		t.Errorf("audiences = %v", audience)
+	}
+	// Playlist events are the list package's: item reports who lost what.
+	if got := announcedPlaylists(r.announced); got != "p-shared:u1:updated,p-solo:u2:removed" {
+		t.Errorf("announced playlists = %s", got)
 	}
 	// Single delete announces the swept author before the series, and the feed before the item.
 	order := strings.Join(names, ",")
@@ -96,26 +100,16 @@ func TestDeleteItemCascadesToEverythingReferencingIt(t *testing.T) {
 	}
 }
 
-func TestDeleteItemEmitsPlaylistEventsWithItems(t *testing.T) {
-	r := newRig(t)
-	r.cascade()
-	if rec := r.do(rootUser, "DELETE", "/api/items/ci1", ""); rec.Code != 200 {
-		t.Fatal(rec.Code)
-	}
-	for _, e := range r.takeEvents() {
-		body, _ := toJSON(e.payload).(map[string]any)
-		items, _ := body["items"].([]any)
-		switch e.name {
-		case "playlist_updated":
-			if body["id"] != "p-shared" || len(items) != 1 {
-				t.Errorf("updated payload = %v", body)
-			}
-		case "playlist_removed":
-			if body["id"] != "p-solo" || body["name"] != "Solo" || len(items) != 0 {
-				t.Errorf("removed payload = %v", body)
-			}
+func announcedPlaylists(changes []PlaylistChange) string {
+	var out []string
+	for _, c := range changes {
+		state := "updated"
+		if c.Removed {
+			state = "removed"
 		}
+		out = append(out, c.Playlist.ID+":"+db.Val(c.Playlist.UserID)+":"+state)
 	}
+	return strings.Join(out, ",")
 }
 
 func TestDeleteItemPurgesCoverCacheAndMetadata(t *testing.T) {
@@ -130,7 +124,7 @@ func TestDeleteItemPurgesCoverCacheAndMetadata(t *testing.T) {
 		if name == "rss_feed_closed" {
 			// Announced after the commit: the row is already gone.
 			feedRowsAtClose = append(feedRowsAtClose, r.values(`SELECT id FROM feeds WHERE id='feed1'`))
-			if f := payload.(feeds.Minified); f.ID != "feed1" || *f.EntityID != "ci1" {
+			if f := payload.(feedView); f.ID != "feed1" || *f.EntityID != "ci1" {
 				t.Errorf("rss_feed_closed payload = %+v", f)
 			}
 		}
@@ -252,7 +246,7 @@ func TestBatchDelete(t *testing.T) {
 	if _, err := os.Stat(dir); err != nil {
 		t.Error("soft delete removed files")
 	}
-	if got := r.takeEventNames(); got != "playlist_updated,rss_feed_closed,item_removed" {
+	if got := r.takeEventNames(); got != "rss_feed_closed,item_removed" {
 		t.Errorf("events = %s", got)
 	}
 	// Hard, two items at once: series are swept before authors.

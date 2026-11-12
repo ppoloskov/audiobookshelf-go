@@ -11,20 +11,44 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/filterdata"
 	"audiobookshelf-compat/internal/httpx"
+	"audiobookshelf-compat/internal/metadata"
 	"audiobookshelf-compat/internal/settings"
-	"audiobookshelf-compat/internal/wire"
 )
+
+// EpisodeDownload is a podcast episode download as clients see it
+// (server/objects/PodcastEpisodeDownload.js:30 toJSONForClient). Key order
+// follows upstream; a nullable scalar marshals as null.
+type EpisodeDownload struct {
+	ID                  string  `json:"id"`
+	EpisodeDisplayTitle *string `json:"episodeDisplayTitle"`
+	URL                 string  `json:"url"`
+	LibraryItemID       string  `json:"libraryItemId"`
+	LibraryID           *string `json:"libraryId"`
+	IsFinished          bool    `json:"isFinished"`
+	Failed              bool    `json:"failed"`
+	AppendRandomID      bool    `json:"appendRandomId"`
+	StartedAt           *int64  `json:"startedAt"`
+	CreatedAt           int64   `json:"createdAt"`
+	FinishedAt          *int64  `json:"finishedAt"`
+	PodcastTitle        *string `json:"podcastTitle"`
+	PodcastExplicit     bool    `json:"podcastExplicit"`
+	Season              any     `json:"season"` // the episode's feed value: a string, a number or null
+	Episode             any     `json:"episode"`
+	EpisodeType         any     `json:"episodeType"`
+	PublishedAt         any     `json:"publishedAt"`
+	GUID                any     `json:"guid"`
+}
 
 // DownloadQueue reports a podcast item's episode downloads: the ones queued
 // and the one running now when it belongs to the item.
 type DownloadQueue interface {
-	EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload)
+	EpisodeDownloads(libraryItemID string) (queued []EpisodeDownload, current *EpisodeDownload)
 }
 
 // BookFinder is the provider search behind a quick match.
 type BookFinder interface {
-	SearchBooks(ctx context.Context, query wire.BookSearch) []wire.BookMatch
-	SearchPodcasts(ctx context.Context, term string) []wire.PodcastMatch
+	SearchBooks(ctx context.Context, query metadata.BookQuery) []metadata.BookResult
+	SearchPodcasts(ctx context.Context, term string) []metadata.PodcastResult
 }
 
 // Deps are the collaborators the item routes use outside this package, each a
@@ -36,6 +60,10 @@ type Deps struct {
 	Downloads DownloadQueue
 	// Books searches the metadata providers for a quick match.
 	Books BookFinder
+	// AnnouncePlaylists sends playlist_updated or playlist_removed to the
+	// owner of each playlist a deletion changed. It runs after the commit;
+	// nil announces nothing.
+	AnnouncePlaylists func(ctx context.Context, changes []PlaylistChange)
 	// WriteMetadata rewrites the item's metadata.json sidecar.
 	WriteMetadata func(ctx context.Context, itemID string) error
 	// ScheduleChanged re-evaluates a podcast's auto-download cron entry.

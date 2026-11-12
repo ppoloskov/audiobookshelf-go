@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
@@ -18,12 +19,9 @@ import (
 	"time"
 
 	"audiobookshelf-compat/internal/auth"
-	"audiobookshelf-compat/internal/books"
 	"audiobookshelf-compat/internal/config"
 	absdb "audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/items"
-	"audiobookshelf-compat/internal/podcasts/read"
-	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/item"
 	"golang.org/x/net/websocket"
 
 	_ "modernc.org/sqlite"
@@ -63,34 +61,59 @@ func testDB(t *testing.T) (*sql.DB, string) {
 
 // fakeBackend is a Backend with replaceable behaviour; unset parts do nothing.
 type fakeBackend struct {
-	db       *sql.DB
-	auth     func(*http.Request) (store.User, error)
-	dispatch func(context.Context, Action) error
-	session  func(string) any
+	sql     *sql.DB
+	auth    func(*http.Request) (*auth.Principal, error)
+	session func(string) any
+
+	cancelScan        func(string)
+	removeLogListener func(string)
+	actions           chan string // "<action> <argument>" of the other actions
 }
 
-func (f *fakeBackend) Authenticate(r *http.Request) (store.User, error) {
+func (f *fakeBackend) Authenticate(r *http.Request) (*auth.Principal, error) {
 	if f.auth == nil {
-		return store.User{}, nil
+		return nil, errors.New("no auth")
 	}
 	return f.auth(r)
 }
-func (f *fakeBackend) DB() *sql.DB { return f.db }
-func (f *fakeBackend) Dispatch(ctx context.Context, a Action) error {
-	if f.dispatch == nil {
-		return nil
-	}
-	return f.dispatch(ctx, a)
-}
+func (f *fakeBackend) DB() *absdb.DB { return absdb.New(f.sql) }
 func (f *fakeBackend) Session(id string) any {
 	if f.session == nil {
 		return nil
 	}
 	return f.session(id)
 }
+func (f *fakeBackend) CancelScan(id string) {
+	if f.cancelScan != nil {
+		f.cancelScan(id)
+	}
+}
+func (f *fakeBackend) SetLogListener(socketID string, level int) {
+	f.record("set_log_listener " + strconv.Itoa(level))
+}
+func (f *fakeBackend) RemoveLogListener(socketID string) {
+	if f.removeLogListener != nil {
+		f.removeLogListener(socketID)
+	}
+}
+func (f *fakeBackend) SearchCovers(search CoverSearch, _ Reply) {
+	f.record("search_covers " + search.Title)
+}
+func (f *fakeBackend) CancelCoverSearch(id string, _ Reply) { f.record("cancel_cover_search " + id) }
+func (f *fakeBackend) record(action string) {
+	if f.actions != nil {
+		f.actions <- action
+	}
+}
 
 func newTestHub(cfg config.Config, b *fakeBackend) *Hub {
 	return New(cfg, func() Backend { return b })
+}
+
+// probeItem is a book of library lib with the given flags.
+func probeItem(lib string, explicit bool, tags ...string) item.Expanded {
+	return item.Expanded{Head: item.Head{ID: "li-" + lib, LibraryID: lib},
+		Media: item.BookExpanded{ID: "book-1", Tags: tags, Metadata: item.BookMetadataExpanded{Explicit: explicit}}}
 }
 
 func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
@@ -103,25 +126,9 @@ func TestSocketIO4WebsocketAuthAndPrefixedPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := &fakeBackend{db: db, auth: func(r *http.Request) (store.User, error) {
-		p, err := authHandler.Authenticate(r)
-		if err != nil {
-			return store.User{}, err
-		}
-		permissions, _ := json.Marshal(p.Permissions.V)
-		return store.User{ID: p.ID, Username: absdb.Val(p.Username), Type: absdb.Val(p.Type), IsActive: bool(p.IsActive), Permissions: permissions}, nil
-	}}
+	backend := &fakeBackend{sql: db, auth: authHandler.Authenticate}
 	hub := newTestHub(config.Config{RouterBasePath: "/abs"}, backend)
-	backend.dispatch = func(_ context.Context, action Action) error {
-		if action.Event == "cancel_scan" {
-			hub.Emit("*", "probe_item", items.Expanded{Head: items.Head{LibraryID: "lib-1"},
-				Media: books.BookExpanded{ID: "book-1", Tags: []string{"mystery"}}})
-			if action.Ack != nil {
-				action.Ack("scan_cancelled")
-			}
-		}
-		return nil
-	}
+	backend.cancelScan = func(string) { hub.Emit("*", "probe_item", probeItem("lib-1", false, "mystery")) }
 	defer hub.Close()
 	server := httptest.NewServer(hub)
 	defer server.Close()
@@ -174,9 +181,8 @@ async function connect(path, token, opts, id, username) {
   assert(admin.seen.some(event => event === 'user_online'), 'admin did not receive user_online');
   assert(!alice.seen.includes('user_online'), 'non-admin received admin-only user_online');
   const allowedItem = once(alice.client, 'probe_item');
-  const acknowledgement = new Promise(resolve => admin.client.emit('cancel_scan', 'lib-1', resolve));
+  admin.client.emit('cancel_scan', 'lib-1');
   await allowedItem;
-  assert.equal(await acknowledgement, 'scan_cancelled');
   await new Promise(resolve => setTimeout(resolve, 200));
   assert(!restricted.seen.includes('probe_item'), 'broadcast crossed library permission boundary');
   admin.client.disconnect(); alice.client.disconnect(); restricted.client.disconnect();
@@ -315,7 +321,7 @@ func TestSocketAuthentication(t *testing.T) {
 		t.Fatalf("admin got %s, want user_online", e.name)
 	}
 	var lastSeen string
-	if err := srv.backend.db.QueryRow(`SELECT lastSeen FROM users WHERE id='user-1'`).Scan(&lastSeen); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
+	if err := srv.backend.sql.QueryRow(`SELECT lastSeen FROM users WHERE id='user-1'`).Scan(&lastSeen); err != nil || lastSeen == "1970-01-01 00:00:00.000 +00:00" {
 		t.Fatalf("lastSeen = %q err=%v", lastSeen, err)
 	}
 	if got := collect(t, alice, "user_online", mark(srv)); len(got) != 0 {
@@ -338,11 +344,8 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 	for _, ws := range conns {
 		collect(t, ws, "", m)
 	}
-	book := func(lib string, explicit bool, tags ...string) items.Expanded {
-		return items.Expanded{Head: items.Head{ID: "li-" + lib, LibraryID: lib},
-			Media: books.BookExpanded{ID: "book-1", Tags: tags, Metadata: books.BookMetadataExpanded{BookMetadataFull: books.BookMetadataFull{Explicit: explicit}}}}
-	}
-	collection := map[string]any{"id": "c1", "libraryId": "lib-1", "name": "Queue", "books": []any{}}
+	book := probeItem
+	collection := scopedPayload{"lib-1"}
 	cases := []struct {
 		name            string
 		payload         any
@@ -352,12 +355,11 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		{"other library", book("lib-2", false, "mystery"), -1, 1, 1},
 		{"tag not selected", book("lib-1", false, "romance"), -1, -1, 1},
 		{"explicit without permission", book("lib-1", true, "mystery"), -1, -1, 1},
-		{"podcast with accessible tag", items.Minified{Head: items.Head{LibraryID: "lib-1"}, Media: podcastread.PodcastMedia{ID: "p1", Tags: []string{"mystery"}}}, 1, -1, 1},
-		{"untyped item map", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, -1, -1, -1},
+		{"podcast with accessible tag", item.Minified{Head: item.Head{LibraryID: "lib-1"}, Media: item.PodcastMinified{PodcastSettings: item.PodcastSettings{ID: "p1", Tags: []string{"mystery"}}}}, 1, -1, 1},
+		{"untyped map is global", map[string]any{"libraryId": "lib-1", "media": map[string]any{"tags": []any{"mystery"}}}, 1, 1, 1},
 		{"global message", map[string]any{"message": "global"}, 1, 1, 1},
 		{"collection in library", collection, 1, -1, 1},
-		{"typed item list", []items.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
-		{"untyped item list", []any{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
+		{"typed item list", []item.Expanded{book("lib-1", false, "mystery"), book("lib-2", false, "mystery")}, 1, 1, 2},
 	}
 	count := func(e event) int {
 		var list []json.RawMessage
@@ -382,7 +384,7 @@ func TestBroadcastsRespectLibraryTagAndExplicitPermissions(t *testing.T) {
 		}
 	}
 	// A collection needs only library access, not tag permissions.
-	srv.backend.db.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
+	srv.backend.sql.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-1"]}' WHERE id='user-1'`)
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -402,29 +404,29 @@ func TestRefreshAppliesPermissionsAndRevokesDeactivatedAndDeletedUsers(t *testin
 	alice, aliceID := connect(t, srv.url)
 	login(t, alice, "tok-alice")
 	next(t, admin) // user_online
-	item := items.Expanded{Head: items.Head{LibraryID: "lib-1"}, Media: books.BookExpanded{ID: "b", Tags: []string{"mystery"}}}
+	probe := probeItem("lib-1", false, "mystery")
 
-	srv.hub.Emit("*", "probe", item)
+	srv.hub.Emit("*", "probe", probe)
 	m := mark(srv)
 	if got := collect(t, alice, "probe", m); len(got) != 1 {
 		t.Fatalf("before revocation alice got %d probes", len(got))
 	}
 	collect(t, admin, "", m)
 
-	if _, err := srv.backend.db.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.sql.Exec(`UPDATE users SET permissions='{"librariesAccessible":["lib-2"]}' WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
 		t.Fatal(err)
 	}
-	srv.hub.Emit("*", "probe", item)
+	srv.hub.Emit("*", "probe", probe)
 	m = mark(srv)
 	if got := collect(t, alice, "probe", m); len(got) != 0 {
 		t.Fatalf("alice still receives lib-1 items after losing access: %v", got)
 	}
 	collect(t, admin, "", m)
 
-	if _, err := srv.backend.db.Exec(`DELETE FROM users WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.sql.Exec(`DELETE FROM users WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {
@@ -457,14 +459,59 @@ func TestUsersOnlineListsConnectionsAndToleratesReentrantLookups(t *testing.T) {
 		_ = srv.hub.Refresh(context.Background(), "user-1") // takes the hub's write lock
 		return map[string]any{"id": "session-1"}
 	}
-	done := make(chan []map[string]any, 1)
+	done := make(chan []OnlineUser, 1)
 	go func() { done <- srv.hub.UsersOnline() }()
 	select {
 	case users := <-done:
-		if len(users) != 1 || users[0]["connections"] != 2 || users[0]["session"].(map[string]any)["id"] != "session-1" {
+		if len(users) != 1 || users[0].Connections != 2 || users[0].Session.(map[string]any)["id"] != "session-1" {
 			t.Fatalf("online users=%v", users)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("playback lookup deadlocked under the hub lock")
+	}
+}
+
+// Client actions are decoded into typed arguments; a malformed payload is
+// ignored, and the admin-only ones need an administrator.
+func TestClientActionsAreTypedAndChecked(t *testing.T) {
+	srv := testServer(t)
+	admin, _ := connect(t, srv.url)
+	login(t, admin, "tok-admin")
+	alice, _ := connect(t, srv.url)
+	login(t, alice, "tok-alice")
+	next(t, admin) // user_online
+
+	for _, frame := range []string{
+		`42["set_log_listener","3"]`, `42["set_log_listener",7]`, `42["set_log_listener",2.5]`, `42["cancel_scan"]`, `42["cancel_scan",5]`,
+		`42["cancel_cover_search",{"a":1}]`,
+	} {
+		send(t, admin, frame)
+	}
+	send(t, alice, `42["set_log_listener",3]`)
+	send(t, alice, `42["message_all_users",{"message":"no"}]`)
+	send(t, admin, `42["set_log_listener",4]`)
+	send(t, admin, `42["cancel_cover_search","req-1"]`)
+	for _, want := range []string{"set_log_listener 4", "cancel_cover_search req-1"} {
+		select {
+		case got := <-srv.actions:
+			if got != want {
+				t.Fatalf("action = %q, want %q (malformed or unauthorised payloads must be ignored)", got, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("action %q never ran", want)
+		}
+	}
+	send(t, admin, `42["message_all_users",{"message":"hello"}]`)
+	if e := next(t, alice); e.name != "admin_message" || string(e.payload) != `"hello"` {
+		t.Fatalf("alice got %s %s, want admin_message", e.name, e.payload)
+	}
+	// Cover searches report bad requests to the asker only.
+	send(t, alice, `42["search_covers",{"requestId":"r1"}]`)
+	if e := next(t, alice); e.name != "cover_search_error" || string(e.payload) != `{"requestId":"r1","error":"Invalid request parameters"}` {
+		t.Fatalf("got %s %s", e.name, e.payload)
+	}
+	send(t, alice, `42["search_covers",{"requestId":"r2","title":"Dune"}]`)
+	if got := <-srv.actions; got != "search_covers Dune" {
+		t.Fatalf("action = %q", got)
 	}
 }

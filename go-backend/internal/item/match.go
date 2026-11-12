@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/wire"
+	"audiobookshelf-compat/internal/metadata"
 )
 
 // MatchOptions are the overrides of a quick match (Scanner.QuickMatchOptions,
@@ -60,13 +59,13 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 	}
 
 	var p patch
-	var cover json.RawMessage
+	var cover string
 	var storedCover *string
 	switch {
 	case it.Book != nil:
 		b := it.Book
-		search := wire.BookSearch{Provider: opts.Provider, Title: firstNonEmpty(opts.Title, db.Val(b.Title)), Author: firstNonEmpty(opts.Author, bookAuthors(b)),
-			ISBN: firstNonEmpty(opts.ISBN, db.Val(b.ISBN)), ASIN: firstNonEmpty(opts.ASIN, db.Val(b.ASIN)), Duration: db.Val(b.Duration), MaxFuzzySearches: 2}
+		search := metadata.BookQuery{Provider: opts.Provider, Title: firstNonEmpty(opts.Title, db.Val(b.Title)), Author: firstNonEmpty(opts.Author, bookAuthors(b)),
+			ISBN: firstNonEmpty(opts.ISBN, db.Val(b.ISBN)), ASIN: firstNonEmpty(opts.ASIN, db.Val(b.ASIN)), Duration: db.Val(b.Duration), MaxFuzzy: 2}
 		results := h.deps.Books.SearchBooks(ctx, search)
 		if len(results) == 0 {
 			return noMatch(), nil
@@ -82,7 +81,7 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 			return noMatch(), nil
 		}
 		pp := podcastMatchPatch(&it.Podcast.Podcast, results[0], overrideDetails)
-		p, cover, storedCover = patch{podcast: &pp}, results[0].Cover, it.Podcast.CoverPath
+		p, cover, storedCover = patch{podcast: &pp}, db.Val(results[0].Cover), it.Podcast.CoverPath
 	default:
 		return MatchResult{}, fmt.Errorf("unsupported media type %q", ref.MediaType)
 	}
@@ -119,14 +118,13 @@ func (h *Handler) QuickMatch(ctx context.Context, itemID string, opts MatchOptio
 
 // matchCover downloads the match's cover when the item has none or the cover
 // is overridden. A failure is logged and does not fail the match.
-func (h *Handler) matchCover(ctx context.Context, ref itemRef, withItem bool, cover json.RawMessage, stored *string, override bool) *string {
-	if !matchTruthy(cover) || (db.Val(stored) != "" && !override) {
+func (h *Handler) matchCover(ctx context.Context, ref itemRef, withItem bool, cover string, stored *string, override bool) *string {
+	if cover == "" || (db.Val(stored) != "" && !override) {
 		return nil
 	}
-	url := matchText(cover)
-	path, err := h.saveCoverFromURL(ctx, h.coverDir(ref, withItem), ref.ID, url)
+	path, err := h.saveCoverFromURL(ctx, h.coverDir(ref, withItem), ref.ID, cover)
 	if err != nil {
-		slog.Warn("match cover failed to use", "cover", url, "error", err)
+		slog.Warn("match cover failed to use", "cover", cover, "error", err)
 		return nil
 	}
 	return &path
@@ -150,13 +148,12 @@ func bookAuthors(b *Book) string {
 // bookMatchPatch turns a provider result into the patch that fills the book
 // (quickMatchBookBuildUpdatePayload, Scanner.js:214-364): a field is taken
 // when the book has none yet, or when the details are overridden.
-func bookMatchPatch(b *Book, m wire.BookMatch, override bool) BookPatch {
+func bookMatchPatch(b *Book, m metadata.BookResult, override bool) BookPatch {
 	md := &BookMetadataPatch{}
 	p := BookPatch{Metadata: md}
-	take := func(raw json.RawMessage, empty bool) bool { return matchTruthy(raw) && (empty || override) }
-	text := func(raw json.RawMessage, stored *string, dst *Text) {
-		if take(raw, db.Val(stored) == "") {
-			*dst = Text{true, matchText(raw)}
+	text := func(value string, stored *string, dst *Text) {
+		if value != "" && (db.Val(stored) == "" || override) {
+			*dst = Text{true, value}
 		}
 	}
 	text(m.Title, b.Title, &md.Title)
@@ -167,22 +164,24 @@ func bookMatchPatch(b *Book, m wire.BookMatch, override bool) BookPatch {
 	text(m.Language, b.Language, &md.Language)
 	text(m.ASIN, b.ASIN, &md.ASIN)
 	text(m.ISBN, b.ISBN, &md.ISBN)
-	list := func(raw json.RawMessage, stored []string, dst **[]string) {
-		if take(raw, len(stored) == 0) {
-			*dst = db.Ptr(matchList(raw))
+	if m.Narrator != "" && (len(b.Narrators.V) == 0 || override) {
+		md.Narrators = db.Ptr(splitNames(m.Narrator))
+	}
+	list := func(value, stored []string, dst **[]string) {
+		if len(value) > 0 && (len(stored) == 0 || override) {
+			*dst = db.Ptr(value)
 		}
 	}
-	list(m.Narrator, b.Narrators.V, &md.Narrators)
 	list(m.Genres, b.Genres.V, &md.Genres)
 	list(m.Tags, b.Tags.V, &p.Tags)
-	if take(m.Explicit, !bool(b.Explicit)) {
+	if db.Val(m.Explicit) && (!bool(b.Explicit) || override) {
 		md.Explicit = db.Ptr(true)
 	}
-	if take(m.Abridged, !bool(b.Abridged)) {
+	if db.Val(m.Abridged) && (!bool(b.Abridged) || override) {
 		md.Abridged = db.Ptr(true)
 	}
-	if take(m.Author, len(b.Authors) == 0) {
-		if names := matchList(m.Author); len(names) > 0 {
+	if m.Author != "" && (len(b.Authors) == 0 || override) {
+		if names := splitNames(m.Author); len(names) > 0 {
 			authors := make([]AuthorPatch, len(names))
 			for i, name := range names {
 				authors[i] = AuthorPatch{name}
@@ -190,127 +189,73 @@ func bookMatchPatch(b *Book, m wire.BookMatch, override bool) BookPatch {
 			md.Authors = &authors
 		}
 	}
-	if take(m.Series, len(b.Series) == 0) {
-		if series := matchSeries(m); len(series) > 0 {
-			md.Series = &series
+	if len(m.Series) > 0 && (len(b.Series) == 0 || override) {
+		series := make([]SeriesPatch, len(m.Series))
+		for i, entry := range m.Series {
+			series[i] = SeriesPatch{Name: entry.Series, keepSequence: entry.Sequence == ""}
+			if entry.Sequence != "" {
+				series[i].Sequence = db.Ptr(entry.Sequence)
+			}
 		}
+		md.Series = &series
 	}
 	return p
 }
 
 // podcastMatchPatch is quickMatchPodcastBuildUpdatePayload (Scanner.js:145-182).
-func podcastMatchPatch(pod *db.Podcast, m wire.PodcastMatch, override bool) PodcastPatch {
+func podcastMatchPatch(pod *db.Podcast, m metadata.PodcastResult, override bool) PodcastPatch {
 	md := &PodcastMetadataPatch{}
-	text := func(raw json.RawMessage, stored *string, dst *Text) {
-		if matchTruthy(raw) && (db.Val(stored) == "" || override) {
-			*dst = Text{true, matchText(raw)}
+	text := func(value string, stored *string, dst *Text) {
+		if value != "" && (db.Val(stored) == "" || override) {
+			*dst = Text{true, value}
 		}
 	}
-	text(m.Title, pod.Title, &md.Title)
-	text(m.ArtistName, pod.Author, &md.Author)
-	text(m.ID, pod.ItunesID, &md.ItunesID)
-	text(m.PageURL, pod.ItunesPageURL, &md.ItunesPageURL)
-	text(m.ArtistID, pod.ItunesArtistID, &md.ItunesArtistID)
-	text(m.ReleaseDate, pod.ReleaseDate, &md.ReleaseDate)
-	text(m.Cover, pod.ImageURL, &md.ImageURL)
-	text(m.FeedURL, pod.FeedURL, &md.FeedURL)
+	text(db.Val(m.Title), pod.Title, &md.Title)
+	text(db.Val(m.ArtistName), pod.Author, &md.Author)
+	text(idText(m.ID), pod.ItunesID, &md.ItunesID)
+	text(db.Val(m.PageURL), pod.ItunesPageURL, &md.ItunesPageURL)
+	text(idText(m.ArtistID), pod.ItunesArtistID, &md.ItunesArtistID)
+	text(db.Val(m.ReleaseDate), pod.ReleaseDate, &md.ReleaseDate)
+	text(db.Val(m.Cover), pod.ImageURL, &md.ImageURL)
+	text(db.Val(m.FeedURL), pod.FeedURL, &md.FeedURL)
 	text(m.DescriptionPlain, pod.Description, &md.Description)
-	if matchTruthy(m.Genres) && (len(pod.Genres.V) == 0 || override) {
-		md.Genres = db.Ptr(matchList(m.Genres))
+	if m.Genres != nil && (len(pod.Genres.V) == 0 || override) {
+		md.Genres = db.Ptr(m.Genres)
 	}
 	return PodcastPatch{Metadata: md}
 }
 
-// matchSeries reads a result's series: a list of {series, sequence}, or one
-// series name with the result's sequence.
-func matchSeries(m wire.BookMatch) []SeriesPatch {
-	var entries []struct {
-		Series   string          `json:"series"`
-		Sequence json.RawMessage `json:"sequence"`
-	}
-	if json.Unmarshal(m.Series, &entries) != nil {
-		entries = []struct {
-			Series   string          `json:"series"`
-			Sequence json.RawMessage `json:"sequence"`
-		}{{matchText(m.Series), m.Sequence}}
-	}
-	out := make([]SeriesPatch, len(entries))
-	for i, e := range entries {
-		out[i] = SeriesPatch{Name: e.Series, keepSequence: len(e.Sequence) == 0}
-		if v := matchValue(e.Sequence); v != nil {
-			out[i].Sequence = db.Ptr(matchText(e.Sequence))
-		}
-	}
-	return out
-}
-
-// The provider boundary: results keep each field as the provider's JSON, which
-// may be a string, a number or a list, and are read like the JavaScript does.
-
-func matchValue(raw json.RawMessage) any {
-	if len(raw) == 0 {
-		return nil
-	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var v any
-	if decoder.Decode(&v) != nil {
-		return nil
-	}
-	return v
-}
-
-// matchTruthy is JavaScript truthiness: absent, null, false, 0 and "" are false;
-// lists and objects are true.
-func matchTruthy(raw json.RawMessage) bool {
-	switch v := matchValue(raw).(type) {
-	case nil:
-		return false
-	case bool:
-		return v
-	case string:
-		return v != ""
-	case json.Number:
-		f, err := v.Float64()
-		return err != nil || f != 0
-	}
-	return true
-}
-
-// matchText is a value as JavaScript prints it: strings as they are, numbers
-// and booleans as their literal, lists joined by commas, anything else empty.
-func matchText(raw json.RawMessage) string {
-	switch v := matchValue(raw).(type) {
-	case string:
-		return v
-	case json.Number:
-		return v.String()
-	case bool:
-		return strconv.FormatBool(v)
-	case []any:
-		parts := make([]string, len(v))
-		for i, item := range v {
-			encoded, _ := json.Marshal(item) // items of a decoded list always encode
-			parts[i] = matchText(encoded)
-		}
-		return strings.Join(parts, ",")
-	}
-	return ""
-}
-
-// matchList is `Array.isArray(v) ? [...v] : v.split(',').map(trim).filter(Boolean)`.
-func matchList(raw json.RawMessage) []string {
-	var list []string
-	if json.Unmarshal(raw, &list) == nil && list != nil {
-		return list
-	}
+// splitNames is `v.split(',').map(trim).filter(Boolean)` for a provider's
+// comma-separated author or narrator names.
+func splitNames(value string) []string {
 	out := []string{}
-	for _, part := range strings.Split(matchText(raw), ",") {
+	for _, part := range strings.Split(value, ",") {
 		if part = strings.TrimSpace(part); part != "" {
 			out = append(out, part)
 		}
 	}
 	return out
+}
+
+// idText is a provider id, a string or a number, as text; absent, null, "" and
+// 0 give "" (no id).
+func idText(raw json.RawMessage) string {
+	var v any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if len(raw) == 0 || decoder.Decode(&v) != nil {
+		return ""
+	}
+	switch id := v.(type) {
+	case string:
+		return id
+	case json.Number:
+		if f, err := id.Float64(); err == nil && f == 0 {
+			return ""
+		}
+		return id.String()
+	}
+	return ""
 }
 
 // decodeOptional decodes a JSON body, treating an empty one as the zero value.

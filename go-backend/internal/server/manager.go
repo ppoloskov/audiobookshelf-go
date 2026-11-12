@@ -3,18 +3,21 @@ package server
 import (
 	"audiobookshelf-compat/internal/serversettings"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/logging"
 	"audiobookshelf-compat/internal/playback"
 	"audiobookshelf-compat/internal/realtime"
 	"audiobookshelf-compat/internal/store"
@@ -45,12 +48,15 @@ type unavailable struct{}
 
 var errUnavailable = errors.New("server is restarting")
 
-func (unavailable) Authenticate(*http.Request) (store.User, error) {
-	return store.User{}, errUnavailable
-}
-func (unavailable) DB() *sql.DB                                     { return nil }
-func (unavailable) Dispatch(context.Context, realtime.Action) error { return errUnavailable }
-func (unavailable) Session(string) any                              { return nil }
+func (unavailable) Authenticate(*http.Request) (*auth.Principal, error) { return nil, errUnavailable }
+func (unavailable) DB() *db.DB                                          { return nil }
+func (unavailable) Session(string) any                                  { return nil }
+
+func (unavailable) CancelScan(string)                                 {}
+func (unavailable) SetLogListener(string, int)                        {}
+func (unavailable) RemoveLogListener(string)                          {}
+func (unavailable) SearchCovers(realtime.CoverSearch, realtime.Reply) {}
+func (unavailable) CancelCoverSearch(string, realtime.Reply)          {}
 
 type restoredDir struct {
 	target, previous string
@@ -62,6 +68,8 @@ func NewManager(database *store.Store, cfg config.Config) (*Manager, error) {
 		return nil, errors.New("server: database is nil")
 	}
 	m := &Manager{cfg: cfg, database: database}
+	// Logs from packages that use log/slog reach the log stream and file.
+	slog.SetDefault(slog.New(logging.Default()))
 	m.hub = realtime.New(cfg, m.backend)
 	if err := playback.CleanupOrphanStreams(cfg.Dirs().Streams); err != nil {
 		m.hub.Close()

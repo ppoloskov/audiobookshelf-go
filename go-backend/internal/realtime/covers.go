@@ -1,35 +1,40 @@
 package realtime
 
-func (h *Hub) handleSearchCovers(s *Socket, args []any, ack Ack) {
+func (h *Hub) handleSearchCovers(s *Socket, args []any) {
 	id := s.ID()
-	user, authenticated := h.userFor(id)
-	raw := first(args)
-	payload := object(raw)
-	if !authenticated {
-		h.emitCoverError(s, payload["requestId"], "Unauthorized")
+	search, ok := decode[CoverSearch](id, "search_covers", args)
+	if _, authenticated := h.userFor(id); !authenticated {
+		s.emitCoverError(search.RequestID, "Unauthorized")
 		return
 	}
-	requestID, _ := payload["requestId"].(string)
-	title, _ := payload["title"].(string)
-	if requestID == "" || title == "" {
-		h.emitCoverError(s, payload["requestId"], "Invalid request parameters")
+	if !ok || search.RequestID == "" || search.Title == "" {
+		s.emitCoverError(search.RequestID, "Invalid request parameters")
 		return
 	}
-	h.dispatchAction(s, user, "search_covers", payload, func(event string, value any) {
-		s.Emit(event, value)
-	}, ack)
+	h.backend().SearchCovers(search, s.reply)
 }
 
-func (h *Hub) handleCancelCoverSearch(s *Socket, args []any, ack Ack) {
-	user, ok := h.userFor(s.ID())
-	if !ok {
+func (h *Hub) handleCancelCoverSearch(s *Socket, args []any) {
+	if _, ok := h.userFor(s.ID()); !ok {
 		return
 	}
-	h.dispatchAction(s, user, "cancel_cover_search", first(args), func(event string, value any) {
-		s.Emit(event, value)
-	}, ack)
+	if requestID, ok := decode[string](s.ID(), "cancel_cover_search", args); ok {
+		h.backend().CancelCoverSearch(requestID, s.reply)
+	}
 }
 
-func (h *Hub) emitCoverError(s *Socket, requestID any, message string) {
-	s.Emit("cover_search_error", map[string]any{"requestId": requestID, "error": message})
+// reply is the Reply that answers on this socket.
+func (s *Socket) reply(event string, payload any) { s.Emit(event, payload) }
+
+// emitCoverError tells the client its cover search failed; an empty request id
+// is sent as null.
+func (s *Socket) emitCoverError(requestID, message string) {
+	var id *string
+	if requestID != "" {
+		id = &requestID
+	}
+	s.Emit("cover_search_error", struct {
+		RequestID *string `json:"requestId"`
+		Error     string  `json:"error"`
+	}{id, message})
 }

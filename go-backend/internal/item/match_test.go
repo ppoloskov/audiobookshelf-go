@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"audiobookshelf-compat/internal/wire"
+	"audiobookshelf-compat/internal/db"
+	"audiobookshelf-compat/internal/metadata"
 )
 
 func raw(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
@@ -50,7 +53,7 @@ func TestMatchValidationAndWarning(t *testing.T) {
 	if rec.Code != 200 || strings.TrimSpace(rec.Body.String()) != `{"warning":"No audible match found"}` {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
-	if q := r.finder.queries[0]; q.Provider != "audible" || q.Title != "Query" || q.Author != "Someone" || q.MaxFuzzySearches != 2 {
+	if q := r.finder.queries[0]; q.Provider != "audible" || q.Title != "Query" || q.Author != "Someone" || q.MaxFuzzy != 2 {
 		t.Fatalf("query %+v", q)
 	}
 	// Defaults are google, the book's title and its author names; an empty body is fine.
@@ -68,11 +71,11 @@ func TestMatchValidationAndWarning(t *testing.T) {
 
 func TestMatchAppliesDetails(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{
-		Title: raw("Matched Title"), Subtitle: raw("Sub"), Author: raw("Ben Writer, New Person"), Narrator: raw("N1, N2"),
-		Publisher: raw("Press"), PublishedYear: raw(2001), Genres: raw([]string{"G"}), Tags: raw("a, b"),
-		Series:   raw([]map[string]string{{"series": "First Series", "sequence": "5"}, {"series": "Fresh Series", "sequence": "1"}}),
-		Explicit: raw(true), ISBN: raw(0),
+	r.finder.books = []metadata.BookResult{{
+		Title: "Matched Title", Subtitle: "Sub", Author: "Ben Writer, New Person", Narrator: "N1, N2",
+		Publisher: "Press", PublishedYear: "2001", Genres: []string{"G"}, Tags: []string{"a", "b"},
+		Series:   []metadata.Series{{Series: "First Series", Sequence: "5"}, {Series: "Fresh Series", Sequence: "1"}},
+		Explicit: db.Ptr(true),
 	}}
 	// Without overrides only empty fields are filled: the title stays, the
 	// subtitle, publisher, narrators and genres arrive; the book keeps its
@@ -106,7 +109,7 @@ func TestMatchAppliesDetails(t *testing.T) {
 		}
 	}
 	// A match equal to the stored values changes nothing.
-	r.finder.books = []wire.BookMatch{{Title: raw("Matched Title")}}
+	r.finder.books = []metadata.BookResult{{Title: "Matched Title"}}
 	if again := r.match("i1", override); again.Updated == nil || *again.Updated {
 		t.Fatalf("second match updated: %v", again.Updated)
 	}
@@ -114,8 +117,8 @@ func TestMatchAppliesDetails(t *testing.T) {
 
 func TestMatchPodcast(t *testing.T) {
 	r := newRig(t)
-	r.finder.podcasts = []wire.PodcastMatch{{ID: raw(12345), ArtistID: raw("99"), Title: raw("Matched Cast"), ArtistName: raw("Artist"), DescriptionPlain: raw("about"),
-		ReleaseDate: raw("2020-01-01"), Genres: raw([]string{"Tech"}), FeedURL: raw("https://other.test/f.xml"), PageURL: raw("https://itunes/p")}}
+	r.finder.podcasts = []metadata.PodcastResult{{ID: raw(12345), ArtistID: raw("99"), Title: db.Ptr("Matched Cast"), ArtistName: db.Ptr("Artist"), DescriptionPlain: "about",
+		ReleaseDate: db.Ptr("2020-01-01"), Genres: []string{"Tech"}, FeedURL: db.Ptr("https://other.test/f.xml"), PageURL: db.Ptr("https://itunes/p")}}
 	var episodes []string
 	r.h.deps.PodcastEpisodes = func(_ context.Context, id string, override bool) (int, error) {
 		episodes = append(episodes, fmt.Sprint(id, override))
@@ -144,16 +147,16 @@ func (r *rig) relations() string {
 }
 
 func TestMatchEmptyAndDuplicateRelationsChangeNothing(t *testing.T) {
-	for name, match := range map[string]wire.BookMatch{
-		"empty": {Author: raw([]string{}), Series: raw([]map[string]string{})},
+	for name, match := range map[string]metadata.BookResult{
+		"empty": {Author: "", Series: []metadata.Series{}},
 		"duplicates": {
-			Author: raw([]string{"ADA AUTHOR", "ada author"}),
-			Series: raw([]map[string]string{{"series": "FIRST SERIES", "sequence": "1"}, {"series": "first series", "sequence": "1"}}),
+			Author: "ADA AUTHOR, ada author",
+			Series: []metadata.Series{{Series: "FIRST SERIES", Sequence: "1"}, {Series: "first series", Sequence: "1"}},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := newRig(t)
-			r.finder.books = []wire.BookMatch{match}
+			r.finder.books = []metadata.BookResult{match}
 			if res := r.match("i1", override); res.Updated == nil || *res.Updated {
 				t.Fatalf("unchanged relations reported an update: %+v", res)
 			}
@@ -170,9 +173,9 @@ func TestMatchEmptyAndDuplicateRelationsChangeNothing(t *testing.T) {
 func TestMatchLinksExistingRelationsWithoutCreationEvents(t *testing.T) {
 	r := newRig(t)
 	r.exec(`INSERT INTO series(id,name,libraryId,createdAt,updatedAt) VALUES('s2','Known Series','l1',?,?)`, ts, ts)
-	r.finder.books = []wire.BookMatch{{
-		Author: raw([]string{"BEN WRITER", "ben writer"}),
-		Series: raw([]map[string]string{{"series": "KNOWN SERIES", "sequence": "2"}, {"series": "known series", "sequence": "3"}}),
+	r.finder.books = []metadata.BookResult{{
+		Author: "BEN WRITER, ben writer",
+		Series: []metadata.Series{{Series: "KNOWN SERIES", Sequence: "2"}, {Series: "known series", Sequence: "3"}},
 	}}
 	r.match("i1", override)
 	if got := r.relations(); got != "a2|s2#3" {
@@ -187,7 +190,7 @@ func TestMatchLinksExistingRelationsWithoutCreationEvents(t *testing.T) {
 
 func TestMatchDuplicateSeries(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{Series: raw([]map[string]string{{"series": "First Series", "sequence": "2"}, {"series": "first series", "sequence": "1"}}), Sequence: nil}}
+	r.finder.books = []metadata.BookResult{{Series: []metadata.Series{{Series: "First Series", Sequence: "2"}, {Series: "first series", Sequence: "1"}}}}
 	// The intermediate sequence change is reported; the last one wins.
 	if res := r.match("i1", override); res.Updated == nil || !*res.Updated {
 		t.Fatalf("result %+v", res)
@@ -197,7 +200,7 @@ func TestMatchDuplicateSeries(t *testing.T) {
 	}
 
 	r = newRig(t)
-	r.finder.books = []wire.BookMatch{{Series: raw([]map[string]string{{"series": "New Series", "sequence": "2"}, {"series": "new series", "sequence": "3"}})}}
+	r.finder.books = []metadata.BookResult{{Series: []metadata.Series{{Series: "New Series", Sequence: "2"}, {Series: "new series", Sequence: "3"}}}}
 	r.match("i1", override)
 	if got := r.values(`SELECT s.name||'#'||bs.sequence FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE bs.bookId='b1'`); got != "New Series#3" {
 		t.Fatalf("series %s", got)
@@ -209,12 +212,12 @@ func TestMatchDuplicateSeries(t *testing.T) {
 
 func TestMatchMissingSequencePreservesExistingAndDefaultsNull(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{Series: raw([]map[string]string{{"series": "First Series"}})}}
+	r.finder.books = []metadata.BookResult{{Series: []metadata.Series{{Series: "First Series"}}}}
 	if res := r.match("i1", override); res.Updated == nil || *res.Updated || r.relations() != "a1|s1#1" || r.takeEventNames() != "" {
 		t.Fatalf("existing series: %+v %s", res, r.relations())
 	}
 	r = newRig(t)
-	r.finder.books = []wire.BookMatch{{Series: raw([]map[string]string{{"series": "New Series"}})}}
+	r.finder.books = []metadata.BookResult{{Series: []metadata.Series{{Series: "New Series"}}}}
 	r.match("i1", override)
 	if got := r.values(`SELECT COALESCE(bs.sequence,'NULL') FROM bookSeries bs JOIN series s ON s.id=bs.seriesId WHERE s.name='New Series'`); got != "NULL" {
 		t.Fatalf("new series sequence %s", got)
@@ -224,12 +227,12 @@ func TestMatchMissingSequencePreservesExistingAndDefaultsNull(t *testing.T) {
 func TestMatchSeriesSequenceNullEmptyAndNumbers(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		sequence any
+		sequence string
 		want     string
-	}{{"null", nil, "NULL"}, {"empty", "", "."}, {"zero", 0, "0"}, {"number", 2, "2"}, {"text zero", "0", "0"}} {
+	}{{"absent keeps the stored one", "", "1"}, {"zero", "0", "0"}, {"number", "2", "2"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newRig(t)
-			r.finder.books = []wire.BookMatch{{Series: raw([]map[string]any{{"series": "First Series", "sequence": tc.sequence}})}}
+			r.finder.books = []metadata.BookResult{{Series: []metadata.Series{{Series: "First Series", Sequence: tc.sequence}}}}
 			r.match("i1", override)
 			if got := r.values(`SELECT COALESCE(sequence,'NULL')||'.' FROM bookSeries WHERE bookId='b1'`); got != strings.ReplaceAll(tc.want, ".", "")+"." {
 				t.Fatalf("sequence %q, want %q", got, tc.want)
@@ -240,7 +243,7 @@ func TestMatchSeriesSequenceNullEmptyAndNumbers(t *testing.T) {
 
 func TestMatchRelationFailureRollsBackDatabaseAndEvents(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{Author: raw([]string{"New Author"}), Series: raw([]map[string]string{{"series": "New Series", "sequence": "2"}})}}
+	r.finder.books = []metadata.BookResult{{Author: "New Author", Series: []metadata.Series{{Series: "New Series", Sequence: "2"}}}}
 	r.exec(`CREATE TRIGGER fail_series BEFORE INSERT ON bookSeries BEGIN SELECT RAISE(ABORT, 'quickmatch test failure'); END`)
 	if rec := r.do(rootUser, "POST", "/api/items/i1/match", override); rec.Code != 500 {
 		t.Fatalf("status %d %s", rec.Code, rec.Body)
@@ -273,7 +276,7 @@ func TestMatchSavesCoverAndKeepsGoingWhenItFails(t *testing.T) {
 	}))
 	defer server.Close()
 	r.h.client = server.Client() // the real client refuses loopback addresses
-	r.finder.books = []wire.BookMatch{{Cover: raw(server.URL + "/c.jpg")}}
+	r.finder.books = []metadata.BookResult{{Cover: server.URL + "/c.jpg"}}
 	r.match("i1", `{}`)
 	want := filepath.Join(r.metaDir, "i1", "cover.jpg")
 	if got := r.values(`SELECT coverPath FROM books WHERE id='b1'`); got != want || downloads != 1 {
@@ -285,7 +288,7 @@ func TestMatchSavesCoverAndKeepsGoingWhenItFails(t *testing.T) {
 	if downloads != 2 {
 		t.Fatalf("downloads %d", downloads)
 	}
-	r.finder.books = []wire.BookMatch{{Cover: raw(server.URL + "/bad.jpg")}}
+	r.finder.books = []metadata.BookResult{{Cover: server.URL + "/bad.jpg"}}
 	r.exec(`UPDATE books SET coverPath=NULL WHERE id='b1'`)
 	if res := r.match("i1", `{}`); res.Updated == nil || *res.Updated {
 		t.Fatalf("a failed cover download must not fail or update: %+v", res)
@@ -360,13 +363,14 @@ func TestRelationsAcrossRoutes(t *testing.T) {
 					t.Fatal(err)
 				}
 				var authors []map[string]string
-				var series, seriesMatch []map[string]string
+				var series []map[string]string
+				var seriesMatch []metadata.Series
 				for _, a := range sc.authors {
 					authors = append(authors, map[string]string{"name": a})
 				}
 				for _, s := range sc.series {
 					series = append(series, map[string]string{"name": s[0], "sequence": s[1]})
-					seriesMatch = append(seriesMatch, map[string]string{"series": s[0], "sequence": s[1]})
+					seriesMatch = append(seriesMatch, metadata.Series{Series: s[0], Sequence: s[1]})
 				}
 				media := string(raw(map[string]any{"metadata": map[string]any{"authors": authors, "series": series}}))
 				var code int
@@ -376,7 +380,7 @@ func TestRelationsAcrossRoutes(t *testing.T) {
 				case "batch":
 					code = r.do(rootUser, "POST", "/api/items/batch/update", `[{"id":"i1","mediaPayload":`+media+`}]`).Code
 				default:
-					r.finder.books = []wire.BookMatch{{Author: raw(strings.Join(sc.authors, ", ")), Series: raw(seriesMatch)}}
+					r.finder.books = []metadata.BookResult{{Author: strings.Join(sc.authors, ", "), Series: seriesMatch}}
 					code = r.do(rootUser, "POST", "/api/items/i1/match", override).Code
 				}
 				if code != 200 {
@@ -392,7 +396,7 @@ func TestRelationsAcrossRoutes(t *testing.T) {
 
 func TestBatchQuickMatch(t *testing.T) {
 	r := newRig(t)
-	r.finder.books = []wire.BookMatch{{Subtitle: raw("S"), Publisher: raw("P")}}
+	r.finder.books = []metadata.BookResult{{Subtitle: "S", Publisher: "P"}}
 	q := "/api/items/batch/quickmatch"
 	if rec := r.do(adminUser, "POST", q, `{"libraryItemIds":["i1"]}`); rec.Code != 200 {
 		t.Fatalf("admin %d", rec.Code)
@@ -407,7 +411,7 @@ func TestBatchQuickMatch(t *testing.T) {
 			t.Fatalf("%s: %d", body, rec.Code)
 		}
 	}
-	r.finder.books = []wire.BookMatch{{Title: raw("T"), Publisher: raw("P")}}
+	r.finder.books = []metadata.BookResult{{Title: "T", Publisher: "P"}}
 	if rec := r.do(rootUser, "POST", q, `{"libraryItemIds":["i1","i2","ip"],"options":{"provider":"x"}}`); rec.Code != 200 || rec.Body.String() != "OK" {
 		t.Fatalf("run %d %q", rec.Code, rec.Body)
 	}
@@ -437,4 +441,28 @@ func (r *rig) waitFor(name string) sentEvent {
 	}
 	r.t.Fatalf("no %s event", name)
 	return sentEvent{}
+}
+
+func TestCoverDownloadIsCapped(t *testing.T) {
+	r := newRig(t)
+	body := make([]byte, maxCoverDownload+1)
+	copy(body, "\xff\xd8\xff\xe0")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		if req.URL.Path == "/declared.jpg" {
+			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		}
+		_, _ = w.Write(body) // without a declared length the body is chunked
+	}))
+	defer server.Close()
+	r.h.client = server.Client() // the real client refuses loopback addresses
+	for _, name := range []string{"declared.jpg", "chunked.jpg"} {
+		rec := r.request(uploaderUser, "POST", "/api/items/i1/cover", "application/json", `{"url":"`+server.URL+"/"+name+`"}`)
+		if rec.Code != 400 || !strings.Contains(rec.Body.String(), "Failed to download image from url") {
+			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
+		}
+	}
+	if entries, _ := os.ReadDir(filepath.Join(r.metaDir, "i1")); len(entries) != 0 {
+		t.Errorf("oversized download left %d files", len(entries))
+	}
 }

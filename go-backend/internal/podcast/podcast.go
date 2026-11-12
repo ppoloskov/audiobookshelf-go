@@ -30,15 +30,17 @@ type NotifyFunc func(ctx context.Context, event string, data map[string]any) err
 // auto-download schedule. One mutex guards the queue, the cron entries and the
 // failure counts; Close stops them and waits for the goroutines.
 type Handler struct {
-	db              *db.DB
-	settings        *settings.Store
-	emit            events.Emitter
-	notify          NotifyFunc
-	client          *http.Client
-	maxFailedChecks int
-	ctx             context.Context // canceled by Close; every background job uses it
-	stop            context.CancelFunc
-	wg              sync.WaitGroup
+	db       *db.DB
+	settings *settings.Store
+	emit     events.Emitter
+	notify   NotifyFunc
+	// announcePlaylists tells playlist owners about a deleted episode; may be nil.
+	announcePlaylists func(ctx context.Context, changes []item.PlaylistChange)
+	client            *http.Client
+	maxFailedChecks   int
+	ctx               context.Context // canceled by Close; every background job uses it
+	stop              context.CancelFunc
+	wg                sync.WaitGroup
 
 	// mu guards the fields below. Emitters are called with mu held and must
 	// not call back into the Handler (the realtime hub does not).
@@ -51,9 +53,9 @@ type Handler struct {
 	failed  map[string]int          // item id -> consecutive failed feed checks
 }
 
-// New returns a Handler and schedules every podcast with auto-download on.
-func New(d *db.DB, st *settings.Store, cfg config.Config, emit events.Emitter, notify NotifyFunc) *Handler {
-	h := &Handler{db: d, settings: st, emit: emit, notify: notify, client: httpx.NewSafeClient(), maxFailedChecks: cfg.MaxFailedEpisodeChecks,
+// New returns a Handler (announcePlaylists is item.Deps.AnnouncePlaylists) and schedules every podcast with auto-download on.
+func New(d *db.DB, st *settings.Store, cfg config.Config, emit events.Emitter, notify NotifyFunc, announcePlaylists func(context.Context, []item.PlaylistChange)) *Handler {
+	h := &Handler{db: d, settings: st, emit: emit, notify: notify, announcePlaylists: announcePlaylists, client: httpx.NewSafeClient(), maxFailedChecks: cfg.MaxFailedEpisodeChecks,
 		cron: cronspec.New(), entries: map[string]cron.EntryID{}, failed: map[string]int{}}
 	h.ctx, h.stop = context.WithCancel(context.Background())
 	var ids []string

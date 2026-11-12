@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"slices"
 	"testing"
+
+	"audiobookshelf-compat/internal/db"
 )
 
 type seriesResults struct {
@@ -90,6 +92,25 @@ func TestSeriesAccessRules(t *testing.T) {
 	}
 	if code := r.status(us["reader"], "PATCH", "/api/series/s1", `{"name":"x"}`); code != 403 {
 		t.Fatalf("update permission: %d", code)
+	}
+}
+
+func TestSeriesOfAnotherLibraryIsNotFound(t *testing.T) {
+	r := newRig(t)
+	// s1 is in l1; this user may update but only access l2.
+	other := principal(rootID, "user", db.Permissions{LibrariesAccessible: []string{"l2"}, AccessAllTags: true, AccessExplicitContent: true, Update: true}, nil)
+	if code := r.status(other, "GET", "/api/series/s1", ""); code != 404 {
+		t.Errorf("GET series of another library: %d", code)
+	}
+	if code := r.status(other, "PATCH", "/api/series/s1", `{"name":"x"}`); code != 404 {
+		t.Errorf("PATCH series of another library: %d", code)
+	}
+	var name string
+	if err := r.d.Get(t.Context(), &name, `SELECT name FROM series WHERE id='s1'`); err != nil || name != "Alpha Saga" {
+		t.Errorf("series was changed: %q %v", name, err)
+	}
+	if code := r.status(users()["root"], "GET", "/api/series/s1", ""); code != 200 {
+		t.Errorf("root: %d", code)
 	}
 }
 

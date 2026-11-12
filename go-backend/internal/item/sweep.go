@@ -5,8 +5,6 @@ import (
 	"context"
 	"log/slog"
 	"slices"
-
-	"audiobookshelf-compat/internal/feeds"
 )
 
 // removed is the payload of author_removed and series_removed.
@@ -22,7 +20,27 @@ type orphan struct {
 	LibraryID string `db:"libraryId"`
 }
 
-// feedRow is the part of a feeds row the rss_feed_closed payload carries.
+// feedView is Feed.toOldJSONMinified (Feed.js:677): the feed of an item or
+// series in rss_feed_closed and in the item's rssFeed. Every column is
+// nullable, so a NULL encodes as null.
+type feedView struct {
+	ID         string   `json:"id"`
+	EntityType *string  `json:"entityType"`
+	EntityID   *string  `json:"entityId"`
+	FeedURL    *string  `json:"feedUrl"`
+	Meta       feedMeta `json:"meta"`
+}
+
+// feedMeta is the meta object of feedView.
+type feedMeta struct {
+	Title           *string `json:"title"`
+	Description     *string `json:"description"`
+	PreventIndexing *bool   `json:"preventIndexing"`
+	OwnerName       *string `json:"ownerName"`
+	OwnerEmail      *string `json:"ownerEmail"`
+}
+
+// feedRow is the part of a feeds row feedView carries.
 type feedRow struct {
 	ID              string  `db:"id"`
 	EntityType      *string `db:"entityType"`
@@ -85,11 +103,18 @@ func (h *Handler) sweep(ctx context.Context, parent, junction, col, guard string
 	return out
 }
 
+func (f feedRow) view() feedView {
+	return feedView{ID: f.ID, EntityType: f.EntityType, EntityID: f.EntityID, FeedURL: f.FeedURL,
+		Meta: feedMeta{Title: f.Title, Description: f.Description, PreventIndexing: f.PreventIndexing, OwnerName: f.OwnerName, OwnerEmail: f.OwnerEmail}}
+}
+
+const feedColumns = `id, entityType, entityId, feedURL, title, description, preventIndexing, ownerName, ownerEmail`
+
 // closeFeeds deletes every feed of an entity and returns them as the
 // rss_feed_closed payload (RssFeedManager.handleCloseFeed, :355-361).
-func (h *Handler) closeFeeds(ctx context.Context, entityID string) ([]feeds.Minified, error) {
+func (h *Handler) closeFeeds(ctx context.Context, entityID string) ([]feedView, error) {
 	var rows []feedRow
-	if err := h.db.Select(ctx, &rows, `SELECT id, entityType, entityId, feedURL, title, description, preventIndexing, ownerName, ownerEmail FROM feeds WHERE entityId = ? ORDER BY rowid`, entityID); err != nil {
+	if err := h.db.Select(ctx, &rows, `SELECT `+feedColumns+` FROM feeds WHERE entityId = ? ORDER BY rowid`, entityID); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -98,10 +123,9 @@ func (h *Handler) closeFeeds(ctx context.Context, entityID string) ([]feeds.Mini
 	if _, err := h.db.Exec(ctx, `DELETE FROM feeds WHERE entityId = ?`, entityID); err != nil {
 		return nil, err
 	}
-	out := make([]feeds.Minified, len(rows))
+	out := make([]feedView, len(rows))
 	for i, f := range rows {
-		out[i] = feeds.Minified{ID: f.ID, EntityType: f.EntityType, EntityID: f.EntityID, FeedURL: f.FeedURL,
-			Meta: feeds.MinifiedMeta{Title: f.Title, Description: f.Description, PreventIndexing: f.PreventIndexing, OwnerName: f.OwnerName, OwnerEmail: f.OwnerEmail}}
+		out[i] = f.view()
 	}
 	return out, nil
 }

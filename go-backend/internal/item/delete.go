@@ -3,7 +3,6 @@ package item
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,11 +12,7 @@ import (
 
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/db"
-	"audiobookshelf-compat/internal/db/sqlc"
-	"audiobookshelf-compat/internal/feeds"
 	"audiobookshelf-compat/internal/httpx"
-	"audiobookshelf-compat/internal/playlistview"
-	"audiobookshelf-compat/internal/store"
 )
 
 // Removal is what deleting items' rows left to do once the transaction that
@@ -25,8 +20,8 @@ import (
 type Removal struct {
 	refs            []itemRef
 	authors, series []string // parents to sweep
-	closedFeeds     []feeds.Minified
-	playlists       []store.PlaylistChange
+	closedFeeds     []feedView
+	playlists       []PlaylistChange
 }
 
 // delete is LibraryItemController.delete (js:114-150). Order: 404, 403
@@ -119,7 +114,7 @@ func (h *Handler) Sweep(ctx context.Context, rem Removal) {
 }
 
 func (h *Handler) announceRemoval(ctx context.Context, rem Removal, files func(context.Context, itemRef)) {
-	playlistview.Announce(ctx, h.db.SQL(), h.emit, rem.playlists)
+	h.announcePlaylists(ctx, rem.playlists)
 	for _, ref := range rem.refs {
 		for _, feed := range rem.closedFeeds {
 			if db.Val(feed.EntityID) == ref.ID {
@@ -200,7 +195,7 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 	}); err != nil {
 		return Removal{}, err
 	}
-	if rem.playlists, err = h.removeFromPlaylists(ctx, mediaIDs); err != nil {
+	if rem.playlists, err = RemoveFromPlaylists(ctx, h.db, mediaIDs); err != nil {
 		return Removal{}, err
 	}
 	// The media rows go with their shares; an empty id list matches nothing.
@@ -224,68 +219,6 @@ func (h *Handler) deleteRows(ctx context.Context, refs []itemRef) (Removal, erro
 		}
 	}
 	return rem, nil
-}
-
-// removeFromPlaylists is Playlist.removeMediaItemsFromPlaylists
-// (Playlist.js:172-208): it drops the entries for mediaIDs, destroys the
-// playlists left empty and renumbers the others. It returns what changed in
-// the form playlistview announces (a transitional type until playlists move).
-func (h *Handler) removeFromPlaylists(ctx context.Context, mediaIDs []string) ([]store.PlaylistChange, error) {
-	var playlistIDs []string
-	err := forChunks(mediaIDs, func(chunk []string) error {
-		var found []string
-		if err := h.db.Select(ctx, &found, `SELECT DISTINCT playlistId FROM playlistMediaItems WHERE mediaItemId IN (?) AND playlistId IS NOT NULL`, chunk); err != nil {
-			return err
-		}
-		for _, id := range found {
-			if !slices.Contains(playlistIDs, id) {
-				playlistIDs = append(playlistIDs, id)
-			}
-		}
-		if len(found) == 0 {
-			return nil
-		}
-		_, err := h.db.Exec(ctx, `DELETE FROM playlistMediaItems WHERE mediaItemId IN (?)`, chunk)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(playlistIDs) == 0 {
-		return nil, nil
-	}
-	var changes []store.PlaylistChange
-	for _, id := range playlistIDs {
-		var playlist db.Playlist
-		var entryIDs []string
-		if err := h.db.Get(ctx, &playlist, `SELECT * FROM playlists WHERE id = ?`, id); err != nil {
-			return nil, err
-		}
-		if err := h.db.Select(ctx, &entryIDs, "SELECT id FROM playlistMediaItems WHERE playlistId = ? ORDER BY `order`", id); err != nil {
-			return nil, err
-		}
-		changes = append(changes, store.PlaylistChange{Playlist: legacyPlaylist(playlist), Removed: len(entryIDs) == 0})
-		if len(entryIDs) == 0 {
-			if _, err := h.db.Exec(ctx, `DELETE FROM playlists WHERE id = ?`, id); err != nil {
-				return nil, err
-			}
-			continue
-		}
-		for order, entryID := range entryIDs {
-			if _, err := h.db.Exec(ctx, "UPDATE playlistMediaItems SET `order` = ? WHERE id = ?", order+1, entryID); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return changes, nil
-}
-
-// legacyPlaylist converts a playlist row to the sqlc row playlistview reads.
-func legacyPlaylist(p db.Playlist) sqlc.Playlist {
-	text := func(s *string) sql.NullString { return sql.NullString{String: db.Val(s), Valid: s != nil} }
-	created, _ := p.CreatedAt.Value() // a Time always yields a string or nil
-	updated, _ := p.UpdatedAt.Value()
-	return sqlc.Playlist{ID: p.ID, Name: text(p.Name), Description: text(p.Description), Createdat: created, Updatedat: updated, Libraryid: text(p.LibraryID), Userid: text(p.UserID)}
 }
 
 // removeFiles deletes a hard-deleted item's path when it lies inside one of the

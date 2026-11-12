@@ -9,7 +9,6 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // openLibrary is LibraryController.middleware: 403 when the library is closed
@@ -42,8 +41,8 @@ func (h *Handler) libraryDownloads(w http.ResponseWriter, r *http.Request) error
 	}
 	queued, current := h.downloadsOf(func(it *item.Item) bool { return db.Val(it.LibraryID) == library.ID })
 	return httpx.JSON(w, r, struct {
-		CurrentDownload *wire.EpisodeDownload  `json:"currentDownload,omitempty"`
-		Queue           []wire.EpisodeDownload `json:"queue"`
+		CurrentDownload *item.EpisodeDownload  `json:"currentDownload,omitempty"`
+		Queue           []item.EpisodeDownload `json:"queue"`
 	}{current, queued})
 }
 

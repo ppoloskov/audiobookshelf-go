@@ -18,7 +18,6 @@ import (
 	"audiobookshelf-compat/internal/events"
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // maxEpisodeBytes bounds one downloaded episode.
@@ -44,9 +43,9 @@ func (d *download) title() string {
 }
 
 // view is the download as clients see it (PodcastEpisodeDownload.toJSONForClient).
-func (d *download) view() wire.EpisodeDownload {
+func (d *download) view() item.EpisodeDownload {
 	title, podcast := d.title(), d.item.Podcast
-	out := wire.EpisodeDownload{ID: d.id, EpisodeDisplayTitle: &title, URL: d.url, LibraryItemID: d.item.ID, IsFinished: d.finished, Failed: d.failed,
+	out := item.EpisodeDownload{ID: d.id, EpisodeDisplayTitle: &title, URL: d.url, LibraryItemID: d.item.ID, IsFinished: d.finished, Failed: d.failed,
 		AppendRandomID: d.appendID, CreatedAt: d.createdAt, PodcastTitle: podcast.Title, PodcastExplicit: bool(podcast.Explicit), Season: d.episode.Season,
 		Episode: d.episode.Episode, EpisodeType: cmp.Or(d.episode.EpisodeType, "full"), PublishedAt: d.episode.PublishedAt, GUID: d.episode.GUID,
 		LibraryID: d.item.LibraryID}
@@ -227,10 +226,10 @@ func episodeFilename(title, rawURL string) string {
 }
 
 // downloadsOf reports the queued downloads of an item and its running one.
-func (h *Handler) downloadsOf(match func(*item.Item) bool) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload) {
+func (h *Handler) downloadsOf(match func(*item.Item) bool) (queued []item.EpisodeDownload, current *item.EpisodeDownload) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	queued = []wire.EpisodeDownload{}
+	queued = []item.EpisodeDownload{}
 	for _, d := range h.queue {
 		if match(d.item) {
 			queued = append(queued, d.view())
@@ -245,7 +244,7 @@ func (h *Handler) downloadsOf(match func(*item.Item) bool) (queued []wire.Episod
 
 // EpisodeDownloads reports the queued downloads of a library item and the one
 // running now, if it belongs to the item (LibraryItemController.findOne).
-func (h *Handler) EpisodeDownloads(libraryItemID string) (queued []wire.EpisodeDownload, current *wire.EpisodeDownload) {
+func (h *Handler) EpisodeDownloads(libraryItemID string) (queued []item.EpisodeDownload, current *item.EpisodeDownload) {
 	return h.downloadsOf(func(it *item.Item) bool { return it.ID == libraryItemID })
 }
 

@@ -4,12 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net"
 	"net/http"
 	"sync"
 	"time"
-
-	"audiobookshelf-compat/internal/logging"
 
 	"golang.org/x/net/websocket"
 )
@@ -114,7 +113,7 @@ func (c *conn) send(packet string) bool {
 	case c.out <- packet:
 		return true
 	default:
-		logging.Warnf("[SocketAuthority] Socket send buffer full, closing connection")
+		slog.Warn("[SocketAuthority] Socket send buffer full, closing connection")
 		c.abort("transport error")
 		return false
 	}

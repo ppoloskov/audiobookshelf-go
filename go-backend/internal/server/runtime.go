@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	pathpkg "path"
@@ -15,7 +14,6 @@ import (
 	"regexp"
 	"strings"
 
-	"audiobookshelf-compat/internal/access"
 	"audiobookshelf-compat/internal/admin"
 	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/author"
@@ -40,7 +38,6 @@ import (
 	"audiobookshelf-compat/internal/scan"
 	"audiobookshelf-compat/internal/settings"
 	"audiobookshelf-compat/internal/share"
-	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 	"audiobookshelf-compat/internal/tools"
 	"audiobookshelf-compat/internal/user"
@@ -107,8 +104,9 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	rt.auth.Routes(rt.authRoutes)
 	rt.metadata = metadata.New(rt.data, emit)
 	rt.notifications = notify.New(rt.settings, emit)
-	rt.podcasts = podcast.New(rt.data, rt.settings, cfg, emit, rt.notifications.TriggerEvent)
-	rt.scanner = scan.New(rt.data, rt.settings, emit, filters, cfg)
+	listHandler := list.New(rt.data, rt.settings, emit)
+	rt.podcasts = podcast.New(rt.data, rt.settings, cfg, emit, rt.notifications.TriggerEvent, listHandler.AnnouncePlaylists)
+	rt.scanner = scan.New(rt.data, rt.settings, emit, filters, cfg, listHandler.AnnouncePlaylists)
 	libraryChanged := func(string) {
 		if err := rt.scanner.Refresh(context.Background()); err != nil {
 			logging.Errorf("[Server] refresh watchers and schedules: %v", err)
@@ -119,14 +117,15 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		itemMetadataDir = cfg.Dirs().Items
 	}
 	itemHandler := item.New(rt.data, rt.settings, emit, item.Deps{
-		Filters:         filters,
-		Downloads:       rt.podcasts,
-		Books:           rt.metadata.Legacy(),
-		WriteMetadata:   rt.scanner.WriteMetadata,
-		ScheduleChanged: rt.podcasts.Reschedule,
-		PodcastEpisodes: rt.podcasts.QuickMatchEpisodes,
-		CoverCacheDir:   cfg.Dirs().CoverCache,
-		ItemMetadataDir: itemMetadataDir,
+		Filters:           filters,
+		Downloads:         rt.podcasts,
+		Books:             rt.metadata,
+		AnnouncePlaylists: listHandler.AnnouncePlaylists,
+		WriteMetadata:     rt.scanner.WriteMetadata,
+		ScheduleChanged:   rt.podcasts.Reschedule,
+		PodcastEpisodes:   rt.podcasts.QuickMatchEpisodes,
+		CoverCacheDir:     cfg.Dirs().CoverCache,
+		ItemMetadataDir:   itemMetadataDir,
 	})
 	rt.libraries = libraries.New(rt.data, rt.settings, emit, libraries.Deps{
 		Filters:        filters,
@@ -135,7 +134,7 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 		Items:          itemHandler,
 	})
 	rt.playback = playback.New(rt.data, rt.settings, cfg, emit)
-	rt.users = user.New(rt.data, rt.auth, rt.settings, emit, rt.playback, user.Deps{UserChanged: hub.Refresh, UsersOnline: hub.UsersOnline})
+	rt.users = user.New(rt.data, rt.auth, rt.settings, emit, rt.playback, user.Deps{UserChanged: hub.Refresh, UsersOnline: func() []map[string]any { return onlineUsers(hub) }})
 	if rt.backup, err = backup.New(rt.settings, cfg, os.Getenv, emit, rt.notifications.TriggerEvent, m.restore); err != nil {
 		return rt, err
 	}
@@ -156,7 +155,6 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	rt.emailapi = mail.New(rt.data, rt.settings, emit)
 	rt.share = share.New(rt.data, emit, cfg.RouterBasePath)
 	rt.tools = tools.New(rt.data, cfg, emit)
-	listHandler := list.New(rt.data, rt.settings, emit)
 
 	// Routes register before backup.Routes so its patterns do not shadow them.
 	rt.routes = http.NewServeMux()
@@ -183,65 +181,46 @@ func newRuntime(sqlDB *sql.DB, cfg config.Config, m *Manager) (rt *Runtime, err 
 	return rt, nil
 }
 
-func (rt *Runtime) DB() *sql.DB { return rt.db }
+// DB is the data layer the realtime hub writes lastSeen through.
+func (rt *Runtime) DB() *db.DB { return rt.data }
 
-func (rt *Runtime) Authenticate(r *http.Request) (store.User, error) {
-	principal, err := rt.auth.Authenticate(r)
-	return legacyUser(principal), err
-}
-
-// TEMPORARY: the old packages take store.User; delete with them.
-func legacyUser(p *auth.Principal) store.User {
-	if p == nil {
-		return store.User{}
-	}
-	raw := func(v any) json.RawMessage { b, _ := json.Marshal(v); return b } // plain structs cannot fail to marshal
-	millis := func(t db.Time) *int64 {
-		if t.IsZero() {
-			return nil
-		}
-		ms := t.Millis()
-		return &ms
-	}
-	u := p.User
-	return store.User{
-		ID: u.ID, Username: db.Val(u.Username), Email: u.Email, Password: db.Val(u.Pash), Type: db.Val(u.Type), Token: db.Val(u.Token),
-		IsActive: bool(u.IsActive), IsLocked: bool(u.IsLocked), LastSeen: millis(u.LastSeen), Permissions: raw(u.Permissions.V),
-		Bookmarks: raw(u.Bookmarks.V), ExtraData: raw(u.ExtraData.V), CreatedAt: millis(u.CreatedAt), UpdatedAt: millis(u.UpdatedAt),
-	}
+// Authenticate is the realtime hub's token check: the HTTP bearer check.
+func (rt *Runtime) Authenticate(r *http.Request) (*auth.Principal, error) {
+	return rt.auth.Authenticate(r)
 }
 
 func (rt *Runtime) Session(userID string) any { return rt.playback.SessionOf(userID) }
 
-func (rt *Runtime) Dispatch(_ context.Context, action realtime.Action) error {
-	switch action.Event {
-	case "cancel_scan":
-		libraryID, ok := action.Payload.(string)
-		if !ok || libraryID == "" {
-			return fmt.Errorf("invalid cancel_scan payload")
-		}
-		rt.scanner.Cancel(libraryID)
-	case "set_log_listener":
-		level, ok := logLevel(action.Payload)
-		if !ok {
-			return fmt.Errorf("invalid log listener level")
-		}
-		logging.Default().AddListener(action.SocketID, logging.Level(level))
-	case "remove_log_listener", "disconnect":
-		logging.Default().RemoveListener(action.SocketID)
-	case "search_covers":
-		payload, _ := action.Payload.(map[string]any)
-		requestID, _ := payload["requestId"].(string)
-		title, _ := payload["title"].(string)
-		author, _ := payload["author"].(string)
-		provider, _ := payload["provider"].(string)
-		podcast, _ := payload["podcast"].(bool)
-		rt.metadata.StartCoverSearch(metadata.CoverRequest{RequestID: requestID, Title: title, Author: author, Provider: provider, Podcast: podcast}, action.Reply)
-	case "cancel_cover_search":
-		requestID, _ := action.Payload.(string)
-		rt.metadata.CancelCoverSearch(requestID, action.Reply)
+// The remaining methods are realtime.Actions: what clients can ask over the
+// socket. The hub has validated the payloads and the caller's rights.
+
+func (rt *Runtime) CancelScan(libraryID string) { rt.scanner.Cancel(libraryID) }
+
+func (rt *Runtime) SetLogListener(socketID string, level int) {
+	logging.Default().AddListener(socketID, logging.Level(level))
+}
+
+func (rt *Runtime) RemoveLogListener(socketID string) { logging.Default().RemoveListener(socketID) }
+
+func (rt *Runtime) SearchCovers(search realtime.CoverSearch, reply realtime.Reply) {
+	rt.metadata.StartCoverSearch(metadata.CoverRequest{RequestID: search.RequestID, Title: search.Title, Author: search.Author, Provider: search.Provider, Podcast: search.Podcast}, reply)
+}
+
+func (rt *Runtime) CancelCoverSearch(requestID string, reply realtime.Reply) {
+	rt.metadata.CancelCoverSearch(requestID, reply)
+}
+
+// onlineUsers adapts the hub's typed list to user.Deps, which takes maps; it
+// is only ever marshalled again.
+func onlineUsers(hub *realtime.Hub) []map[string]any {
+	var maps []map[string]any
+	if raw, err := json.Marshal(hub.UsersOnline()); err == nil {
+		_ = json.Unmarshal(raw, &maps) // our own output; an empty list stays empty
 	}
-	return nil
+	if maps == nil {
+		maps = []map[string]any{}
+	}
+	return maps
 }
 
 func (rt *Runtime) Close() {
@@ -347,12 +326,10 @@ func (rt *Runtime) serveRoute(w http.ResponseWriter, r *http.Request, principal 
 	if _, pattern := rt.routes.Handler(r); pattern == "" {
 		return false
 	}
-	user := legacyUser(principal)
-	ctx := store.ContextWithUser(r.Context(), user)
 	if principal != nil {
-		ctx = auth.WithUser(access.WithRequest(ctx, user), principal)
+		r = r.WithContext(auth.WithUser(r.Context(), principal))
 	}
-	rt.routes.ServeHTTP(w, r.WithContext(ctx))
+	rt.routes.ServeHTTP(w, r)
 	return true
 }
 
@@ -375,18 +352,6 @@ func routeAlias(path string) (string, bool) {
 	return canonical, pathpkg.Clean(canonical) == canonical
 }
 
-func logLevel(value any) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		return v, v >= 0 && v <= 6
-	case int64:
-		return int(v), v >= 0 && v <= 6
-	case float64:
-		return int(v), v == float64(int(v)) && v >= 0 && v <= 6
-	default:
-		return 0, false
-	}
-}
 func withPath(r *http.Request, path string) *http.Request {
 	clone := r.Clone(r.Context())
 	u := *r.URL

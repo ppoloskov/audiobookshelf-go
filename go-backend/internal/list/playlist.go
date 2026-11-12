@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -36,6 +37,30 @@ type playlistEntry struct {
 	LibraryItemID string                `json:"libraryItemId"`
 	LibraryItem   any                   `json:"libraryItem"` // item.Expanded or item.Minified
 	mediaID       string
+}
+
+// AnnouncePlaylists tells the owner of each playlist that a deletion of items
+// or episodes changed: playlist_removed for one left empty (and deleted),
+// shown with no items, as upstream expands it after its entries are gone and
+// before it is destroyed (Playlist.js:199-206), else playlist_updated with the
+// playlist as it is now. Call it after the deletion committed; it is the
+// item.Deps.AnnouncePlaylists implementation.
+func (h *Handler) AnnouncePlaylists(ctx context.Context, changes []item.PlaylistChange) {
+	for _, change := range changes {
+		owner := db.Val(change.Playlist.UserID)
+		if change.Removed {
+			view := playlistView{ID: change.Playlist.ID, Name: db.Val(change.Playlist.Name), LibraryID: db.Val(change.Playlist.LibraryID), UserID: owner,
+				Description: change.Playlist.Description, LastUpdate: change.Playlist.UpdatedAt, CreatedAt: change.Playlist.CreatedAt, Items: []playlistEntry{}}
+			h.emit.ToUser(owner, "playlist_removed", view)
+			continue
+		}
+		view, err := h.playlistViewOf(ctx, change.Playlist)
+		if err != nil {
+			slog.Error("playlist_updated after delete", "playlist", change.Playlist.ID, "error", err)
+			continue
+		}
+		h.emit.ToUser(owner, "playlist_updated", view)
+	}
 }
 
 // itemRequest names a playlist item: a library item, plus the episode for a podcast.

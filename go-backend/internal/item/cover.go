@@ -315,11 +315,37 @@ func (h *Handler) download(ctx context.Context, rawURL, dest string) error {
 	if kind := resp.Header.Get("Content-Type"); !strings.HasPrefix(kind, "image/") || kind == "image/svg+xml" {
 		return fmt.Errorf("content type %q", kind)
 	}
-	if err := writeFile(dest, resp.Body); err != nil {
+	if resp.ContentLength > maxCoverDownload {
+		return errCoverTooLarge
+	}
+	// One byte past the cap tells an oversized body from one of exactly the cap.
+	body := &countingReader{r: io.LimitReader(resp.Body, maxCoverDownload+1)}
+	if err := writeFile(dest, body); err != nil {
 		_ = os.Remove(dest) // do not keep a partial image
 		return err
 	}
+	if body.n > maxCoverDownload {
+		_ = os.Remove(dest)
+		return errCoverTooLarge
+	}
 	return nil
+}
+
+// maxCoverDownload bounds a cover fetched from a URL; a larger one is refused.
+const maxCoverDownload = 10 << 20
+
+var errCoverTooLarge = errors.New("cover is too large")
+
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
 }
 
 // coverStored follows a new cover file in dir: the item's older cover images

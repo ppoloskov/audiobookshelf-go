@@ -13,7 +13,6 @@ import (
 	idgen "audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/nameparse"
 	"audiobookshelf-compat/internal/textsort"
-	"audiobookshelf-compat/internal/wire"
 )
 
 // source says who edits a book, which decides the events its links announce.
@@ -111,6 +110,18 @@ func trimmed(names []string) (list []string, wanted map[string]bool) {
 		}
 	}
 	return list, wanted
+}
+
+// seriesCreated is Series.toOldJSON of a freshly created series, which has no
+// description attribute (server/models/Series.js:168-178): the series_added
+// payload of a quick match.
+type seriesCreated struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	NameIgnorePrefix string `json:"nameIgnorePrefix"`
+	AddedAt          int64  `json:"addedAt"`
+	UpdatedAt        int64  `json:"updatedAt"`
+	LibraryID        string `json:"libraryId"`
 }
 
 // authorEvent is Author.toOldJSON of an author created now, which has no
@@ -267,7 +278,7 @@ func (h *Handler) linkSeries(ctx context.Context, c *changes, libraryID, bookID 
 		c.seriesAdded = append(c.seriesAdded, filterdata.Named{ID: id, Name: name})
 		if created && src == fromMatch {
 			ms := now.UnixMilli()
-			c.events = append(c.events, event{"series_added", wire.SeriesCreated{ID: id, Name: name, NameIgnorePrefix: textsort.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})
+			c.events = append(c.events, event{"series_added", seriesCreated{ID: id, Name: name, NameIgnorePrefix: textsort.PrefixAtEnd(name, prefixes), AddedAt: ms, UpdatedAt: ms, LibraryID: libraryID}})
 		}
 	}
 	return changed, nil

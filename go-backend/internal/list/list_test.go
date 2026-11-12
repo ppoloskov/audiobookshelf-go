@@ -12,6 +12,7 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/db/dbtest"
 	"audiobookshelf-compat/internal/events"
+	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/settings"
 )
 
@@ -27,6 +28,7 @@ type sentEvent struct {
 type rig struct {
 	t      *testing.T
 	db     *db.DB
+	h      *Handler
 	mux    *http.ServeMux
 	events []sentEvent
 }
@@ -43,9 +45,10 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	New(d, store, events.Emitter(func(audience, event string, payload any) {
+	r.h = New(d, store, events.Emitter(func(audience, event string, payload any) {
 		r.events = append(r.events, sentEvent{audience, event, payload})
-	})).Routes(r.mux)
+	}))
+	r.h.Routes(r.mux)
 	return r
 }
 
@@ -436,5 +439,48 @@ func TestLibraryListingsNeedLibraryAccess(t *testing.T) {
 	}
 	if w := r.do("owner", "GET", "/api/libraries/missing/playlists", ""); w.Code != 404 {
 		t.Errorf("unknown library: %d", w.Code)
+	}
+}
+
+// Deleting a book announces the playlists it left behind to their owner: the
+// shrunken one expanded, the emptied one removed and shown without items.
+func TestAnnouncePlaylistsAfterItemDeletion(t *testing.T) {
+	r := newRig(t)
+	r.playlist("mix", "book-1", "book-2")
+	r.playlist("solo", "book-1")
+	var changes []item.PlaylistChange
+	err := r.db.Tx(context.Background(), func(ctx context.Context) error {
+		var err error
+		changes, err = item.RemoveFromPlaylists(ctx, r.db, []string{"book-1"})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.h.AnnouncePlaylists(context.Background(), changes)
+	events := r.take()
+	if len(events) != 2 || events[0].event != "playlist_updated" || events[1].event != "playlist_removed" || events[0].audience != "owner" || events[1].audience != "owner" {
+		t.Fatalf("events %+v", events)
+	}
+	for i, wantID := range []string{"mix", "solo"} {
+		raw, err := json.Marshal(events[i].payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body struct {
+			ID    string `json:"id"`
+			Items []struct {
+				LibraryItemID string `json:"libraryItemId"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(raw, &body); err != nil || body.ID != wantID {
+			t.Fatalf("payload %s: %v", raw, err)
+		}
+		if wantItems := 1 - i; len(body.Items) != wantItems || (wantItems == 1 && body.Items[0].LibraryItemID != "item-2") {
+			t.Errorf("%s items: %s", wantID, raw)
+		}
+		if i == 1 && !strings.Contains(string(raw), `"items":[]`) {
+			t.Errorf("removed playlist must show an empty list: %s", raw)
+		}
 	}
 }

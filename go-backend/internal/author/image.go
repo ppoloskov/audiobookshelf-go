@@ -26,7 +26,13 @@ import (
 const (
 	downloadTimeout = 30 * time.Second
 	maxDimension    = 4096
+	// maxImageBytes bounds a downloaded author image; a larger one is refused,
+	// never truncated.
+	maxImageBytes = 10 << 20
 )
+
+// errImageTooLarge is the fixed message shown for an oversized download.
+var errImageTooLarge = errors.New("Image is too large (maximum 10 MiB)")
 
 // purgeImageCache removes every cached resize whose name starts with the
 // entity id (CacheManager.purgeImageCache, js:97-126).
@@ -82,6 +88,9 @@ func (h *Handler) download(ctx context.Context, rawURL, dest string) (err error)
 	if kind := resp.Header.Get("Content-Type"); !strings.HasPrefix(kind, "image/") || kind == "image/svg+xml" {
 		return fmt.Errorf("Invalid content type %q", kind)
 	}
+	if resp.ContentLength > maxImageBytes {
+		return errImageTooLarge
+	}
 	file, err := os.Create(dest)
 	if err != nil {
 		return err
@@ -94,8 +103,15 @@ func (h *Handler) download(ctx context.Context, rawURL, dest string) (err error)
 			_ = os.Remove(dest) // a failed download leaves no file
 		}
 	}()
-	_, err = io.Copy(file, resp.Body)
-	return err
+	// One byte past the cap tells an oversized body from one of exactly the cap.
+	written, err := io.Copy(file, io.LimitReader(resp.Body, maxImageBytes+1))
+	if err != nil {
+		return err
+	}
+	if written > maxImageBytes {
+		return errImageTooLarge
+	}
+	return nil
 }
 
 // message is the text axios reports for a failed download, which the web

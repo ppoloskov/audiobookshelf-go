@@ -1,11 +1,10 @@
 package realtime
 
 import (
-	"encoding/json"
 	"testing"
 
-	"audiobookshelf-compat/internal/access"
-	"audiobookshelf-compat/internal/store"
+	"audiobookshelf-compat/internal/auth"
+	"audiobookshelf-compat/internal/db"
 )
 
 type scopedPayload struct{ library string }
@@ -13,17 +12,14 @@ type scopedPayload struct{ library string }
 func (p scopedPayload) EventLibraryID() string { return p.library }
 
 func TestLibraryScopedPayloadNeedsLibraryAccess(t *testing.T) {
-	user := func(perms string) *access.Permissions {
-		p := access.Of(store.User{Type: "user", IsActive: true, Permissions: json.RawMessage(perms)})
-		return &p
+	user := func(libraries ...string) *auth.Principal {
+		return auth.NewPrincipal(db.User{IsActive: true, Permissions: db.JSON[db.Permissions]{V: db.Permissions{LibrariesAccessible: libraries, AccessAllTags: true}}})
 	}
-	member := user(`{"accessAllLibraries":false,"librariesAccessible":["lib-1"],"accessAllTags":true}`)
-	outsider := user(`{"accessAllLibraries":false,"librariesAccessible":["lib-2"],"accessAllTags":true}`)
-	if !payloadAccessible(member, scopedPayload{"lib-1"}) || payloadAccessible(outsider, scopedPayload{"lib-1"}) {
-		t.Error("a library-scoped payload must reach only users of its library")
+	member, outsider := user("lib-1"), user("lib-2")
+	if _, ok := payloadForUser(member, scopedPayload{"lib-1"}); !ok {
+		t.Error("a library-scoped payload must reach a user of its library")
 	}
-	filtered, ok := payloadForUser(outsider, []any{scopedPayload{"lib-1"}})
-	if ok || len(filtered.([]any)) != 0 {
-		t.Errorf("a list of scoped payloads must be filtered, got %v", filtered)
+	if _, ok := payloadForUser(outsider, scopedPayload{"lib-1"}); ok {
+		t.Error("a library-scoped payload must not reach other users")
 	}
 }

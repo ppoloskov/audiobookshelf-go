@@ -92,7 +92,7 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.s = New(r.d, st, r.emit, filterdata.NewCache(), config.Config{MetadataPath: r.meta})
+	r.s = New(r.d, st, r.emit, filterdata.NewCache(), config.Config{MetadataPath: r.meta}, nil)
 	t.Cleanup(r.s.Close)
 	return r
 }

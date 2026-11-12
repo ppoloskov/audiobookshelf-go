@@ -1,126 +1,52 @@
 package realtime
 
 import (
-	"audiobookshelf-compat/internal/access"
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/items"
 )
 
-// accessor is implemented by the typed item payloads of the old items package
-// (items.Expanded, ...).
-type accessor interface{ Access() access.Access }
-
-// itemAccessor is implemented by the typed item views of the new item package.
-type itemAccessor interface{ Access() item.Access }
+// itemView is implemented by the typed item views (item.Full, Expanded,
+// Minified).
+type itemView interface{ Access() item.Access }
 
 // libraryScoped is implemented by typed payloads that belong to one library
-// (collections): they are limited to users who can access it, like a map with
-// a libraryId.
+// (collections): they are limited to users who can access it.
 type libraryScoped interface{ EventLibraryID() string }
 
-func itemAllowed(g *access.Permissions, a item.Access) bool {
-	return g.Item(access.Access{LibraryID: a.LibraryID, Explicit: a.Explicit, Tags: a.Tags})
+func canSee[T itemView](user *auth.Principal, view T) bool {
+	a := view.Access()
+	return user.CanAccessItem(a.LibraryID, a.Explicit, a.Tags)
 }
 
-func filter[T accessor](g *access.Permissions, values []T) (any, bool) {
-	out := make([]T, 0, len(values))
-	for _, v := range values {
-		if g.Item(v.Access()) {
-			out = append(out, v)
+// filterItems keeps the items user may see; it reports false when none remain.
+func filterItems[T itemView](user *auth.Principal, views []T) (any, bool) {
+	out := make([]T, 0, len(views))
+	for _, view := range views {
+		if canSee(user, view) {
+			out = append(out, view)
 		}
 	}
 	return out, len(out) > 0
 }
 
-func filterItems[T itemAccessor](g *access.Permissions, values []T) (any, bool) {
-	out := make([]T, 0, len(values))
-	for _, v := range values {
-		if itemAllowed(g, v.Access()) {
-			out = append(out, v)
-		}
-	}
-	return out, len(out) > 0
-}
-
-// payloadAccessible filters one payload. Typed item payloads (items.Full,
-// Expanded, Minified) apply the library, explicit and tag rules. Any other
-// payload that carries a libraryId (collections, item_removed) is limited to
-// the library check; global payloads are unrestricted. A map that looks like an
-// item (has "media") is never delivered: item payloads must be typed.
-func payloadAccessible(g *access.Permissions, payload any) bool {
-	if a, ok := payload.(accessor); ok {
-		return g.Item(a.Access())
-	}
-	if a, ok := payload.(itemAccessor); ok {
-		return itemAllowed(g, a.Access())
-	}
-	if a, ok := payload.(libraryScoped); ok {
-		return g.Library(a.EventLibraryID())
-	}
-	metadata, ok := payload.(map[string]any)
-	if !ok {
-		return true
-	}
-	libraryID, _ := metadata["libraryId"].(string)
-	if libraryID == "" {
-		return true
-	}
-	if _, isItem := metadata["media"]; isItem {
-		return false
-	}
-	return g.Library(libraryID)
-}
-
-func payloadForUser(g *access.Permissions, payload any) (any, bool) {
-	switch values := payload.(type) {
-	case []items.Expanded:
-		return filter(g, values)
-	case []items.Minified:
-		return filter(g, values)
-	case []items.Full:
-		return filter(g, values)
+// payloadForUser returns what user may receive of a broadcast payload, and
+// whether anything is left. Typed item views and lists of them apply the
+// library, explicit and tag rules, a payload with an EventLibraryID applies
+// the library rule, and every other payload is global. Item payloads must be
+// typed: an untyped map is never inspected.
+func payloadForUser(user *auth.Principal, payload any) (any, bool) {
+	switch value := payload.(type) {
 	case []item.Expanded:
-		return filterItems(g, values)
+		return filterItems(user, value)
 	case []item.Minified:
-		return filterItems(g, values)
+		return filterItems(user, value)
 	case []item.Full:
-		return filterItems(g, values)
-	case []any:
-		filtered := make([]any, 0, len(values))
-		restricted := false
-		for _, value := range values {
-			if hasAccessMetadata(value) {
-				restricted = true
-			}
-			if payloadAccessible(g, value) {
-				filtered = append(filtered, value)
-			}
-		}
-		if !restricted {
-			return payload, true
-		}
-		return filtered, len(filtered) > 0
+		return filterItems(user, value)
+	case itemView:
+		return payload, canSee(user, value)
+	case libraryScoped:
+		return payload, user.CanAccessLibrary(value.EventLibraryID())
 	default:
-		return payload, payloadAccessible(g, payload)
+		return payload, true
 	}
-}
-
-// hasAccessMetadata reports whether a list element carries access inputs: a
-// typed item or a map with a libraryId.
-func hasAccessMetadata(raw any) bool {
-	if _, ok := raw.(accessor); ok {
-		return true
-	}
-	if _, ok := raw.(itemAccessor); ok {
-		return true
-	}
-	if _, ok := raw.(libraryScoped); ok {
-		return true
-	}
-	item, ok := raw.(map[string]any)
-	if !ok {
-		return false
-	}
-	_, ok = item["libraryId"].(string)
-	return ok
 }

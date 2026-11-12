@@ -3,8 +3,6 @@ package item
 import (
 	"net/http"
 	"testing"
-
-	"audiobookshelf-compat/internal/wire"
 )
 
 func TestGetFullAndExpanded(t *testing.T) {
@@ -80,8 +78,8 @@ func TestGetPodcastSerializesEpisodeAndTrack(t *testing.T) {
 
 type queue struct{}
 
-func (queue) EpisodeDownloads(string) ([]wire.EpisodeDownload, *wire.EpisodeDownload) {
-	return []wire.EpisodeDownload{{ID: "q1"}}, &wire.EpisodeDownload{ID: "now"}
+func (queue) EpisodeDownloads(string) ([]EpisodeDownload, *EpisodeDownload) {
+	return []EpisodeDownload{{ID: "q1"}}, &EpisodeDownload{ID: "now"}
 }
 
 func TestGetIncludes(t *testing.T) {

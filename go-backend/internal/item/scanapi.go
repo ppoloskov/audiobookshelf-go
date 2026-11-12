@@ -3,9 +3,6 @@ package item
 import (
 	"context"
 	"slices"
-
-	"audiobookshelf-compat/internal/playlistview"
-	"audiobookshelf-compat/internal/store"
 )
 
 // This file is the doorway the library scanner uses to link a scanned book to
@@ -82,27 +79,16 @@ func (h *Handler) SweepOrphans(ctx context.Context, authorIDs, seriesIDs []strin
 }
 
 // EpisodeRemoval is what deleting episodes left to announce.
-type EpisodeRemoval struct{ playlists []store.PlaylistChange }
+type EpisodeRemoval struct{ playlists []PlaylistChange }
 
 // DeleteEpisodes removes podcast episodes with their progress and playlist
 // entries inside the caller's transaction.
 func (h *Handler) DeleteEpisodes(ctx context.Context, episodeIDs []string) (EpisodeRemoval, error) {
-	if len(episodeIDs) == 0 {
-		return EpisodeRemoval{}, nil
-	}
-	playlists, err := h.removeFromPlaylists(ctx, episodeIDs)
-	if err != nil {
-		return EpisodeRemoval{}, err
-	}
-	for _, query := range []string{`DELETE FROM mediaProgresses WHERE mediaItemId IN (?)`, `DELETE FROM podcastEpisodes WHERE id IN (?)`} {
-		if _, err := h.db.Exec(ctx, query, episodeIDs); err != nil {
-			return EpisodeRemoval{}, err
-		}
-	}
-	return EpisodeRemoval{playlists}, nil
+	playlists, err := DeleteEpisodeRows(ctx, h.db, episodeIDs)
+	return EpisodeRemoval{playlists}, err
 }
 
 // Announce sends playlist_updated and playlist_removed after the commit.
 func (r EpisodeRemoval) Announce(ctx context.Context, h *Handler) {
-	playlistview.Announce(ctx, h.db.SQL(), h.emit, r.playlists)
+	h.announcePlaylists(ctx, r.playlists)
 }

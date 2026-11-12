@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -11,15 +12,16 @@ import (
 	"testing"
 	"time"
 
+	"audiobookshelf-compat/internal/auth"
 	"audiobookshelf-compat/internal/config"
+	absdb "audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/logging"
-	"audiobookshelf-compat/internal/store"
 
 	"golang.org/x/net/websocket"
 )
 
 // sioServer serves a Hub with the application handlers over a real listener.
-// Disconnects are observed through the Backend (Dispatch "remove_log_listener",
+// Disconnects are observed through the Backend (RemoveLogListener,
 // which the hub sends for every closed socket) and their reasons through the
 // [SocketAuthority] log entries, as the log stream delivers them.
 type sioServer struct {
@@ -27,7 +29,7 @@ type sioServer struct {
 	url         string
 	backend     *fakeBackend
 	disconnects chan string // socket id of every closed socket, in order
-	actions     chan Action // other dispatched actions
+	actions     chan string // other actions, "<action> <argument>"
 	reasons     chan logged
 }
 
@@ -38,19 +40,14 @@ var reasonRe = regexp.MustCompile(`[Ss]ocket (\S+) disconnect.*\(Reason: (.*)\)`
 func testServer(t *testing.T) *sioServer {
 	t.Helper()
 	db, _ := testDB(t)
-	srv := &sioServer{disconnects: make(chan string, 64), actions: make(chan Action, 64), reasons: make(chan logged, 64)}
-	srv.backend = &fakeBackend{db: db, auth: func(r *http.Request) (store.User, error) {
+	srv := &sioServer{disconnects: make(chan string, 64), actions: make(chan string, 64), reasons: make(chan logged, 64)}
+	srv.backend = &fakeBackend{sql: db, actions: srv.actions, auth: func(r *http.Request) (*auth.Principal, error) {
 		return userForToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 	}}
-	srv.backend.dispatch = func(_ context.Context, a Action) error {
-		if a.Event == "remove_log_listener" {
-			srv.disconnects <- a.SocketID
-		} else {
-			srv.actions <- a
-		}
-		return nil
-	}
+	srv.backend.removeLogListener = func(id string) { srv.disconnects <- id }
 	srv.hub = newTestHub(config.Config{RouterBasePath: "/abs"}, srv.backend)
+	previousLog := slog.Default()
+	slog.SetDefault(slog.New(logging.Default()))
 	logging.Default().SetSocketSink(func(_ string, e logging.Entry) {
 		if m := reasonRe.FindStringSubmatch(e.Message); m != nil {
 			srv.reasons <- logged{m[1], m[2]}
@@ -63,6 +60,7 @@ func testServer(t *testing.T) *sioServer {
 		srv.hub.Close()
 		logging.Default().RemoveListener("sio-test")
 		logging.Default().SetSocketSink(nil)
+		slog.SetDefault(previousLog)
 	})
 	srv.url = "ws" + strings.TrimPrefix(server.URL, "http") + "/socket.io/?EIO=4&transport=websocket"
 	return srv
@@ -169,17 +167,20 @@ func open(t *testing.T, ws *websocket.Conn) map[string]any {
 	return info
 }
 
-func userForToken(token string) (store.User, error) {
-	byToken := map[string]store.User{
-		"tok-alice":    {ID: "user-1", Username: "alice", Type: "user", IsActive: true, Permissions: []byte(`{"librariesAccessible":["lib-1"],"itemTagsSelected":["mystery"]}`)},
-		"tok-bob":      {ID: "limited-1", Username: "bob", Type: "user", IsActive: true, Permissions: []byte(`{"librariesAccessible":["lib-2"],"itemTagsSelected":["mystery"]}`)},
-		"tok-admin":    {ID: "admin-1", Username: "root", Type: "admin", IsActive: true, Permissions: []byte(`{"accessAllLibraries":true,"accessAllTags":true,"accessExplicitContent":true}`)},
-		"tok-inactive": {ID: "user-1", Username: "alice", Type: "user", IsActive: false},
+func userForToken(token string) (*auth.Principal, error) {
+	user := func(id, name, kind string, active bool, perms absdb.Permissions) *auth.Principal {
+		return auth.NewPrincipal(absdb.User{ID: id, Username: &name, Type: &kind, IsActive: absdb.Bool(active), Permissions: absdb.JSON[absdb.Permissions]{V: perms}})
 	}
-	if u, ok := byToken[token]; ok {
-		return u, nil
+	byToken := map[string]*auth.Principal{
+		"tok-alice":    user("user-1", "alice", "user", true, absdb.Permissions{LibrariesAccessible: []string{"lib-1"}, ItemTagsSelected: []string{"mystery"}}),
+		"tok-bob":      user("limited-1", "bob", "user", true, absdb.Permissions{LibrariesAccessible: []string{"lib-2"}, ItemTagsSelected: []string{"mystery"}}),
+		"tok-admin":    user("admin-1", "root", "admin", true, absdb.Permissions{AccessAllLibraries: true, AccessAllTags: true, AccessExplicitContent: true}),
+		"tok-inactive": user("user-1", "alice", "user", false, absdb.Permissions{}),
 	}
-	return store.User{}, errors.New("invalid token")
+	if p, ok := byToken[token]; ok {
+		return p, nil
+	}
+	return nil, errors.New("invalid token")
 }
 
 type event struct {
@@ -295,30 +296,24 @@ func TestInvalidNamespace(t *testing.T) {
 // arguments; one without gets no ack function.
 func TestAckRoundTrip(t *testing.T) {
 	srv := testServer(t)
-	srv.backend.dispatch = func(_ context.Context, a Action) error {
-		if a.Event == "cancel_scan" {
-			if a.Ack == nil {
-				srv.actions <- a
-				return nil
-			}
-			a.Ack("x", map[string]any{"n": 1})
+	ws, id := connect(t, srv.url)
+	srv.hub.mu.RLock()
+	s := srv.hub.clients[id].socket
+	srv.hub.mu.RUnlock()
+	got := make(chan bool, 2)
+	s.On("echo", func(_ []any, ack Ack) {
+		got <- ack != nil
+		if ack != nil {
+			ack("x", map[string]any{"n": 1})
 		}
-		return nil
+	})
+	send(t, ws, `4212["echo"]`)
+	if frame := recv(t, ws); frame != `4312["x",{"n":1}]` {
+		t.Fatalf("ack = %q", frame)
 	}
-	ws, _ := connect(t, srv.url)
-	login(t, ws, "tok-admin")
-	send(t, ws, `4212["cancel_scan","lib-1"]`)
-	if got := recv(t, ws); got != `4312["x",{"n":1}]` {
-		t.Fatalf("ack = %q", got)
-	}
-	send(t, ws, `42["cancel_scan","lib-1"]`)
-	select {
-	case a := <-srv.actions:
-		if a.Ack != nil {
-			t.Fatal("an event without an ack id got an ack function")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("cancel_scan without ack id was not dispatched")
+	send(t, ws, `42["echo"]`)
+	if hasAck, other := <-got, <-got; !hasAck || other {
+		t.Fatalf("ack function given = %v, %v; want true, false", hasAck, other)
 	}
 }
 
@@ -364,7 +359,7 @@ func TestServerDisconnectSendsPacketThenCloses(t *testing.T) {
 	srv := testServer(t)
 	ws, id := connect(t, srv.url)
 	login(t, ws, "tok-alice")
-	if _, err := srv.backend.db.Exec(`UPDATE users SET isActive=0 WHERE id='user-1'`); err != nil {
+	if _, err := srv.backend.sql.Exec(`UPDATE users SET isActive=0 WHERE id='user-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if err := srv.hub.Refresh(context.Background(), "user-1"); err != nil {

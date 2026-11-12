@@ -11,7 +11,6 @@ import (
 	"audiobookshelf-compat/internal/db"
 	"audiobookshelf-compat/internal/httpx"
 	"audiobookshelf-compat/internal/item"
-	"audiobookshelf-compat/internal/wire"
 )
 
 func (h *Handler) feed(w http.ResponseWriter, r *http.Request) error {
@@ -51,7 +50,7 @@ func (h *Handler) parseOPML(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) itemDownloads(w http.ResponseWriter, r *http.Request, it *item.Item) error {
 	queued, _ := h.EpisodeDownloads(it.ID)
 	return httpx.JSON(w, r, struct {
-		Downloads []wire.EpisodeDownload `json:"downloads"`
+		Downloads []item.EpisodeDownload `json:"downloads"`
 	}{queued})
 }
 

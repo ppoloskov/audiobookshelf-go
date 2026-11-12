@@ -21,8 +21,6 @@ import (
 	"audiobookshelf-compat/internal/ids"
 	"audiobookshelf-compat/internal/item"
 	"audiobookshelf-compat/internal/mediatools"
-	"audiobookshelf-compat/internal/playlistview"
-	"audiobookshelf-compat/internal/store"
 	"audiobookshelf-compat/internal/textclean"
 )
 
@@ -165,38 +163,33 @@ func (h *Handler) trimOldest(ctx context.Context, it *item.Item, justAdded strin
 
 // deleteEpisode removes an episode row with its playlist entries and progress,
 // drops its audio file from the item's libraryFiles and recounts numEpisodes.
-// It runs on a *sql.Tx because store.DeleteEpisodes (shared with the item
-// delete paths, until they move) takes one.
 func (h *Handler) deleteEpisode(ctx context.Context, it *item.Item, episodeID, ino string) error {
-	tx, err := h.db.SQL().BeginTx(ctx, nil)
+	var changes []item.PlaylistChange
+	err := h.db.Tx(ctx, func(ctx context.Context) error {
+		var err error
+		if changes, err = item.DeleteEpisodeRows(ctx, h.db, []string{episodeID}); err != nil {
+			return err
+		}
+		var stored db.JSON[[]db.LibraryFile]
+		if err := h.db.Get(ctx, &stored, `SELECT libraryFiles FROM libraryItems WHERE id=?`, it.ID); err != nil {
+			return err
+		}
+		files := slices.DeleteFunc(stored.V, func(f db.LibraryFile) bool { return f.Ino == ino })
+		now := db.Now()
+		row := db.LibraryItem{ID: it.ID, UpdatedAt: now}
+		row.LibraryFiles.V = nonNilFiles(files)
+		if err := h.db.Update(ctx, "libraryItems", &row, "libraryFiles", "updatedAt"); err != nil {
+			return err
+		}
+		_, err = h.db.Exec(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, it.Podcast.ID, now, it.Podcast.ID)
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }() // a no-op after Commit; the error to report is the one returned
-	changes, err := store.DeleteEpisodes(ctx, tx, []string{episodeID})
-	if err != nil {
-		return err
+	if len(changes) > 0 && h.announcePlaylists != nil {
+		h.announcePlaylists(ctx, changes)
 	}
-	var stored db.JSON[[]db.LibraryFile]
-	if err := tx.QueryRowContext(ctx, `SELECT libraryFiles FROM libraryItems WHERE id=?`, it.ID).Scan(&stored); err != nil {
-		return err
-	}
-	files := slices.DeleteFunc(stored.V, func(f db.LibraryFile) bool { return f.Ino == ino })
-	encoded, err := db.JSON[[]db.LibraryFile]{V: nonNilFiles(files)}.Value()
-	if err != nil {
-		return err
-	}
-	now := db.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE libraryItems SET libraryFiles=?,updatedAt=? WHERE id=?`, encoded, now, it.ID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE podcasts SET numEpisodes=(SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId=?),updatedAt=? WHERE id=?`, it.Podcast.ID, now, it.Podcast.ID); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	playlistview.Announce(ctx, h.db.SQL(), h.emit, changes)
 	return nil
 }
 

@@ -53,10 +53,12 @@ type Scanner struct {
 	watch *watcher
 }
 
-// New returns a Scanner. A nil emit discards events.
-func New(d *db.DB, st *settings.Store, emit events.Emitter, filters *filterdata.Cache, cfg config.Config) *Scanner {
+// New returns a Scanner. A nil emit discards events. announcePlaylists is
+// item.Deps.AnnouncePlaylists, for playlists that lose deleted episodes; nil
+// announces nothing.
+func New(d *db.DB, st *settings.Store, emit events.Emitter, filters *filterdata.Cache, cfg config.Config, announcePlaylists func(context.Context, []item.PlaylistChange)) *Scanner {
 	return &Scanner{db: d, settings: st, cfg: cfg, emit: emit, filters: filters, runs: map[string]*run{},
-		items: item.New(d, st, emit, item.Deps{Filters: filters})}
+		items: item.New(d, st, emit, item.Deps{Filters: filters, AnnouncePlaylists: announcePlaylists})}
 }
 
 // run is one registered scan of a library; done closes when it ends.

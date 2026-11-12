@@ -69,7 +69,7 @@ func TestManagerRestoreSwapsRuntimeDatabaseAndMetadata(t *testing.T) {
 	// BackupManager.js:263-266 emits backup_applied after the response, without
 	// disconnecting authenticated clients. The connected socket must survive and
 	// receive the event.
-	if got := oldHub.UsersOnline(); len(got) != 1 || got[0]["id"] != "root-test" {
+	if got := oldHub.UsersOnline(); len(got) != 1 || got[0].ID != "root-test" {
 		t.Fatalf("online users after restore=%v", got)
 	}
 	oldHub.Emit("*", "backup_applied", nil)

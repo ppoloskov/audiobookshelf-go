@@ -75,6 +75,17 @@ func newRig(t *testing.T) *rig {
 	}, func(_ context.Context, name string, data map[string]any) error {
 		r.notes <- note{name, data}
 		return nil
+	}, func(_ context.Context, changes []item.PlaylistChange) {
+		for _, c := range changes {
+			name := "playlist_updated"
+			if c.Removed {
+				name = "playlist_removed"
+			}
+			select {
+			case r.events <- event{name, c.Playlist.ID}:
+			default:
+			}
+		}
 	})
 	t.Cleanup(r.h.Close)
 	return r
