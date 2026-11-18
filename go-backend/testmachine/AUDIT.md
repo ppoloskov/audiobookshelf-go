@@ -103,8 +103,9 @@ mobile audits), and every scenario must cite a client consumer. Not covered:
    `contracts/parity/`.
 7. Deleted Python tools surviving as `tools/__pycache__` (removed this session)
    and as archive copies.
-8. Run debris: `go-backend/.parity-work/` (9 disposable dirs), a 26 MB ignored
-   `go-backend/audiobookshelf-go` binary in the tree.
+8. Run debris: `go-backend/.parity-work/` (22 MB, gitignored, untracked,
+   unreferenced by any live tool — deleted 2026-11-18, owner-approved); a
+   26 MB ignored `go-backend/audiobookshelf-go` binary still in the tree.
 9. `contracts/README.md` points at two nonexistent targets
    (`../TEST-COMPATIBILITY-IMPLEMENTATION.md`, `test/oracle/corpus`).
 
