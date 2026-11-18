@@ -4,10 +4,16 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing stream_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Socket.IO outgoing stream_open: the stream document of a transcoded session is emitted once per stream to every socket of the owning user (and no other socket) when the transcode reports segments or completes, carrying id, userId, the expanded library item, null episode for a book, segment length 6, playlist path, /hls client URI, start time, segment start number and isTranscodeComplete false.",
   "source": [
     "server/objects/Stream.js:174",
-    "server/objects/Stream.js:348"
+    "server/objects/Stream.js:348",
+    "server/objects/Stream.js:110-123",
+    "server/objects/Stream.js:153-232",
+    "server/objects/Stream.js:234-356",
+    "server/SocketAuthority.js:67-78",
+    "client/layouts/default.vue:156-174",
+    "client/components/app/MediaPlayerContainer.vue:439-441"
   ],
   "implementation": [
     "go-backend/internal/playback/hls.go"
@@ -18,35 +24,57 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/playback/hls_lifecycle_test.go:19#TestStreamLifecycleRealCompletion",
-    "go-backend/internal/playback/hls_lifecycle_test.go:113#TestStreamLifecycleRealFailure",
-    "go-backend/internal/playback/hls_lifecycle_test.go:164#TestStreamLifecycleIncrementalFiles",
-    "go-backend/internal/playback/hls_lifecycle_test.go:313#TestStreamLifecycleRetriesAACAfterCopyFailure"
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-payload-and-audience",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-podcast-episode",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-per-new-session",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-short-item-completion",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-after-previous-stream-closed",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-omitted-for-failed-stream"
   ],
   "evidence": [
     "go-backend/testmachine/reports/playback-lifecycle-architect-review.md",
     "go-backend/testmachine/contracts/parity/playback-lifecycle-evidence/p2-revision/verification.json"
   ],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
-    "Accepted playback lifecycle packet supplies scoped current evidence; do not reopen its accepted behavior differences. Full per-site inventory closure must link its exact scenario/assertion before marking this aggregate requirement verified."
+    "force is not applicable: the event has no force/refresh trigger; it is emitted by the transcode lifecycle itself.",
+    "The accepted playback lifecycle packet supplies scoped evidence for this event; its documented Go differences (fixed safe error text, immediate process reaping) are deliberately not asserted here.",
+    "The expanded library item inside the payload is asserted by id, media id and title, not field by field: the client only logs the event (client/components/app/MediaPlayerContainer.vue:439-441)."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-STREAM-OPEN",
-      "class": "repeat_operation",
-      "contract": "Socket.IO outgoing stream_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "class": "shape",
+      "contract": "Starting a transcoded book at 40 s emits stream_open once on both sockets of the owning user with {id: session id, userId: owner, libraryItem: The Beginning (mediaType book, book id, title), episode null, segmentLength 6, playlistPath metadata/streams/<id>/output.m3u8, clientPlaylistUri /hls/<id>/output.m3u8, startTime 40, segmentStartNumber 1, isTranscodeComplete false} and on no admin or other-user socket; a transcoded podcast episode carries the expanded episode (its id, the podcast media type) instead of null; a three-second item that finishes before the first segment check carries isTranscodeComplete false too.",
       "status": "unverified",
       "source": [
         "server/objects/Stream.js:174",
-        "server/objects/Stream.js:348"
+        "server/objects/Stream.js:348",
+        "server/objects/Stream.js:110-123",
+        "server/SocketAuthority.js:67-78"
       ],
       "tests": [
-        "go-backend/internal/playback/hls_lifecycle_test.go:19#TestStreamLifecycleRealCompletion",
-        "go-backend/internal/playback/hls_lifecycle_test.go:113#TestStreamLifecycleRealFailure",
-        "go-backend/internal/playback/hls_lifecycle_test.go:164#TestStreamLifecycleIncrementalFiles",
-        "go-backend/internal/playback/hls_lifecycle_test.go:313#TestStreamLifecycleRetriesAACAfterCopyFailure"
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-payload-and-audience",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-podcast-episode",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-short-item-completion"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SOCKET-OUTGOING-STREAM-OPEN-EMIT-001",
+      "class": "repeat_operation",
+      "contract": "stream_open is emitted exactly once per stream and not again on later segment checks; starting playback again on the same device closes the previous session (it is no longer open) and emits the new session's stream_open, including after a previous stream was closed, and a transcode that fails on its input emits stream_error instead of stream_open.",
+      "status": "unverified",
+      "source": [
+        "server/objects/Stream.js:171-175",
+        "server/objects/Stream.js:344-349",
+        "server/objects/Stream.js:318-339"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-per-new-session",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-after-previous-stream-closed",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-open-omitted-for-failed-stream"
       ],
       "evidence": [],
       "exceptions": []
@@ -56,7 +84,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

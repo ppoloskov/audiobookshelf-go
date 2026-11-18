@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /hls/:stream/:file. Serve only live-session .m3u8/.ts files inside the stream directory with MIME/range semantics; missing distant segments trigger the required reset event and nearby/resetting segments return 404 without redundant reset.",
+  "contract": "GET /hls/:stream/:file. Serve the live-session .m3u8 playlist and .ts segments of a transcoded session inside the stream directory without a bearer token, with the m3u8/mp2t MIME types, byte ranges and 400/404 rejections; a missing segment before the start offset restarts the transcode, and requests after close answer 404.",
   "source": [
-    "server/routers/HlsRouter.js:21"
+    "server/routers/HlsRouter.js:21",
+    "server/routers/HlsRouter.js:48-96",
+    "server/Server.js:353-356",
+    "server/utils/generators/hlsPlaylistGenerator.js:9-18"
   ],
   "implementation": [
     "go-backend/internal/playback/playback.go"
@@ -18,39 +21,101 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/playback/playback_test.go:669#TestTranscodedSessionServesPlaylistAndRemovesStreamOnClose",
-    "go-backend/internal/playback/playback_test.go:702#TestMissingSegmentsResetOnlyWhenFarFromTheTranscode",
-    "go-backend/internal/playback/playback_test.go:728#TestBackwardResetAtSegmentZeroIsSilent"
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-playlist-and-first-segment",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-invalid-file-rejections-change-nothing",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-repeat-and-beyond-eof-range",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-backward-segment-restarts-stream",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-ac3-item-transcodes",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-files-gone-after-close"
   ],
   "evidence": [
-    "go-backend/testmachine/contracts/parity/full-suite-report.json#hls-playlist (differential pass)",
-    "go-backend/testmachine/contracts/parity/f09-forced-transcode-browser-report.json#results.playback.hlsResponses (six playlist/segment responses; selected headers, lengths and body hashes match)"
+    "go-backend/testmachine/contracts/parity/full-suite-report.json#hls-playlist (historical differential lead; the packet scenarios above are the current execution)",
+    "go-backend/testmachine/contracts/parity/f09-forced-transcode-browser-report.json#results.playback.hlsResponses (historical differential lead)"
   ],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force/refresh mode; every request derives its behaviour from the live stream state.",
+    "The accepted playback lifecycle packet's documented Go differences are not asserted here: upstream returns a 404 for a missing segment after completion, and the scenarios do not pin the reset retry timing."
   ],
   "invariants": [
     {
-      "id": "INV-R219-SAMPLED",
+      "id": "INV-R219-FILE-001",
       "class": "shape",
-      "contract": "Sampled GET /:stream/:file via differential case(s) hls-playlist: status, auth path and payload shape/types compare equal (after recorded normalizations) between the pinned upstream server and the Go implementation. Category sample: playback.",
+      "contract": "GET /hls/:stream/output.m3u8 of an open transcoded session answers 200 without a bearer token as application/vnd.apple.mpegurl with a VOD playlist (#EXTM3U, version 3, target duration 6, media sequence 0, end list) that lists output-0.ts through output-10.ts for The Beginning; GET of output-0.ts answers 200 as video/mp2t with Accept-Ranges: bytes, and the same request with the owner's token returns identical bytes. An AC3 audiobook also transcodes (with its bitrate and channel options) and serves its playlist and first segment.",
       "status": "unverified",
       "source": [
-        "server/routers/HlsRouter.js:21"
+        "server/routers/HlsRouter.js:48-96",
+        "server/Server.js:353-356",
+        "server/utils/generators/hlsPlaylistGenerator.js:9-18",
+        "server/objects/Stream.js:270-283"
       ],
       "tests": [
-        "go-backend/internal/playback/playback_test.go:669#TestTranscodedSessionServesPlaylistAndRemovesStreamOnClose",
-        "go-backend/internal/playback/playback_test.go:702#TestMissingSegmentsResetOnlyWhenFarFromTheTranscode",
-        "go-backend/internal/playback/playback_test.go:728#TestBackwardResetAtSegmentZeroIsSilent"
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-playlist-and-first-segment",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-ac3-item-transcodes"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/full-suite-report.json#hls-playlist",
-        "go-backend/testmachine/contracts/parity/f09-forced-transcode-browser-report.json#results.playback.hlsResponses (six playlist/segment responses; selected headers, lengths and body hashes match)"
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R219-REJECT-001",
+      "class": "error",
+      "contract": "GET /hls/:stream/:file answers 400 for a .txt file, the concat file and a ../ path outside the stream folder, and 404 for an unknown stream id; none of the rejected requests emits stream_reset or interrupts the live stream, which still serves its segment.",
+      "status": "unverified",
+      "source": [
+        "server/routers/HlsRouter.js:60-77",
+        "server/routers/HlsRouter.js:23-27"
       ],
-      "exceptions": [
-        "Sampled evidence; unsampled request-shape variants are separate behaviors."
-      ]
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-invalid-file-rejections-change-nothing"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R219-RANGE-001",
+      "class": "shape",
+      "contract": "A repeated segment request returns identical bytes, a Range of bytes=1000-1999 answers 206 with Content-Range bytes 1000-1999/<size> and exactly those bytes, a range starting past the end answers 416 with Content-Range bytes */<size>, and a repeated playlist request returns the same body.",
+      "status": "unverified",
+      "source": [
+        "server/routers/HlsRouter.js:94-95",
+        "client/components/app/MediaPlayerContainer.vue:419-466"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-repeat-and-beyond-eof-range"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R219-RESET-001",
+      "class": "state_transition",
+      "contract": "For a session started at 44 s the playlist still lists every segment from segment 0 while the transcode starts at segment 2; requesting the missing output-0.ts answers 404 and restarts the transcode from the beginning, after which output-0.ts is served.",
+      "status": "unverified",
+      "source": [
+        "server/routers/HlsRouter.js:78-92",
+        "server/objects/Stream.js:125-145",
+        "server/objects/Stream.js:397-414"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-backward-segment-restarts-stream"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R219-CLOSED-001",
+      "class": "state_transition",
+      "contract": "After the playback session is closed the playlist and the segments of that stream answer 404 and the metadata/streams/<session id> folder has been removed.",
+      "status": "unverified",
+      "source": [
+        "server/routers/HlsRouter.js:48-56",
+        "server/objects/Stream.js:358-379",
+        "server/managers/PlaybackSessionManager.js:448-456"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/hls-files-gone-after-close"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {

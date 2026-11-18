@@ -4,10 +4,14 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing stream_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Socket.IO outgoing stream_progress: the transcode emits an immediate zero payload {stream, percent \"0%\", chunks [], numSegments 0} on start and, at each two-second segment check while the transcode runs, {stream, percent \"<nn.nn>%\", chunks, numSegments} with the created segments compressed into first-last ranges, to every socket of the owning user only.",
   "source": [
     "server/objects/Stream.js:207",
-    "server/objects/Stream.js:219"
+    "server/objects/Stream.js:219",
+    "server/objects/Stream.js:153-232",
+    "server/SocketAuthority.js:67-78",
+    "client/layouts/default.vue:162-164",
+    "client/components/app/MediaPlayerContainer.vue:419-430"
   ],
   "implementation": [
     "go-backend/internal/playback/hls.go"
@@ -18,37 +22,69 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/playback/hls_lifecycle_test.go:19#TestStreamLifecycleRealCompletion",
-    "go-backend/internal/playback/hls_lifecycle_test.go:164#TestStreamLifecycleIncrementalFiles",
-    "go-backend/internal/playback/hls_lifecycle_test.go:211#TestStreamLifecycleExecStartupFailure",
-    "go-backend/internal/playback/hls_lifecycle_test.go:232#TestStreamLifecycleHandlerCloseReapsAndClosesOnce",
-    "go-backend/internal/playback/hls_lifecycle_test.go:257#TestStreamLifecycleHandlerCloseBoundsInheritedPipeDrain"
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-payload",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-repeats-identical",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-stops-after-completion",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-single-segment-chunk",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-chunk-gap",
+    "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-stops-after-error"
   ],
   "evidence": [
     "go-backend/testmachine/reports/playback-lifecycle-architect-review.md",
     "go-backend/testmachine/contracts/parity/playback-lifecycle-evidence/p2-revision/verification.json"
   ],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
-    "Accepted playback lifecycle packet supplies scoped current evidence; do not reopen its accepted behavior differences. Full per-site inventory closure must link its exact scenario/assertion before marking this aggregate requirement verified."
+    "force is not applicable: the segment check runs on a fixed two-second timer; there is no force-refresh request.",
+    "The packet deliberately slows only its dedicated server's ffmpeg stand-in (FFMPEG_PATH wrapper that keeps the process alive) so the two-second check sees a running transcode with segments; the server itself is unmodified and the live upstream values are asserted.",
+    "The accepted playback lifecycle packet supplies scoped evidence and requires nonzero incremental progress per owner; its documented Go differences are deliberately not asserted here."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-STREAM-PROGRESS",
-      "class": "repeat_operation",
-      "contract": "Socket.IO outgoing stream_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "class": "shape",
+      "contract": "A transcoded book first emits stream_progress {stream: session id, percent \"0%\", chunks [], numSegments 0} and then, on the first segment check that finds segments, {percent \"100.00%\", chunks [\"0-10\"], numSegments 11} (a chunk is the number of a single created segment and a \"first-last\" string for a run, as PlayerUi.setChunksReady handles both) on both sockets of the owning user and on no admin or other-user socket; a missing produced segment splits the chunk list into two ranges (percent \"90.91%\", chunks [\"0-4\", \"6-10\"] for one missing segment of eleven); a transcode that completes before the first check emits only the zero payload and nothing after stream_open.",
       "status": "unverified",
       "source": [
-        "server/objects/Stream.js:207",
-        "server/objects/Stream.js:219"
+        "server/objects/Stream.js:219",
+        "server/objects/Stream.js:203-212",
+        "client/components/app/MediaPlayerContainer.vue:419-430"
       ],
       "tests": [
-        "go-backend/internal/playback/hls_lifecycle_test.go:19#TestStreamLifecycleRealCompletion",
-        "go-backend/internal/playback/hls_lifecycle_test.go:164#TestStreamLifecycleIncrementalFiles",
-        "go-backend/internal/playback/hls_lifecycle_test.go:211#TestStreamLifecycleExecStartupFailure",
-        "go-backend/internal/playback/hls_lifecycle_test.go:232#TestStreamLifecycleHandlerCloseReapsAndClosesOnce",
-        "go-backend/internal/playback/hls_lifecycle_test.go:257#TestStreamLifecycleHandlerCloseBoundsInheritedPipeDrain"
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-payload",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-single-segment-chunk",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-chunk-gap",
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-stops-after-completion"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SOCKET-OUTGOING-STREAM-PROGRESS-REPEAT-001",
+      "class": "repeat_operation",
+      "contract": "While the transcode runs each segment check repeats the identical stream_progress payload and the percent never decreases, so a client that missed an update catches up on the next one.",
+      "status": "unverified",
+      "source": [
+        "server/objects/Stream.js:218-232",
+        "server/objects/Stream.js:203-212"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-repeats-identical"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SOCKET-OUTGOING-STREAM-PROGRESS-FAILURE-001",
+      "class": "error",
+      "contract": "A stream that fails on its input emits the initial zero progress, then stream_error, and no segment progress afterwards.",
+      "status": "unverified",
+      "source": [
+        "server/objects/Stream.js:318-339",
+        "server/objects/Stream.js:358-379"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/playback_streams/run_test.go#TestReplacement/stream-progress-stops-after-error"
       ],
       "evidence": [],
       "exceptions": []
@@ -58,7 +94,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
