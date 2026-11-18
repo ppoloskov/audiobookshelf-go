@@ -4,10 +4,13 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Pinned daily log records retain parseable timestamp/level/message/source shape and filenames; opening existing logs, retention/rollover and fatal crash log remain readable; subscribed sockets receive only allowed entries.",
+  "contract": "Daily log files live at metadata/logs/daily/<UTC YYYY-MM-DD>.txt and hold one JSON object per line with string timestamp 'YYYY-MM-DD HH:mm:ss.SSS', string source 'File.js:line', non-empty string message, levelName from LogLevel and the matching numeric level; the admin GET /api/logger-data returns currentDailyLogs as an oldest-first array of those records; starting the server loads today's file, drops unparsable lines (rewriting the file), keeps the newest seven daily files by default and appends new records; a non-admin is refused. The crash log is a separate file written only by the process-level fatal handler.",
   "source": [
-    "server/Logger.js",
-    "server/managers/LogManager.js"
+    "server/Logger.js:73-115",
+    "server/managers/LogManager.js:1-160",
+    "server/objects/DailyLog.js:1-135",
+    "server/controllers/MiscController.js:777-786",
+    "server/objects/settings/ServerSettings.js:61-62"
   ],
   "implementation": [
     "go-backend/internal/logging/"
@@ -18,43 +21,58 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/logging/logging_test.go:221#TestDailyFileLineShapeWithoutHTMLEscaping",
-    "go-backend/internal/logging/logging_test.go:238#TestBufferedUntilOpenAndExistingFileLoaded",
-    "go-backend/internal/logging/logging_test.go:271#TestRetentionAtOpenAndRolloverAtMidnight",
-    "go-backend/internal/logging/logging_test.go:328#TestCrashLogReceivesFatalOnly",
-    "go-backend/internal/logging/logging_test.go:411#TestSocketListeners"
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/daily-log-file-and-admin-read-keep-the-record-shape",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/repeat-requests-append-lines-and-records",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/non-admin-logger-data-is-forbidden",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/restart-drops-corrupt-lines-and-keeps-valid-ones",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/retention-keeps-the-newest-daily-files"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: log files and the admin logger-data read have no force/override mode.",
+    "The crash log is not asserted: only the process-level uncaughtException/unhandledRejection handlers write a FATAL record, and no API can produce one without killing the server."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-FORMAT-DAILY-LOGS",
-      "class": "repeat_operation",
-      "contract": "Pinned daily log records retain parseable timestamp/level/message/source shape and filenames; opening existing logs, retention/rollover and fatal crash log remain readable; subscribed sockets receive only allowed entries.",
+      "class": "shape",
+      "contract": "Each line of metadata/logs/daily/<UTC date>.txt is one JSON object with string timestamp 'YYYY-MM-DD HH:mm:ss.SSS', string source 'File.js:line', non-empty string message, a levelName from TRACE/DEBUG/INFO/WARN/ERROR/FATAL/NOTE and the matching numeric level; GET /api/logger-data as root returns currentDailyLogs as an oldest-first array of records with that shape, and as the non-admin listener returns 403 with no records.",
       "status": "unverified",
       "source": [
-        "server/Logger.js",
-        "server/managers/LogManager.js"
+        "server/Logger.js:73-115",
+        "server/objects/DailyLog.js:1-110",
+        "server/controllers/MiscController.js:777-786"
       ],
       "tests": [
-        "go-backend/internal/logging/logging_test.go:221#TestDailyFileLineShapeWithoutHTMLEscaping",
-        "go-backend/internal/logging/logging_test.go:238#TestBufferedUntilOpenAndExistingFileLoaded",
-        "go-backend/internal/logging/logging_test.go:271#TestRetentionAtOpenAndRolloverAtMidnight",
-        "go-backend/internal/logging/logging_test.go:328#TestCrashLogReceivesFatalOnly",
-        "go-backend/internal/logging/logging_test.go:411#TestSocketListeners"
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/daily-log-file-and-admin-read-keep-the-record-shape",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/repeat-requests-append-lines-and-records",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/non-admin-logger-data-is-forbidden"
       ],
-      "evidence": [],
-      "exceptions": []
+      "evidence": []
+    },
+    {
+      "id": "INV-FORMAT-DAILY-LOGS-LIFECYCLE-001",
+      "class": "repeat_operation",
+      "contract": "On start the manager loads today's existing daily file, keeps its valid JSON records (they are returned by /api/logger-data), removes unparsable lines by rewriting the file, then appends new records; with eleven daily files it removes the four oldest and keeps the seven newest (default loggerDailyLogsToKeep=7), and today's file is created/appended for new records.",
+      "status": "unverified",
+      "source": [
+        "server/managers/LogManager.js:35-88",
+        "server/objects/DailyLog.js:96-135",
+        "server/objects/settings/ServerSettings.js:61-62"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/restart-drops-corrupt-lines-and-keeps-valid-ones",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/retention-keeps-the-newest-daily-files"
+      ],
+      "evidence": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

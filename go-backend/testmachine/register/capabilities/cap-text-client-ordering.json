@@ -4,10 +4,14 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Natural/locale ordering, sort prefixes and last-first name parsing preserve observable client ordering and stored/displayed title/name meanings; derive expected outcomes from pinned Node fixtures, including Unicode/numeric edge cases.",
+  "contract": "The JS-defined sort keys persisted in SQLite and the item order clients observe follow upstream's text rules: sortingPrefixes (default 'the', 'a') are stripped case-insensitively plus one following space into titleIgnorePrefix, author names are stored in 'Last, First' form in lastFirst, library item sorts use the stored key (titleIgnorePrefix when sortingIgnorePrefix is on, plain title when off) with NOCASE and a title tiebreak, and the persisted values match the Node-generated fixtures of internal/text. Numeric/Unicode collation edges are proven by the Node fixture tests, not by fixture items.",
   "source": [
-    "server/utils/",
-    "go-backend/testmachine/scripts/gen-collation-fixture.cjs"
+    "server/utils/index.js:181-212",
+    "server/utils/parsers/parseNameString.js:31-36",
+    "server/controllers/MiscController.js:183-260",
+    "server/utils/queries/libraryItemsBookFilters.js:248-305",
+    "server/controllers/LibraryController.js:604-680",
+    "server/Database.js:845-900"
   ],
   "implementation": [
     "go-backend/internal/text/"
@@ -18,32 +22,47 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/text/sort_test.go:16#TestMatchesNode",
-    "go-backend/internal/text/sort_test.go:50#TestPrefixes",
-    "go-backend/internal/text/names_test.go:12#TestToLastFirstMatchesUpstream"
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/stored-sort-keys-follow-the-prefix-and-last-first-rules",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/item-sorts-use-the-stored-keys-and-the-prefix-setting",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/unknown-library-read-returns-no-ordering-data"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "The fixture has no Unicode or multi-digit sequence items; those edge cases remain covered only by the Node-derived fixtures in internal/text/testdata."
   ],
   "stateful": false,
   "invariants": [
     {
       "id": "INV-TEXT-CLIENT-ORDERING",
       "class": "shape",
-      "contract": "Natural/locale ordering, sort prefixes and last-first name parsing preserve observable client ordering and stored/displayed title/name meanings; derive expected outcomes from pinned Node fixtures, including Unicode/numeric edge cases.",
+      "contract": "books.titleIgnorePrefix and libraryItems.titleIgnorePrefix store 'Beginning' for 'The Beginning' and 'Middle' for 'The Middle' (case-insensitive prefix 'the' plus one space removed) and leave an unprefixed title unchanged; authors.lastFirst stores 'Disposable, Zed', 'Example, Ada' and 'Fixture, Terry'.",
       "status": "unverified",
       "source": [
-        "server/utils/",
-        "go-backend/testmachine/scripts/gen-collation-fixture.cjs"
+        "server/utils/index.js:181-212",
+        "server/utils/parsers/parseNameString.js:31-36",
+        "server/Database.js:845-900"
       ],
       "tests": [
-        "go-backend/internal/text/sort_test.go:16#TestMatchesNode",
-        "go-backend/internal/text/sort_test.go:50#TestPrefixes",
-        "go-backend/internal/text/names_test.go:12#TestToLastFirstMatchesUpstream"
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/stored-sort-keys-follow-the-prefix-and-last-first-rules"
       ],
-      "evidence": [],
-      "exceptions": []
+      "evidence": []
+    },
+    {
+      "id": "INV-TEXT-CLIENT-ORDERING-SORT-001",
+      "class": "shape",
+      "contract": "With sortingIgnorePrefix=false (fixture default) GET /api/libraries/:id/items?sort=media.metadata.title returns Ebook Only, Hard Delete Me, Single File Novel, The Beginning, The Middle; sort=media.metadata.authorNameLF orders by lastFirst then title (Hard Delete Me; Ebook Only, Single File Novel; The Beginning, The Middle); setting sortingIgnorePrefix=true makes the title sort use titleIgnorePrefix (The Beginning first, The Middle before Single File Novel, displayed titles unchanged) and false restores the default order; desc=1 reverses it; an unknown sort key answers 200 in the default order.",
+      "status": "unverified",
+      "source": [
+        "server/utils/queries/libraryItemsBookFilters.js:248-305",
+        "server/controllers/LibraryController.js:604-680",
+        "server/controllers/MiscController.js:139-175",
+        "server/objects/settings/ServerSettings.js:8-29,72-74"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/item-sorts-use-the-stored-keys-and-the-prefix-setting",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/unknown-library-read-returns-no-ordering-data"
+      ],
+      "evidence": []
     }
   ]
 }

@@ -4,12 +4,13 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Direct/public/session/item/download media responds with correct bytes and MIME, 206/416 Content-Range including suffix/open-ended/unsatisfiable ranges; conditional requests retain ETag/304 semantics without fixing the ETag algorithm; headers and attachment names remain usable by clients after access revocation.",
+  "contract": "The file-bearing routes real clients fetch (public share track/cover, feed cover/enclosure, item cover/ebook/file download, item download) serve the exact file bytes with the route's client MIME (audio/mp4 for m4b, audio/mpeg for mp3, application/epub+zip, image/jpeg, image/jpg, application/zip); the sendFile layer advertises Accept-Ranges: bytes, serves a single closed/open/suffix range as 206 with exact Content-Range and Content-Length, ignores a multi-range header (200 full file) and answers malformed or unsatisfiable ranges 416 with Content-Range: bytes */size; every file response carries an ETag and Last-Modified, a matching If-None-Match or If-Modified-Since returns 304 with no body, a changed file revalidates with 200 and new bytes; HEAD mirrors GET headers without a body; download routes add Content-Disposition attachment with the item filename; a revoked share or a removed file answers 404 with no file bytes. The ETag algorithm itself is not contract.",
   "source": [
-    "server/routers/PublicRouter.js",
-    "server/controllers/LibraryItemController.js",
-    "go-backend/testmachine/contracts/clients/lissen.md",
-    "go-backend/testmachine/register/CONTRACT.md"
+    "server/controllers/ShareController.js:180-273",
+    "server/managers/RssFeedManager.js:197-259",
+    "server/controllers/LibraryItemController.js:169-198,401-431,989-1119,1121-1160",
+    "server/utils/fileUtils.js:424-429",
+    "server/Server.js:353-382"
   ],
   "implementation": [
     "go-backend/internal/httpx/files.go",
@@ -21,43 +22,119 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/httpx/files_test.go:27#TestServeFile",
-    "go-backend/internal/httpx/files_test.go:68#TestDownload",
-    "go-backend/internal/httpx/respond_test.go:22#TestJSON",
-    "go-backend/internal/contracttest/mobile_protocol_test.go"
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/public-file-routes-serve-exact-bytes-and-client-mime",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/download-routes-name-the-file-and-zip-entries",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/single-suffix-and-open-ranges-return-exact-slices",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/multipart-and-unsatisfiable-ranges-follow-the-server",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/head-returns-get-headers-without-a-body",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/conditional-reads-answer-304-with-the-same-validator",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/changed-file-revalidates-the-old-validator",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/revoked-share-and-removed-file-serve-no-bytes"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: byte ranges and conditional reads have no force/refresh mode; a client revalidates with If-None-Match/If-Modified-Since or changes the URL.",
+    "The ETag format is deliberately not asserted; only round-trip behaviour is contract."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-PROTOCOL-RANGES-CACHE",
-      "class": "repeat_operation",
-      "contract": "Direct/public/session/item/download media responds with correct bytes and MIME, 206/416 Content-Range including suffix/open-ended/unsatisfiable ranges; conditional requests retain ETag/304 semantics without fixing the ETag algorithm; headers and attachment names remain usable by clients after access revocation.",
+      "class": "shape",
+      "contract": "The share track, feed enclosure, ebook, feed cover and raw item cover each return 200 with the exact fixture file bytes and the MIME the route sets (audio/mp4, audio/mp4, application/epub+zip, image/jpg, image/jpeg); the sendFile-backed routes advertise Accept-Ranges: bytes and a Content-Length equal to the file size, while the streamed feed cover does neither.",
       "status": "unverified",
       "source": [
-        "server/routers/PublicRouter.js",
-        "server/controllers/LibraryItemController.js",
-        "go-backend/testmachine/contracts/clients/lissen.md",
-        "go-backend/testmachine/register/CONTRACT.md"
+        "server/controllers/ShareController.js:180-224",
+        "server/managers/RssFeedManager.js:197-259",
+        "server/controllers/LibraryItemController.js:401-431,1121-1160",
+        "server/utils/fileUtils.js:424-429"
       ],
       "tests": [
-        "go-backend/internal/httpx/files_test.go:27#TestServeFile",
-        "go-backend/internal/httpx/files_test.go:68#TestDownload",
-        "go-backend/internal/httpx/respond_test.go:22#TestJSON",
-        "go-backend/internal/contracttest/mobile_protocol_test.go"
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/public-file-routes-serve-exact-bytes-and-client-mime"
       ],
-      "evidence": [],
-      "exceptions": []
+      "evidence": []
+    },
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE-RANGE-001",
+      "class": "shape",
+      "contract": "A single closed range on a sendFile route answers 206 with Content-Range bytes a-b/size, Content-Length b-a+1 and exactly the file's a..b bytes; an open range a- answers a..end; a suffix range -N answers the last N bytes; an end past the file is clamped to the last byte; a multi-range header is not honoured and answers the complete file as 200 (no multipart/byteranges); a malformed range and a range starting at or past the size each answer 416 with Content-Range bytes */size and a short error body without file bytes.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:353-382",
+        "server/managers/RssFeedManager.js:220-225",
+        "server/controllers/LibraryItemController.js:1121-1160"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/single-suffix-and-open-ranges-return-exact-slices",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/multipart-and-unsatisfiable-ranges-follow-the-server"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE-CONDITIONAL-001",
+      "class": "repeat_operation",
+      "contract": "A sendFile 200 carries an ETag and Last-Modified; If-None-Match with that ETag and If-Modified-Since with that value each answer 304 with no body and the same ETag; a different ETag answers 200 with the unchanged bytes; after the file on disk changes the old ETag answers 200 with the new length/bytes and a new ETag, whose If-None-Match answers 304; a streamed response without an ETag (feed cover) answers 200 to any If-None-Match.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:353-382",
+        "server/managers/RssFeedManager.js:220-259",
+        "server/controllers/LibraryItemController.js:401-431"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/conditional-reads-answer-304-with-the-same-validator",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/changed-file-revalidates-the-old-validator"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE-HEAD-001",
+      "class": "shape",
+      "contract": "HEAD of the feed enclosure, the ebook and a file download returns the GET status, Content-Type, Content-Length, Accept-Ranges, ETag, Last-Modified and Content-Disposition with an empty body; HEAD of an unknown feed cover returns 404 with no body.",
+      "status": "unverified",
+      "source": [
+        "server/managers/RssFeedManager.js:197-259",
+        "server/controllers/LibraryItemController.js:1073-1160"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/head-returns-get-headers-without-a-body"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE-DISPOSITION-001",
+      "class": "shape",
+      "contract": "GET /api/items/:id/file/:fileid/download of an ebook answers 200 with Content-Type application/epub+zip, Content-Disposition attachment; filename=\"Ebook Only.epub\" and the exact ebook bytes; the inline /file/:fileid route serves the same bytes without Content-Disposition; an m4b file download is audio/mp4 for curl but audio/m4b for an Apple mobile WebKit user agent; GET /api/items/:id/download of a folder item and the public share download answer 200 with an application/zip attachment named after the item title and a ZIP body, not the raw audio bytes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:169-198,1073-1119",
+        "server/controllers/ShareController.js:226-273"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/download-routes-name-the-file-and-zip-entries"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "INV-PROTOCOL-RANGES-CACHE-DENIED-001",
+      "class": "error_handling",
+      "contract": "After an admin deletes a media-item share, its slug's track and cover routes answer 404 for the old share cookie and return no media bytes; after the item cover file is removed from disk, the raw cover route answers 404 with no image bytes.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ShareController.js:140-215",
+        "server/managers/ShareManager.js:149-165",
+        "server/controllers/LibraryItemController.js:403-431"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/revoked-share-and-removed-file-serve-no-bytes"
+      ],
+      "evidence": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

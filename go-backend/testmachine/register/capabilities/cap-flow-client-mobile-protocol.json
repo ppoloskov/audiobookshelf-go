@@ -4,10 +4,15 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Lissen mobile conditional JSON reads and image URL options: ETag may be absent on a fresh 200; when present, a matching If-None-Match returns empty 304 with the same validator; auth failures must not be hidden by a cached 304. Cover width/raw/format parameters remain client-visible inputs.",
+  "contract": "Lissen caches JSON reads by validator and sends cover options. A cached JSON 200 carries a weak ETag; a repeat with that If-None-Match answers 304 with no body and the same validator, a stale validator answers the fresh 200, a write changes the validator and the new validator answers 304, and an unauthenticated request with a valid validator still answers 401. The item cover route honours the width, raw and format inputs the mobile apps send: raw returns the original image, width resizes, format/Accept selects jpeg, png or webp, and an unsupported format is 400. The fresh-200-without-ETag case stays a 200. Auth failures are never hidden by a cached 304.",
   "source": [
-    "server/Server.js:173-192",
-    "server/routers/ApiRouter.js:35-43"
+    "server/routers/ApiRouter.js:112,176-186",
+    "server/controllers/MeController.js:239-330",
+    "server/controllers/LibraryItemController.js:401-431",
+    "server/managers/CacheManager.js:43-90",
+    "server/utils/index.js:62-67,144-147",
+    "go-backend/testmachine/contracts/clients/lissen.md",
+    "go-backend/testmachine/contracts/mobile-client-audit.md:53,63-64,100-101"
   ],
   "implementation": [
     "go-backend/internal/httpx/respond.go",
@@ -22,38 +27,35 @@
     {
       "id": "INV-FLOW-CLIENT-MOBILE-ETAG-001",
       "class": "repeat_operation",
-      "contract": "For Lissen conditional reads, each listed endpoint returns a valid JSON 200; if that response has ETag then a subsequent matching If-None-Match returns 304 with no body and the same ETag, while a response without ETag remains a valid fresh 200. The test also checks failed-auth reads are not turned into cached 304 responses.",
+      "contract": "GET /api/me/progress/:itemId answers 200 with a weak ETag; a repeat with that exact If-None-Match answers 304 with no body and the same ETag; a stale If-None-Match answers 200 with the same progress value; after PATCH /api/me/progress/:itemId changes currentTime the previous ETag answers 200 with the written value and a different ETag, and the new ETag answers 304; an unauthenticated request carrying a valid ETag answers 401 (never 304), with no progress document and no created row.",
       "status": "unverified",
       "source": [
-        "server/Server.js:173-192"
+        "server/routers/ApiRouter.js:176-186",
+        "server/controllers/MeController.js:239-330"
       ],
       "tests": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET"
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/json-read-carries-an-etag-and-answers-304",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/progress-write-changes-the-validator-and-revalidates",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/auth-failure-is-not-hidden-by-a-cached-validator"
       ],
-      "evidence": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:TestMobileConditionalGET"
-      ],
-      "exceptions": [
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
-      ]
+      "evidence": []
     },
     {
       "id": "INV-FLOW-CLIENT-MOBILE-COVER-001",
       "class": "shape",
-      "contract": "Cover query options used by Lissen (width, raw, format) select the requested dimensions/encoding/response behavior in the mobile cover integration assertions.",
+      "contract": "GET /api/items/:id/cover with width returns a resized image whose decoded width is the requested width: default and format=jpeg are image/jpeg, format=png is a PNG, Accept: image/webp or format=webp is a WEBP image; raw=1 returns the original image/jpeg bytes and ignores width/format; a cached (non-raw) cover carries no ETag, so If-None-Match leaves it a 200 with the same bytes; an unsupported format answers 400 with no image bytes and an unknown item's raw cover answers 404.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:41-43"
+        "server/routers/ApiRouter.js:112",
+        "server/controllers/LibraryItemController.js:401-431",
+        "server/managers/CacheManager.js:43-90",
+        "server/utils/index.js:62-67,144-147"
       ],
       "tests": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:214#TestMobileCoverParameters"
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/cover-parameters-select-raw-resize-and-format",
+        "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/cover-rejects-invalid-format-and-unknown-item"
       ],
-      "evidence": [
-        "go-backend/internal/contracttest/mobile_protocol_test.go:TestMobileCoverParameters"
-      ],
-      "exceptions": [
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
-      ]
+      "evidence": []
     }
   ],
   "stateful": true,
@@ -65,13 +67,16 @@
     "failure": "unverified"
   },
   "tests": [
-    "go-backend/internal/contracttest/mobile_protocol_test.go:20#TestMobileConditionalGET",
-    "go-backend/internal/contracttest/mobile_protocol_test.go:214#TestMobileCoverParameters"
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/json-read-carries-an-etag-and-answers-304",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/progress-write-changes-the-validator-and-revalidates",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/auth-failure-is-not-hidden-by-a-cached-validator",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/cover-parameters-select-raw-resize-and-format",
+    "go-backend/testmachine/scenarios/protocol/run_test.go#TestReplacement/cover-rejects-invalid-format-and-unknown-item"
   ],
   "evidence": [],
   "exceptions": [
-    "Lissen client evidence: go-backend/testmachine/contracts/clients/lissen.md; this test protects only the listed routes/parameters and is not device acceptance. `force` is not a mobile HTTP cache operation; changed entity validator behavior and mobile playback/download acceptance remain unverified.",
-    "State scenario force is not applicable for this client workflow because none of its mapped operations has a force/refresh mode; changed and repeat outcomes remain unverified unless an invariant explicitly states otherwise.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "force is not applicable: no mobile HTTP cache operation has a force/refresh mode; clients send a cache-busting URL or revalidate with a validator instead.",
+    "Lissen client evidence: go-backend/testmachine/contracts/clients/lissen.md; these scenarios protect the listed routes/parameters and are not device acceptance.",
+    "ETag algorithm, header order and weak-vs-strong formatting are not asserted; only round-trip outcomes are contract."
   ]
 }
