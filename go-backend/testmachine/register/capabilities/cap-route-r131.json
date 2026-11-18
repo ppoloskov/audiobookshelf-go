@@ -44,7 +44,7 @@
     {
       "id": "INV-ROUTE-R131-CONTRACT",
       "class": "shape",
-      "contract": "GET /api/authors/:id (any authenticated user) returns Author.toOldJSON: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt (epoch ms of the row timestamps) and no numBooks, libraryItems or series.",
+      "contract": "GET /api/authors/:id (any authenticated user) returns Author.toOldJSON: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt (epoch ms of the row timestamps) and no numBooks, libraryItems or series; asin and description are null while the row holds none and the stored strings once they are written.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:217",
@@ -79,7 +79,7 @@
     {
       "id": "INV-ROUTE-R131-ITEMS",
       "class": "shape",
-      "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with metadata.series on each item; include=series alone or unknown values add nothing.",
+      "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with natural (numeric) collation, with metadata.series on each item; include=series alone or unknown values add nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:41-87"

@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 651,
+    "invariants": 660,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -17,7 +17,7 @@
     "go-backend/testmachine/register/capabilities/cap-client-device-acceptance.json": "efa941f33b1a96475182a691547d00e993af489795f7db04583cd0eaec183fb3",
     "go-backend/testmachine/register/capabilities/cap-event-backup-applied.json": "6fa68d2175e1a4ffd9bf7d94413d69a9522d6b938a0c2350aa1dce15255d325c",
     "go-backend/testmachine/register/capabilities/cap-event-log.json": "786e14c6df3ae1ce0f76a708b0b875ebf774c6c91dd929b6aae08bbe0203e860",
-    "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "4b1add48d1f6d5393de185f4b3c204b547a954b874e6425b566b467ec4c46df2",
+    "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "403be52ab57dba046758415f5b4673685d3340985777f4cee8d8c05bcce46bbb",
     "go-backend/testmachine/register/capabilities/cap-event-notifications-updated.json": "c2525832e42e046bb92469a1c3ca1b39d99b3b9e9421b729147e209514252fbc",
     "go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json": "2a9ea244fe200f0fcd0c16363e8213feebc79073c2e556449e55a6668c40c2a7",
     "go-backend/testmachine/register/capabilities/cap-event-track-finished.json": "51d26350179ecbdcc736b13f9e543148f8996aee97ff1e8c4a46eed3c9759cee",
@@ -33,7 +33,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "3f90f7285f91ea86e7f1c5157c674e7fea3d7c76030a774a72da238685d2d496",
     "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "577150b63a87696e2c73359b9bdba378eca0573639e24ce6c286bf34efeee19d",
     "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "ee24b7e09a0606736c4dfc043330760514c2c3eaaf97d57bcde327742ab01a32",
-    "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "418acfdff9695d47b78a0b9b0e0eb669ace61127c605d05a34f39c9af5f9d920",
+    "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "f5586abf1525ef4bffd2df694123d904dbe19d8ef6cd9a0914274998b2d3dcc4",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "d4f87440082f4205bc874fc6944bf1fe9fe6c71974a9edac29284ab8b2a447f5",
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "791490b3f7f32ba24b0444cb92c61344e56d68cd6d9e8e09b9723131e571e027",
     "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "0a00c4e9c8a8da5c0123a01a958dfa270241db1a0bc52e35133f5eb9c00c655b",
@@ -171,10 +171,10 @@
     "go-backend/testmachine/register/capabilities/cap-route-r128.json": "41bd0db382edcbbccadcb5c0fb940234a06fc8fe7e1cef628a6a72fb264e5966",
     "go-backend/testmachine/register/capabilities/cap-route-r129.json": "a6fed96a85acbf02358c4e27a5624180c5fff9f13d5445aee5a027ea88180d50",
     "go-backend/testmachine/register/capabilities/cap-route-r130.json": "6fc456c52f35812bc2b4bb136c0ab8999a68576f75892526caa1a287e0eadf23",
-    "go-backend/testmachine/register/capabilities/cap-route-r131.json": "37b716a34756470ed36566931403da6e339bf3e5dd24df5ab55aa7b5087093e1",
-    "go-backend/testmachine/register/capabilities/cap-route-r132.json": "b09abd705d63f75a87a3c2d6e41a0c84285617543316f682eff3c0e8434393ef",
-    "go-backend/testmachine/register/capabilities/cap-route-r133.json": "2f296e319cfe86d80f6775d14a04b226761841e180bc037ec79434fda2b45f59",
-    "go-backend/testmachine/register/capabilities/cap-route-r134.json": "14c36c361730e2fe1d776079d67a787f05d774c49ed119e02b7df03dd7c45e06",
+    "go-backend/testmachine/register/capabilities/cap-route-r131.json": "e1faddad82eb0236a8cae9b1fbf5729554bc3a0ca9c0b71264a211846c1fe134",
+    "go-backend/testmachine/register/capabilities/cap-route-r132.json": "e5119cb5771a7592d364e149d1ed7d1ec8a174f5af483a359c25d43499f89009",
+    "go-backend/testmachine/register/capabilities/cap-route-r133.json": "8a58e77bbaf1414508797cbdb809f9af4ac9c423a58cfbe918d9ff003e3624c4",
+    "go-backend/testmachine/register/capabilities/cap-route-r134.json": "f0f8ebeb9a6af19d2045f85ce28d0aae8cd92c9bc0c275d17f99e4a6e8d10aac",
     "go-backend/testmachine/register/capabilities/cap-route-r135.json": "ae03f88b1b700244c8f8dbbaea466d584c01d577a9c4471b957321c8afb0199d",
     "go-backend/testmachine/register/capabilities/cap-route-r136.json": "9c85d300ffe39c838962ce0b5b277599d64ed22b1fa367ff01b8eb410cf3ff5f",
     "go-backend/testmachine/register/capabilities/cap-route-r137.json": "d8b195c57e61a878cf8373170d9fccb0e6167087eef27fc9711defdb8b637b15",
@@ -244,7 +244,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r201.json": "cad9edf16045116cbeb5f1ca82305c7ea7d5dfd4d55e9ce221e74efa4ecefa86",
     "go-backend/testmachine/register/capabilities/cap-route-r202.json": "7b3bf2ac354a7614c90c6f21b5545d078a4807c103ff5927833ac75f4c3da5ea",
     "go-backend/testmachine/register/capabilities/cap-route-r203.json": "14a5faeffa407be579a3dcafdb322fc154d2bb51f5d8bf5271607f2e70f37e25",
-    "go-backend/testmachine/register/capabilities/cap-route-r204.json": "817da66838da9c6145fb0462251347add47328240229e9aeb2d71f643cecf914",
+    "go-backend/testmachine/register/capabilities/cap-route-r204.json": "92771c55eec7c2331b3779653303f53d3123a4a48a667ea14c76195c8e9c5b9e",
     "go-backend/testmachine/register/capabilities/cap-route-r205.json": "9663689dc3f0bc31073ca65ce2084d849f7767f46d8691eb4d1f6b9f3c63e394",
     "go-backend/testmachine/register/capabilities/cap-route-r206.json": "f14134762fc919e030c6d9d110f5dd55f98c0a51c30a647299fbfe8a4205738e",
     "go-backend/testmachine/register/capabilities/cap-route-r207.json": "ae03fd2e2dbb9a4123a1ac5fab04408ee26f0715dfe53bf88c737c3b814f586d",
@@ -284,7 +284,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-auth-failed.json": "90ffa6d94df2d7e216f4c71d4e33084e75b3a6908c0e5cf3c8ec8f38b1df233b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-added.json": "aee1571ace7b786d614fd0f76467dbe8059003c9aa55c85abfae3b6174eed555",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-removed.json": "0db9af12419d26c7de8c6d89bdd3a7672c6d2047e967480d567ef79d38e2e8c6",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "9265a7fca3e9f2b95110168a38fa6aa56f634e330f3706f2f123c6ceee9ae1ec",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "3abbebc7b37d86be4521be5bb291dd0f67fea6acacd4d6b2832c144ef67627b0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-authors-num-books-updated.json": "a18c5019176018778e49b56cb3b4a0764f831fe28f389d514d62c9a51604c5e8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-backup-applied.json": "3c09043a404beaa6883fb5053130abc039560129b6bfc08f6a94e46d26422c75",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-batch-quickmatch-complete.json": "a69cf9f1bd7edff0df91cc0bec18785b0e6bf96d29b1f2dbb58da43a40755fd0",
@@ -314,7 +314,7 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-removed.json": "96ff2b58dec1075f9ba7aba07da547d4614052071e87986e3bab493b701772fe",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-library-updated.json": "31e31c5fc404f19e1d95062b4f6dce17c426a86fac88f546f07dd4a19aa02f70",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-log.json": "84838e2fce945e37729a39645859fd9111a56e3ba18c7b4f238050bdd7f20cdb",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-metadata-embed-queue-update.json": "b800417e4bdcdfd79930b2c63358110f760896116768e1288922a4076fe83b2a",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-metadata-embed-queue-update.json": "0a03644547cdd4ed12e3bc1e31ec4124533d307055d278d7cdc4ecf89096a463",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-notifications-updated.json": "e4428e0f7ac3622f4542062ce72d2ae97bc45ba2c402a9064c1e7a0eb7bee2fc",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-playlist-added.json": "8fc273bf33c97c5dc4cf2b2158a47ebee9eb78780056e69478bde3ea602e79a1",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-playlist-removed.json": "4a45d4b26154ff319293b7e5c931216fdc206c76a59f56d7245528c29a19ec32",
@@ -6575,14 +6575,13 @@
       "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "metadata_embed_queue_update emits admin-only {libraryItemId,queued:true} only for an admission that must wait behind a running job. A later dequeue emits {libraryItemId,queued:false} to all users; immediately started work does not fabricate a queued transition (AudioMetadataManager.js).",
+      "contract": "metadata_embed_queue_update carries exactly one object with a string libraryItemId and a boolean queued: admins receive queued:true only for an admission that waits behind the running job, every authenticated socket receives queued:false for that item when the slot frees and before its task starts, and an immediately started embed produces neither transition.",
       "status": "unverified",
       "source": [
-        "server/managers/AudioMetadataManager.js",
-        "server/SocketAuthority.js",
-        "server/managers/TaskManager.js:22-35",
-        "client/layouts/default.vue:263-268",
-        "client/store/tasks.js"
+        "server/managers/AudioMetadataManager.js:117-126",
+        "server/managers/AudioMetadataManager.js:270-287",
+        "server/SocketAuthority.js:57-88",
+        "client/layouts/default.vue:263-272"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
@@ -6606,8 +6605,112 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against the shared upstream scenarios awaits the full upstream gate.",
-        "The upstream queue tests cover successful immediate, waiting and repeated work. Failure and recovery remain open."
+        "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
+        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+      ]
+    },
+    {
+      "requirement": "cap-event-metadata-embed-queue",
+      "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-REJECT-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "A single or batch admission refused because the item is already running or waiting answers 400, emits no metadata_embed_queue_update on any socket, creates no task and leaves the FIFO waiting list unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:112-151",
+        "server/managers/AudioMetadataManager.js:33-35"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/occupied-item-admissions-emit-no-transition"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
+        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+      ]
+    },
+    {
+      "requirement": "cap-event-metadata-embed-queue",
+      "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-FAILURE-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "When the running embed fails before touching media, its task_finished reports isFailed true with the target-directory error and it emits no queue transition of its own; every waiting item is still dequeued with queued:false and runs in admission order, and the same item embeds successfully once the cause is removed.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:266-287",
+        "server/objects/Task.js:104-111",
+        "server/managers/TaskManager.js:32-37"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-advances-waiters"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
+        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
+      ]
+    },
+    {
+      "requirement": "cap-event-metadata-embed-queue",
+      "invariant": "INV-CAP-EVENT-METADATA-EMBED-QUEUE-OPTIONS-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "forceEmbedChapters=1 changes only the recorded task option: a forced admission that finds the single running slot busy still waits behind it with queued:true and dequeues with queued:false, and a forced admission on an idle queue starts at once without a transition.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:95-98",
+        "server/controllers/ToolsController.js:145-148",
+        "server/managers/AudioMetadataManager.js:65-75",
+        "server/managers/AudioMetadataManager.js:117-126"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-admission-keeps-queue-transitions"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "The Go unit test is a discovery lead. Earlier inspection found that immediate Go jobs may emit spurious transitions. Assessment against these shared upstream scenarios awaits the Go gate.",
+        "The failure facet is characterized by removing the item directory's write permission, so the manager's own writability check fails before any media change; the event stream, retry and file state are asserted."
       ]
     },
     {
@@ -7535,14 +7638,21 @@
       "contract": "Task records use stable id/action/start time; queued embed jobs preserve order; cancellation marks the task failed with cancellation message, kills work and installs no output; one failed embed does not prevent following queue entries; task_started/task_finished snapshots expose lifecycle fields to clients.",
       "status": "unverified",
       "source": [
-        "server/managers/AudioMetadataManager.js"
+        "server/managers/AudioMetadataManager.js:20-35",
+        "server/managers/AudioMetadataManager.js:51-56",
+        "server/managers/AudioMetadataManager.js:117-135",
+        "server/managers/AudioMetadataManager.js:266-287"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
         "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
-        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing"
+        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/fifo-order-one-at-a-time",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/queue-depth-three-drains-and-repeats-in-order",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/drained-queue-starts-next-admission-immediately",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-runs-one-at-a-time"
       ],
       "evidence": [],
       "cases": {
@@ -7560,7 +7670,78 @@
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "This packet binds the queued embed ordering and failure clauses with source-derived upstream scenarios. The task snapshot, track progress and encode cancellation clauses belong to the task/track event and encode route requirements of the later tools slice."
+      ]
+    },
+    {
+      "requirement": "cap-flow-tools-job-lifecycle",
+      "invariant": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE-REJECT-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "A duplicate admission refused with 400 creates no task record and does not disturb the running batch: the admitted items still start and finish one at a time in their original order.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:112-151",
+        "server/managers/AudioMetadataManager.js:33-35"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-duplicate-keeps-task-order"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "This packet binds the queued embed ordering and failure clauses with source-derived upstream scenarios. The task snapshot, track progress and encode cancellation clauses belong to the task/track event and encode route requirements of the later tools slice."
+      ]
+    },
+    {
+      "requirement": "cap-flow-tools-job-lifecycle",
+      "invariant": "INV-CAP-FLOW-TOOLS-JOB-LIFECYCLE-FAILURE-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "One failed embed, reported as isFailed with its error and removed from the running slots, does not stop the queue: every following waiting entry is dequeued, started and finished in admission order, the failed item's media is unchanged, and a retry after the cause is removed succeeds.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:266-287",
+        "server/objects/Task.js:104-111"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-does-not-block-following-entries"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "This packet binds the queued embed ordering and failure clauses with source-derived upstream scenarios. The task snapshot, track progress and encode cancellation clauses belong to the task/track event and encode route requirements of the later tools slice."
       ]
     },
     {
@@ -18873,7 +19054,7 @@
       "invariant": "INV-ROUTE-R131-CONTRACT",
       "owner": "author",
       "packet": "Q15",
-      "contract": "GET /api/authors/:id (any authenticated user) returns Author.toOldJSON: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt (epoch ms of the row timestamps) and no numBooks, libraryItems or series.",
+      "contract": "GET /api/authors/:id (any authenticated user) returns Author.toOldJSON: id, asin, name, description, imagePath, libraryId, addedAt, updatedAt (epoch ms of the row timestamps) and no numBooks, libraryItems or series; asin and description are null while the row holds none and the stored strings once they are written.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:217",
@@ -18926,7 +19107,7 @@
       "invariant": "INV-ROUTE-R131-ITEMS",
       "owner": "author",
       "packet": "Q15",
-      "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with metadata.series on each item; include=series alone or unknown values add nothing.",
+      "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with natural (numeric) collation, with metadata.series on each item; include=series alone or unknown values add nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:41-87"
@@ -19083,7 +19264,7 @@
       "invariant": "INV-ROUTE-R132-RENAME",
       "owner": "author",
       "packet": "Q15",
-      "contract": "Renaming stores name and lastFirst, rewrites the author name in the metadata.json of its books, emits author_updated with numBooks and items_updated with the books.",
+      "contract": "Renaming stores name and lastFirst, rewrites each of its books' metadata.json to that book's current authors with the new name (other authors stay), emits author_updated with numBooks and items_updated with the books.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:111-114",
@@ -19181,7 +19362,7 @@
       "invariant": "INV-ROUTE-R133-CONTRACT",
       "owner": "author",
       "packet": "Q15",
-      "contract": "DELETE /api/authors/:id answers 200, removes the author and its bookAuthors links, keeps the books, removes the author from their metadata.json and emits author_removed with the full author JSON.",
+      "contract": "DELETE /api/authors/:id answers 200, removes the author and its bookAuthors links, keeps the books, rewrites each book's metadata.json to its remaining authors and emits author_removed with the full author JSON.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:219",
@@ -19246,7 +19427,7 @@
       "invariant": "INV-ROUTE-R134-AUTH",
       "owner": "author",
       "packet": "Q15",
-      "contract": "401 without token; 404 before 403; users need update permission; rejected requests change nothing.",
+      "contract": "401 without token; 404 before 403 (an unknown author, or an author of a library the user cannot access even with every permission); users need update permission; rejected requests change nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:427-438"
@@ -23009,19 +23190,18 @@
       "invariant": "INV-ROUTE-R204-ROUTE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "GET /tasks at server/routers/ApiRouter.js:347. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /api/tasks returns {tasks:[...]} where a running embed task carries id, action embed-metadata, title \"Embedding Metadata\" with titleKey MessageTaskEmbeddingMetadata and null titleSubs, description \"Embedding metadata in audiobook \\\"<title>\\\".\" with MessageTaskEmbeddingMetadataDescription and descriptionSubs [title], showSuccess/isFailed/isFinished false, a numeric startedAt, null finishedAt and null error fields, and data.libraryItemId with the item's audio paths and cache paths; with ?include=queue it adds queuedTaskData.embedMetadata holding the waiting tasks' data in submission (FIFO) order with their requested options.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:347"
+        "server/controllers/MiscController.js:116-129",
+        "server/managers/AudioMetadataManager.js:80-104",
+        "server/objects/Task.js:54-74",
+        "client/components/cards/ItemTaskRunningCard.vue:44-70",
+        "client/layouts/default.vue:578-590"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
-        "go-backend/internal/tools/tools_test.go:181#TestCancelEncode",
-        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
-        "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
-        "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
-        "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/running-task-and-fifo-queue-projection"
       ],
       "evidence": [],
       "cases": {
@@ -23034,8 +23214,65 @@
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-        "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+        "Mapping only: the named Go tests are assertion leads. The upstream scenarios in this packet bind the route response, auth gate and query shapes."
+      ]
+    },
+    {
+      "requirement": "route-r204",
+      "invariant": "INV-ROUTE-R204-AUTH-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "GET /api/tasks is behind the global API authentication gate but no admin check: an anonymous request answers 401, an ordinary authenticated user receives the same 200 task list as an admin because the layout loads tasks for every user, and reading the route changes no task state.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:354",
+        "server/routers/ApiRouter.js:347",
+        "server/controllers/MiscController.js:116-129",
+        "client/layouts/default.vue:578-590"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/task-list-requires-authentication-not-admin"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+        "Mapping only: the named Go tests are assertion leads. The upstream scenarios in this packet bind the route response, auth gate and query shapes."
+      ]
+    },
+    {
+      "requirement": "route-r204",
+      "invariant": "INV-ROUTE-R204-EMPTY-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "With no task running the response is an empty tasks array and no queuedTaskData key; include=queue adds queuedTaskData.embedMetadata as an empty array (never null or absent), and an include value other than queue leaves queuedTaskData out.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:116-129",
+        "server/managers/AudioMetadataManager.js:29-31"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/idle-task-and-queue-response-shapes"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": false,
+      "state_scenarios": {},
+      "exceptions": [
+        "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
+        "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
+        "Mapping only: the named Go tests are assertion leads. The upstream scenarios in this packet bind the route response, auth gate and query shapes."
       ]
     },
     {
@@ -25347,7 +25584,7 @@
       "invariant": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
       "owner": "author",
       "packet": "Q15",
-      "contract": "author_updated carries Author.toOldJSON plus numBooks to every authenticated client after author edits, image changes, merges and item author changes that keep the author; no event for no-op PATCH or refused requests.",
+      "contract": "author_updated carries Author.toOldJSON plus numBooks to every authenticated client, including a user without access to the author's library, after author edits, image changes, merges and item author changes that keep the author; no event for a no-op PATCH or a refused request.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:168",
@@ -26403,17 +26640,21 @@
       "invariant": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "On metadata_embed_queue_update, admins see each waiting admission with the item ID and queued true. Every authenticated socket sees the dequeued item ID and queued false, after the previous task finishes and before that item starts. The bundled client reads libraryItemId and queued to add or remove a waiting item.",
+      "contract": "On metadata_embed_queue_update, admins see each waiting admission as {libraryItemId, queued:true}; every authenticated socket, including one whose library access was revoked after connecting, sees the same item with queued:false after its predecessor's task_finished and before its own task_started; anonymous sockets receive neither, and each admission/dequeue appears exactly once per item.",
       "status": "unverified",
       "source": [
         "server/managers/AudioMetadataManager.js:119",
         "server/managers/AudioMetadataManager.js:277",
         "server/managers/TaskManager.js:22-35",
-        "client/layouts/default.vue:263-268",
+        "server/SocketAuthority.js:57-88",
+        "client/layouts/default.vue:263-272",
         "client/store/tasks.js"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/waiting-embed-admission-and-fifo-dequeue-audiences"
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/single-waiter-audience-and-order",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/waiting-embed-admission-and-fifo-dequeue-audiences",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/three-waiter-fifo-drain-repeated",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-admission-same-audience-and-payload"
       ],
       "evidence": [
         "go-backend/testmachine/reports/q01-embed-queue-review.md"
@@ -26432,7 +26673,77 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Successful admissions and dequeues have scoped upstream evidence. Error, recovery and remaining required state variants are open."
+        "Successful admissions, dequeues, queue depth three, the repeated batch, the forced admission and the failed predecessor now have scoped upstream evidence in this packet.",
+        "One connected user has library access revoked after socket authentication; the dequeue still reaches that socket because the source uses the unfiltered all-authenticated emitter."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-metadata-embed-queue-update",
+      "invariant": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE-REJECT-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "A duplicate single or batch admission refused with 400 reaches no socket of any audience: admins receive no extra queued:true, other authenticated sockets no extra queued:false and anonymous sockets nothing.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:112-151",
+        "server/SocketAuthority.js:57-88"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-reaches-no-socket"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Successful admissions, dequeues, queue depth three, the repeated batch, the forced admission and the failed predecessor now have scoped upstream evidence in this packet.",
+        "One connected user has library access revoked after socket authentication; the dequeue still reaches that socket because the source uses the unfiltered all-authenticated emitter."
+      ]
+    },
+    {
+      "requirement": "socket-outgoing-metadata-embed-queue-update",
+      "invariant": "INV-SOCKET-OUTGOING-METADATA-EMBED-QUEUE-UPDATE-FAILURE-001",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "When the running embed fails, admins receive no queue event for the failing item and every authenticated socket still receives the queued:false dequeue of the next waiter after that failure's task_finished and before the waiter's own task_started.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:270-281",
+        "server/managers/TaskManager.js:22-37",
+        "server/SocketAuthority.js:57-88"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-predecessor-dequeues-waiter"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "unverified",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Successful admissions, dequeues, queue depth three, the repeated batch, the forced admission and the failed predecessor now have scoped upstream evidence in this packet.",
+        "One connected user has library access revoked after socket authentication; the dequeue still reaches that socket because the source uses the unfiltered all-authenticated emitter."
       ]
     },
     {

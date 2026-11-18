@@ -39,7 +39,7 @@
     {
       "id": "INV-SOCKET-OUTGOING-AUTHOR-UPDATED",
       "class": "repeat_operation",
-      "contract": "author_updated carries Author.toOldJSON plus numBooks to every authenticated client after author edits, image changes, merges and item author changes that keep the author; no event for no-op PATCH or refused requests.",
+      "contract": "author_updated carries Author.toOldJSON plus numBooks to every authenticated client, including a user without access to the author's library, after author edits, image changes, merges and item author changes that keep the author; no event for a no-op PATCH or a refused request.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:168",

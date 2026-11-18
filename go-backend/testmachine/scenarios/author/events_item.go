@@ -1,6 +1,7 @@
 package author
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"reflect"
@@ -189,18 +190,27 @@ func authorRouteEventScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		{
 			Requirement: "socket-outgoing-author-updated", Invariant: "INV-SOCKET-OUTGOING-AUTHOR-UPDATED", Case: "normal", State: "initial", Assertion: "author-updated-by-patch",
-			Sources: []string{"server/controllers/AuthorController.js:189-218"},
-			Claim:   "A PATCH that changes an author sends author_updated with the whole author JSON, numBooks and the new updatedAt to every client.",
+			Sources: []string{"server/controllers/AuthorController.js:189-218", "server/SocketAuthority.js:57"},
+			Claim:   "A PATCH that changes an author sends author_updated with the whole author JSON, numBooks and the new updatedAt to every authenticated client, including one without access to the author's library.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := authorID(t, e, "Scan Author")
 				before := mustRow(t, e, id)
+				restricted := ensureUser(t, e, "author-podcast-only", map[string]any{"accessAllLibraries": false, "librariesAccessible": []string{e.IDs["podcastLibrary"]}})
+				restrictedSocket := e.Socket(t, restricted.token)
+				restrictedMark := restrictedSocket.Mark()
 				w := watch(t, e)
 				wantStatus(t, "patch", patch(t, e, e.Token(t, "root"), id, map[string]any{"description": "Scanned in.", "asin": "B000APZOQA"}), http.StatusOK)
-				got := authorEvent(t, w.waitBoth(t, "author_updated", idIs(id)), 2)
+				payload := w.waitBoth(t, "author_updated", idIs(id))
+				got := authorEvent(t, payload, 2)
 				row := mustRow(t, e, id)
 				if got.Name != "Scan Author" || got.Description == nil || *got.Description != "Scanned in." || got.ASIN == nil || *got.ASIN != "B000APZOQA" || got.LibraryID != e.IDs["library"] ||
 					got.AddedAt != dbTime(t, row["createdAt"]) || got.UpdatedAt != dbTime(t, row["updatedAt"]) || got.UpdatedAt <= dbTime(t, before["updatedAt"]) {
 					t.Fatalf("event %+v, row %v", got, row)
+				}
+				// The event goes to every authenticated socket, not only to users who may see the author.
+				other := restrictedSocket.Wait(t, restrictedMark, "author_updated", eventTimeout, idIs(id))
+				if !bytes.Equal(canonical(t, other.Args[0]), canonical(t, payload)) {
+					t.Fatalf("restricted client payload %s, want %s", other.Args[0], payload)
 				}
 			},
 		},

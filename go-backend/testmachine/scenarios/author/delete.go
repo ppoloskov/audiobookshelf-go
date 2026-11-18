@@ -36,7 +36,7 @@ func deleteScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r133", Invariant: "INV-ROUTE-R133-CONTRACT", Case: "normal", State: "initial", Assertion: "delete-author-unlinks-books",
 			Sources: []string{"server/controllers/AuthorController.js:233-258"},
-			Claim:   "DELETE /api/authors/:id answers 200, deletes the author and its book links but keeps the books, removes the author from their metadata.json, and sends author_removed with the full author JSON to every client.",
+			Claim:   "DELETE /api/authors/:id answers 200, deletes the author and its book links but keeps the books, rewrites each book's metadata.json to its remaining authors, and sends author_removed with the full author JSON to every client.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := authorID(t, e, "Scan Author")
 				full := decode[authorJSON](t, e.Get(t, e.Token(t, "root"), authorURL(id, "")).Body)
@@ -47,9 +47,10 @@ func deleteScenarios() []harness.Scenario {
 				if authorRow(t, e, id) != nil || bookCount(t, e, id) != 0 || e.Count(t, "SELECT COUNT(*) FROM libraryItems") != itemCount || len(items) != 2 {
 					t.Fatalf("author row %v, links %d, items %d/%d", authorRow(t, e, id), bookCount(t, e, id), e.Count(t, "SELECT COUNT(*) FROM libraryItems"), itemCount)
 				}
+				// Each book's metadata.json keeps exactly its remaining authors.
 				for _, item := range items {
-					if names := metadataFileAuthors(t, e, item); slices.Contains(names, "Scan Author") {
-						t.Fatalf("metadata.json of %s still lists %v", item, names)
+					if names := metadataFileAuthors(t, e, item); !slices.Equal(sortedIDs(names...), bookAuthorNames(t, e, item)) || slices.Contains(names, "Scan Author") {
+						t.Fatalf("metadata.json of %s lists %v, want the book's other authors", item, names)
 					}
 				}
 				if got := authorEvent(t, w.waitBoth(t, "author_removed", idIs(id)), -1); !reflect.DeepEqual(got, full) {

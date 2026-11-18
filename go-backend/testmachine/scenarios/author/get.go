@@ -54,10 +54,12 @@ func getScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r131", Invariant: "INV-ROUTE-R131-CONTRACT", Case: "normal", State: "stateless", Assertion: "get-author-fields",
 			Sources: []string{"server/controllers/AuthorController.js:40-87", "server/models/Author.js:177-198"},
-			Claim:   "GET /api/authors/:id returns the author with id, asin, name, description, imagePath, libraryId, addedAt and updatedAt (epoch ms equal to the row) and no numBooks, libraryItems or series.",
+			Claim:   "GET /api/authors/:id returns id, asin, name, description, imagePath, libraryId, addedAt and updatedAt (epoch ms equal to the row) and no numBooks, libraryItems or series; asin and description are null while the row has none and carry the stored strings after they are written.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := authorID(t, e, "Ada Example")
-				resp := e.Get(t, e.Token(t, "root"), authorURL(id, ""))
+				root := e.Token(t, "root")
+				before := mustRow(t, e, id)
+				resp := e.Get(t, root, authorURL(id, ""))
 				wantStatus(t, "get author", resp, http.StatusOK)
 				body := resp.Object(t)
 				for _, key := range []string{"id", "asin", "name", "description", "imagePath", "libraryId", "addedAt", "updatedAt"} {
@@ -77,6 +79,18 @@ func getScenarios() []harness.Scenario {
 				}
 				if got.AddedAt != dbTime(t, row["createdAt"]) || got.UpdatedAt != dbTime(t, row["updatedAt"]) {
 					t.Fatalf("addedAt/updatedAt must be the row timestamps in epoch ms: %s vs %v %v", resp.Body, row["createdAt"], row["updatedAt"])
+				}
+
+				// A server that always returned the defaults would pass the null case above.
+				wantStatus(t, "write values", patch(t, e, root, id, map[string]any{"asin": "B0G4N1LL01", "description": "Read back from the row."}), http.StatusOK)
+				resp = e.Get(t, root, authorURL(id, ""))
+				wantStatus(t, "get author after write", resp, http.StatusOK)
+				got, row = decode[authorJSON](t, resp.Body), mustRow(t, e, id)
+				if got.ASIN == nil || *got.ASIN != "B0G4N1LL01" || got.Description == nil || *got.Description != "Read back from the row." ||
+					rowText(row, "asin") != "B0G4N1LL01" || rowText(row, "description") != "Read back from the row." ||
+					got.Name != "Ada Example" || got.LibraryID != e.IDs["library"] || got.AddedAt != dbTime(t, row["createdAt"]) ||
+					got.UpdatedAt != dbTime(t, row["updatedAt"]) || got.UpdatedAt <= dbTime(t, before["updatedAt"]) {
+					t.Fatalf("stored values must be returned: %s, row %v", resp.Body, row)
 				}
 			},
 		},

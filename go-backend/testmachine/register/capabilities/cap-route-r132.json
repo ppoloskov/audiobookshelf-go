@@ -110,7 +110,7 @@
     {
       "id": "INV-ROUTE-R132-RENAME",
       "class": "state_transition",
-      "contract": "Renaming stores name and lastFirst, rewrites the author name in the metadata.json of its books, emits author_updated with numBooks and items_updated with the books.",
+      "contract": "Renaming stores name and lastFirst, rewrites each of its books' metadata.json to that book's current authors with the new name (other authors stay), emits author_updated with numBooks and items_updated with the books.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:111-114",

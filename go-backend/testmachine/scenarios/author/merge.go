@@ -40,7 +40,7 @@ func renameScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r132", Invariant: "INV-ROUTE-R132-RENAME", Case: "normal", State: "changed", Assertion: "update-rename-author",
 			Sources: []string{"server/controllers/AuthorController.js:111-114,182-218", "server/models/Author.js:25-28"},
-			Claim:   "Renaming an author stores the name and lastFirst, rewrites the author name in the metadata.json of each of its books, and sends author_updated with numBooks and items_updated with those books to every client.",
+			Claim:   "Renaming an author stores the name and lastFirst, rewrites the author name in the metadata.json of each of its books while their other authors stay, and sends author_updated with numBooks and items_updated with those books to every client.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := authorID(t, e, "Ada Example")
 				items := itemIDsOf(t, e, id)
@@ -57,9 +57,12 @@ func renameScenarios() []harness.Scenario {
 					dbTime(t, row["updatedAt"]) <= dbTime(t, before["updatedAt"]) || got.Author.UpdatedAt != dbTime(t, row["updatedAt"]) {
 					t.Fatalf("response %s, row %v", resp.Body, row)
 				}
+				// Every book's metadata.json lists the book's authors with the new name; a stale or
+				// other name means the handler did not rewrite the file from the current book.
 				for _, item := range items {
-					if names := metadataFileAuthors(t, e, item); !slices.Contains(names, "Ada Renamed") || slices.Contains(names, "Ada Example") {
-						t.Fatalf("metadata.json of %s lists %v", item, names)
+					names := metadataFileAuthors(t, e, item)
+					if want := bookAuthorNames(t, e, item); !slices.Equal(sortedIDs(names...), want) || !slices.Contains(names, "Ada Renamed") {
+						t.Fatalf("metadata.json of %s lists %v, want the book's authors %v", item, names, want)
 					}
 				}
 				if event := authorEvent(t, w.waitBoth(t, "author_updated", idIs(id)), len(items)); event.Name != "Ada Renamed" {

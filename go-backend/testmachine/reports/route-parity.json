@@ -1,0 +1,5335 @@
+{
+  "source_revision": "edb1f7efc92ecacdef51aafb4d9d5054ce10604f",
+  "counts": {
+    "total_upstream_sites": 226,
+    "matched_exact": 215,
+    "wildcard_covered": 8,
+    "excluded": 3,
+    "missing": 0,
+    "go_route_patterns": 224,
+    "go_unresolved_patterns": 0
+  },
+  "excluded_sites": [
+    {
+      "method": "GET",
+      "route": "route",
+      "source": "server/Server.js",
+      "line": 437,
+      "reason": "dynamic"
+    },
+    {
+      "method": "ALL",
+      "route": "*",
+      "source": "server/Server.js",
+      "line": 452,
+      "reason": "catch-all"
+    },
+    {
+      "method": "GET",
+      "route": "/^\\/libraries/",
+      "source": "server/routers/ApiRouter.js",
+      "line": 68,
+      "reason": "regex"
+    }
+  ],
+  "wildcard_covered_routes": [
+    {
+      "method": "GET",
+      "path": "/feed/:slug/cover*",
+      "source": "server/Server.js:366",
+      "matched_by": "GET /feed/{slug}/{tail...} (internal/share/share.go:48)",
+      "wildcard_over_literals": []
+    },
+    {
+      "method": "GET",
+      "path": "/feed/:slug/item/:episodeId/*",
+      "source": "server/Server.js:369",
+      "matched_by": "GET /feed/{slug}/{tail...} (internal/share/share.go:48)",
+      "wildcard_over_literals": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/add",
+      "source": "server/routers/ApiRouter.js:153",
+      "matched_by": "POST /api/collections/{id}/batch/{action} (internal/list/list.go:52)",
+      "wildcard_over_literals": [
+        "add"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/collections/:id/batch/remove",
+      "source": "server/routers/ApiRouter.js:154",
+      "matched_by": "POST /api/collections/{id}/batch/{action} (internal/list/list.go:52)",
+      "wildcard_over_literals": [
+        "remove"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/:id/item",
+      "source": "server/routers/ApiRouter.js:164",
+      "matched_by": "POST /api/playlists/{id}/{action} (internal/list/list.go:58)",
+      "wildcard_over_literals": [
+        "item"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/collection/:collectionId",
+      "source": "server/routers/ApiRouter.js:168",
+      "matched_by": "POST /api/playlists/{id}/{action} (internal/list/list.go:58)",
+      "wildcard_over_literals": [
+        "collection"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/remove-from-continue-listening",
+      "source": "server/routers/ApiRouter.js:192",
+      "matched_by": "GET /api/me/series/{id}/{action} (internal/user/user.go:74)",
+      "wildcard_over_literals": [
+        "remove-from-continue-listening"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/series/:id/readd-to-continue-listening",
+      "source": "server/routers/ApiRouter.js:193",
+      "matched_by": "GET /api/me/series/{id}/{action} (internal/user/user.go:74)",
+      "wildcard_over_literals": [
+        "readd-to-continue-listening"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "method": "POST",
+      "route": "/login",
+      "source": "server/Auth.js",
+      "line": 322,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/login",
+      "matched_by_variants": [
+        {
+          "variant": "/login",
+          "pattern": "POST /login",
+          "file": "internal/auth/service.go:83",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/auth/refresh",
+      "source": "server/Auth.js",
+      "line": 331,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/auth/refresh",
+      "matched_by_variants": [
+        {
+          "variant": "/auth/refresh",
+          "pattern": "POST /auth/refresh",
+          "file": "internal/auth/service.go:84",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/auth/openid",
+      "source": "server/Auth.js",
+      "line": 362,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/auth/openid",
+      "matched_by_variants": [
+        {
+          "variant": "/auth/openid",
+          "pattern": "GET /auth/openid",
+          "file": "internal/auth/service.go:88",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/auth/openid/mobile-redirect",
+      "source": "server/Auth.js",
+      "line": 380,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/auth/openid/mobile-redirect",
+      "matched_by_variants": [
+        {
+          "variant": "/auth/openid/mobile-redirect",
+          "pattern": "GET /auth/openid/mobile-redirect",
+          "file": "internal/auth/service.go:89",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/auth/openid/callback",
+      "source": "server/Auth.js",
+      "line": 383,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/auth/openid/callback",
+      "matched_by_variants": [
+        {
+          "variant": "/auth/openid/callback",
+          "pattern": "GET /auth/openid/callback",
+          "file": "internal/auth/service.go:90",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/auth/openid/config",
+      "source": "server/Auth.js",
+      "line": 464,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/auth/openid/config",
+      "matched_by_variants": [
+        {
+          "variant": "/auth/openid/config",
+          "pattern": "GET /auth/openid/config",
+          "file": "internal/auth/service.go:91",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/logout",
+      "source": "server/Auth.js",
+      "line": 486,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/logout",
+      "matched_by_variants": [
+        {
+          "variant": "/logout",
+          "pattern": "POST /logout",
+          "file": "internal/auth/service.go:85",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/feed/:slug",
+      "source": "server/Server.js",
+      "line": 362,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/feed/:slug",
+      "matched_by_variants": [
+        {
+          "variant": "/feed/:slug",
+          "pattern": "GET /feed/{slug}",
+          "file": "internal/share/share.go:47",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/feed/:slug/cover*",
+      "source": "server/Server.js",
+      "line": 366,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/feed/:slug/cover*",
+      "matched_by_variants": [
+        {
+          "variant": "/feed/:slug/cover*",
+          "pattern": "GET /feed/{slug}/{tail...}",
+          "file": "internal/share/share.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": true,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/feed/:slug/item/:episodeId/*",
+      "source": "server/Server.js",
+      "line": 369,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/feed/:slug/item/:episodeId/*",
+      "matched_by_variants": [
+        {
+          "variant": "/feed/:slug/item/:episodeId/*",
+          "pattern": "GET /feed/{slug}/{tail...}",
+          "file": "internal/share/share.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": true,
+            "catch_all_over_params": true,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/init",
+      "source": "server/Server.js",
+      "line": 377,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/init",
+      "matched_by_variants": [
+        {
+          "variant": "/init",
+          "pattern": "POST /init",
+          "file": "internal/auth/service.go:86",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/status",
+      "source": "server/Server.js",
+      "line": 384,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/status",
+      "matched_by_variants": [
+        {
+          "variant": "/status",
+          "pattern": "GET /status",
+          "file": "internal/server/handler.go:30",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/ping",
+      "source": "server/Server.js",
+      "line": 401,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/ping",
+      "matched_by_variants": [
+        {
+          "variant": "/ping",
+          "pattern": "GET /ping",
+          "file": "internal/server/handler.go:28",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/healthcheck",
+      "source": "server/Server.js",
+      "line": 405,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/healthcheck",
+      "matched_by_variants": [
+        {
+          "variant": "/healthcheck",
+          "pattern": "GET /healthcheck",
+          "file": "internal/server/handler.go:29",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "route",
+      "source": "server/Server.js",
+      "line": 437,
+      "route_kind": "dynamic_expression",
+      "status": "excluded",
+      "reason": "dynamic"
+    },
+    {
+      "method": "ALL",
+      "route": "*",
+      "source": "server/Server.js",
+      "line": 452,
+      "route_kind": "string_literal",
+      "status": "excluded",
+      "reason": "catch-all"
+    },
+    {
+      "method": "GET",
+      "route": "/^\\/libraries/",
+      "source": "server/routers/ApiRouter.js",
+      "line": 68,
+      "route_kind": "regex_literal",
+      "status": "excluded",
+      "reason": "regex"
+    },
+    {
+      "method": "POST",
+      "route": "/libraries",
+      "source": "server/routers/ApiRouter.js",
+      "line": 69,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries",
+          "pattern": "POST /api/libraries",
+          "file": "internal/library/libraries.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries",
+      "source": "server/routers/ApiRouter.js",
+      "line": 70,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries",
+          "pattern": "GET /api/libraries",
+          "file": "internal/library/libraries.go:60",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 71,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id",
+          "pattern": "GET /api/libraries/{id}",
+          "file": "internal/library/libraries.go:65",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/libraries/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 72,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id",
+          "pattern": "PATCH /api/libraries/{id}",
+          "file": "internal/library/libraries.go:63",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/libraries/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 73,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id",
+          "pattern": "DELETE /api/libraries/{id}",
+          "file": "internal/library/libraries.go:64",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/items",
+      "source": "server/routers/ApiRouter.js",
+      "line": 75,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/items",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/items",
+          "pattern": "GET /api/libraries/{id}/items",
+          "file": "internal/browse/browse.go:39",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/libraries/:id/issues",
+      "source": "server/routers/ApiRouter.js",
+      "line": 76,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/issues",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/issues",
+          "pattern": "DELETE /api/libraries/{id}/issues",
+          "file": "internal/library/libraries.go:75",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/episode-downloads",
+      "source": "server/routers/ApiRouter.js",
+      "line": 77,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/episode-downloads",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/episode-downloads",
+          "pattern": "GET /api/libraries/{id}/episode-downloads",
+          "file": "internal/podcast/podcast.go:127",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/series",
+      "source": "server/routers/ApiRouter.js",
+      "line": 78,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/series",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/series",
+          "pattern": "GET /api/libraries/{id}/series",
+          "file": "internal/browse/browse.go:42",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/series/:seriesId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 79,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/series/:seriesId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/series/:seriesId",
+          "pattern": "GET /api/libraries/{id}/series/{seriesId}",
+          "file": "internal/browse/browse.go:43",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/collections",
+      "source": "server/routers/ApiRouter.js",
+      "line": 80,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/collections",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/collections",
+          "pattern": "GET /api/libraries/{libraryID}/collections",
+          "file": "internal/list/list.go:62",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/playlists",
+      "source": "server/routers/ApiRouter.js",
+      "line": 81,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/playlists",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/playlists",
+          "pattern": "GET /api/libraries/{libraryID}/playlists",
+          "file": "internal/list/list.go:63",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/personalized",
+      "source": "server/routers/ApiRouter.js",
+      "line": 82,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/personalized",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/personalized",
+          "pattern": "GET /api/libraries/{id}/personalized",
+          "file": "internal/browse/browse.go:40",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/filterdata",
+      "source": "server/routers/ApiRouter.js",
+      "line": 83,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/filterdata",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/filterdata",
+          "pattern": "GET /api/libraries/{id}/filterdata",
+          "file": "internal/library/libraries.go:67",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/search",
+      "source": "server/routers/ApiRouter.js",
+      "line": 84,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/search",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/search",
+          "pattern": "GET /api/libraries/{id}/search",
+          "file": "internal/browse/browse.go:41",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/stats",
+      "source": "server/routers/ApiRouter.js",
+      "line": 85,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/stats",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/stats",
+          "pattern": "GET /api/libraries/{id}/stats",
+          "file": "internal/library/libraries.go:66",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/authors",
+      "source": "server/routers/ApiRouter.js",
+      "line": 86,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/authors",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/authors",
+          "pattern": "GET /api/libraries/{id}/authors",
+          "file": "internal/library/libraries.go:74",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/narrators",
+      "source": "server/routers/ApiRouter.js",
+      "line": 87,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/narrators",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/narrators",
+          "pattern": "GET /api/libraries/{id}/narrators",
+          "file": "internal/library/libraries.go:70",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/libraries/:id/narrators/:narratorId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 88,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/narrators/:narratorId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/narrators/:narratorId",
+          "pattern": "PATCH /api/libraries/{id}/narrators/{narratorId}",
+          "file": "internal/library/libraries.go:71",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/libraries/:id/narrators/:narratorId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 89,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/narrators/:narratorId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/narrators/:narratorId",
+          "pattern": "DELETE /api/libraries/{id}/narrators/{narratorId}",
+          "file": "internal/library/libraries.go:72",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/matchall",
+      "source": "server/routers/ApiRouter.js",
+      "line": 90,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/matchall",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/matchall",
+          "pattern": "GET /api/libraries/{id}/matchall",
+          "file": "internal/library/libraries.go:76",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/libraries/:id/scan",
+      "source": "server/routers/ApiRouter.js",
+      "line": 91,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/scan",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/scan",
+          "pattern": "POST /api/libraries/{id}/scan",
+          "file": "internal/scan/routes.go:18",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/recent-episodes",
+      "source": "server/routers/ApiRouter.js",
+      "line": 92,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/recent-episodes",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/recent-episodes",
+          "pattern": "GET /api/libraries/{id}/recent-episodes",
+          "file": "internal/podcast/podcast.go:126",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/opml",
+      "source": "server/routers/ApiRouter.js",
+      "line": 93,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/opml",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/opml",
+          "pattern": "GET /api/libraries/{id}/opml",
+          "file": "internal/library/libraries.go:68",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/libraries/order",
+      "source": "server/routers/ApiRouter.js",
+      "line": 94,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/order",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/order",
+          "pattern": "POST /api/libraries/order",
+          "file": "internal/library/libraries.go:62",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/libraries/:id/remove-metadata",
+      "source": "server/routers/ApiRouter.js",
+      "line": 95,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/remove-metadata",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/remove-metadata",
+          "pattern": "POST /api/libraries/{id}/remove-metadata",
+          "file": "internal/library/libraries.go:69",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/podcast-titles",
+      "source": "server/routers/ApiRouter.js",
+      "line": 96,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/podcast-titles",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/podcast-titles",
+          "pattern": "GET /api/libraries/{id}/podcast-titles",
+          "file": "internal/library/libraries.go:73",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/libraries/:id/download",
+      "source": "server/routers/ApiRouter.js",
+      "line": 97,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/libraries/:id/download",
+      "matched_by_variants": [
+        {
+          "variant": "/api/libraries/:id/download",
+          "pattern": "GET /api/libraries/{id}/download",
+          "file": "internal/library/libraries.go:77",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/batch/delete",
+      "source": "server/routers/ApiRouter.js",
+      "line": 102,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/batch/delete",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/batch/delete",
+          "pattern": "POST /api/items/batch/delete",
+          "file": "internal/item/handler.go:102",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/batch/update",
+      "source": "server/routers/ApiRouter.js",
+      "line": 103,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/batch/update",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/batch/update",
+          "pattern": "POST /api/items/batch/update",
+          "file": "internal/item/handler.go:103",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/batch/get",
+      "source": "server/routers/ApiRouter.js",
+      "line": 104,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/batch/get",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/batch/get",
+          "pattern": "POST /api/items/batch/get",
+          "file": "internal/item/handler.go:101",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/batch/quickmatch",
+      "source": "server/routers/ApiRouter.js",
+      "line": 105,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/batch/quickmatch",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/batch/quickmatch",
+          "pattern": "POST /api/items/batch/quickmatch",
+          "file": "internal/item/handler.go:104",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/batch/scan",
+      "source": "server/routers/ApiRouter.js",
+      "line": 106,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/batch/scan",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/batch/scan",
+          "pattern": "POST /api/items/batch/scan",
+          "file": "internal/scan/routes.go:17",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 108,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id",
+          "pattern": "GET /api/items/{id}",
+          "file": "internal/item/handler.go:97",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/items/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 109,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id",
+          "pattern": "DELETE /api/items/{id}",
+          "file": "internal/item/handler.go:98",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/download",
+      "source": "server/routers/ApiRouter.js",
+      "line": 110,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/download",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/download",
+          "pattern": "GET /api/items/{id}/download",
+          "file": "internal/item/handler.go:112",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/items/:id/media",
+      "source": "server/routers/ApiRouter.js",
+      "line": 111,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/media",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/media",
+          "pattern": "PATCH /api/items/{id}/media",
+          "file": "internal/item/handler.go:99",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/cover",
+      "source": "server/routers/ApiRouter.js",
+      "line": 112,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/cover",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/cover",
+          "pattern": "GET /api/items/{id}/cover",
+          "file": "internal/item/handler.go:108",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/cover",
+      "source": "server/routers/ApiRouter.js",
+      "line": 113,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/cover",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/cover",
+          "pattern": "POST /api/items/{id}/cover",
+          "file": "internal/item/handler.go:109",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/items/:id/cover",
+      "source": "server/routers/ApiRouter.js",
+      "line": 114,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/cover",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/cover",
+          "pattern": "PATCH /api/items/{id}/cover",
+          "file": "internal/item/handler.go:110",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/items/:id/cover",
+      "source": "server/routers/ApiRouter.js",
+      "line": 115,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/cover",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/cover",
+          "pattern": "DELETE /api/items/{id}/cover",
+          "file": "internal/item/handler.go:111",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/match",
+      "source": "server/routers/ApiRouter.js",
+      "line": 116,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/match",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/match",
+          "pattern": "POST /api/items/{id}/match",
+          "file": "internal/item/handler.go:100",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/play",
+      "source": "server/routers/ApiRouter.js",
+      "line": 117,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/play",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/play",
+          "pattern": "POST /api/items/{id}/play",
+          "file": "internal/playback/playback.go:65",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/play/:episodeId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 118,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/play/:episodeId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/play/:episodeId",
+          "pattern": "POST /api/items/{id}/play/{episodeId}",
+          "file": "internal/playback/playback.go:66",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/items/:id/tracks",
+      "source": "server/routers/ApiRouter.js",
+      "line": 119,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/tracks",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/tracks",
+          "pattern": "PATCH /api/items/{id}/tracks",
+          "file": "internal/item/handler.go:118",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/scan",
+      "source": "server/routers/ApiRouter.js",
+      "line": 120,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/scan",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/scan",
+          "pattern": "POST /api/items/batch/scan",
+          "file": "internal/scan/routes.go:17",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": true,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/metadata-object",
+      "source": "server/routers/ApiRouter.js",
+      "line": 121,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/metadata-object",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/metadata-object",
+          "pattern": "GET /api/items/{id}/metadata-object",
+          "file": "internal/item/handler.go:120",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/items/:id/chapters",
+      "source": "server/routers/ApiRouter.js",
+      "line": 122,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/chapters",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/chapters",
+          "pattern": "POST /api/items/{id}/chapters",
+          "file": "internal/item/handler.go:117",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/ffprobe/:fileid",
+      "source": "server/routers/ApiRouter.js",
+      "line": 123,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/ffprobe/:fileid",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/ffprobe/:fileid",
+          "pattern": "GET /api/items/{id}/ffprobe/{ino}",
+          "file": "internal/item/handler.go:116",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/file/:fileid",
+      "source": "server/routers/ApiRouter.js",
+      "line": 124,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/file/:fileid",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/file/:fileid",
+          "pattern": "GET /api/items/{id}/file/{ino}",
+          "file": "internal/item/handler.go:113",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/items/:id/file/:fileid",
+      "source": "server/routers/ApiRouter.js",
+      "line": 125,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/file/:fileid",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/file/:fileid",
+          "pattern": "DELETE /api/items/{id}/file/{ino}",
+          "file": "internal/item/handler.go:115",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/file/:fileid/download",
+      "source": "server/routers/ApiRouter.js",
+      "line": 126,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/file/:fileid/download",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/file/:fileid/download",
+          "pattern": "GET /api/items/{id}/file/{ino}/download",
+          "file": "internal/item/handler.go:114",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/items/:id/ebook/:fileid?",
+      "source": "server/routers/ApiRouter.js",
+      "line": 127,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/ebook/:fileid?",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/ebook/:fileid?",
+          "pattern": "GET /api/items/{id}/ebook/{fileId}",
+          "file": "internal/item/handler.go:122",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        },
+        {
+          "variant": "/api/items/:id/ebook",
+          "pattern": "GET /api/items/{id}/ebook",
+          "file": "internal/item/handler.go:121",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/items/:id/ebook/:fileid/status",
+      "source": "server/routers/ApiRouter.js",
+      "line": 128,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/items/:id/ebook/:fileid/status",
+      "matched_by_variants": [
+        {
+          "variant": "/api/items/:id/ebook/:fileid/status",
+          "pattern": "PATCH /api/items/{id}/ebook/{ino}/status",
+          "file": "internal/item/handler.go:119",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/users",
+      "source": "server/routers/ApiRouter.js",
+      "line": 133,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users",
+          "pattern": "POST /api/users",
+          "file": "internal/user/user.go:97",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/users",
+      "source": "server/routers/ApiRouter.js",
+      "line": 134,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users",
+          "pattern": "GET /api/users",
+          "file": "internal/user/user.go:96",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/users/online",
+      "source": "server/routers/ApiRouter.js",
+      "line": 135,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/online",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/online",
+          "pattern": "GET /api/users/online",
+          "file": "internal/user/user.go:98",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/users/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 136,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id",
+          "pattern": "GET /api/users/online",
+          "file": "internal/user/user.go:98",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": true,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/users/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 137,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id",
+          "pattern": "PATCH /api/users/{id}",
+          "file": "internal/user/user.go:101",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/users/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 138,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id",
+          "pattern": "DELETE /api/users/{id}",
+          "file": "internal/user/user.go:100",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/users/:id/openid-unlink",
+      "source": "server/routers/ApiRouter.js",
+      "line": 139,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id/openid-unlink",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id/openid-unlink",
+          "pattern": "PATCH /api/users/{id}/openid-unlink",
+          "file": "internal/user/user.go:102",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/users/:id/listening-sessions",
+      "source": "server/routers/ApiRouter.js",
+      "line": 140,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id/listening-sessions",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id/listening-sessions",
+          "pattern": "GET /api/users/{id}/listening-sessions",
+          "file": "internal/user/user.go:89",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/users/:id/listening-stats",
+      "source": "server/routers/ApiRouter.js",
+      "line": 141,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/users/:id/listening-stats",
+      "matched_by_variants": [
+        {
+          "variant": "/api/users/:id/listening-stats",
+          "pattern": "GET /api/users/{id}/listening-stats",
+          "file": "internal/user/user.go:90",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/collections",
+      "source": "server/routers/ApiRouter.js",
+      "line": 146,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections",
+          "pattern": "POST /api/collections",
+          "file": "internal/list/list.go:46",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/collections",
+      "source": "server/routers/ApiRouter.js",
+      "line": 147,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections",
+          "pattern": "GET /api/collections",
+          "file": "internal/list/list.go:45",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/collections/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 148,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id",
+          "pattern": "GET /api/collections/{id}",
+          "file": "internal/list/list.go:47",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/collections/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 149,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id",
+          "pattern": "PATCH /api/collections/{id}",
+          "file": "internal/list/list.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/collections/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 150,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id",
+          "pattern": "DELETE /api/collections/{id}",
+          "file": "internal/list/list.go:49",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/collections/:id/book",
+      "source": "server/routers/ApiRouter.js",
+      "line": 151,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections/:id/book",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id/book",
+          "pattern": "POST /api/collections/{id}/book",
+          "file": "internal/list/list.go:50",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/collections/:id/book/:bookId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 152,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/collections/:id/book/:bookId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id/book/:bookId",
+          "pattern": "DELETE /api/collections/{id}/book/{itemID}",
+          "file": "internal/list/list.go:51",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/collections/:id/batch/add",
+      "source": "server/routers/ApiRouter.js",
+      "line": 153,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/collections/:id/batch/add",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id/batch/add",
+          "pattern": "POST /api/collections/{id}/batch/{action}",
+          "file": "internal/list/list.go:52",
+          "flags": {
+            "wildcard_over_literals": [
+              "add"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/collections/:id/batch/remove",
+      "source": "server/routers/ApiRouter.js",
+      "line": 154,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/collections/:id/batch/remove",
+      "matched_by_variants": [
+        {
+          "variant": "/api/collections/:id/batch/remove",
+          "pattern": "POST /api/collections/{id}/batch/{action}",
+          "file": "internal/list/list.go:52",
+          "flags": {
+            "wildcard_over_literals": [
+              "remove"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/playlists",
+      "source": "server/routers/ApiRouter.js",
+      "line": 159,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists",
+          "pattern": "POST /api/playlists",
+          "file": "internal/list/list.go:54",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/playlists",
+      "source": "server/routers/ApiRouter.js",
+      "line": 160,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists",
+          "pattern": "GET /api/playlists",
+          "file": "internal/list/list.go:53",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/playlists/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 161,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id",
+          "pattern": "GET /api/playlists/{id}",
+          "file": "internal/list/list.go:55",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/playlists/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 162,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id",
+          "pattern": "PATCH /api/playlists/{id}",
+          "file": "internal/list/list.go:56",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/playlists/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 163,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id",
+          "pattern": "DELETE /api/playlists/{id}",
+          "file": "internal/list/list.go:57",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/playlists/:id/item",
+      "source": "server/routers/ApiRouter.js",
+      "line": 164,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/playlists/:id/item",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id/item",
+          "pattern": "POST /api/playlists/{id}/{action}",
+          "file": "internal/list/list.go:58",
+          "flags": {
+            "wildcard_over_literals": [
+              "item"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/playlists/:id/item/:libraryItemId/:episodeId?",
+      "source": "server/routers/ApiRouter.js",
+      "line": 165,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id/item/:libraryItemId/:episodeId?",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id/item/:libraryItemId/:episodeId?",
+          "pattern": "DELETE /api/playlists/{id}/item/{itemPath...}",
+          "file": "internal/list/list.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": true,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        },
+        {
+          "variant": "/api/playlists/:id/item/:libraryItemId",
+          "pattern": "DELETE /api/playlists/{id}/item/{itemPath...}",
+          "file": "internal/list/list.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": true,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/playlists/:id/batch/add",
+      "source": "server/routers/ApiRouter.js",
+      "line": 166,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id/batch/add",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id/batch/add",
+          "pattern": "POST /api/playlists/{id}/batch/add",
+          "file": "internal/list/list.go:59",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/playlists/:id/batch/remove",
+      "source": "server/routers/ApiRouter.js",
+      "line": 167,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/playlists/:id/batch/remove",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/:id/batch/remove",
+          "pattern": "POST /api/playlists/{id}/batch/remove",
+          "file": "internal/list/list.go:60",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/playlists/collection/:collectionId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 168,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/playlists/collection/:collectionId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/playlists/collection/:collectionId",
+          "pattern": "POST /api/playlists/{id}/{action}",
+          "file": "internal/list/list.go:58",
+          "flags": {
+            "wildcard_over_literals": [
+              "collection"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me",
+      "source": "server/routers/ApiRouter.js",
+      "line": 173,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me",
+          "pattern": "GET /api/me",
+          "file": "internal/user/user.go:63",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/sessions",
+      "source": "server/routers/ApiRouter.js",
+      "line": 174,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/sessions",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/sessions",
+          "pattern": "GET /api/me/sessions",
+          "file": "internal/user/user.go:64",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/me/sessions/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 175,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/sessions/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/sessions/:id",
+          "pattern": "DELETE /api/me/sessions/{id}",
+          "file": "internal/user/user.go:66",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/progress",
+      "source": "server/routers/ApiRouter.js",
+      "line": 176,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress",
+          "pattern": "GET /api/me/progress",
+          "file": "internal/user/user.go:75",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/bookmarks",
+      "source": "server/routers/ApiRouter.js",
+      "line": 177,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/bookmarks",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/bookmarks",
+          "pattern": "GET /api/me/bookmarks",
+          "file": "internal/user/user.go:83",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/bookmarks/:libraryItemId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 178,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/bookmarks/:libraryItemId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/bookmarks/:libraryItemId",
+          "pattern": "GET /api/me/bookmarks/{id}",
+          "file": "internal/user/user.go:84",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/listening-sessions",
+      "source": "server/routers/ApiRouter.js",
+      "line": 179,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/listening-sessions",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/listening-sessions",
+          "pattern": "GET /api/me/listening-sessions",
+          "file": "internal/user/user.go:68",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/item/listening-sessions/:libraryItemId/:episodeId?",
+      "source": "server/routers/ApiRouter.js",
+      "line": 180,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/item/listening-sessions/:libraryItemId/:episodeId?",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/item/listening-sessions/:libraryItemId/:episodeId?",
+          "pattern": "GET /api/me/item/listening-sessions/{id}/{episodeId}",
+          "file": "internal/user/user.go:70",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        },
+        {
+          "variant": "/api/me/item/listening-sessions/:libraryItemId",
+          "pattern": "GET /api/me/item/listening-sessions/{id}",
+          "file": "internal/user/user.go:69",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/listening-stats",
+      "source": "server/routers/ApiRouter.js",
+      "line": 181,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/listening-stats",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/listening-stats",
+          "pattern": "GET /api/me/listening-stats",
+          "file": "internal/user/user.go:71",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/progress/:id/remove-from-continue-listening",
+      "source": "server/routers/ApiRouter.js",
+      "line": 182,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress/:id/remove-from-continue-listening",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress/:id/remove-from-continue-listening",
+          "pattern": "GET /api/me/progress/{id}/remove-from-continue-listening",
+          "file": "internal/user/user.go:78",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/progress/:id/:episodeId?",
+      "source": "server/routers/ApiRouter.js",
+      "line": 183,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress/:id/:episodeId?",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress/:id/:episodeId?",
+          "pattern": "GET /api/me/progress/{id}/{episodeId}",
+          "file": "internal/user/user.go:77",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        },
+        {
+          "variant": "/api/me/progress/:id",
+          "pattern": "GET /api/me/progress/{id}",
+          "file": "internal/user/user.go:76",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/me/progress/batch/update",
+      "source": "server/routers/ApiRouter.js",
+      "line": 184,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress/batch/update",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress/batch/update",
+          "pattern": "PATCH /api/me/progress/batch/update",
+          "file": "internal/user/user.go:80",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/me/progress/:libraryItemId/:episodeId?",
+      "source": "server/routers/ApiRouter.js",
+      "line": 185,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress/:libraryItemId/:episodeId?",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress/:libraryItemId/:episodeId?",
+          "pattern": "PATCH /api/me/progress/batch/update",
+          "file": "internal/user/user.go:80",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": true,
+            "go_pattern_without_method": false
+          }
+        },
+        {
+          "variant": "/api/me/progress/:libraryItemId",
+          "pattern": "PATCH /api/me/progress/{id}",
+          "file": "internal/user/user.go:81",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/me/progress/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 186,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/progress/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/progress/:id",
+          "pattern": "DELETE /api/me/progress/{id}",
+          "file": "internal/user/user.go:79",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/me/item/:id/bookmark",
+      "source": "server/routers/ApiRouter.js",
+      "line": 187,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/item/:id/bookmark",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/item/:id/bookmark",
+          "pattern": "POST /api/me/item/{id}/bookmark",
+          "file": "internal/user/user.go:85",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/me/item/:id/bookmark",
+      "source": "server/routers/ApiRouter.js",
+      "line": 188,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/item/:id/bookmark",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/item/:id/bookmark",
+          "pattern": "PATCH /api/me/item/{id}/bookmark",
+          "file": "internal/user/user.go:86",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/me/item/:id/bookmark/:time",
+      "source": "server/routers/ApiRouter.js",
+      "line": 189,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/item/:id/bookmark/:time",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/item/:id/bookmark/:time",
+          "pattern": "DELETE /api/me/item/{id}/bookmark/{time}",
+          "file": "internal/user/user.go:87",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/me/password",
+      "source": "server/routers/ApiRouter.js",
+      "line": 190,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/password",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/password",
+          "pattern": "PATCH /api/me/password",
+          "file": "internal/user/user.go:65",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/items-in-progress",
+      "source": "server/routers/ApiRouter.js",
+      "line": 191,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/items-in-progress",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/items-in-progress",
+          "pattern": "GET /api/me/items-in-progress",
+          "file": "internal/user/user.go:73",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/series/:id/remove-from-continue-listening",
+      "source": "server/routers/ApiRouter.js",
+      "line": 192,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/me/series/:id/remove-from-continue-listening",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/series/:id/remove-from-continue-listening",
+          "pattern": "GET /api/me/series/{id}/{action}",
+          "file": "internal/user/user.go:74",
+          "flags": {
+            "wildcard_over_literals": [
+              "remove-from-continue-listening"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/series/:id/readd-to-continue-listening",
+      "source": "server/routers/ApiRouter.js",
+      "line": 193,
+      "route_kind": "string_literal",
+      "status": "wildcard-covered",
+      "upstream_path": "/api/me/series/:id/readd-to-continue-listening",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/series/:id/readd-to-continue-listening",
+          "pattern": "GET /api/me/series/{id}/{action}",
+          "file": "internal/user/user.go:74",
+          "flags": {
+            "wildcard_over_literals": [
+              "readd-to-continue-listening"
+            ],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/me/stats/year/:year",
+      "source": "server/routers/ApiRouter.js",
+      "line": 194,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/stats/year/:year",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/stats/year/:year",
+          "pattern": "GET /api/me/stats/year/{year}",
+          "file": "internal/user/user.go:72",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/me/ereader-devices",
+      "source": "server/routers/ApiRouter.js",
+      "line": 195,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/me/ereader-devices",
+      "matched_by_variants": [
+        {
+          "variant": "/api/me/ereader-devices",
+          "pattern": "POST /api/me/ereader-devices",
+          "file": "internal/user/user.go:67",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/backups",
+      "source": "server/routers/ApiRouter.js",
+      "line": 200,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups",
+          "pattern": "GET /api/backups",
+          "file": "internal/backup/routes.go:33",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/backups",
+      "source": "server/routers/ApiRouter.js",
+      "line": 201,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups",
+          "pattern": "POST /api/backups",
+          "file": "internal/backup/routes.go:34",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/backups/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 202,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups/:id",
+          "pattern": "DELETE /api/backups/{id}",
+          "file": "internal/backup/routes.go:41",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/backups/:id/download",
+      "source": "server/routers/ApiRouter.js",
+      "line": 203,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups/:id/download",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups/:id/download",
+          "pattern": "GET /api/backups/{id}/download",
+          "file": "internal/backup/routes.go:37",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/backups/:id/apply",
+      "source": "server/routers/ApiRouter.js",
+      "line": 204,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups/:id/apply",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups/:id/apply",
+          "pattern": "GET /api/backups/{id}/apply",
+          "file": "internal/backup/routes.go:40",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/backups/upload",
+      "source": "server/routers/ApiRouter.js",
+      "line": 205,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups/upload",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups/upload",
+          "pattern": "POST /api/backups/upload",
+          "file": "internal/backup/routes.go:35",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/backups/path",
+      "source": "server/routers/ApiRouter.js",
+      "line": 206,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/backups/path",
+      "matched_by_variants": [
+        {
+          "variant": "/api/backups/path",
+          "pattern": "PATCH /api/backups/path",
+          "file": "internal/backup/routes.go:36",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/filesystem",
+      "source": "server/routers/ApiRouter.js",
+      "line": 211,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/filesystem",
+      "matched_by_variants": [
+        {
+          "variant": "/api/filesystem",
+          "pattern": "GET /api/filesystem",
+          "file": "internal/admin/admin.go:64",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/filesystem/pathexists",
+      "source": "server/routers/ApiRouter.js",
+      "line": 212,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/filesystem/pathexists",
+      "matched_by_variants": [
+        {
+          "variant": "/api/filesystem/pathexists",
+          "pattern": "POST /api/filesystem/pathexists",
+          "file": "internal/admin/admin.go:67",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/authors/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 217,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id",
+          "pattern": "GET /api/authors/{id}",
+          "file": "internal/author/handler.go:58",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/authors/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 218,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id",
+          "pattern": "PATCH /api/authors/{id}",
+          "file": "internal/author/handler.go:59",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/authors/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 219,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id",
+          "pattern": "DELETE /api/authors/{id}",
+          "file": "internal/author/handler.go:60",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/authors/:id/match",
+      "source": "server/routers/ApiRouter.js",
+      "line": 220,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id/match",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id/match",
+          "pattern": "POST /api/authors/{id}/match",
+          "file": "internal/author/handler.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/authors/:id/image",
+      "source": "server/routers/ApiRouter.js",
+      "line": 221,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id/image",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id/image",
+          "pattern": "GET /api/authors/{id}/image",
+          "file": "internal/author/handler.go:62",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/authors/:id/image",
+      "source": "server/routers/ApiRouter.js",
+      "line": 222,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id/image",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id/image",
+          "pattern": "POST /api/authors/{id}/image",
+          "file": "internal/author/handler.go:63",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/authors/:id/image",
+      "source": "server/routers/ApiRouter.js",
+      "line": 223,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authors/:id/image",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authors/:id/image",
+          "pattern": "DELETE /api/authors/{id}/image",
+          "file": "internal/author/handler.go:64",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/series/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 228,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/series/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/series/:id",
+          "pattern": "GET /api/series/{id}",
+          "file": "internal/browse/browse.go:44",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/series/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 229,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/series/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/series/:id",
+          "pattern": "PATCH /api/series/{id}",
+          "file": "internal/browse/browse.go:45",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/sessions",
+      "source": "server/routers/ApiRouter.js",
+      "line": 234,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/sessions",
+      "matched_by_variants": [
+        {
+          "variant": "/api/sessions",
+          "pattern": "GET /api/sessions",
+          "file": "internal/playback/playback.go:67",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/sessions/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 235,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/sessions/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/sessions/:id",
+          "pattern": "DELETE /api/sessions/{id}",
+          "file": "internal/playback/playback.go:70",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/sessions/open",
+      "source": "server/routers/ApiRouter.js",
+      "line": 236,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/sessions/open",
+      "matched_by_variants": [
+        {
+          "variant": "/api/sessions/open",
+          "pattern": "GET /api/sessions/open",
+          "file": "internal/playback/playback.go:68",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/sessions/batch/delete",
+      "source": "server/routers/ApiRouter.js",
+      "line": 237,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/sessions/batch/delete",
+      "matched_by_variants": [
+        {
+          "variant": "/api/sessions/batch/delete",
+          "pattern": "POST /api/sessions/batch/delete",
+          "file": "internal/playback/playback.go:69",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/session/local",
+      "source": "server/routers/ApiRouter.js",
+      "line": 238,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/session/local",
+      "matched_by_variants": [
+        {
+          "variant": "/api/session/local",
+          "pattern": "POST /api/session/local",
+          "file": "internal/playback/playback.go:71",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/session/local-all",
+      "source": "server/routers/ApiRouter.js",
+      "line": 239,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/session/local-all",
+      "matched_by_variants": [
+        {
+          "variant": "/api/session/local-all",
+          "pattern": "POST /api/session/local-all",
+          "file": "internal/playback/playback.go:72",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/session/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 241,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/session/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/session/:id",
+          "pattern": "GET /api/session/{id}",
+          "file": "internal/playback/playback.go:73",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/session/:id/sync",
+      "source": "server/routers/ApiRouter.js",
+      "line": 242,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/session/:id/sync",
+      "matched_by_variants": [
+        {
+          "variant": "/api/session/:id/sync",
+          "pattern": "POST /api/session/{id}/sync",
+          "file": "internal/playback/playback.go:74",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/session/:id/close",
+      "source": "server/routers/ApiRouter.js",
+      "line": 243,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/session/:id/close",
+      "matched_by_variants": [
+        {
+          "variant": "/api/session/:id/close",
+          "pattern": "POST /api/session/{id}/close",
+          "file": "internal/playback/playback.go:75",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts",
+      "source": "server/routers/ApiRouter.js",
+      "line": 248,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts",
+          "pattern": "POST /api/podcasts",
+          "file": "internal/podcast/podcast.go:110",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts/feed",
+      "source": "server/routers/ApiRouter.js",
+      "line": 249,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/feed",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/feed",
+          "pattern": "POST /api/podcasts/feed",
+          "file": "internal/podcast/podcast.go:111",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts/opml/parse",
+      "source": "server/routers/ApiRouter.js",
+      "line": 250,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/opml/parse",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/opml/parse",
+          "pattern": "POST /api/podcasts/opml/parse",
+          "file": "internal/podcast/podcast.go:112",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts/opml/create",
+      "source": "server/routers/ApiRouter.js",
+      "line": 251,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/opml/create",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/opml/create",
+          "pattern": "POST /api/podcasts/opml/create",
+          "file": "internal/podcast/podcast.go:113",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/podcasts/:id/checknew",
+      "source": "server/routers/ApiRouter.js",
+      "line": 252,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/checknew",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/checknew",
+          "pattern": "GET /api/podcasts/{id}/checknew",
+          "file": "internal/podcast/podcast.go:122",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/podcasts/:id/downloads",
+      "source": "server/routers/ApiRouter.js",
+      "line": 253,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/downloads",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/downloads",
+          "pattern": "GET /api/podcasts/{id}/downloads",
+          "file": "internal/podcast/podcast.go:117",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/podcasts/:id/clear-queue",
+      "source": "server/routers/ApiRouter.js",
+      "line": 254,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/clear-queue",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/clear-queue",
+          "pattern": "GET /api/podcasts/{id}/clear-queue",
+          "file": "internal/podcast/podcast.go:118",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/podcasts/:id/search-episode",
+      "source": "server/routers/ApiRouter.js",
+      "line": 255,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/search-episode",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/search-episode",
+          "pattern": "GET /api/podcasts/{id}/search-episode",
+          "file": "internal/podcast/podcast.go:120",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts/:id/download-episodes",
+      "source": "server/routers/ApiRouter.js",
+      "line": 256,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/download-episodes",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/download-episodes",
+          "pattern": "POST /api/podcasts/{id}/download-episodes",
+          "file": "internal/podcast/podcast.go:119",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/podcasts/:id/match-episodes",
+      "source": "server/routers/ApiRouter.js",
+      "line": 257,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/match-episodes",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/match-episodes",
+          "pattern": "POST /api/podcasts/{id}/match-episodes",
+          "file": "internal/podcast/podcast.go:121",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 258,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/episode/:episodeId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/episode/:episodeId",
+          "pattern": "GET /api/podcasts/{id}/episode/{episodeId}",
+          "file": "internal/podcast/podcast.go:123",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 259,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/episode/:episodeId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/episode/:episodeId",
+          "pattern": "PATCH /api/podcasts/{id}/episode/{episodeId}",
+          "file": "internal/podcast/podcast.go:124",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/podcasts/:id/episode/:episodeId",
+      "source": "server/routers/ApiRouter.js",
+      "line": 260,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/podcasts/:id/episode/:episodeId",
+      "matched_by_variants": [
+        {
+          "variant": "/api/podcasts/:id/episode/:episodeId",
+          "pattern": "DELETE /api/podcasts/{id}/episode/{episodeId}",
+          "file": "internal/podcast/podcast.go:125",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/notifications",
+      "source": "server/routers/ApiRouter.js",
+      "line": 265,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications",
+          "pattern": "GET /api/notifications",
+          "file": "internal/notify/notify.go:28",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/notifications",
+      "source": "server/routers/ApiRouter.js",
+      "line": 266,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications",
+          "pattern": "PATCH /api/notifications",
+          "file": "internal/notify/notify.go:29",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/notificationdata",
+      "source": "server/routers/ApiRouter.js",
+      "line": 267,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notificationdata",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notificationdata",
+          "pattern": "GET /api/notificationdata",
+          "file": "internal/notify/notify.go:31",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/notifications/test",
+      "source": "server/routers/ApiRouter.js",
+      "line": 268,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications/test",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications/test",
+          "pattern": "GET /api/notifications/test",
+          "file": "internal/notify/notify.go:32",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/notifications",
+      "source": "server/routers/ApiRouter.js",
+      "line": 269,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications",
+          "pattern": "POST /api/notifications",
+          "file": "internal/notify/notify.go:30",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/notifications/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 270,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications/:id",
+          "pattern": "DELETE /api/notifications/{id}",
+          "file": "internal/notify/notify.go:34",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/notifications/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 271,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications/:id",
+          "pattern": "PATCH /api/notifications/{id}",
+          "file": "internal/notify/notify.go:35",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/notifications/:id/test",
+      "source": "server/routers/ApiRouter.js",
+      "line": 272,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/notifications/:id/test",
+      "matched_by_variants": [
+        {
+          "variant": "/api/notifications/:id/test",
+          "pattern": "GET /api/notifications/{id}/test",
+          "file": "internal/notify/notify.go:33",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/emails/settings",
+      "source": "server/routers/ApiRouter.js",
+      "line": 277,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/emails/settings",
+      "matched_by_variants": [
+        {
+          "variant": "/api/emails/settings",
+          "pattern": "GET /api/emails/settings",
+          "file": "internal/mail/mail.go:46",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/emails/settings",
+      "source": "server/routers/ApiRouter.js",
+      "line": 278,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/emails/settings",
+      "matched_by_variants": [
+        {
+          "variant": "/api/emails/settings",
+          "pattern": "PATCH /api/emails/settings",
+          "file": "internal/mail/mail.go:47",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/emails/test",
+      "source": "server/routers/ApiRouter.js",
+      "line": 279,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/emails/test",
+      "matched_by_variants": [
+        {
+          "variant": "/api/emails/test",
+          "pattern": "POST /api/emails/test",
+          "file": "internal/mail/mail.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/emails/ereader-devices",
+      "source": "server/routers/ApiRouter.js",
+      "line": 280,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/emails/ereader-devices",
+      "matched_by_variants": [
+        {
+          "variant": "/api/emails/ereader-devices",
+          "pattern": "POST /api/emails/ereader-devices",
+          "file": "internal/mail/mail.go:49",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/emails/send-ebook-to-device",
+      "source": "server/routers/ApiRouter.js",
+      "line": 281,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/emails/send-ebook-to-device",
+      "matched_by_variants": [
+        {
+          "variant": "/api/emails/send-ebook-to-device",
+          "pattern": "POST /api/emails/send-ebook-to-device",
+          "file": "internal/mail/mail.go:50",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/covers",
+      "source": "server/routers/ApiRouter.js",
+      "line": 286,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/covers",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/covers",
+          "pattern": "GET /api/search/covers",
+          "file": "internal/metadata/metadata.go:107",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/books",
+      "source": "server/routers/ApiRouter.js",
+      "line": 287,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/books",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/books",
+          "pattern": "GET /api/search/books",
+          "file": "internal/metadata/metadata.go:106",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/podcast",
+      "source": "server/routers/ApiRouter.js",
+      "line": 288,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/podcast",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/podcast",
+          "pattern": "GET /api/search/podcast",
+          "file": "internal/metadata/metadata.go:108",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/authors",
+      "source": "server/routers/ApiRouter.js",
+      "line": 289,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/authors",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/authors",
+          "pattern": "GET /api/search/authors",
+          "file": "internal/metadata/metadata.go:109",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/chapters",
+      "source": "server/routers/ApiRouter.js",
+      "line": 290,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/chapters",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/chapters",
+          "pattern": "GET /api/search/chapters",
+          "file": "internal/metadata/metadata.go:110",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/search/providers",
+      "source": "server/routers/ApiRouter.js",
+      "line": 291,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/search/providers",
+      "matched_by_variants": [
+        {
+          "variant": "/api/search/providers",
+          "pattern": "GET /api/search/providers",
+          "file": "internal/metadata/metadata.go:105",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/cache/purge",
+      "source": "server/routers/ApiRouter.js",
+      "line": 296,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/cache/purge",
+      "matched_by_variants": [
+        {
+          "variant": "/api/cache/purge",
+          "pattern": "POST /api/cache/purge",
+          "file": "internal/admin/admin.go:51",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/cache/items/purge",
+      "source": "server/routers/ApiRouter.js",
+      "line": 297,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/cache/items/purge",
+      "matched_by_variants": [
+        {
+          "variant": "/api/cache/items/purge",
+          "pattern": "POST /api/cache/items/purge",
+          "file": "internal/admin/admin.go:52",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/tools/item/:id/encode-m4b",
+      "source": "server/routers/ApiRouter.js",
+      "line": 302,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tools/item/:id/encode-m4b",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tools/item/:id/encode-m4b",
+          "pattern": "POST /api/tools/item/{id}/encode-m4b",
+          "file": "internal/tools/tools.go:49",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/tools/item/:id/encode-m4b",
+      "source": "server/routers/ApiRouter.js",
+      "line": 303,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tools/item/:id/encode-m4b",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tools/item/:id/encode-m4b",
+          "pattern": "DELETE /api/tools/item/{id}/encode-m4b",
+          "file": "internal/tools/tools.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/tools/item/:id/embed-metadata",
+      "source": "server/routers/ApiRouter.js",
+      "line": 304,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tools/item/:id/embed-metadata",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tools/item/:id/embed-metadata",
+          "pattern": "POST /api/tools/item/{id}/embed-metadata",
+          "file": "internal/tools/tools.go:50",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/tools/batch/embed-metadata",
+      "source": "server/routers/ApiRouter.js",
+      "line": 305,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tools/batch/embed-metadata",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tools/batch/embed-metadata",
+          "pattern": "POST /api/tools/batch/embed-metadata",
+          "file": "internal/tools/tools.go:47",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/feeds",
+      "source": "server/routers/ApiRouter.js",
+      "line": 310,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/feeds",
+      "matched_by_variants": [
+        {
+          "variant": "/api/feeds",
+          "pattern": "GET /api/feeds",
+          "file": "internal/share/share.go:39",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/feeds/item/:itemId/open",
+      "source": "server/routers/ApiRouter.js",
+      "line": 311,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/feeds/item/:itemId/open",
+      "matched_by_variants": [
+        {
+          "variant": "/api/feeds/item/:itemId/open",
+          "pattern": "POST /api/feeds/item/{id}/open",
+          "file": "internal/share/share.go:41",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/feeds/collection/:collectionId/open",
+      "source": "server/routers/ApiRouter.js",
+      "line": 312,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/feeds/collection/:collectionId/open",
+      "matched_by_variants": [
+        {
+          "variant": "/api/feeds/collection/:collectionId/open",
+          "pattern": "POST /api/feeds/collection/{id}/open",
+          "file": "internal/share/share.go:41",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/feeds/series/:seriesId/open",
+      "source": "server/routers/ApiRouter.js",
+      "line": 313,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/feeds/series/:seriesId/open",
+      "matched_by_variants": [
+        {
+          "variant": "/api/feeds/series/:seriesId/open",
+          "pattern": "POST /api/feeds/series/{id}/open",
+          "file": "internal/share/share.go:41",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/feeds/:id/close",
+      "source": "server/routers/ApiRouter.js",
+      "line": 314,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/feeds/:id/close",
+      "matched_by_variants": [
+        {
+          "variant": "/api/feeds/:id/close",
+          "pattern": "POST /api/feeds/{id}/close",
+          "file": "internal/share/share.go:43",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/custom-metadata-providers",
+      "source": "server/routers/ApiRouter.js",
+      "line": 319,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/custom-metadata-providers",
+      "matched_by_variants": [
+        {
+          "variant": "/api/custom-metadata-providers",
+          "pattern": "GET /api/custom-metadata-providers",
+          "file": "internal/metadata/metadata.go:111",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/custom-metadata-providers",
+      "source": "server/routers/ApiRouter.js",
+      "line": 320,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/custom-metadata-providers",
+      "matched_by_variants": [
+        {
+          "variant": "/api/custom-metadata-providers",
+          "pattern": "POST /api/custom-metadata-providers",
+          "file": "internal/metadata/metadata.go:112",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/custom-metadata-providers/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 321,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/custom-metadata-providers/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/custom-metadata-providers/:id",
+          "pattern": "DELETE /api/custom-metadata-providers/{id}",
+          "file": "internal/metadata/metadata.go:113",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/share/mediaitem",
+      "source": "server/routers/ApiRouter.js",
+      "line": 326,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/share/mediaitem",
+      "matched_by_variants": [
+        {
+          "variant": "/api/share/mediaitem",
+          "pattern": "POST /api/share/mediaitem",
+          "file": "internal/share/share.go:44",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/share/mediaitem/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 327,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/share/mediaitem/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/share/mediaitem/:id",
+          "pattern": "DELETE /api/share/mediaitem/{id}",
+          "file": "internal/share/share.go:45",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/stats/year/:year",
+      "source": "server/routers/ApiRouter.js",
+      "line": 332,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/stats/year/:year",
+      "matched_by_variants": [
+        {
+          "variant": "/api/stats/year/:year",
+          "pattern": "GET /api/stats/year/{year}",
+          "file": "internal/admin/admin.go:54",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/stats/server",
+      "source": "server/routers/ApiRouter.js",
+      "line": 333,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/stats/server",
+      "matched_by_variants": [
+        {
+          "variant": "/api/stats/server",
+          "pattern": "GET /api/stats/server",
+          "file": "internal/admin/admin.go:53",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/api-keys",
+      "source": "server/routers/ApiRouter.js",
+      "line": 338,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/api-keys",
+      "matched_by_variants": [
+        {
+          "variant": "/api/api-keys",
+          "pattern": "GET /api/api-keys",
+          "file": "internal/user/user.go:92",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/api-keys",
+      "source": "server/routers/ApiRouter.js",
+      "line": 339,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/api-keys",
+      "matched_by_variants": [
+        {
+          "variant": "/api/api-keys",
+          "pattern": "POST /api/api-keys",
+          "file": "internal/user/user.go:93",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/api-keys/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 340,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/api-keys/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/api-keys/:id",
+          "pattern": "PATCH /api/api-keys/{id}",
+          "file": "internal/user/user.go:95",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/api-keys/:id",
+      "source": "server/routers/ApiRouter.js",
+      "line": 341,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/api-keys/:id",
+      "matched_by_variants": [
+        {
+          "variant": "/api/api-keys/:id",
+          "pattern": "DELETE /api/api-keys/{id}",
+          "file": "internal/user/user.go:94",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/upload",
+      "source": "server/routers/ApiRouter.js",
+      "line": 346,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/upload",
+      "matched_by_variants": [
+        {
+          "variant": "/api/upload",
+          "pattern": "POST /api/upload",
+          "file": "internal/admin/admin.go:68",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/tasks",
+      "source": "server/routers/ApiRouter.js",
+      "line": 347,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tasks",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tasks",
+          "pattern": "GET /api/tasks",
+          "file": "internal/tools/tools.go:45",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/settings",
+      "source": "server/routers/ApiRouter.js",
+      "line": 348,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/settings",
+      "matched_by_variants": [
+        {
+          "variant": "/api/settings",
+          "pattern": "PATCH /api/settings",
+          "file": "internal/admin/admin.go:46",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/sorting-prefixes",
+      "source": "server/routers/ApiRouter.js",
+      "line": 349,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/sorting-prefixes",
+      "matched_by_variants": [
+        {
+          "variant": "/api/sorting-prefixes",
+          "pattern": "PATCH /api/sorting-prefixes",
+          "file": "internal/admin/admin.go:47",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/authorize",
+      "source": "server/routers/ApiRouter.js",
+      "line": 350,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/authorize",
+      "matched_by_variants": [
+        {
+          "variant": "/api/authorize",
+          "pattern": "POST /api/authorize",
+          "file": "internal/auth/service.go:87",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/tags",
+      "source": "server/routers/ApiRouter.js",
+      "line": 351,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tags",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tags",
+          "pattern": "GET /api/tags",
+          "file": "internal/admin/admin.go:60",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/tags/rename",
+      "source": "server/routers/ApiRouter.js",
+      "line": 352,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tags/rename",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tags/rename",
+          "pattern": "POST /api/tags/rename",
+          "file": "internal/admin/admin.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/tags/:tag",
+      "source": "server/routers/ApiRouter.js",
+      "line": 353,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/tags/:tag",
+      "matched_by_variants": [
+        {
+          "variant": "/api/tags/:tag",
+          "pattern": "DELETE /api/tags/{name}",
+          "file": "internal/admin/admin.go:62",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/genres",
+      "source": "server/routers/ApiRouter.js",
+      "line": 354,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/genres",
+      "matched_by_variants": [
+        {
+          "variant": "/api/genres",
+          "pattern": "GET /api/genres",
+          "file": "internal/admin/admin.go:60",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/genres/rename",
+      "source": "server/routers/ApiRouter.js",
+      "line": 355,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/genres/rename",
+      "matched_by_variants": [
+        {
+          "variant": "/api/genres/rename",
+          "pattern": "POST /api/genres/rename",
+          "file": "internal/admin/admin.go:61",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "route": "/genres/:genre",
+      "source": "server/routers/ApiRouter.js",
+      "line": 356,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/genres/:genre",
+      "matched_by_variants": [
+        {
+          "variant": "/api/genres/:genre",
+          "pattern": "DELETE /api/genres/{name}",
+          "file": "internal/admin/admin.go:62",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/validate-cron",
+      "source": "server/routers/ApiRouter.js",
+      "line": 357,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/validate-cron",
+      "matched_by_variants": [
+        {
+          "variant": "/api/validate-cron",
+          "pattern": "POST /api/validate-cron",
+          "file": "internal/admin/admin.go:66",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/auth-settings",
+      "source": "server/routers/ApiRouter.js",
+      "line": 358,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/auth-settings",
+      "matched_by_variants": [
+        {
+          "variant": "/api/auth-settings",
+          "pattern": "GET /api/auth-settings",
+          "file": "internal/admin/admin.go:48",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/auth-settings",
+      "source": "server/routers/ApiRouter.js",
+      "line": 359,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/auth-settings",
+      "matched_by_variants": [
+        {
+          "variant": "/api/auth-settings",
+          "pattern": "PATCH /api/auth-settings",
+          "file": "internal/admin/admin.go:49",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "route": "/watcher/update",
+      "source": "server/routers/ApiRouter.js",
+      "line": 360,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/watcher/update",
+      "matched_by_variants": [
+        {
+          "variant": "/api/watcher/update",
+          "pattern": "POST /api/watcher/update",
+          "file": "internal/admin/admin.go:55",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/logger-data",
+      "source": "server/routers/ApiRouter.js",
+      "line": 361,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/api/logger-data",
+      "matched_by_variants": [
+        {
+          "variant": "/api/logger-data",
+          "pattern": "GET /api/logger-data",
+          "file": "internal/admin/admin.go:50",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/:stream/:file",
+      "source": "server/routers/HlsRouter.js",
+      "line": 21,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/hls/:stream/:file",
+      "matched_by_variants": [
+        {
+          "variant": "/hls/:stream/:file",
+          "pattern": "/hls/{id}/{name}",
+          "file": "internal/playback/playback.go:64",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/share/:slug",
+      "source": "server/routers/PublicRouter.js",
+      "line": 16,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/share/:slug",
+      "matched_by_variants": [
+        {
+          "variant": "/public/share/:slug",
+          "pattern": "GET /public/share/{slug}",
+          "file": "internal/share/share.go:49",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/share/:slug/track/:index",
+      "source": "server/routers/PublicRouter.js",
+      "line": 17,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/share/:slug/track/:index",
+      "matched_by_variants": [
+        {
+          "variant": "/public/share/:slug/track/:index",
+          "pattern": "GET /public/share/{slug}/track/{index}",
+          "file": "internal/share/share.go:51",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/share/:slug/cover",
+      "source": "server/routers/PublicRouter.js",
+      "line": 18,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/share/:slug/cover",
+      "matched_by_variants": [
+        {
+          "variant": "/public/share/:slug/cover",
+          "pattern": "GET /public/share/{slug}/cover",
+          "file": "internal/share/share.go:50",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/share/:slug/download",
+      "source": "server/routers/PublicRouter.js",
+      "line": 19,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/share/:slug/download",
+      "matched_by_variants": [
+        {
+          "variant": "/public/share/:slug/download",
+          "pattern": "GET /public/share/{slug}/download",
+          "file": "internal/share/share.go:52",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "route": "/share/:slug/progress",
+      "source": "server/routers/PublicRouter.js",
+      "line": 20,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/share/:slug/progress",
+      "matched_by_variants": [
+        {
+          "variant": "/public/share/:slug/progress",
+          "pattern": "PATCH /public/share/{slug}/progress",
+          "file": "internal/share/share.go:53",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "route": "/session/:id/track/:index",
+      "source": "server/routers/PublicRouter.js",
+      "line": 21,
+      "route_kind": "string_literal",
+      "status": "matched",
+      "upstream_path": "/public/session/:id/track/:index",
+      "matched_by_variants": [
+        {
+          "variant": "/public/session/:id/track/:index",
+          "pattern": "/public/session/{id}/track/{index}",
+          "file": "internal/playback/playback.go:63",
+          "flags": {
+            "wildcard_over_literals": [],
+            "catch_all_over_literal": false,
+            "catch_all_over_params": false,
+            "go_literal_over_param": false,
+            "go_pattern_without_method": false
+          }
+        }
+      ]
+    }
+  ]
+}

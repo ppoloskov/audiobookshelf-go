@@ -44,7 +44,7 @@
     {
       "id": "INV-ROUTE-R134-AUTH",
       "class": "error",
-      "contract": "401 without token; 404 before 403; users need update permission; rejected requests change nothing.",
+      "contract": "401 without token; 404 before 403 (an unknown author, or an author of a library the user cannot access even with every permission); users need update permission; rejected requests change nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/AuthorController.js:427-438"

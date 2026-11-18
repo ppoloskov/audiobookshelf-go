@@ -57,7 +57,7 @@
     {
       "id": "INV-ROUTE-R133-CONTRACT",
       "class": "shape",
-      "contract": "DELETE /api/authors/:id answers 200, removes the author and its bookAuthors links, keeps the books, removes the author from their metadata.json and emits author_removed with the full author JSON.",
+      "contract": "DELETE /api/authors/:id answers 200, removes the author and its bookAuthors links, keeps the books, rewrites each book's metadata.json to its remaining authors and emits author_removed with the full author JSON.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:219",
