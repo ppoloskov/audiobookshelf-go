@@ -23,6 +23,7 @@
   },
   "tests": [
     "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-last-book-removed-by-item-update",
+    "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-keeps-asin-and-image",
     "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-not-sent-for-author-with-description",
     "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-item-delete",
     "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-rescan",
@@ -48,6 +49,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-last-book-removed-by-item-update",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-keeps-asin-and-image",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-not-sent-for-author-with-description",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-item-delete",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-rescan",

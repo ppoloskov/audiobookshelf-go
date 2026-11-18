@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -219,10 +220,12 @@ type stubResponse struct {
 	body        []byte
 }
 
-// imageStub serves the paths on 127.0.0.1 (the harness whitelists that host for downloads).
-func imageStub(t *testing.T, routes map[string]stubResponse) *httptest.Server {
-	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// imageStubHandler serves the stub routes and increments hits for every request when it is not nil.
+func imageStubHandler(hits *atomic.Int64, routes map[string]stubResponse) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits != nil {
+			hits.Add(1)
+		}
 		route, ok := routes[r.URL.Path]
 		if !ok {
 			http.NotFound(w, r)
@@ -235,9 +238,25 @@ func imageStub(t *testing.T, routes map[string]stubResponse) *httptest.Server {
 		}
 		w.WriteHeader(route.status)
 		_, _ = w.Write(route.body) // a failed write is the client giving up; nothing to report
-	}))
+	})
+}
+
+// imageStub serves the paths on 127.0.0.1 (the harness whitelists that host for downloads).
+func imageStub(t *testing.T, routes map[string]stubResponse) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(imageStubHandler(nil, routes))
 	t.Cleanup(server.Close)
 	return server
+}
+
+// countingImageStub is imageStub that also counts the requests it receives, so a scenario can prove
+// that a rejected upload never started a download.
+func countingImageStub(t *testing.T, routes map[string]stubResponse) (*httptest.Server, *atomic.Int64) {
+	t.Helper()
+	hits := new(atomic.Int64)
+	server := httptest.NewServer(imageStubHandler(hits, routes))
+	t.Cleanup(server.Close)
+	return server, hits
 }
 
 // imageDims decodes an image with the standard library and returns its size.

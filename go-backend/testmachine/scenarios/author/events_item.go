@@ -166,6 +166,30 @@ func itemEventScenarios() []harness.Scenario {
 			},
 		},
 		{
+			Requirement: "socket-outgoing-author-removed", Invariant: "INV-SOCKET-OUTGOING-AUTHOR-REMOVED", Case: "edge", State: "changed", Assertion: "author-removed-keeps-asin-and-image",
+			Sources: []string{"server/routers/ApiRouter.js:465-523"},
+			Claim:   "An author that loses its last book is kept and no author_removed is sent when it has an asin or an image file; the stored asin and image stay.",
+			Run: func(t *testing.T, e *harness.Env) {
+				root := e.Token(t, "root")
+				wantStatus(t, "setup", setItemAuthors(t, e, root, e.IDs["ebook"], "Ada Example", "Keeper Asin", "Keeper Image"), http.StatusOK)
+				asinID, imageID := authorID(t, e, "Keeper Asin"), authorID(t, e, "Keeper Image")
+				wantStatus(t, "set asin", patch(t, e, root, asinID, map[string]any{"asin": "B00KEEPER1"}), http.StatusOK)
+				stub := imageStub(t, map[string]stubResponse{"/keep.jpg": {http.StatusOK, "image/jpeg", imageBytes(t, "jpeg", 40, 30)}})
+				wantStatus(t, "upload", uploadImage(t, e, root, imageID, stub.URL+"/keep.jpg"), http.StatusOK)
+				imagePath := authorImagePath(e, imageID, "jpg")
+				w := watch(t, e)
+				wantStatus(t, "remove", setItemAuthors(t, e, root, e.IDs["ebook"], "Ada Example"), http.StatusOK)
+				w.none(t, "author_removed", idIs(asinID))
+				w.none(t, "author_removed", idIs(imageID))
+				if row := authorRow(t, e, asinID); row == nil || rowText(row, "asin") != "B00KEEPER1" || bookCount(t, e, asinID) != 0 {
+					t.Fatalf("the asin author must stay without books: %v", row)
+				}
+				if row := authorRow(t, e, imageID); row == nil || rowText(row, "imagePath") != imagePath || bookCount(t, e, imageID) != 0 || !fileExists(imagePath) {
+					t.Fatalf("the image author must stay with its image: %v", row)
+				}
+			},
+		},
+		{
 			Requirement: "socket-outgoing-author-removed", Invariant: "INV-SOCKET-OUTGOING-AUTHOR-REMOVED", Case: "normal", State: "changed", Assertion: "author-removed-by-item-delete",
 			Sources: []string{"server/controllers/LibraryItemController.js:114-150", "server/routers/ApiRouter.js:472-523"},
 			Claim:   "Deleting the library item that is the only book of an author deletes the author and sends author_removed {id, libraryId}.",

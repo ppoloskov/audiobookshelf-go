@@ -3672,6 +3672,7 @@ socket-outgoing-author-added,INV-SOCKET-OUTGOING-AUTHOR-ADDED,Q15,author,"author
 server/scanner/Scanner.js:259
 server/scanner/BookScanner.js:242
 server/scanner/BookScanner.js:604","go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-scan
+go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-scan-metadata-update
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-item-update
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-not-repeated
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-denied-update-sends-nothing
@@ -3680,6 +3681,7 @@ socket-outgoing-author-removed,INV-SOCKET-OUTGOING-AUTHOR-REMOVED,Q15,author,"au
 server/controllers/AuthorController.js:252
 server/routers/ApiRouter.js:516
 server/scanner/BookScanner.js:970","go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-last-book-removed-by-item-update
+go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-keeps-asin-and-image
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-not-sent-for-author-with-description
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-item-delete
 go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-rescan

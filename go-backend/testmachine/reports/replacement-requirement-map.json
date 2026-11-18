@@ -282,8 +282,8 @@
     "go-backend/testmachine/register/capabilities/cap-socket-incoming-set-log-listener.json": "7e11ec089d220685272c1a597682f1e159801acdccc0700df4edb8884525d5ae",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-admin-message.json": "b061025c6bda3053888c989c9eded85ccbb2f15e14eeaf46fd1eeb32ce7a852b",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-auth-failed.json": "90ffa6d94df2d7e216f4c71d4e33084e75b3a6908c0e5cf3c8ec8f38b1df233b",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-added.json": "aee1571ace7b786d614fd0f76467dbe8059003c9aa55c85abfae3b6174eed555",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-removed.json": "0db9af12419d26c7de8c6d89bdd3a7672c6d2047e967480d567ef79d38e2e8c6",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-added.json": "f4dee4bd12b344a1b6a886cfd9bd08d56daca9fa698b6973b63894dcc434b541",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-removed.json": "caac0107da4497f9c917403207e161b36d658c803b65a1ed17bf20288bcd9ad8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-author-updated.json": "3abbebc7b37d86be4521be5bb291dd0f67fea6acacd4d6b2832c144ef67627b0",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-authors-num-books-updated.json": "a18c5019176018778e49b56cb3b4a0764f831fe28f389d514d62c9a51604c5e8",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-backup-applied.json": "3c09043a404beaa6883fb5053130abc039560129b6bfc08f6a94e46d26422c75",
@@ -25572,6 +25572,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-scan",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-scan-metadata-update",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-by-item-update",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-not-repeated",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-added-denied-update-sends-nothing",
@@ -25610,6 +25611,7 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-last-book-removed-by-item-update",
+        "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-keeps-asin-and-image",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-not-sent-for-author-with-description",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-item-delete",
         "go-backend/testmachine/scenarios/author/run_test.go#TestReplacement/author-removed-by-rescan",

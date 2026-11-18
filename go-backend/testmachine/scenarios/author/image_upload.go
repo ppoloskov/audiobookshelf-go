@@ -77,7 +77,7 @@ func imageUploadScenarios() []harness.Scenario {
 			Claim:   "POST /api/authors/:id/image is 401 without a token, 404 for an unknown author (also for users who may not update), 403 for a user without update permission and 403 for a user with update but without upload permission, and 404 for a user with every permission but no access to the library; nothing is downloaded or changed.",
 			Run: func(t *testing.T, e *harness.Env) {
 				id := authorID(t, e, "Terry Fixture")
-				stub := imageStub(t, map[string]stubResponse{"/a.jpg": {http.StatusOK, "image/jpeg", imageBytes(t, "jpeg", 30, 20)}})
+				stub, hits := countingImageStub(t, map[string]stubResponse{"/a.jpg": {http.StatusOK, "image/jpeg", imageBytes(t, "jpeg", 30, 20)}})
 				w := watch(t, e)
 				url := stub.URL + "/a.jpg"
 				wantStatus(t, "no token", uploadImage(t, e, "", id, url), http.StatusUnauthorized)
@@ -86,6 +86,9 @@ func imageUploadScenarios() []harness.Scenario {
 				wantStatus(t, "update without upload", uploadImage(t, e, noUpload(t, e).token, id, url), http.StatusForbidden)
 				wantStatus(t, "restricted library with every permission", uploadImage(t, e, restrictedWriter(t, e).token, id, url), http.StatusNotFound)
 				wantStatus(t, "update without upload and bad body", e.Post(t, noUpload(t, e).token, authorURL(id, "/image"), map[string]any{}), http.StatusForbidden)
+				if got := hits.Load(); got != 0 {
+					t.Fatalf("refused uploads must not download: the stub received %d requests", got)
+				}
 				imageUnchanged(t, e, w, id)
 			},
 		},

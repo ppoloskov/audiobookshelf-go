@@ -153,6 +153,32 @@ func scanEventScenarios() []harness.Scenario {
 				}
 			},
 		},
+		{
+			Requirement: "socket-outgoing-author-added", Invariant: "INV-SOCKET-OUTGOING-AUTHOR-ADDED", Case: "normal", State: "changed", Assertion: "author-added-by-scan-metadata-update",
+			Sources: []string{"server/scanner/BookScanner.js:221-247"},
+			Claim:   "A rescan whose metadata.json adds a new author name to an existing book creates that author, links it to the book and sends author_added with the author JSON (no numBooks) to every client, without sending author_added again for the author already on the book.",
+			Run: func(t *testing.T, e *harness.Env) {
+				first := watch(t, e)
+				stageBook(t, e, "Meta Author", "Meta Book")
+				scanLibrary(t, e)
+				first.waitBoth(t, "author_added", nameIs("Meta Author"))
+				first.waitBoth(t, "items_added", nil)
+				metadataFile := filepath.Join(e.Media, "audiobooks", "Meta Author", "Meta Book", "metadata.json")
+				if err := os.WriteFile(metadataFile, []byte(`{"title":"Meta Book","authors":["Meta Author","Late Author"]}`), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				metaID := authorID(t, e, "Meta Author")
+				w := watch(t, e)
+				scanLibrary(t, e)
+				got := authorEvent(t, w.waitBoth(t, "author_added", nameIs("Late Author")), -1)
+				row := mustRow(t, e, got.ID)
+				if got.LibraryID != e.IDs["library"] || got.AddedAt != dbTime(t, row["createdAt"]) || got.UpdatedAt != dbTime(t, row["updatedAt"]) ||
+					rowText(row, "lastFirst") != "Author, Late" || bookCount(t, e, got.ID) != 1 || bookCount(t, e, metaID) != 1 {
+					t.Fatalf("event %+v does not match row %v", got, row)
+				}
+				w.none(t, "author_added", idIs(metaID))
+			},
+		},
 	}
 }
 

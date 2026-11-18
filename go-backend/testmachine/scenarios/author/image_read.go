@@ -137,7 +137,9 @@ func imageSizeScenarios() []harness.Scenario {
 					{name: "accept png only", query: "width=140", accept: "image/png", contentType: "image/jpeg", cacheName: "140.jpeg", format: "jpeg", width: 140, height: 93},
 					{name: "explicit format wins", query: "width=150&format=png", accept: "image/webp", contentType: "image/png", cacheName: "150.png", format: "png", width: 150, height: 100},
 					{name: "clamped", query: "width=99999&format=jpeg", contentType: "image/jpeg", cacheName: "4096.jpeg", format: "jpeg", width: 4096, height: 2731},
+					{name: "height clamped", query: "height=99999&format=png", contentType: "image/png", cacheName: "400x4096.png", format: "png", width: 400, height: 4096},
 					{name: "invalid width is default", query: "width=-5&format=png", contentType: "image/png", cacheName: "400.png", format: "png", width: 400, height: 267},
+					{name: "invalid height is default", query: "height=abc&format=png", contentType: "image/png", cacheName: "400.png", format: "png", width: 400, height: 267},
 				} {
 					check(t, e, id, c)
 				}
