@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "PATCH /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:114, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/cover\", h.authed(h.chooseCover)). Current assertion anchor(s): TestChooseCoverCopiesALibraryImage. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "PATCH /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before the permission check), no library access 403, no update permission 403, and a body without cover 400, changing nothing. PATCH cover with a path that is one of the item's scanned library files validates the path (not http, a scanned file of the item, existing, a file, a supported image) and, when the stored coverPath is a different path, copies it to metadata/items/:id/cover.<ext>, removes older cover images of the item, purges the resized cache, sets media.coverPath, moves updatedAt and emits item_updated; the answer is {success:true,cover}. PATCH cover with a path equal to the stored coverPath answers 200 with that path without copying, purging the cache, moving updatedAt or emitting item_updated. PATCH cover answers 500 and changes no row, file or cache entry when the path is not a scanned file of the item, is an http url, is a scanned text file (Invalid image), or has disappeared from disk; a JSON body above the 10 MB express.json limit is rejected with 413, while a 1.1 MB body is parsed and reaches the handler.",
   "source": [
     "server/routers/ApiRouter.js:114",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:110",
-    "server/controllers/LibraryItemController.js:1220"
+    "server/controllers/LibraryItemController.js:344-375",
+    "server/managers/CoverManager.js:132-207",
+    "client/components/modals/item/tabs/Cover.vue:420-435"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:110"
@@ -21,43 +21,119 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage"
+    "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-auth-and-body-order",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-copies-a-library-image",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-switches-to-another-scanned-image",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-repeat-recopies-and-emits",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-already-stored-path-is-a-noop",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-rejects-invalid-paths",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-json-body-limit"
   ],
   "evidence": [],
   "exceptions": [
-    "Only one successful source-file copy and same-path repeat were exercised; switching to a different cover, storeCoverWithItem, permission branches, event recipients, updatedAt details, and 10,000,000-byte boundary and over-limit parser error shape remain unverified.",
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-success; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-repeat; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-invalid-image; go-backend/testmachine/contracts/parity/full-suite-report.json#statefulChecks.coverPatch; go-backend/testmachine/contracts/parity/full-suite-report.json#cover-patch-large-invalid-path",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force or override mode; selecting another scanned image replaces the cover.",
+    "The cover copy is only asserted with the default storeCoverWithItem=false setting; the storeCoverWithItem=true branch is the same copy code with an item-folder destination."
   ],
   "invariants": [
     {
-      "id": "INV-R056-SAMPLED",
+      "id": "INV-R056-AUTH-001",
       "class": "shape",
-      "contract": "PATCH /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:114, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"PATCH /api/items/{id}/cover\", h.authed(h.chooseCover)). Current assertion anchor(s): TestChooseCoverCopiesALibraryImage. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "PATCH /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before the permission check), no library access 403, no update permission 403, and a body without cover 400, changing nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:114",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:110",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:344-375",
+        "server/controllers/LibraryItemController.js:1220-1251"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:244#TestChooseCoverCopiesALibraryImage"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-auth-and-body-order"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R056-SUCCESS-001",
+      "class": "state_transition",
+      "contract": "PATCH cover with a path that is one of the item's scanned library files validates the path (not http, a scanned file of the item, existing, a file, a supported image) and, when the stored coverPath is a different path, copies it to metadata/items/:id/cover.<ext>, removes older cover images of the item, purges the resized cache, sets media.coverPath, moves updatedAt and emits item_updated; the answer is {success:true,cover}.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:344-375",
+        "server/managers/CoverManager.js:132-207",
+        "server/managers/CacheManager.js:93-110"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-copies-a-library-image",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-switches-to-another-scanned-image"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R056-REPEAT-001",
+      "class": "repeat_operation",
+      "contract": "Repeating PATCH cover with the same scanned path when the stored coverPath is the metadata copy copies it again, moves updatedAt and emits item_updated again.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:346-370",
+        "server/managers/CoverManager.js:182-207"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-repeat-recopies-and-emits"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R056-NOOP-001",
+      "class": "repeat_operation",
+      "contract": "PATCH cover with a path equal to the stored coverPath answers 200 with that path without copying, purging the cache, moving updatedAt or emitting item_updated.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CoverManager.js:161-166"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-already-stored-path-is-a-noop"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R056-INVALID-001",
+      "class": "error",
+      "contract": "PATCH cover answers 500 and changes no row, file or cache entry when the path is not a scanned file of the item, is an http url, is a scanned text file (Invalid image), or has disappeared from disk; a JSON body above the 10 MB express.json limit is rejected with 413, while a 1.1 MB body is parsed and reaches the handler.",
+      "status": "unverified",
+      "source": [
+        "server/managers/CoverManager.js:132-180",
+        "server/Server.js:352"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-rejects-invalid-paths",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-json-body-limit"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R056-BODY-LIMIT-001",
+      "class": "error",
+      "contract": "PATCH cover parses JSON bodies up to the express.json 10 MB limit (a 1.1 MB body reaches the handler and answers 500 invalid path) and rejects a larger body with 413 without changing the item.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:352",
+        "server/controllers/LibraryItemController.js:344-362"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/choose-cover-json-body-limit"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

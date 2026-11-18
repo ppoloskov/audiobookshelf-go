@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing items_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_access_to_any_library_item. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "A library scan emits items_added with an array of the newly created items' old-format expanded documents, in chunks of at most ten (ten then the remainder), to each socket whose user can access at least one of those items and to no other socket; a scan that adds nothing emits no items_added, and a scan requested by a non-admin is rejected without any event.",
   "source": [
     "server/scanner/LibraryScanner.js:271",
     "server/scanner/LibraryScanner.js:279"
@@ -17,23 +17,36 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-to-non-admins",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-one-new-book",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-chunks-of-ten",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-clean-rescan",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-scan-without-audio"
+  ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Only the full-library scan call sites (LibraryScanner.js:271,279) are asserted; the event carries no item for libraries with no new files by construction.",
+    "force is not applicable: a forced rescan of existing items never adds items, and the scanner adds new files identically with or without the force flag."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-ITEMS-ADDED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing items_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_access_to_any_library_item. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "A library scan emits items_added with an array of the newly created items' old-format expanded documents, in chunks of at most ten (ten then the remainder), to each socket whose user can access at least one of those items and to no other socket; a scan that adds nothing emits no items_added, and a scan requested by a non-admin is rejected without any event.",
       "status": "unverified",
       "source": [
-        "server/scanner/LibraryScanner.js:271",
-        "server/scanner/LibraryScanner.js:279"
+        "server/scanner/LibraryScanner.js:254-285",
+        "server/SocketAuthority.js:112-135"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-to-non-admins",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-one-new-book",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-chunks-of-ten",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-clean-rescan",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/items-added-not-emitted-for-a-scan-without-audio"
+      ],
       "evidence": [],
       "exceptions": []
     }
@@ -42,7 +55,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

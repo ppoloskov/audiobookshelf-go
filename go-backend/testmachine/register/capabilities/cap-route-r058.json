@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/items/:id/match dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:116, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatchAppliesDetails. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/items/:id/match runs Scanner.quickMatchLibraryItem for one accessible item with the string options provider, title, author, isbn and asin plus the boolean overrideCover and overrideDetails; it is not admin-only but the middleware still requires item access and the update permission. The response is the match result itself: {updated:boolean, libraryItem:expanded item} on a provider hit, or {warning:'No <provider> match found'} when the search returns nothing; a successful update moves updatedAt, persists the changed fields and cover and emits item_updated.",
   "source": [
     "server/routers/ApiRouter.js:116",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:100",
-    "server/controllers/LibraryItemController.js:1220"
+    "server/controllers/LibraryItemController.js:526-545",
+    "server/scanner/Scanner.js:37-135",
+    "server/providers/CustomProviderAdapter.js:24-190"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:100"
@@ -21,12 +21,18 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-auth-and-unknown-item",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-applies-provider-details",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-override-replaces-cover-and-details",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-repeat-reports-updated-false",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-reflects-an-earlier-edit",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-unknown-provider-warns-and-changes-nothing",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-honours-title-and-author-options"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Provider results come from a loopback custom metadata provider; the built-in internet providers are not exercised.",
+    "force is applicable (overrideCover/overrideDetails body options) and is asserted by match-override-replaces-cover-and-details."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,25 +43,25 @@
   },
   "invariants": [
     {
-      "id": "INV-ROUTE-R058-CONTRACT",
-      "class": "shape",
-      "contract": "POST /api/items/:id/match dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:116, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/match\", h.authed(h.match)). Current assertion anchor(s): TestMatchAppliesDetails. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "id": "INV-R058-MATCH-001",
+      "class": "state_transition",
+      "contract": "POST /api/items/:id/match runs Scanner.quickMatchLibraryItem for one accessible item with the string options provider, title, author, isbn and asin plus the boolean overrideCover and overrideDetails; it is not admin-only but the middleware still requires item access and the update permission. The response is the match result itself: {updated:boolean, libraryItem:expanded item} on a provider hit, or {warning:'No <provider> match found'} when the search returns nothing; a successful update moves updatedAt, persists the changed fields and cover and emits item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:116",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:100",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:526-545",
+        "server/scanner/Scanner.js:37-135"
       ],
       "tests": [
-        "go-backend/internal/item/match_test.go:72#TestMatchAppliesDetails"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-auth-and-unknown-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-applies-provider-details",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-override-replaces-cover-and-details",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-repeat-reports-updated-false",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-reflects-an-earlier-edit",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-unknown-provider-warns-and-changes-nothing",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/match-honours-title-and-author-options"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
     }
   ]
 }

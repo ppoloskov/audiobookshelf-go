@@ -4,12 +4,13 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:113, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/cover\", h.authed(h.uploadCover)). Current assertion anchor(s): TestUploadCoverRemovesOnlyOlderCoverImages; TestUploadCoverChecksPermissionsAndInput. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before any permission check), no access to the item's library 403, no update permission 403, no upload permission 403, and no url and no cover file 400; every rejection writes no file, changes no row and emits no item_updated. POST cover with body.url downloads the image through fileUtils.downloadImageFile (content type image/*, not svg) to metadata/items/:id/cover.<ext>, validates the image signature, stores media.coverPath, answers {success:true,cover} with the stored path, moves updatedAt and emits item_updated to users with access to the item. POST cover with a multipart cover file requires a supported extension (png, jpg, jpeg, webp), stores metadata/items/:id/cover.<ext> with the uploaded bytes, removes older cover images of the same item whose extension is in that allowlist, keeps other files, purges the resized cover cache, sets media.coverPath, moves updatedAt and emits item_updated; repeating the same upload succeeds again. POST cover answers 400 and changes no row, file or event when the url serves a non-image content type, when the body is not a recognised image signature, or when the multipart extension is not in the allowlist; a multipart part named other than cover with no url is also 400.",
   "source": [
     "server/routers/ApiRouter.js:113",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:109",
-    "server/controllers/LibraryItemController.js:1220"
+    "server/controllers/LibraryItemController.js:289-341",
+    "server/managers/CoverManager.js:47-125",
+    "server/utils/fileUtils.js:289-356",
+    "client/components/modals/item/tabs/Cover.vue:200-295"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:109"
@@ -22,44 +23,106 @@
   "stateful": true,
   "tests": [
     "go-backend/internal/item/files_test.go:178#TestUploadCoverRemovesOnlyOlderCoverImages",
-    "go-backend/internal/item/files_test.go:216#TestUploadCoverChecksPermissionsAndInput"
+    "go-backend/internal/item/files_test.go:216#TestUploadCoverChecksPermissionsAndInput",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-auth-order",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-from-url",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-file-replaces-older-cover",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-repeat-keeps-working",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-rejects-non-image-and-unsupported-type",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-requires-the-cover-field"
   ],
   "evidence": [],
   "exceptions": [
-    "Single-file/single-URL request shapes only. Multipart URL-over-file precedence is tested on an unsupported URL; broad request sizes, every image format, permission branches, redirects, and SSRF address variants remain unverified.",
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload-unsupported-gif (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-upload (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-ssrf-blocked (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-url-redirect-307 (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-upload-multipart-url-precedence (differential pass)",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the route has no force or override mode; a new cover simply replaces the old one.",
+    "Only loopback cover urls are used: the SSRF whitelist is set to 127.0.0.1 and literal private addresses are rejected without a network attempt."
   ],
   "invariants": [
     {
-      "id": "INV-R055-SAMPLED",
+      "id": "INV-R055-AUTH-001",
       "class": "shape",
-      "contract": "POST /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:113, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"POST /api/items/{id}/cover\", h.authed(h.uploadCover)). Current assertion anchor(s): TestUploadCoverRemovesOnlyOlderCoverImages; TestUploadCoverChecksPermissionsAndInput. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "POST /api/items/:id/cover rejects in this order: no token 401, unknown item 404 (before any permission check), no access to the item's library 403, no update permission 403, no upload permission 403, and no url and no cover file 400; every rejection writes no file, changes no row and emits no item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:113",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:109",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:289-341",
+        "server/controllers/LibraryItemController.js:1220-1251",
+        "server/Auth.js:322"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:178#TestUploadCoverRemovesOnlyOlderCoverImages",
-        "go-backend/internal/item/files_test.go:216#TestUploadCoverChecksPermissionsAndInput"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-auth-order"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R055-URL-001",
+      "class": "state_transition",
+      "contract": "POST cover with body.url downloads the image through fileUtils.downloadImageFile (content type image/*, not svg) to metadata/items/:id/cover.<ext>, validates the image signature, stores media.coverPath, answers {success:true,cover} with the stored path, moves updatedAt and emits item_updated to users with access to the item.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:295-315",
+        "server/managers/CoverManager.js:300-345",
+        "server/utils/fileUtils.js:289-356"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-from-url"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R055-FILE-001",
+      "class": "state_transition",
+      "contract": "POST cover with a multipart cover file requires a supported extension (png, jpg, jpeg, webp), stores metadata/items/:id/cover.<ext> with the uploaded bytes, removes older cover images of the same item whose extension is in that allowlist, keeps other files, purges the resized cover cache, sets media.coverPath, moves updatedAt and emits item_updated; repeating the same upload succeeds again.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:316-341",
+        "server/managers/CoverManager.js:47-125",
+        "server/managers/CacheManager.js:93-110"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-file-replaces-older-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-repeat-keeps-working"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R055-INVALID-001",
+      "class": "error",
+      "contract": "POST cover answers 400 and changes no row, file or event when the url serves a non-image content type, when the body is not a recognised image signature, or when the multipart extension is not in the allowlist; a multipart part named other than cover with no url is also 400.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:316-323",
+        "server/managers/CoverManager.js:63-80",
+        "server/utils/fileUtils.js:353-356"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-rejects-non-image-and-unsupported-type"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-R055-EDGE-001",
+      "class": "shape",
+      "contract": "A multipart POST cover body without a url and without a cover field answers 400 and writes no file; the item is unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:318-323",
+        "server/Server.js:340-348"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/upload-cover-requires-the-cover-field"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing item_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_library_item_access. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "item_added carries the created library item's old-format expanded document (id, libraryId, folderId, path, mediaType, media.metadata.title, media.coverPath) and reaches every socket whose user can access the item, including users limited to the podcast library, but no unauthenticated socket; it is emitted after the item exists and after the response body of POST /api/podcasts, not on a rejected creation.",
   "source": [
     "server/controllers/PodcastController.js:181",
     "server/managers/PodcastManager.js:723",
@@ -19,24 +19,37 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-emitted-on-rejected-podcast",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-created-with-cover",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-without-a-usable-cover",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-unicode-title-without-image",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-repeated-for-an-existing-path"
+  ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Only the POST /api/podcasts call site is asserted; the OPML import (PodcastManager.js:723) and the file-watcher single-item add (LibraryScanner.js:631) call sites are not, because the watcher is timing dependent and OPML import needs an RSS fetch task.",
+    "force is not applicable: podcast creation has no force or override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-ITEM-ADDED",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing item_added: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: clients_with_library_item_access. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "item_added carries the created library item's old-format expanded document (id, libraryId, folderId, path, mediaType, media.metadata.title, media.coverPath) and reaches every socket whose user can access the item, including users limited to the podcast library, but no unauthenticated socket; it is emitted after the item exists and after the response body of POST /api/podcasts, not on a rejected creation.",
       "status": "unverified",
       "source": [
-        "server/controllers/PodcastController.js:181",
-        "server/managers/PodcastManager.js:723",
-        "server/scanner/LibraryScanner.js:631"
+        "server/controllers/PodcastController.js:143-186",
+        "server/SocketAuthority.js:98-112",
+        "server/models/LibraryItem.js"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-emitted-on-rejected-podcast",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-created-with-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-podcast-without-a-usable-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-unicode-title-without-image",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/item-added-not-repeated-for-an-existing-path"
+      ],
       "evidence": [],
       "exceptions": []
     }
@@ -45,7 +58,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.getCover (ApiRouter.js:112, server/controllers/LibraryItemController.js:401) and Go registration mux.Handle(\"GET /api/items/{id}/cover\", httpx.Handler(h.cover)). Current assertion anchor(s): TestCoverRawIsPublicAndCached. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "GET /api/items/:id/cover with raw=1 is public: it answers 200 with the stored cover file's bytes, its image MIME type and Content-Length plus an ETag and Last-Modified, adds Cache-Control private, max-age=86400 when ts is present, answers 304 to a matching If-None-Match, and answers 404 when the item has no coverPath or the stored file is gone. GET /api/items/:id/cover without raw validates format (webp|jpeg|png, default webp when the client accepts it), clamps width and height to 4096 (absent or non-positive means the defaults 400 wide and no height), and answers image/<format> for the resized image; an unsupported format or unknown item is 400/404 and writes no cache file.",
   "source": [
     "server/routers/ApiRouter.js:112",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:108",
-    "server/controllers/LibraryItemController.js:401"
+    "server/controllers/LibraryItemController.js:382-440",
+    "server/managers/CacheManager.js:43-110",
+    "client/store/globals.js:96-108"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:108"
@@ -21,35 +21,53 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached"
+    "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-serves-original-bytes",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-without-file-is-404",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-is-jpeg-of-requested-width",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-rejects-invalid-format",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-clamps-width-and-defaults-to-webp"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-default (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-webp-size (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-ts-header (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-raw-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-jpeg-after-delete (differential pass); go-backend/testmachine/contracts/parity/full-suite-report.json#cover-cache-png-after-delete (differential pass)",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "X-Accel hand-off (USE_X_ACCEL) is not asserted: the packet runs without the reverse proxy environment."
   ],
   "invariants": [
     {
-      "id": "INV-R054-SAMPLED",
+      "id": "INV-R054-RAW-001",
       "class": "shape",
-      "contract": "GET /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.getCover (ApiRouter.js:112, server/controllers/LibraryItemController.js:401) and Go registration mux.Handle(\"GET /api/items/{id}/cover\", httpx.Handler(h.cover)). Current assertion anchor(s): TestCoverRawIsPublicAndCached. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "contract": "GET /api/items/:id/cover with raw=1 is public: it answers 200 with the stored cover file's bytes, its image MIME type and Content-Length plus an ETag and Last-Modified, adds Cache-Control private, max-age=86400 when ts is present, answers 304 to a matching If-None-Match, and answers 404 when the item has no coverPath or the stored file is gone.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:112",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:108",
-        "server/controllers/LibraryItemController.js:401"
+        "server/controllers/LibraryItemController.js:401-425",
+        "node_modules/send/index.js:862",
+        "client/store/globals.js:96-108"
       ],
       "tests": [
-        "go-backend/internal/item/files_test.go:136#TestCoverRawIsPublicAndCached"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-serves-original-bytes",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-raw-without-file-is-404"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R054-RESIZED-001",
+      "class": "shape",
+      "contract": "GET /api/items/:id/cover without raw validates format (webp|jpeg|png, default webp when the client accepts it), clamps width and height to 4096 (absent or non-positive means the defaults 400 wide and no height), and answers image/<format> for the resized image; an unsupported format or unknown item is 400/404 and writes no cache file.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:427-440",
+        "server/managers/CacheManager.js:43-91",
+        "server/utils/index.js:62-65",
+        "server/utils/index.js:144-147"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-is-jpeg-of-requested-width",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-rejects-invalid-format",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/cover-resized-clamps-width-and-defaults-to-webp"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

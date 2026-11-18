@@ -4,12 +4,14 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/items/batch/quickmatch dispatches to the pinned TS handler LibraryItemController.batchQuickMatch (ApiRouter.js:105, server/controllers/LibraryItemController.js:763) and Go registration mux.Handle(\"POST /api/items/batch/quickmatch\", h.authed(h.batchQuickMatch)). Current assertion anchor(s): TestBatchQuickMatch. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "POST /api/items/batch/quickmatch is admin-only; a non-admin gets 403, a body without libraryItemIds or whose ids match nothing gets 400, and an accepted batch gets 200 before processing. For each loaded item Scanner.quickMatchLibraryItem applies the provider match: empty detail fields are filled (and all are replaced with overrideDetails), an empty coverPath is filled (or replaced with overrideCover), and the response is immediate while the per-item work continues asynchronously.",
   "source": [
     "server/routers/ApiRouter.js:105",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:104",
-    "server/controllers/LibraryItemController.js:763"
+    "server/controllers/LibraryItemController.js:757-816",
+    "server/scanner/Scanner.js:37-135",
+    "server/providers/CustomProviderAdapter.js:24-190",
+    "client/components/modals/BatchQuickMatchModel.vue:109-132",
+    "client/layouts/default.vue:352-363"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:104"
@@ -21,12 +23,19 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+    "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-requires-admin-and-ids",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-applies-a-custom-provider-match",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-repeat-reports-no-updates",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-override-replaces-details-and-cover",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-keeps-an-existing-cover-and-title-without-override",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-mixed-ids-process-the-known-item",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-unmatched-provider-changes-nothing"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Provider results come from a loopback custom metadata provider: the built-in google/itunes/audible providers need the real internet, so their search paths are not asserted here.",
+    "force is applicable (overrideCover/overrideDetails options) and is asserted by quickmatch-override-replaces-details-and-cover."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,24 +47,27 @@
   "invariants": [
     {
       "id": "INV-ROUTE-R048-CONTRACT",
-      "class": "shape",
-      "contract": "POST /api/items/batch/quickmatch dispatches to the pinned TS handler LibraryItemController.batchQuickMatch (ApiRouter.js:105, server/controllers/LibraryItemController.js:763) and Go registration mux.Handle(\"POST /api/items/batch/quickmatch\", h.authed(h.batchQuickMatch)). Current assertion anchor(s): TestBatchQuickMatch. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "class": "state_transition",
+      "contract": "POST /api/items/batch/quickmatch is admin-only; a non-admin gets 403, a body without libraryItemIds or whose ids match nothing gets 400, and an accepted batch gets 200 before processing. For each loaded item Scanner.quickMatchLibraryItem applies the provider match: empty detail fields are filled (and all are replaced with overrideDetails), an empty coverPath is filled (or replaced with overrideCover), and the response is immediate while the per-item work continues asynchronously.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:105",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:104",
-        "server/controllers/LibraryItemController.js:763"
+        "server/controllers/LibraryItemController.js:757-816",
+        "server/scanner/Scanner.js:37-135",
+        "server/providers/CustomProviderAdapter.js:24-190"
       ],
       "tests": [
-        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-requires-admin-and-ids",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-applies-a-custom-provider-match",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-repeat-reports-no-updates",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-override-replaces-details-and-cover",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-keeps-an-existing-cover-and-title-without-override",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-mixed-ids-process-the-known-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/quickmatch-unmatched-provider-changes-nothing"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
     }
   ]
 }

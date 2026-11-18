@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing batch_quickmatch_complete: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "After an accepted batch quickmatch the server emits batch_quickmatch_complete with one object {success:boolean, updates:number, unmatched:number} to every socket of the requesting user and to no other user's or unauthenticated socket, after the item_updated events of the batch; a rejected request emits nothing.",
   "source": [
     "server/controllers/LibraryItemController.js:811"
   ],
@@ -17,26 +17,35 @@
     "edge": "unverified"
   },
   "tests": [
-    "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
-    "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-payload-and-audience",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-override",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-no-updates",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-follows-the-changed-item",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-not-emitted-on-rejection"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "The event is only asserted for the batch/quickmatch call site (LibraryItemController.js:807); no other source emits it.",
+    "force is applicable and asserted through the overrideCover/overrideDetails quickmatch."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-BATCH-QUICKMATCH-COMPLETE",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing batch_quickmatch_complete: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: specific_user_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "After an accepted batch quickmatch the server emits batch_quickmatch_complete with one object {success:boolean, updates:number, unmatched:number} to every socket of the requesting user and to no other user's or unauthenticated socket, after the item_updated events of the batch; a rejected request emits nothing.",
       "status": "unverified",
       "source": [
-        "server/controllers/LibraryItemController.js:811"
+        "server/controllers/LibraryItemController.js:807-812",
+        "server/SocketAuthority.js:68-78",
+        "client/layouts/default.vue:352-363"
       ],
       "tests": [
-        "go-backend/internal/contracttest/socketio_client_test.go:156#TestParseSocketIOEvent",
-        "go-backend/internal/item/match_test.go:397#TestBatchQuickMatch"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-payload-and-audience",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-override",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-no-updates",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-follows-the-changed-item",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/batch-quickmatch-complete-not-emitted-on-rejection"
       ],
       "evidence": [],
       "exceptions": []

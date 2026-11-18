@@ -4,12 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "DELETE /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:115, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"DELETE /api/items/{id}/cover\", h.authed(h.removeCover)). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+  "contract": "DELETE /api/items/:id/cover on an item with a stored coverPath answers 200, sets media.coverPath to null, purges the item's resized cover cache, moves updatedAt and emits item_updated; the cover file itself is left on disk (upstream removes no file) and later raw and resized reads answer 404. DELETE cover on an item whose coverPath is already null answers 200 without moving updatedAt or emitting item_updated. DELETE cover answers 401 without a token, 404 for an unknown item (the item lookup precedes the permission check), 403 without access to the item's library and 403 without the delete permission, changing nothing and emitting no event.",
   "source": [
     "server/routers/ApiRouter.js:115",
-    "go-backend/internal/item/handler.go",
-    "go-backend/internal/item/handler.go:111",
-    "server/controllers/LibraryItemController.js:1220"
+    "server/controllers/LibraryItemController.js:377-397",
+    "server/managers/CacheManager.js:93-110",
+    "client/components/modals/item/tabs/Cover.vue:136-275"
   ],
   "implementation": [
     "go-backend/internal/item/handler.go:111"
@@ -21,42 +21,58 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+    "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-clears-path-and-cache",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-cover-is-a-noop",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-then-a-new-upload-is-served",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-auth-order",
+    "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-a-cover"
   ],
   "evidence": [],
   "exceptions": [
-    "Archived route sample/evidence is retained in git history; it does not establish complete request, auth, error, edge, or state coverage.",
-    "Historical evidence leads retained for follow-up: go-backend/testmachine/contracts/parity/full-suite-report.json#cover-delete (differential pass)",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: DELETE has no force or override mode.",
+    "The DELETE route does not remove the cover file upstream (it only clears the pointer); the scenario asserts the file stays, so a target that deletes it fails."
   ],
   "invariants": [
     {
-      "id": "INV-R057-SAMPLED",
-      "class": "shape",
-      "contract": "DELETE /api/items/:id/cover dispatches to the pinned TS handler LibraryItemController.middleware (ApiRouter.js:115, server/controllers/LibraryItemController.js:1220) and Go registration mux.Handle(\"DELETE /api/items/{id}/cover\", h.authed(h.removeCover)). Current assertion anchor(s): TestJourneyItems. This requirement covers the listed route operation; exact upstream response/auth/error/edge branches without a matching assertion remain open.",
+      "id": "INV-R057-DELETE-001",
+      "class": "state_transition",
+      "contract": "DELETE /api/items/:id/cover on an item with a stored coverPath answers 200, sets media.coverPath to null, purges the item's resized cover cache, moves updatedAt and emits item_updated; the cover file itself is left on disk (upstream removes no file) and later raw and resized reads answer 404. DELETE cover on an item whose coverPath is already null answers 200 without moving updatedAt or emitting item_updated.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:115",
-        "go-backend/internal/item/handler.go",
-        "go-backend/internal/item/handler.go:111",
-        "server/controllers/LibraryItemController.js:1220"
+        "server/controllers/LibraryItemController.js:377-397",
+        "server/managers/CacheManager.js:93-110"
       ],
       "tests": [
-        "go-backend/internal/contracttest/journey_items_test.go:39#TestJourneyItems"
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-clears-path-and-cache",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-cover-is-a-noop",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-then-a-new-upload-is-served"
       ],
       "evidence": [],
-      "exceptions": [
-        "Current package tests are unit/domain assertions, not full v2.37.2 route differential evidence. Missing route variants, exact auth/error/response behavior, or durable effects remain required unless directly asserted by the named test.",
-        "Test anchors are current assertions, but no differential assertion proves the full upstream route contract.",
-        "Named tests exercise only their asserted sub-behavior; remaining upstream/client branches need route-level evidence."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R057-AUTH-001",
+      "class": "shape",
+      "contract": "DELETE cover answers 401 without a token, 404 for an unknown item (the item lookup precedes the permission check), 403 without access to the item's library and 403 without the delete permission, changing nothing and emitting no event.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/LibraryItemController.js:377-397",
+        "server/controllers/LibraryItemController.js:1236-1243"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-auth-order",
+        "go-backend/testmachine/scenarios/item_cover/run_test.go#TestReplacement/delete-cover-without-a-cover"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
