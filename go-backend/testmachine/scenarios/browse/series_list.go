@@ -17,7 +17,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-SAMPLED", Case: "normal", State: "stateless", Assertion: "series-list-envelope-and-books",
-			Sources: []string{srcSeriesList, srcSeriesQuery + ":185-222"},
+			Sources: []string{srcSeriesList, srcSeriesQuery + ":153-222"},
 			Claim:   "GET series answers the paged envelope with each series, its minified books ordered by numeric sequence, and totals.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)
@@ -46,7 +46,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-SORT-001", Case: "normal", State: "stateless", Assertion: "series-list-sort-keys",
-			Sources: []string{srcSeriesQuery + ":142-181", "client/components/app/BookShelfToolbar.vue:156-185"},
+			Sources: []string{srcSeriesQuery + ":122-184", "client/components/app/BookShelfToolbar.vue:156-185"},
 			Claim:   "Each series sort key of the client menu orders the three fixture series as expected, ascending and descending where the order has no ties.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)
@@ -92,7 +92,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-SORT-001", Case: "edge", State: "stateless", Assertion: "series-list-name-sort-ignores-prefix-setting",
-			Sources: []string{srcSeriesQuery + ":152-158"},
+			Sources: []string{srcSeriesQuery + ":134-139"},
 			Claim:   "With sortingIgnorePrefix on, name sort uses nameIgnorePrefix, so A Third Saga sorts after Solo Series.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)
@@ -105,7 +105,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-PAGING-001", Case: "edge", State: "stateless", Assertion: "series-list-paging",
-			Sources: []string{srcSeriesList, srcSeriesQuery + ":186-190"},
+			Sources: []string{srcSeriesList, srcSeriesQuery + ":153-158"},
 			Claim:   "limit and page slice the series list with the full total, and a page past the end is empty.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)
@@ -122,7 +122,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-FILTER-001", Case: "normal", State: "stateless", Assertion: "series-list-filter-groups",
-			Sources: []string{srcSeriesQuery + ":28-140"},
+			Sources: []string{srcSeriesQuery + ":32-120"},
 			Claim:   "The series filter groups genres, tags, authors, narrators, publishers, languages and progress select the series with a matching book, per user for progress; the all filter and unknown filters select all.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)
@@ -173,7 +173,7 @@ func (s *suite) seriesListScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "route-r025", Invariant: "INV-R025-RESTRICT-001", Case: "normal", State: "stateless", Assertion: "series-list-user-restrictions",
-			Sources: []string{srcSeriesQuery + ":107-130", srcSeriesQuery + ":193-210"},
+			Sources: []string{srcSeriesQuery + ":97-120", srcSeriesQuery + ":161-180,208-214"},
 			Claim:   "Series lists show only series with a book the user may access and list only those books: explicit, tag-limited and tag-excluded users see different series and books.",
 			Run: func(t *testing.T, e *harness.Env) {
 				s.enrich(t, e)

@@ -47,13 +47,13 @@ func permissionScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: req, Invariant: admin, Case: "error", State: "initial", Assertion: "ordinary-user-denied-admin-routes",
-			Sources: []string{"server/controllers/UserController.js:484-518", "server/controllers/ApiKeyController.js:196-212", "server/controllers/UserController.js:484-492"},
+			Sources: []string{"server/controllers/UserController.js:484-518", "server/controllers/ApiKeyController.js:197-204", "server/controllers/UserController.js:484-492"},
 			Claim:   "An ordinary user is denied with 403 on the user administration and API key routes and nothing is created, changed or deleted.",
 			Run:     func(t *testing.T, e *harness.Env) { checkAdminRoutesDenied(t, e, "listener") },
 		},
 		{
 			Requirement: req, Invariant: admin, Case: "error", State: "repeat", Assertion: "admin-route-denial-repeats-for-other-users",
-			Sources: []string{"server/controllers/UserController.js:484-518", "server/controllers/ApiKeyController.js:196-212"},
+			Sources: []string{"server/controllers/UserController.js:484-518", "server/controllers/ApiKeyController.js:197-204"},
 			Claim:   "The same denials hold for another ordinary user and when the requests are repeated.",
 			Run: func(t *testing.T, e *harness.Env) {
 				checkAdminRoutesDenied(t, e, "finisher")

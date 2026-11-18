@@ -183,7 +183,7 @@ func matchScenarios(s *suite) []harness.Scenario {
 		},
 		{
 			Requirement: "route-r037", Invariant: "INV-ROUTE-R037-CONTRACT", Case: "normal", State: "stateless", Assertion: "matchall-applies-custom-provider-match",
-			Sources: []string{matchRoute, matchSrc, matchScan, "server/scanner/Scanner.js:37-135", "server/scanner/Scanner.js:326-420", "server/providers/CustomProviderAdapter.js:19-150"},
+			Sources: []string{matchRoute, matchSrc, matchScan, "server/scanner/Scanner.js:37-135", "server/scanner/Scanner.js:326-420", "server/providers/CustomProviderAdapter.js:21-145"},
 			Claim:   "GET matchall of a library with a custom provider asks the provider once per item (mediaType, title, author), fills the metadata the books lack (narrators, publisher, year, description, genres, tags, language, isbn, asin, series) while keeping the existing title, writes the item metadata file, emits item_updated per item to users with library access, series_added, and a task_finished with updated 2.",
 			Run: func(t *testing.T, e *harness.Env) {
 				m := setup(t, e)

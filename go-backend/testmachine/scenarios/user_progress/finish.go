@@ -11,7 +11,7 @@ func finishScenarios() []harness.Scenario {
 	return []harness.Scenario{
 		{
 			Requirement: "route-r111", Invariant: "INV-R111-FINISH-001", Case: "normal", State: "changed", Assertion: "finished-toggle",
-			Sources: []string{applySource, "client/components/modals/ItemMoreMenuModal.vue:327"},
+			Sources: []string{applySource, "client/components/cards/LazyBookCard.vue:482-530,724-759"},
 			Claim:   "{isFinished:true} marks an unfinished row finished (finishedAt now, progress 1, position kept), repeating it changes nothing, and {isFinished:false} clears finishedAt, progress and currentTime and keeps duration; repeating that changes nothing.",
 			Run: func(t *testing.T, e *harness.Env) {
 				who := newActor(t, e)

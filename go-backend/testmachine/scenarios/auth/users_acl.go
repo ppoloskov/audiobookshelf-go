@@ -128,7 +128,7 @@ func aclUserScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: req, Invariant: user, Case: "error", State: "failure", Assertion: "api-key-requests-gate-and-validation",
-			Sources: []string{"server/controllers/ApiKeyController.js:50-75", "server/controllers/ApiKeyController.js:112-177", "server/controllers/ApiKeyController.js:196-212"},
+			Sources: []string{"server/controllers/ApiKeyController.js:50-75", "server/controllers/ApiKeyController.js:112-177", "server/controllers/ApiKeyController.js:197-204"},
 			Claim:   "Ordinary users get 403 on API key routes; admins get 400 for a missing name, bad expiresIn, missing or unknown user and a non-boolean isActive, and 404 for unknown keys; none of this changes the apiKeys table.",
 			Run:     checkAPIKeyValidation,
 		},

@@ -10,7 +10,7 @@ import (
 const (
 	srcSeriesList   = "server/controllers/LibraryController.js:742-766"
 	srcSeriesDetail = "server/controllers/LibraryController.js:778-806"
-	srcSeriesQuery  = "server/utils/queries/seriesFilters.js:28-222"
+	srcSeriesQuery  = "server/utils/queries/seriesFilters.js"
 	srcSeriesCtl    = "server/controllers/SeriesController.js:28-121"
 )
 
