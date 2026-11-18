@@ -19,9 +19,9 @@
     "go-backend/testmachine/register/capabilities/cap-event-log.json": "786e14c6df3ae1ce0f76a708b0b875ebf774c6c91dd929b6aae08bbe0203e860",
     "go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json": "50a0e9285ca5d76b4058d9c8969fe2b481faaeaefd39301e6400341f6a69bd7b",
     "go-backend/testmachine/register/capabilities/cap-event-notifications-updated.json": "c2525832e42e046bb92469a1c3ca1b39d99b3b9e9421b729147e209514252fbc",
-    "go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json": "2a9ea244fe200f0fcd0c16363e8213feebc79073c2e556449e55a6668c40c2a7",
-    "go-backend/testmachine/register/capabilities/cap-event-track-finished.json": "51d26350179ecbdcc736b13f9e543148f8996aee97ff1e8c4a46eed3c9759cee",
-    "go-backend/testmachine/register/capabilities/cap-event-track-progress.json": "cb5edc7d55f1d2b772d2c2aca3c565cd04fe9ebacff8d366001daf09100a9989",
+    "go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json": "27e3ee0a3cbb2cd6c62dd59941f0c95e99c2b322d5b8d099a84146bdb504adc1",
+    "go-backend/testmachine/register/capabilities/cap-event-track-finished.json": "d23b5bff6b988c5fbed52fc2ad902353f3adc2f40cf2445fd5c582b66ea611bd",
+    "go-backend/testmachine/register/capabilities/cap-event-track-progress.json": "6f524956ceb24827a66fc582c398c1b99f291ebad7d945b0736e9c16ae0b9a1b",
     "go-backend/testmachine/register/capabilities/cap-flow-backup-restore-swap.json": "0550f7eec024ca010fd6eaa1ef67f311b0f59ce1299fc3dc8a61fab308f969c7",
     "go-backend/testmachine/register/capabilities/cap-flow-client-auth-token-lifecycle.json": "2f26a2453651265ada167ea947ef129c7d4c67302f22be50c85fb1f40feb17a0",
     "go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json": "0fbaae8dce23f90c5cd5d584de781d957cba3a78bc471c4723785ed70be11a57",
@@ -223,10 +223,10 @@
     "go-backend/testmachine/register/capabilities/cap-route-r180.json": "36e6d3f93afe7f3754cbca3f77bdd675894e8962fc4d011cabe529fe513aa648",
     "go-backend/testmachine/register/capabilities/cap-route-r181.json": "17f2302d348859451004791dc21e1e01bc5a2ae73d2fc109bec24c4ac76dc328",
     "go-backend/testmachine/register/capabilities/cap-route-r182.json": "19917365f721a8737d3b88c0065f1c70d64d04d0ea052087875dc3dd345ea8c8",
-    "go-backend/testmachine/register/capabilities/cap-route-r183.json": "d36ed46a522a5c3b44603415b76f575be0f130aa98d22936dd6923ba49d8570d",
-    "go-backend/testmachine/register/capabilities/cap-route-r184.json": "cef283502579318f73bda1fb4b33f8c1331e66dc2f0747f0f002f1cf2cc4c434",
-    "go-backend/testmachine/register/capabilities/cap-route-r185.json": "9acf753e7cbd3ca2b1bc258eea0e96c50ff8f7081f37f48bd89cc8984f4e642e",
-    "go-backend/testmachine/register/capabilities/cap-route-r186.json": "0e822a06ec6594c2f5b6c88e5b93b11c08a8d7dced03ed58fc644d585940ffe0",
+    "go-backend/testmachine/register/capabilities/cap-route-r183.json": "1a4e3ad7dcdcf2fcde29ec12941d9830e04e080279f778b300e1eb4532fd4125",
+    "go-backend/testmachine/register/capabilities/cap-route-r184.json": "23aa4334ed98cf32aa0b8fafcf05e1cb6242464591a247715e37467c2d8985d0",
+    "go-backend/testmachine/register/capabilities/cap-route-r185.json": "cc7dec7f8da19803100e9d379503551cc64fb18b7796b6cc1f91452af5bb67f9",
+    "go-backend/testmachine/register/capabilities/cap-route-r186.json": "b1e88422f5b473b2d36034411687ddff0fcd8ecdce0d7125daf002959ff7d468",
     "go-backend/testmachine/register/capabilities/cap-route-r187.json": "2089e9d27301bb833a6a7754f04450eeefe16ff070b52dc2c2f08d8def52e6be",
     "go-backend/testmachine/register/capabilities/cap-route-r188.json": "e6f5f46a741e2c6be6fd2ac4cb083082b87d131788b2d9e0ba57ed7918230a91",
     "go-backend/testmachine/register/capabilities/cap-route-r189.json": "5a71660757f50ed83c7793d2b177504f82fe487dd90f48c091d9290451bd7cc8",
@@ -333,12 +333,12 @@
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-progress.json": "93f7fc34391adcf2383e265ee411467426f5d53031fd1ac35e08dd3931b482ee",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-ready.json": "9626b76288f9eb9d0042a2b0240ca60fd76cd2361f5613b867bf08a987d15e6c",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-reset.json": "297f49941d3b2323db05afe7daa64ccac31955d0dd09d33d768d039a3b681f77",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json": "6896f389629e7c9273d50aee0ffd57b23df5bb2c934b1e866f6598244bd6ea02",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-progress.json": "b2b9609af085154b1841ab5808345c17b34141f2e157f4512a171c45acf766d6",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-started.json": "a89eec7193d43fed76f718cdc85764f244a427d37d544abdc4506d19a67a9cba",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-finished.json": "8a72e052318ce67c079facd4a345d71a0e51a5824668252bd822171c5488a0d0",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-progress.json": "13cf80424f74a62b723173e17db1042bd2555fcdea6be0bee9d6da9d5e0799cf",
-    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-started.json": "e7ad634a628dba1b67ebdcd11634b95b614ab27cc47d17b6cf7028026d3d133a",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json": "c78c66151f94bb579fa720fc700b0f1cd6c3df848303feacc129156db6b99a95",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-progress.json": "6c87be4ae40d91dcc79322073fdb17fc5747e796aa940282ed2ee18fe0142bda",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-started.json": "f35d723e77f72478e16f39fb703a80552481955b196c4b42810313919a523693",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-finished.json": "f2277b3209c9c53a410a3860bf587d4440f8e1a83b2f39e5c5c22f5b3b41e38b",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-progress.json": "e86c1367f4bd0443baf43469deba65d0ce23c3fdf109f0512d2df572d759c2f2",
+    "go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-started.json": "899131360a0aea6558afe10bd7e07c8908b1771c696ed77a75969aeb64450010",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-added.json": "7bafb734be8461830ce376c11a8de21ce2060dbe9cf800bb4d5ca86b0adfd125",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-item-progress-updated.json": "ce7124d1f5c11d9b1c2ceb5ae1a4e6f075d8b1b0e86b6d46cb60620191cd9c06",
     "go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-offline.json": "a377c6e297c6f537e70dc82e927e35151e5791c414a05415d0c53a0fb596b9cc",
@@ -6753,81 +6753,27 @@
       "invariant": "INV-CAP-EVENT-TASK-LIFECYCLE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "task_started and task_finished broadcast to all users; task JSON carries id/action/title/titleKey/description/descriptionKey/substitutions/start and finish times and finished/failed/success booleans; completion reflects errors/cancellation in error/errorKey.",
+      "contract": "task_started and task_finished of tools jobs carry the full Task.toJSON() projection to every authenticated socket (anonymous sockets receive neither), a rejected admission produces neither, each job's finish closes the task it started, a repeated job gets a fresh id with startedAt at or after the predecessor's finishedAt, a forced embed records forceEmbedChapters and its chapters, and failures or user cancellation set isFailed true with error/errorKey (Task.js:99-111).",
       "status": "unverified",
       "source": [
-        "server/objects/Task.js",
-        "server/SocketAuthority.js"
+        "server/managers/TaskManager.js:22-37",
+        "server/objects/Task.js:54-111",
+        "server/managers/AudioMetadataManager.js:115-136",
+        "server/managers/AbMergeManager.js:42-49",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:256-259"
       ],
       "tests": [
         "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
         "go-backend/internal/events/events_test.go:32#TestTaskLifecycleJSON",
-        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-task-lifecycle-json-and-audience",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-embed-gets-fresh-task-document",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-task-chapters-and-options",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-task-reflection",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/canceled-encode-reflected-in-task-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-task-events"
       ],
-      "evidence": [],
-      "cases": {
-        "normal": "unverified",
-        "error": "unverified",
-        "edge": "unverified"
-      },
-      "stateful": true,
-      "state_scenarios": {
-        "initial": "unverified",
-        "repeat": "unverified",
-        "changed": "unverified",
-        "force": "unverified",
-        "failure": "unverified"
-      },
-      "exceptions": [
-        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
-      ]
-    },
-    {
-      "requirement": "cap-event-track-finished",
-      "invariant": "INV-CAP-EVENT-TRACK-FINISHED",
-      "owner": "tools",
-      "packet": "Q01",
-      "contract": "On each successfully metadata-embedded track, emit admin-only {libraryItemId,ino}; do not emit for failed tracks.",
-      "status": "unverified",
-      "source": [
-        "server/managers/AudioMetadataManager.js"
-      ],
-      "tests": [
-        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
-      ],
-      "evidence": [],
-      "cases": {
-        "normal": "unverified",
-        "error": "unverified",
-        "edge": "unverified"
-      },
-      "stateful": true,
-      "state_scenarios": {
-        "initial": "unverified",
-        "repeat": "unverified",
-        "changed": "unverified",
-        "force": "unverified",
-        "failure": "unverified"
-      },
-      "exceptions": [
-        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
-      ]
-    },
-    {
-      "requirement": "cap-event-track-progress",
-      "invariant": "INV-CAP-EVENT-TRACK-PROGRESS",
-      "owner": "tools",
-      "packet": "Q01",
-      "contract": "Upstream emits admin-only track_started {libraryItemId,ino}; track_progress {libraryItemId,ino,progress}; task_progress {libraryItemId,progress}. Per-track progress comes from ffmpeg progress observation; aggregate AudioMetadataManager progress is cumulative track-duration weighting, while AbMergeManager combines encode and metadata phases by encodeFraction/embedFraction. Go currently emits none of these three events; required coverage includes payloads, admin recipient, per-track progress, weighted task progress, transition to next track, errors/cancellation, and zero-duration edge behavior.",
-      "status": "unverified",
-      "source": [
-        "server/managers/AudioMetadataManager.js:206-233",
-        "server/managers/AbMergeManager.js:145-182",
-        "client/layouts/default.vue:463-466"
-      ],
-      "tests": [],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -6845,6 +6791,88 @@
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
         "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "The Go unit tests listed are assertion leads from the inventory, not execution evidence; the scenario bindings above are the fresh upstream proof."
+      ]
+    },
+    {
+      "requirement": "cap-event-track-finished",
+      "invariant": "INV-CAP-EVENT-TRACK-FINISHED",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "Per-file admin-only track_finished: payload fields, task order, one per tagged file, absent for the failing file.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/managers/AbMergeManager.js:142-155",
+        "server/SocketAuthority.js:80-87",
+        "client/layouts/default.vue:242-251"
+      ],
+      "tests": [
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-finished-payload",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/multi-file-track-finished-transition",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-track-finished-repeats-per-file",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/no-track-finished-for-failed-track",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-rejected-admission-emits-no-track-finished"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
+      ]
+    },
+    {
+      "requirement": "cap-event-track-progress",
+      "invariant": "INV-CAP-EVENT-TRACK-PROGRESS",
+      "owner": "tools",
+      "packet": "Q01",
+      "contract": "Progress payloads, admin-only recipients, per-file task_progress/track_progress order and duration-weighted aggregation; encode values split at the 0.95 encode fraction.",
+      "status": "unverified",
+      "source": [
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/managers/AbMergeManager.js:142-155",
+        "server/SocketAuthority.js:80-87",
+        "client/layouts/default.vue:242-251"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-progress-payloads-and-weighting",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-progress-phase-composition",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/progress-repeats-per-job",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/no-progress-after-failing-file",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-progress"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events.",
         "Go internal/tools has no track_started, track_progress or task_progress emissions. The smallest owner likely needs tools progress plumbing plus a media progress callback/observer; inspect media API before dispatch. Aggregation is duration-weighted in AudioMetadataManager and phase-weighted in AbMergeManager."
       ]
     },
@@ -22331,10 +22359,15 @@
       "invariant": "INV-ROUTE-R183-ROUTE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "POST /tools/item/:id/encode-m4b at server/routers/ApiRouter.js:302. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /tools/item/:id/encode-m4b preserves the registered method/path, the admin gate order (403 before 404), the controller's validation order (404 not-found, 400 not-a-book/no-audio via 404 for podcast items, 400 already-processing) and the merge side effect described by AbMergeManager.startAudiobookMerge.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:302"
+        "server/routers/ApiRouter.js:302",
+        "server/controllers/ToolsController.js:29-55",
+        "server/controllers/ToolsController.js:159-178",
+        "server/managers/AbMergeManager.js:57-102",
+        "server/managers/AbMergeManager.js:203-251",
+        "server/models/LibraryItem.js:191-238"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22343,7 +22376,12 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-success-replaces-source",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-route-authorization-and-validation",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/pending-encode-rejections-and-concurrent-item",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-merge-failure-fails-task",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/missing-item-answers-defined-errors"
       ],
       "evidence": [],
       "cases": {
@@ -22356,14 +22394,16 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
+        "force is not applicable: the encode route has no override mode; its only query inputs are the encoder parameters codec/bitrate/channels, asserted in the task data by encode-task-started-payload-and-options.",
+        "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract.",
+        "The not-a-book branch (ToolsController.js:36-38) is unreachable through the API: podcast items return no media from LibraryItem.getExpandedById (LibraryItem.js:200-236), so every tools route answers 404 for them before the isBook check; asserted as 404 in encode-route-authorization-and-validation. The isMissing branch is covered by missing-item-answers-defined-errors, which sets the persisted flag directly."
       ]
     },
     {
@@ -22371,10 +22411,12 @@
       "invariant": "INV-ROUTE-R183-REPEAT",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated POST after the previous encode finished is accepted again and runs a fresh encode task over the already replaced audio without stale state.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:302"
+        "server/managers/AbMergeManager.js:57-102",
+        "server/managers/AbMergeManager.js:249-251",
+        "server/controllers/ToolsController.js:45-48"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22383,7 +22425,8 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-repeats-after-completion"
       ],
       "evidence": [],
       "cases": {
@@ -22396,13 +22439,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: the encode route has no override mode; its only query inputs are the encoder parameters codec/bitrate/channels, asserted in the task data by encode-task-started-payload-and-options.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -22411,10 +22455,14 @@
       "invariant": "INV-ROUTE-R184-ROUTE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "DELETE /tools/item/:id/encode-m4b at server/routers/ApiRouter.js:303. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "DELETE /tools/item/:id/encode-m4b (ApiRouter.js:303) behind the admin middleware: anonymous 401, non-admin 403 before the item lookup, unknown ids 404. With a pending encode it answers 200, fails the task with 'Task canceled by user'/MessageTaskCanceledByUser, kills the running ffmpeg and removes the merged temp file and the metadata file while keeping the item cache directory and the untouched media; without a pending task it answers 404 and changes nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:303"
+        "server/routers/ApiRouter.js:303",
+        "server/controllers/ToolsController.js:66-73",
+        "server/controllers/ToolsController.js:159-178",
+        "server/managers/AbMergeManager.js:42-49",
+        "server/managers/AbMergeManager.js:254-299"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22423,7 +22471,11 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cancel-encode-stops-work-and-fails-task",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/delete-route-authorization",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/delete-after-finish-finds-nothing",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-cancel-changes-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -22436,13 +22488,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: DELETE has no request options at all.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -22451,10 +22504,12 @@
       "invariant": "INV-ROUTE-R184-REPEAT",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated DELETE after the task was removed answers 404 and leaves every file, task and event state unchanged.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:303"
+        "server/managers/AbMergeManager.js:32-34",
+        "server/managers/AbMergeManager.js:254-299",
+        "server/controllers/ToolsController.js:66-73"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22463,7 +22518,8 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-cancel-leaves-no-pending-task"
       ],
       "evidence": [],
       "cases": {
@@ -22476,13 +22532,14 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "force is not applicable: DELETE has no request options at all.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -22491,10 +22548,18 @@
       "invariant": "INV-ROUTE-R185-ROUTE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "POST /tools/item/:id/embed-metadata at server/routers/ApiRouter.js:304. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /tools/item/:id/embed-metadata (ApiRouter.js:304) behind the admin middleware: anonymous 401, non-admin 403 before the item lookup, unknown or podcast items 404, books without audio 400. A valid call answers 200 and admits the embed job: the task data records forceEmbedChapters/backup from the query, the audio files are rewritten in place on success, the item cache directory is created and (without backup) removed again, with backup=1 the copies and the metadata file stay, and a pre-existing cache directory is reused and kept. An unwritable target fails the task with the target-directory error and touches nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:304"
+        "server/routers/ApiRouter.js:304",
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:159-178",
+        "server/managers/AudioMetadataManager.js:64-136",
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:170-186",
+        "server/managers/AudioMetadataManager.js:211-228",
+        "server/managers/AudioMetadataManager.js:256-267",
+        "server/models/LibraryItem.js:191-238"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22503,7 +22568,13 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-default-embed",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-route-authorization-and-validation",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/backup-option-keeps-cache-and-rewrites",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-cache-reuse-keeps-directory",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-options-and-chapters",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/unwritable-target-fails-embed-unchanged"
       ],
       "evidence": [],
       "cases": {
@@ -22531,10 +22602,11 @@
       "invariant": "INV-ROUTE-R185-REPEAT",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated POST after the previous embed finished is accepted again and runs a fresh task document to success.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:304"
+        "server/managers/AudioMetadataManager.js:64-136",
+        "server/managers/AudioMetadataManager.js:266-287"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22543,7 +22615,8 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-repeats-with-fresh-tasks"
       ],
       "evidence": [],
       "cases": {
@@ -22571,10 +22644,16 @@
       "invariant": "INV-ROUTE-R186-ROUTE",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "POST /tools/batch/embed-metadata at server/routers/ApiRouter.js:305. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /tools/batch/embed-metadata (ApiRouter.js:305) behind the admin middleware (no :id, so no item lookup): anonymous 401, non-admin 403, restricted admins 403 at the per-item access check. The body's libraryItemIds are validated in order before any admission: an empty list answers 400 'Invalid request payload' (shown by the client), unknown and podcast ids 404, unfit books 400, an item already queued or processing 400 with the client-shown message; no rejected request admits a task. A valid call answers 200 and admits every member one at a time; duplicate ids inside one request are two admissions (the second waits in the queue); forceEmbedChapters=1 is recorded in the admitted tasks.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:305"
+        "server/routers/ApiRouter.js:305",
+        "server/controllers/ToolsController.js:112-151",
+        "server/controllers/ToolsController.js:159-178",
+        "server/managers/AudioMetadataManager.js:52-56",
+        "server/managers/AudioMetadataManager.js:117-127",
+        "server/models/User.js",
+        "client/components/app/Appbar.vue:201-224"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22583,7 +22662,13 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/batch-embed-runs-all-members",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/batch-route-authorization-and-validation",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/batch-duplicate-ids-queue-once",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/batch-force-option-recorded",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/busy-member-rejects-batch",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-batch-admits-nothing"
       ],
       "evidence": [],
       "cases": {
@@ -22603,6 +22688,7 @@
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "The batch loop's per-item 403 for users who cannot access an item is only reachable by a restricted admin (ordinary non-admins fail the middleware first); covered by batch-route-authorization-and-validation.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -22611,10 +22697,12 @@
       "invariant": "INV-ROUTE-R186-REPEAT",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "The identical batch submitted again is accepted and runs fresh task documents for every member without stale or duplicated state.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:305"
+        "server/managers/AudioMetadataManager.js:52-56",
+        "server/managers/AudioMetadataManager.js:266-287",
+        "server/controllers/ToolsController.js:112-151"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -22623,7 +22711,8 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/batch-repeats-with-fresh-tasks"
       ],
       "evidence": [],
       "cases": {
@@ -22643,6 +22732,7 @@
         "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
         "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
         "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
+        "The batch loop's per-item 403 for users who cannot access an item is only reachable by a restricted admin (ordinary non-admins fail the middleware first); covered by batch-route-authorization-and-validation.",
         "Current test names are discovery anchors; repeated-operation outputs need explicit assertion mapping."
       ]
     },
@@ -27465,15 +27555,27 @@
       "invariant": "INV-SOCKET-OUTGOING-TASK-FINISHED",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing task_finished: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "task_finished payload and recipients: terminal flags and timestamps with the same id as the started task, delivered to every authenticated socket and never to anonymous sockets.",
       "status": "unverified",
       "source": [
-        "server/managers/TaskManager.js:35"
+        "server/managers/TaskManager.js:32-37",
+        "server/managers/AudioMetadataManager.js:270-271",
+        "server/managers/AbMergeManager.js:298",
+        "server/objects/Task.js:99-131",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:259-261"
       ],
       "tests": [
         "go-backend/internal/library/libraries_test.go:176#TestMatchAllIsAdminOnlyAndFinishesItsTask",
         "go-backend/internal/scan/scan_test.go:491#TestUpdateWatchedPathDebouncesIntoOneBatch",
-        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter"
+        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/task-finished-audience-and-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-embed-finishes-fresh-task",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-task-finished-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-finishes-with-error-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-task-finished-success-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/canceled-encode-finishes-with-cancel-error",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-finishes-no-task"
       ],
       "evidence": [],
       "cases": {
@@ -27490,7 +27592,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "Other TaskManager producers (scans, downloads) are owned by their own packets; this record covers the tools-produced events."
       ]
     },
     {
@@ -27498,14 +27601,23 @@
       "invariant": "INV-SOCKET-OUTGOING-TASK-PROGRESS",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing task_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "task_progress payload and recipients: one argument object with string libraryItemId and numeric progress, admin sockets only; embed values accumulate the files' duration shares, encode values stay below 95 in the merge phase and reach at least 95 in the embed phase.",
       "status": "unverified",
       "source": [
-        "server/managers/AbMergeManager.js:148",
-        "server/managers/AbMergeManager.js:182",
-        "server/managers/AudioMetadataManager.js:232"
+        "server/managers/AbMergeManager.js:142-155",
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/objects/TrackProgressMonitor.js:27-87",
+        "server/SocketAuthority.js:80-87",
+        "server/utils/ffmpegHelpers.js:302-394",
+        "client/layouts/default.vue:242-251"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-task-progress-phase-weighted",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-task-progress-duration-weighted",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/task-progress-repeats-per-encode",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-job-emits-no-task-progress",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-task-progress"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -27517,12 +27629,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
-        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation."
+        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
       ]
     },
     {
@@ -27530,15 +27643,24 @@
       "invariant": "INV-SOCKET-OUTGOING-TASK-STARTED",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing task_started: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "task_started payload and recipients: one argument object with the Task fields, no error fields and finishedAt null at start, delivered to every authenticated socket including revoked-library users and never to anonymous sockets.",
       "status": "unverified",
       "source": [
-        "server/managers/TaskManager.js:24",
-        "server/managers/TaskManager.js:67"
+        "server/managers/TaskManager.js:22-25",
+        "server/managers/AudioMetadataManager.js:133-136",
+        "server/managers/AbMergeManager.js:93-94",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:256-258"
       ],
       "tests": [
         "go-backend/internal/scan/scan_test.go:491#TestUpdateWatchedPathDebouncesIntoOneBatch",
-        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter"
+        "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/task-started-audience-and-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-embed-starts-fresh-task",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-task-started-options",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-still-starts-clean",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-task-started-payload-and-options",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-starts-no-task"
       ],
       "evidence": [],
       "cases": {
@@ -27555,7 +27677,8 @@
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "Other TaskManager producers (scans, downloads) are owned by their own packets; this record covers the tools-produced events."
       ]
     },
     {
@@ -27563,13 +27686,23 @@
       "invariant": "INV-SOCKET-OUTGOING-TRACK-FINISHED",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing track_finished: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "track_finished payload and recipients: one argument object with string libraryItemId and ino, admin sockets only, exactly one per successfully tagged file, absent for the file that failed.",
       "status": "unverified",
       "source": [
-        "server/managers/AbMergeManager.js:150",
-        "server/managers/AudioMetadataManager.js:248"
+        "server/managers/AbMergeManager.js:142-155",
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/objects/TrackProgressMonitor.js:27-87",
+        "server/SocketAuthority.js:80-87",
+        "server/utils/ffmpegHelpers.js:302-394",
+        "client/layouts/default.vue:242-251"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-finished-admin-only",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/three-file-track-finished-order",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-track-finished-single-track",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-track-gets-no-track-finished",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-track-finished"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -27581,11 +27714,12 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
       ]
     },
     {
@@ -27593,13 +27727,23 @@
       "invariant": "INV-SOCKET-OUTGOING-TRACK-PROGRESS",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing track_progress: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "track_progress payload and recipients: one argument object with string libraryItemId and ino and a numeric progress percentage, admin sockets only, at least one event per tagged file, ordered inside that file's started/finished span.",
       "status": "unverified",
       "source": [
-        "server/managers/AbMergeManager.js:147",
-        "server/managers/AudioMetadataManager.js:233"
+        "server/managers/AbMergeManager.js:142-155",
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/objects/TrackProgressMonitor.js:27-87",
+        "server/SocketAuthority.js:80-87",
+        "server/utils/ffmpegHelpers.js:302-394",
+        "client/layouts/default.vue:242-251"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-progress-admin-only",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-track-progress-before-task-progress",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/track-progress-values-per-track",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failing-track-emits-no-progress",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-track-progress"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -27611,12 +27755,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
-        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation."
+        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
       ]
     },
     {
@@ -27624,13 +27769,23 @@
       "invariant": "INV-SOCKET-OUTGOING-TRACK-STARTED",
       "owner": "tools",
       "packet": "Q01",
-      "contract": "Socket.IO outgoing track_started: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "track_started payload and recipients: one argument object with the string libraryItemId and ino, delivered to admin sockets only, one per tagged file in task order for embeds and one per merged track for encodes.",
       "status": "unverified",
       "source": [
-        "server/managers/AbMergeManager.js:145",
-        "server/managers/AudioMetadataManager.js:206"
+        "server/managers/AbMergeManager.js:142-155",
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/objects/TrackProgressMonitor.js:27-87",
+        "server/SocketAuthority.js:80-87",
+        "server/utils/ffmpegHelpers.js:302-394",
+        "client/layouts/default.vue:242-251"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/encode-track-started-admin-only",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-started-per-file-order",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-started-repeats-per-job",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failing-track-still-started",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-track-events"
+      ],
       "evidence": [],
       "cases": {
         "normal": "unverified",
@@ -27642,12 +27797,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
-        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation."
+        "Source-confirmed missing producer candidate in tools: literal search alone does not prove absence; characterize source/client lifecycle before implementation.",
+        "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
       ]
     },
     {

@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "On each successfully metadata-embedded track, emit admin-only {libraryItemId,ino}; do not emit for failed tracks.",
+  "contract": "On each successfully metadata-embedded track the manager emits admin-only {libraryItemId, ino} (AudioMetadataManager.js:248-251) in task order, one per file of the job; a track whose tagging fails emits no track_finished and the task document carries the per-file error instead; a refused admission emits none.",
   "source": [
     "server/managers/AudioMetadataManager.js"
   ],
@@ -18,31 +18,45 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-finished-payload",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/multi-file-track-finished-transition",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-track-finished-repeats-per-file",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/no-track-finished-for-failed-track",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-rejected-admission-emits-no-track-finished"
   ],
   "evidence": [],
   "exceptions": [
     "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "force is not applicable: no force or override input exists for these events; the only tools option, forceEmbedChapters, changes only the task document's chapters, not the track or progress events."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-CAP-EVENT-TRACK-FINISHED",
       "class": "timeline",
-      "contract": "On each successfully metadata-embedded track, emit admin-only {libraryItemId,ino}; do not emit for failed tracks.",
+      "contract": "Per-file admin-only track_finished: payload fields, task order, one per tagged file, absent for the failing file.",
       "status": "unverified",
       "source": [
-        "server/managers/AudioMetadataManager.js"
+        "server/managers/AudioMetadataManager.js:202-253",
+        "server/managers/AbMergeManager.js:142-155",
+        "server/SocketAuthority.js:80-87",
+        "client/layouts/default.vue:242-251"
       ],
       "tests": [
-        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-track-finished-payload",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/multi-file-track-finished-transition",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-track-finished-repeats-per-file",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/no-track-finished-for-failed-track",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/cap-rejected-admission-emits-no-track-finished"
       ],
       "evidence": [],
       "exceptions": []

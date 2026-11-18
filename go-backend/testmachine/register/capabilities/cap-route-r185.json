@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "POST /tools/item/:id/embed-metadata at server/routers/ApiRouter.js:304. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "POST /tools/item/:id/embed-metadata (ApiRouter.js:304) behind the admin middleware: anonymous 401, non-admin 403 before the item lookup, unknown or podcast items 404, books without audio 400. A valid call answers 200 and admits the embed job: the task data records forceEmbedChapters/backup from the query, the audio files are rewritten in place on success, the item cache directory is created and (without backup) removed again, with backup=1 the copies and the metadata file stay, and a pre-existing cache directory is reused and kept. An unwritable target fails the task with the target-directory error and touches nothing.",
   "source": [
     "server/routers/ApiRouter.js:304"
   ],
@@ -24,7 +24,14 @@
     "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
     "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
     "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-    "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+    "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-default-embed",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-route-authorization-and-validation",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/backup-option-keeps-cache-and-rewrites",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-cache-reuse-keeps-directory",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-options-and-chapters",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/unwritable-target-fails-embed-unchanged",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-repeats-with-fresh-tasks"
   ],
   "evidence": [],
   "exceptions": [
@@ -43,10 +50,18 @@
     {
       "id": "INV-ROUTE-R185-ROUTE",
       "class": "shape",
-      "contract": "POST /tools/item/:id/embed-metadata at server/routers/ApiRouter.js:304. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "POST /tools/item/:id/embed-metadata (ApiRouter.js:304) behind the admin middleware: anonymous 401, non-admin 403 before the item lookup, unknown or podcast items 404, books without audio 400. A valid call answers 200 and admits the embed job: the task data records forceEmbedChapters/backup from the query, the audio files are rewritten in place on success, the item cache directory is created and (without backup) removed again, with backup=1 the copies and the metadata file stay, and a pre-existing cache directory is reused and kept. An unwritable target fails the task with the target-directory error and touches nothing.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:304"
+        "server/routers/ApiRouter.js:304",
+        "server/controllers/ToolsController.js:84-101",
+        "server/controllers/ToolsController.js:159-178",
+        "server/managers/AudioMetadataManager.js:64-136",
+        "server/managers/AudioMetadataManager.js:139-151",
+        "server/managers/AudioMetadataManager.js:170-186",
+        "server/managers/AudioMetadataManager.js:211-228",
+        "server/managers/AudioMetadataManager.js:256-267",
+        "server/models/LibraryItem.js:191-238"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -55,7 +70,13 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-default-embed",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-route-authorization-and-validation",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/backup-option-keeps-cache-and-rewrites",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-cache-reuse-keeps-directory",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-options-and-chapters",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/unwritable-target-fails-embed-unchanged"
       ],
       "evidence": [],
       "exceptions": [
@@ -65,10 +86,11 @@
     {
       "id": "INV-ROUTE-R185-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "A repeated POST after the previous embed finished is accepted again and runs a fresh task document to success.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:304"
+        "server/managers/AudioMetadataManager.js:64-136",
+        "server/managers/AudioMetadataManager.js:266-287"
       ],
       "tests": [
         "go-backend/internal/tools/tools_test.go:151#TestRoutesAuthorisationAndUnfitItems",
@@ -77,7 +99,8 @@
         "go-backend/internal/tools/tools_test.go:260#TestEmbedFailureDoesNotBlockQueue",
         "go-backend/internal/tools/tools_test.go:285#TestCloseCancelsWork",
         "go-backend/internal/tools/tools_test.go:305#TestBatchEmbedIsAllOrNothing",
-        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources"
+        "go-backend/internal/tools/tools_test.go:330#TestEncodeBuildsM4bBesideSources",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-metadata-repeats-with-fresh-tasks"
       ],
       "evidence": [],
       "exceptions": [

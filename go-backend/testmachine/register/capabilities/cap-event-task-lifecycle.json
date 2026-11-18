@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "task_started and task_finished broadcast to all users; task JSON carries id/action/title/titleKey/description/descriptionKey/substitutions/start and finish times and finished/failed/success booleans; completion reflects errors/cancellation in error/errorKey.",
+  "contract": "Tools jobs report through task_started and task_finished, emitted by TaskManager to every socket that authenticated and never to anonymous ones (TaskManager.js:22-37, SocketAuthority.js:57-65). Each payload is the Task.toJSON() projection (Task.js:54-74): id, action (embed-metadata or encode-m4b), the job's data with libraryItemId and options, title 'Embedding Metadata'/'Encoding M4b' with their translation keys, description with the media title as the only substitution, error/errorKey/errorSubs null until terminal, showSuccess false, isFailed/isFinished false at start, startedAt a millisecond number, finishedAt null on task_started and >= startedAt on task_finished. Failures and user cancellation set isFailed true with the stage's error key (MessageTaskTargetDirectoryNotWritable, MessageTaskAudioFileNotWritable, MessageTaskFailedToEmbedMetadataInFile, MessageTaskFailedToMergeAudioFiles, MessageTaskCanceledByUser).",
   "source": [
     "server/objects/Task.js",
     "server/SocketAuthority.js"
@@ -21,12 +21,19 @@
   "tests": [
     "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
     "go-backend/internal/events/events_test.go:32#TestTaskLifecycleJSON",
-    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+    "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-task-lifecycle-json-and-audience",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-embed-gets-fresh-task-document",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-task-chapters-and-options",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-task-reflection",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/canceled-encode-reflected-in-task-json",
+    "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-task-events"
   ],
   "evidence": [],
   "exceptions": [
     "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "The Go unit tests listed are assertion leads from the inventory, not execution evidence; the scenario bindings above are the fresh upstream proof."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -39,16 +46,26 @@
     {
       "id": "INV-CAP-EVENT-TASK-LIFECYCLE",
       "class": "timeline",
-      "contract": "task_started and task_finished broadcast to all users; task JSON carries id/action/title/titleKey/description/descriptionKey/substitutions/start and finish times and finished/failed/success booleans; completion reflects errors/cancellation in error/errorKey.",
+      "contract": "task_started and task_finished of tools jobs carry the full Task.toJSON() projection to every authenticated socket (anonymous sockets receive neither), a rejected admission produces neither, each job's finish closes the task it started, a repeated job gets a fresh id with startedAt at or after the predecessor's finishedAt, a forced embed records forceEmbedChapters and its chapters, and failures or user cancellation set isFailed true with error/errorKey (Task.js:99-111).",
       "status": "unverified",
       "source": [
-        "server/objects/Task.js",
-        "server/SocketAuthority.js"
+        "server/managers/TaskManager.js:22-37",
+        "server/objects/Task.js:54-111",
+        "server/managers/AudioMetadataManager.js:115-136",
+        "server/managers/AbMergeManager.js:42-49",
+        "server/SocketAuthority.js:57-65",
+        "client/layouts/default.vue:256-259"
       ],
       "tests": [
         "go-backend/internal/events/events_test.go:8#TestEmitterAudiencesAndNilEmitter",
         "go-backend/internal/events/events_test.go:32#TestTaskLifecycleJSON",
-        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata"
+        "go-backend/internal/tools/tools_test.go:212#TestEmbedQueueAndMetadata",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/embed-task-lifecycle-json-and-audience",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/repeat-embed-gets-fresh-task-document",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/forced-embed-task-chapters-and-options",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/failed-embed-task-reflection",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/canceled-encode-reflected-in-task-json",
+        "go-backend/testmachine/scenarios/tools/run_test.go#TestReplacement/rejected-admission-emits-no-task-events"
       ],
       "evidence": [],
       "exceptions": []

@@ -28,7 +28,7 @@ evidence, case/state status, limitations and assigned owner packet.
 event and model source-site reconciliations and input hashes.
 [Ordered gap queue](replacement-gap-queue.md) owns dispatch order; ROADMAP links it.
 
-41 recorded invariants currently have no test anchor; 24 requirement records have
+36 recorded invariants currently have no test anchor; 19 requirement records have
 no test anchor. Other anchors range from direct assertions to literal-discovery leads.
 No new product execution is claimed. Historical pre-rewrite passes were reopened;
 current named tests are assertion leads. A test name or literal is not proof of every
@@ -58,9 +58,9 @@ packets, not approved exclusions or proven current bugs.
 | [cap-event-log](../../../go-backend/testmachine/register/capabilities/cap-event-log.json) | Q27 server | 1 | 1 | open |
 | [cap-event-metadata-embed-queue](../../../go-backend/testmachine/register/capabilities/cap-event-metadata-embed-queue.json) | Q01 tools | 6 | 4 | open |
 | [cap-event-notifications-updated](../../../go-backend/testmachine/register/capabilities/cap-event-notifications-updated.json) | Q21 notify | 2 | 1 | open |
-| [cap-event-task-lifecycle](../../../go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json) | Q01 tools | 3 | 1 | open |
-| [cap-event-track-finished](../../../go-backend/testmachine/register/capabilities/cap-event-track-finished.json) | Q01 tools | 1 | 1 | open |
-| [cap-event-track-progress](../../../go-backend/testmachine/register/capabilities/cap-event-track-progress.json) | Q01 tools | 0 | 1 | open |
+| [cap-event-task-lifecycle](../../../go-backend/testmachine/register/capabilities/cap-event-task-lifecycle.json) | Q01 tools | 9 | 1 | open |
+| [cap-event-track-finished](../../../go-backend/testmachine/register/capabilities/cap-event-track-finished.json) | Q01 tools | 6 | 1 | open |
+| [cap-event-track-progress](../../../go-backend/testmachine/register/capabilities/cap-event-track-progress.json) | Q01 tools | 5 | 1 | open |
 | [cap-flow-backup-restore-swap](../../../go-backend/testmachine/register/capabilities/cap-flow-backup-restore-swap.json) | Q27 server | 3 | 1 | open |
 | [flow-client-auth-token-lifecycle](../../../go-backend/testmachine/register/capabilities/cap-flow-client-auth-token-lifecycle.json) | Q05 auth | 15 | 3 | open |
 | [flow-client-feed-share](../../../go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json) | Q17 share | 5 | 1 | open |
@@ -262,10 +262,10 @@ packets, not approved exclusions or proven current bugs.
 | [route-r180](../../../go-backend/testmachine/register/capabilities/cap-route-r180.json) | Q19 metadata | 1 | 1 | open |
 | [route-r181](../../../go-backend/testmachine/register/capabilities/cap-route-r181.json) | Q22 admin | 1 | 2 | open |
 | [route-r182](../../../go-backend/testmachine/register/capabilities/cap-route-r182.json) | Q22 admin | 1 | 2 | open |
-| [route-r183](../../../go-backend/testmachine/register/capabilities/cap-route-r183.json) | Q01 tools | 7 | 2 | open |
-| [route-r184](../../../go-backend/testmachine/register/capabilities/cap-route-r184.json) | Q01 tools | 7 | 2 | open |
-| [route-r185](../../../go-backend/testmachine/register/capabilities/cap-route-r185.json) | Q01 tools | 7 | 2 | open |
-| [route-r186](../../../go-backend/testmachine/register/capabilities/cap-route-r186.json) | Q01 tools | 7 | 2 | open |
+| [route-r183](../../../go-backend/testmachine/register/capabilities/cap-route-r183.json) | Q01 tools | 13 | 2 | open |
+| [route-r184](../../../go-backend/testmachine/register/capabilities/cap-route-r184.json) | Q01 tools | 12 | 2 | open |
+| [route-r185](../../../go-backend/testmachine/register/capabilities/cap-route-r185.json) | Q01 tools | 14 | 2 | open |
+| [route-r186](../../../go-backend/testmachine/register/capabilities/cap-route-r186.json) | Q01 tools | 14 | 2 | open |
 | [route-r187](../../../go-backend/testmachine/register/capabilities/cap-route-r187.json) | Q17 share | 1 | 1 | open |
 | [route-r188](../../../go-backend/testmachine/register/capabilities/cap-route-r188.json) | Q17 share | 1 | 1 | open |
 | [route-r189](../../../go-backend/testmachine/register/capabilities/cap-route-r189.json) | Q17 share | 0 | 1 | open |
@@ -372,12 +372,12 @@ packets, not approved exclusions or proven current bugs.
 | [socket-outgoing-stream-progress](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-progress.json) | Q08 playback | 5 | 1 | scoped playback evidence; full record open |
 | [socket-outgoing-stream-ready](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-ready.json) | Q08 playback | 1 | 1 | scoped playback evidence; full record open |
 | [socket-outgoing-stream-reset](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-stream-reset.json) | Q08 playback | 2 | 1 | scoped playback evidence; full record open |
-| [socket-outgoing-task-finished](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json) | Q01 tools | 3 | 1 | open |
-| [socket-outgoing-task-progress](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-progress.json) | Q01 tools | 0 | 1 | open |
-| [socket-outgoing-task-started](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-started.json) | Q01 tools | 2 | 1 | open |
-| [socket-outgoing-track-finished](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-finished.json) | Q01 tools | 0 | 1 | open |
-| [socket-outgoing-track-progress](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-progress.json) | Q01 tools | 0 | 1 | open |
-| [socket-outgoing-track-started](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-started.json) | Q01 tools | 0 | 1 | open |
+| [socket-outgoing-task-finished](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-finished.json) | Q01 tools | 10 | 1 | open |
+| [socket-outgoing-task-progress](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-progress.json) | Q01 tools | 5 | 1 | open |
+| [socket-outgoing-task-started](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-task-started.json) | Q01 tools | 8 | 1 | open |
+| [socket-outgoing-track-finished](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-finished.json) | Q01 tools | 5 | 1 | open |
+| [socket-outgoing-track-progress](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-progress.json) | Q01 tools | 5 | 1 | open |
+| [socket-outgoing-track-started](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-track-started.json) | Q01 tools | 5 | 1 | open |
 | [socket-outgoing-user-added](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-added.json) | Q09 user | 5 | 1 | open |
 | [socket-outgoing-user-item-progress-updated](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-item-progress-updated.json) | Q09 user | 6 | 1 | open |
 | [socket-outgoing-user-offline](../../../go-backend/testmachine/register/capabilities/cap-socket-outgoing-user-offline.json) | Q07 realtime | 1 | 1 | open |

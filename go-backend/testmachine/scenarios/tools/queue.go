@@ -43,13 +43,38 @@ type taskData struct {
 		ForceEmbedChapters bool `json:"forceEmbedChapters"`
 		BackupFiles        bool `json:"backupFiles"`
 	} `json:"options"`
+	// Chapters are present in the task document when the job embeds chapters
+	// (single-file books, or any book with forceEmbedChapters); the nil value
+	// distinguishes null from an empty list.
+	Chapters   *[]chapter `json:"chapters"`
 	AudioFiles []struct {
 		Index     int     `json:"index"`
+		Ino       string  `json:"ino"`
 		Filename  string  `json:"filename"`
 		Path      string  `json:"path"`
 		CachePath string  `json:"cachePath"`
 		Duration  float64 `json:"duration"`
 	} `json:"audioFiles"`
+	// Encode jobs (action encode-m4b) carry a different data document; these
+	// additive fields decode the parts this packet reads and stay zero for
+	// embed tasks.
+	Inos           []string `json:"inos"`
+	TargetFilename string   `json:"targetFilename"`
+	TargetFilepath string   `json:"targetFilepath"`
+	TempFilepath   string   `json:"tempFilepath"`
+	EncodeOptions  struct {
+		Codec    *string `json:"codec"`
+		Bitrate  *string `json:"bitrate"`
+		Channels *string `json:"channels"`
+	} `json:"encodeOptions"`
+}
+
+// chapter is one chapter entry of a task document's data.chapters.
+type chapter struct {
+	ID    int     `json:"id"`
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+	Title string  `json:"title"`
 }
 
 // taskDocument is the projection GET /api/tasks returns for a running task.
@@ -156,7 +181,8 @@ type itemDocument struct {
 			Title string `json:"title"`
 		} `json:"metadata"`
 		AudioFiles []struct {
-			Index    int `json:"index"`
+			Index    int    `json:"index"`
+			Ino      string `json:"ino"`
 			Metadata struct {
 				Path     string `json:"path"`
 				Filename string `json:"filename"`
