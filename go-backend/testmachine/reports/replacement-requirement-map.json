@@ -31,7 +31,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-client-permissions-ownership.json": "cb7f6a7efc801c77e111407f934bf4e865eb2067ae7f2d89d95e5744334acf4a",
     "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "6268cbabd78b08755676d269bfed9ae5fc4709967c5b09663e16474523f64937",
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "c06d24c06d0bf7b0ab0e3786a48fcf7f2a04e501a217bdecef6fbe520c778ccc",
-    "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "cc052f01c50567960fb2a92461d58d682d6ea1e0b5b5ecdc3c59288bb6f5b5db",
+    "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "aaf6e4626ddd4bf7c8a0664b37022bd1a816a5878636ea8048619a2d972f0f4b",
     "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "3f55271bfbb2452bb67a7882d9c7c89bcd1bbd11e65a6488b85262c736dadfc5",
     "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "58d884439842456ee9aa81020c78561da5a22149c489f3fbda7f642c63741f04",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "492d6f95fab045d83681397fc2fa3eb401e7bcd2ab7e35d0d64aa1efcc7c41ff",
@@ -164,7 +164,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r121.json": "4017dc75c2208e408a816034e5b64570f42ca1bee30d0c92a7c855606f345d15",
     "go-backend/testmachine/register/capabilities/cap-route-r122.json": "f608c87172b8a8c10ff78e8adaa64b7fcc7f5aad56de7227a1b591015f099760",
     "go-backend/testmachine/register/capabilities/cap-route-r123.json": "73ecd1f1b2edbb75647dba13a5353cdb879eb94801260ad72b20d8f9b6ef774b",
-    "go-backend/testmachine/register/capabilities/cap-route-r124.json": "7c06a6548b7b629fec8f2b7557c0838b6620947c7112707fce0a29d91dad617f",
+    "go-backend/testmachine/register/capabilities/cap-route-r124.json": "fecc5acd82c76e0290692785504ccaf2306976def3a1011f4045e078d4265d83",
     "go-backend/testmachine/register/capabilities/cap-route-r125.json": "019e5aba647e3f03e2e1e9f3749c31989b04426cc80f3256318413ebdf85618f",
     "go-backend/testmachine/register/capabilities/cap-route-r126.json": "4af7d2e03f202d521075bd3a175a01daf19212ab53e59703682be18929454e64",
     "go-backend/testmachine/register/capabilities/cap-route-r127.json": "804b9d42d5de26a36776e68e6b5cf4124d212ea8733766b56242b7ed7702bde5",
@@ -206,10 +206,10 @@
     "go-backend/testmachine/register/capabilities/cap-route-r163.json": "f45e0cace753f1d51eaddd1a4ead576b206b126bc9db07e5ee6007342c752cff",
     "go-backend/testmachine/register/capabilities/cap-route-r164.json": "0265dffdddda0f56219ec791acff15d7c0856b4b9d1f6f231d50f753d613724b",
     "go-backend/testmachine/register/capabilities/cap-route-r165.json": "f5a23f28928ae57bffe611ca50f1aee16a089d9c3900d4f0a118f251f372c06f",
-    "go-backend/testmachine/register/capabilities/cap-route-r166.json": "e30cf49bd326abe76584c00a95b28e098fff53c06fb71e3f2f777a8ffdca71ea",
+    "go-backend/testmachine/register/capabilities/cap-route-r166.json": "7bcc0011168d6b10967f5beb170ce34c6f5b62829327b936cd0e6157f1103b6e",
     "go-backend/testmachine/register/capabilities/cap-route-r167.json": "597fa45face2bec1132e4ea236fa101c3255cca278f810e4e61ce331cfce3213",
     "go-backend/testmachine/register/capabilities/cap-route-r168.json": "f7df230e0e81de5ed452ca95fdf760715ab86230cc6ff2fd2aae7dd4decdaab2",
-    "go-backend/testmachine/register/capabilities/cap-route-r169.json": "4ae6a61cf92c91801d7339017a21b36176a67d36d5de142b035f87abbf466e4c",
+    "go-backend/testmachine/register/capabilities/cap-route-r169.json": "b5dbd878effc38a07207f38532df49f36ceb97b9686dc746fc0f2bc02b3bd4c0",
     "go-backend/testmachine/register/capabilities/cap-route-r170.json": "4a25a1787aba98a2f8336b076857369dfe87786f90494e74c3190b542f7cbd76",
     "go-backend/testmachine/register/capabilities/cap-route-r171.json": "b2e6431120aff6e45a1eba0109e65edc4371c5a4602ee7f4ddc5f857e3bb3ed0",
     "go-backend/testmachine/register/capabilities/cap-route-r172.json": "c65083876ce245c06a91e811bd5048d6b609872cbe09746533c2749256eb21bd",
@@ -7855,7 +7855,7 @@
       "invariant": "INV-CAP-FLOW-NOTIFY-DELIVERY-ADMISSION-001",
       "owner": "notify",
       "packet": "Q21",
-      "contract": "A trigger with no active subscription for its event posts nothing and leaves the records without a firing; with no Apprise URL configured the trigger answers 200, posts nothing and leaves the settings document and its row untouched.",
+      "contract": "A trigger with no active subscription for its event posts nothing and leaves the records without a firing, also on the scheduler path where the manager returns before the queue and the emitter while the episode is still stored; with no Apprise URL configured the trigger answers 200, posts nothing and leaves the settings document and its row untouched.",
       "status": "unverified",
       "source": [
         "server/managers/NotificationManager.js:151-153",
@@ -7865,7 +7865,8 @@
       ],
       "tests": [
         "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notify-flow-no-active-subscription-sends-nothing",
-        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notify-flow-unusable-settings-skip-everything"
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notify-flow-unusable-settings-skip-everything",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notify-flow-real-trigger-with-no-subscriber"
       ],
       "evidence": [],
       "cases": {
@@ -20092,7 +20093,8 @@
         "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-removes-entry-and-file",
         "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-forbidden",
         "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-targets-one-id",
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup"
+        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-unremovable-file"
       ],
       "evidence": [],
       "cases": {
@@ -20126,8 +20128,7 @@
         "server/managers/BackupManager.js:393-402"
       ],
       "tests": [
-        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-repeated",
-        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-unremovable-file"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-repeated"
       ],
       "evidence": [],
       "cases": {
@@ -23686,7 +23687,7 @@
       "invariant": "INV-ROUTE-R166-ROUTE",
       "owner": "notify",
       "packet": "Q21",
-      "contract": "POST /notifications answers 200 with the whole settings object holding one appended record whose id is a v4 UUID, createdAt is a millisecond timestamp, libraryId and type are null when the payload sends null, enabled follows the payload, lastFiredAt is null, both counters are 0 and urls/templates are the posted values; the record survives later settings writes with the same id and createdAt, and a payload with a library id, an explicit type info and enabled false is stored exactly.",
+      "contract": "POST /notifications answers 200 with the whole settings object holding one appended record whose id is a v4 UUID, createdAt is a millisecond timestamp, libraryId and type are null when the payload sends null, enabled follows the payload, lastFiredAt is null, both counters are 0 and urls/templates are the posted values; the record survives later settings writes and a server restart with the same id, type, urls, templates and createdAt, and a payload with a library id, an explicit type info and enabled false is stored exactly.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:269",
@@ -23706,7 +23707,8 @@
         "go-backend/internal/notify/notify_test.go:321#TestTestEventRoute",
         "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-stores-the-record",
         "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-settings-write",
-        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-edge-values"
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-edge-values",
+        "go-backend/testmachine/scenarios/notify/run_test.go#TestReplacement/notifications-create-survives-a-restart"
       ],
       "evidence": [],
       "cases": {
@@ -24061,7 +24063,7 @@
       "invariant": "INV-ROUTE-R169-ROUTE",
       "owner": "notify",
       "packet": "Q21",
-      "contract": "GET /notifications/:id/test answers 200 with the text body OK and posts one Apprise payload {urls, title, body} rendered from that event's testData (not from a trigger), without changing lastFiredAt, numTimesFired, the failed-attempt counters or the settings row; it answers 500 when the Apprise endpoint rejects the payload and also when it does not answer within the six second client timeout.",
+      "contract": "GET /notifications/:id/test answers 200 with the text body OK and posts one Apprise payload {urls, title, body} rendered from that event's testData (not from a trigger), without changing lastFiredAt, numTimesFired, the failed-attempt counters or the settings row; it answers 500 when the Apprise endpoint rejects the payload with a non-2xx answer, when the record names an event the catalogue does not know, and when the endpoint does not answer within the six second client timeout.",
       "status": "unverified",
       "source": [
         "server/routers/ApiRouter.js:272",
@@ -24094,6 +24096,7 @@
         "normal, error and edge facets are covered by the listed scenarios.",
         "The 400 body text \"Apprise is not configured\" is asserted because the notification card shows error.response.data in a toast (client/components/cards/NotificationCard.vue:100-110).",
         "The timeout assertion waits about six seconds because the Apprise client timeout is fixed at 6000 ms.",
+        "A record with an event name outside the six-entry catalogue is reachable only through the API (the edit modal offers the catalogue), and the route answers 500 for it; the scenario asserts only the status and that nothing was posted.",
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
     },
@@ -24123,7 +24126,8 @@
       "exceptions": [
         "normal, error and edge facets are covered by the listed scenarios.",
         "The 400 body text \"Apprise is not configured\" is asserted because the notification card shows error.response.data in a toast (client/components/cards/NotificationCard.vue:100-110).",
-        "The timeout assertion waits about six seconds because the Apprise client timeout is fixed at 6000 ms."
+        "The timeout assertion waits about six seconds because the Apprise client timeout is fixed at 6000 ms.",
+        "A record with an event name outside the six-entry catalogue is reachable only through the API (the edit modal offers the catalogue), and the route answers 500 for it; the scenario asserts only the status and that nothing was posted."
       ]
     },
     {

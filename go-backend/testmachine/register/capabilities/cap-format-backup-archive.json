@@ -4,9 +4,11 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Backups preserve pinned database/details/item/author metadata archive paths; upload/apply validates archive and migration version before swapping, retention respects settings, and TS can reopen the restored result.",
+  "contract": "A created backup is a zip holding absdatabase.sqlite, the metadata/items and metadata/authors trees and a details entry (id, key sqlite, createdAt, serverVersion); the id is YYYY-MM-DDTHHmm and the file <id>.audiobookshelf in the backup path; a create that exceeds maxBackupSize is aborted, removed and answered 500.",
   "source": [
-    "server/managers/BackupManager.js"
+    "server/managers/BackupManager.js:333-391",
+    "server/managers/BackupManager.js:431-503",
+    "server/objects/Backup.js:49-80"
   ],
   "implementation": [
     "go-backend/internal/backup/"
@@ -19,26 +21,98 @@
   "tests": [
     "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
     "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure",
-    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives"
+    "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-layout",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-metadata-tree",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-db-snapshot",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-recreate-same-minute",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-failed-create-leaves-nothing",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-init-uncreatable-directory-stops-boot"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: backup creation has no force or override mode; a create either writes one archive or aborts and removes it.",
+    "Applying an archive whose absdatabase.sqlite is not a readable SQLite database is not asserted: upstream v2.37.2 replaces the database and exits 1 after Database.reconnect rejects with SQLITE_NOTADB. The live server wins over the intended rejection.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-FORMAT-BACKUP-ARCHIVE",
-      "class": "repeat_operation",
-      "contract": "Backups preserve pinned database/details/item/author metadata archive paths; upload/apply validates archive and migration version before swapping, retention respects settings, and TS can reopen the restored result.",
+      "class": "shape",
+      "contract": "A created archive's entries are exactly absdatabase.sqlite, metadata-items/<item id>/... for every metadata/items folder, metadata-authors/... and details; details is four lines id, sqlite, createdAt, 2.37.2 and matches the listed id, createdAt and serverVersion; the filename is <id>.audiobookshelf and the path backups/<filename>.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js"
+        "server/managers/BackupManager.js:431-503",
+        "server/objects/Backup.js:27-40",
+        "server/objects/Backup.js:72-80"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-layout",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-recreate-same-minute",
+        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-FORMAT-BACKUP-DB-001",
+      "class": "timeline",
+      "contract": "The zipped absdatabase.sqlite is a readable SQLite snapshot of the live install at creation time: its libraries rows carry values written before the create and its user and libraryItems counts equal the running database.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:341-351",
+        "server/managers/BackupManager.js:404-429"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-db-snapshot",
+        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-FORMAT-BACKUP-METADATA-001",
+      "class": "shape",
+      "contract": "The archive copies metadata/items and metadata/authors byte for byte: every metadata.json and cover.jpg entry equals the file on disk and an author marker written under metadata/authors is present with its content; no metadata/logs or backup files are archived.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:21-23",
+        "server/managers/BackupManager.js:431-503"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-metadata-tree"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-FORMAT-BACKUP-FAILURE-001",
+      "class": "transaction",
+      "contract": "A create that exceeds maxBackupSize answers 500, removes the partially written archive and its temporary sqlite file, adds no list entry and leaves the existing archives unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:431-503",
+        "server/managers/BackupManager.js:333-391"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-archive-failed-create-leaves-nothing",
+        "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-FORMAT-BACKUP-DIR-001",
+      "class": "transaction",
+      "contract": "BackupManager.init creates the configured backup directory on demand and throws when it cannot, so the process exits nonzero instead of serving with an unusable backup path.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:50-63",
+        "server/Server.js:204"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-init-uncreatable-directory-stops-boot"
       ],
       "evidence": [],
       "exceptions": []
@@ -48,7 +122,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

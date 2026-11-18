@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /backups at server/routers/ApiRouter.js:200. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /api/backups is an admin-only route: a non-admin caller gets 403, an anonymous one 401. It answers 200 with backups (Backup.toJSON entries: id, key, backupDirPath, datePretty, fullPath, path backups/<filename>, filename, fileSize, createdAt, serverVersion), backupLocation and backupPathEnvSet.",
   "source": [
-    "server/routers/ApiRouter.js:200"
+    "server/routers/ApiRouter.js:200",
+    "server/controllers/BackupController.js:20-33",
+    "server/controllers/BackupController.js:165-179",
+    "server/objects/Backup.js:49-70"
   ],
   "implementation": [
     "go-backend/internal/backup/backup.go"
@@ -26,33 +29,34 @@
     "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-empty-at-start",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-entry-shape",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-forbidden",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-env-path"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "State scenarios are not applicable: GET /api/backups is a stateless read.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R122-ROUTE",
       "class": "shape",
-      "contract": "GET /backups at server/routers/ApiRouter.js:200. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /api/backups answers 200 to an admin with exactly backups, backupLocation and backupPathEnvSet; a created entry carries id YYYY-MM-DDTHHmm, key sqlite, serverVersion 2.37.2, filename <id>.audiobookshelf, path backups/<filename>, fullPath and backupDirPath under backupLocation, a datePretty of createdAt and fileSize equal to the file; non-admins get 403 and anonymous callers 401 without side effects.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:200"
+        "server/controllers/BackupController.js:27-32",
+        "server/controllers/BackupController.js:165-179",
+        "server/objects/Backup.js:49-70"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-empty-at-start",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-entry-shape",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-forbidden",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-list-env-path",
+        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup"
       ],
       "evidence": [],
       "exceptions": [

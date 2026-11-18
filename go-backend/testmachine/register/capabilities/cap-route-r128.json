@@ -4,9 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "PATCH /backups/path at server/routers/ApiRouter.js:206. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "PATCH /api/backups/path is admin-only and updates the archive directory: 200 for a new writable path (created on demand, persisted in server settings, archives reloaded from it), 200 unchanged for the current path, 400 for an empty/invalid/uncreatable path (persisting nothing), 403/401 for access.",
   "source": [
-    "server/routers/ApiRouter.js:206"
+    "server/routers/ApiRouter.js:206",
+    "server/controllers/BackupController.js:88-124",
+    "server/managers/BackupManager.js:68-73"
   ],
   "implementation": [
     "go-backend/internal/backup/backup.go"
@@ -26,40 +28,45 @@
     "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-update-creates-directory",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-unchanged",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-reloads-archives",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-rejected-validation",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-unwritable",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-load-skips-invalid-archives",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-env-override"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: the path update has no force or override mode; the same request is accepted or rejected.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-ROUTE-R128-ROUTE",
       "class": "shape",
-      "contract": "PATCH /backups/path at server/routers/ApiRouter.js:206. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "PATCH /api/backups/path answers 200 and creates a new directory, persists backupPath in the settings row, reports it as backupLocation and writes later archives there; the current path answers 200 unchanged; empty, whitespace, null, non-string or uncreatable paths answer 400 (403/401 for access) with backupLocation, the list and the settings row unchanged. Reloading a directory skips archives without details, with oversized details or that are not zips, lists archives without serverVersion/key, and ignores a duplicate id. With BACKUP_PATH set a PATCH still answers 200 and persists the new path, but a restart uses the environment path again.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:206"
+        "server/controllers/BackupController.js:88-124",
+        "server/managers/BackupManager.js:68-73"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-update-creates-directory",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-reloads-archives",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-rejected-validation",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-unwritable",
         "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-load-skips-invalid-archives",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-env-override"
       ],
       "evidence": [],
       "exceptions": [
@@ -69,21 +76,13 @@
     {
       "id": "INV-ROUTE-R128-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Re-sending the current path answers 200 without changing backupLocation, the archive list or the persisted backupPath.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:206"
+        "server/controllers/BackupController.js:94-99"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-path-unchanged"
       ],
       "evidence": [],
       "exceptions": [

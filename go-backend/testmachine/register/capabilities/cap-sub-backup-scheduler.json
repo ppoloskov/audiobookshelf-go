@@ -4,9 +4,12 @@
   "kind": "job",
   "scope": "in",
   "status": "unverified",
-  "contract": "Scheduled and manual backups, restore via graph replacement, backupsToKeep/maxBackupSize/backupSchedule semantics matching upstream DailyBackupManager.",
+  "contract": "The backup scheduler reads serverSettings.backupSchedule (node-cron, 5 or 6 fields): a set expression creates archives on its ticks, false or an invalid expression leaves no active task, and a changed expression restarts the one task. Each create applies backupsToKeep (default 2) by removing the oldest archive and maxBackupSize (default 1 GB, 0 disables) by aborting and removing the archive.",
   "source": [
-    "server/managers/BackupManager.js"
+    "server/managers/BackupManager.js:38-48",
+    "server/managers/BackupManager.js:75-101",
+    "server/managers/BackupManager.js:333-391",
+    "server/controllers/MiscController.js:165-171"
   ],
   "implementation": [
     "go-backend/internal/backup/backup.go",
@@ -22,7 +25,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "tests": [
@@ -34,26 +37,36 @@
     "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-defaults-off",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-invalid-cron-disabled",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-fires",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-restart-single-task",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-retention-removes-oldest",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-rejection-keeps-install"
   ],
   "evidence": [],
   "exceptions": [
-    "Three rapid backup creates produced one date-minute-named file per side in this run; cross-side count parity is verified, but distinct-file rolloff under a controlled clock is not.",
-    "Scheduled backup timing remains outside the W6 differential.",
-    "Historical differential report and manager assertions remain archived provenance, not current verified evidence. Scheduled timing, changed schedule restart, retention under deterministic clock, and failed-run recovery are not fully asserted by the named current tests.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "force is not applicable: neither the scheduler nor retention has a force/override mode.",
+    "Applying an archive whose absdatabase.sqlite is not a readable SQLite database is not asserted: upstream v2.37.2 replaces the database and exits 1 after Database.reconnect rejects with SQLITE_NOTADB; the live server wins over the intended rejection.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "invariants": [
     {
       "id": "INV-BACKUP-SCHEDULE-CREATE",
       "class": "state_transition",
-      "contract": "A configured backup schedule creates archives in the configured folder, applies maxBackupSize and backupsToKeep retention, and writes the pinned archive contents.",
+      "contract": "With backupSchedule disabled no archive appears; an invalid cron is stored but starts no task; a valid cron creates archives by itself; each create with backupsToKeep 1 removes exactly the oldest listed archive and its file; a create exceeding maxBackupSize answers 500 with no archive, list entry or temporary database left.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js",
-        "server/managers/BackupManager.js"
+        "server/managers/BackupManager.js:75-101",
+        "server/managers/BackupManager.js:333-391",
+        "server/objects/settings/ServerSettings.js:56-59"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-defaults-off",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-invalid-cron-disabled",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-fires",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-retention-removes-oldest",
         "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
         "go-backend/internal/backup/backup_test.go:194#TestRetentionMaxSizeAndFailure"
       ],
@@ -65,12 +78,14 @@
     {
       "id": "INV-BACKUP-SCHEDULE-REPEAT",
       "class": "repeat_operation",
-      "contract": "Changing backup path/schedule replaces the active configuration; invalid cron leaves scheduled backups disabled and repeated configuration does not leave duplicate active schedules.",
+      "contract": "Changing the schedule replaces the single active task and disabling it stops further archives: after the disable no archive appears or changes, so no duplicate or leaked scheduler survives repeated updates.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js"
+        "server/managers/BackupManager.js:88-101",
+        "server/controllers/MiscController.js:165-171"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-schedule-restart-single-task",
         "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing"
       ],
       "evidence": [],
@@ -81,16 +96,17 @@
     {
       "id": "INV-BACKUP-RESTORE-ROLLBACK",
       "class": "transaction",
-      "contract": "Restore failure leaves the running database and metadata roots usable, removes swap artifacts, and does not emit backup_applied; successful restore swaps the runtime database and metadata and emits backup_applied after success.",
+      "contract": "An apply rejected before the swap leaves the running database and metadata usable, removes no backup, writes no temporary database and emits no backup_applied; the successful swap and its single backup_applied are proven by the server packet's scenarios.",
       "status": "unverified",
       "source": [
-        "server/managers/BackupManager.js",
-        "server/Server.js"
+        "server/managers/BackupManager.js:200-229",
+        "server/managers/BackupManager.js:263-266",
+        "server/Database.js:304-315"
       ],
       "tests": [
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-rejection-keeps-install",
+        "go-backend/testmachine/scenarios/server/run_test.go#TestReplacement/backup-create-apply-restores-database",
+        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata"
       ],
       "evidence": [],
       "exceptions": [

@@ -4,9 +4,12 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "GET /backups/:id/apply at server/routers/ApiRouter.js:204. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "GET /api/backups/:id/apply is admin-only. It answers 200 after applying a listed archive, 404 for an unknown id, 403/401 for access, and validates absdatabase.sqlite before replacing the database; a listed archive without it answers 500 before any swap, and metadata entries are extracted under metadata/items and metadata/authors without creating symlinks.",
   "source": [
-    "server/routers/ApiRouter.js:204"
+    "server/routers/ApiRouter.js:204",
+    "server/controllers/BackupController.js:155-157",
+    "server/controllers/BackupController.js:165-179",
+    "server/managers/BackupManager.js:200-267"
   ],
   "implementation": [
     "go-backend/internal/backup/backup.go"
@@ -26,38 +29,58 @@
     "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-existing-archive",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-access-rules",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-archive-without-database",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-extracts-metadata-entries",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-symlink-entry-not-followed"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "State scenarios are not applicable: this capability is a stateless request/middleware/static-serving contract.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "State scenarios are not applicable: this record treats apply as a request/validation contract; the runtime swap and backup_applied are owned by cap-flow-backup-restore-swap and cap-event-backup-applied.",
+    "Applying an archive whose absdatabase.sqlite is not a readable SQLite database is not asserted: upstream v2.37.2 swaps it in, Database.reconnect rejects with SQLITE_NOTADB and the process exits 1. The live server wins over the intended rejection; the corruption gap is reported as an open question.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "invariants": [
     {
       "id": "INV-ROUTE-R126-ROUTE",
       "class": "shape",
-      "contract": "GET /backups/:id/apply at server/routers/ApiRouter.js:204. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "GET /api/backups/:id/apply answers 200 for a listed archive and keeps it listed with the install readable; an ordinary user gets 403, an anonymous caller 401 and an unknown id 404, with no list, file or install change.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:204"
+        "server/controllers/BackupController.js:155-157",
+        "server/controllers/BackupController.js:165-179",
+        "server/managers/BackupManager.js:200-267"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-existing-archive",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-access-rules",
+        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata"
       ],
       "evidence": [],
       "exceptions": [
         "Named tests listed are relevant package-level current tests; their assertions do not yet prove every route branch or the complete upstream contract."
       ]
+    },
+    {
+      "id": "INV-ROUTE-R126-VALIDATION-001",
+      "class": "transaction",
+      "contract": "Apply validates the archive before the swap: an archive without absdatabase.sqlite is rejected with 500 before Database.disconnect, a valid archive extracts its metadata-items tree under metadata/items, and a symlink entry is stored as a regular file, never as a link.",
+      "status": "unverified",
+      "source": [
+        "server/managers/BackupManager.js:200-229",
+        "server/managers/BackupManager.js:247-255",
+        "server/libs/nodeStreamZip/index.js:493-558"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-archive-without-database",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-extracts-metadata-entries",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-apply-symlink-entry-not-followed",
+        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

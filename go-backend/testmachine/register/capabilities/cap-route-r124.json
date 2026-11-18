@@ -4,9 +4,11 @@
   "kind": "operation",
   "scope": "in",
   "status": "unverified",
-  "contract": "DELETE /backups/:id at server/routers/ApiRouter.js:202. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+  "contract": "DELETE /api/backups/:id is admin-only: 200 with only a backups array that omits the id, removing that archive file; unknown ids 404, non-admins 403 and anonymous callers 401 without removing anything.",
   "source": [
-    "server/routers/ApiRouter.js:202"
+    "server/routers/ApiRouter.js:202",
+    "server/controllers/BackupController.js:49-59",
+    "server/managers/BackupManager.js:393-402"
   ],
   "implementation": [
     "go-backend/internal/backup/backup.go"
@@ -26,40 +28,42 @@
     "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
     "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+    "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-removes-entry-and-file",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-forbidden",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-repeated",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-targets-one-id",
+    "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-unremovable-file"
   ],
   "evidence": [],
   "exceptions": [
-    "Historical verification claims are retained only in the archived pre-2026-11-13 record; they do not establish current named-test coverage or invariant verification.",
-    "Stateful operation: scenario evidence is not yet independently reconciled for each listed transition.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: delete has no force or hard-delete variant; it removes the one named archive or answers 404.",
+    "Named Go tests remain assertion leads for the Go implementation; the scenario refs are the black-box proof."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
     {
       "id": "INV-ROUTE-R124-ROUTE",
       "class": "shape",
-      "contract": "DELETE /backups/:id at server/routers/ApiRouter.js:202. Preserve the registered method/path, route-specific request parsing and response/status behavior, the auth gate, and the controller side effect described by the matching source handler.",
+      "contract": "DELETE /api/backups/:id answers 200 with only backups omitting the id and deletes exactly that archive file while other archives stay listed with their files; 404 for an unknown id, 403 for an ordinary user and 401 anonymously with nothing removed. A file that cannot be removed leaves the entry and file in place (the controller still answers 200).",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:202"
+        "server/controllers/BackupController.js:49-59",
+        "server/managers/BackupManager.js:393-402",
+        "server/controllers/BackupController.js:165-179"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-removes-entry-and-file",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-forbidden",
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-targets-one-id",
         "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-unremovable-file"
       ],
       "evidence": [],
       "exceptions": [
@@ -69,21 +73,14 @@
     {
       "id": "INV-ROUTE-R124-REPEAT",
       "class": "repeat_operation",
-      "contract": "A repeated operation leaves durable settings/files/queued work in the source-defined state without duplicate or stale side effects.",
+      "contract": "Deleting the same id twice answers 200 then 404, and the second delete leaves the remaining backups and files untouched.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:202"
+        "server/controllers/BackupController.js:49-59",
+        "server/managers/BackupManager.js:393-402"
       ],
       "tests": [
-        "go-backend/internal/backup/backup_test.go:236#TestRoutesAdminOnlyAndMissingBackup",
-        "go-backend/internal/backup/backup_test.go:148#TestCreateWritesPinnedArchiveLayout",
-        "go-backend/internal/backup/backup_test.go:252#TestUploadRejections",
-        "go-backend/internal/backup/backup_test.go:306#TestApplyStagesAndRejectsHostileArchives",
-        "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
-        "go-backend/internal/server/manager_test.go:22#TestManagerRestoreSwapsRuntimeDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:100#TestManagerRestoreFailureRollsBackDatabaseAndMetadata",
-        "go-backend/internal/server/manager_test.go:221#TestManagerRestoreRefusesWrongVersionBackup",
-        "go-backend/internal/server/wave_g_transition_test.go:19#TestWaveGRestoreFailureRestoresStateAndLeavesNoSwapArtifacts"
+        "go-backend/testmachine/scenarios/backup/run_test.go#TestReplacement/backup-delete-repeated"
       ],
       "evidence": [],
       "exceptions": [
