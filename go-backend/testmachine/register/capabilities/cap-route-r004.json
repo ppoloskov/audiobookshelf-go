@@ -22,147 +22,152 @@
   "tests": [
     "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
     "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-    "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+    "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-signs-in-links-subject-and-sets-cookies",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-bad-id-token-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-provider-error-and-state-mismatch-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-replay-no-sign-in-session",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-no-session-verifier-matrix",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-survives-intervening-requests",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-deactivated-user-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-returns-login-payload-with-pkce-verifier",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-replay-400-no-session"
   ],
-  "evidence": [
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-provider-error",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-invalid-nonce",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier",
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
-  ],
+  "evidence": [],
   "invariants": [
     {
       "id": "INV-R004-OIDC-CALLBACK-COOKIE-JWT-001",
       "class": "state_transition",
-      "contract": "Web/mobile OIDC start and callback preserve allowed redirect parameters, state/PKCE/nonce binding and client-consumed JWT claims. Required auth cookies retain usable lifetime/Path/HttpOnly/Secure/SameSite semantics; opaque cookie values and the Express session implementation are free if isolation and replay protection hold.",
+      "contract": "A web callback with a valid provider answer answers 302 to the auth_cb URL with setToken=<the user's legacy token>&accessToken=<JWT> and no state parameter; it sets an HttpOnly Path=/ refresh_token cookie and a Secure SameSite=Strict openid_id_token cookie, links authOpenIDSub on exactly one new active 'user' whose username/email come from the userinfo, creates exactly one session whose refreshToken is the cookie value, and the access token (claims userId, username, type=access, future exp) authenticates GET /api/me as that user with hasOpenIDLink true.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:296-305",
-        "server/Auth.js:430-445",
+        "server/Auth.js:259-312",
+        "server/Auth.js:430-455",
         "server/auth/TokenManager.js:108-171",
-        "server/auth/OidcAuthStrategy.js:112-164"
+        "server/auth/OidcAuthStrategy.js:112-166"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-signs-in-links-subject-and-sets-cookies"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-auto-register-success",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-existing-user-email-link",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier"
-      ],
+      "evidence": [],
       "exceptions": [
-        "Evidence covers selected successful web/mobile callbacks only; invalid-verifier/provider errors, error cookie clearing, logout cookie clearing, and other callback variants remain unverified.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): Selected successful web callbacks match cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, SameSite, signed connect.sid, and JWT algorithms/claims; UUID identifiers and timestamps are compared by semantics, and each OIDC ID-token nonce is bound to its own authorization request."
+        "auth_state is never set on a web start (a state query makes the web start fail), so the success redirect cannot contain &state; the absence is asserted."
+      ]
+    },
+    {
+      "id": "INV-R004-OIDC-CALLBACK-ERROR-001",
+      "class": "error",
+      "contract": "A web callback whose ID token has a broken RS256 signature, a foreign issuer, a foreign audience or an expired exp answers 302 /login?error=Unauthorized&autoLaunch=0; a provider error=access_denied or a mismatched state answers the same Unauthorized redirect; a token endpoint rejection (invalid_grant) answers 302 /login?error=Error in callback&autoLaunch=0. Each rejection creates no user or session and consumes the flow.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:406-432",
+        "server/auth/OidcAuthStrategy.js:117-166",
+        "server/Auth.js:449-452"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-bad-id-token-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-provider-error-and-state-mismatch-denied"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "The error strings are asserted because the web client reads login?error= and shows it; the HTML of the login page is free."
       ]
     },
     {
       "id": "INV-R004-OIDC-CALLBACK-REPLAY-001",
       "class": "repeat_operation",
-      "contract": "Replaying a callback after its state has been consumed returns the upstream no-sign-in-session redirect and creates no additional persisted user/session.",
+      "contract": "Replaying a consumed web callback with the same session and auth cookies answers 302 to /login?error=No sign-in session&autoLaunch=0 and creates no additional user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-418"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-replay-no-sign-in-session"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-state-replay-after-provider-error"
-      ],
+      "evidence": [],
       "exceptions": []
     },
     {
       "id": "INV-R004-OIDC-MOBILE-CODE-EXCHANGE-001",
       "class": "state_transition",
-      "contract": "A successful mobile callback accepts the provider code and caller-supplied PKCE verifier, returns the upstream API login payload and token claims, persists one provider-linked active user and one session, and matches the selected user fields and server settings.",
+      "contract": "The native callback with the app's code_verifier answers 200 with the login payload: user id/username/type=user/isActive/hasOpenIDLink, non-empty accessToken, refreshToken and legacy token, default permissions (download and accessAllLibraries true), Source=docker, a non-null userDefaultLibraryId equal to the first-displayOrder library, serverSettings.version/language and an ereaderDevices array. The provider token request carried grant_type=authorization_code, the code, redirect_uri=<origin>/auth/openid/mobile-redirect and that verifier; exactly one session row holds the returned refresh token and it refreshes.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
         "server/auth/OidcAuthStrategy.js:301-368",
-        "server/auth/OidcAuthStrategy.js:112-164"
+        "server/auth/TokenManager.js:184-200",
+        "server/models/User.js:311-341"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-returns-login-payload-with-pkce-verifier"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange"
-      ],
+      "evidence": [],
       "exceptions": [
-        "One local RS256 provider, one allowlisted redirect URI, one S256 flow, and the fixture auto-registration mode are covered. Invalid verifier/provider failures remain unverified."
+        "The token request form is observed at the stubbed provider; it is not part of the client protocol but proves the verifier was forwarded."
       ]
     },
     {
       "id": "INV-R004-OIDC-MOBILE-EXCHANGE-REPLAY-001",
       "class": "repeat_operation",
-      "contract": "Repeating the mobile token-exchange callback after the first callback consumed its session returns HTTP 400 No session with a usable client-visible denial and creates no second user or session.",
+      "contract": "Repeating the native token-exchange callback with its consumed session answers 400 with body 'No session' and creates no second user or session; the route rejects before any provider token request.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:383-418"
+        "server/Auth.js:383-397"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/mobile-callback-replay-400-no-session"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-token-exchange-replay"
-      ],
-      "exceptions": [
-        "Historical pre-rewrite observation (not a fixed representation requirement): Repeating the mobile token-exchange callback after the first callback consumed its session returns HTTP 400 No session with Express text/html response behavior and creates no second user or session."
-      ]
+      "evidence": [],
+      "exceptions": []
     },
     {
       "id": "INV-R004-WEB-EMPTY-VERIFIER-001",
       "class": "error",
-      "contract": "A callback request with no browser session and an empty code_verifier is treated as web and redirects to login with No sign-in session; a truthy code_verifier (non-empty string or repeated-query array) selects the mobile No session response.",
+      "contract": "Without a browser session, a callback with no code_verifier or an empty code_verifier is treated as web and answers 302 /login?error=No sign-in session&autoLaunch=0; a non-empty code_verifier, a repeated code_verifier parameter (array) or the auth_method=openid-mobile cookie answers 400 with body 'No session'. None creates a user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-398"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-no-session-verifier-matrix"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-callback-no-session-empty-verifier",
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-mobile-callback-no-session-duplicate-empty-verifier"
-      ],
-      "exceptions": []
+      "evidence": [],
+      "exceptions": [
+        "This pins the upstream truthiness decision for code_verifier because the official app always sends one on the native callback and the web client never sends one."
+      ]
     },
     {
       "id": "INV-R004-WEB-SESSION-TTL-001",
       "class": "state_transition",
-      "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+      "contract": "A started web flow still completes after the same browser makes other requests with its session cookie; the flow is not bound to the start request. The Express session store keeps sessions for 24 hours of inactivity; the exact boundary is not exercised.",
       "status": "unverified",
       "source": [
         "server/Server.js:301-313",
         "server/libs/memorystore/index.js:15-28",
-        "server/Auth.js:383-445"
+        "server/auth/OidcAuthStrategy.js:355-363"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-survives-intervening-requests"
       ],
-      "evidence": [
-        "go-backend/testmachine/contracts/parity/oidc-differential-report.json#oidc-web-state-after-ten-minutes",
-        "go-backend/testmachine/contracts/parity/oidc-web-state-expiry-red-report.json"
-      ],
+      "evidence": [],
       "exceptions": [
-        "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+        "The 24-hour boundary and rolling session-touch renewal are not executable within a bounded run; only survival across other requests is asserted."
       ]
+    },
+    {
+      "id": "INV-R004-WEB-DEACTIVATED-USER-001",
+      "class": "error",
+      "contract": "When the user linked to the subject is deactivated after a flow starts, the callback answers 302 /login?error=Unauthorized&autoLaunch=0, creates no session for that user and leaves the user row (including its updatedAt) unchanged.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:131-150",
+        "server/models/User.js:290-295"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/web-callback-deactivated-user-denied"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ],
   "state_scenarios": {
@@ -173,9 +178,8 @@
     "failure": "unverified"
   },
   "exceptions": [
-    "The force scenario is not applicable because GET /auth/openid/callback has no force or refresh operation.",
-    "Exact 24-hour session expiry and rolling session-touch renewal remain unverified; this route subset does not establish route-wide OIDC parity.",
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: GET /auth/openid/callback has no force, override or refresh mode.",
+    "Nonce binding is not executable against the pinned strategy: with response_type=code it sends no nonce and validates none, so the invalid-token scenarios cover signature, issuer, audience and exp instead.",
+    "Mapping note: named internal Go tests are assertion leads only; the shared scenarios are the executable oracle."
   ]
 }

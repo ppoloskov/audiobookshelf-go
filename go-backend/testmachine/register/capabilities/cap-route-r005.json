@@ -18,29 +18,35 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+    "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-admin-gets-seven-discovery-fields",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-denies-anonymous-nonadmin-and-bad-issuer",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-trailing-slash-and-missing-document"
   ],
   "evidence": [],
-  "exceptions": [
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-    "Mapped tests cover selected denial or lower-level behavior only; successful endpoint payload/state and complete source/client variants need explicit owner-packet assertions."
-  ],
   "invariants": [
     {
       "id": "INV-R005-CONTRACT-001",
       "class": "shape",
-      "contract": "GET /auth/openid/config. Authenticated admin discovery requires issuer and returns the provider discovery document or a client-visible failure; anonymous users receive 401 and non-admins 403.",
+      "contract": "GET /auth/openid/config requires a bearer token: an anonymous caller gets 401 and an ordinary user gets 403, and neither answer contains the configured client id/secret, issuer URL or an internal trace. An admin call must pass a string issuer, else 400. The issuer loses one trailing slash and is fetched at <issuer>/.well-known/openid-configuration; success answers 200 with exactly issuer, authorization_endpoint, token_endpoint, userinfo_endpoint, end_session_endpoint, jwks_uri and id_token_signing_alg_values_supported copied from that document (the document's code_challenge_methods_supported is not forwarded). An unparseable issuer, an issuer whose well-known URL does not end in the configuration document (for example one carrying a query), a document answering 404 and an unreachable issuer answer 400 without provider detail.",
       "status": "unverified",
       "source": [
-        "server/Auth.js:464"
+        "server/Auth.js:464-480",
+        "server/auth/OidcAuthStrategy.js:439-476"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-admin-gets-seven-discovery-fields",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-denies-anonymous-nonadmin-and-bad-issuer",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/config-trailing-slash-and-missing-document"
       ],
       "evidence": [],
       "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "Only the access rule, the seven forwarded fields and the failure statuses are asserted; the HTML/text of the 401/403 bodies is free."
       ]
     }
+  ],
+  "exceptions": [
+    "Mapping note: the named internal Go test is an assertion lead only; the shared scenarios are the executable oracle.",
+    "The admin settings endpoint that might expose the same provider fields (PATCH /api/auth-settings) is owned by the admin_settings packet; this requirement asserts only the discovery route."
   ]
 }

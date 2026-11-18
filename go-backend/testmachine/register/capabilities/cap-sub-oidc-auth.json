@@ -23,82 +23,78 @@
     {
       "id": "INV-OIDC-WEB-CALLBACK-001",
       "class": "state_transition",
-      "contract": "Web auto-registration success redirects to the configured callback with tokens and persists the provider subject, user fields, and exactly one refresh session; provider error, state replay, expired ID token, and disabled auto-registration match upstream response routing and create no additional user or session.",
+      "contract": "With authOpenIDAutoRegister on, an unknown provider subject creates exactly one active 'user' whose username is preferred_username and whose email is the verified email, stores authOpenIDSub in extraData and creates exactly one refreshable session. With auto-registration off, an unknown subject is denied with 302 /login?error=Unauthorized&autoLaunch=0 and creates no user or session. Two logins of the same subject reuse that user row (same id) and add one session each without a second user_added event.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js",
-        "server/models/User.js",
-        "server/Auth.js"
+        "server/auth/OidcAuthStrategy.js:137-158",
+        "server/models/User.js:220-227",
+        "server/models/User.js:311-341",
+        "server/Auth.js:296-312"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:134#TestOIDCWebFlowSignsInAndMapsGroups",
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-auto-register-creates-linked-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-disabled-or-provider-failed-creates-nothing",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-repeat-web-login-reuses-user-adds-session"
       ],
       "evidence": [],
-      "exceptions": [
-        "Evidence covers the named web flow cases only; it does not establish all callback cookies, mobile, or event behavior."
-      ]
+      "exceptions": []
     },
     {
       "id": "INV-OIDC-EMAIL-LINK-001",
       "class": "state_transition",
-      "contract": "When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that existing user, preserves existing extraData field values when adding authOpenIDSub, and creates one session. JSON member order is free.",
+      "contract": "When authOpenIDMatchExistingBy=email and userinfo.email_verified is not false, the callback matches an active existing user by email: the user keeps its id, username, email, type and every existing extraData member, gains extraData.authOpenIDSub = userinfo.sub, and gets exactly one session. When email_verified is explicitly false the login is denied with the Unauthorized login redirect, links nothing and creates no session.",
       "status": "unverified",
       "source": [
         "server/models/User.js:220-308",
         "server/auth/OidcAuthStrategy.js:112-164"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:234#TestOIDCUserMatching"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:234#TestOIDCUserMatching"
-      ],
+      "evidence": [],
       "exceptions": [
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: When authOpenIDMatchExistingBy=email finds an active unlinked user, callback links the provider subject to that user, creates one session, and retains the existing extraData member order when appending authOpenIDSub."
+        "JSON member order inside extraData is free; only membership and values are asserted."
       ]
     },
     {
       "id": "INV-OIDC-USER-ADDED-001",
       "class": "state_transition",
-      "contract": "Successful OIDC auto-registration emits one user_added payload with the legacy browser user shape to root/admin sockets and does not deliver it to an ordinary user socket.",
+      "contract": "Successful OIDC auto-registration emits one user_added event with the legacy browser user shape (id, username, email, type, non-empty token, isActive, hasOpenIDLink true, permissions without librariesAccessible/itemTagsSelected, librariesAccessible/itemTagsSelected/mediaProgress/bookmarks arrays) to root/admin sockets and no user_added to an ordinary user socket.",
       "status": "unverified",
       "source": [
-        "server/models/User.js:311-345"
+        "server/models/User.js:311-341",
+        "server/SocketAuthority.js"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-emits-user-added-to-admins-only"
       ],
       "evidence": [],
       "exceptions": [
-        "Evidence covers the selected auto-registration event and admin-versus-reader recipient distinction only; the full Socket.IO event matrix remains open."
+        "The full Socket.IO audience matrix for every user event is owned by the user_admin packet; this invariant asserts only the auto-registration event and the ordinary-user exclusion."
       ]
     },
     {
       "id": "INV-OIDC-IDTOKEN-VALIDATION-001",
       "class": "state_transition",
-      "contract": "Web OIDC callback rejects ID tokens with an invalid nonce, issuer, audience, or RS256 signature using upstream redirect behavior, without changing the resulting user or session state.",
+      "contract": "A web OIDC callback whose ID token has a broken RS256 signature, a foreign issuer, a foreign audience or an expired exp answers 302 /login?error=Unauthorized&autoLaunch=0, creates no user or session and consumes the flow.",
       "status": "unverified",
       "source": [
-        "server/auth/OidcAuthStrategy.js"
+        "server/auth/OidcAuthStrategy.js:117-166",
+        "server/Auth.js:406-432"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-invalid-id-tokens-create-no-user"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens"
-      ],
+      "evidence": [],
       "exceptions": [
-        "Evidence covers the four named invalid-token cases using the local mock provider; it does not establish all token validation rules or the complete OIDC flow.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed."
+        "The pinned strategy sends no nonce with response_type=code, so nonce validation cannot be exercised; signature, issuer, audience and exp are."
       ]
     },
     {
       "id": "INV-OIDC-MOBILE-STATE-001",
       "class": "state_transition",
-      "contract": "Mobile OIDC validates redirect allowlist and S256 PKCE inputs, forwards bound state/challenge, redirects to the correct provider/app Location with the required status, consumes state once and rejects replay without credentials. Redirect HTML and incidental response headers are free.",
+      "contract": "A native start rejects an unlisted redirect_uri and a missing code_challenge with 400 and no credentials. A valid start binds the app's S256 challenge and a server-generated state: both appear in the provider URL, the mobile-redirect answer carries the provider code and that state to the app URI, and the mobile-redirect state is consumed once (a second use is 400) while the app callback with the same state still completes.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:256-281",
@@ -107,23 +103,15 @@
         "server/Auth.js:362-378"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-state-bound-to-flow-and-used-once"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
-      ],
-      "exceptions": [
-        "Covers one mobile URI and S256 authorization flow; callback cookie attributes, state expiry, mobile app token exchange, other URI schemes, and general Socket.IO behavior remain open.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: The selected mobile flow validates redirect allowlist and S256 PKCE inputs, forwards provider state/challenge, matches complete Express redirect responses (status, Location, content type, content length and body) to the provider and app, consumes state once, and matches the replay error response."
-      ]
+      "evidence": [],
+      "exceptions": []
     },
     {
       "id": "INV-OIDC-WEB-COOKIE-JWT-001",
       "class": "state_transition",
-      "contract": "Web/mobile OIDC start and callback preserve allowed redirect parameters, state/PKCE/nonce binding and client-consumed JWT claims. Required auth cookies retain usable lifetime/Path/HttpOnly/Secure/SameSite semantics; opaque cookie values and the Express session implementation are free if isolation and replay protection hold.",
+      "contract": "A web start sets HttpOnly auth_cb (Max-Age 600, value the callback URL), HttpOnly auth_method=openid (Max-Age 315360000) and a fresh connect.sid; the success callback sets an HttpOnly Path=/ refresh_token and a Secure SameSite=Strict openid_id_token, and the returned access token carries userId (the new user), username and type=access with a future exp.",
       "status": "unverified",
       "source": [
         "server/Auth.js:218-248",
@@ -133,19 +121,17 @@
         "server/Server.js:301-317"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-        "go-backend/internal/auth/oidc_test.go:134#TestOIDCWebFlowSignsInAndMapsGroups"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-start-and-callback-cookie-and-jwt-shape"
       ],
       "evidence": [],
       "exceptions": [
-        "Evidence covers the selected web auto-registration and email-link success cases; failure/logout cookie clearing, additional proxy/security modes, and every callback branch remain unverified.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): On selected web OIDC success, start cookies and callback cookies match upstream cookie names, stable values, Max-Age, Path, Expires, HttpOnly, Secure, and SameSite attributes; the signed connect.sid is present. Redirect JWT algorithm and claims match after normalizing UUID identifiers and timestamps, and the returned ID-token nonce is bound to that server flow."
+        "Opaque cookie values and the Express session implementation are free; the asserted fields are names, values that are URLs, Max-Age, Path, HttpOnly, Secure and SameSite."
       ]
     },
     {
       "id": "INV-OIDC-MOBILE-TOKEN-EXCHANGE-001",
       "class": "state_transition",
-      "contract": "Successful mobile OIDC exchange validates the app PKCE verifier, returns client-consumed login fields and token claims, and persists the linked user and one session. Replaying the consumed callback returns HTTP 400 and creates no second user/session; preserve any parsed error content only with client evidence.",
+      "contract": "A successful native exchange with the app's PKCE verifier returns the API login payload with non-empty accessToken and refreshToken, persists exactly one linked user and one session whose refreshToken equals the returned value, and refreshes. Replaying the consumed callback answers 400 No session and creates no second user or session.",
       "status": "unverified",
       "source": [
         "server/Auth.js:383-445",
@@ -153,21 +139,17 @@
         "server/auth/OidcAuthStrategy.js:112-164"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-token-exchange-persists-one-user-and-session"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
-      ],
+      "evidence": [],
       "exceptions": [
-        "Only one local RS256 provider, redirect URI, S256 flow, and auto-registration path are covered; invalid-verifier/provider error handling remains unverified.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical observation superseded by current semantic requirement: A successful mobile OIDC exchange accepts the app-supplied PKCE verifier, returns the API login payload with matching token claims, persists one active provider-linked user and exactly one session; replay after consuming the callback session returns HTTP 400 No session with upstream Express response headers."
+        "Only the local RS256 stub, one allowlisted redirect URI, S256 and the auto-registration mode are covered."
       ]
     },
     {
       "id": "INV-OIDC-MOBILE-INVALID-VERIFIER-001",
       "class": "error",
-      "contract": "After a valid mobile OIDC authorization and mobile redirect, a callback with an incorrect PKCE verifier matches the upstream login redirect failure (302 to /login?error=Unauthorized&autoLaunch=0), creates no provider-linked user/session, and consumes the one-time callback flow so replay returns 400 No session. The pinned strategy stores the mobile redirect URI string in session.mobile while Auth.js checks session.mobile === true, so valid mobile callback failures follow the web redirect branch.",
+      "contract": "After a valid native authorization and mobile redirect, a callback with an incorrect PKCE verifier follows the upstream web failure branch: 302 to /login?error=Error in callback&autoLaunch=0, because the strategy stores the mobile redirect URI string in session.mobile while Auth.js compares it with true and the provider's invalid_grant is an error rather than a plain failure. It creates no provider-linked user or session and consumes the flow, so a replay returns 400 No session.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:356-368",
@@ -175,36 +157,35 @@
         "server/Auth.js:449-452"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-wrong-verifier-follows-web-redirect"
       ],
       "evidence": [],
-      "exceptions": []
+      "exceptions": [
+        "The live v2.37.2 answer is 302 Error in callback, not the 302 Unauthorized recorded by an earlier differential: a provider token rejection propagates as an error to the Express error branch. The official app does not read this redirect."
+      ]
     },
     {
       "id": "INV-OIDC-WEB-LOGOUT-001",
       "class": "state_transition",
-      "contract": "OIDC logout returns the client-consumed redirect_url, expires required auth cookies with usable Path/security attributes, revokes refresh authentication and retains the linked user. Preserve CSRF/session-fixation protection without requiring Express/Passport cookie implementation or opaque values.",
+      "contract": "POST /logout carrying the refresh_token cookie, auth_method=openid and the openid_id_token cookie answers 200 {redirect_url:<configured end_session_endpoint>?id_token_hint=<that id_token>&post_logout_redirect_uri=<request origin>/audiobookshelf/login}, expires the refresh_token, auth_method and openid_id_token cookies, deletes the session row and keeps the linked user.",
       "status": "unverified",
       "source": [
         "server/Auth.js:486-523",
-        "server/Auth.js:243-248"
+        "server/auth/OidcAuthStrategy.js:395-423"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-logout-returns-end-session-url-and-revokes-session",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-logout-without-end-session-returns-null"
       ],
-      "evidence": [
-        "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery"
-      ],
+      "evidence": [],
       "exceptions": [
-        "Evidence uses no configured end-session URL. Logout with provider redirect, allDevices=1, missing/invalid refresh credentials, response/session failure, and mobile logout remain unverified.",
-        "Assertion mapped but not executed/reviewed against a current oracle in this invocation; verification remains unclaimed.",
-        "Historical pre-rewrite observation (not a fixed representation requirement): After a successful web OIDC login, POST /logout with the issued cookies returns the Express JSON response and weak ETag, clears refresh_token, auth_method, and openid_id_token with the source cookie attributes, regenerates connect.sid, and removes the active refresh session without deleting the provider-linked user. The OIDC differential normalizes connect.sid values, so OIDC-specific replacement remains unverified."
+        "The route itself is owned by route-r006 in the auth packet; this scenario proves the OIDC-specific end-session URL, id_token_hint and cookie interaction."
       ]
     },
     {
       "id": "INV-OIDC-WEB-SESSION-TTL-001",
       "class": "state_transition",
-      "contract": "A web OIDC callback using the same browser session remains valid after more than ten minutes but before the upstream 24-hour session TTL; callback route/tokens/cookies and provider-linked persisted user/session state match.",
+      "contract": "A started web flow still completes after the same browser makes other requests with its session cookie; the flow is not bound to the start request. The Express store keeps sessions for 24 hours of inactivity; the exact boundary is not exercised.",
       "status": "unverified",
       "source": [
         "server/Server.js:301-313",
@@ -213,28 +194,133 @@
         "server/Auth.js:383-445"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-flow-completes-after-other-requests"
       ],
       "evidence": [],
       "exceptions": [
-        "One callback after 10 minutes with no intervening requests is covered. The exact 24-hour boundary and rolling session-touch renewal remain unverified."
+        "The 24-hour boundary and rolling session-touch renewal are not executable in a bounded run."
       ]
     },
     {
       "id": "INV-OIDC-MOBILE-REDIRECT-TTL-001",
       "class": "state_transition",
-      "contract": "A mobile redirect URI mapping expires after ten minutes; the callback response matches upstream after expiry.",
+      "contract": "The mobile redirect URI mapping is held in the strategy's LRU for ten minutes and each state is one-time; a consumed or never-issued state answers 400 State parameter mismatch with no Location and no credentials.",
       "status": "unverified",
       "source": [
         "server/auth/OidcAuthStrategy.js:18-22",
         "server/auth/OidcAuthStrategy.js:479-505"
       ],
       "tests": [
-        "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-redirect-consumed-or-unknown-state"
       ],
       "evidence": [],
       "exceptions": [
-        "One allowlisted audiobookshelf://oauth URI and S256 flow after 10 minutes is covered; exact expiry boundary and other schemes remain unverified."
+        "The exact ten-minute boundary is unexecuted because the timer is in-process with no API or clock injection; a not-held state produces the identical response."
+      ]
+    },
+    {
+      "id": "INV-OIDC-GROUP-CLAIM-001",
+      "class": "state_transition",
+      "contract": "With authOpenIDGroupClaim=groups the provider scope includes that claim, a groups=[admin] login makes the linked user an admin, and a later groups=[user] login downgrades the same user to user while each login creates a session. A userinfo without the configured claim, or with a group outside admin/user/guest, is denied with the Unauthorized login redirect and creates no user or session. A root user matched by email is denied when the claim says user, and succeeds unchanged when it says admin.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:80-89",
+        "server/auth/OidcAuthStrategy.js:174-223"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-maps-admin-then-downgrades-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-missing-denied",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-root-user-cannot-be-downgraded"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "The root downgrade refusal is asserted through the denial and the admin-group success; the subject link upstream leaves behind before refusing is not asserted as contract (the scenario clears it with the unlink route)."
+      ]
+    },
+    {
+      "id": "INV-OIDC-ADVANCED-PERMS-001",
+      "class": "state_transition",
+      "contract": "With authOpenIDAdvancedPermsClaim=abs_perms, a non-admin login whose claim sets canDownload=false and canAccessExplicitContent=false persists exactly those permission changes on the linked user (other defaults unchanged) and reports them in the login payload and GET /api/me. An admin matched by email keeps its permissions. A userinfo without the configured claim is denied with the Unauthorized login redirect, and the user row auto-registered moments earlier is removed again: no user with that subject and no session remains.",
+      "status": "unverified",
+      "source": [
+        "server/auth/OidcAuthStrategy.js:230-244",
+        "server/auth/OidcAuthStrategy.js:159-166",
+        "server/models/User.js:953-1000"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-applies-to-user",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-missing-denied-and-user-removed",
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-ignored-for-admin"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-OIDC-UNLINK-001",
+      "class": "state_transition",
+      "contract": "PATCH /api/users/:id/openid-unlink clears extraData.authOpenIDSub for that user so GET /api/me reports hasOpenIDLink false, while keeping the user and its sessions. A later OIDC login with the matching email links the same user again and adds one session.",
+      "status": "unverified",
+      "source": [
+        "server/models/User.js:286-306",
+        "server/controllers/UserController.js:409-428"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-link-unlink-relink"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "The unlink route (route-r077) and its user_updated event are owned by the user_admin packet; this scenario uses the call as the state change and asserts the OIDC re-link consequence."
+      ]
+    },
+    {
+      "id": "INV-OIDC-AUTH-METHOD-TOGGLE-001",
+      "class": "state_transition",
+      "contract": "PATCH /api/auth-settings that removes openid from authActiveAuthMethods unregisters the provider strategy, so GET /status advertises only local; re-adding openid rebuilds the strategy from the current settings, GET /status advertises both methods again and a complete web login succeeds.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:728-741",
+        "server/Auth.js:169-192",
+        "server/Server.js:388-394"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auth-method-toggle-disables-and-reenables"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "The settings route itself is owned by the admin_settings packet; this scenario asserts the OIDC strategy registration and the client-read authMethods list."
+      ]
+    },
+    {
+      "id": "INV-OIDC-BOOT-INIT-001",
+      "class": "state_transition",
+      "contract": "OpenID settings written through PATCH /api/auth-settings persist across a server restart: GET /api/auth-settings still returns the issuer, boot initialisation registers the provider strategy so GET /status still advertises openid, and a complete web login succeeds after the restart.",
+      "status": "unverified",
+      "source": [
+        "server/Server.js:301-317",
+        "server/Auth.js:111-121",
+        "server/Database.js:440-444"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-settings-and-strategy-survive-restart"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-OIDC-WEB-CALLBACK-COOKIE-TTL-001",
+      "class": "state_transition",
+      "contract": "The auth_cb cookie lives 10 minutes while the browser session lasts 24 hours; when a valid provider callback arrives after auth_cb is gone, the server creates the linked user and one session and sets the refresh cookie, then answers 302 /login?error=No callback or already expired&autoLaunch=0 because no browser destination remains.",
+      "status": "unverified",
+      "source": [
+        "server/Auth.js:218-248",
+        "server/Auth.js:259-281"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-callback-without-auth-cb-cookie-redirects"
+      ],
+      "evidence": [],
+      "exceptions": [
+        "The scenario omits the cookie instead of waiting ten minutes; the branch and its partial write are the same. The exact age boundary is not exercised."
       ]
     }
   ],
@@ -251,18 +337,40 @@
     "go-backend/internal/auth/oidc_test.go:161#TestOIDCRejectsBadIDTokens",
     "go-backend/internal/auth/oidc_test.go:182#TestOIDCMobileFlow",
     "go-backend/internal/auth/oidc_test.go:234#TestOIDCUserMatching",
+    "go-backend/internal/auth/oidc_test.go:318#TestOIDCLogoutURLAndDiscovery",
     "go-backend/internal/auth/oidc_test.go:360#TestValidWebCallback",
-    "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce"
+    "go-backend/internal/auth/oidc_test.go:383#TestFlowsExpireAndAreTakenOnce",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-auto-register-creates-linked-user",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-disabled-or-provider-failed-creates-nothing",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-invalid-id-tokens-create-no-user",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auto-register-emits-user-added-to-admins-only",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-links-existing-user-and-keeps-fields",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-match-unverified-email-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-repeat-web-login-reuses-user-adds-session",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-maps-admin-then-downgrades-user",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-group-claim-missing-denied",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-applies-to-user",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-missing-denied-and-user-removed",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-advanced-perms-claim-ignored-for-admin",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-state-bound-to-flow-and-used-once",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-start-and-callback-cookie-and-jwt-shape",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-token-exchange-persists-one-user-and-session",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-wrong-verifier-follows-web-redirect",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-logout-returns-end-session-url-and-revokes-session",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-flow-completes-after-other-requests",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-mobile-redirect-consumed-or-unknown-state",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-email-link-unlink-relink",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-root-user-cannot-be-downgraded",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-auth-method-toggle-disables-and-reenables",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-settings-and-strategy-survive-restart",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-callback-without-auth-cb-cookie-redirects",
+    "go-backend/testmachine/scenarios/oidc/run_test.go#TestReplacement/oidc-web-logout-without-end-session-returns-null"
   ],
-  "evidence": [
-    "go-backend/testmachine/contracts/parity/oidc-differential-report.json (pinned upstream v2.37.2: 24 local mock-provider cases matched; exact limits in provenance)"
-  ],
+  "evidence": [],
   "exceptions": [
-    "Exact 24-hour session expiry and rolling session-touch renewal, failure/logout cookie clearing, other callback variants, and general Socket.IO event inventory remain unverified.",
-    "OIDC capability normal/error/edge categories and repeat/changed state scenarios remain unverified as a whole despite the named verified invariants; no full OIDC parity claim is made.",
-    "Force/refresh is not an OIDC operation in the pinned route contract; the capability has no force scenario.",
-    "Review M1 follow-up (2026-10-30): F05 now implements and differentially verifies local login/logout connect.sid regeneration, including actual-cookie login \u2192 repeated logout relationships. OIDC start/callback/logout value relationships remain open because oidc-differential normalizes connect.sid values; do not infer OIDC value parity from the local-session evidence.",
-    "Current Go assertion tests were remapped to auth/oidc_test.go; previous identity package paths were stale. Historical Node differential reports are retained as provenance but are not treated as current Go assertion evidence. Force has no OIDC operation in the pinned route contract.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "force is not applicable: no OIDC operation in the pinned route contract has a force, override or refresh mode.",
+    "Exact 24-hour session expiry and the ten-minute mobile-redirect boundary are not executable; the shared scenarios assert every deterministic response around them.",
+    "The current shared scenarios replace the historical differential observations; the earlier reports remain provenance only.",
+    "Root users cannot be downgraded by the group claim, but upstream writes the subject link before refusing; the scenario asserts the denial and the admin-group login and clears the link instead of pinning that half-state."
   ]
 }
