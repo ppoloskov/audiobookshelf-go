@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/feeds/:id/close. Admin closes the selected feed, deleting its episode links and emitting rss_feed_closed; closed public URLs deny and media remains intact.",
+  "contract": "POST /api/feeds/:id/close. Admin-only. 404 for an unknown feed id. Deletes the feeds row and cascades its feed episodes, emits rss_feed_closed with the closed feed's minified payload and answers 200. Media files and entity rows are untouched, and the entity can be reopened with a new slug afterwards. The same close runs from the entity-deletion call sites (item delete, collection delete, emptied series), which are asserted by the rss_feed_closed record.",
   "source": [
     "server/routers/ApiRouter.js:314",
     "server/controllers/RSSFeedController.js:194",
@@ -20,12 +20,21 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-deletes-feed-and-episodes",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-denies-unknown-and-non-admin",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-rejection-changes-nothing",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-fixture-feed-cascades-podcast-episodes",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-twice-is-404",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-allows-reopening-the-entity",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-on-empty-series-and-feedless-item-delete"
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
+    "The empty-series cleanup call site (ApiRouter.js:457, BookScanner.js:1002) shares RssFeedManager.closeFeedsForEntityIds with the proven collection/item sites; it is not separately driven because it requires deleting the last book of a series during a scan.",
+    "The close response is sendStatus(200) with no body; the body text is not asserted.",
+    "Item deletion closes only the first feed found for the entity (findOne); extra feeds for the same item stay until opened feeds are closed individually or boot cleanup removes them. The scenarios do not pin that accident: they assert the single-feed case and only one close per entity."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,20 +47,26 @@
     {
       "id": "INV-R191-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/feeds/:id/close. Admin closes the selected feed, deleting its episode links and emitting rss_feed_closed; closed public URLs deny and media remains intact.",
+      "contract": "POST /api/feeds/:id/close by an admin answers 200 and deletes the feed row together with all of its feed episode rows, emits rss_feed_closed with the closed feed's minified payload, makes the slug's XML, cover and enclosure answer 404, and leaves the library item/collection/series rows and the episode media files unchanged. Repeating the close answers 404 and changes nothing. Reopening the entity afterwards with a new slug creates a new feed id that appears in the list and serves the entity's current episodes. A non-admin gets 403 and an anonymous caller 401. Deleting the only book of a series with an open feed removes the emptied series and closes that series feed; deleting an item without a feed succeeds and changes no feed row.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:314",
-        "server/controllers/RSSFeedController.js:194",
-        "server/controllers/RSSFeedController.js:176"
+        "server/controllers/RSSFeedController.js:176-190,194-204",
+        "server/managers/RssFeedManager.js:355-393",
+        "server/models/Feed.js:80-88",
+        "server/controllers/CollectionController.js:214-224",
+        "server/routers/ApiRouter.js:385-388"
       ],
       "tests": [
-        "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-deletes-feed-and-episodes",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-denies-unknown-and-non-admin",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-rejection-changes-nothing",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-fixture-feed-cascades-podcast-episodes",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-twice-is-404",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-allows-reopening-the-entity",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/close-feed-on-empty-series-and-feedless-item-delete"
       ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
     }
   ]
 }

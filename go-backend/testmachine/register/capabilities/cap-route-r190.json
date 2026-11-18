@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/feeds/series/:seriesId/open. Admin opens a series feed with unique slug, ordered series books and stable feed/episode identities, emitting rss_feed_open after successful persistence.",
+  "contract": "POST /api/feeds/series/:seriesId/open. Admin-only. 400 for a missing/non-string body or a used slug before the entity lookup, 404 unknown series, 400 when none of its books has audio files. On success persists a series feed (distinct author names, first book cover, newest source timestamp, siteURL /library/:libraryId/series/:seriesId) with episodes in bookSeries sequence order and emits rss_feed_open.",
   "source": [
     "server/routers/ApiRouter.js:313",
     "server/controllers/RSSFeedController.js:194",
@@ -19,12 +19,19 @@
     "edge": "unverified"
   },
   "stateful": true,
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-persists-ordered-books",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-author-and-site-shape",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-refresh-keeps-episode-ids",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-validation-and-no-audio",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-duplicate-slug-rejected",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-rejection-is-silent"
+  ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-    "No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet."
+    "force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
+    "A series with no audio book is produced by attaching a new series to the ebook-only fixture book through PATCH /api/items/:id/media, the only API path that creates a series.",
+    "The 500 transaction-failure branch is not reachable through the API and is not asserted."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,18 +44,38 @@
     {
       "id": "INV-R190-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/feeds/series/:seriesId/open. Admin opens a series feed with unique slug, ordered series books and stable feed/episode identities, emitting rss_feed_open after successful persistence.",
+      "contract": "POST /api/feeds/series/:seriesId/open by an admin answers 200 and persists one feed with entityType 'series', entityId, entityUpdatedAt = the newest of the series' updatedAt and its books' book/libraryItem updatedAt, title=name, description=description||'', author = distinct book author names (each once), podcastType 'serial', explicit = any book explicit, coverPath/imageURL from the first book with a cover, siteURL /library/<libraryId of the first audio book>/series/:seriesId, and one feed episode per track of every book with audio files in bookSeries sequence order (sequence CAST AS FLOAT ASC), pubDates one minute apart from the earliest added library item in GMT. The XML lists the same order with absolute enclosures. After a series book's title changes the next read refreshes the row and renames the affected episode while all episode ids and enclosure URLs stay.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:313",
-        "server/controllers/RSSFeedController.js:194",
-        "server/controllers/RSSFeedController.js:133"
+        "server/controllers/RSSFeedController.js:133-174",
+        "server/models/Feed.js:291-368",
+        "server/models/Series.js:144-166",
+        "server/models/FeedEpisode.js:217-244",
+        "server/managers/RssFeedManager.js:88-157"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-persists-ordered-books",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-author-and-site-shape",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-refresh-keeps-episode-ids"
+      ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R190-CONTRACT-002",
+      "class": "auth",
+      "contract": "The route validates the body before the entity (unknown series without a body answers 400, with a body 404), rejects a series whose only book has no audio files with 400, answers 403 to a non-admin and 401 without a token, answers 400 for a used slug, and every rejection persists nothing and emits no rss_feed_open.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/RSSFeedController.js:133-174,194-204"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-validation-and-no-audio",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-duplicate-slug-rejected",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-series-feed-rejection-is-silent"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

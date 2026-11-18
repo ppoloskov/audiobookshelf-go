@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/feeds/item/:itemId/open. Admin opens an item feed with unique slug/serverAddress/metadataDetails, persisted feed episodes and rss_feed_open event; repeated slug conflicts return 400.",
+  "contract": "POST /api/feeds/item/:itemId/open. Admin-only. 404 unknown item (checked before the body), 403 when the admin cannot access the item's library, 400 for a missing/non-string serverAddress or slug or an item without audio tracks, 400 when the slug is in use. On success persists one feed (slug as id, metadata-derived fields, absolute image/site URLs) and one feed episode per audio track, and emits rss_feed_open with the minified feed.",
   "source": [
     "server/routers/ApiRouter.js:311",
     "server/controllers/RSSFeedController.js:194",
@@ -20,12 +20,20 @@
   },
   "stateful": true,
   "tests": [
-    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-persists-and-serves",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-defaults-and-invalid-metadata",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-after-media-change",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-validates-entity-access-and-body",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-duplicate-slug-rejected",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-rejection-is-silent"
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
+    "serverAddress is persisted and returned but never used to build feed URLs (the live request origin is used, RssFeedManager.js:186); the scenarios assert both facts.",
+    "The 500 'Failed to open RSS feed' branch requires a database failure inside the create transaction (Feed.js:184-188); it is not reachable through the API and is not asserted.",
+    "Error response text ('Invalid request body', 'Slug already in use', 'Item has no audio tracks') is shown as a toast by the client but not parsed; only statuses are asserted."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,20 +46,39 @@
     {
       "id": "INV-R188-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/feeds/item/:itemId/open. Admin opens an item feed with unique slug/serverAddress/metadataDetails, persisted feed episodes and rss_feed_open event; repeated slug conflicts return 400.",
+      "contract": "POST /api/feeds/item/:itemId/open by an admin answers 200 with {feed: minified} and, in one transaction, persists a feeds row with slug=the request slug, entityType 'libraryItem', entityId=the item, entityUpdatedAt=max(item.updatedAt, book/podcast updatedAt), serverAddress exactly as sent, feedURL /feed/:slug, imageURL /feed/:slug/cover<ext>?ts=<entityUpdatedAt> or /Logo.png when there is no cover, siteURL /item/:itemId, title/description/author from the media, podcastType 'serial' for books, language, explicit, preventIndexing (default true), ownerName/ownerEmail (only string values, else NULL), coverPath and userId=the caller, plus one feedEpisode per track or podcast episode (title, author, siteURL, enclosureURL /feed/:slug/item/:episodeId/media<ext>, enclosureType, enclosureSize, pubDate offset one minute per track from the item createdAt in GMT, duration, podcast season/episode/episodeType, filePath, explicit). The opened feed is listed and its unauthenticated XML, cover and enclosure serve the persisted values, and a later media change is reflected by a new feed opened for the same item.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:311",
-        "server/controllers/RSSFeedController.js:194",
-        "server/controllers/RSSFeedController.js:41"
+        "server/controllers/RSSFeedController.js:41-88",
+        "server/managers/RssFeedManager.js:272-305",
+        "server/models/Feed.js:112-189",
+        "server/models/FeedEpisode.js:141-206"
       ],
       "tests": [
-        "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-persists-and-serves",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-defaults-and-invalid-metadata",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-after-media-change"
       ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R188-CONTRACT-002",
+      "class": "auth",
+      "contract": "The route is rejected in upstream's order: 404 for an unknown item even without a body, then 403 for an admin denied the item's library, then 400 for a missing body, a non-string or missing serverAddress/slug, an item without audio tracks, and a slug already used by any feed. A non-admin gets 403 from the route middleware and an anonymous caller 401. Every rejection persists no feed or episode row and emits no rss_feed_open.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/RSSFeedController.js:41-88,194-204",
+        "server/models/User.js:646-683",
+        "server/managers/RssFeedManager.js:72-80,293-305"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-validates-entity-access-and-body",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-duplicate-slug-rejected",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-item-feed-rejection-is-silent"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }

@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing rss_feed_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Socket.IO outgoing rss_feed_open: emitted once per successful feed open (item, collection or series) with the minified feed payload {id, entityType, entityId, feedUrl, meta{title, description, preventIndexing, ownerName, ownerEmail}} to every authenticated socket of every user (root and non-admin alike). Rejected opens, opens by non-admins and unauthenticated sockets produce no event; reopening a feed emits again with the new id.",
   "source": [
     "server/managers/RssFeedManager.js:302",
     "server/managers/RssFeedManager.js:323",
@@ -18,24 +18,40 @@
     "error": "unverified",
     "edge": "unverified"
   },
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-reaches-every-authenticated-socket",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-rejected-open",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-carries-collection-entity",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-emits-once-per-open-in-order",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-after-close-carries-new-id",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-failed-write"
+  ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: the feed event producers (open, close, item/collection deletion) have no force, hard or override mode.",
+    "Emission timing is asserted through the socket wait window (the event is delivered while the HTTP response is produced); exact scheduling is not asserted.",
+    "Revoked-session and disconnected-socket variants are covered by the realtime packet's auth/socket records, not duplicated here."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-RSS-FEED-OPEN",
-      "class": "repeat_operation",
-      "contract": "Socket.IO outgoing rss_feed_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "class": "event",
+      "contract": "Each successful POST /api/feeds/{item,collection,series}/:id/open emits exactly one rss_feed_open whose single argument equals the minified feed the route returned (id, entityType, entityId, feedUrl, meta.title, meta.description, meta.preventIndexing, meta.ownerName, meta.ownerEmail and no other client-read field), delivered to the root socket and to a non-admin user's socket with identical payloads and to no unauthenticated socket. Two opens emit two events in creation order; a reopen after close emits the new feed id with the same feedUrl. Opens rejected by the admin middleware (403), the auth layer (401), a used slug, an unknown entity or a source without audio tracks emit no event.",
       "status": "unverified",
       "source": [
-        "server/managers/RssFeedManager.js:302",
-        "server/managers/RssFeedManager.js:323",
-        "server/managers/RssFeedManager.js:344"
+        "server/managers/RssFeedManager.js:293-347",
+        "server/SocketAuthority.js:57-65",
+        "server/controllers/RSSFeedController.js:41-204"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-reaches-every-authenticated-socket",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-rejected-open",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-carries-collection-entity",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-emits-once-per-open-in-order",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-after-close-carries-new-id",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-open-not-emitted-for-failed-write"
+      ],
       "evidence": [],
       "exceptions": []
     }
@@ -44,7 +60,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

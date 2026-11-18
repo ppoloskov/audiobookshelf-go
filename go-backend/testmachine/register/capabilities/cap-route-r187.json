@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "GET /api/feeds. Admin feed listing returns the persisted feeds with source-entity metadata and slug/URL fields, excluding unauthorized callers.",
+  "contract": "GET /api/feeds. Admin feed listing: a feeds array of full client feed objects (id, slug, userId, entityType, entityId, entityUpdatedAt, coverPath, meta, serverAddress, feedUrl, episodes, createdAt, updatedAt) and a minified array with the id/entityType/entityId/feedUrl/meta subset, both index-aligned and covering every persisted feed including feeds opened after startup. 401 without a token, 403 for a non-admin.",
   "source": [
     "server/routers/ApiRouter.js:310",
     "server/controllers/RSSFeedController.js:194",
@@ -20,30 +20,36 @@
   },
   "stateful": false,
   "tests": [
-    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+    "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-fixture-feeds-with-full-episodes",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-reflects-opened-feeds",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-feeds-denies-non-admin-and-anonymous"
   ],
   "evidence": [],
   "exceptions": [
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "Array order is not asserted (only that feeds[] and minified[] are index-aligned): the config page maps the arrays and sorts episodes for display (client/pages/config/rss-feeds.vue:140-146).",
+    "Unexecuted upstream helper: RssFeedManager.findFeedForEntityId (L59-65) is called by item/series detail projections (LibraryItemController.js:82, SeriesController.js:57, LibraryController.js:800), not by GET /api/feeds; those projections belong to the item_read/browse records."
   ],
   "invariants": [
     {
       "id": "INV-R187-CONTRACT-001",
       "class": "shape",
-      "contract": "GET /api/feeds. Admin feed listing returns the persisted feeds with source-entity metadata and slug/URL fields, excluding unauthorized callers.",
+      "contract": "GET /api/feeds as root returns one feeds[] entry and one index-aligned minified[] entry per persisted feed with the full client shape: id, slug, userId (feed owner), entityType, entityId, entityUpdatedAt (millisecond timestamp of the newest source entity), coverPath (string or null), meta{title, description (string or null), author, imageUrl, feedUrl, link, explicit, type, language (string or null), preventIndexing, ownerName, ownerEmail}, serverAddress, feedUrl, episodes[] with id/title/description/enclosure{url,size,type}/pubDate/link/author/explicit/duration/season/episode/episodeType/fullPath and createdAt/updatedAt millisecond timestamps. opened feeds appear with their persisted values; a non-admin gets 403 and an anonymous caller 401 without feed data.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:310",
-        "server/controllers/RSSFeedController.js:194",
-        "server/controllers/RSSFeedController.js:25"
+        "server/controllers/RSSFeedController.js:25-33",
+        "server/managers/RssFeedManager.js:399-405",
+        "server/models/Feed.js:645-691",
+        "server/models/FeedEpisode.js:287-308",
+        "server/routers/ApiRouter.js:310"
       ],
       "tests": [
-        "go-backend/internal/share/share_test.go:112#TestFeedOpenListPublicRefresh"
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-fixture-feeds-with-full-episodes",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-reflects-opened-feeds",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/list-feeds-denies-non-admin-and-anonymous"
       ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
     }
   ]
 }

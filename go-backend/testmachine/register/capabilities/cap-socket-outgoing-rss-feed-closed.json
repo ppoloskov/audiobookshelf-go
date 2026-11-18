@@ -4,7 +4,7 @@
   "kind": "behaviour",
   "scope": "in",
   "status": "unverified",
-  "contract": "Socket.IO outgoing rss_feed_closed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+  "contract": "Socket.IO outgoing rss_feed_closed: emitted once per closed feed with the closed feed's minified payload to every authenticated socket. Producers are POST /api/feeds/:id/close, deletion of the owning library item, deletion of a collection and removal of an emptied series. A rejected close emits nothing and unauthenticated sockets receive nothing.",
   "source": [
     "server/managers/RssFeedManager.js:358"
   ],
@@ -22,26 +22,40 @@
   "tests": [
     "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
     "go-backend/internal/item/delete_test.go:114#TestDeleteItemPurgesCoverCacheAndMetadata",
-    "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed"
+    "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-reaches-every-authenticated-socket",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-denied-close",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-collection-delete",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-emits-once",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-item-delete",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-unknown-feed"
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "force is not applicable: the feed event producers (open, close, item/collection deletion) have no force, hard or override mode.",
+    "The emptied-series call site (ApiRouter.js:457) shares closeFeedsForEntityIds with the proven item/collection sites and is not separately driven (it needs the last book of a series removed during a scan).",
+    "The item-delete scenario also emits item_removed and the collection-delete scenario also emits collection_removed; only rss_feed_closed is asserted here because the other events belong to their own records."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-RSS-FEED-CLOSED",
-      "class": "repeat_operation",
-      "contract": "Socket.IO outgoing rss_feed_closed: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: all_authorized_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "class": "event",
+      "contract": "Every successful close emits exactly one rss_feed_closed whose single argument equals the minified feed (id, entityType, entityId, feedUrl, meta.title, meta.description, meta.preventIndexing, meta.ownerName, meta.ownerEmail) to the root socket and to a non-admin user's socket with identical payloads and to no unauthenticated socket. Closing the same feed twice emits one event (the second close answers 404). Deleting a collection with an open feed and hard-deleting a library item with an open feed each emit rss_feed_closed for that feed. A close by a non-admin (403), without a token (401) or for an unknown id (404) emits nothing.",
       "status": "unverified",
       "source": [
-        "server/managers/RssFeedManager.js:358"
+        "server/managers/RssFeedManager.js:355-378",
+        "server/SocketAuthority.js:57-65",
+        "server/controllers/CollectionController.js:214-224",
+        "server/routers/ApiRouter.js:385-388"
       ],
       "tests": [
-        "go-backend/internal/item/delete_test.go:45#TestDeleteItemCascadesToEverythingReferencingIt",
-        "go-backend/internal/item/delete_test.go:114#TestDeleteItemPurgesCoverCacheAndMetadata",
-        "go-backend/internal/list/list_test.go:228#TestCollectionDeleteClosesRSSFeed"
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-reaches-every-authenticated-socket",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-denied-close",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-collection-delete",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-emits-once",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-on-item-delete",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/rss-feed-closed-not-emitted-for-unknown-feed"
       ],
       "evidence": [],
       "exceptions": []
@@ -51,7 +65,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

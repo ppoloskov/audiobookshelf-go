@@ -4,7 +4,7 @@
   "kind": "operation",
   "scope": "in",
   "status": "implemented",
-  "contract": "POST /api/feeds/collection/:collectionId/open. Admin opens a collection feed with unique slug and ordered accessible source books, persisting stable feed/episode identities and emitting rss_feed_open.",
+  "contract": "POST /api/feeds/collection/:collectionId/open. Admin-only. 400 for a missing/non-string body or a used slug before the entity lookup, 404 unknown collection, 400 when none of its books has audio files. On success persists a collection feed (distinct author names joined, first book cover, collection updatedAt timestamp, siteURL /collection/:id) with episodes for the books that have audio, in collection order, and emits rss_feed_open.",
   "source": [
     "server/routers/ApiRouter.js:312",
     "server/controllers/RSSFeedController.js:194",
@@ -19,12 +19,23 @@
     "edge": "unverified"
   },
   "stateful": true,
-  "tests": [],
+  "tests": [
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-persists-books-in-order",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-filters-books-without-audio",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-adds-book-episodes",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-validation-order",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-duplicate-slug-rejected",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-rejection-is-silent",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-author-list-more-than-three",
+    "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-drops-removed-book"
+  ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement.",
-    "No current named package test establishes the successful endpoint result; add explicit success and failure/state assertions in the owner packet."
+    "force is not applicable: no feed route has a force, hard or override mode; a feed is refreshed implicitly when its entity is newer than entityUpdatedAt.",
+    "Adding a book to a collection does not change the collection row's updatedAt (only the join rows), so the refresh trigger there is the episode-count mismatch; the scenario asserts the feed row's updatedAt advances while entityUpdatedAt stays.",
+    "The 500 'Failed to open RSS feed' transaction-failure branch is not reachable through the API and is not asserted.",
+    "Error text is not asserted (display only in the client toast).",
+    "Unexecuted upstream range: Feed.js:275-278 (collection create rollback) needs a database failure; CollectionController code outside create/addBook/delete belongs to the list packet."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,18 +48,39 @@
     {
       "id": "INV-R189-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/feeds/collection/:collectionId/open. Admin opens a collection feed with unique slug and ordered accessible source books, persisting stable feed/episode identities and emitting rss_feed_open.",
+      "contract": "POST /api/feeds/collection/:collectionId/open by an admin answers 200 and persists one feed with entityType 'collection', entityId, entityUpdatedAt = max(collection.updatedAt, each audio book's book/libraryItem updatedAt), title=name, description=description||'' (empty string for NULL), author = the first three distinct book author names joined with ', ' plus ' & more' beyond three, podcastType 'serial', explicit = any book explicit, coverPath and imageURL from the first book with a cover (or /Logo.png), siteURL /collection/:id, and four feed episodes for the fixture's two audio books in collection order with pubDates one minute apart from the earliest added library item in GMT. The unauthenticated XML lists the episodes in that order with absolute enclosures; a collection that also holds a book without audio files yields episodes only for the audio books; adding a book later is reflected on the next read (episode count grows, existing episode ids and enclosures stay). With more than three distinct book authors the joined author ends with ' & more'. Removing a book from the collection drops its episodes on the next read while the other episode ids stay.",
       "status": "unverified",
       "source": [
-        "server/routers/ApiRouter.js:312",
-        "server/controllers/RSSFeedController.js:194",
-        "server/controllers/RSSFeedController.js:90"
+        "server/controllers/RSSFeedController.js:90-131",
+        "server/models/Feed.js:201-279",
+        "server/models/FeedEpisode.js:217-244",
+        "server/managers/RssFeedManager.js:88-157"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-persists-books-in-order",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-filters-books-without-audio",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-adds-book-episodes",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-author-list-more-than-three",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-refresh-drops-removed-book"
+      ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
+    },
+    {
+      "id": "INV-R189-CONTRACT-002",
+      "class": "auth",
+      "contract": "The route validates the body before the entity (an unknown collection without a body answers 400, with a body 404), rejects a collection whose books all lack audio files with 400, answers 403 to a non-admin and 401 without a token, answers 400 for a used slug, and every rejection persists nothing and emits no rss_feed_open.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/RSSFeedController.js:90-131,194-204"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-validation-order",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-duplicate-slug-rejected",
+        "go-backend/testmachine/scenarios/feeds/run_test.go#TestReplacement/open-collection-feed-rejection-is-silent"
+      ],
+      "evidence": [],
+      "exceptions": []
     }
   ]
 }
