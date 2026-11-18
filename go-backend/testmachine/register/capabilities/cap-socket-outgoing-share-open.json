@@ -19,28 +19,38 @@
   "tests": [],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: no share management or public consumer route has a force, hard or refresh/override mode."
   ],
   "stateful": true,
   "invariants": [
     {
       "id": "INV-SOCKET-OUTGOING-SHARE-OPEN",
       "class": "repeat_operation",
-      "contract": "Socket.IO outgoing share_open: preserve the payload field types/optional arguments, recipient decisions, trigger conditions and observable ordering at ALL listed source call sites. Source audience hints: admin_clients. Verify authorized/admin/owner/restricted/revoked sockets and initial/repeat/changed/failure transitions; literal test mentions below are discovery leads only.",
+      "contract": "Opening a media item share (POST /api/share/mediaitem) emits exactly one share_open per created share, after the row is persisted, to every authenticated admin socket through SocketAuthority.adminEmitter. The event has one argument: the same client JSON the create route returned (id, mediaItemId, mediaItemType, slug, expiresAt, createdAt, updatedAt, isDownloadable). Non-admin and unauthenticated sockets never receive it, rejected creates emit nothing, and a deleted-then-recreated share emits one new event carrying the new share id.",
       "status": "unverified",
       "source": [
-        "server/managers/ShareManager.js:142"
+        "server/managers/ShareManager.js:136-143",
+        "server/SocketAuthority.js:81-90"
       ],
-      "tests": [],
+      "tests": [
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/share-open-reaches-admin-sockets",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/share-open-one-event-per-create",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/share-open-after-recreate-has-new-id",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/share-open-silent-on-rejected-create"
+      ],
       "evidence": [],
-      "exceptions": []
+      "exceptions": [
+        "Audience is admin sockets only (SocketAuthority.adminEmitter), not all authorized clients.",
+        "force is not applicable: no share management or public consumer route has a force, hard or refresh/override mode."
+      ]
     }
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }

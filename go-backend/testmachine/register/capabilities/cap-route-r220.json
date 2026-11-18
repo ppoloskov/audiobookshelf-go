@@ -24,8 +24,7 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: no share management or public consumer route has a force, hard or refresh/override mode."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -38,19 +37,27 @@
     {
       "id": "INV-R220-CONTRACT-001",
       "class": "state_transition",
-      "contract": "GET /public/share/:slug. Public share slug creates/reuses a cookie-bound playbackSession with requested resume time and consumed share/audioTrack fields; expired/missing shares deny and expire once.",
+      "contract": "GET /public/share/:slug is unauthenticated. An unknown slug answers 404 with no Set-Cookie. Otherwise it answers 200 with the share's client fields (id, mediaItemId, mediaItemType, slug, expiresAt null or ISO, createdAt, updatedAt, isDownloadable) and a playbackSession (playMethod 0, mediaPlayer 'web-share', clientName 'Abs Web Share', deviceInfo.deviceId equal to the share_session_id cookie) plus the item's tracks, chapters, duration and coverPath. Without a cookie it creates a session and a 30-day httpOnly share_session_id cookie from ?t (clamped at 0 and reset to 0 beyond the total duration); a known cookie for this share reuses the session and an in-duration ?t overrides currentTime; a cookie bound to another share closes that session and creates this share's session on the same cookie. A share past expiresAt is removed and answers 404; a podcastEpisode share answers 404 because only book library items are resolved. Timed shares are reopened and scheduled on server start, while a row whose expiresAt passed while the server was down is deleted on load and its slug answers 404.",
       "status": "unverified",
       "source": [
-        "server/routers/PublicRouter.js:16",
-        "server/controllers/ShareController.js:35"
+        "server/controllers/ShareController.js:35-136",
+        "server/objects/PlaybackSession.js:59-116",
+        "server/models/MediaItemShare.js:79-93"
       ],
       "tests": [
         "go-backend/internal/share/share_test.go:159#TestShareSessionProgressTrackDownload",
-        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute"
+        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-creates-cookie-session",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-reuses-session-and-time-query",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-switches-session-between-shares",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-unknown-invalid-cookie-and-expired",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-podcast-share-has-no-library-item",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/public-slug-reloads-persisted-shares"
       ],
       "evidence": [],
       "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
+        "Share playback sessions live only in ShareManager: a slug read or progress write creates no playbackSessions row; the share device is persisted in devices with clientName 'Abs Web Share'.",
+        "A malformed share_session_id is cleared and then reused verbatim as the new session id, as upstream does."
       ]
     }
   ]

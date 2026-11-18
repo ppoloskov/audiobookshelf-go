@@ -23,8 +23,7 @@
   ],
   "evidence": [],
   "exceptions": [
-    "No separate force/refresh mode is defined for this endpoint; any repeat, changed-input or lifecycle refresh remains unverified in the state scenarios.",
-    "Mapping only: no tests executed in this invocation. Historical evidence is retained for provenance and does not verify this checkout; named tests are assertion leads, not exhaustive proof of every stated requirement."
+    "force is not applicable: no share management or public consumer route has a force, hard or refresh/override mode."
   ],
   "state_scenarios": {
     "initial": "unverified",
@@ -37,19 +36,23 @@
     {
       "id": "INV-R222-CONTRACT-001",
       "class": "state_transition",
-      "contract": "GET /public/share/:slug/cover. Serve a share cover with image MIME/cache behavior and share expiry checks; missing/expired share or cover denies without arbitrary-file access.",
+      "contract": "GET /public/share/:slug/cover requires the share_session_id cookie (404 without), an open share and a session bound to that share, and a session coverPath (404 when the item has no cover). Success serves the item's cover file as image/jpeg with Accept-Ranges: bytes, an ETag and Last-Modified; If-None-Match with the returned ETag answers 304 with no body while a different tag returns the image. Deleted or expired shares answer 404 without image bytes. With USE_X_ACCEL the route answers 204 with X-Accel-Redirect naming the encoded absolute cover path and no body.",
       "status": "unverified",
       "source": [
-        "server/routers/PublicRouter.js:18",
-        "server/controllers/ShareController.js:140"
+        "server/controllers/ShareController.js:140-178",
+        "server/utils/fileUtils.js:442-448"
       ],
       "tests": [
-        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute"
+        "go-backend/internal/share/share_test.go:204#TestShareExpiryClosesOnceOnEveryRoute",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-serves-share-cover-image",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-repeats-and-answers-conditional",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-denies-missing-session-and-no-cover",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-closes-with-share-deletion",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-denies-after-expiry",
+        "go-backend/testmachine/scenarios/share/run_test.go#TestReplacement/cover-x-accel-redirect"
       ],
       "evidence": [],
-      "exceptions": [
-        "Assertion leads only; missing normal/error/edge and state-transition proof must be supplied by the owning packet."
-      ]
+      "exceptions": []
     }
   ]
 }
