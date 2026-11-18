@@ -6,7 +6,7 @@
   "proof": "Mapping only. No behavior tests executed by this renderer. Test references are assertion/discovery leads, not inferred full coverage.",
   "counts": {
     "requirements": 345,
-    "invariants": 660,
+    "invariants": 661,
     "route_sites": 226,
     "socket_sites": 165,
     "socket_names": 77,
@@ -32,12 +32,12 @@
     "go-backend/testmachine/register/capabilities/cap-flow-client-playback-session-sync.json": "89bdb29559a6456e4623e5c4b949d450e7d2909425829fcefa5d346b4d9fb47d",
     "go-backend/testmachine/register/capabilities/cap-flow-mail-smtp-mime.json": "3f90f7285f91ea86e7f1c5157c674e7fea3d7c76030a774a72da238685d2d496",
     "go-backend/testmachine/register/capabilities/cap-flow-notify-delivery.json": "577150b63a87696e2c73359b9bdba378eca0573639e24ce6c286bf34efeee19d",
-    "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "ee24b7e09a0606736c4dfc043330760514c2c3eaaf97d57bcde327742ab01a32",
+    "go-backend/testmachine/register/capabilities/cap-flow-settings-atomicity.json": "3f55271bfbb2452bb67a7882d9c7c89bcd1bbd11e65a6488b85262c736dadfc5",
     "go-backend/testmachine/register/capabilities/cap-flow-tools-job-lifecycle.json": "58d884439842456ee9aa81020c78561da5a22149c489f3fbda7f642c63741f04",
     "go-backend/testmachine/register/capabilities/cap-format-backup-archive.json": "d4f87440082f4205bc874fc6944bf1fe9fe6c71974a9edac29284ab8b2a447f5",
     "go-backend/testmachine/register/capabilities/cap-format-daily-logs.json": "791490b3f7f32ba24b0444cb92c61344e56d68cd6d9e8e09b9723131e571e027",
     "go-backend/testmachine/register/capabilities/cap-format-metadata-json.json": "0a00c4e9c8a8da5c0123a01a958dfa270241db1a0bc52e35133f5eb9c00c655b",
-    "go-backend/testmachine/register/capabilities/cap-persisted-column-semantics.json": "1f6ea6e059093ba69840774d83ae6a1b0db2b7386430f0c899b0c863d09d1de4",
+    "go-backend/testmachine/register/capabilities/cap-persisted-column-semantics.json": "ee5f345d6daac714e6c7cc364bd21033b6b23745706a4752bdd8e77facf930cd",
     "go-backend/testmachine/register/capabilities/cap-protocol-cors-basepath.json": "5045645a50d17b0ff75ba94c6ffad6c9c0c22a144ae68ce8b88c10c4ad493b6e",
     "go-backend/testmachine/register/capabilities/cap-protocol-ranges-cache.json": "abe41bb20d59448b2f72699d95d456468423f6cfbe04ece4fbefb24eb448d183",
     "go-backend/testmachine/register/capabilities/cap-route-r000.json": "0487359f55208128451b08448e259cf2263fe3f87125baf40db384e39fabd561",
@@ -350,7 +350,7 @@
     "go-backend/testmachine/register/capabilities/cap-sub-authorization-ownership.json": "34c749bdfe64802c5f32b01dc560aebe2b532c9aedb887c99faa7f70f2f84169",
     "go-backend/testmachine/register/capabilities/cap-sub-backup-scheduler.json": "be4d96243b031ec9c3a5e32115b47ff1335486bac2a8f56ee2cf9e9aeb39dfe7",
     "go-backend/testmachine/register/capabilities/cap-sub-covers.json": "60dd572222998a79bf6b59aa1539fd5e0d5e81de6b88244d78f81d64ce7979bb",
-    "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "e62a619000a7f72380ec13fe3f564fb7541c02082321cc514d684964b84dfc96",
+    "go-backend/testmachine/register/capabilities/cap-sub-database-schema.json": "197effbde241807b54bf83807e8a398d5a0d45ef92b8894d760e35a82f365ecf",
     "go-backend/testmachine/register/capabilities/cap-sub-destructive-cascades-w6.json": "07120296f9d06dd9ef9b92470c2a743b6898ef14c41da0262f2a631c8ceceda6",
     "go-backend/testmachine/register/capabilities/cap-sub-downloads.json": "324003bc9df308b695c26d0ca1e497c314d3a4407d1351add9ef06d6383de75f",
     "go-backend/testmachine/register/capabilities/cap-sub-oidc-auth.json": "46d41a1075ff3643681486947ad2c62ca8a97787bf3d5a61f3d16b2c9746cb16",
@@ -7544,6 +7544,9 @@
         "server/objects/settings/ServerSettings.js"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-initial",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-repeat",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-concurrent-merge",
         "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
         "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch"
@@ -7559,12 +7562,48 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: PATCH /api/settings exposes no force or override mode; upstream filters the request body down to the patchable keys and merges them (server/controllers/MiscController.js:152-163)."
+      ]
+    },
+    {
+      "requirement": "cap-flow-settings-atomicity",
+      "invariant": "INV-SETTINGS-FAILURE-001",
+      "owner": "settings",
+      "packet": "Q04",
+      "contract": "A settings upsert that fails in the database exits the server, leaves the persisted settings document and timestamp intact, and the installation loads the original settings and accepts writes again once the failure is removed.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:163-165",
+        "server/models/Setting.js:36-42",
+        "server/Server.js:269-292"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-failure-trigger"
+      ],
+      "evidence": [],
+      "cases": {
+        "normal": "unverified",
+        "error": "unverified",
+        "edge": "unverified"
+      },
+      "stateful": true,
+      "state_scenarios": {
+        "initial": "unverified",
+        "repeat": "unverified",
+        "changed": "unverified",
+        "force": "not_applicable",
+        "failure": "unverified"
+      },
+      "exceptions": [
+        "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: PATCH /api/settings exposes no force or override mode; upstream filters the request body down to the patchable keys and merges them (server/controllers/MiscController.js:152-163)."
       ]
     },
     {
@@ -7591,12 +7630,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
         "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: PATCH /api/settings exposes no force or override mode; upstream filters the request body down to the patchable keys and merges them (server/controllers/MiscController.js:152-163).",
         "This does not prove concurrent writes or database write-failure rollback."
       ]
     },
@@ -7624,12 +7664,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
         "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+        "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+        "force is not applicable: PATCH /api/settings exposes no force or override mode; upstream filters the request body down to the patchable keys and merges them (server/controllers/MiscController.js:152-163)."
       ]
     },
     {
@@ -7864,6 +7905,12 @@
         "go-backend/ARCHITECTURE.md"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-write-encodings",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-repeat-finish-unchanged",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-link-author-order",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-json-unknown-retained",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-rejected-write-unchanged",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-failed-write-journal",
         "go-backend/internal/db/types_test.go:18#TestTimeScan",
         "go-backend/internal/db/types_test.go:65#TestTimeValue",
         "go-backend/internal/db/types_test.go:84#TestTimeJSON",
@@ -7883,11 +7930,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: persisted column semantics expose no force or override operation; upstream writers only create, update and reject values (server/models/MediaProgress.js:190-245, server/models/Book.js:440-487, server/objects/settings/ServerSettings.js:365-381).",
+        "Malformed JSON text inside a JSON column is not asserted against upstream: Sequelize parses JSON columns with a bare JSON.parse on read (node_modules/sequelize/lib/dialects/sqlite/data-types.js), so unknown-but-valid JSON fields are the retained-until-changed surface upstream tolerates; the scenario asserts unknown fields survive boot and rewritten writes."
       ]
     },
     {
@@ -7917,11 +7966,13 @@
         "initial": "unverified",
         "repeat": "unverified",
         "changed": "unverified",
-        "force": "unverified",
+        "force": "not_applicable",
         "failure": "unverified"
       },
       "exceptions": [
-        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+        "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+        "force is not applicable: persisted column semantics expose no force or override operation; upstream writers only create, update and reject values (server/models/MediaProgress.js:190-245, server/models/Book.js:440-487, server/objects/settings/ServerSettings.js:365-381).",
+        "Malformed JSON text inside a JSON column is not asserted against upstream: Sequelize parses JSON columns with a bare JSON.parse on read (node_modules/sequelize/lib/dialects/sqlite/data-types.js), so unknown-but-valid JSON fields are the retained-until-changed surface upstream tolerates; the scenario asserts unknown fields survive boot and rewritten writes."
       ]
     },
     {
@@ -28486,7 +28537,9 @@
         "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
         "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing",
         "go-backend/testmachine/parity/existing-db-matrix.cjs",
-        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/existing-install-repeat-boot"
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/existing-install-repeat-boot",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-missing-settings-row",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-corrupt-refused"
       ],
       "evidence": [
         "go-backend/testmachine/parity/existing-db-matrix.cjs (2026-10-30 run: 12/12 PASS on fresh create-fixture manifest)",
@@ -28512,7 +28565,9 @@
         "Mapping correction: historical exact-byte/Express-header observations are provenance, not new requirements beyond persisted data meaning and real client behavior.",
         "force is not applicable: production boot exposes no force action; Database.init(force) is an internal test-only create/drop switch.",
         "Covers boot-time behavior only; serving mutations after boot verify elsewhere. Upstream equivalence limited to the pinned-release matrix scenarios.",
-        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant."
+        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant.",
+        "Upstream v2.37.2 does not refuse unsupported migration states: MigrationManager runs down/up migrations or repairs the version row (server/managers/MigrationManager.js:72-134, 209-250), and running historical migrations is an agreed exclusion; the refusal-without-mutation half is replacement boot behaviour proven by go-backend/testmachine/parity/existing-db-matrix.cjs.",
+        "The upstream boot scenarios cover the pinned release only: a boot without the server-settings row and a refused boot on an unreadable database file."
       ]
     },
     {

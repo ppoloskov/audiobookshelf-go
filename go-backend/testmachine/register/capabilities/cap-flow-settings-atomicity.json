@@ -18,6 +18,10 @@
   },
   "stateful": true,
   "tests": [
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-initial",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-repeat",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-concurrent-merge",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-failure-trigger",
     "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
     "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
     "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch",
@@ -31,13 +35,14 @@
   "evidence": [],
   "exceptions": [
     "Current named Go tests are assertion leads only; no fresh verification was run during inventory reconciliation.",
-    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review."
+    "2026-11-13 reconciliation: previous execution evidence is historical; current rewritten implementation needs fresh requirement-specific proof. Accepted playback lifecycle proof remains separately scoped in its architect review.",
+    "force is not applicable: PATCH /api/settings exposes no force or override mode; upstream filters the request body down to the patchable keys and merges them (server/controllers/MiscController.js:152-163)."
   ],
   "state_scenarios": {
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   },
   "invariants": [
@@ -50,9 +55,28 @@
         "server/objects/settings/ServerSettings.js"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-initial",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-patch-repeat",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-concurrent-merge",
         "go-backend/internal/backup/backup_test.go:278#TestUpdatePathAndSettingsFollowing",
         "go-backend/internal/notify/notify_test.go:115#TestSettingsDefaultsAndPatch",
         "go-backend/internal/mail/mail_test.go:104#TestSettingsDefaultsAndPatch"
+      ],
+      "evidence": [],
+      "exceptions": []
+    },
+    {
+      "id": "INV-SETTINGS-FAILURE-001",
+      "class": "transaction",
+      "contract": "A settings upsert that fails in the database exits the server, leaves the persisted settings document and timestamp intact, and the installation loads the original settings and accepts writes again once the failure is removed.",
+      "status": "unverified",
+      "source": [
+        "server/controllers/MiscController.js:163-165",
+        "server/models/Setting.js:36-42",
+        "server/Server.js:269-292"
+      ],
+      "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/settings-failure-trigger"
       ],
       "evidence": [],
       "exceptions": []

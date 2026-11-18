@@ -25,6 +25,8 @@
     "go-backend/internal/db/open_test.go:140#TestOpenRefusesOtherMigrationState",
     "go-backend/internal/db/open_test.go:181#TestOpenAcceptsTheUpstreamFixture",
     "go-backend/internal/db/open_test.go:220#TestOpenOrCreateLeavesAnExistingDatabaseAlone",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-missing-settings-row",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-corrupt-refused",
     "go-backend/internal/db/models_test.go:70#TestStructsMatchSchemaColumns",
     "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
     "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing"
@@ -70,7 +72,9 @@
         "go-backend/internal/db/models_test.go:153#TestRowsRoundTripThroughInsert",
         "go-backend/internal/db/models_test.go:329#TestFixtureRewriteChangesNothing",
         "go-backend/testmachine/parity/existing-db-matrix.cjs",
-        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/existing-install-repeat-boot"
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/existing-install-repeat-boot",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-missing-settings-row",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/boot-corrupt-refused"
       ],
       "evidence": [
         "go-backend/testmachine/parity/existing-db-matrix.cjs (2026-10-30 run: 12/12 PASS on fresh create-fixture manifest)",
@@ -78,7 +82,9 @@
       ],
       "exceptions": [
         "Covers boot-time behavior only; serving mutations after boot verify elsewhere. Upstream equivalence limited to the pinned-release matrix scenarios.",
-        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant."
+        "The store scenario is partial evidence only; its claim does not cover every obligation of this invariant.",
+        "Upstream v2.37.2 does not refuse unsupported migration states: MigrationManager runs down/up migrations or repairs the version row (server/managers/MigrationManager.js:72-134, 209-250), and running historical migrations is an agreed exclusion; the refusal-without-mutation half is replacement boot behaviour proven by go-backend/testmachine/parity/existing-db-matrix.cjs.",
+        "The upstream boot scenarios cover the pinned release only: a boot without the server-settings row and a refused boot on an unreadable database file."
       ]
     },
     {

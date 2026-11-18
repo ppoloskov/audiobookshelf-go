@@ -19,6 +19,12 @@
     "edge": "unverified"
   },
   "tests": [
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-write-encodings",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-repeat-finish-unchanged",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-link-author-order",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-json-unknown-retained",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-rejected-write-unchanged",
+    "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-failed-write-journal",
     "go-backend/internal/db/types_test.go:18#TestTimeScan",
     "go-backend/internal/db/types_test.go:65#TestTimeValue",
     "go-backend/internal/db/types_test.go:84#TestTimeJSON",
@@ -29,7 +35,9 @@
   ],
   "evidence": [],
   "exceptions": [
-    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required."
+    "Named tests are assertion leads, not complete coverage or a current execution claim. Missing source/client state and failure variants remain required.",
+    "force is not applicable: persisted column semantics expose no force or override operation; upstream writers only create, update and reject values (server/models/MediaProgress.js:190-245, server/models/Book.js:440-487, server/objects/settings/ServerSettings.js:365-381).",
+    "Malformed JSON text inside a JSON column is not asserted against upstream: Sequelize parses JSON columns with a bare JSON.parse on read (node_modules/sequelize/lib/dialects/sqlite/data-types.js), so unknown-but-valid JSON fields are the retained-until-changed surface upstream tolerates; the scenario asserts unknown fields survive boot and rewritten writes."
   ],
   "stateful": true,
   "invariants": [
@@ -44,6 +52,12 @@
         "go-backend/ARCHITECTURE.md"
       ],
       "tests": [
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-write-encodings",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-repeat-finish-unchanged",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-link-author-order",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-json-unknown-retained",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-rejected-write-unchanged",
+        "go-backend/testmachine/scenarios/store/run_test.go#TestReplacement/column-failed-write-journal",
         "go-backend/internal/db/types_test.go:18#TestTimeScan",
         "go-backend/internal/db/types_test.go:65#TestTimeValue",
         "go-backend/internal/db/types_test.go:84#TestTimeJSON",
@@ -77,7 +91,7 @@
     "initial": "unverified",
     "repeat": "unverified",
     "changed": "unverified",
-    "force": "unverified",
+    "force": "not_applicable",
     "failure": "unverified"
   }
 }
