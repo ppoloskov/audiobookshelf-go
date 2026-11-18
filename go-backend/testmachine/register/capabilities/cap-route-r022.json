@@ -110,7 +110,7 @@
     },
     {
       "id": "INV-R022-AUTH-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "The route is 401 without a token; checks run in the order library access (403), library exists (404), pagination (400 for a negative or fractional limit or page).",
       "status": "unverified",
       "source": [
@@ -129,7 +129,7 @@
     },
     {
       "id": "INV-R022-SORT-001",
-      "class": "sort",
+      "class": "shape",
       "contract": "Every sort key of the client menus (title, addedAt, size, birthtimeMs, mtimeMs, duration, publishedYear, authorName, authorNameLF, progress, progress.createdAt, progress.finishedAt, sequence, podcast author and numTracks, random) orders as defined, desc reverses, and the title sort honours the sortingIgnorePrefix server setting.",
       "status": "unverified",
       "source": [
@@ -149,7 +149,7 @@
     },
     {
       "id": "INV-R022-PAGING-001",
-      "class": "pagination",
+      "class": "shape",
       "contract": "limit and page slice the ordered list, offset is page*limit, total is the full count, limit 0 or absent lists everything.",
       "status": "unverified",
       "source": [
@@ -166,7 +166,7 @@
     },
     {
       "id": "INV-R022-FILTER-001",
-      "class": "filter",
+      "class": "shape",
       "contract": "Every filter group the client sends (base64 value) selects exactly the matching books; progress filters follow the requesting user; unknown groups do not filter; a series filter orders by sequence.",
       "status": "unverified",
       "source": [
@@ -192,7 +192,7 @@
     },
     {
       "id": "INV-R022-INCLUDE-001",
-      "class": "include",
+      "class": "shape",
       "contract": "include (lower-cased, trimmed, echoed) adds rssFeed for open feeds to everyone and mediaItemShare for admins only.",
       "status": "unverified",
       "source": [
@@ -208,7 +208,7 @@
     },
     {
       "id": "INV-R022-COLLAPSE-001",
-      "class": "collapse",
+      "class": "shape",
       "contract": "collapseseries=1 shows the first book of each series with collapsedSeries {id,name,nameIgnorePrefix,sequence,numBooks,libraryItemIds}; a single-series filter with collapseseries takes the sub-series path with its own paging.",
       "status": "unverified",
       "source": [
@@ -247,7 +247,7 @@
     },
     {
       "id": "INV-R022-RESTRICT-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "Explicit-content denial, allowed item tags and denied item tags remove books and podcasts from lists, totals and the collapsed list.",
       "status": "unverified",
       "source": [

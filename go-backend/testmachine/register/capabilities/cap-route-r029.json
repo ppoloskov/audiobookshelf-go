@@ -67,7 +67,7 @@
     },
     {
       "id": "INV-ROUTE-R029-AUTH-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "401 without token, 404 unknown library, 403 outside the user's libraries, 400 for an invalid limit.",
       "status": "unverified",
       "source": [
@@ -82,7 +82,7 @@
     },
     {
       "id": "INV-ROUTE-R029-RESTRICT-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "Shelves only contain books, series and authors the user may access.",
       "status": "unverified",
       "source": [

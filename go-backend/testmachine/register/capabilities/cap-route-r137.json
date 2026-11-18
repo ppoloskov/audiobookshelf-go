@@ -41,7 +41,7 @@
   "invariants": [
     {
       "id": "INV-ROUTE-R137-AUTH",
-      "class": "authorization",
+      "class": "error",
       "contract": "401 without token; 404 before 403; delete permission is needed (update is not enough).",
       "status": "unverified",
       "source": [
@@ -71,7 +71,7 @@
     },
     {
       "id": "INV-ROUTE-R137-REMOVE",
-      "class": "persistence",
+      "class": "state_transition",
       "contract": "An author without image is 400 (also on repeat); a missing file on disk does not prevent clearing imagePath.",
       "status": "unverified",
       "source": [

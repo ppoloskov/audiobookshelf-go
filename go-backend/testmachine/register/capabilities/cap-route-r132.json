@@ -48,7 +48,7 @@
   "invariants": [
     {
       "id": "INV-ROUTE-R132-AUTH",
-      "class": "authorization",
+      "class": "error",
       "contract": "401 without token; 404 (unknown author or inaccessible library) is answered before 403 for users without update permission; a rejected request changes nothing.",
       "status": "unverified",
       "source": [
@@ -63,7 +63,7 @@
     },
     {
       "id": "INV-ROUTE-R132-INPUT",
-      "class": "validation",
+      "class": "error",
       "contract": "Only keys name, description and asin with a string or null value count; a body with none of them is 400 and changes nothing.",
       "status": "unverified",
       "source": [
@@ -92,7 +92,7 @@
     },
     {
       "id": "INV-ROUTE-R132-FIELDS",
-      "class": "persistence",
+      "class": "state_transition",
       "contract": "null clears, empty string is stored as empty string, other keys (imagePath, libraryId, id) are ignored, a request that changes nothing answers updated:false without write or event, and a missing lastFirst is derived from the name.",
       "status": "unverified",
       "source": [
@@ -109,7 +109,7 @@
     },
     {
       "id": "INV-ROUTE-R132-RENAME",
-      "class": "persistence",
+      "class": "state_transition",
       "contract": "Renaming stores name and lastFirst, rewrites the author name in the metadata.json of its books, emits author_updated with numBooks and items_updated with the books.",
       "status": "unverified",
       "source": [
@@ -124,7 +124,7 @@
     },
     {
       "id": "INV-ROUTE-R132-MERGE",
-      "class": "persistence",
+      "class": "state_transition",
       "contract": "A name equal to another author of the same library merges: books move to that author (duplicates ignored), the old author is deleted, answer is {author, merged:true}; events author_removed (full old author), author_updated (existing, numBooks) and items_updated only when books moved.",
       "status": "unverified",
       "source": [

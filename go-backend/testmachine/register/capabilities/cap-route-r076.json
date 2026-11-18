@@ -59,7 +59,7 @@
     },
     {
       "id": "INV-R076-PROTECT-001",
-      "class": "authorization",
+      "class": "error",
       "status": "unverified",
       "evidence": [],
       "exceptions": [],

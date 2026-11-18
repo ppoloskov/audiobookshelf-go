@@ -74,7 +74,7 @@
     },
     {
       "id": "INV-ROUTE-R031-RESTRICT-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "Book and podcast hits and series hits follow the user's explicit and tag restrictions.",
       "status": "unverified",
       "source": [

@@ -41,7 +41,7 @@
   "invariants": [
     {
       "id": "INV-ROUTE-R133-AUTH",
-      "class": "authorization",
+      "class": "error",
       "contract": "401 without token; 404 before 403; users need the delete permission (update is not enough); rejected requests change nothing.",
       "status": "unverified",
       "source": [
@@ -71,7 +71,7 @@
     },
     {
       "id": "INV-ROUTE-R133-DELETE",
-      "class": "persistence",
+      "class": "state_transition",
       "contract": "An author image file stays on disk while the resized cache is purged; a second delete is 404.",
       "status": "unverified",
       "source": [

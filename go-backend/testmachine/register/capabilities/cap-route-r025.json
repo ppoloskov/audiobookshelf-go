@@ -63,7 +63,7 @@
     },
     {
       "id": "INV-R025-SORT-001",
-      "class": "sort",
+      "class": "shape",
       "contract": "Series sort keys name, numBooks, addedAt, lastBookAdded, lastBookUpdated, totalDuration and random order as defined; name honours sortingIgnorePrefix.",
       "status": "unverified",
       "source": [
@@ -80,7 +80,7 @@
     },
     {
       "id": "INV-R025-PAGING-001",
-      "class": "pagination",
+      "class": "shape",
       "contract": "limit and page slice the series list; total is the full count.",
       "status": "unverified",
       "source": [
@@ -95,7 +95,7 @@
     },
     {
       "id": "INV-R025-FILTER-001",
-      "class": "filter",
+      "class": "shape",
       "contract": "Series filters genres, tags, authors, narrators, publishers, languages and progress select series with a matching book; all and unknown filters select everything.",
       "status": "unverified",
       "source": [
@@ -109,7 +109,7 @@
     },
     {
       "id": "INV-R025-AUTH-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "401 without token, 404 unknown library, 403 outside the user's libraries, 400 for an invalid limit.",
       "status": "unverified",
       "source": [
@@ -123,7 +123,7 @@
     },
     {
       "id": "INV-R025-RESTRICT-001",
-      "class": "authorization",
+      "class": "error",
       "contract": "Series with no accessible book are hidden and only accessible books are listed (explicit, tag allow, tag deny).",
       "status": "unverified",
       "source": [

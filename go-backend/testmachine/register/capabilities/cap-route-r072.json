@@ -85,7 +85,7 @@
     },
     {
       "id": "INV-R072-AUTH-001",
-      "class": "authorization",
+      "class": "error",
       "status": "unverified",
       "evidence": [],
       "exceptions": [],

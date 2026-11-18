@@ -60,7 +60,7 @@
     },
     {
       "id": "INV-ROUTE-R131-ACCESS",
-      "class": "authorization",
+      "class": "error",
       "contract": "Without token the route is 401; an unknown id or an author of a library the user cannot access is 404; update, delete and upload permissions are not required to read.",
       "status": "unverified",
       "source": [
@@ -78,7 +78,7 @@
     },
     {
       "id": "INV-ROUTE-R131-ITEMS",
-      "class": "response",
+      "class": "shape",
       "contract": "include=items adds libraryItems (minified items of the author books); include=items,series also adds series groups ordered by sequence with metadata.series on each item; include=series alone or unknown values add nothing.",
       "status": "unverified",
       "source": [

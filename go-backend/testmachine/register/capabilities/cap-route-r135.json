@@ -50,7 +50,7 @@
   "invariants": [
     {
       "id": "INV-ROUTE-R135-ERRORS",
-      "class": "validation",
+      "class": "error",
       "contract": "404 for unknown author, author without image or missing file; 400 for unsupported formats or non-UUID ids (resized); no cache file is created by failures.",
       "status": "unverified",
       "source": [
@@ -83,7 +83,7 @@
     },
     {
       "id": "INV-ROUTE-R135-RESIZE",
-      "class": "response",
+      "class": "shape",
       "contract": "format (webp, jpeg, png; webp default when Accept has image/webp or */*), width and height (clamped to 4096, invalid values mean default) select the output; the cache file <id>_<w>[x<h>].<format> is created, reused, and purged when the image changes.",
       "status": "unverified",
       "source": [
@@ -101,7 +101,7 @@
     },
     {
       "id": "INV-ROUTE-R135-RAW",
-      "class": "response",
+      "class": "shape",
       "contract": "raw returns the stored file with its image content type and does not touch the cache.",
       "status": "unverified",
       "source": [
@@ -115,7 +115,7 @@
     },
     {
       "id": "INV-ROUTE-R135-AUTH",
-      "class": "authorization",
+      "class": "error",
       "contract": "The route needs no authentication (ignore pattern) and does not check library access.",
       "status": "unverified",
       "source": [

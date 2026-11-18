@@ -126,7 +126,7 @@
     },
     {
       "id": "INV-R075-ROOT-001",
-      "class": "authorization",
+      "class": "error",
       "status": "unverified",
       "evidence": [],
       "exceptions": [],
