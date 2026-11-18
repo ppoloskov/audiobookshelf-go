@@ -45,7 +45,7 @@
     {
       "id": "INV-R094-CONTRACT-001",
       "class": "state_transition",
-      "contract": "POST /api/playlists/:id/item appends one book, or one episode for a podcast playlist, as the last item (order n+1) and answers the expanded playlist.",
+      "contract": "POST /api/playlists/:id/item appends one book, or one episode for a podcast playlist, as the last item (order n+1) and answers the expanded playlist; adding a link leaves the playlist row's updatedAt (payload lastUpdate) unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:283-338",
@@ -78,7 +78,7 @@
     {
       "id": "INV-R094-ACCESS",
       "class": "precedence",
-      "contract": "POST /api/playlists/:id/item answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators.",
+      "contract": "POST /api/playlists/:id/item answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and changes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",

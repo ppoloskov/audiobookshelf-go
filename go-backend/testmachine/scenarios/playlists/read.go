@@ -182,6 +182,31 @@ func readScenarios() []harness.Scenario {
 			},
 		},
 		{
+			Requirement: "route-r090", Invariant: "INV-R090-SAMPLED", Case: "edge", State: "stateless", Assertion: "list-sorts-names-by-node-collation",
+			Sources: []string{"server/models/Playlist.js:84-87", "server/controllers/PlaylistController.js:138-143", "go-backend/testmachine/contracts/clients/absorb.md:110"},
+			Claim:   "Both playlist lists return the caller's playlists in JavaScript name collation order (case- and accent-insensitive, not byte order), across accessible libraries and within one library.",
+			Run: func(t *testing.T, e *harness.Env) {
+				// Node 22, locale en-US: ["Zulu","alpha","Émile","Bravo"].sort((a,b) => a.localeCompare(b))
+				// gives ["alpha","Bravo","Émile","Zulu"], while byte order would start with "Bravo".
+				fx := fixtureOf(e)
+				token := plainUser(t, e, "pl-sorter")
+				for _, name := range []string{"Zulu", "alpha", "Émile"} {
+					createAs(t, e, token, name, book(fx.novel))
+				}
+				createPodcastAs(t, e, token, "Bravo", episode(fx.podcast, fx.ep1))
+				names := func(list []playlist) []string {
+					out := make([]string, 0, len(list))
+					for _, p := range list {
+						out = append(out, p.Name)
+					}
+					return out
+				}
+				sameStrings(t, "GET /api/playlists order", names(list(t, e, token)), []string{"alpha", "Bravo", "Émile", "Zulu"})
+				sameStrings(t, "book library order", names(libraryPlaylists(t, e, token, e.IDs["library"])), []string{"alpha", "Émile", "Zulu"})
+				sameStrings(t, "podcast library order", names(libraryPlaylists(t, e, token, e.IDs["podcastLibrary"])), []string{"Bravo"})
+			},
+		},
+		{
 			Requirement: "route-r090", Invariant: "INV-R090-SAMPLED", Case: "edge", State: "stateless", Assertion: "list-other-users-get-empty-array",
 			Sources: []string{"server/controllers/PlaylistController.js:138-144"},
 			Claim:   "A user without playlists, administrators included, gets {playlists: []} (an empty array, not null) and never sees another user's playlists.",
@@ -247,7 +272,7 @@ func readScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r028", Invariant: "INV-ROUTE-R028-CONTRACT", Case: "edge", State: "stateless", Assertion: "library-list-empty-and-paginated",
 			Sources: []string{"server/controllers/LibraryController.js:853-870", "server/controllers/LibraryController.js:1487-1495"},
-			Claim:   "A user without playlists gets total 0 and an empty results array; limit and page slice the name-sorted results while total stays the full count.",
+			Claim:   "A user without playlists gets total 0 and an empty results array; limit and page slice the name-sorted results while total stays the full count, and a page without a limit or a zero limit returns every result.",
 			Run: func(t *testing.T, e *harness.Env) {
 				root := e.Get(t, e.Token(t, "root"), "/api/libraries/"+e.IDs["library"]+"/playlists")
 				wantStatus(t, root, http.StatusOK)
@@ -278,6 +303,8 @@ func readScenarios() []harness.Scenario {
 					want  []string
 				}{
 					{"", []string{"A pager", "B pager", "C pager"}},
+					{"?limit=0", []string{"A pager", "B pager", "C pager"}},
+					{"?page=1", []string{"A pager", "B pager", "C pager"}},
 					{"?limit=2&page=0", []string{"A pager", "B pager"}},
 					{"?limit=2&page=1", []string{"C pager"}},
 					{"?limit=2&page=5", nil},

@@ -9,7 +9,9 @@
     "server/routers/ApiRouter.js:159-168",
     "server/controllers/PlaylistController.js:23-100",
     "server/controllers/PlaylistController.js:158-386",
-    "server/controllers/CollectionController.js:1-260"
+    "server/controllers/CollectionController.js:1-260",
+    "client/components/cards/LazyBookCard.vue:533-539",
+    "client/components/modals/playlists/AddCreateModal.vue:184-185"
   ],
   "implementation": [
     "go-backend/internal/list/list.go"
@@ -37,7 +39,9 @@
         "server/controllers/PlaylistController.js:414-421",
         "server/controllers/PlaylistController.js:472-488",
         "server/controllers/CollectionController.js:38-64",
-        "server/routers/ApiRouter.js:159-168"
+        "server/routers/ApiRouter.js:159-168",
+        "client/components/cards/LazyBookCard.vue:533-539",
+        "client/components/modals/playlists/AddCreateModal.vue:184-185"
       ],
       "tests": [
         "go-backend/internal/contracttest/journey_lists_test.go:29#TestJourneyLists",

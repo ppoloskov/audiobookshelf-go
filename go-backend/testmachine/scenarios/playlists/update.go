@@ -43,7 +43,7 @@ func updateScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r092", Invariant: "INV-R092-ORDER", Case: "normal", State: "changed", Assertion: "patch-reorders-book-items",
 			Sources: []string{"server/controllers/PlaylistController.js:203-247"},
-			Claim:   "PATCH with items in a new order renumbers the persisted links 1..n in that order and the response and later reads list them in it.",
+			Claim:   "PATCH with items in a new order renumbers the persisted links 1..n in that order and the response and later reads list them in it, without changing the playlist row (name and lastUpdate stay).",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-editor")
@@ -52,9 +52,10 @@ func updateScenarios() []harness.Scenario {
 				sameStrings(t, "response", got.refs(), []string{fx.ebook, fx.saga1, fx.novel})
 				wantBookLinks(t, e, p.ID, fx.ebook, fx.saga1, fx.novel)
 				sameStrings(t, "read", fetchAs(t, e, token, p.ID).refs(), []string{fx.ebook, fx.saga1, fx.novel})
-				if got.Name != "Reorder" {
-					t.Fatalf("name must not change: %+v", got)
+				if got.Name != "Reorder" || got.LastUpdate != p.LastUpdate {
+					t.Fatalf("a reorder must not touch the playlist row: %+v", got)
 				}
+				wantRowTimeUnchanged(t, e, p)
 			},
 		},
 		{

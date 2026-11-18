@@ -23,7 +23,8 @@
     "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-owner-sees-own-sorted-by-name",
     "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-other-users-get-empty-array",
     "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-requires-token",
-    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists"
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists",
+    "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-sorts-names-by-node-collation"
   ],
   "evidence": [
     "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-list (differential pass)",
@@ -36,20 +37,22 @@
     {
       "id": "INV-R090-SAMPLED",
       "class": "shape",
-      "contract": "GET /api/playlists answers {playlists} with only the caller's playlists of libraries the caller can access, expanded and sorted by name; an empty array for a user without playlists; 401 without token.",
+      "contract": "GET /api/playlists answers {playlists} with only the caller's playlists of libraries the caller can access, expanded and sorted by JavaScript name collation (case- and accent-insensitive, not byte order); an empty array for a user without playlists; 401 without token.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:138-144",
         "server/models/Playlist.js:27-70",
         "server/routers/ApiRouter.js:160",
-        "server/controllers/PlaylistController.js:139-140"
+        "server/controllers/PlaylistController.js:139-140",
+        "server/models/Playlist.js:84-87"
       ],
       "tests": [
         "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-owner-sees-own-sorted-by-name",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-other-users-get-empty-array",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-requires-token",
-        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists"
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-sorts-names-by-node-collation"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-list",

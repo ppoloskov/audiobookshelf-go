@@ -42,7 +42,7 @@
     {
       "id": "INV-R089-SAMPLED",
       "class": "shape",
-      "contract": "POST /api/playlists creates a playlist owned by the caller (name stripped of HTML tags, description or null) with items in request order, persisted as playlists and playlistMediaItems rows (type book or podcastEpisode, order 1..n), and answers the expanded playlist; items may be empty.",
+      "contract": "POST /api/playlists creates a playlist owned by the caller (name stripped of HTML tags, description or null) with items in request order, persisted as playlists and playlistMediaItems rows (type book or podcastEpisode, order 1..n), and answers the expanded playlist; items may be empty; createdAt and updatedAt are the request time (so payload lastUpdate equals createdAt and the row updatedAt).",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:29-125",

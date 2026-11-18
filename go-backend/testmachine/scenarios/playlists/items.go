@@ -27,7 +27,7 @@ func itemScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r094", Invariant: "INV-R094-CONTRACT-001", Case: "normal", State: "initial", Assertion: "add-item-appends-book",
 			Sources: []string{"server/controllers/PlaylistController.js:283-338"},
-			Claim:   "POST /item appends a book as the last item: the response lists it last with its expanded library item, and the link is persisted with order n+1.",
+			Claim:   "POST /item appends a book as the last item: the response lists it last with its expanded library item, the link is persisted with order n+1, and the playlist row's lastUpdate stays.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-items")
@@ -39,6 +39,10 @@ func itemScenarios() []harness.Scenario {
 				}
 				wantBookLinks(t, e, p.ID, fx.saga1, fx.novel)
 				sameStrings(t, "read", fetchAs(t, e, token, p.ID).refs(), []string{fx.saga1, fx.novel})
+				if got.LastUpdate != p.LastUpdate {
+					t.Fatalf("adding an item must not touch the playlist row: lastUpdate %d -> %d", p.LastUpdate, got.LastUpdate)
+				}
+				wantRowTimeUnchanged(t, e, p)
 			},
 		},
 		{
@@ -105,21 +109,23 @@ func itemScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r094", Invariant: "INV-R094-ACCESS", Case: "error", State: "failure", Assertion: "add-item-rejects-foreign-unknown-and-anonymous",
 			Sources: []string{"server/controllers/PlaylistController.js:575-593"},
-			Claim:   "POST /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and changes nothing.",
+			Claim:   "POST /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and 404 for the owner after library access was revoked, and changes nothing.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
+				r := revokedUser(t, e)
 				unchanged(t, e, func() {
 					wantStatus(t, addItem(t, e, "", e.IDs["playlist"], book(fx.saga1)), http.StatusUnauthorized)
 					wantStatus(t, addItem(t, e, e.Token(t, "listener"), "no-such-playlist", book(fx.saga1)), http.StatusNotFound)
 					wantStatus(t, addItem(t, e, e.Token(t, "finisher"), e.IDs["playlist"], book(fx.saga1)), http.StatusForbidden)
 					wantStatus(t, addItem(t, e, e.Token(t, "root"), e.IDs["playlist"], book(fx.saga1)), http.StatusForbidden)
+					wantStatus(t, addItem(t, e, r.token, r.bookPlaylist.ID, book(fx.saga1)), http.StatusNotFound)
 				})
 			},
 		},
 		{
 			Requirement: "route-r095", Invariant: "INV-R095-CONTRACT-001", Case: "normal", State: "initial", Assertion: "remove-item-renumbers-the-rest",
 			Sources: []string{"server/controllers/PlaylistController.js:347-385"},
-			Claim:   "DELETE /item/:libraryItemId removes a book from the middle: the response and the persisted links keep the others in order, renumbered 1..n.",
+			Claim:   "DELETE /item/:libraryItemId removes a book from the middle: the response and the persisted links keep the others in order, renumbered 1..n, and the playlist row's lastUpdate stays.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-items")
@@ -128,6 +134,10 @@ func itemScenarios() []harness.Scenario {
 				sameStrings(t, "response", got.refs(), []string{fx.saga1, fx.ebook})
 				wantBookLinks(t, e, p.ID, fx.saga1, fx.ebook)
 				wantRow(t, e, fetchAs(t, e, token, p.ID))
+				if got.LastUpdate != p.LastUpdate {
+					t.Fatalf("removing an item must not touch the playlist row: lastUpdate %d -> %d", p.LastUpdate, got.LastUpdate)
+				}
+				wantRowTimeUnchanged(t, e, p)
 			},
 		},
 		{
@@ -149,14 +159,14 @@ func itemScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r095", Invariant: "INV-R095-EMPTY", Case: "edge", State: "changed", Assertion: "remove-last-item-deletes-playlist",
 			Sources: []string{"server/controllers/PlaylistController.js:373-384"},
-			Claim:   "Removing the last item answers 200 with the now item-less playlist and deletes the playlist and its links.",
+			Claim:   "Removing the last item answers 200 with the now item-less playlist, keeping its original lastUpdate, and deletes the playlist and its links.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-items")
 				p := createAs(t, e, token, "Last one", book(fx.novel))
 				got := decode(t, removeItem(t, e, token, p.ID, fx.novel, ""))
-				if got.ID != p.ID || len(got.Items) != 0 {
-					t.Fatalf("response must be the emptied playlist: %+v", got)
+				if got.ID != p.ID || len(got.Items) != 0 || got.LastUpdate != p.LastUpdate {
+					t.Fatalf("response must be the emptied playlist with its original lastUpdate: %+v", got)
 				}
 				noPlaylistRow(t, e, p.ID)
 				wantStatus(t, e.Get(t, token, "/api/playlists/"+p.ID), http.StatusNotFound)
@@ -180,14 +190,16 @@ func itemScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r095", Invariant: "INV-R095-ACCESS", Case: "error", State: "failure", Assertion: "remove-item-rejects-foreign-unknown-and-anonymous",
 			Sources: []string{"server/controllers/PlaylistController.js:575-593"},
-			Claim:   "DELETE /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and removes nothing.",
+			Claim:   "DELETE /item answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and 404 for the owner after library access was revoked, and removes nothing.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
+				r := revokedUser(t, e)
 				unchanged(t, e, func() {
 					wantStatus(t, removeItem(t, e, "", e.IDs["playlist"], fx.novel, ""), http.StatusUnauthorized)
 					wantStatus(t, removeItem(t, e, e.Token(t, "listener"), "no-such-playlist", fx.novel, ""), http.StatusNotFound)
 					wantStatus(t, removeItem(t, e, e.Token(t, "finisher"), e.IDs["playlist"], fx.novel, ""), http.StatusForbidden)
 					wantStatus(t, removeItem(t, e, e.Token(t, "root"), e.IDs["playlist"], fx.novel, ""), http.StatusForbidden)
+					wantStatus(t, removeItem(t, e, r.token, r.bookPlaylist.ID, fx.novel, ""), http.StatusNotFound)
 				})
 			},
 		},

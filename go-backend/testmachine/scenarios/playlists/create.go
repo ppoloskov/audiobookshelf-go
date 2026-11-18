@@ -18,7 +18,7 @@ func createScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r089", Invariant: "INV-R089-SAMPLED", Case: "normal", State: "initial", Assertion: "create-book-playlist-keeps-order",
 			Sources: []string{"server/controllers/PlaylistController.js:29-125", "server/models/Playlist.js:297-319"},
-			Claim:   "POST /api/playlists creates a playlist owned by the caller with the items in request order; the row, the links (type book, order 1..n) and the response agree.",
+			Claim:   "POST /api/playlists creates a playlist owned by the caller with the items in request order; createdAt and lastUpdate are both the request time; the row, the links (type book, order 1..n) and the response agree.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-creator")
@@ -29,8 +29,8 @@ func createScenarios() []harness.Scenario {
 				if p.ID == "" || p.Name != "Road trip" || p.Description == nil || *p.Description != "For the car" || p.UserID != userID(e, "pl-creator") || p.LibraryID != e.IDs["library"] {
 					t.Fatalf("created playlist wrong: %+v", p)
 				}
-				if p.CreatedAt < started-1000 || p.LastUpdate < started-1000 {
-					t.Fatalf("timestamps must be the request time: %+v", p)
+				if p.CreatedAt != p.LastUpdate || p.CreatedAt < started-1000 || p.CreatedAt > time.Now().UnixMilli()+1000 {
+					t.Fatalf("create must stamp createdAt and lastUpdate with the request time: %+v", p)
 				}
 				sameStrings(t, "items", p.refs(), []string{fx.saga1, fx.novel, fx.ebook})
 				for _, entry := range p.Items {

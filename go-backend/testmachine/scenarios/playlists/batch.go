@@ -22,7 +22,7 @@ func batchScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r096", Invariant: "INV-R096-SAMPLED", Case: "normal", State: "initial", Assertion: "batch-add-appends-in-request-order",
 			Sources: []string{"server/controllers/PlaylistController.js:394-454"},
-			Claim:   "POST /batch/add appends the new books in request order after the existing ones, persisting orders n+1.., and answers the expanded playlist.",
+			Claim:   "POST /batch/add appends the new books in request order after the existing ones, persisting orders n+1.., answers the expanded playlist and leaves the playlist row's lastUpdate alone.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-batch")
@@ -31,6 +31,10 @@ func batchScenarios() []harness.Scenario {
 				sameStrings(t, "response", got.refs(), []string{fx.saga1, fx.ebook, fx.novel})
 				wantBookLinks(t, e, p.ID, fx.saga1, fx.ebook, fx.novel)
 				sameStrings(t, "read", fetchAs(t, e, token, p.ID).refs(), []string{fx.saga1, fx.ebook, fx.novel})
+				if got.LastUpdate != p.LastUpdate {
+					t.Fatalf("batch add must not touch the playlist row: lastUpdate %d -> %d", p.LastUpdate, got.LastUpdate)
+				}
+				wantRowTimeUnchanged(t, e, p)
 			},
 		},
 		{
@@ -97,21 +101,23 @@ func batchScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r096", Invariant: "INV-R096-ACCESS", Case: "error", State: "failure", Assertion: "batch-add-rejects-foreign-unknown-and-anonymous",
 			Sources: []string{"server/controllers/PlaylistController.js:575-593"},
-			Claim:   "POST /batch/add answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and changes nothing.",
+			Claim:   "POST /batch/add answers 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and 404 for the owner after library access was revoked, and changes nothing.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
+				r := revokedUser(t, e)
 				unchanged(t, e, func() {
 					wantStatus(t, batchAdd(t, e, "", e.IDs["playlist"], book(fx.saga1)), http.StatusUnauthorized)
 					wantStatus(t, batchAdd(t, e, e.Token(t, "listener"), "no-such-playlist", book(fx.saga1)), http.StatusNotFound)
 					wantStatus(t, batchAdd(t, e, e.Token(t, "finisher"), e.IDs["playlist"], book(fx.saga1)), http.StatusForbidden)
 					wantStatus(t, batchAdd(t, e, e.Token(t, "root"), e.IDs["playlist"], book(fx.saga1)), http.StatusForbidden)
+					wantStatus(t, batchAdd(t, e, r.token, r.bookPlaylist.ID, book(fx.saga1)), http.StatusNotFound)
 				})
 			},
 		},
 		{
 			Requirement: "route-r097", Invariant: "INV-R097-SAMPLED", Case: "normal", State: "initial", Assertion: "batch-remove-keeps-remaining-order",
 			Sources: []string{"server/controllers/PlaylistController.js:463-502"},
-			Claim:   "POST /batch/remove deletes the listed books; the response and later reads list the remaining ones in their original order.",
+			Claim:   "POST /batch/remove deletes the listed books; the response and later reads list the remaining ones in their original order, and the playlist row's lastUpdate stays.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-batch")
@@ -122,6 +128,10 @@ func batchScenarios() []harness.Scenario {
 				if n := len(links(t, e, p.ID)); n != 2 {
 					t.Fatalf("persisted links = %d, want 2", n)
 				}
+				if got.LastUpdate != p.LastUpdate {
+					t.Fatalf("batch remove must not touch the playlist row: lastUpdate %d -> %d", p.LastUpdate, got.LastUpdate)
+				}
+				wantRowTimeUnchanged(t, e, p)
 			},
 		},
 		{
@@ -149,8 +159,8 @@ func batchScenarios() []harness.Scenario {
 				token := plainUser(t, e, "pl-batch")
 				p := createAs(t, e, token, "Batch empty", book(fx.saga1), book(fx.novel))
 				got := decode(t, batchRemove(t, e, token, p.ID, book(fx.saga1), book(fx.novel)))
-				if got.ID != p.ID || len(got.Items) != 0 {
-					t.Fatalf("response must be the emptied playlist: %+v", got)
+				if got.ID != p.ID || len(got.Items) != 0 || got.LastUpdate != p.LastUpdate {
+					t.Fatalf("response must be the emptied playlist with its original lastUpdate: %+v", got)
 				}
 				noPlaylistRow(t, e, p.ID)
 				wantStatus(t, e.Get(t, token, "/api/playlists/"+p.ID), http.StatusNotFound)
@@ -159,11 +169,12 @@ func batchScenarios() []harness.Scenario {
 		{
 			Requirement: "route-r097", Invariant: "INV-R097-VALIDATE", Case: "error", State: "failure", Assertion: "batch-remove-rejects-invalid-bodies-and-foreign-callers",
 			Sources: []string{"server/controllers/PlaylistController.js:464-466", "server/controllers/PlaylistController.js:575-593"},
-			Claim:   "POST /batch/remove answers 400 for missing, empty or malformed items, 401 without a token, 404 for an unknown playlist and 403 for another user or an administrator, and removes nothing.",
+			Claim:   "POST /batch/remove answers 400 for missing, empty or malformed items, 401 without a token, 404 for an unknown playlist, 403 for another user or an administrator, and 404 for the owner after library access was revoked, and removes nothing.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-batch")
 				p := createAs(t, e, token, "Batch remove strict", book(fx.novel))
+				r := revokedUser(t, e)
 				unchanged(t, e, func() {
 					for _, body := range []any{
 						map[string]any{},
@@ -178,6 +189,7 @@ func batchScenarios() []harness.Scenario {
 					wantStatus(t, batchRemove(t, e, e.Token(t, "listener"), "no-such-playlist", book(fx.novel)), http.StatusNotFound)
 					wantStatus(t, batchRemove(t, e, e.Token(t, "finisher"), e.IDs["playlist"], book(fx.novel)), http.StatusForbidden)
 					wantStatus(t, batchRemove(t, e, e.Token(t, "root"), e.IDs["playlist"], book(fx.novel)), http.StatusForbidden)
+					wantStatus(t, batchRemove(t, e, r.token, r.bookPlaylist.ID, book(fx.novel)), http.StatusNotFound)
 				})
 			},
 		},

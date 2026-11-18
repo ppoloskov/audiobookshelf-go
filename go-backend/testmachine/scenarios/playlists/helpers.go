@@ -237,6 +237,16 @@ func wantRow(t *testing.T, e *harness.Env, p playlist) {
 	}
 }
 
+// wantRowTimeUnchanged asserts that an operation which only rewrites playlist
+// links left the playlist row's updatedAt at the value the caller read before:
+// upstream saves the playlist row only when its name or description changed.
+func wantRowTimeUnchanged(t *testing.T, e *harness.Env, before playlist) {
+	t.Helper()
+	if got := millis(t, playlistRow(t, e, before.ID)["updatedAt"]); got != before.LastUpdate {
+		t.Fatalf("playlist row updatedAt moved from %d to %d", before.LastUpdate, got)
+	}
+}
+
 // snapshot is every playlist and link row; equal snapshots mean nothing changed.
 func snapshot(t *testing.T, e *harness.Env) string {
 	t.Helper()

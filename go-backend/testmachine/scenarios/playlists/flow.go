@@ -147,8 +147,8 @@ func flowScenarios() []harness.Scenario {
 		},
 		{
 			Requirement: "flow-client-list-ownership", Invariant: "INV-FLOW-CLIENT-LIST-OWNERSHIP-001", Case: "error", State: "changed", Assertion: "flow-collection-writes-denied-playlists-allowed",
-			Sources: []string{"server/controllers/CollectionController.js:38-64", "server/routers/ApiRouter.js:159-168"},
-			Claim:   "A user without update permission cannot create, change or delete collections, but can still make playlists, also from a collection, and the collection is unchanged.",
+			Sources: []string{"server/controllers/CollectionController.js:38-64", "server/routers/ApiRouter.js:159-168", "client/components/cards/LazyBookCard.vue:533-539", "client/components/modals/playlists/AddCreateModal.vue:184-185"},
+			Claim:   "A user without update permission cannot create, change or delete collections, but the client still offers them Add to playlist; they can make playlists, also from a collection, and the collection is unchanged.",
 			Run: func(t *testing.T, e *harness.Env) {
 				fx := fixtureOf(e)
 				token := plainUser(t, e, "pl-flow-noedit")

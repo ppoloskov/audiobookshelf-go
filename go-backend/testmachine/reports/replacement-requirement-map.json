@@ -25,7 +25,7 @@
     "go-backend/testmachine/register/capabilities/cap-flow-backup-restore-swap.json": "0550f7eec024ca010fd6eaa1ef67f311b0f59ce1299fc3dc8a61fab308f969c7",
     "go-backend/testmachine/register/capabilities/cap-flow-client-auth-token-lifecycle.json": "2f26a2453651265ada167ea947ef129c7d4c67302f22be50c85fb1f40feb17a0",
     "go-backend/testmachine/register/capabilities/cap-flow-client-feed-share.json": "0fbaae8dce23f90c5cd5d584de781d957cba3a78bc471c4723785ed70be11a57",
-    "go-backend/testmachine/register/capabilities/cap-flow-client-list-ownership.json": "b15c52f6cdec92e923cd011bea87f57bf4f396d93a25d5eab0c78b82bf910803",
+    "go-backend/testmachine/register/capabilities/cap-flow-client-list-ownership.json": "a27ce5456bb343276971e597cdcc3843331629a655d9d924deb663d308cef263",
     "go-backend/testmachine/register/capabilities/cap-flow-client-mobile-protocol.json": "3c7a433fd85dfca396ee3ce095a1aed6ec6ea860e2d89b85df0c5ece55bab739",
     "go-backend/testmachine/register/capabilities/cap-flow-client-oidc-mobile-pkce.json": "62e1c5afa05564d8e62c466277f2451c2d7354ba0face2c7a95c97872558004e",
     "go-backend/testmachine/register/capabilities/cap-flow-client-permissions-ownership.json": "cb7f6a7efc801c77e111407f934bf4e865eb2067ae7f2d89d95e5744334acf4a",
@@ -68,7 +68,7 @@
     "go-backend/testmachine/register/capabilities/cap-route-r025.json": "4c04c1dfa92e83d17d6c91af6bf1fd4f23e8adeef13a091037bbe22cc2e40bcd",
     "go-backend/testmachine/register/capabilities/cap-route-r026.json": "88a99282679d3e63e4e598fca2922574ba8d405b54a6725b751a9e21317f1a64",
     "go-backend/testmachine/register/capabilities/cap-route-r027.json": "0a79e5c91ca4c2851fe83c15bd1c1b46996469e9ee4478131f40984f5a766f20",
-    "go-backend/testmachine/register/capabilities/cap-route-r028.json": "4b7a397ec7cc3cd46298a842fb3dead73f504a3d0a8ead57325f1017cd08baec",
+    "go-backend/testmachine/register/capabilities/cap-route-r028.json": "35755f01f12453e679771bdbd65ea379746d9f0c2dfc068da836312ca3f7ecc1",
     "go-backend/testmachine/register/capabilities/cap-route-r029.json": "87b4fe9fa23b6c8c005182ec555829d3386815469e84f6f354ad250872fbd03d",
     "go-backend/testmachine/register/capabilities/cap-route-r030.json": "0b93c5a60a7c351d355f3a2ee7d1c5a0398666334dcfe8fd3fa7fc616fc816af",
     "go-backend/testmachine/register/capabilities/cap-route-r031.json": "3a2fd5b6fa39a9dd99ae6603345383dbb0bd80734c10bf6a017a55cd06311ac8",
@@ -129,15 +129,15 @@
     "go-backend/testmachine/register/capabilities/cap-route-r086.json": "355184fd7bb30ddd0410e790abf16e737841dfe307f14e49cb588a03dae10490",
     "go-backend/testmachine/register/capabilities/cap-route-r087.json": "4299f3beea13c61a8f1edf6ffd7d6831015ebf7efbfeb689a5036711b8aa846c",
     "go-backend/testmachine/register/capabilities/cap-route-r088.json": "55b5d69c77a1ea25e82499dd9ff5c49632f87984cb86b586bccfad13e0d75ad4",
-    "go-backend/testmachine/register/capabilities/cap-route-r089.json": "aede3b32be23a1867c915dbd4023538d34aee7d181dcf9147f5228f3fc3ecb1e",
-    "go-backend/testmachine/register/capabilities/cap-route-r090.json": "8faa51a5098b2d782a96d1f697b966ae7a02e9408750899c29be81f4cce76718",
+    "go-backend/testmachine/register/capabilities/cap-route-r089.json": "fa23a39c670a42c02cd77fa75cb92a5ded00133ecade5853fcd4e791dd685ad4",
+    "go-backend/testmachine/register/capabilities/cap-route-r090.json": "a7e8377751952cdc6250e7324e6fd55597f4a5b09693bd7f65df96e15d0f5d5c",
     "go-backend/testmachine/register/capabilities/cap-route-r091.json": "dadd93f231996836ee8e1d628530e4055a2e6232bed0b6a123a3bb86b6ea0249",
-    "go-backend/testmachine/register/capabilities/cap-route-r092.json": "2a678472d5086efca6929ffe2bec17293255fdce527911b790b92bb2a3f5f08a",
+    "go-backend/testmachine/register/capabilities/cap-route-r092.json": "d03207b3f427a8cb0d2515f18ce369869812791212ce2be0b93ab6e83179ecf5",
     "go-backend/testmachine/register/capabilities/cap-route-r093.json": "b8d881712e599000f685340bf7d1bbfaea8bc3a5e4615579a1f42230ca2ae79c",
-    "go-backend/testmachine/register/capabilities/cap-route-r094.json": "85f7c93f96cf209cdf83cca453c7c85a14caa1587a30a4e76cb86cc35065a878",
-    "go-backend/testmachine/register/capabilities/cap-route-r095.json": "6ede240756e12d4e201cc6c358428177cf884f1945f3417d06805bd0dfa5f2b9",
-    "go-backend/testmachine/register/capabilities/cap-route-r096.json": "1c3cad09629c09273c59da70383fb4869714461525ce8361d0edb8cd1a145e94",
-    "go-backend/testmachine/register/capabilities/cap-route-r097.json": "88ec1075d8db21d33f9cb7c6fe3809f6d782caf7661a2129b94f8c860d95cf00",
+    "go-backend/testmachine/register/capabilities/cap-route-r094.json": "d2c437604143e6cc82e5fa6bfeb55073ed6d96239c0847e76a9928e0ffd1c6af",
+    "go-backend/testmachine/register/capabilities/cap-route-r095.json": "0a7c272eea9b70b54ed1948c623cbf7074ec018efaa08a814c46a916522e9614",
+    "go-backend/testmachine/register/capabilities/cap-route-r096.json": "724e003dfc4ac3439de5b02ea5697b3645b7415e76ceee3d96f5456c900f4065",
+    "go-backend/testmachine/register/capabilities/cap-route-r097.json": "e9a9218731d6932b88df9403c25016cd02a8cd305e15e20394d451d342552bdb",
     "go-backend/testmachine/register/capabilities/cap-route-r098.json": "293f0c0f5ba47e6811415285d2696557fb10bb4ec344bf4d2ec3b5306b4020ef",
     "go-backend/testmachine/register/capabilities/cap-route-r099.json": "5afbfac08828f0e062c3667731b53a9c1a15eff9af3661714f9753c15bda40e9",
     "go-backend/testmachine/register/capabilities/cap-route-r100.json": "04bd340ea8a9a5a489c4ffa409992f008e4592bac562f211f2463b44af9161f2",
@@ -7129,7 +7129,9 @@
         "server/controllers/PlaylistController.js:414-421",
         "server/controllers/PlaylistController.js:472-488",
         "server/controllers/CollectionController.js:38-64",
-        "server/routers/ApiRouter.js:159-168"
+        "server/routers/ApiRouter.js:159-168",
+        "client/components/cards/LazyBookCard.vue:533-539",
+        "client/components/modals/playlists/AddCreateModal.vue:184-185"
       ],
       "tests": [
         "go-backend/internal/contracttest/journey_lists_test.go:29#TestJourneyLists",
@@ -10839,7 +10841,7 @@
       "invariant": "INV-ROUTE-R028-CONTRACT",
       "owner": "list",
       "packet": "Q16",
-      "contract": "GET /api/libraries/:id/playlists answers {results,total,limit,page} with the caller's name-sorted playlists of the library, sliced by limit/page (total is the full count); 401 without token, 403 for an inaccessible library, 404 for an unknown library, 400 for a negative or fractional limit/page.",
+      "contract": "GET /api/libraries/:id/playlists answers {results,total,limit,page} with the caller's playlists of the library in JavaScript name-collation order (case- and accent-insensitive), sliced by limit/page (total is the full count; a page without limit, or limit 0, returns every result); 401 without token, 403 for an inaccessible library (before the unknown-library lookup), 404 for an unknown library, 400 for a negative or fractional limit/page.",
       "status": "unverified",
       "source": [
         "server/controllers/LibraryController.js:853-870",
@@ -10847,7 +10849,8 @@
         "server/controllers/LibraryController.js:1487-1495",
         "server/controllers/LibraryController.js:1475-1498",
         "server/routers/ApiRouter.js:81",
-        "server/controllers/LibraryController.js:1475-1484"
+        "server/controllers/LibraryController.js:1475-1484",
+        "server/models/Playlist.js:84-87"
       ],
       "tests": [
         "go-backend/internal/list/list_test.go:420#TestLibraryListingsNeedLibraryAccess",
@@ -16394,7 +16397,7 @@
       "invariant": "INV-R089-SAMPLED",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists creates a playlist owned by the caller (name stripped of HTML tags, description or null) with items in request order, persisted as playlists and playlistMediaItems rows (type book or podcastEpisode, order 1..n), and answers the expanded playlist; items may be empty.",
+      "contract": "POST /api/playlists creates a playlist owned by the caller (name stripped of HTML tags, description or null) with items in request order, persisted as playlists and playlistMediaItems rows (type book or podcastEpisode, order 1..n), and answers the expanded playlist; items may be empty; createdAt and updatedAt are the request time (so payload lastUpdate equals createdAt and the row updatedAt).",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:29-125",
@@ -16512,20 +16515,22 @@
       "invariant": "INV-R090-SAMPLED",
       "owner": "list",
       "packet": "Q16",
-      "contract": "GET /api/playlists answers {playlists} with only the caller's playlists of libraries the caller can access, expanded and sorted by name; an empty array for a user without playlists; 401 without token.",
+      "contract": "GET /api/playlists answers {playlists} with only the caller's playlists of libraries the caller can access, expanded and sorted by JavaScript name collation (case- and accent-insensitive, not byte order); an empty array for a user without playlists; 401 without token.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:138-144",
         "server/models/Playlist.js:27-70",
         "server/routers/ApiRouter.js:160",
-        "server/controllers/PlaylistController.js:139-140"
+        "server/controllers/PlaylistController.js:139-140",
+        "server/models/Playlist.js:84-87"
       ],
       "tests": [
         "go-backend/internal/list/list_ported_test.go:197#TestPortedReadValuesAndPermissions",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-owner-sees-own-sorted-by-name",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-other-users-get-empty-array",
         "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-requires-token",
-        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists"
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-hides-inaccessible-library-playlists",
+        "go-backend/testmachine/scenarios/playlists/run_test.go#TestReplacement/list-sorts-names-by-node-collation"
       ],
       "evidence": [
         "go-backend/testmachine/contracts/parity/full-suite-report.json#playlist-list",
@@ -16647,7 +16652,7 @@
       "invariant": "INV-R092-ORDER",
       "owner": "list",
       "packet": "Q16",
-      "contract": "PATCH /api/playlists/:id with items renumbers the persisted links 1..n in the given order (books by library item, episodes by episode id) and answers them in that order.",
+      "contract": "PATCH /api/playlists/:id with items renumbers the persisted links 1..n in the given order (books by library item, episodes by episode id) and answers them in that order; only playlistMediaItem.order is rewritten, so the playlist row's updatedAt (payload lastUpdate) stays unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:203-247",
@@ -16825,7 +16830,7 @@
       "invariant": "INV-R094-CONTRACT-001",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/item appends one book, or one episode for a podcast playlist, as the last item (order n+1) and answers the expanded playlist.",
+      "contract": "POST /api/playlists/:id/item appends one book, or one episode for a podcast playlist, as the last item (order n+1) and answers the expanded playlist; adding a link leaves the playlist row's updatedAt (payload lastUpdate) unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:283-338",
@@ -16896,7 +16901,7 @@
       "invariant": "INV-R094-ACCESS",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/item answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators.",
+      "contract": "POST /api/playlists/:id/item answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and changes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",
@@ -16931,7 +16936,7 @@
       "invariant": "INV-R095-CONTRACT-001",
       "owner": "list",
       "packet": "Q16",
-      "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId? removes the book (or the episode when episodeId is given), renumbers the remaining links 1..n and answers the expanded playlist; an item not in the playlist, or a podcast item without episodeId, answers 404.",
+      "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId? removes the book (or the episode when episodeId is given), renumbers the remaining links 1..n and answers the expanded playlist; an item not in the playlist, or a podcast item without episodeId, answers 404; removing a link leaves the playlist row's updatedAt (payload lastUpdate) unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:347-385",
@@ -16972,7 +16977,7 @@
       "invariant": "INV-R095-EMPTY",
       "owner": "list",
       "packet": "Q16",
-      "contract": "Removing the last item answers 200 with an item-less playlist and deletes the playlist and its links.",
+      "contract": "Removing the last item answers 200 with an item-less playlist that keeps its original lastUpdate, and deletes the playlist and its links.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:373-384"
@@ -17005,7 +17010,7 @@
       "invariant": "INV-R095-ACCESS",
       "owner": "list",
       "packet": "Q16",
-      "contract": "DELETE /api/playlists/:id/item/... answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and removes nothing.",
+      "contract": "DELETE /api/playlists/:id/item/... answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and removes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",
@@ -17040,7 +17045,7 @@
       "invariant": "INV-R096-SAMPLED",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/batch/add appends the listed books or episodes not yet in the playlist in request order (orders n+1..), skips existing ones, and answers the expanded playlist.",
+      "contract": "POST /api/playlists/:id/batch/add appends the listed books or episodes not yet in the playlist in request order (orders n+1..), skips existing ones, and answers the expanded playlist; the playlist row's updatedAt (payload lastUpdate) stays unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:394-454",
@@ -17114,7 +17119,7 @@
       "invariant": "INV-R096-ACCESS",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/batch/add answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators.",
+      "contract": "POST /api/playlists/:id/batch/add answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and changes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",
@@ -17149,7 +17154,7 @@
       "invariant": "INV-R097-SAMPLED",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/batch/remove deletes the listed items that are in the playlist, ignores absent ones (200) and answers the expanded playlist with the remaining items in order.",
+      "contract": "POST /api/playlists/:id/batch/remove deletes the listed items that are in the playlist, ignores absent ones (200) and answers the expanded playlist with the remaining items in order; the playlist row's updatedAt (payload lastUpdate) stays unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:463-502",
@@ -17191,7 +17196,7 @@
       "invariant": "INV-R097-EMPTY",
       "owner": "list",
       "packet": "Q16",
-      "contract": "Removing every item by batch answers 200 with an item-less playlist and deletes the playlist and its links.",
+      "contract": "Removing every item by batch answers 200 with an item-less playlist that keeps its original lastUpdate, and deletes the playlist and its links.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:491-500"
@@ -17224,7 +17229,7 @@
       "invariant": "INV-R097-VALIDATE",
       "owner": "list",
       "packet": "Q16",
-      "contract": "POST /api/playlists/:id/batch/remove answers 400 for missing, empty or malformed items, 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and removes nothing.",
+      "contract": "POST /api/playlists/:id/batch/remove answers 400 for missing, empty or malformed items, 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and removes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:464-466",

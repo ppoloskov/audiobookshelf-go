@@ -40,7 +40,7 @@
     {
       "id": "INV-R096-SAMPLED",
       "class": "shape",
-      "contract": "POST /api/playlists/:id/batch/add appends the listed books or episodes not yet in the playlist in request order (orders n+1..), skips existing ones, and answers the expanded playlist.",
+      "contract": "POST /api/playlists/:id/batch/add appends the listed books or episodes not yet in the playlist in request order (orders n+1..), skips existing ones, and answers the expanded playlist; the playlist row's updatedAt (payload lastUpdate) stays unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:394-454",
@@ -76,7 +76,7 @@
     {
       "id": "INV-R096-ACCESS",
       "class": "precedence",
-      "contract": "POST /api/playlists/:id/batch/add answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators.",
+      "contract": "POST /api/playlists/:id/batch/add answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and changes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",

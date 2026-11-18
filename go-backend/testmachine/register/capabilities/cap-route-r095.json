@@ -46,7 +46,7 @@
     {
       "id": "INV-R095-CONTRACT-001",
       "class": "state_transition",
-      "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId? removes the book (or the episode when episodeId is given), renumbers the remaining links 1..n and answers the expanded playlist; an item not in the playlist, or a podcast item without episodeId, answers 404.",
+      "contract": "DELETE /api/playlists/:id/item/:libraryItemId/:episodeId? removes the book (or the episode when episodeId is given), renumbers the remaining links 1..n and answers the expanded playlist; an item not in the playlist, or a podcast item without episodeId, answers 404; removing a link leaves the playlist row's updatedAt (payload lastUpdate) unchanged.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:347-385",
@@ -68,7 +68,7 @@
     {
       "id": "INV-R095-EMPTY",
       "class": "state_transition",
-      "contract": "Removing the last item answers 200 with an item-less playlist and deletes the playlist and its links.",
+      "contract": "Removing the last item answers 200 with an item-less playlist that keeps its original lastUpdate, and deletes the playlist and its links.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:373-384"
@@ -82,7 +82,7 @@
     {
       "id": "INV-R095-ACCESS",
       "class": "precedence",
-      "contract": "DELETE /api/playlists/:id/item/... answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and removes nothing.",
+      "contract": "DELETE /api/playlists/:id/item/... answers 401 without a token, 404 for an unknown playlist, 403 for a non-owner including administrators, and 404 for the owner once access to the playlist's library was revoked, and removes nothing.",
       "status": "unverified",
       "source": [
         "server/controllers/PlaylistController.js:575-593",
